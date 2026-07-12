@@ -8,6 +8,7 @@ import {
   type ScanAggregateMetrics,
 } from "@/lib/maps/grid";
 import { computeSolv } from "@/lib/maps/grid-metrics";
+import { dedupeScanResults } from "@/lib/maps/cell-result-integrity";
 
 export type StoredCompetitor = {
   rank?: number;
@@ -228,6 +229,8 @@ type ScanPointRow = {
 
 type ScanResultRow = {
   scan_point_id: string;
+  keyword_id?: string;
+  created_at?: string;
   target_rank?: number | null;
   target_found?: boolean;
   confidence?: string | null;
@@ -248,7 +251,8 @@ export function buildEntityGridCells(
   entity: GridEntityRef,
   options?: { scanActive?: boolean; failedPointIds?: Set<string> }
 ): GridCellView[] {
-  const resultByPoint = new Map(results.map((r) => [r.scan_point_id, r]));
+  const deduped = dedupeScanResults(results);
+  const resultByPoint = new Map(deduped.map((r) => [r.scan_point_id, r]));
   const useTargetRank = entity.isTarget;
   const failedIds = options?.failedPointIds;
 

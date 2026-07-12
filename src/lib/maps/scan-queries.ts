@@ -2,6 +2,10 @@ import type { createServiceClient } from "@/lib/db/client";
 import { computeSolv } from "@/lib/maps/grid-metrics";
 import { computeAggregateMetrics } from "@/lib/maps/grid";
 import { isMapRenderable } from "@/lib/scans/status";
+import {
+  dedupeScanResults,
+  pickScanResultForPoint,
+} from "@/lib/maps/cell-result-integrity";
 import type { BusinessKeywordRow, BusinessRow, ScanBatchRow, ScanPointRow, ScanResultRow } from "@/lib/db/types";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
@@ -364,7 +368,7 @@ async function fetchScanGridData(
       query = query.eq("keyword_id", activeKeyword.id);
     }
     const { data } = await query;
-    results = (data ?? []) as ScanResultRow[];
+    results = dedupeScanResults((data ?? []) as ScanResultRow[]);
   }
 
   return {
@@ -403,7 +407,7 @@ export async function loadScanGridData(
   return promise;
 }
 
-/** Load grid data, busting cache when a cell id is missing (e.g. after move-grid scan). */
+/** Load grid data, busting cache when a cell id or saved result is missing. */
 export async function loadScanGridDataForCell(
   supabase: ServiceClient,
   scanId: string,
@@ -414,11 +418,14 @@ export async function loadScanGridDataForCell(
   if (!gridData) return null;
 
   let point = gridData.points.find((p) => p.id === cellId);
-  if (!point) {
+  let result = point ? pickScanResultForPoint(gridData.results, cellId) : undefined;
+
+  if (!point || !result) {
     invalidateScanGridCache(scanId);
     gridData = await fetchScanGridData(supabase, scanId, keywordId);
     if (!gridData) return null;
     point = gridData.points.find((p) => p.id === cellId);
+    result = point ? pickScanResultForPoint(gridData.results, cellId) : undefined;
     if (point && shouldCacheGridData(gridData)) {
       const memKey = gridDataMemoryKey(scanId, keywordId);
       gridDataMemory.set(memKey, { data: gridData, expiresAt: Date.now() + GRID_DATA_TTL_MS });

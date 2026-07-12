@@ -50,6 +50,8 @@ type CellInspectorData = {
   rawResults: StoredCompetitor[];
   resultCount: number;
   hasRawResults: boolean;
+  sparseResults?: boolean;
+  sparseReason?: string | null;
   checkUrl?: string | null;
   sourceTimestamp?: string | null;
   provider?: string;
@@ -339,6 +341,12 @@ export function CellInspectorDrawer({
 
             <section>
               <h3 className="text-[13px] font-semibold text-zinc-900">Top results at this point</h3>
+              {data.sparseResults && (
+                <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
+                  {data.sparseReason ??
+                    "Maps returned too few listings for this point. Rank may be correct, but competitor data is incomplete — rerun the scan to retry this cell."}
+                </p>
+              )}
               {!data.hasRawResults ? (
                 <p className="mt-2 text-zinc-500">Raw results not stored for this scan.</p>
               ) : (

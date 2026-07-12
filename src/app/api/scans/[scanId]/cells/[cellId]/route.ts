@@ -9,6 +9,11 @@ import {
 } from "@/lib/maps/grid-entity";
 import { loadScanGridDataForCell } from "@/lib/maps/scan-queries";
 import { profileFromBatch } from "@/lib/maps/scan-profiles";
+import {
+  pickScanResultForPoint,
+  validateStoredCellResult,
+} from "@/lib/maps/cell-result-integrity";
+import { mapsDepth } from "@/lib/jobs/run-grid-cells";
 
 export async function GET(
   request: Request,
@@ -25,8 +30,9 @@ export async function GET(
     if (!loaded) return NextResponse.json({ error: "Cell not found" }, { status: 404 });
 
     const { gridData, point } = loaded;
-    const result = gridData.results.find((r) => r.scan_point_id === cellId);
+    const result = pickScanResultForPoint(gridData.results, cellId);
     const competitors = (result?.top_competitors_json ?? []) as StoredCompetitor[];
+    const serpValidation = validateStoredCellResult(result, mapsDepth());
     const { row, col } = parseGridLabel(point.grid_label);
     const you = buildYouEntity(gridData.business ?? {});
     const match = findEntityInCompetitors(competitors, you);
@@ -65,6 +71,8 @@ export async function GET(
       rawResults: competitors,
       resultCount: competitors.length,
       hasRawResults: competitors.length > 0,
+      sparseResults: !serpValidation.complete,
+      sparseReason: serpValidation.reason ?? null,
       checkUrl: (result?.check_url as string | null) ?? null,
       sourceTimestamp: (result?.source_timestamp as string | null) ?? null,
       provider: process.env.NODE_ENV === "development" ? gridData.batch.provider : undefined,

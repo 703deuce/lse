@@ -2,6 +2,8 @@ import { createServiceClient } from "@/lib/db/client";
 import { computeAggregateMetrics, aggregateCompetitors } from "@/lib/maps/grid";
 import { invalidateScanGridCache } from "@/lib/maps/scan-queries";
 import { runScanEnrichment } from "@/lib/jobs/run-scan-enrichment";
+import { validateStoredCellResult } from "@/lib/maps/cell-result-integrity";
+import { mapsDepth } from "@/lib/jobs/run-grid-cells";
 
 /**
  * Phase 1 — mark scan rank-ready as soon as grid cells are saved. Map is usable.
@@ -38,6 +40,11 @@ export async function finalizeRankReady(
 
   const allRanks = (results ?? []).map((r) => r.target_rank as number | null);
   const aggregateMetrics = computeAggregateMetrics(allRanks);
+
+  const depth = mapsDepth();
+  const sparsePointIds = (results ?? [])
+    .filter((r) => !validateStoredCellResult(r, depth).complete)
+    .map((r) => r.scan_point_id as string);
 
   const hasEmptyProviderData =
     (results ?? []).length > 0 &&
@@ -93,15 +100,19 @@ export async function finalizeRankReady(
         total_cells: totalCells,
         failed_cells: actualFailed,
         failed_point_ids: failedPointIds,
+        sparse_point_ids: sparsePointIds,
+        sparse_cells: sparsePointIds.length,
         provider_error: hasEmptyProviderData
           ? "Bright Data returned no map results — check BRIGHTDATA_API_KEY, BRIGHTDATA_ZONE (serp_api1), and account credits"
           : conf.provider_error,
       },
       error_message: hasEmptyProviderData
         ? "Bright Data returned empty results for all cells"
-        : failedCells > 0
-          ? `${failedCells} of ${totalCells} points failed. Rank map is still usable.`
-          : null,
+        : sparsePointIds.length > 0
+          ? `${sparsePointIds.length} cell${sparsePointIds.length === 1 ? "" : "s"} returned sparse Maps data (rank may show without competitors).`
+          : failedCells > 0
+            ? `${failedCells} of ${totalCells} points failed. Rank map is still usable.`
+            : null,
     })
     .eq("id", scanBatchId);
 

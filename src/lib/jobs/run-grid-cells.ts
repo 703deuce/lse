@@ -14,6 +14,12 @@ import {
 import { saveCellTelemetry } from "@/lib/jobs/scan-cell-telemetry";
 import { refreshScanAggregateMetrics } from "@/lib/jobs/refresh-scan-metrics";
 import { maybeStartEarlyEnrichment } from "@/lib/jobs/run-early-enrichment";
+import {
+  isRetryableCellSerpError,
+  validateLiveCellSerp,
+  validateStoredCellResult,
+} from "@/lib/maps/cell-result-integrity";
+import { invalidateScanGridCache } from "@/lib/maps/scan-queries";
 
 /** Bright Data SERP API: unlimited in-flight concurrency; keep a modest worker pool in-app. */
 const BRIGHTDATA_DEFAULT_CONCURRENCY = 10;
@@ -86,6 +92,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 function isRetryableError(err: Error): boolean {
   const msg = err.message.toLowerCase();
   return (
+    isRetryableCellSerpError(msg) ||
     msg.includes("timeout") ||
     msg.includes("429") ||
     msg.includes("rate") ||
@@ -218,23 +225,21 @@ async function runOneCell(
       apiSec = elapsedSec(apiStart);
 
       const items = live.items as MapsLiveResult[];
-      if (!items.length) {
-        throw new Error("Bright Data returned no map results for this cell");
+      const targetInput = {
+        cid: job.business.cid,
+        place_id: job.business.place_id,
+        name: job.business.name,
+        address: job.business.address_text,
+        phone: job.business.phone,
+        website_url: job.business.website_url,
+      };
+      const serpValidation = validateLiveCellSerp(items, targetInput, depth);
+      if (!serpValidation.complete) {
+        throw new Error(serpValidation.reason ?? "Incomplete map results for this cell");
       }
 
       const matchStart = performance.now();
-      const match = matchTargetInResults(
-        items,
-        {
-          cid: job.business.cid,
-          place_id: job.business.place_id,
-          name: job.business.name,
-          address: job.business.address_text,
-          phone: job.business.phone,
-          website_url: job.business.website_url,
-        },
-        items.length
-      );
+      const match = matchTargetInResults(items, targetInput, items.length);
       matchingSec = elapsedSec(matchStart);
 
       if (parityDebug()) {
@@ -249,7 +254,12 @@ async function runOneCell(
       }
 
       const dbStart = performance.now();
-      await supabase.from("scan_results").insert({
+      await supabase
+        .from("scan_results")
+        .delete()
+        .eq("scan_point_id", job.point.id)
+        .eq("keyword_id", job.keyword.id);
+      const { error: insertError } = await supabase.from("scan_results").insert({
         scan_point_id: job.point.id,
         keyword_id: job.keyword.id,
         target_rank: match.rank,
@@ -260,6 +270,7 @@ async function runOneCell(
         top_competitors_json: extractTopCompetitors(items),
         provider_request_json: live.request as unknown as Record<string, unknown>,
       });
+      if (insertError) throw new Error(insertError.message);
       dbSaveSec = elapsedSec(dbStart);
 
       const totalSec = elapsedSec(cellStarted);
@@ -594,6 +605,89 @@ export async function runGridCellsLive(params: {
       failed_point_ids: stillFailedIds,
     });
     console.log(`[Scan] Background retry recovered ${recovered}/${failedJobs.length} cells`);
+  }
+
+  const { data: pointRows } = await supabase
+    .from("scan_points")
+    .select("id")
+    .eq("scan_batch_id", params.scanBatchId);
+  const savedPointIds = (pointRows ?? []).map((p) => p.id as string);
+  const { data: savedResults } = savedPointIds.length
+    ? await supabase
+        .from("scan_results")
+        .select("scan_point_id, keyword_id, target_found, top_competitors_json")
+        .in("scan_point_id", savedPointIds)
+    : { data: [] };
+
+  const incompleteJobs = jobs.filter((job) => {
+    const row = (savedResults ?? []).find(
+      (r) => r.scan_point_id === job.point.id && r.keyword_id === job.keyword.id
+    );
+    return !validateStoredCellResult(row, depth).complete;
+  });
+
+  if (incompleteJobs.length > 0) {
+    console.log(
+      `[Scan] Integrity retry for ${incompleteJobs.length} sparse/incomplete cells (concurrency=3)`
+    );
+    const integrityPass = await runJobsWithConcurrency(incompleteJobs, {
+      scanBatchId: params.scanBatchId,
+      depth,
+      timeoutMs: backgroundTimeoutMs,
+      maxAttempts: backgroundMaxAttempts,
+      concurrency: 3,
+      totalCells,
+      passLabel: "integrity",
+      updateProgress: false,
+      onCellSettled,
+      organizationId: params.organizationId,
+    });
+    allTimings.push(...integrityPass.timings);
+
+    const { data: refreshedResults } = savedPointIds.length
+      ? await supabase
+          .from("scan_results")
+          .select("scan_point_id, keyword_id, target_found, top_competitors_json")
+          .in("scan_point_id", savedPointIds)
+      : { data: [] };
+
+    const stillIncompleteIds = incompleteJobs
+      .filter((job) => {
+        const row = (refreshedResults ?? []).find(
+          (r) => r.scan_point_id === job.point.id && r.keyword_id === job.keyword.id
+        );
+        return !validateStoredCellResult(row, depth).complete;
+      })
+      .map((job) => job.point.id);
+
+    const integrityRecovered = incompleteJobs.length - stillIncompleteIds.length;
+    if (stillIncompleteIds.length > 0) {
+      failedCells += stillIncompleteIds.length;
+      successCells = totalCells - failedCells;
+    }
+
+    const { data: existingBatch } = await supabase
+      .from("scan_batches")
+      .select("confidence_summary")
+      .eq("id", params.scanBatchId)
+      .single();
+    const prevFailedIds = Array.isArray(
+      (existingBatch?.confidence_summary as Record<string, unknown> | undefined)?.failed_point_ids
+    )
+      ? ((existingBatch?.confidence_summary as Record<string, unknown>).failed_point_ids as string[])
+      : [];
+
+    await saveCellProgress(params.scanBatchId, totalCells, totalCells, failedCells, {
+      pass: "integrity",
+      failed_point_ids: [...new Set([...prevFailedIds, ...stillIncompleteIds])],
+      sparse_point_ids: stillIncompleteIds,
+      integrity_retries: incompleteJobs.length,
+      integrity_recovered: integrityRecovered,
+    });
+    invalidateScanGridCache(params.scanBatchId);
+    console.log(
+      `[Scan] Integrity retry recovered ${integrityRecovered}/${incompleteJobs.length} cells; ${stillIncompleteIds.length} still sparse`
+    );
   }
 
   if (!rankReadyFired && params.onSoftReady) {

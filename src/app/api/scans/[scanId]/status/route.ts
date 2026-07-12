@@ -3,6 +3,8 @@ import { createServiceClient } from "@/lib/db/client";
 import { requireScanAccess } from "@/lib/auth/api-auth";
 import { kickQueuedScanIfNeeded } from "@/lib/jobs/schedule-scan";
 import { isMapRenderable } from "@/lib/scans/status";
+import { dedupeScanResults } from "@/lib/maps/cell-result-integrity";
+import type { ScanResultRow } from "@/lib/db/types";
 
 export async function GET(
   request: Request,
@@ -46,7 +48,7 @@ export async function GET(
         query = query.eq("keyword_id", activeKeyword.id);
       }
       const { data } = await query;
-      results = data ?? [];
+      results = dedupeScanResults((data ?? []) as ScanResultRow[]);
     }
 
     const { data: priorBatch } = await supabase
