@@ -30,8 +30,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: parsed.error.message }, { status: 400 });
     }
 
-    const { businessId, gridSize, radiusMeters, scanType, device, os, browser, parityLabel } =
-      parsed.data;
+    const { businessId, gridSize, radiusMeters, device, os, browser, parityLabel } = parsed.data;
     const auth = await requireBusinessAccess(businessId);
 
     const creditsNeeded = gridMapCredits(gridSize);
@@ -43,7 +42,7 @@ export async function POST(request: Request) {
       .insert({
         business_id: businessId,
         status: "queued",
-        scan_type: scanType,
+        scan_type: "quick",
         grid_size: gridSize,
         radius_meters: radiusMeters,
         device,

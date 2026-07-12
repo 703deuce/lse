@@ -72,7 +72,7 @@ export function ScanSetupForm({
           businessId,
           gridSize: form.gridSize,
           radiusMeters: form.radiusMeters,
-          scanType: form.gridSize >= 7 ? "standard" : "quick",
+          scanType: "quick",
           device: form.device,
           os: form.os,
           browser: form.browser,

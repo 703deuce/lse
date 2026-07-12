@@ -20,7 +20,7 @@ export async function POST(
       .insert({
         business_id: existing.business_id,
         status: "queued",
-        scan_type: existing.scan_type,
+        scan_type: "quick",
         grid_size: existing.grid_size,
         radius_meters: existing.radius_meters,
         device: existing.device,

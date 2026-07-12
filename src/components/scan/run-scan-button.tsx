@@ -33,7 +33,7 @@ export function RunScanButton({
           businessId,
           gridSize,
           radiusMeters,
-          scanType: gridSize >= 7 ? "standard" : "quick",
+          scanType: "quick",
           device: DEFAULT_SCAN_PROFILE.device,
           os: DEFAULT_SCAN_PROFILE.os,
           browser: DEFAULT_SCAN_PROFILE.browser,
