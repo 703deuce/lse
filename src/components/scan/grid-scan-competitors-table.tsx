@@ -21,7 +21,6 @@ const BULLET_COLORS = [
 interface GridScanCompetitorsTableProps {
   competitors: TopCompetitorRow[];
   keyword?: string | null;
-  enrichmentComplete?: boolean;
   onSelectCompetitor: (key: string, raw: StoredCompetitor) => void;
   className?: string;
 }
@@ -29,7 +28,6 @@ interface GridScanCompetitorsTableProps {
 export function GridScanCompetitorsTable({
   competitors,
   keyword,
-  enrichmentComplete,
   onSelectCompetitor,
   className = "",
 }: GridScanCompetitorsTableProps) {
@@ -66,6 +64,7 @@ export function GridScanCompetitorsTable({
                         type="button"
                         onClick={() => onSelectCompetitor(entityKeyFromParts(c), c)}
                         className="text-left text-[13px] font-medium text-zinc-900 hover:text-[#137752]"
+                        title="View on map"
                       >
                         {c.name}
                       </button>
@@ -84,9 +83,6 @@ export function GridScanCompetitorsTable({
           </tbody>
         </table>
       </div>
-      {!enrichmentComplete && (
-        <p className="mt-2 text-[11px] text-zinc-500">Fingerprint opens after enrichment completes.</p>
-      )}
     </div>
   );
 }

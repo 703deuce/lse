@@ -6,7 +6,6 @@ import {
   ChevronRight,
   Copy,
   ExternalLink,
-  Fingerprint,
   GitCompare,
   Globe,
   Loader2,
@@ -16,7 +15,6 @@ import {
 import { rankLabel } from "@/lib/maps/grid-metrics";
 import type { StoredCompetitor } from "@/lib/maps/grid-entity";
 import type { CellWhyResult } from "@/lib/maps/cell-why";
-import { CompetitorFingerprintDrawer } from "@/components/competitors/competitor-fingerprint-drawer";
 import { GridStarRating, gridInspectorActionBtn } from "@/components/scan/grid-rank-ui";
 import { cn } from "@/lib/utils";
 
@@ -37,9 +35,6 @@ type CellInspectorData = {
     radiusMeters: number;
     createdAt: string;
     finishedAt?: string | null;
-    device: string;
-    os: string;
-    browser: string;
   };
   target: {
     rank: number | null;
@@ -54,8 +49,6 @@ type CellInspectorData = {
   sparseReason?: string | null;
   checkUrl?: string | null;
   sourceTimestamp?: string | null;
-  provider?: string;
-  debug?: Record<string, unknown>;
 };
 
 type TabId = "results" | "why" | "raw";
@@ -66,7 +59,6 @@ interface CellInspectorDrawerProps {
   keywordId?: string | null;
   businessId: string;
   selectedEntityKey?: string;
-  enrichmentComplete?: boolean;
   variant?: "drawer" | "panel";
   pointLabel?: string | null;
   onNavigatePrev?: () => void;
@@ -75,8 +67,6 @@ interface CellInspectorDrawerProps {
   canNavigateNext?: boolean;
   onClose: () => void;
   onCompareCell?: (cellId: string) => void;
-  onOpenCompetitorCompare?: (entityKey: string) => void;
-  onShowCompetitorGrid?: (entityKey: string) => void;
 }
 
 const isDev = process.env.NODE_ENV === "development";
@@ -87,9 +77,7 @@ export function CellInspectorDrawer({
   scanId,
   cellId,
   keywordId,
-  businessId,
   selectedEntityKey = "you",
-  enrichmentComplete = false,
   variant = "drawer",
   pointLabel,
   onNavigatePrev,
@@ -98,8 +86,6 @@ export function CellInspectorDrawer({
   canNavigateNext = false,
   onClose,
   onCompareCell,
-  onOpenCompetitorCompare,
-  onShowCompetitorGrid,
 }: CellInspectorDrawerProps) {
   const [data, setData] = useState<CellInspectorData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -109,11 +95,6 @@ export function CellInspectorDrawer({
   const [whyData, setWhyData] = useState<CellWhyResult | null>(null);
   const [whyLoading, setWhyLoading] = useState(false);
   const [whyError, setWhyError] = useState<string | null>(null);
-  const [fingerprint, setFingerprint] = useState<{
-    entityKey: string;
-    competitorId?: string | null;
-    raw?: StoredCompetitor;
-  } | null>(null);
   const [expandedResults, setExpandedResults] = useState(false);
 
   const load = useCallback(async () => {
@@ -168,8 +149,8 @@ export function CellInspectorDrawer({
   }, [cellId, load]);
 
   useEffect(() => {
-    if (tab === "why" && cellId && enrichmentComplete && !whyData && !whyLoading) void loadWhy();
-  }, [tab, cellId, enrichmentComplete, whyData, whyLoading, loadWhy]);
+    if (tab === "why" && cellId && !whyData && !whyLoading) void loadWhy();
+  }, [tab, cellId, whyData, whyLoading, loadWhy]);
 
   if (!cellId) return null;
 
@@ -179,21 +160,6 @@ export function CellInspectorDrawer({
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }
-
-  async function openCompetitor(raw: StoredCompetitor) {
-    if (!enrichmentComplete) return;
-    const res = await fetch("/api/competitors/resolve-from-result", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ businessId, scanId, rawResult: raw }),
-    });
-    const json = await res.json();
-    setFingerprint({
-      entityKey: json.entityKey,
-      competitorId: json.competitorId,
-      raw,
-    });
   }
 
   const tabs: { id: TabId; label: string }[] = [
@@ -260,28 +226,21 @@ export function CellInspectorDrawer({
       </div>
 
       <div className="flex gap-0 border-b border-zinc-200 px-4">
-        {tabs.map((t) => {
-          const whyLocked = t.id === "why" && !enrichmentComplete;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => !whyLocked && setTab(t.id)}
-              disabled={whyLocked}
-              title={whyLocked ? "Available after competitor enrichment finishes" : undefined}
-              className={cn(
-                "-mb-px border-b-2 px-3 py-2.5 text-[13px] font-medium transition-colors",
-                tab === t.id
-                  ? "border-[#137752] text-[#137752]"
-                  : whyLocked
-                    ? "cursor-not-allowed border-transparent text-zinc-300"
-                    : "border-transparent text-zinc-500 hover:text-zinc-800"
-              )}
-            >
-              {t.label}
-            </button>
-          );
-        })}
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            className={cn(
+              "-mb-px border-b-2 px-3 py-2.5 text-[13px] font-medium transition-colors",
+              tab === t.id
+                ? "border-[#137752] text-[#137752]"
+                : "border-transparent text-zinc-500 hover:text-zinc-800"
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 text-sm">
@@ -344,11 +303,11 @@ export function CellInspectorDrawer({
               {data.sparseResults && (
                 <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
                   {data.sparseReason ??
-                    "Maps returned too few listings for this point. Rank may be correct, but competitor data is incomplete — rerun the scan to retry this cell."}
+                    "Maps returned too few listings for this point. Rerun the scan to retry this cell."}
                 </p>
               )}
               {!data.hasRawResults ? (
-                <p className="mt-2 text-zinc-500">Raw results not stored for this scan.</p>
+                <p className="mt-2 text-zinc-500">No listings stored for this point.</p>
               ) : (
                 <>
                   <div className="mt-2 overflow-x-auto rounded-lg border border-zinc-200">
@@ -359,7 +318,8 @@ export function CellInspectorDrawer({
                           <th className="px-2 py-2">Business</th>
                           <th className="px-2 py-2">Rating</th>
                           <th className="hidden px-2 py-2 sm:table-cell">Category</th>
-                          <th className="px-2 py-2 text-right">Actions</th>
+                          <th className="hidden px-2 py-2 md:table-cell">Phone</th>
+                          <th className="px-2 py-2 text-right">Website</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-100">
@@ -378,13 +338,7 @@ export function CellInspectorDrawer({
                                 {r.rank ?? i + 1}
                               </td>
                               <td className="max-w-[140px] px-2 py-2.5 align-top">
-                                <button
-                                  type="button"
-                                  onClick={() => void openCompetitor(r)}
-                                  className="text-left text-[13px] font-semibold text-blue-700 hover:underline"
-                                >
-                                  {r.name ?? "—"}
-                                </button>
+                                <p className="text-[13px] font-semibold text-zinc-900">{r.name ?? "—"}</p>
                                 {r.address && (
                                   <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-zinc-500">
                                     {r.address}
@@ -397,40 +351,29 @@ export function CellInspectorDrawer({
                               <td className="hidden max-w-[100px] px-2 py-2.5 align-top text-[11px] text-zinc-600 sm:table-cell">
                                 {r.category ?? "—"}
                               </td>
+                              <td className="hidden whitespace-nowrap px-2 py-2.5 align-top text-[11px] text-zinc-600 md:table-cell">
+                                {r.phone ? (
+                                  <a href={`tel:${r.phone}`} className="hover:text-[#137752]">
+                                    {r.phone}
+                                  </a>
+                                ) : (
+                                  "—"
+                                )}
+                              </td>
                               <td className="px-2 py-2.5 align-top text-right">
-                                <div className="flex flex-col items-end gap-1">
-                                  {enrichmentComplete ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => void openCompetitor(r)}
-                                      className="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-600 hover:text-[#137752]"
-                                    >
-                                      <Fingerprint className="h-3 w-3" />
-                                      Fingerprint
-                                    </button>
-                                  ) : (
-                                    <span
-                                      className="inline-flex items-center gap-1 text-[11px] text-zinc-400"
-                                      title="Available after enrichment"
-                                    >
-                                      <Fingerprint className="h-3 w-3" />
-                                      Fingerprint
-                                    </span>
-                                  )}
-                                  {r.url ? (
-                                    <a
-                                      href={r.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-600 hover:text-[#137752]"
-                                    >
-                                      <Globe className="h-3 w-3" />
-                                      Website
-                                    </a>
-                                  ) : (
-                                    <span className="text-[11px] text-zinc-300">Website</span>
-                                  )}
-                                </div>
+                                {r.url ? (
+                                  <a
+                                    href={r.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-[11px] font-medium text-[#137752] hover:underline"
+                                  >
+                                    <Globe className="h-3 w-3" />
+                                    Open
+                                  </a>
+                                ) : (
+                                  <span className="text-[11px] text-zinc-300">—</span>
+                                )}
                               </td>
                             </tr>
                           );
@@ -465,28 +408,21 @@ export function CellInspectorDrawer({
 
         {tab === "why" && (
           <div className="space-y-4">
-            {!enrichmentComplete && (
-              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                Show Me Why is available after competitor enrichment finishes.
-              </p>
-            )}
-            {enrichmentComplete && whyLoading && (
+            {whyLoading && (
               <div className="flex items-center gap-2 text-zinc-500">
                 <Loader2 className="h-4 w-4 animate-spin" /> Analyzing…
               </div>
             )}
-            {enrichmentComplete && whyError && !whyLoading && (
-              <p className="text-red-600">{whyError}</p>
-            )}
-            {enrichmentComplete && !whyData && !whyLoading && !whyError && (
+            {whyError && !whyLoading && <p className="text-red-600">{whyError}</p>}
+            {!whyData && !whyLoading && !whyError && (
               <p className="text-zinc-500">No analysis available for this cell.</p>
             )}
-            {enrichmentComplete && whyData && !whyLoading && (
+            {whyData && !whyLoading && (
               <>
                 <div>
                   <h3 className="font-semibold text-zinc-900">Why this rank?</h3>
                   <p className="text-xs text-zinc-500">
-                    Based on observable differences at this search point.
+                    Based on listings returned at this search point.
                   </p>
                   <p className="mt-2 text-zinc-800">
                     <strong>{whyData.selectedEntity.name}</strong> is #
@@ -509,6 +445,7 @@ export function CellInspectorDrawer({
                             {b.rating != null && `${b.rating} ★ · `}
                             {b.review_count ?? 0} reviews
                             {b.distanceMiles != null && ` · ${b.distanceMiles} mi away`}
+                            {b.category && ` · ${b.category}`}
                           </p>
                         </li>
                       ))}
@@ -526,7 +463,9 @@ export function CellInspectorDrawer({
                   </section>
                 )}
                 {whyData.visibleGaps.length === 0 && whyData.businessesAbove.length === 0 && (
-                  <p className="text-zinc-500">Not enough cached data to compare at this point.</p>
+                  <p className="text-zinc-500">
+                    You rank at the top of this point, or there are no other listings to compare.
+                  </p>
                 )}
               </>
             )}
@@ -558,29 +497,13 @@ export function CellInspectorDrawer({
     </div>
   );
 
-  return (
-    <>
-      {variant === "panel" ? (
-        panelBody
-      ) : (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
-          {panelBody}
-        </div>
-      )}
+  if (variant === "panel") {
+    return panelBody;
+  }
 
-      {fingerprint && (
-        <CompetitorFingerprintDrawer
-          businessId={businessId}
-          scanId={scanId}
-          keywordId={keywordId}
-          competitorId={fingerprint.competitorId}
-          entityKey={fingerprint.entityKey}
-          rawResult={fingerprint.raw}
-          onClose={() => setFingerprint(null)}
-          onShowGrid={onShowCompetitorGrid}
-          onCompare={onOpenCompetitorCompare}
-        />
-      )}
-    </>
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
+      {panelBody}
+    </div>
   );
 }

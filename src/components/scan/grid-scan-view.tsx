@@ -19,7 +19,6 @@ import {
 import { createBrowserClient } from "@/lib/db/client";
 import { GridMetricCard, StatusBadge } from "@/components/ui/metric-card";
 import { gridRankHeaderBtn, gridRankPageBg, gridRankPrimaryBtn } from "@/components/scan/grid-rank-ui";
-import { Toast } from "@/components/ui/toast";
 import { computeScanTrend, buildGridTopCompetitors, type ScanAggregateMetrics } from "@/lib/maps/grid";
 import { ScanSetupForm, defaultScanSetupValues } from "@/components/scan/scan-setup-form";
 import { computeSolv, computeWeightedSolv, gridScanMeta } from "@/lib/maps/grid-metrics";
@@ -36,11 +35,9 @@ import {
 } from "@/lib/maps/grid-entity";
 import { CellInspectorDrawer } from "@/components/scan/cell-inspector-drawer";
 import { CompetitorGridToggle, type EntityOption } from "@/components/scan/competitor-grid-toggle";
-import { CompetitorFingerprintDrawer } from "@/components/competitors/competitor-fingerprint-drawer";
 import {
   areCellsInFlight,
   hasCellsPending,
-  isEnrichmentComplete,
   isEnrichmentRunning,
   scanProgressMessage,
   shouldPollScan,
@@ -127,11 +124,6 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
   const [showRadiusRings, setShowRadiusRings] = useState(false);
   const [timelineMode, setTimelineMode] = useState<TimelineMode>("target");
   const [timelineCompetitorKey, setTimelineCompetitorKey] = useState<string | null>(null);
-  const [fingerprintTarget, setFingerprintTarget] = useState<{
-    entityKey: string;
-    competitorId?: string | null;
-    raw?: StoredCompetitor;
-  } | null>(null);
   const toolbarRef = useRef<GridToolbarHandle>(null);
   const [toolbarRunning, setToolbarRunning] = useState(false);
   const [locationId, setLocationId] = useState<string | null>(null);
@@ -145,9 +137,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
   const [spotCheckDetails, setSpotCheckDetails] = useState<Record<string, SpotCheckDetail>>({});
   const [activeSpotCheckId, setActiveSpotCheckId] = useState<string | null>(null);
   const [singlePointRunning, setSinglePointRunning] = useState(false);
-  const [enrichmentToastOpen, setEnrichmentToastOpen] = useState(false);
   const [timelineFetching, setTimelineFetching] = useState(false);
-  const enrichmentStatusRef = useRef<string | null | undefined>(undefined);
   const [data, setData] = useState<ScanViewData | null>(
     () => scanDataCache.get(scanCacheKey(scanId, null)) ?? null
   );
@@ -374,35 +364,11 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
     status: batchStatus,
     enrichment_status: batch?.enrichment_status as string | null | undefined,
   });
-  const enrichmentComplete = isEnrichmentComplete({
-    status: batchStatus,
-    enrichment_status: batch?.enrichment_status as string | null | undefined,
-  });
-  const enrichmentFailed = batch?.enrichment_status === "failed";
-  const enrichmentStatus = batch?.enrichment_status as string | null | undefined;
   const scanActive =
     cellsInFlight ||
     cellsStillLoading ||
     (cellsPending && batchStatus !== "failed");
 
-  useEffect(() => {
-    enrichmentStatusRef.current = undefined;
-    setEnrichmentToastOpen(false);
-  }, [activeScanId]);
-
-  useEffect(() => {
-    const prev = enrichmentStatusRef.current;
-    const next = enrichmentStatus ?? null;
-
-    if (prev !== undefined) {
-      const wasInFlight = prev === "pending" || prev === "running";
-      if (wasInFlight && next === "complete") {
-        setEnrichmentToastOpen(true);
-      }
-    }
-
-    enrichmentStatusRef.current = next;
-  }, [enrichmentStatus]);
   const progressMessage = scanProgressMessage({
     status: batchStatus,
     enrichment_status: batch?.enrichment_status as string | null | undefined,
@@ -811,10 +777,6 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
               onKeywordChange={handleKeywordChange}
               onLocationChange={handleLocationChange}
               onScanStarted={handleScanStarted}
-              device={String(batch?.device ?? "mobile")}
-              os={String(batch?.os ?? "android")}
-              browser={String((batch as { browser?: string })?.browser ?? "chrome")}
-              actionsInHeader
             />
 
             {moveGridActive && (
@@ -962,21 +924,6 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
               </div>
             )}
 
-            {enrichmentFailed && (
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100">
-                <span>{progressMessage || "Competitor enrichment failed."}</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void fetch(`/api/scans/${activeScanId}/enrich`, { method: "POST" }).then(() => pollStatus());
-                  }}
-                  className="rounded-lg bg-red-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-800"
-                >
-                  Retry enrichment
-                </button>
-              </div>
-            )}
-
             {cells.length > 0 && (
               <div className="mb-3">
                 <ScanTimelineSlider
@@ -1088,7 +1035,6 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                     keywordId={keywordId}
                     businessId={businessId}
                     selectedEntityKey={entityKey}
-                    enrichmentComplete={enrichmentComplete}
                     pointLabel={inspectorPointLabel}
                     canNavigatePrev={inspectorIndex > 0}
                     canNavigateNext={inspectorIndex >= 0 && inspectorIndex < inspectorCellIds.length - 1}
@@ -1104,16 +1050,6 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                     }}
                     onClose={() => setInspectorCellId(null)}
                     onCompareCell={() => {
-                      setInspectorCellId(null);
-                      setCompareOpen(true);
-                    }}
-                    onShowCompetitorGrid={(key) => {
-                      setEntityKey(key);
-                      setInspectorCellId(null);
-                    }}
-                    onOpenCompetitorCompare={(key) => {
-                      setCompareInitialMode("competitors");
-                      setCompareInitialCompetitorKey(key);
                       setInspectorCellId(null);
                       setCompareOpen(true);
                     }}
@@ -1154,14 +1090,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                 <GridScanCompetitorsTable
                   competitors={topCompetitors}
                   keyword={data?.primaryKeyword}
-                  enrichmentComplete={enrichmentComplete}
-                  onSelectCompetitor={(key, raw) => {
-                    if (enrichmentComplete) {
-                      setFingerprintTarget({ entityKey: key, raw });
-                    } else {
-                      setEntityKey(key);
-                    }
-                  }}
+                  onSelectCompetitor={(key) => setEntityKey(key)}
                 />
                 <GridScanTrendChart
                   businessId={businessId}
@@ -1178,12 +1107,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
               <h3 className="mb-3 text-sm font-semibold text-zinc-900">Run new scan</h3>
               <ScanSetupForm
                 businessId={businessId}
-                defaults={{
-                  ...defaultScanSetupValues(officeLat, officeLng),
-                  device: String(batch?.device ?? "mobile"),
-                  os: String(batch?.os ?? "android"),
-                  browser: String((batch as { browser?: string })?.browser ?? "chrome"),
-                }}
+                defaults={defaultScanSetupValues(officeLat, officeLng)}
                 scanCenter={[officeLat, officeLng]}
                 compact
                 footerBar
@@ -1211,28 +1135,6 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
           onClose={() => {
             setCompareOpen(false);
             setCompareInitialCompetitorKey(null);
-          }}
-        />
-      )}
-
-      {fingerprintTarget && (
-        <CompetitorFingerprintDrawer
-          businessId={businessId}
-          scanId={activeScanId}
-          keywordId={keywordId}
-          competitorId={fingerprintTarget.competitorId}
-          entityKey={fingerprintTarget.entityKey}
-          rawResult={fingerprintTarget.raw}
-          onClose={() => setFingerprintTarget(null)}
-          onShowGrid={(key) => {
-            setEntityKey(key);
-            setFingerprintTarget(null);
-          }}
-          onCompare={(key) => {
-            setCompareInitialMode("competitors");
-            setCompareInitialCompetitorKey(key);
-            setFingerprintTarget(null);
-            setCompareOpen(true);
           }}
         />
       )}
@@ -1265,12 +1167,6 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
         onClose={() => setActiveSpotCheckId(null)}
       />
 
-      <Toast
-        open={enrichmentToastOpen}
-        title="✅ Competitor analysis finished"
-        description="Fingerprints, Show Me Why, and Compare are now available."
-        onClose={() => setEnrichmentToastOpen(false)}
-      />
     </div>
   );
 }

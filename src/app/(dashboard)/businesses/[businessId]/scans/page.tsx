@@ -1,27 +1,9 @@
-import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
-import { EmptyState } from "@/components/ui/design-system";
 import { requireAuth } from "@/lib/auth/context";
 import { getBusiness } from "@/lib/db/queries";
 import { createServiceClient } from "@/lib/db/client";
-import { StatusBadge } from "@/components/ui/metric-card";
-import { RunScanButton } from "@/components/scan/run-scan-button";
+import { ScansHub } from "@/components/scan/scans-hub";
 import { notFound } from "next/navigation";
-
-function formatScanDate(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function formatRadius(meters: number): string {
-  const miles = meters / 1609.34;
-  return miles >= 1 ? `${Math.round(miles)} mi radius` : `${meters} m radius`;
-}
 
 export default async function ScansPage({
   params,
@@ -34,49 +16,79 @@ export default async function ScansPage({
   if (!business) notFound();
 
   const supabase = createServiceClient();
-  const { data: scans } = await supabase
-    .from("scan_batches")
-    .select("*")
-    .eq("business_id", businessId)
-    .order("created_at", { ascending: false });
+
+  const [{ data: scans }, { data: keywords }] = await Promise.all([
+    supabase
+      .from("scan_batches")
+      .select(
+        "id, status, grid_size, radius_meters, created_at, finished_at, center_label, aggregate_metrics, confidence_summary"
+      )
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("business_keywords")
+      .select("id, keyword, is_primary")
+      .eq("business_id", businessId)
+      .order("is_primary", { ascending: false })
+      .order("created_at", { ascending: true }),
+  ]);
+
+  const keywordById = new Map(
+    (keywords ?? []).map((k) => [k.id as string, String(k.keyword).trim()])
+  );
+
+  const scanItems = (scans ?? []).map((scan) => {
+    const conf = (scan.confidence_summary ?? {}) as {
+      keyword_label?: string;
+      keyword_ids?: string[];
+    };
+    const keywordId = conf.keyword_ids?.[0] ?? null;
+    const keyword =
+      conf.keyword_label ??
+      (keywordId ? keywordById.get(keywordId) : null) ??
+      null;
+
+    return {
+      id: scan.id as string,
+      status: scan.status as string,
+      grid_size: scan.grid_size as number,
+      radius_meters: scan.radius_meters as number,
+      created_at: scan.created_at as string,
+      finished_at: (scan.finished_at as string | null) ?? null,
+      center_label: (scan.center_label as string | null) ?? null,
+      keyword,
+      keyword_id: keywordId,
+      aggregate_metrics: (scan.aggregate_metrics ?? null) as {
+        averageRank?: number | null;
+        top3Cells?: number;
+        totalCells?: number;
+        visibilityScore?: number | null;
+      } | null,
+    };
+  });
 
   return (
     <>
       <PageHeader
         title="Scans"
-        subtitle="Every grid scan you've run — open one to see the full rank map."
-        actions={<RunScanButton businessId={businessId} />}
+        subtitle="Run grid scans by keyword and review your rank history."
       />
 
-      <div className="space-y-3">
-        {(scans ?? []).map((scan) => {
-          const metrics = (scan.aggregate_metrics ?? {}) as Record<string, number | null>;
-          return (
-            <Link
-              key={scan.id}
-              href={`/businesses/${businessId}/grid/${scan.id}`}
-              className="flex items-center justify-between gap-4 rounded-xl border border-zinc-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition hover:border-emerald-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
-            >
-              <div className="min-w-0">
-                <p className="font-semibold text-zinc-900">
-                  {scan.grid_size}×{scan.grid_size} grid · {formatRadius(scan.radius_meters)}
-                </p>
-                <p className="mt-1 text-sm leading-relaxed text-zinc-500">
-                  {formatScanDate(scan.created_at)}
-                  {metrics.averageRank != null && ` · Avg rank ${metrics.averageRank}`}
-                </p>
-              </div>
-              <StatusBadge status={scan.status} />
-            </Link>
-          );
-        })}
-        {!scans?.length && (
-          <EmptyState
-            title="No scans yet"
-            description="Run your first grid scan to map your Google Maps rankings across your service area."
-          />
-        )}
-      </div>
+      <ScansHub
+        businessId={businessId}
+        scans={scanItems}
+        keywords={(keywords ?? []).map((k) => ({
+          id: k.id as string,
+          keyword: String(k.keyword).trim(),
+          is_primary: !!k.is_primary,
+        }))}
+        defaultCenterLat={
+          (business.scan_center_lat as number | null) ?? (business.lat as number) ?? 0
+        }
+        defaultCenterLng={
+          (business.scan_center_lng as number | null) ?? (business.lng as number) ?? 0
+        }
+      />
     </>
   );
 }
