@@ -18,9 +18,17 @@ function avg(nums: number[]): number {
   return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100;
 }
 
-export function logCellPhaseTimings(scanBatchId: string, timings: CellPhaseTimings[], concurrency: number) {
+export function logCellPhaseTimings(
+  scanBatchId: string,
+  timings: CellPhaseTimings[],
+  concurrency: number,
+  uniqueCells?: number
+) {
   const ok = timings.filter((t) => t.success);
   const failed = timings.length - ok.length;
+  const uniqueLabels = new Set(timings.map((t) => t.gridLabel));
+  const initialFailures = timings.filter((t) => !t.success).length;
+  const cellCount = uniqueCells ?? uniqueLabels.size;
 
   for (const t of timings) {
     console.log(
@@ -32,7 +40,7 @@ export function logCellPhaseTimings(scanBatchId: string, timings: CellPhaseTimin
 
   console.log("[ScanBenchmark] ----");
   console.log(
-    `[ScanBenchmark] ${timings.length} cells | concurrency=${concurrency} | failed=${failed}`
+    `[ScanBenchmark] ${cellCount} unique cells | ${timings.length} attempts | concurrency=${concurrency} | initial failures=${initialFailures} | failed attempts=${failed}`
   );
   console.log(
     `[ScanBenchmark] avg API=${avg(ok.map((t) => t.apiSec))}s matching=${avg(ok.map((t) => t.matchingSec))}s db=${avg(ok.map((t) => t.dbSaveSec))}s progress=${avg(ok.map((t) => t.progressSec))}s total=${avg(ok.map((t) => t.totalSec))}s`

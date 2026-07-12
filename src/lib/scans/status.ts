@@ -112,6 +112,11 @@ export function scanProgressMessage(batch: {
     return `${completed} / ${total} locations analyzed${trailingNote}`;
   }
 
+  if (batch.status === "rank_ready" && batch.enrichment_status === "skipped") {
+    const failNote = failed > 0 ? ` (${failed} point${failed === 1 ? "" : "s"} failed)` : "";
+    return `Rank scan complete${failNote}.`;
+  }
+
   if (batch.status === "rank_ready" || isEnrichmentRunning(batch)) {
     const failNote = failed > 0 ? ` (${failed} point${failed === 1 ? "" : "s"} failed)` : "";
     return `Rank scan complete${failNote}. Enriching competitor details…`;

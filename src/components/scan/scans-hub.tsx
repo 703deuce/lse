@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Play, Plus } from "lucide-react";
+import { Loader2, Play, Plus, Zap } from "lucide-react";
 import { StatusBadge } from "@/components/ui/metric-card";
 import { EmptyState } from "@/components/ui/design-system";
 import {
@@ -91,7 +91,7 @@ export function ScansHub({
     return scans.filter((s) => s.keyword_id === keywordFilter);
   }, [scans, keywordFilter]);
 
-  async function runScan(keywordId: string) {
+  async function runScan(keywordId: string, burstMode = false) {
     if (!keywordId) return;
     setRunning(true);
     setError(null);
@@ -107,6 +107,7 @@ export function ScansHub({
           device: DEFAULT_SCAN_PROFILE.device,
           os: DEFAULT_SCAN_PROFILE.os,
           browser: DEFAULT_SCAN_PROFILE.browser,
+          ...(burstMode ? { burstMode: true } : {}),
         }),
       });
       const json = await res.json();
@@ -198,7 +199,7 @@ export function ScansHub({
               ))}
             </select>
           </label>
-          <div className="flex items-end gap-2">
+          <div className="flex flex-col items-stretch justify-end gap-2">
             <button
               type="button"
               disabled={running || !selectedKeywordId}
@@ -210,11 +211,21 @@ export function ScansHub({
             </button>
             <button
               type="button"
+              disabled={running || !selectedKeywordId}
+              onClick={() => void runScan(selectedKeywordId, true)}
+              title="Fire all grid cells concurrently (burst test mode)"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-md border border-violet-300 bg-violet-50 px-4 py-2 text-xs font-semibold text-violet-900 hover:bg-violet-100 disabled:opacity-50"
+            >
+              {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+              Burst test (all {gridSize * gridSize} at once)
+            </button>
+            <button
+              type="button"
               onClick={() => setShowAddKeyword((v) => !v)}
               className="rounded-md border border-zinc-200 px-3 py-2 text-zinc-600 hover:bg-zinc-50"
               title="Add keyword"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4 mx-auto" />
             </button>
           </div>
         </div>

@@ -73,11 +73,16 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
   const [error, setError] = useState<string | null>(null);
   const [runGridSize, setRunGridSize] = useState(initialGridSize);
   const [runRadiusMeters, setRunRadiusMeters] = useState(initialRadiusMeters);
+  const [runKeywordId, setRunKeywordId] = useState(selectedKeywordId ?? "");
 
   useEffect(() => {
     setRunGridSize(initialGridSize);
     setRunRadiusMeters(initialRadiusMeters);
   }, [initialGridSize, initialRadiusMeters]);
+
+  useEffect(() => {
+    if (selectedKeywordId) setRunKeywordId(selectedKeywordId);
+  }, [selectedKeywordId]);
 
   const loadKeywords = useCallback(async () => {
     setLoading(true);
@@ -104,32 +109,17 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
     void loadKeywords();
   }, [loadKeywords]);
 
-  const selected = keywords.find((k) => k.id === selectedKeywordId) ?? keywords[0];
+  const selected = keywords.find((k) => k.id === runKeywordId) ?? keywords[0];
   const radiusMiles = Math.round(metersToMiles(runRadiusMeters) * 10) / 10;
   const closestRadiusMiles =
     RADIUS_MILE_PRESETS.reduce((best, p) =>
       Math.abs(p.miles - radiusMiles) < Math.abs(best.miles - radiusMiles) ? p : best
     ).miles;
 
-  async function handleSelect(keywordId: string) {
+  function viewLatestScan(keywordId: string) {
     const kw = keywords.find((k) => k.id === keywordId);
-    if (!kw) return;
-
-    if (kw.latestScanId) {
-      onKeywordChange(keywordId, kw.latestScanId);
-      return;
-    }
-
-    const params = new URLSearchParams({
-      businessId,
-      keyword: kw.keyword,
-      gridSize: String(runGridSize),
-      radius: String(runRadiusMeters),
-    });
-    if (selectedLocationId) params.set("locationId", selectedLocationId);
-    const res = await fetch(`/api/scans/latest?${params}`);
-    const json = await res.json();
-    onKeywordChange(keywordId, json.scan?.id ?? null);
+    if (!kw?.latestScanId) return;
+    onKeywordChange(keywordId, kw.latestScanId);
   }
 
   const runScanForKeyword = useCallback(
@@ -241,8 +231,8 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
           ) : (
             <div className="mt-0.5 flex gap-2">
               <select
-                value={selectedKeywordId ?? selected?.id ?? ""}
-                onChange={(e) => void handleSelect(e.target.value)}
+                value={runKeywordId || selected?.id || ""}
+                onChange={(e) => setRunKeywordId(e.target.value)}
                 className={cn(fieldSelect, "flex-1")}
               >
                 {keywords.map((k) => (
@@ -252,6 +242,16 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
                   </option>
                 ))}
               </select>
+              {selected?.latestScanId ? (
+                <button
+                  type="button"
+                  onClick={() => viewLatestScan(selected.id)}
+                  className="shrink-0 rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                  title="View latest scan for this keyword at the selected grid size and radius"
+                >
+                  View
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => setShowAddKeyword((v) => !v)}
@@ -267,7 +267,7 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
         <div className="min-w-0 flex-1">
           <LocationSwitcher
             businessId={businessId}
-            keywordId={selectedKeywordId ?? selected?.id ?? null}
+            keywordId={runKeywordId || selected?.id || null}
             gridSize={runGridSize}
             radiusMeters={runRadiusMeters}
             selectedLocationId={selectedLocationId}

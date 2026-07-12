@@ -13,7 +13,6 @@ import {
 } from "@/lib/jobs/scan-cell-benchmark";
 import { saveCellTelemetry } from "@/lib/jobs/scan-cell-telemetry";
 import { refreshScanAggregateMetrics } from "@/lib/jobs/refresh-scan-metrics";
-import { maybeStartEarlyEnrichment } from "@/lib/jobs/run-early-enrichment";
 import {
   isRetryableCellSerpError,
   validateLiveCellSerp,
@@ -298,6 +297,7 @@ async function runOneCell(
       });
       if (insertError) throw new Error(insertError.message);
       dbSaveSec = elapsedSec(dbStart);
+      invalidateScanGridCache(job.scanBatchId);
 
       const totalSec = elapsedSec(cellStarted);
       const timings: CellPhaseTimings = {
@@ -471,9 +471,6 @@ async function runJobsWithConcurrency(
         }
 
         await maybeSoftReady();
-        if (updateProgress && successCount > 0) {
-          void maybeStartEarlyEnrichment(params.scanBatchId, params.organizationId);
-        }
         await params.onCellSettled?.(result.success);
 
         return result;
@@ -665,6 +662,14 @@ async function runGridCellsBurst(params: {
   const scanWallStart = performance.now();
   let remainingJobs = jobs;
   let failedCells = 0;
+  let rankReadyFired = false;
+  const softMin = softReadyMinSuccess(totalCells);
+
+  const onSoftReady = async () => {
+    if (rankReadyFired || !params.onSoftReady) return;
+    rankReadyFired = true;
+    await params.onSoftReady();
+  };
 
   const onCellSettled = async (success: boolean) => {
     if (success) {
@@ -687,6 +692,8 @@ async function runGridCellsBurst(params: {
       totalCells,
       passLabel,
       updateProgress: true,
+      softReadyMinSuccess: round === 1 ? softMin : undefined,
+      onSoftReady: round === 1 ? onSoftReady : undefined,
       onCellSettled,
       organizationId: params.organizationId,
     });
@@ -718,14 +725,14 @@ async function runGridCellsBurst(params: {
     method: "burst_parallel",
   });
 
-  if (params.onSoftReady) {
-    await params.onSoftReady();
+  if (!rankReadyFired && params.onSoftReady) {
+    await onSoftReady();
   }
   await refreshScanAggregateMetrics(params.scanBatchId);
 
   const wallSec = elapsedSec(scanWallStart);
   console.log(`[ScanBenchmark] burst wall_clock=${wallSec}s`);
-  logCellPhaseTimings(params.scanBatchId, allTimings, concurrency);
+  logCellPhaseTimings(params.scanBatchId, allTimings, concurrency, totalCells);
 
   return { failedCells, totalCells, successCells };
 }
@@ -954,7 +961,7 @@ export async function runGridCellsLive(params: {
 
   const wallSec = elapsedSec(scanWallStart);
   console.log(`[ScanBenchmark] wall_clock=${wallSec}s (cells phase only)`);
-  logCellPhaseTimings(params.scanBatchId, allTimings, concurrency);
+  logCellPhaseTimings(params.scanBatchId, allTimings, concurrency, totalCells);
 
   return {
     failedCells,

@@ -1,13 +1,16 @@
 import { createServiceClient } from "@/lib/db/client";
-import { computeAggregateMetrics, aggregateCompetitors } from "@/lib/maps/grid";
+import { computeAggregateMetrics } from "@/lib/maps/grid";
 import { invalidateScanGridCache } from "@/lib/maps/scan-queries";
-import { runScanEnrichment } from "@/lib/jobs/run-scan-enrichment";
 import { validateStoredCellResult } from "@/lib/maps/cell-result-integrity";
 import { mapsDepth } from "@/lib/jobs/run-grid-cells";
 
+function gridScanAutoEnrichment(): boolean {
+  return process.env.GRID_SCAN_AUTO_ENRICHMENT === "true";
+}
+
 /**
  * Phase 1 — mark scan rank-ready as soon as grid cells are saved. Map is usable.
- * Triggers background enrichment without blocking.
+ * Enrichment is opt-in only (GRID_SCAN_AUTO_ENRICHMENT=true); grid scans do not run it by default.
  */
 export async function finalizeRankReady(
   scanBatchId: string,
@@ -86,7 +89,7 @@ export async function finalizeRankReady(
     .update({
       status: "rank_ready",
       rank_status: "ready",
-      enrichment_status: "pending",
+      enrichment_status: gridScanAutoEnrichment() ? "pending" : "skipped",
       aggregate_metrics: aggregateMetrics,
       cells_total: totalCells,
       cells_completed: cellsCompleted,
@@ -118,9 +121,12 @@ export async function finalizeRankReady(
 
   invalidateScanGridCache(scanBatchId);
 
-  void runScanEnrichment(scanBatchId, organizationId).catch((err) => {
-    console.error("[runScanEnrichment] background", scanBatchId, err);
-  });
+  if (gridScanAutoEnrichment()) {
+    const { runScanEnrichment } = await import("@/lib/jobs/run-scan-enrichment");
+    void runScanEnrichment(scanBatchId, organizationId).catch((err) => {
+      console.error("[runScanEnrichment] background", scanBatchId, err);
+    });
+  }
 }
 
 /** @deprecated Use finalizeRankReady — kept for imports that expect blocking finalize */
