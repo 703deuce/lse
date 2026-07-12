@@ -1,0 +1,850 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import {
+  Bookmark,
+  ChevronDown,
+  ChevronRight,
+  Download,
+  ExternalLink,
+  Filter,
+  Loader2,
+  MoreHorizontal,
+  Search,
+  Settings,
+  Sparkles,
+} from "lucide-react";
+import {
+  enrichOpportunities,
+  type BusinessContext,
+  type EnrichedOpportunity,
+  type RawOpportunity,
+} from "@/lib/backlink-gap/enrich";
+import { cn } from "@/lib/utils";
+import {
+  linkBadge,
+  powerBar,
+  powerSegmentBar,
+  priorityBadge,
+  priorityPickBadge,
+  topicalBadge,
+} from "@/components/backlink-gap/backlink-gap-ui";
+
+const PAGE_SIZES = [10, 25, 50, 100] as const;
+
+const COMPETITOR_COLORS = ["bg-sky-500", "bg-violet-500", "bg-amber-500", "bg-rose-500", "bg-teal-500"];
+
+function competitorAvatars(
+  linked: Array<{ name?: string; domain?: string | null }>,
+  total: number
+) {
+  const shown = linked.slice(0, 3);
+  const extra = linked.length - shown.length;
+  return (
+    <div className="flex items-center -space-x-1">
+      {shown.map((c, i) => (
+        <span
+          key={c.name ?? i}
+          title={c.name}
+          className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white ring-2 ring-white ${COMPETITOR_COLORS[i % COMPETITOR_COLORS.length]}`}
+        >
+          {(c.name ?? "?").charAt(0).toUpperCase()}
+        </span>
+      ))}
+      {extra > 0 && (
+        <span className="ml-1 text-[11px] font-medium text-text-muted">+{extra}</span>
+      )}
+      {linked.length === 0 && (
+        <span className="text-xs text-text-muted">0/{total}</span>
+      )}
+    </div>
+  );
+}
+
+function actionStatusBadge(status: string, priority: string) {
+  if (status === "spam" || priority === "ignore") {
+    return (
+      <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-red-100">
+        Spam
+      </span>
+    );
+  }
+  if (status === "ignored") {
+    return (
+      <span className="rounded-full bg-surface-subtle px-2 py-0.5 text-[11px] font-semibold text-text-muted ring-1 ring-zinc-200">
+        Ignored
+      </span>
+    );
+  }
+  return (
+    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-100">
+      Review
+    </span>
+  );
+}
+
+function confidenceBadge(priority: string) {
+  const high = priority === "high" || priority === "ignore";
+  return (
+    <span
+      className={cn(
+        "rounded-full px-2 py-0.5 text-[11px] font-semibold text-white",
+        high ? "bg-red-500" : "bg-amber-500"
+      )}
+    >
+      {high ? "High" : "Medium"}
+    </span>
+  );
+}
+
+function IgnoredTable({
+  rows,
+  totalCompetitors,
+  onSelect,
+}: {
+  rows: EnrichedOpportunity[];
+  totalCompetitors: number;
+  onSelect: (o: EnrichedOpportunity) => void;
+}) {
+  if (!rows.length) {
+    return <p className="px-4 py-6 text-center text-sm text-text-muted">No ignored or spam domains match these filters.</p>;
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead className="bg-zinc-50 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+          <tr>
+            <th className="px-3 py-2.5">
+              <input type="checkbox" className="rounded border-border" aria-label="Select all" />
+            </th>
+            <th className="px-3 py-2.5">Domain</th>
+            <th className="px-3 py-2.5">Power</th>
+            <th className="px-3 py-2.5">Link type</th>
+            <th className="px-3 py-2.5">Relevance</th>
+            <th className="px-3 py-2.5">Source type</th>
+            <th className="px-3 py-2.5">Reason flagged</th>
+            <th className="px-3 py-2.5">Competitors</th>
+            <th className="px-3 py-2.5">Action status</th>
+            <th className="px-3 py-2.5">Confidence</th>
+            <th className="px-3 py-2.5">
+              <Settings className="h-3.5 w-3.5 text-text-muted" aria-label="Column settings" />
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-zinc-100">
+          {rows.map((o) => (
+            <tr
+              key={o.id}
+              className="cursor-pointer hover:bg-surface-subtle/80"
+              onClick={() => onSelect(o)}
+            >
+              <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                <input type="checkbox" className="rounded border-border" aria-label={`Select ${o.referring_domain}`} />
+              </td>
+              <td className="px-3 py-2.5">
+                <a
+                  href={`https://${o.referring_domain}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1 font-medium text-sky-700 hover:underline"
+                >
+                  {o.referring_domain}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </td>
+              <td className="px-3 py-2.5">{powerSegmentBar(o.powerScore)}</td>
+              <td className="px-3 py-2.5">{linkBadge(o.linkPassing)}</td>
+              <td className="px-3 py-2.5">{topicalBadge(o.topicalFit)}</td>
+              <td className="px-3 py-2.5 text-xs text-text-muted">{o.source_type}</td>
+              <td className="max-w-[180px] truncate px-3 py-2.5 text-xs text-text-muted">
+                {o.reason ?? "Spam signals detected"}
+              </td>
+              <td className="px-3 py-2.5">
+                {competitorAvatars(o.linked_competitors ?? [], totalCompetitors)}
+              </td>
+              <td className="px-3 py-2.5">{actionStatusBadge(o.status, o.priority)}</td>
+              <td className="px-3 py-2.5">{confidenceBadge(o.priority)}</td>
+              <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                <button type="button" className="rounded p-1 hover:bg-surface-subtle" aria-label="More actions">
+                  <MoreHorizontal className="h-4 w-4 text-text-muted" />
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function OpportunityTable({
+  rows,
+  totalCompetitors,
+  onSelect,
+}: {
+  rows: EnrichedOpportunity[];
+  totalCompetitors: number;
+  onSelect: (o: EnrichedOpportunity) => void;
+}) {
+  if (!rows.length) {
+    return <p className="px-4 py-6 text-center text-sm text-text-muted">No results match these filters.</p>;
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead className="bg-zinc-50 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+          <tr>
+            <th className="px-3 py-2.5">Domain</th>
+            <th className="px-3 py-2.5">Power</th>
+            <th className="px-3 py-2.5">Link type</th>
+            <th className="px-3 py-2.5">Relevance</th>
+            <th className="px-3 py-2.5">Source type</th>
+            <th className="px-3 py-2.5">Anchor</th>
+            <th className="px-3 py-2.5">Page title</th>
+            <th className="px-3 py-2.5 text-center">Competitors</th>
+            <th className="px-3 py-2.5">Priority</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-zinc-100">
+          {rows.map((o) => (
+            <tr
+              key={o.id}
+              className="cursor-pointer hover:bg-surface-subtle/80"
+              onClick={() => onSelect(o)}
+            >
+              <td className="px-3 py-2.5 font-medium text-emerald-700">{o.referring_domain}</td>
+              <td className="px-3 py-2.5">{powerBar(o.powerScore)}</td>
+              <td className="px-3 py-2.5">{linkBadge(o.linkPassing)}</td>
+              <td className="px-3 py-2.5">{topicalBadge(o.topicalFit)}</td>
+              <td className="px-3 py-2.5 text-xs text-text-muted">{o.source_type}</td>
+              <td className="max-w-[140px] truncate px-3 py-2.5 text-xs italic text-text-muted">
+                {o.anchor_text ? `"${o.anchor_text}"` : "—"}
+              </td>
+              <td className="max-w-[160px] truncate px-3 py-2.5 text-xs text-text-muted">
+                {o.source_title ?? "—"}
+              </td>
+              <td className="px-3 py-2.5 text-center text-xs font-medium">
+                {o.competitor_count}/{totalCompetitors}
+              </td>
+              <td className="px-3 py-2.5">{priorityBadge(o.priority)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Pagination({
+  page,
+  totalPages,
+  totalItems,
+  pageSize,
+  onPageChange,
+}: {
+  page: number;
+  totalPages: number;
+  totalItems: number;
+  pageSize: number;
+  onPageChange: (p: number) => void;
+}) {
+  if (totalItems === 0) return null;
+  const from = (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, totalItems);
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 px-4 py-3 text-xs text-zinc-500">
+      <span>
+        Showing {from} to {to} of {totalItems} results
+      </span>
+      <div className="flex items-center gap-2">
+        <select className="rounded border border-zinc-200 px-2 py-1 text-sm" defaultValue={pageSize}>
+          <option value={10}>10 per page</option>
+          <option value={25}>25 per page</option>
+        </select>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+            className="rounded border border-zinc-200 px-2 py-1 disabled:opacity-40"
+          >
+            ‹
+          </button>
+          {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => onPageChange(n)}
+              className={cn(
+                "min-w-[28px] rounded px-2 py-1 tabular-nums",
+                page === n
+                  ? "border border-emerald-600 bg-emerald-50 font-semibold text-emerald-700"
+                  : "text-zinc-600 hover:bg-zinc-50"
+              )}
+            >
+              {n}
+            </button>
+          ))}
+          <button
+            type="button"
+            disabled={page >= totalPages}
+            onClick={() => onPageChange(page + 1)}
+            className="rounded border border-zinc-200 px-2 py-1 disabled:opacity-40"
+          >
+            ›
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type CompetitorCount = { name: string; domain?: string | null; count: number };
+
+type StatsSummary = {
+  total: number;
+  relevance: { high: number; medium: number; low: number };
+  priorities: { high: number; medium: number; low: number };
+};
+
+export function OpportunitiesPanel({
+  businessId,
+  competitors,
+  context,
+  status,
+  onSelect,
+}: {
+  businessId: string;
+  competitors: Array<{ name: string; domain?: string | null }>;
+  context?: BusinessContext;
+  status: "open" | "ignored";
+  onSelect: (o: EnrichedOpportunity) => void;
+}) {
+  const [pageSize, setPageSize] = useState<number>(25);
+  const [linkFilter, setLinkFilter] = useState<"all" | "dofollow" | "nofollow">("all");
+  const [topicalFilter, setTopicalFilter] = useState<"all" | "topical" | "random">("all");
+  const [priorityFilter, setPriorityFilter] = useState<"all" | "high" | "medium" | "low">("all");
+  const [competitorFilter, setCompetitorFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const [groupPages, setGroupPages] = useState<Record<string, number>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<EnrichedOpportunity[]>([]);
+  const [total, setTotal] = useState(0);
+  const [counts, setCounts] = useState<CompetitorCount[]>([]);
+  const [groupItems, setGroupItems] = useState<Record<string, EnrichedOpportunity[]>>({});
+  const [groupTotals, setGroupTotals] = useState<Record<string, number>>({});
+  const [groupLoading, setGroupLoading] = useState<Record<string, boolean>>({});
+  const [statsSummary, setStatsSummary] = useState<StatsSummary | null>(null);
+  const [aiPicks, setAiPicks] = useState<EnrichedOpportunity[]>([]);
+  const [search, setSearch] = useState("");
+  const [spamFilter, setSpamFilter] = useState<"all" | "spam" | "ignored" | "review">("all");
+
+  function resetFilters() {
+    setLinkFilter("all");
+    setTopicalFilter("all");
+    setPriorityFilter("all");
+    setCompetitorFilter("all");
+    setSpamFilter("all");
+    setSearch("");
+    setPage(1);
+    setGroupPages({});
+  }
+
+  const filteredItems = search.trim()
+    ? items.filter((o) => o.referring_domain.toLowerCase().includes(search.toLowerCase()))
+    : items;
+
+  const filteredIgnoredItems = filteredItems.filter((o) => {
+    if (spamFilter === "all") return true;
+    if (spamFilter === "spam") return o.status === "spam" || o.priority === "ignore";
+    if (spamFilter === "ignored") return o.status === "ignored";
+    return o.status !== "spam" && o.status !== "ignored" && o.priority !== "ignore";
+  });
+
+  const fetchPage = useCallback(
+    async (opts: {
+      competitor?: string | null;
+      pageNum: number;
+      pageSz: number;
+    }) => {
+      const params = new URLSearchParams({
+        page: String(opts.pageNum),
+        pageSize: String(opts.pageSz),
+        status,
+        linkFilter,
+        topicalFilter,
+        priorityFilter,
+      });
+      if (opts.competitor) params.set("competitor", opts.competitor);
+
+      const res = await fetch(`/api/backlink-gap/${businessId}/opportunities?${params}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to load");
+      const enriched = enrichOpportunities(json.items as RawOpportunity[], context ?? json.context);
+      return { items: enriched, total: json.total as number };
+    },
+    [businessId, status, linkFilter, topicalFilter, priorityFilter, context]
+  );
+
+  const loadCounts = useCallback(async () => {
+    const res = await fetch(`/api/backlink-gap/${businessId}/counts?status=${status}`);
+    const json = await res.json();
+    if (res.ok) setCounts(json.counts ?? []);
+  }, [businessId, status]);
+
+  useEffect(() => {
+    if (status !== "open") return;
+    fetch(`/api/backlink-gap/${businessId}/stats`)
+      .then((r) => r.json())
+      .then((json) => {
+        setStatsSummary({
+          total: json.matrixDistribution?.total ?? 0,
+          relevance: json.relevance ?? { high: 0, medium: 0, low: 0 },
+          priorities: json.priorities ?? { high: 0, medium: 0, low: 0 },
+        });
+      })
+      .catch(() => setStatsSummary(null));
+
+    fetch(`/api/backlink-gap/${businessId}/opportunities?page=1&pageSize=5&status=open&priorityFilter=high`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.items) {
+          setAiPicks(enrichOpportunities(json.items as RawOpportunity[], context));
+        }
+      })
+      .catch(() => setAiPicks([]));
+  }, [businessId, status, context]);
+
+  useEffect(() => {
+    loadCounts();
+  }, [loadCounts]);
+
+  useEffect(() => {
+    if (competitorFilter !== "all") {
+      setLoading(true);
+      fetchPage({ competitor: competitorFilter, pageNum: page, pageSz: pageSize })
+        .then(({ items: rows, total: t }) => {
+          setItems(rows);
+          setTotal(t);
+        })
+        .catch(() => {
+          setItems([]);
+          setTotal(0);
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [competitorFilter, page, pageSize, fetchPage]);
+
+  const loadGroupPage = useCallback(
+    async (competitorName: string, pageNum: number) => {
+      setGroupLoading((g) => ({ ...g, [competitorName]: true }));
+      try {
+        const { items: rows, total: t } = await fetchPage({
+          competitor: competitorName,
+          pageNum,
+          pageSz: pageSize,
+        });
+        setGroupItems((g) => ({ ...g, [competitorName]: rows }));
+        setGroupTotals((g) => ({ ...g, [competitorName]: t }));
+      } finally {
+        setGroupLoading((g) => ({ ...g, [competitorName]: false }));
+      }
+    },
+    [fetchPage, pageSize]
+  );
+
+  useEffect(() => {
+    if (status !== "open") {
+      setLoading(true);
+      fetchPage({ pageNum: page, pageSz: pageSize })
+        .then(({ items: rows, total: t }) => {
+          setItems(rows);
+          setTotal(t);
+        })
+        .catch(() => {
+          setItems([]);
+          setTotal(0);
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [status, page, pageSize, fetchPage]);
+
+  useEffect(() => {
+    if (competitorFilter !== "all" || status !== "open") return;
+    for (const c of competitors) {
+      const isOpen = expanded[c.name] ?? competitors.indexOf(c) === 0;
+      if (isOpen) {
+        const p = groupPages[c.name] ?? 1;
+        loadGroupPage(c.name, p);
+      }
+    }
+  }, [competitorFilter, competitors, expanded, groupPages, pageSize, linkFilter, topicalFilter, priorityFilter, loadGroupPage]);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const filterSelect =
+    "rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 shadow-sm";
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
+        <select
+          value={competitorFilter}
+          onChange={(e) => {
+            setCompetitorFilter(e.target.value);
+            setPage(1);
+            setGroupPages({});
+          }}
+          className={filterSelect}
+        >
+          <option value="all">Competitors: All {competitors.length}</option>
+          {competitors.map((c) => (
+            <option key={c.name} value={c.name}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={linkFilter}
+          onChange={(e) => {
+            setLinkFilter(e.target.value as typeof linkFilter);
+            setPage(1);
+            setGroupPages({});
+          }}
+          className={filterSelect}
+        >
+          <option value="all">Link type: All link types</option>
+          <option value="dofollow">Dofollow only</option>
+          <option value="nofollow">Nofollow only</option>
+        </select>
+
+        <select
+          value={topicalFilter}
+          onChange={(e) => {
+            setTopicalFilter(e.target.value as typeof topicalFilter);
+            setPage(1);
+            setGroupPages({});
+          }}
+          className={filterSelect}
+        >
+          <option value="all">Relevance: All relevance</option>
+          <option value="topical">Topical</option>
+          <option value="random">Random / generic</option>
+        </select>
+
+        <button type="button" onClick={resetFilters} className="text-xs font-medium text-text-muted hover:text-text">
+          Reset filters
+        </button>
+
+        {status === "ignored" && (
+          <>
+            <select
+              value={topicalFilter}
+              onChange={(e) => setTopicalFilter(e.target.value as typeof topicalFilter)}
+              className={filterSelect}
+            >
+              <option value="all">Relevance: All relevance</option>
+              <option value="topical">High</option>
+              <option value="random">Low</option>
+              <option value="unknown">Unclear</option>
+            </select>
+            <select
+              value={spamFilter}
+              onChange={(e) => setSpamFilter(e.target.value as typeof spamFilter)}
+              className={filterSelect}
+            >
+              <option value="all">Spam status: All</option>
+              <option value="spam">Spam</option>
+              <option value="ignored">Ignored</option>
+              <option value="review">Review</option>
+            </select>
+            <select className={filterSelect}>
+              <option>Confidence: All</option>
+              <option>High</option>
+              <option>Medium</option>
+            </select>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium hover:bg-zinc-50"
+            >
+              <Filter className="h-4 w-4" />
+              More filters
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium hover:bg-zinc-50"
+            >
+              <Bookmark className="h-4 w-4" />
+              Save view
+            </button>
+          </>
+        )}
+
+        {status === "open" && (
+          <select
+            value={priorityFilter}
+            onChange={(e) => {
+              setPriorityFilter(e.target.value as typeof priorityFilter);
+              setPage(1);
+              setGroupPages({});
+            }}
+            className={filterSelect}
+          >
+            <option value="all">Priority: All priorities</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        )}
+
+        <div className="ml-auto flex items-center gap-2">
+          {status === "ignored" && (
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search domains..."
+                className="rounded-md border border-border py-2 pl-8 pr-3 text-sm outline-none focus:border-emerald-500"
+              />
+            </div>
+          )}
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setPage(1);
+              setGroupPages({});
+            }}
+            className={filterSelect}
+          >
+            {PAGE_SIZES.map((n) => (
+              <option key={n} value={n}>
+                {n} per page
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-surface-subtle"
+          >
+            <Download className="h-4 w-4" />
+            Export
+          </button>
+        </div>
+      </div>
+
+      {status === "open" && statsSummary && (
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 shadow-sm">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <span className="font-semibold text-zinc-900">{total || statsSummary.total} Total opportunities</span>
+            <span className="flex items-center gap-1.5 text-zinc-600">
+              <span className="h-2 w-2 rounded-full bg-sky-500" />
+              {statsSummary.relevance.high} High relevance
+            </span>
+            <span className="flex items-center gap-1.5 text-zinc-600">
+              <span className="h-2 w-2 rounded-full bg-amber-500" />
+              {statsSummary.relevance.medium} Medium relevance
+            </span>
+            <span className="flex items-center gap-1.5 text-zinc-600">
+              <span className="h-2 w-2 rounded-full bg-zinc-400" />
+              {statsSummary.relevance.low} Low relevance
+            </span>
+            <span className="flex items-center gap-1.5 text-zinc-600">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {statsSummary.priorities.high} High priority
+            </span>
+            <span className="flex items-center gap-1.5 text-zinc-600">
+              <span className="h-2 w-2 rounded-full bg-amber-500" />
+              {statsSummary.priorities.medium} Medium priority
+            </span>
+            <span className="flex items-center gap-1.5 text-zinc-600">
+              <span className="h-2 w-2 rounded-full bg-zinc-400" />
+              {statsSummary.priorities.low} Low priority
+            </span>
+          </div>
+        </div>
+      )}
+
+      {status === "open" && aiPicks.length > 0 && (
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                  <Sparkles className="h-4 w-4" />
+                </span>
+                <h3 className="text-sm font-semibold text-zinc-900">AI Picks: Best next links to pursue</h3>
+              </div>
+              <p className="mt-1 text-xs text-zinc-600">
+                Highest impact opportunities based on Power, Relevance, and your competitors.
+              </p>
+            </div>
+            <button type="button" className="text-xs font-medium text-emerald-700 hover:underline">
+              View full recommendations →
+            </button>
+          </div>
+          <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
+            {aiPicks.map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => onSelect(o)}
+                className="min-w-[200px] shrink-0 rounded-lg border border-zinc-200 bg-white p-3 text-left shadow-sm hover:border-emerald-200"
+              >
+                <p className="font-medium text-zinc-900">{o.referring_domain}</p>
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  Power {o.powerScore ?? "—"} · Relevance {o.topicalFit === "topical" ? "High" : "Medium"}
+                </p>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  {priorityPickBadge(o.priority)}
+                  <span className="rounded-md border border-emerald-200 bg-white px-2 py-1 text-[10px] font-semibold text-emerald-700">
+                    Add to tasks
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {status === "ignored" && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 shadow-sm">
+          <input type="checkbox" className="rounded border-zinc-300" aria-label="Select all rows" />
+          <span className="text-xs text-zinc-500">0 selected</span>
+          <select className="rounded-lg border border-emerald-200 px-2 py-1 text-xs font-medium text-emerald-700">
+            <option>Bulk actions</option>
+          </select>
+          {["Mark as Ignore", "Mark as Spam", "Restore to Active", "Move to Review"].map((label) => (
+            <button
+              key={label}
+              type="button"
+              disabled
+              className="rounded-lg border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600"
+            >
+              {label}
+            </button>
+          ))}
+          <button type="button" disabled className="rounded-lg border border-red-100 px-2.5 py-1 text-xs font-medium text-red-400">
+            Delete
+          </button>
+        </div>
+      )}
+
+      {status === "ignored" ? (
+        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+          {loading ? (
+            <div className="flex items-center justify-center py-10 text-text-muted">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Loading…
+            </div>
+          ) : (
+            <>
+              <IgnoredTable
+                rows={filteredIgnoredItems}
+                totalCompetitors={competitors.length}
+                onSelect={onSelect}
+              />
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                totalItems={total}
+                pageSize={pageSize}
+                onPageChange={setPage}
+              />
+            </>
+          )}
+        </div>
+      ) : competitorFilter !== "all" ? (
+        <div className="overflow-hidden rounded-xl border border-border bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <div className="border-b border-border px-4 py-3">
+            <h3 className="font-semibold text-text">{competitorFilter}</h3>
+            <p className="text-xs text-text-muted">{total} gaps · highest power first</p>
+          </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-10 text-text-muted">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Loading…
+            </div>
+          ) : (
+            <>
+              <OpportunityTable rows={items} totalCompetitors={competitors.length} onSelect={onSelect} />
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                totalItems={total}
+                pageSize={pageSize}
+                onPageChange={setPage}
+              />
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {competitors.map((c, idx) => {
+            const isOpen = expanded[c.name] ?? idx === 0;
+            const count = counts.find((x) => x.name === c.name)?.count ?? groupTotals[c.name] ?? 0;
+            const gPage = groupPages[c.name] ?? 1;
+            const gTotalPages = Math.max(1, Math.ceil((groupTotals[c.name] ?? count) / pageSize));
+            const rows = groupItems[c.name] ?? [];
+
+            return (
+              <div
+                key={c.name}
+                className="overflow-hidden rounded-xl border border-border bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+              >
+                <button
+                  type="button"
+                  onClick={() => setExpanded((e) => ({ ...e, [c.name]: !isOpen }))}
+                  className="flex w-full items-center gap-2 border-b border-border px-4 py-3 text-left hover:bg-surface-subtle"
+                >
+                  {isOpen ? (
+                    <ChevronDown className="h-4 w-4 text-text-muted" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-text-muted" />
+                  )}
+                  <div className="flex-1">
+                    <span className="font-semibold text-text">{c.name}</span>
+                    {c.domain && <span className="ml-2 text-xs text-text-muted">{c.domain}</span>}
+                  </div>
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                    {count} gaps
+                  </span>
+                </button>
+                {isOpen && (
+                  <>
+                    {groupLoading[c.name] ? (
+                      <div className="flex items-center justify-center py-8 text-text-muted">
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Loading…
+                      </div>
+                    ) : (
+                      <>
+                        <OpportunityTable rows={rows} totalCompetitors={competitors.length} onSelect={onSelect} />
+                        <Pagination
+                          page={gPage}
+                          totalPages={gTotalPages}
+                          totalItems={groupTotals[c.name] ?? count}
+                          pageSize={pageSize}
+                          onPageChange={(p) => setGroupPages((gp) => ({ ...gp, [c.name]: p }))}
+                        />
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export type { EnrichedOpportunity };

@@ -1,0 +1,2335 @@
+{
+  "generatedAt": "2026-07-05T17:15:49.821Z",
+  "mode": "cached_dfs_sd_live_brightdata",
+  "cacheSource": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json",
+  "business": {
+    "name": "Junk Removal Woodbridge",
+    "cid": "0x89b65788aee9b533:0x331e960e3daef495",
+    "place_id": "ChIJM7XprohXtokRlfSuPQ6WHjM"
+  },
+  "settings": {
+    "keyword": "junk removal woodbridge",
+    "zoom": 17,
+    "brightdata": {
+      "zone": "serp_api1",
+      "format": "raw",
+      "data_format": "parsed_light"
+    },
+    "dataforseo": {
+      "endpoint": "serp/google/maps/live/advanced",
+      "device": "mobile",
+      "os": "android",
+      "depth": 20,
+      "search_this_area": "true then fallback false"
+    },
+    "scrapingdog": {
+      "endpoint": "google_maps",
+      "llFormat": "@lat,lng,17z"
+    }
+  },
+  "summary": {
+    "totalCells": 49,
+    "allThreeMatch": 13,
+    "dfsVsSd": {
+      "same": 23,
+      "diff": 22
+    },
+    "sdVsBd": {
+      "same": 26,
+      "diff": 22
+    },
+    "dfsVsBd": {
+      "same": 16,
+      "diff": 28
+    }
+  },
+  "cells": [
+    {
+      "gridLabel": "A1",
+      "lat": 38.7354825480337,
+      "lng": -77.4445995074144,
+      "distanceFromCenterM": 11380.1750234793,
+      "dataforseo": {
+        "rank": 5,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 6,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 6,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "A2",
+      "lat": 38.7355029155827,
+      "lng": -77.4136745500341,
+      "distanceFromCenterM": 9671.28957998898,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 6,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": null,
+        "matchReason": "no_results",
+        "resultCount": 0,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": "{\"general\":{\"language\":\"en\",\"country\":\"United States\",\"country_code\":\"US\",\"gl\":\"US\",\"location\":{\"latitude\":38.7355029155827,\"longitude\":-77.4136745500341,\"zoom\":17}}}",
+        "top3": []
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "A3",
+      "lat": 38.7355151361164,
+      "lng": -77.3827495785444,
+      "distanceFromCenterM": 8482.28255158991,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          },
+          {
+            "rank": 3,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          }
+        ]
+      },
+      "allThreeMatch": true
+    },
+    {
+      "gridLabel": "A4",
+      "lat": 38.7355192096283,
+      "lng": -77.3518246,
+      "distanceFromCenterM": 8047.00000000024,
+      "dataforseo": {
+        "rank": 5,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          },
+          {
+            "rank": 3,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "A5",
+      "lat": 38.7355151361164,
+      "lng": -77.3208996214556,
+      "distanceFromCenterM": 8482.28255158991,
+      "dataforseo": {
+        "rank": 5,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 6,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          },
+          {
+            "rank": 3,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "A6",
+      "lat": 38.7355029155827,
+      "lng": -77.2899746499659,
+      "distanceFromCenterM": 9671.28957998898,
+      "dataforseo": {
+        "rank": 5,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 5,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          },
+          {
+            "rank": 3,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "A7",
+      "lat": 38.7354825480337,
+      "lng": -77.2590496925856,
+      "distanceFromCenterM": 11380.1750234802,
+      "dataforseo": {
+        "rank": 6,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 5,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          },
+          {
+            "rank": 3,
+            "title": "Junk King Fairfax",
+            "place_id": "ChIJfQ2y97RNtokRbJAWjwRcwFE"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "B1",
+      "lat": 38.7113597764373,
+      "lng": -77.4445681932813,
+      "distanceFromCenterM": 9671.28957998861,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 6,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "B2",
+      "lat": 38.7113801264235,
+      "lng": -77.4136536739212,
+      "distanceFromCenterM": 7586.78390933263,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": true
+    },
+    {
+      "gridLabel": "B3",
+      "lat": 38.7113923364195,
+      "lng": -77.3827391404807,
+      "distanceFromCenterM": 5997.87952988891,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 22,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 2,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 3,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 3,
+            "title": "Junk Removal Woodbridge",
+            "place_id": "ChIJM7XprohXtokRlfSuPQ6WHjM"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "B4",
+      "lat": 38.7113964064188,
+      "lng": -77.3518246,
+      "distanceFromCenterM": 5364.66666666577,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          },
+          {
+            "rank": 3,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          }
+        ]
+      },
+      "allThreeMatch": true
+    },
+    {
+      "gridLabel": "B5",
+      "lat": 38.7113923364195,
+      "lng": -77.3209100595193,
+      "distanceFromCenterM": 5997.87952988947,
+      "dataforseo": {
+        "rank": 5,
+        "matchReason": "cached",
+        "resultCount": 22,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 3,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          },
+          {
+            "rank": 3,
+            "title": "Junk Removal Woodbridge",
+            "place_id": "ChIJM7XprohXtokRlfSuPQ6WHjM"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "B6",
+      "lat": 38.7113801264235,
+      "lng": -77.2899955260788,
+      "distanceFromCenterM": 7586.7839093335,
+      "dataforseo": {
+        "rank": 5,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 3,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 3,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          },
+          {
+            "rank": 3,
+            "title": "Junk Removal Woodbridge",
+            "place_id": "ChIJM7XprohXtokRlfSuPQ6WHjM"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "B7",
+      "lat": 38.7113597764373,
+      "lng": -77.2590810067187,
+      "distanceFromCenterM": 9671.28957998861,
+      "dataforseo": {
+        "rank": 6,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 5,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 5,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          },
+          {
+            "rank": 3,
+            "title": "Junk King Fairfax",
+            "place_id": "ChIJfQ2y97RNtokRbJAWjwRcwFE"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "C1",
+      "lat": 38.6872370048196,
+      "lng": -77.4445369167084,
+      "distanceFromCenterM": 8482.28255158964,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": true
+    },
+    {
+      "gridLabel": "C2",
+      "lat": 38.6872573372549,
+      "lng": -77.4136328228484,
+      "distanceFromCenterM": 5997.87952988858,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 3,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 2,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 3,
+            "title": "Junk Removal Woodbridge",
+            "place_id": "ChIJM7XprohXtokRlfSuPQ6WHjM"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "C3",
+      "lat": 38.6872695367203,
+      "lng": -77.3827287149371,
+      "distanceFromCenterM": 3793.39212277024,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 3,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 2,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 2,
+            "title": "Junk Removal Woodbridge",
+            "place_id": "ChIJM7XprohXtokRlfSuPQ6WHjM"
+          },
+          {
+            "rank": 3,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "C4",
+      "lat": 38.6872736032094,
+      "lng": -77.3518246,
+      "distanceFromCenterM": 2682.33333333289,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 22,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 3,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 1,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "Junk Removal Woodbridge",
+            "place_id": "ChIJM7XprohXtokRlfSuPQ6WHjM"
+          },
+          {
+            "rank": 2,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 3,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "C5",
+      "lat": 38.6872695367203,
+      "lng": -77.3209204850629,
+      "distanceFromCenterM": 3793.39212277024,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 3,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 3,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          },
+          {
+            "rank": 3,
+            "title": "Junk Removal Woodbridge",
+            "place_id": "ChIJM7XprohXtokRlfSuPQ6WHjM"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "C6",
+      "lat": 38.6872573372549,
+      "lng": -77.2900163771516,
+      "distanceFromCenterM": 5997.87952988968,
+      "dataforseo": {
+        "rank": 5,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 3,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 3,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          },
+          {
+            "rank": 3,
+            "title": "Junk Removal Woodbridge",
+            "place_id": "ChIJM7XprohXtokRlfSuPQ6WHjM"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "C7",
+      "lat": 38.6872370048196,
+      "lng": -77.2591122832916,
+      "distanceFromCenterM": 8482.28255159081,
+      "dataforseo": {
+        "rank": 5,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 3,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 3,
+        "matchReason": "name",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          },
+          {
+            "rank": 3,
+            "title": "Diligent Junk Removal Woodbridge",
+            "place_id": "ChIJ9b3KqyL_tokRZ0EGxV6lfHg"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "D1",
+      "lat": 38.6631142331807,
+      "lng": -77.4445056776467,
+      "distanceFromCenterM": 8047.00000000049,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 2,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": true
+    },
+    {
+      "gridLabel": "D2",
+      "lat": 38.6631345480768,
+      "lng": -77.4136119967832,
+      "distanceFromCenterM": 5364.66666666565,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 21,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 3,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 2,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 3,
+            "title": "Junk Removal Woodbridge",
+            "place_id": "ChIJM7XprohXtokRlfSuPQ6WHjM"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "D3",
+      "lat": 38.6631467370187,
+      "lng": -77.3827183018972,
+      "distanceFromCenterM": 2682.3333333334,
+      "dataforseo": {
+        "rank": 3,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 3,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 2,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 2,
+            "title": "Junk Removal Woodbridge",
+            "place_id": "ChIJM7XprohXtokRlfSuPQ6WHjM"
+          },
+          {
+            "rank": 3,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "D4",
+      "lat": 38.6631508,
+      "lng": -77.3518246,
+      "distanceFromCenterM": 0,
+      "dataforseo": {
+        "rank": 1,
+        "matchReason": "cached",
+        "resultCount": 1,
+        "searchThisAreaMode": "sta=true",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 2,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 2,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 2,
+            "title": "Junk Removal Woodbridge",
+            "place_id": "ChIJM7XprohXtokRlfSuPQ6WHjM"
+          },
+          {
+            "rank": 3,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "D5",
+      "lat": 38.6631467370187,
+      "lng": -77.3209308981028,
+      "distanceFromCenterM": 2682.33333333464,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 2,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 2,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "Junk Removal Woodbridge",
+            "place_id": "ChIJM7XprohXtokRlfSuPQ6WHjM"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "D6",
+      "lat": 38.6631345480768,
+      "lng": -77.2900372032168,
+      "distanceFromCenterM": 5364.66666666688,
+      "dataforseo": {
+        "rank": null,
+        "matchReason": "cached",
+        "resultCount": 1,
+        "searchThisAreaMode": "sta=true",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 3,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 3,
+        "matchReason": "name",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          },
+          {
+            "rank": 3,
+            "title": "Diligent Junk Removal Woodbridge",
+            "place_id": "ChIJ9b3KqyL_tokRZ0EGxV6lfHg"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "D7",
+      "lat": 38.6631142331807,
+      "lng": -77.2591435223533,
+      "distanceFromCenterM": 8047.00000000049,
+      "dataforseo": {
+        "rank": 3,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 3,
+        "matchReason": "cached",
+        "resultCount": 15,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "name",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          },
+          {
+            "rank": 2,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 3,
+            "title": "Junk Removal Comercial & Residencial",
+            "place_id": "ChIJtWOAmadVtokRVK5aAq0umGI"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "E1",
+      "lat": 38.6389914615204,
+      "lng": -77.4444744760472,
+      "distanceFromCenterM": 8482.28255159012,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 2,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": true
+    },
+    {
+      "gridLabel": "E2",
+      "lat": 38.6390117588892,
+      "lng": -77.4135911956928,
+      "distanceFromCenterM": 5997.87952988998,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 3,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 2,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 3,
+            "title": "Junk Removal Woodbridge",
+            "place_id": "ChIJM7XprohXtokRlfSuPQ6WHjM"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "E3",
+      "lat": 38.6390239373147,
+      "lng": -77.3827079013448,
+      "distanceFromCenterM": 3793.39212277092,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 2,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 2,
+            "title": "Junk Removal Woodbridge",
+            "place_id": "ChIJM7XprohXtokRlfSuPQ6WHjM"
+          },
+          {
+            "rank": 3,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "E4",
+      "lat": 38.6390279967906,
+      "lng": -77.3518246,
+      "distanceFromCenterM": 2682.33333333368,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 21,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 2,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 2,
+            "title": "Junk Removal Woodbridge",
+            "place_id": "ChIJM7XprohXtokRlfSuPQ6WHjM"
+          },
+          {
+            "rank": 3,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "E5",
+      "lat": 38.6390239373147,
+      "lng": -77.3209412986552,
+      "distanceFromCenterM": 3793.39212277092,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": true
+    },
+    {
+      "gridLabel": "E6",
+      "lat": 38.6390117588892,
+      "lng": -77.2900580043072,
+      "distanceFromCenterM": 5997.87952988998,
+      "dataforseo": {
+        "rank": null,
+        "matchReason": "cached",
+        "resultCount": 2,
+        "searchThisAreaMode": "sta=true",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 3,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 2,
+        "matchReason": "name",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "Diligent Junk Removal Woodbridge",
+            "place_id": "ChIJ9b3KqyL_tokRZ0EGxV6lfHg"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "E7",
+      "lat": 38.6389914615204,
+      "lng": -77.2591747239528,
+      "distanceFromCenterM": 8482.28255159012,
+      "dataforseo": {
+        "rank": null,
+        "matchReason": "cached",
+        "resultCount": 1,
+        "searchThisAreaMode": "sta=true",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 3,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 3,
+        "matchReason": "name",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          },
+          {
+            "rank": 2,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 3,
+            "title": "Diligent Junk Removal Woodbridge",
+            "place_id": "ChIJ9b3KqyL_tokRZ0EGxV6lfHg"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "F1",
+      "lat": 38.614868689839,
+      "lng": -77.444443311861,
+      "distanceFromCenterM": 9671.28957999045,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": true
+    },
+    {
+      "gridLabel": "F2",
+      "lat": 38.6148889696922,
+      "lng": -77.4135704195446,
+      "distanceFromCenterM": 7586.78390933339,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 21,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 2,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": true
+    },
+    {
+      "gridLabel": "F3",
+      "lat": 38.6149011376084,
+      "lng": -77.3826975132635,
+      "distanceFromCenterM": 5997.87952988959,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 2,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": true
+    },
+    {
+      "gridLabel": "F4",
+      "lat": 38.6149051935811,
+      "lng": -77.3518246,
+      "distanceFromCenterM": 5364.66666666735,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 21,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 2,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": true
+    },
+    {
+      "gridLabel": "F5",
+      "lat": 38.6149011376084,
+      "lng": -77.3209516867365,
+      "distanceFromCenterM": 5997.87952988959,
+      "dataforseo": {
+        "rank": 3,
+        "matchReason": "cached",
+        "resultCount": 21,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 2,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 2,
+        "matchReason": "name",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "Diligent Junk Removal Woodbridge",
+            "place_id": "ChIJ9b3KqyL_tokRZ0EGxV6lfHg"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "F6",
+      "lat": 38.6148889696922,
+      "lng": -77.2900787804554,
+      "distanceFromCenterM": 7586.78390933426,
+      "dataforseo": {
+        "rank": 2,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 2,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 1,
+        "matchReason": "name",
+        "resultCount": 19,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "Diligent Junk Removal Woodbridge",
+            "place_id": "ChIJ9b3KqyL_tokRZ0EGxV6lfHg"
+          },
+          {
+            "rank": 2,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "F7",
+      "lat": 38.614868689839,
+      "lng": -77.259205888139,
+      "distanceFromCenterM": 9671.28957999045,
+      "dataforseo": {
+        "rank": 2,
+        "matchReason": "cached",
+        "resultCount": 21,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 2,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 1,
+        "matchReason": "name",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "Diligent Junk Removal Woodbridge",
+            "place_id": "ChIJ9b3KqyL_tokRZ0EGxV6lfHg"
+          },
+          {
+            "rank": 2,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "G1",
+      "lat": 38.5907459181363,
+      "lng": -77.4444121850394,
+      "distanceFromCenterM": 11380.1750234789,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 5,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "G2",
+      "lat": 38.5907661804858,
+      "lng": -77.4135496683062,
+      "distanceFromCenterM": 9671.2895799899,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": true
+    },
+    {
+      "gridLabel": "G3",
+      "lat": 38.5907783378997,
+      "lng": -77.3826871376371,
+      "distanceFromCenterM": 8482.28255158942,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "cid",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": true
+    },
+    {
+      "gridLabel": "G4",
+      "lat": 38.5907823903717,
+      "lng": -77.3518246,
+      "distanceFromCenterM": 8047.00000000024,
+      "dataforseo": {
+        "rank": 4,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 3,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 4,
+        "matchReason": "name",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "VA Top Junk Removal",
+            "place_id": "ChIJ0yZvY_rku0sR_LBJwgIRVAk"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "G5",
+      "lat": 38.5907783378997,
+      "lng": -77.3209620623629,
+      "distanceFromCenterM": 8482.28255158981,
+      "dataforseo": {
+        "rank": 3,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 2,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 2,
+        "matchReason": "name",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 2,
+            "title": "Diligent Junk Removal Woodbridge",
+            "place_id": "ChIJ9b3KqyL_tokRZ0EGxV6lfHg"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "G6",
+      "lat": 38.5907661804858,
+      "lng": -77.2900995316938,
+      "distanceFromCenterM": 9671.2895799899,
+      "dataforseo": {
+        "rank": null,
+        "matchReason": "cached",
+        "resultCount": 1,
+        "searchThisAreaMode": "sta=true",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 2,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 1,
+        "matchReason": "name",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "Diligent Junk Removal Woodbridge",
+            "place_id": "ChIJ9b3KqyL_tokRZ0EGxV6lfHg"
+          },
+          {
+            "rank": 2,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    },
+    {
+      "gridLabel": "G7",
+      "lat": 38.5907459181363,
+      "lng": -77.2592370149606,
+      "distanceFromCenterM": 11380.1750234798,
+      "dataforseo": {
+        "rank": 3,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "searchThisAreaMode": "fallback",
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "scrapingdog": {
+        "rank": 2,
+        "matchReason": "cached",
+        "resultCount": 20,
+        "cached": true,
+        "source": "C:\\gmb\\scripts\\output\\grid-provider-comparison-eaf2a843-3cb2-4af4-a78d-6318d41c5ceb.json"
+      },
+      "brightdata": {
+        "rank": 1,
+        "matchReason": "name",
+        "resultCount": 20,
+        "httpStatus": 200,
+        "zone": "serp_api1",
+        "error": null,
+        "top3": [
+          {
+            "rank": 1,
+            "title": "Diligent Junk Removal Woodbridge",
+            "place_id": "ChIJ9b3KqyL_tokRZ0EGxV6lfHg"
+          },
+          {
+            "rank": 2,
+            "title": "K. Brooks Junk Removal LLC",
+            "place_id": "ChIJoxJqRHZXtokRtVUhqJHdukI"
+          },
+          {
+            "rank": 3,
+            "title": "Best junk removal LLC",
+            "place_id": "ChIJYUX9w4ECFwQR0CklrJnNaLc"
+          }
+        ]
+      },
+      "allThreeMatch": false
+    }
+  ]
+}

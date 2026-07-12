@@ -1,0 +1,105 @@
+"use client";
+
+import { useState } from "react";
+import { PageHeader } from "@/components/ui/page-header";
+import { SetupMap } from "@/components/maps/setup-map";
+import { ScanSetupForm, defaultScanSetupValues } from "@/components/scan/scan-setup-form";
+
+export function SettingsClient({
+  businessId,
+  business,
+}: {
+  businessId: string;
+  business: {
+    name: string;
+    address_text: string | null;
+    service_area_mode: string;
+    website_url: string | null;
+    scan_center_lat: number | null;
+    scan_center_lng: number | null;
+    lat: number | null;
+    lng: number | null;
+  };
+}) {
+  const [center, setCenter] = useState<[number, number]>([
+    business.scan_center_lat ?? business.lat ?? 40.7128,
+    business.scan_center_lng ?? business.lng ?? -74.006,
+  ]);
+  const [weeklyEnabled, setWeeklyEnabled] = useState(false);
+
+  async function toggleWeekly() {
+    const next = !weeklyEnabled;
+    setWeeklyEnabled(next);
+    await fetch("/api/schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ businessId, enabled: next }),
+    });
+  }
+
+  return (
+    <>
+      <PageHeader title="Settings" subtitle="Scan defaults and business details" />
+
+      <div className="grid gap-8 lg:grid-cols-2">
+        <section className="rounded-xl border border-zinc-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <h2 className="font-semibold">Business details</h2>
+          <dl className="mt-4 space-y-3 text-sm">
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="shrink-0 text-zinc-500">Name</dt>
+              <dd className="text-right font-medium text-zinc-900">{business.name}</dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="shrink-0 text-zinc-500">Address</dt>
+              <dd className="text-right font-medium text-zinc-900">{business.address_text ?? "—"}</dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="shrink-0 text-zinc-500">Mode</dt>
+              <dd className="text-right font-medium capitalize text-zinc-900">{business.service_area_mode.replace("_", " ")}</dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="shrink-0 text-zinc-500">Website</dt>
+              <dd className="truncate text-right font-medium text-zinc-900">{business.website_url ?? "—"}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section>
+          <h2 className="font-semibold">Scan center</h2>
+          <p className="mt-1 text-sm text-zinc-500">Click map to move center for service-area audits</p>
+          <div className="mt-4">
+            <SetupMap center={center} onCenterChange={(lat, lng) => setCenter([lat, lng])} />
+          </div>
+        </section>
+      </div>
+
+      <section className="mt-8 rounded-xl border border-zinc-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <h2 className="font-semibold">Baseline scan setup</h2>
+        <ScanSetupForm
+          businessId={businessId}
+          defaults={defaultScanSetupValues(center[0], center[1])}
+          scanCenter={center}
+        />
+      </section>
+
+      <section className="mt-8 rounded-xl border border-zinc-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <h2 className="font-semibold">Weekly automation</h2>
+        <p className="mt-1 text-sm leading-relaxed text-zinc-500">Automatically re-run your baseline scan every week to track ranking changes over time.</p>
+        <button
+          type="button"
+          onClick={toggleWeekly}
+          className="mt-4 rounded-lg border border-zinc-200 px-4 py-2 text-sm transition hover:bg-zinc-50"
+        >
+          {weeklyEnabled ? "Disable" : "Enable"} weekly scan
+        </button>
+      </section>
+
+      <section className="mt-8 rounded-xl border border-amber-200 bg-amber-50 p-5">
+        <h2 className="font-semibold text-amber-900">Google connected mode</h2>
+        <p className="mt-2 text-sm leading-relaxed text-amber-800">
+          Official GBP OAuth unlocks location sync, review replies, posts, media, and performance insights after Firebase auth + GCP approval.
+        </p>
+      </section>
+    </>
+  );
+}

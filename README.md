@@ -1,36 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Maps Growth Agent
 
-## Getting Started
+Google Maps-first SaaS that audits local visibility, compares competitors, and turns gaps into a weekly action plan.
 
-First, run the development server:
+## Stack
 
-```bash
+- **Next.js 16** (App Router)
+- **Supabase** (Postgres + PostGIS, RLS, job queue, cron SQL, realtime)
+- **DataForSEO** — Live + Standard grid rank scans
+- **ScrapingDog** — enrichment (details, reviews, photos, posts)
+- **DeepSeek** — action plan generation (Zod-validated JSON)
+- **Kimi** — screenshot analysis API + UI
+- **Gemini** — grounded research panel
+- **Leaflet** — scan heatmaps
+
+## Setup
+
+1. Copy `.env.example` to `.env.local` and fill in keys.
+2. Run migrations in Supabase SQL editor **in order**:
+   - `supabase/migrations/001_initial_schema.sql`
+   - `supabase/migrations/002_enhancements.sql`
+   - `supabase/migrations/003_module_audits.sql`
+3. Optional: `supabase/seed/seed.sql`
+4. Enable Supabase Cron (Dashboard → Integrations → Cron) with:
+   ```sql
+   SELECT cron.schedule('weekly-scans', '0 9 * * 1', $$ SELECT process_due_scheduled_scans(); $$);
+   ```
+5. Set `DEV_BYPASS_AUTH=true` until Firebase auth is wired.
+
+```powershell
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Auth (deferred by design)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Firebase Auth replaces dev bypass later. Sign-in/sign-up are placeholders.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Features implemented
 
-## Learn More
+| Area | Status |
+|------|--------|
+| Business intake + GBP resolve | ✅ |
+| Grid scan (Live + Standard/postback) | ✅ |
+| Heatmap + trends vs prior scan | ✅ |
+| Competitor side-by-side audit | ✅ |
+| Deterministic audit (4 buckets + website probe) | ✅ |
+| DeepSeek action plan + fallback | ✅ |
+| Task completion tracking | ✅ |
+| HTML reports + share links | ✅ |
+| Gemini research + sources + suggestions | ✅ |
+| Kimi screenshot upload | ✅ |
+| Weekly scan scheduling (DB + cron SQL) | ✅ |
+| Agency clients + bulk reports | ✅ |
+| API auth on protected routes | ✅ |
+| Zod validation | ✅ |
+| PostGIS geom on insert | ✅ |
+| Provider audit logging | ✅ |
+| SSRF-safe website probe | ✅ |
+| Maps Audit Workspace (GMB Everywhere-style) | ✅ |
+| Website Match / Category Gap / Core 30 / Hyper-Local audits | ✅ |
+| Competitor gap audit + SOP action plan engine | ✅ |
+| Google OAuth connected mode | Stub (needs GCP + Firebase) |
+| Firebase login | Not built (next) |
+| Stripe billing | Not in MVP |
+| Q&A API | Discontinued by Google |
 
-To learn more about Next.js, take a look at the following resources:
+## API routes
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Route | Purpose |
+|-------|---------|
+| `POST /api/businesses/resolve` | Find GBP candidates |
+| `POST /api/businesses/create` | Save business + keyword |
+| `POST /api/scans/create` | Queue grid scan |
+| `GET /api/scans/[id]/status` | Poll scan + prior metrics |
+| `POST /api/scans/[id]/rerun` | Re-run scan |
+| `POST /api/reports/export` | Generate shareable report |
+| `POST /api/research` | Grounded research |
+| `POST /api/vision/analyze` | Kimi screenshot analysis |
+| `POST /api/schedule` | Enable weekly scans |
+| `POST /api/webhooks/dataforseo` | Standard task postback |
+| `GET/POST /api/jobs/process` | Process job queue (cron) |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Repo layout
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/app/(dashboard)/   — UI pages
+src/app/api/           — Route handlers
+src/lib/providers/     — DataForSEO, ScrapingDog, DeepSeek, Kimi, Gemini, GBP stub
+src/lib/jobs/          — Scan pipeline, enrichment, finalize
+src/lib/scoring/       — Deterministic audit engine
+src/lib/rules/         — Website probe
+src/lib/rls/           — RLS policy reference
+src/components/        — Maps, audit, scan, tasks, research
+supabase/migrations/   — Schema + cron functions
+supabase/functions/    — Edge function notes
+```

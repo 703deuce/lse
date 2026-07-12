@@ -1,0 +1,93 @@
+{
+  "at": "2026-07-10T03:03:56.487Z",
+  "results": [
+    {
+      "name": "Woodbridge",
+      "keyword": "junk removal woodbridge va",
+      "before": {
+        "mkd": 38,
+        "label": "Moderate"
+      },
+      "after": {
+        "mkd": 27,
+        "label": "Easy",
+        "buckets": {
+          "authority": 1.4,
+          "reviews": 13.5,
+          "incumbentStrength": 4,
+          "proximity": 2.6,
+          "localPage": 2.4,
+          "gbpRelevance": 2.8,
+          "brandFranchise": 0
+        }
+      },
+      "elapsedSec": "51"
+    },
+    {
+      "name": "Winchester (city kw)",
+      "keyword": "junk removal winchester va",
+      "before": {
+        "mkd": 41,
+        "label": "Moderate"
+      },
+      "after": {
+        "mkd": 40,
+        "label": "Moderate",
+        "buckets": {
+          "authority": 7.8,
+          "reviews": 18.3,
+          "incumbentStrength": 4,
+          "proximity": 6.5,
+          "localPage": 1.9,
+          "gbpRelevance": 1.4,
+          "brandFranchise": 0
+        }
+      },
+      "elapsedSec": "29"
+    },
+    {
+      "name": "Baltimore",
+      "keyword": "junk removal baltimore md",
+      "before": {
+        "mkd": 74,
+        "label": "Very Hard"
+      },
+      "after": {
+        "mkd": 64,
+        "label": "Hard",
+        "buckets": {
+          "authority": 11.4,
+          "reviews": 30,
+          "incumbentStrength": 11,
+          "proximity": 4.2,
+          "localPage": 4.3,
+          "gbpRelevance": 0.5,
+          "brandFranchise": 3
+        }
+      },
+      "elapsedSec": "41"
+    },
+    {
+      "name": "Miami",
+      "keyword": "junk removal miami fl",
+      "before": {
+        "mkd": 54,
+        "label": "Hard"
+      },
+      "after": {
+        "mkd": 34,
+        "label": "Easy",
+        "buckets": {
+          "authority": 7,
+          "reviews": 16.3,
+          "incumbentStrength": 6,
+          "proximity": 0.4,
+          "localPage": 1.5,
+          "gbpRelevance": 0.5,
+          "brandFranchise": 2
+        }
+      },
+      "elapsedSec": "43"
+    }
+  ]
+}

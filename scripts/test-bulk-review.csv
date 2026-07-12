@@ -1,0 +1,4 @@
+first_name,last_name,full_name,phone,email,service_date,job_type,city,notes
+Jane,Doe,Jane Doe,+15551234567,jane@example.com,2026-01-15,Junk removal,Woodbridge,Test contact 1
+John,Smith,,+15559876543,,2026-01-16,Cleanout,Springfield,
+Bad,Row,,,not-an-email,,,,

@@ -1,0 +1,1276 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import {
+  BarChart3,
+  Crosshair,
+  Eye,
+  GitCompare,
+  Grid3x3,
+  Layers,
+  ListOrdered,
+  Loader2,
+  MapPinned,
+  Target,
+  TrendingDown,
+  Zap,
+} from "lucide-react";
+import { createBrowserClient } from "@/lib/db/client";
+import { GridMetricCard, StatusBadge } from "@/components/ui/metric-card";
+import { gridRankHeaderBtn, gridRankPageBg, gridRankPrimaryBtn } from "@/components/scan/grid-rank-ui";
+import { Toast } from "@/components/ui/toast";
+import { computeScanTrend, buildGridTopCompetitors, type ScanAggregateMetrics } from "@/lib/maps/grid";
+import { ScanSetupForm, defaultScanSetupValues } from "@/components/scan/scan-setup-form";
+import { computeSolv, computeWeightedSolv, gridScanMeta } from "@/lib/maps/grid-metrics";
+import { GRID_COLOR_MODE_STORAGE_KEY, type GridColorMode } from "@/lib/maps/colors";
+import { GridRankLegend } from "@/components/maps/grid-rank-legend";
+import { profileFromBatch } from "@/lib/maps/scan-profiles";
+import {
+  buildEntityGridCells,
+  buildYouEntity,
+  entityFromKey,
+  metricsFromCells,
+  solvFromCells,
+  type StoredCompetitor,
+} from "@/lib/maps/grid-entity";
+import { CellInspectorDrawer } from "@/components/scan/cell-inspector-drawer";
+import { CompetitorGridToggle, type EntityOption } from "@/components/scan/competitor-grid-toggle";
+import { CompetitorFingerprintDrawer } from "@/components/competitors/competitor-fingerprint-drawer";
+import {
+  areCellsInFlight,
+  hasCellsPending,
+  isEnrichmentComplete,
+  isEnrichmentRunning,
+  scanProgressMessage,
+  shouldPollScan,
+} from "@/lib/scans/status";
+import { RankByDistanceCard } from "@/components/maps/rank-by-distance-card";
+import { ScanTimelineSlider, type TimelineMode } from "@/components/scan/scan-timeline-slider";
+import { computeGridRankByDistance } from "@/lib/maps/rank-by-distance";
+import { entityKeyFromParts } from "@/lib/maps/grid-entity";
+import { GridToolbar, type GridToolbarHandle } from "@/components/scan/grid-toolbar";
+import { GridCompareView } from "@/components/scan/grid-compare-view";
+import { GridScanTrendChart } from "@/components/scan/grid-scan-trend-chart";
+import { GridScanCompetitorsTable } from "@/components/scan/grid-scan-competitors-table";
+import { MoveGridPanel, useMoveGridPreview } from "@/components/scan/move-grid-panel";
+import {
+  SinglePointConfirmModal,
+  SpotCheckInspector,
+  type SpotCheckDetail,
+  type SpotCheckMarker,
+} from "@/components/scan/single-point-check";
+import type { LocationScanSummary } from "@/lib/maps/scan-queries";
+import type { MapInteractionMode } from "@/components/maps/scan-map";
+import type { GridCell } from "@/components/maps/scan-map";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+
+const ScanMap = dynamic(
+  () => import("@/components/maps/scan-map").then((m) => m.ScanMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[min(68vh,600px)] items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50">
+        <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
+      </div>
+    ),
+  }
+);
+
+const isDev = process.env.NODE_ENV === "development";
+
+type ScanViewData = {
+  batch: Record<string, unknown>;
+  business: {
+    name?: string;
+    cid?: string | null;
+    place_id?: string | null;
+    phone?: string | null;
+    website_url?: string | null;
+    lat?: number | null;
+    lng?: number | null;
+    scan_center_lat?: number | null;
+    scan_center_lng?: number | null;
+    primary_category?: string | null;
+  } | null;
+  primaryKeyword?: string | null;
+  primaryKeywordId?: string | null;
+  primaryKeywordCity?: string | null;
+  primaryKeywordState?: string | null;
+  points: Array<Record<string, unknown>>;
+  results: Array<Record<string, unknown>>;
+  priorMetrics: Record<string, unknown> | null;
+};
+
+const scanDataCache = new Map<string, ScanViewData>();
+
+function scanCacheKey(scanId: string, keywordId: string | null) {
+  return `${scanId}:${keywordId ?? ""}`;
+}
+
+/** Next.js 16 patches replaceState and syncs the App Router — use __NA to update the URL without remounting. */
+function replaceUrlWithoutRouterSync(url: string) {
+  window.history.replaceState({ __NA: true }, "", url);
+}
+
+export function GridScanView({ businessId, scanId }: { businessId: string; scanId: string }) {
+  const [activeScanId, setActiveScanId] = useState(scanId);
+  const [colorMode, setColorMode] = useState<GridColorMode>("falcon");
+  const [keywordId, setKeywordId] = useState<string | null>(null);
+  const [entityKey, setEntityKey] = useState("you");
+  const [entities, setEntities] = useState<EntityOption[]>([]);
+  const [inspectorCellId, setInspectorCellId] = useState<string | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareInitialMode, setCompareInitialMode] = useState<"scans" | "competitors">("scans");
+  const [compareInitialCompetitorKey, setCompareInitialCompetitorKey] = useState<string | null>(null);
+  const [showRadiusRings, setShowRadiusRings] = useState(false);
+  const [timelineMode, setTimelineMode] = useState<TimelineMode>("target");
+  const [timelineCompetitorKey, setTimelineCompetitorKey] = useState<string | null>(null);
+  const [fingerprintTarget, setFingerprintTarget] = useState<{
+    entityKey: string;
+    competitorId?: string | null;
+    raw?: StoredCompetitor;
+  } | null>(null);
+  const toolbarRef = useRef<GridToolbarHandle>(null);
+  const [toolbarRunning, setToolbarRunning] = useState(false);
+  const [locationId, setLocationId] = useState<string | null>(null);
+  const [locationCenter, setLocationCenter] = useState<[number, number] | null>(null);
+  const [moveGridActive, setMoveGridActive] = useState(false);
+  const [previewCenter, setPreviewCenter] = useState<[number, number] | null>(null);
+  const [moveScanRunning, setMoveScanRunning] = useState(false);
+  const [singlePointActive, setSinglePointActive] = useState(false);
+  const [pendingClick, setPendingClick] = useState<{ lat: number; lng: number } | null>(null);
+  const [spotChecks, setSpotChecks] = useState<SpotCheckMarker[]>([]);
+  const [spotCheckDetails, setSpotCheckDetails] = useState<Record<string, SpotCheckDetail>>({});
+  const [activeSpotCheckId, setActiveSpotCheckId] = useState<string | null>(null);
+  const [singlePointRunning, setSinglePointRunning] = useState(false);
+  const [enrichmentToastOpen, setEnrichmentToastOpen] = useState(false);
+  const [timelineFetching, setTimelineFetching] = useState(false);
+  const enrichmentStatusRef = useRef<string | null | undefined>(undefined);
+  const [data, setData] = useState<ScanViewData | null>(
+    () => scanDataCache.get(scanCacheKey(scanId, null)) ?? null
+  );
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(GRID_COLOR_MODE_STORAGE_KEY);
+      if (stored === "strict" || stored === "falcon") setColorMode(stored);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    setActiveScanId(scanId);
+  }, [scanId]);
+
+  const replaceGridUrl = useCallback(
+    (nextScanId: string, nextKeywordId?: string | null) => {
+      if (typeof window === "undefined") return;
+      const params = new URLSearchParams(window.location.search);
+      const kw = nextKeywordId !== undefined ? nextKeywordId : keywordId;
+      if (kw) params.set("keywordId", kw);
+      else params.delete("keywordId");
+      const qs = params.toString();
+      const path = `/businesses/${businessId}/grid/${nextScanId}${qs ? `?${qs}` : ""}`;
+      replaceUrlWithoutRouterSync(path);
+    },
+    [businessId, keywordId]
+  );
+
+  const prefetchScanData = useCallback(
+    (scanId: string, kw?: string | null) => {
+      const resolvedKw = kw !== undefined ? kw : keywordId;
+      const key = scanCacheKey(scanId, resolvedKw);
+      if (scanDataCache.has(key)) return;
+      const params = resolvedKw ? `?keywordId=${resolvedKw}` : "";
+      void fetch(`/api/scans/${scanId}/status${params}`)
+        .then((res) => res.json())
+        .then((json: ScanViewData) => {
+          scanDataCache.set(key, json);
+        })
+        .catch(() => undefined);
+    },
+    [keywordId]
+  );
+
+  const switchScan = useCallback(
+    (nextScanId: string, nextKeywordId?: string | null) => {
+      const resolvedKeywordId = nextKeywordId !== undefined ? nextKeywordId : keywordId;
+      if (nextScanId === activeScanId && nextKeywordId === undefined) return;
+      if (nextKeywordId !== undefined) setKeywordId(nextKeywordId);
+      setInspectorCellId(null);
+      setCompareOpen(false);
+      const cacheKey = scanCacheKey(nextScanId, resolvedKeywordId);
+      const cached = scanDataCache.get(cacheKey);
+      if (cached) {
+        setData(cached);
+        setTimelineFetching(false);
+      } else {
+        setTimelineFetching(true);
+        setData(null);
+        const params = resolvedKeywordId ? `?keywordId=${resolvedKeywordId}` : "";
+        void fetch(`/api/scans/${nextScanId}/status${params}`)
+          .then((res) => res.json())
+          .then((json: ScanViewData) => {
+            scanDataCache.set(cacheKey, json);
+            setData(json);
+            setTimelineFetching(false);
+          })
+          .catch(() => setTimelineFetching(false));
+      }
+      setActiveScanId(nextScanId);
+      replaceGridUrl(nextScanId, nextKeywordId);
+    },
+    [activeScanId, keywordId, replaceGridUrl]
+  );
+
+  function handleColorModeChange(mode: GridColorMode) {
+    setColorMode(mode);
+    try {
+      localStorage.setItem(GRID_COLOR_MODE_STORAGE_KEY, mode);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const pollStatus = useCallback(async () => {
+    const params = keywordId ? `?keywordId=${keywordId}` : "";
+    const res = await fetch(`/api/scans/${activeScanId}/status${params}`);
+    return res.json();
+  }, [activeScanId, keywordId]);
+
+  useEffect(() => {
+    let active = true;
+    const supabase = createBrowserClient();
+
+    async function poll() {
+      try {
+        const json = (await pollStatus()) as ScanViewData;
+        if (!active) return;
+        scanDataCache.set(scanCacheKey(activeScanId, keywordId), json);
+        setData(json);
+        setTimelineFetching(false);
+        if (!keywordId && json.primaryKeywordId) {
+          setKeywordId(json.primaryKeywordId as string);
+        }
+        const status = json.batch?.status as string;
+        if (
+          shouldPollScan(status, {
+            cells_completed: json.batch?.cells_completed,
+            cells_total: json.batch?.cells_total,
+            confidence_summary: json.batch?.confidence_summary,
+          })
+        ) {
+          const inFlight = areCellsInFlight(status);
+          setTimeout(poll, inFlight ? 1500 : 3000);
+        }
+      } catch {
+        if (active) setTimeout(poll, 3000);
+      }
+    }
+    poll();
+
+    const channel = supabase
+      .channel(`scan-${activeScanId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "scan_batches", filter: `id=eq.${activeScanId}` },
+        () => poll()
+      )
+      .subscribe();
+
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
+  }, [activeScanId, pollStatus, keywordId]);
+
+  useEffect(() => {
+    async function loadEntities() {
+      const params = keywordId ? `?keywordId=${keywordId}` : "";
+      const res = await fetch(`/api/scans/${activeScanId}/competitors${params}`);
+      if (!res.ok) return;
+      const json = await res.json();
+      setEntities(
+        (json.entities ?? []).map((e: EntityOption) => ({
+          key: e.key,
+          label: e.label,
+          isTarget: e.isTarget,
+        }))
+      );
+    }
+    void loadEntities();
+  }, [activeScanId, keywordId, data?.results?.length]);
+
+  useEffect(() => {
+    async function loadSpotChecks() {
+      const res = await fetch(`/api/single-point-rank/${businessId}`);
+      if (!res.ok) return;
+      const json = await res.json();
+      const rows = json.checks ?? [];
+      const details: Record<string, SpotCheckDetail> = {};
+      setSpotChecks(
+        rows.map(
+          (c: {
+            id: string;
+            lat: number;
+            lng: number;
+            rank: number | null;
+            keyword: string;
+            label: string | null;
+            checked_at: string;
+            match_reason: string | null;
+            raw_results?: StoredCompetitor[] | null;
+          }) => {
+            details[c.id] = {
+              id: c.id,
+              keyword: c.keyword,
+              rank: c.rank,
+              match_reason: c.match_reason,
+              checked_at: c.checked_at,
+              lat: c.lat,
+              lng: c.lng,
+              raw_results: (c.raw_results ?? []) as StoredCompetitor[],
+            };
+            return {
+              id: c.id,
+              lat: c.lat,
+              lng: c.lng,
+              rank: c.rank,
+              keyword: c.keyword,
+              label: c.label,
+              checkedAt: c.checked_at,
+            };
+          }
+        )
+      );
+      setSpotCheckDetails(details);
+    }
+    void loadSpotChecks();
+  }, [businessId]);
+
+  const batch = data?.batch;
+  const business = data?.business;
+  const batchStatus = batch?.status ? String(batch.status) : "";
+  const cellsInFlight = areCellsInFlight(batchStatus);
+  const loadedCells = (data?.results ?? []).length;
+  const totalGridCells = data?.points?.length ?? 0;
+  const confidence = (batch?.confidence_summary ?? {}) as Record<string, unknown>;
+  const failedPointIds = useMemo(() => {
+    const ids = confidence.failed_point_ids;
+    return new Set(Array.isArray(ids) ? (ids as string[]) : []);
+  }, [confidence.failed_point_ids]);
+  const cellsStillLoading = totalGridCells > 0 && loadedCells < totalGridCells;
+  const cellsPending =
+    hasCellsPending({
+      status: batchStatus,
+      cells_completed: batch?.cells_completed as number | null | undefined,
+      cells_total: batch?.cells_total as number | null | undefined,
+      confidence_summary: (batch?.confidence_summary ?? null) as Record<string, unknown> | null,
+    }) && !cellsInFlight;
+  const enrichmentRunning = isEnrichmentRunning({
+    status: batchStatus,
+    enrichment_status: batch?.enrichment_status as string | null | undefined,
+  });
+  const enrichmentComplete = isEnrichmentComplete({
+    status: batchStatus,
+    enrichment_status: batch?.enrichment_status as string | null | undefined,
+  });
+  const enrichmentFailed = batch?.enrichment_status === "failed";
+  const enrichmentStatus = batch?.enrichment_status as string | null | undefined;
+  const scanActive =
+    cellsInFlight ||
+    cellsStillLoading ||
+    (cellsPending && batchStatus !== "failed");
+
+  useEffect(() => {
+    enrichmentStatusRef.current = undefined;
+    setEnrichmentToastOpen(false);
+  }, [activeScanId]);
+
+  useEffect(() => {
+    const prev = enrichmentStatusRef.current;
+    const next = enrichmentStatus ?? null;
+
+    if (prev !== undefined) {
+      const wasInFlight = prev === "pending" || prev === "running";
+      if (wasInFlight && next === "complete") {
+        setEnrichmentToastOpen(true);
+      }
+    }
+
+    enrichmentStatusRef.current = next;
+  }, [enrichmentStatus]);
+  const progressMessage = scanProgressMessage({
+    status: batchStatus,
+    enrichment_status: batch?.enrichment_status as string | null | undefined,
+    cells_completed: loadedCells,
+    cells_total: totalGridCells,
+    cells_failed: batch?.cells_failed as number | null | undefined,
+    confidence_summary: (batch?.confidence_summary ?? null) as Record<string, unknown> | null,
+  });
+
+  const youEntity = useMemo(
+    () => (business ? buildYouEntity(business) : null),
+    [business]
+  );
+
+  const activeEntity = useMemo(() => {
+    if (entityKey === "you" || !youEntity) return youEntity;
+    const found = entities.find((e) => e.key === entityKey);
+    if (!found) return youEntity;
+    return entityFromKey(found.key, found.label);
+  }, [entityKey, entities, youEntity]);
+
+  const gridCells = useMemo(() => {
+    if (!data?.points || !activeEntity) return [];
+    return buildEntityGridCells(
+      data.points as Array<{ id: string; grid_label: string; lat: number; lng: number }>,
+      data.results as Array<{
+        scan_point_id: string;
+        target_rank?: number | null;
+        target_found?: boolean;
+        confidence?: string | null;
+        top_competitors_json?: unknown;
+      }>,
+      activeEntity,
+      { scanActive: scanActive || cellsStillLoading, failedPointIds }
+    );
+  }, [data?.points, data?.results, activeEntity, scanActive, cellsStillLoading, failedPointIds]);
+
+  const entityMetrics = useMemo(() => metricsFromCells(gridCells), [gridCells]);
+  const entitySolv = useMemo(() => solvFromCells(gridCells), [gridCells]);
+  const batchMetrics = (batch?.aggregate_metrics ?? null) as ScanAggregateMetrics | null;
+  const displayMetrics =
+    entityKey === "you" && batchMetrics?.totalCells && !scanActive && !cellsStillLoading
+      ? batchMetrics
+      : entityMetrics;
+  const solv =
+    entityKey === "you" && batchMetrics?.totalCells && !scanActive && !cellsStillLoading
+      ? computeSolv(batchMetrics.top3Cells ?? 0, batchMetrics.totalCells ?? 0)
+      : entitySolv;
+
+  const trend = computeScanTrend(
+    entityMetrics,
+    (data?.priorMetrics as Parameters<typeof computeScanTrend>[1]) ?? null
+  );
+
+  const locationTokens = [data?.primaryKeywordCity, data?.primaryKeywordState].filter(
+    (t): t is string => !!t?.trim()
+  );
+  const topCompetitors = buildGridTopCompetitors(data?.results ?? [], {
+    excludeCid: business?.cid,
+    excludePlaceId: business?.place_id,
+    excludeName: business?.name,
+    targetCategory: business?.primary_category,
+    keyword: data?.primaryKeyword as string | null | undefined,
+    locationTokens,
+    limit: 5,
+  });
+
+  const cells: GridCell[] = gridCells.map((c) => ({
+    label: c.label,
+    lat: c.lat,
+    lng: c.lng,
+    rank: c.rank,
+    pending: c.pending,
+    failed: c.failed,
+    notInResults: c.notInResults,
+    pointId: c.pointId,
+  }));
+
+  const loadedCellsCount = loadedCells;
+  const notInPackCells = cells.filter((c) => c.notInResults).length;
+
+  const mid = Math.floor((cells.length - 1) / 2);
+  const gridCenterLat = cells[mid]?.lat ?? cells[0]?.lat ?? 0;
+  const gridCenterLng = cells[mid]?.lng ?? cells[0]?.lng ?? 0;
+  const batchCenterLat = (batch?.center_lat as number | null) ?? null;
+  const batchCenterLng = (batch?.center_lng as number | null) ?? null;
+  const batchCenterLabel = (batch?.center_label as string | null) ?? null;
+  const officeLat =
+    locationCenter?.[0] ??
+    batchCenterLat ??
+    business?.scan_center_lat ??
+    business?.lat ??
+    gridCenterLat;
+  const officeLng =
+    locationCenter?.[1] ??
+    batchCenterLng ??
+    business?.scan_center_lng ??
+    business?.lng ??
+    gridCenterLng;
+  const checkUrl = (data?.results?.[0]?.check_url as string) ?? null;
+  const progressCompleted = cellsInFlight || cellsStillLoading ? loadedCellsCount : Number(confidence.completed_cells ?? loadedCellsCount);
+  const progressTotal = Number(confidence.total_cells ?? totalGridCells);
+  const allRanks = cells.map((c) => (c.notInResults ? null : c.rank));
+  const weightedSolv = computeWeightedSolv(allRanks);
+  const gridSize = Number(batch?.grid_size ?? 5);
+  const radiusMeters = Number(batch?.radius_meters ?? 2000);
+  const scanMeta = gridScanMeta(gridSize, radiusMeters);
+  const scanProfile = batch
+    ? profileFromBatch(batch as { device?: string; os?: string; browser?: string })
+    : null;
+
+  const effectivePreviewCenter = previewCenter ?? [officeLat, officeLng] as [number, number];
+  const previewCells = useMoveGridPreview(
+    effectivePreviewCenter[0],
+    effectivePreviewCenter[1],
+    gridSize,
+    radiusMeters
+  );
+
+  const mapMode: MapInteractionMode = moveGridActive
+    ? "move-grid"
+    : singlePointActive
+      ? "single-point"
+      : "default";
+
+  const keywordOptions = data
+    ? [{ id: data.primaryKeywordId as string, keyword: String(data.primaryKeyword ?? "").trim() }].filter(
+        (k) => k.id && k.keyword
+      )
+    : [];
+
+  const viewingEntity = entities.find((e) => e.key === entityKey);
+
+  const rankByDistance = useMemo(
+    () =>
+      computeGridRankByDistance(
+        gridCells.map((c) => ({
+          row: c.row,
+          col: c.col,
+          rank: c.rank,
+          notInResults: c.notInResults,
+        })),
+        gridSize,
+        radiusMeters
+      ),
+    [gridCells, gridSize, radiusMeters]
+  );
+
+  const competitorTimelineOptions = useMemo(
+    () =>
+      topCompetitors.map((c) => ({
+        key: entityKeyFromParts(c),
+        label: c.name ?? "Competitor",
+      })),
+    [topCompetitors]
+  );
+
+  useEffect(() => {
+    if (!timelineCompetitorKey && competitorTimelineOptions[0]) {
+      setTimelineCompetitorKey(competitorTimelineOptions[0].key);
+    }
+  }, [competitorTimelineOptions, timelineCompetitorKey]);
+
+  useEffect(() => {
+    if (timelineMode === "competitor" && timelineCompetitorKey) {
+      setEntityKey(timelineCompetitorKey);
+    } else if (timelineMode === "target") {
+      setEntityKey("you");
+    }
+  }, [timelineMode, timelineCompetitorKey]);
+
+  function handleLocationChange(loc: LocationScanSummary, newScanId: string | null) {
+    setLocationId(loc.id);
+    setLocationCenter([loc.lat, loc.lng]);
+    if (newScanId && newScanId !== activeScanId) {
+      switchScan(newScanId);
+    }
+  }
+
+  function handleMoveGridToggle() {
+    setMoveGridActive((v) => {
+      if (!v) {
+        setPreviewCenter([officeLat, officeLng]);
+        setSinglePointActive(false);
+      }
+      return !v;
+    });
+  }
+
+  function handleSinglePointToggle() {
+    setSinglePointActive((v) => {
+      if (!v) setMoveGridActive(false);
+      return !v;
+    });
+  }
+
+  function handleMapClick(lat: number, lng: number) {
+    if (moveGridActive) {
+      setPreviewCenter([lat, lng]);
+      return;
+    }
+    if (singlePointActive) {
+      setPendingClick({ lat, lng });
+    }
+  }
+
+  async function runMoveGridScan() {
+    if (!keywordId || !previewCenter) return;
+    setMoveScanRunning(true);
+    try {
+      const res = await fetch("/api/scans/run-for-keyword", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessId,
+          keywordId,
+          gridSize,
+          radiusMeters,
+          device: String(batch?.device ?? "mobile"),
+          os: String(batch?.os ?? "android"),
+          browser: String((batch as { browser?: string })?.browser ?? "chrome"),
+          locationId,
+          centerLat: previewCenter[0],
+          centerLng: previewCenter[1],
+          centerLabel: batchCenterLabel ?? `Moved center`,
+          movedFromScanId: activeScanId,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Scan failed");
+      setMoveGridActive(false);
+      switchScan(json.scan.id as string);
+    } catch {
+      /* toolbar shows errors on normal run */
+    } finally {
+      setMoveScanRunning(false);
+    }
+  }
+
+  async function runSinglePointCheck(kwId: string, keyword: string, label: string) {
+    if (!pendingClick) return;
+    setSinglePointRunning(true);
+    try {
+      const res = await fetch("/api/single-point-rank/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessId,
+          keyword,
+          keywordId: kwId,
+          lat: pendingClick.lat,
+          lng: pendingClick.lng,
+          label: label || undefined,
+          locationId,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Check failed");
+      const c = json.check;
+      const detail: SpotCheckDetail = {
+        id: c.id,
+        keyword: c.keyword,
+        rank: c.rank,
+        match_reason: c.match_reason ?? json.match_reason ?? null,
+        checked_at: c.checked_at,
+        lat: c.lat,
+        lng: c.lng,
+        raw_results: (json.raw_results ?? c.raw_results ?? []) as StoredCompetitor[],
+      };
+      setSpotCheckDetails((prev) => ({ ...prev, [c.id]: detail }));
+      setSpotChecks((prev) => [
+        {
+          id: c.id,
+          lat: c.lat,
+          lng: c.lng,
+          rank: c.rank,
+          keyword: c.keyword,
+          label: c.label,
+          checkedAt: c.checked_at,
+        },
+        ...prev,
+      ]);
+      setActiveSpotCheckId(c.id);
+      setPendingClick(null);
+    } finally {
+      setSinglePointRunning(false);
+    }
+  }
+
+  function handleKeywordChange(newKeywordId: string, newScanId: string | null) {
+    setEntityKey("you");
+    if (newScanId && newScanId !== activeScanId) {
+      switchScan(newScanId, newKeywordId);
+    } else {
+      switchScan(activeScanId, newKeywordId);
+    }
+  }
+
+  function handleScanStarted(newScanId: string) {
+    switchScan(newScanId, keywordId);
+  }
+
+  function handleCellClick(cell: GridCell) {
+    if (cell.pointId) setInspectorCellId(cell.pointId);
+  }
+
+  const inspectorCellIds = useMemo(
+    () => cells.filter((c) => c.pointId).map((c) => c.pointId as string),
+    [cells]
+  );
+  const inspectorIndex = inspectorCellId ? inspectorCellIds.indexOf(inspectorCellId) : -1;
+  const inspectorPointLabel = useMemo(() => {
+    const cell = cells.find((c) => c.pointId === inspectorCellId);
+    return cell?.label ?? null;
+  }, [cells, inspectorCellId]);
+
+  const headerBtn = gridRankHeaderBtn;
+  const headerBtnPrimary = gridRankPrimaryBtn;
+
+  return (
+    <div className={cn("flex min-h-0 flex-1 flex-col", gridRankPageBg)}>
+      <div className="border-b border-zinc-200 bg-white px-5 py-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold tracking-tight text-zinc-900">Rank Grid</h1>
+                {batch?.status ? <StatusBadge status={String(batch.status)} /> : null}
+                {enrichmentRunning ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Enriching…
+                  </span>
+                ) : null}
+                {scanActive ? <Loader2 className="h-4 w-4 animate-spin text-emerald-600" /> : null}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 border-l border-zinc-200 pl-3">
+                <button type="button" onClick={() => setCompareOpen(true)} className={headerBtn}>
+                  <GitCompare className="h-3.5 w-3.5" /> Compare
+                </button>
+                <Link href={`/businesses/${businessId}/scans`} className={headerBtn}>
+                  History
+                </Link>
+                {isDev && (
+                  <Link
+                    href={`/businesses/${businessId}/grid/${activeScanId}/debug`}
+                    className={headerBtn}
+                  >
+                    Debug Requests
+                  </Link>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleMoveGridToggle}
+                className={`${headerBtn} ${
+                  moveGridActive ? "border-blue-400 bg-blue-50 text-blue-800" : ""
+                }`}
+              >
+                <MapPinned className="h-4 w-4" /> Move Grid
+              </button>
+              <button
+                type="button"
+                onClick={handleSinglePointToggle}
+                className={`${headerBtn} ${
+                  singlePointActive ? "border-amber-400 bg-amber-50 text-amber-800" : ""
+                }`}
+              >
+                <Crosshair className="h-4 w-4" /> Single-Point
+              </button>
+              <button
+                type="button"
+                disabled={toolbarRunning}
+                onClick={() => {
+                  setToolbarRunning(true);
+                  void toolbarRef.current?.runScan().finally(() => setToolbarRunning(false));
+                }}
+                className={headerBtnPrimary}
+              >
+                {toolbarRunning ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Zap className="h-4 w-4 fill-current" />
+                )}
+                Run Scan
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-3">
+        {!data ? (
+          <div className="flex items-center gap-2 text-zinc-500">
+            <Loader2 className="h-5 w-5 animate-spin" /> Loading scan…
+          </div>
+        ) : (
+          <>
+            <GridToolbar
+              ref={toolbarRef}
+              businessId={businessId}
+              scanId={activeScanId}
+              gridSize={gridSize}
+              radiusMeters={radiusMeters}
+              selectedKeywordId={keywordId}
+              selectedLocationId={locationId}
+              onKeywordChange={handleKeywordChange}
+              onLocationChange={handleLocationChange}
+              onScanStarted={handleScanStarted}
+              device={String(batch?.device ?? "mobile")}
+              os={String(batch?.os ?? "android")}
+              browser={String((batch as { browser?: string })?.browser ?? "chrome")}
+              actionsInHeader
+            />
+
+            {moveGridActive && (
+              <MoveGridPanel
+                centerLat={effectivePreviewCenter[0]}
+                centerLng={effectivePreviewCenter[1]}
+                gridSize={gridSize}
+                radiusMeters={radiusMeters}
+                onRunScan={() => void runMoveGridScan()}
+                onCancel={() => setMoveGridActive(false)}
+                running={moveScanRunning}
+              />
+            )}
+
+            <div
+              className={`mb-3 grid grid-cols-2 gap-2 transition-opacity duration-300 sm:grid-cols-3 lg:grid-cols-7 ${
+                timelineFetching ? "opacity-70" : "opacity-100"
+              }`}
+            >
+              <GridMetricCard
+                variant="primary"
+                label="SoLV (Top-3 Pack)"
+                value={`${solv}%`}
+                sub="Strict — map pack only"
+                icon={Target}
+                iconWrapClassName="bg-emerald-50"
+                iconClassName="text-emerald-600"
+              />
+              <GridMetricCard
+                label="Weighted SoLV"
+                value={`${weightedSolv}%`}
+                sub="Partial credit 4–20"
+                icon={BarChart3}
+                iconWrapClassName="bg-emerald-50"
+                iconClassName="text-emerald-600"
+              />
+              <GridMetricCard
+                label="Average Rank"
+                value={displayMetrics.averageRank ?? "—"}
+                sub={
+                  trend.avgRankDelta != null
+                    ? `↑ ${Math.abs(trend.avgRankDelta)} vs last`
+                    : undefined
+                }
+                trendPositive={trend.avgRankDelta != null ? trend.avgRankDelta > 0 : undefined}
+                icon={TrendingDown}
+                iconWrapClassName="bg-violet-50"
+                iconClassName="text-violet-600"
+              />
+              <GridMetricCard
+                label="Top 3 Cells"
+                value={`${displayMetrics.top3Cells ?? 0} of ${displayMetrics.totalCells || totalGridCells}`}
+                icon={Grid3x3}
+                iconWrapClassName="bg-sky-50"
+                iconClassName="text-sky-600"
+              />
+              <GridMetricCard
+                label="Top 10"
+                value={displayMetrics.top10Cells ?? 0}
+                sub={
+                  trend.top10Delta != null
+                    ? `${trend.top10Delta >= 0 ? "+" : ""}${trend.top10Delta} vs last`
+                    : "cells"
+                }
+                icon={ListOrdered}
+                iconWrapClassName="bg-sky-50"
+                iconClassName="text-sky-500"
+              />
+              <GridMetricCard
+                label="Top 20"
+                value={displayMetrics.top20Cells ?? 0}
+                sub="cells"
+                icon={Layers}
+                iconWrapClassName="bg-blue-50"
+                iconClassName="text-blue-600"
+              />
+              <GridMetricCard
+                label="Visibility"
+                value={`${displayMetrics.visibilityScore ?? 0}%`}
+                sub={
+                  trend.visibilityDelta != null
+                    ? `${trend.visibilityDelta >= 0 ? "+" : ""}${trend.visibilityDelta}% vs last`
+                    : undefined
+                }
+                icon={Eye}
+                iconWrapClassName="bg-emerald-50"
+                iconClassName="text-emerald-600"
+              />
+            </div>
+
+            {entities.length > 0 && (
+              <CompetitorGridToggle
+                entities={entities}
+                selectedKey={entityKey}
+                onSelect={setEntityKey}
+                viewingLabel={viewingEntity?.label}
+                className="mb-2"
+              />
+            )}
+
+            {(scanActive || (progressCompleted > 0 && progressCompleted < progressTotal)) && (
+              <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/80 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/40">
+                <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+                  {cellsInFlight || cellsStillLoading
+                    ? "Analyzing locations"
+                    : cellsPending
+                      ? "Map ready"
+                      : "Scan progress"}
+                </p>
+                <p className="mt-1 text-sm text-emerald-800 dark:text-emerald-200">
+                  {cellsInFlight || cellsStillLoading ? (
+                    <>
+                      <Loader2 className="mr-1 inline h-4 w-4 animate-spin text-emerald-600" />
+                      <strong>{progressCompleted}</strong> / <strong>{progressTotal}</strong> locations
+                      analyzed
+                      <span className="text-emerald-700 dark:text-emerald-300">
+                        {" "}
+                        · Showing results as they arrive.
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <strong>{progressCompleted}</strong> / <strong>{progressTotal}</strong> locations
+                      analyzed
+                      {progressTotal - progressCompleted > 0
+                        ? ` · ${progressTotal - progressCompleted} still scanning…`
+                        : ""}
+                    </>
+                  )}
+                </p>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-emerald-200 dark:bg-emerald-900">
+                  <div
+                    className="h-full rounded-full bg-emerald-600 transition-all duration-500"
+                    style={{
+                      width: `${progressTotal > 0 ? Math.round((progressCompleted / progressTotal) * 100) : 0}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {!scanActive && (enrichmentRunning || batchStatus === "rank_ready") && progressMessage && (
+              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/80 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/40">
+                <p className="text-sm text-amber-900 dark:text-amber-100">{progressMessage}</p>
+              </div>
+            )}
+
+            {enrichmentFailed && (
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100">
+                <span>{progressMessage || "Competitor enrichment failed."}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void fetch(`/api/scans/${activeScanId}/enrich`, { method: "POST" }).then(() => pollStatus());
+                  }}
+                  className="rounded-lg bg-red-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-800"
+                >
+                  Retry enrichment
+                </button>
+              </div>
+            )}
+
+            {cells.length > 0 && (
+              <div className="mb-3">
+                <ScanTimelineSlider
+                  businessId={businessId}
+                  currentScanId={activeScanId}
+                  keywordId={keywordId}
+                  locationId={locationId}
+                  gridSize={gridSize}
+                  radiusMeters={radiusMeters}
+                  mode={timelineMode}
+                  competitorKey={timelineCompetitorKey}
+                  competitorOptions={competitorTimelineOptions}
+                  keywordOptions={keywordOptions}
+                  onModeChange={setTimelineMode}
+                  onCompetitorChange={setTimelineCompetitorKey}
+                  onKeywordChange={(kwId) => switchScan(activeScanId, kwId)}
+                  onScanSelect={(id) => switchScan(id)}
+                  onPrefetchScan={prefetchScanData}
+                  className="mb-2"
+                />
+                <div
+                  className={`flex min-h-[min(62vh,560px)] overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-opacity duration-300 ${
+                    timelineFetching ? "opacity-75" : "opacity-100"
+                  }`}
+                >
+                  <div className="relative min-w-0 flex-1">
+                    <div className="absolute right-3 top-3 z-[500] flex rounded-md border border-zinc-200 bg-white p-0.5 text-[11px] shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() => setShowRadiusRings(false)}
+                        className={`rounded px-2.5 py-1 font-semibold ${
+                          !showRadiusRings
+                            ? "bg-[#137752] text-white"
+                            : "text-zinc-600 hover:bg-zinc-50"
+                        }`}
+                      >
+                        Grid
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowRadiusRings(true)}
+                        className={`rounded px-2.5 py-1 font-semibold ${
+                          showRadiusRings
+                            ? "bg-[#137752] text-white"
+                            : "text-zinc-600 hover:bg-zinc-50"
+                        }`}
+                      >
+                        Rings
+                      </button>
+                    </div>
+                    <div className="absolute bottom-12 right-3 z-[500]">
+                      <span className="inline-flex items-center rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 shadow-sm">
+                        Map ▾
+                      </span>
+                    </div>
+                    <ScanMap
+                      key={`${colorMode}-${entityKey}-${mapMode}`}
+                      officeCenter={[officeLat, officeLng]}
+                      cells={cells}
+                      businessName={entityKey === "you" ? business?.name : viewingEntity?.label}
+                      colorMode={colorMode}
+                      onCellClick={mapMode === "default" ? handleCellClick : undefined}
+                      interactionMode={mapMode}
+                      previewCenter={moveGridActive ? effectivePreviewCenter : undefined}
+                      previewCells={moveGridActive ? previewCells : undefined}
+                      onPreviewCenterChange={
+                        moveGridActive
+                          ? (lat, lng) => setPreviewCenter([lat, lng])
+                          : undefined
+                      }
+                      onMapClick={handleMapClick}
+                      cellsFaded={moveGridActive}
+                      spotChecks={spotChecks}
+                      onSpotCheckClick={setActiveSpotCheckId}
+                      showRadiusRings={showRadiusRings}
+                      radiusCenter={[officeLat, officeLng]}
+                      radiusRingMiles={scanMeta.ringDistancesMiles}
+                      gridSize={gridSize}
+                      radiusMeters={radiusMeters}
+                    />
+                    <div className="border-t border-zinc-100 bg-white px-3 py-2">
+                      <GridRankLegend
+                        mode={colorMode}
+                        onModeChange={handleColorModeChange}
+                        showModeToggle={false}
+                      />
+                      <div className="mt-1 text-center">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleColorModeChange(colorMode === "falcon" ? "strict" : "falcon")
+                          }
+                          className="text-[10px] text-zinc-400 hover:text-zinc-600"
+                        >
+                          Color scale: {colorMode === "falcon" ? "Local Falcon" : "Strict"}
+                        </button>
+                      </div>
+                    </div>
+                    {showRadiusRings && (
+                      <div className="border-t border-zinc-100 px-4 py-2">
+                        <RankByDistanceCard buckets={rankByDistance} />
+                      </div>
+                    )}
+                  </div>
+                  <CellInspectorDrawer
+                    variant="panel"
+                    scanId={activeScanId}
+                    cellId={inspectorCellId}
+                    keywordId={keywordId}
+                    businessId={businessId}
+                    selectedEntityKey={entityKey}
+                    enrichmentComplete={enrichmentComplete}
+                    pointLabel={inspectorPointLabel}
+                    canNavigatePrev={inspectorIndex > 0}
+                    canNavigateNext={inspectorIndex >= 0 && inspectorIndex < inspectorCellIds.length - 1}
+                    onNavigatePrev={() => {
+                      if (inspectorIndex > 0) {
+                        setInspectorCellId(inspectorCellIds[inspectorIndex - 1] ?? null);
+                      }
+                    }}
+                    onNavigateNext={() => {
+                      if (inspectorIndex < inspectorCellIds.length - 1) {
+                        setInspectorCellId(inspectorCellIds[inspectorIndex + 1] ?? null);
+                      }
+                    }}
+                    onClose={() => setInspectorCellId(null)}
+                    onCompareCell={() => {
+                      setInspectorCellId(null);
+                      setCompareOpen(true);
+                    }}
+                    onShowCompetitorGrid={(key) => {
+                      setEntityKey(key);
+                      setInspectorCellId(null);
+                    }}
+                    onOpenCompetitorCompare={(key) => {
+                      setCompareInitialMode("competitors");
+                      setCompareInitialCompetitorKey(key);
+                      setInspectorCellId(null);
+                      setCompareOpen(true);
+                    }}
+                  />
+                </div>
+                <p className="mt-2 text-center text-xs text-zinc-500">
+                  ~{scanMeta.spacingMiles} miles between map pins
+                  {!scanActive && notInPackCells > 0
+                    ? ` · ${notInPackCells} cells outside local pack`
+                    : ""}
+                  {scanActive ? " · Click any bubble to inspect" : " · Click a bubble to open Cell Inspector"}
+                </p>
+              </div>
+            )}
+
+            {loadedCells === 0 && !scanActive && (
+              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                <p className="font-medium">No scan yet for this keyword</p>
+                <p className="mt-1">Run a scan from the toolbar above to load rank data.</p>
+              </div>
+            )}
+
+            {(displayMetrics.notFoundCells === displayMetrics.totalCells && displayMetrics.totalCells > 0) && (
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
+                <p className="font-medium">No ranking data returned</p>
+                <p className="mt-1">
+                  Rank data came back empty for every search point. Check API credentials and
+                  account credits.
+                </p>
+                {batch?.error_message ? (
+                  <p className="mt-2 font-mono text-xs">{String(batch.error_message)}</p>
+                ) : null}
+              </div>
+            )}
+
+            {entityKey === "you" && topCompetitors.length > 0 && (
+              <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                <GridScanCompetitorsTable
+                  competitors={topCompetitors}
+                  keyword={data?.primaryKeyword}
+                  enrichmentComplete={enrichmentComplete}
+                  onSelectCompetitor={(key, raw) => {
+                    if (enrichmentComplete) {
+                      setFingerprintTarget({ entityKey: key, raw });
+                    } else {
+                      setEntityKey(key);
+                    }
+                  }}
+                />
+                <GridScanTrendChart
+                  businessId={businessId}
+                  currentScanId={activeScanId}
+                  keywordId={keywordId}
+                  locationId={locationId}
+                  gridSize={gridSize}
+                  radiusMeters={radiusMeters}
+                />
+              </div>
+            )}
+
+            <section className="mt-4 rounded-lg border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+              <h3 className="mb-3 text-sm font-semibold text-zinc-900">Run new scan</h3>
+              <ScanSetupForm
+                businessId={businessId}
+                defaults={{
+                  ...defaultScanSetupValues(officeLat, officeLng),
+                  device: String(batch?.device ?? "mobile"),
+                  os: String(batch?.os ?? "android"),
+                  browser: String((batch as { browser?: string })?.browser ?? "chrome"),
+                }}
+                scanCenter={[officeLat, officeLng]}
+                compact
+                footerBar
+              />
+            </section>
+          </>
+        )}
+        </div>
+
+      {compareOpen && (
+        <GridCompareView
+          businessId={businessId}
+          currentScanId={activeScanId}
+          officeCenter={[officeLat, officeLng]}
+          colorMode={colorMode}
+          keywordId={keywordId}
+          entities={entities}
+          businessName={business?.name ?? "Your business"}
+          keyword={data?.primaryKeyword as string | undefined}
+          device={String(batch?.device ?? "mobile")}
+          os={String(batch?.os ?? "android")}
+          browser={String((batch as { browser?: string })?.browser ?? "chrome")}
+          initialMode={compareInitialMode}
+          initialCompetitorKey={compareInitialCompetitorKey}
+          onClose={() => {
+            setCompareOpen(false);
+            setCompareInitialCompetitorKey(null);
+          }}
+        />
+      )}
+
+      {fingerprintTarget && (
+        <CompetitorFingerprintDrawer
+          businessId={businessId}
+          scanId={activeScanId}
+          keywordId={keywordId}
+          competitorId={fingerprintTarget.competitorId}
+          entityKey={fingerprintTarget.entityKey}
+          rawResult={fingerprintTarget.raw}
+          onClose={() => setFingerprintTarget(null)}
+          onShowGrid={(key) => {
+            setEntityKey(key);
+            setFingerprintTarget(null);
+          }}
+          onCompare={(key) => {
+            setCompareInitialMode("competitors");
+            setCompareInitialCompetitorKey(key);
+            setFingerprintTarget(null);
+            setCompareOpen(true);
+          }}
+        />
+      )}
+
+      {pendingClick && (
+        <SinglePointConfirmModal
+          lat={pendingClick.lat}
+          lng={pendingClick.lng}
+          keywords={
+            keywordOptions.length
+              ? keywordOptions
+              : [{ id: keywordId ?? "", keyword: String(data?.primaryKeyword ?? "") }]
+          }
+          defaultKeywordId={keywordId}
+          onConfirm={(kwId, kw, label) => void runSinglePointCheck(kwId, kw, label)}
+          onCancel={() => setPendingClick(null)}
+        />
+      )}
+
+      {singlePointRunning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <Loader2 className="h-8 w-8 animate-spin text-white" />
+        </div>
+      )}
+
+      <SpotCheckInspector
+        checkId={activeSpotCheckId}
+        businessId={businessId}
+        cachedDetail={activeSpotCheckId ? spotCheckDetails[activeSpotCheckId] : null}
+        onClose={() => setActiveSpotCheckId(null)}
+      />
+
+      <Toast
+        open={enrichmentToastOpen}
+        title="✅ Competitor analysis finished"
+        description="Fingerprints, Show Me Why, and Compare are now available."
+        onClose={() => setEnrichmentToastOpen(false)}
+      />
+    </div>
+  );
+}

@@ -1,0 +1,849 @@
+{
+  "generatedAt": "2026-07-08T13:30:06.873Z",
+  "config": {
+    "authority": {
+      "refCap": 1500,
+      "blCap": 50000,
+      "qDiv": 700,
+      "gamma": 1.45,
+      "points": 30,
+      "wClean": 0.7,
+      "wTotal": 0.2,
+      "wRank": 0.1
+    },
+    "review": {
+      "totCap": 6000,
+      "velCap": 150,
+      "freshDays": 180,
+      "wTot": 0.5,
+      "wVel": 0.35,
+      "wFresh": 0.15,
+      "gamma": 1.7,
+      "points": 20
+    },
+    "proximity": {
+      "rMin": 0.5,
+      "rCap": 12,
+      "points": 18,
+      "farMi": 10
+    },
+    "localPage": {
+      "points": 17,
+      "rawMax": 15
+    },
+    "gbp": {
+      "points": 10
+    },
+    "brand": {
+      "points": 5,
+      "strongRefDoms": 500
+    },
+    "agg": {
+      "weakest": 0.45,
+      "middle": 0.35,
+      "strongest": 0.2
+    },
+    "rankProtection": {
+      "r1": 5,
+      "r2": 3
+    },
+    "stretch": {
+      "refDoms": 500,
+      "localRefDoms": 100,
+      "nearTierRefDoms": 1000,
+      "max": 6
+    },
+    "density": {
+      "withinMi": 7,
+      "minReviews": 40,
+      "max": 8
+    }
+  },
+  "results": [
+    {
+      "keyword": "junk removal woodbridge va",
+      "searchPoint": {
+        "lat": 38.6582,
+        "lng": -77.2497
+      },
+      "cityLabel": "Woodbridge",
+      "rawScore": 29,
+      "rankProtection": 5,
+      "reasonForRankProtection": "weakest-profile incumbent (K. Brooks Junk Removal LLC) still ranks #1 — hidden trust (GBP age/entity/behavioral) the profile can't see",
+      "authorityStretchedRadiusBoost": 0,
+      "localIncumbentDensityScore": 7,
+      "localIncumbentDensityReasons": [
+        "all 3 within 7mi",
+        "2+ have target service as primary category",
+        "2+ have 40+ reviews",
+        "2+ have a real website"
+      ],
+      "modifierNominal": 12,
+      "modifierApplied": 8.5,
+      "mapsKeywordDifficulty": 38,
+      "difficultyLabel": "Moderate",
+      "bucketScores": {
+        "authority": 3.2,
+        "reviews": 6.7,
+        "proximity": 8.8,
+        "localPage": 4.8,
+        "gbpRelevance": 5.6,
+        "brandFranchise": 0
+      },
+      "radius": {
+        "maxDistanceMi": 6.4,
+        "medianDistanceMi": 1.2
+      },
+      "franchiseCount": 0,
+      "strongBrandCount": 0,
+      "displacementTargetName": "K. Brooks Junk Removal LLC",
+      "displacementTargetMapsRank": 1,
+      "displacementTargetProfileStrength": 19.5,
+      "displacementTarget": {
+        "rank": 1,
+        "name": "K. Brooks Junk Removal LLC",
+        "individualStrength": 19.5
+      },
+      "top3Summary": [
+        {
+          "rank": 1,
+          "name": "K. Brooks Junk Removal LLC",
+          "individualStrength": 19.5,
+          "isDisplacementTarget": true,
+          "distanceMi": 1.24,
+          "reviews90d": 0,
+          "totalReviews": 117,
+          "dofollowReferringDomains": 31,
+          "hasDedicatedLocalPage": false,
+          "gmbPrimaryCategory": "Waste management service",
+          "franchise": false
+        },
+        {
+          "rank": 2,
+          "name": "Best junk removal LLC",
+          "individualStrength": 20.8,
+          "isDisplacementTarget": false,
+          "distanceMi": 0.73,
+          "reviews90d": 10,
+          "totalReviews": 41,
+          "dofollowReferringDomains": 1,
+          "hasDedicatedLocalPage": true,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": false
+        },
+        {
+          "rank": 3,
+          "name": "VA Top Junk Removal",
+          "individualStrength": 21.1,
+          "isDisplacementTarget": false,
+          "distanceMi": 6.36,
+          "reviews90d": 26,
+          "totalReviews": 87,
+          "dofollowReferringDomains": 12,
+          "hasDedicatedLocalPage": false,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": false
+        }
+      ],
+      "mainReasons": [
+        "Top 3 have weak authority",
+        "Ranking radius is fairly tight",
+        "Top 3 have modest review counts",
+        "No major franchise/entity is dominating the pack"
+      ],
+      "weakestSignalsInTop3": [
+        "Low review velocity for rank #1",
+        "Low referring domains for rank #2",
+        "Low referring domains for rank #3"
+      ],
+      "opportunityNotes": [
+        "A strong dedicated Woodbridge landing page could differentiate here",
+        "A handful of real local dofollow links could compete on authority",
+        "Steady review growth would clear the pack's review bar"
+      ]
+    },
+    {
+      "keyword": "junk removal winchester va",
+      "searchPoint": {
+        "lat": 39.1857,
+        "lng": -78.1633
+      },
+      "cityLabel": "Winchester",
+      "rawScore": 36,
+      "rankProtection": 0,
+      "reasonForRankProtection": null,
+      "authorityStretchedRadiusBoost": 2,
+      "localIncumbentDensityScore": 6,
+      "localIncumbentDensityReasons": [
+        "2+ have target service as primary category",
+        "2+ have 40+ reviews",
+        "2+ have a real website",
+        "2+ have city/service on-page relevance"
+      ],
+      "modifierNominal": 8,
+      "modifierApplied": 5.1,
+      "mapsKeywordDifficulty": 41,
+      "difficultyLabel": "Moderate",
+      "bucketScores": {
+        "authority": 12.5,
+        "reviews": 8.9,
+        "proximity": 0.1,
+        "localPage": 8.2,
+        "gbpRelevance": 5.2,
+        "brandFranchise": 1
+      },
+      "radius": {
+        "maxDistanceMi": 11.9,
+        "medianDistanceMi": 2.3
+      },
+      "franchiseCount": 1,
+      "strongBrandCount": 1,
+      "displacementTargetName": "Evolution Disposal",
+      "displacementTargetMapsRank": 3,
+      "displacementTargetProfileStrength": 28,
+      "displacementTarget": {
+        "rank": 3,
+        "name": "Evolution Disposal",
+        "individualStrength": 28
+      },
+      "top3Summary": [
+        {
+          "rank": 1,
+          "name": "JusJunk.com",
+          "individualStrength": 28.1,
+          "isDisplacementTarget": false,
+          "distanceMi": 2.29,
+          "reviews90d": 9,
+          "totalReviews": 176,
+          "dofollowReferringDomains": 48,
+          "hasDedicatedLocalPage": false,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": false
+        },
+        {
+          "rank": 2,
+          "name": "The Junkluggers of Winchester & Martinsburg",
+          "individualStrength": 61.6,
+          "isDisplacementTarget": false,
+          "distanceMi": 11.94,
+          "reviews90d": 11,
+          "totalReviews": 383,
+          "dofollowReferringDomains": 1417,
+          "hasDedicatedLocalPage": true,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": true
+        },
+        {
+          "rank": 3,
+          "name": "Evolution Disposal",
+          "individualStrength": 28,
+          "isDisplacementTarget": true,
+          "distanceMi": 1.43,
+          "reviews90d": 4,
+          "totalReviews": 192,
+          "dofollowReferringDomains": 43,
+          "hasDedicatedLocalPage": false,
+          "gmbPrimaryCategory": "Garbage collection service",
+          "franchise": false
+        }
+      ],
+      "mainReasons": [
+        "Top 3 have low-to-moderate authority",
+        "Google is reaching far to fill the pack (weaker immediate competition)",
+        "Top 3 have modest review counts",
+        "No major franchise/entity is dominating the pack",
+        "Competitors run strong dedicated local pages"
+      ],
+      "weakestSignalsInTop3": [],
+      "opportunityNotes": [
+        "Market is contested on every signal — needs a well-rounded profile"
+      ]
+    },
+    {
+      "keyword": "junk removal baltimore md",
+      "searchPoint": {
+        "lat": 39.2904,
+        "lng": -76.6122
+      },
+      "cityLabel": "Baltimore",
+      "rawScore": 72,
+      "rankProtection": 0,
+      "reasonForRankProtection": null,
+      "authorityStretchedRadiusBoost": 0,
+      "localIncumbentDensityScore": 8,
+      "localIncumbentDensityReasons": [
+        "all 3 within 7mi",
+        "2+ have target service as primary category",
+        "2+ have 40+ reviews",
+        "2+ have a real website",
+        "2+ have city/service on-page relevance"
+      ],
+      "modifierNominal": 8,
+      "modifierApplied": 2.3,
+      "mapsKeywordDifficulty": 74,
+      "difficultyLabel": "Very Hard",
+      "bucketScores": {
+        "authority": 19.1,
+        "reviews": 13.4,
+        "proximity": 11.9,
+        "localPage": 16.6,
+        "gbpRelevance": 7.8,
+        "brandFranchise": 3
+      },
+      "radius": {
+        "maxDistanceMi": 4.4,
+        "medianDistanceMi": 2.5
+      },
+      "franchiseCount": 2,
+      "strongBrandCount": 2,
+      "displacementTargetName": "Charm City Haulers",
+      "displacementTargetMapsRank": 3,
+      "displacementTargetProfileStrength": 46,
+      "displacementTarget": {
+        "rank": 3,
+        "name": "Charm City Haulers",
+        "individualStrength": 46
+      },
+      "top3Summary": [
+        {
+          "rank": 1,
+          "name": "Junk King Baltimore",
+          "individualStrength": 64.5,
+          "isDisplacementTarget": false,
+          "distanceMi": 4.37,
+          "reviews90d": 9,
+          "totalReviews": 1623,
+          "dofollowReferringDomains": 3565,
+          "hasDedicatedLocalPage": true,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": true
+        },
+        {
+          "rank": 2,
+          "name": "1-800-GOT-JUNK? Baltimore",
+          "individualStrength": 68.1,
+          "isDisplacementTarget": false,
+          "distanceMi": 2.46,
+          "reviews90d": 24,
+          "totalReviews": 4236,
+          "dofollowReferringDomains": 3513,
+          "hasDedicatedLocalPage": true,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": true
+        },
+        {
+          "rank": 3,
+          "name": "Charm City Haulers",
+          "individualStrength": 46,
+          "isDisplacementTarget": true,
+          "distanceMi": 1.05,
+          "reviews90d": 46,
+          "totalReviews": 525,
+          "dofollowReferringDomains": 37,
+          "hasDedicatedLocalPage": true,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": false
+        }
+      ],
+      "mainReasons": [
+        "At least one competitor has solid referring-domain authority",
+        "Ranking radius is fairly tight",
+        "Top 3 have moderate review prominence",
+        "No major franchise/entity is dominating the pack",
+        "Competitors run strong dedicated local pages"
+      ],
+      "weakestSignalsInTop3": [],
+      "opportunityNotes": [
+        "Market is contested on every signal — needs a well-rounded profile"
+      ]
+    },
+    {
+      "keyword": "junk removal miami fl",
+      "searchPoint": {
+        "lat": 25.7617,
+        "lng": -80.1918
+      },
+      "cityLabel": "Miami",
+      "rawScore": 46,
+      "rankProtection": 5,
+      "reasonForRankProtection": "weakest-profile incumbent (Gator Junk Removal Miami) still ranks #1 — hidden trust (GBP age/entity/behavioral) the profile can't see",
+      "authorityStretchedRadiusBoost": 4,
+      "localIncumbentDensityScore": 6,
+      "localIncumbentDensityReasons": [
+        "2+ have target service as primary category",
+        "2+ have 40+ reviews",
+        "2+ have a real website",
+        "2+ have city/service on-page relevance"
+      ],
+      "modifierNominal": 15,
+      "modifierApplied": 8,
+      "mapsKeywordDifficulty": 54,
+      "difficultyLabel": "Hard",
+      "bucketScores": {
+        "authority": 18.6,
+        "reviews": 8.8,
+        "proximity": 0,
+        "localPage": 10.3,
+        "gbpRelevance": 5.8,
+        "brandFranchise": 3
+      },
+      "radius": {
+        "maxDistanceMi": 16,
+        "medianDistanceMi": 14.8
+      },
+      "franchiseCount": 2,
+      "strongBrandCount": 2,
+      "displacementTargetName": "Gator Junk Removal Miami",
+      "displacementTargetMapsRank": 1,
+      "displacementTargetProfileStrength": 17.4,
+      "displacementTarget": {
+        "rank": 1,
+        "name": "Gator Junk Removal Miami",
+        "individualStrength": 17.4
+      },
+      "top3Summary": [
+        {
+          "rank": 1,
+          "name": "Gator Junk Removal Miami",
+          "individualStrength": 17.4,
+          "isDisplacementTarget": true,
+          "distanceMi": 11.46,
+          "reviews90d": 0,
+          "totalReviews": 93,
+          "dofollowReferringDomains": 43,
+          "hasDedicatedLocalPage": false,
+          "gmbPrimaryCategory": "Debris removal service",
+          "franchise": false
+        },
+        {
+          "rank": 2,
+          "name": "Junk King Miami South",
+          "individualStrength": 64.6,
+          "isDisplacementTarget": false,
+          "distanceMi": 15.97,
+          "reviews90d": 27,
+          "totalReviews": 701,
+          "dofollowReferringDomains": 3565,
+          "hasDedicatedLocalPage": true,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": true
+        },
+        {
+          "rank": 3,
+          "name": "Junk King Miami North",
+          "individualStrength": 64.7,
+          "isDisplacementTarget": false,
+          "distanceMi": 14.75,
+          "reviews90d": 27,
+          "totalReviews": 757,
+          "dofollowReferringDomains": 3565,
+          "hasDedicatedLocalPage": true,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": true
+        }
+      ],
+      "mainReasons": [
+        "At least one competitor has solid referring-domain authority",
+        "Google is reaching far to fill the pack (weaker immediate competition)",
+        "Top 3 have modest review counts",
+        "No major franchise/entity is dominating the pack",
+        "Competitors run strong dedicated local pages"
+      ],
+      "weakestSignalsInTop3": [
+        "Low review velocity for rank #1"
+      ],
+      "opportunityNotes": [
+        "Market is contested on every signal — needs a well-rounded profile"
+      ]
+    },
+    {
+      "keyword": "junk removal los angeles ca",
+      "searchPoint": {
+        "lat": 34.0522,
+        "lng": -118.2437
+      },
+      "cityLabel": "Los Angeles",
+      "rawScore": 46,
+      "rankProtection": 3,
+      "reasonForRankProtection": "weakest-profile incumbent (West LA Hauling Junk Removal) ranks #2 — some hidden protection beyond its visible profile",
+      "authorityStretchedRadiusBoost": 4,
+      "localIncumbentDensityScore": 4,
+      "localIncumbentDensityReasons": [
+        "2+ have 40+ reviews",
+        "2+ have a real website",
+        "2+ have city/service on-page relevance"
+      ],
+      "modifierNominal": 11,
+      "modifierApplied": 5.9,
+      "mapsKeywordDifficulty": 52,
+      "difficultyLabel": "Hard",
+      "bucketScores": {
+        "authority": 17.1,
+        "reviews": 11.6,
+        "proximity": 0,
+        "localPage": 10.9,
+        "gbpRelevance": 3.8,
+        "brandFranchise": 3
+      },
+      "radius": {
+        "maxDistanceMi": 17.3,
+        "medianDistanceMi": 5.8
+      },
+      "franchiseCount": 2,
+      "strongBrandCount": 2,
+      "displacementTargetName": "West LA Hauling Junk Removal",
+      "displacementTargetMapsRank": 2,
+      "displacementTargetProfileStrength": 19.3,
+      "displacementTarget": {
+        "rank": 2,
+        "name": "West LA Hauling Junk Removal",
+        "individualStrength": 19.3
+      },
+      "top3Summary": [
+        {
+          "rank": 1,
+          "name": "The Junkluggers of Hollywood",
+          "individualStrength": 59,
+          "isDisplacementTarget": false,
+          "distanceMi": 5.79,
+          "reviews90d": 24,
+          "totalReviews": 484,
+          "dofollowReferringDomains": 1417,
+          "hasDedicatedLocalPage": true,
+          "gmbPrimaryCategory": "Waste management service",
+          "franchise": true
+        },
+        {
+          "rank": 2,
+          "name": "West LA Hauling Junk Removal",
+          "individualStrength": 19.3,
+          "isDisplacementTarget": true,
+          "distanceMi": 5.71,
+          "reviews90d": 9,
+          "totalReviews": 138,
+          "dofollowReferringDomains": 18,
+          "hasDedicatedLocalPage": false,
+          "gmbPrimaryCategory": "Garbage collection service",
+          "franchise": false
+        },
+        {
+          "rank": 3,
+          "name": "1-800-GOT-JUNK? Greater Los Angeles",
+          "individualStrength": 70,
+          "isDisplacementTarget": false,
+          "distanceMi": 17.3,
+          "reviews90d": 48,
+          "totalReviews": 9755,
+          "dofollowReferringDomains": 3513,
+          "hasDedicatedLocalPage": true,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": true
+        }
+      ],
+      "mainReasons": [
+        "At least one competitor has solid referring-domain authority",
+        "Google is reaching far to fill the pack (weaker immediate competition)",
+        "Top 3 have moderate review prominence",
+        "No major franchise/entity is dominating the pack",
+        "Competitors run strong dedicated local pages"
+      ],
+      "weakestSignalsInTop3": [
+        "Low referring domains for rank #2"
+      ],
+      "opportunityNotes": [
+        "Market is contested on every signal — needs a well-rounded profile"
+      ]
+    },
+    {
+      "keyword": "junk removal denver co",
+      "searchPoint": {
+        "lat": 39.7392,
+        "lng": -104.9903
+      },
+      "cityLabel": "Denver",
+      "rawScore": 56,
+      "rankProtection": 0,
+      "reasonForRankProtection": null,
+      "authorityStretchedRadiusBoost": 6,
+      "localIncumbentDensityScore": 6,
+      "localIncumbentDensityReasons": [
+        "2+ have target service as primary category",
+        "2+ have 40+ reviews",
+        "2+ have a real website",
+        "2+ have city/service on-page relevance"
+      ],
+      "modifierNominal": 12,
+      "modifierApplied": 5.3,
+      "mapsKeywordDifficulty": 61,
+      "difficultyLabel": "Very Hard",
+      "bucketScores": {
+        "authority": 22.4,
+        "reviews": 14.1,
+        "proximity": 0,
+        "localPage": 9,
+        "gbpRelevance": 7.7,
+        "brandFranchise": 3
+      },
+      "radius": {
+        "maxDistanceMi": 29.5,
+        "medianDistanceMi": 3.5
+      },
+      "franchiseCount": 2,
+      "strongBrandCount": 2,
+      "displacementTargetName": "Clutter Trucker",
+      "displacementTargetMapsRank": 3,
+      "displacementTargetProfileStrength": 43.4,
+      "displacementTarget": {
+        "rank": 3,
+        "name": "Clutter Trucker",
+        "individualStrength": 43.4
+      },
+      "top3Summary": [
+        {
+          "rank": 1,
+          "name": "1-800-GOT-JUNK? Denver",
+          "individualStrength": 55.9,
+          "isDisplacementTarget": false,
+          "distanceMi": 29.47,
+          "reviews90d": 8,
+          "totalReviews": 15021,
+          "dofollowReferringDomains": 3514,
+          "hasDedicatedLocalPage": true,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": true
+        },
+        {
+          "rank": 2,
+          "name": "Junk King Denver",
+          "individualStrength": 69.8,
+          "isDisplacementTarget": false,
+          "distanceMi": 0.68,
+          "reviews90d": 29,
+          "totalReviews": 6324,
+          "dofollowReferringDomains": 3565,
+          "hasDedicatedLocalPage": true,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": true
+        },
+        {
+          "rank": 3,
+          "name": "Clutter Trucker",
+          "individualStrength": 43.4,
+          "isDisplacementTarget": true,
+          "distanceMi": 3.54,
+          "reviews90d": 40,
+          "totalReviews": 401,
+          "dofollowReferringDomains": 226,
+          "hasDedicatedLocalPage": false,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": false
+        }
+      ],
+      "mainReasons": [
+        "Top 3 include very strong link authority (500+ referring domains)",
+        "Google is reaching far to fill the pack (weaker immediate competition)",
+        "Top 3 include high-review incumbents",
+        "No major franchise/entity is dominating the pack",
+        "Competitors run strong dedicated local pages"
+      ],
+      "weakestSignalsInTop3": [],
+      "opportunityNotes": [
+        "Market is contested on every signal — needs a well-rounded profile"
+      ]
+    },
+    {
+      "keyword": "junk removal nashville tn",
+      "searchPoint": {
+        "lat": 36.1627,
+        "lng": -86.7816
+      },
+      "cityLabel": "Nashville",
+      "rawScore": 52,
+      "rankProtection": 0,
+      "reasonForRankProtection": null,
+      "authorityStretchedRadiusBoost": 0,
+      "localIncumbentDensityScore": 8,
+      "localIncumbentDensityReasons": [
+        "all 3 within 7mi",
+        "2+ have target service as primary category",
+        "2+ have 40+ reviews",
+        "2+ have a real website",
+        "2+ have city/service on-page relevance"
+      ],
+      "modifierNominal": 8,
+      "modifierApplied": 3.8,
+      "mapsKeywordDifficulty": 56,
+      "difficultyLabel": "Hard",
+      "bucketScores": {
+        "authority": 15.4,
+        "reviews": 12.1,
+        "proximity": 9.5,
+        "localPage": 7,
+        "gbpRelevance": 7.5,
+        "brandFranchise": 1
+      },
+      "radius": {
+        "maxDistanceMi": 5.9,
+        "medianDistanceMi": 2.8
+      },
+      "franchiseCount": 2,
+      "strongBrandCount": 1,
+      "displacementTargetName": "Junkdrop",
+      "displacementTargetMapsRank": 3,
+      "displacementTargetProfileStrength": 31.4,
+      "displacementTarget": {
+        "rank": 3,
+        "name": "Junkdrop",
+        "individualStrength": 31.4
+      },
+      "top3Summary": [
+        {
+          "rank": 1,
+          "name": "Junk King Nashville",
+          "individualStrength": 66.7,
+          "isDisplacementTarget": false,
+          "distanceMi": 5.93,
+          "reviews90d": 43,
+          "totalReviews": 1376,
+          "dofollowReferringDomains": 3565,
+          "hasDedicatedLocalPage": true,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": true
+        },
+        {
+          "rank": 2,
+          "name": "Two Men and a Junk Truck",
+          "individualStrength": 41.5,
+          "isDisplacementTarget": false,
+          "distanceMi": 2.83,
+          "reviews90d": 19,
+          "totalReviews": 154,
+          "dofollowReferringDomains": 153,
+          "hasDedicatedLocalPage": false,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": true
+        },
+        {
+          "rank": 3,
+          "name": "Junkdrop",
+          "individualStrength": 31.4,
+          "isDisplacementTarget": true,
+          "distanceMi": 0.77,
+          "reviews90d": 28,
+          "totalReviews": 663,
+          "dofollowReferringDomains": 50,
+          "hasDedicatedLocalPage": false,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": false
+        }
+      ],
+      "mainReasons": [
+        "At least one competitor has solid referring-domain authority",
+        "Ranking radius is fairly tight",
+        "Top 3 have moderate review prominence",
+        "No major franchise/entity is dominating the pack"
+      ],
+      "weakestSignalsInTop3": [],
+      "opportunityNotes": [
+        "Market is contested on every signal — needs a well-rounded profile"
+      ]
+    },
+    {
+      "keyword": "junk removal phoenix az",
+      "searchPoint": {
+        "lat": 33.4484,
+        "lng": -112.074
+      },
+      "cityLabel": "Phoenix",
+      "rawScore": 61,
+      "rankProtection": 0,
+      "reasonForRankProtection": null,
+      "authorityStretchedRadiusBoost": 0,
+      "localIncumbentDensityScore": 6,
+      "localIncumbentDensityReasons": [
+        "2+ have target service as primary category",
+        "2+ have 40+ reviews",
+        "2+ have a real website",
+        "2+ have city/service on-page relevance"
+      ],
+      "modifierNominal": 6,
+      "modifierApplied": 2.4,
+      "mapsKeywordDifficulty": 63,
+      "difficultyLabel": "Very Hard",
+      "bucketScores": {
+        "authority": 18.6,
+        "reviews": 14,
+        "proximity": 0.9,
+        "localPage": 17,
+        "gbpRelevance": 7.4,
+        "brandFranchise": 3
+      },
+      "radius": {
+        "maxDistanceMi": 11.4,
+        "medianDistanceMi": 9.8
+      },
+      "franchiseCount": 2,
+      "strongBrandCount": 2,
+      "displacementTargetName": "Around Town Junk Removal",
+      "displacementTargetMapsRank": 3,
+      "displacementTargetProfileStrength": 43.6,
+      "displacementTarget": {
+        "rank": 3,
+        "name": "Around Town Junk Removal",
+        "individualStrength": 43.6
+      },
+      "top3Summary": [
+        {
+          "rank": 1,
+          "name": "1-800-GOT-JUNK? Phoenix",
+          "individualStrength": 70.7,
+          "isDisplacementTarget": false,
+          "distanceMi": 5.61,
+          "reviews90d": 66,
+          "totalReviews": 18913,
+          "dofollowReferringDomains": 3514,
+          "hasDedicatedLocalPage": true,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": true
+        },
+        {
+          "rank": 2,
+          "name": "Junk King Phoenix",
+          "individualStrength": 66.2,
+          "isDisplacementTarget": false,
+          "distanceMi": 9.77,
+          "reviews90d": 9,
+          "totalReviews": 2158,
+          "dofollowReferringDomains": 3565,
+          "hasDedicatedLocalPage": true,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": true
+        },
+        {
+          "rank": 3,
+          "name": "Around Town Junk Removal",
+          "individualStrength": 43.6,
+          "isDisplacementTarget": true,
+          "distanceMi": 11.41,
+          "reviews90d": 37,
+          "totalReviews": 564,
+          "dofollowReferringDomains": 30,
+          "hasDedicatedLocalPage": true,
+          "gmbPrimaryCategory": "Junk removal service",
+          "franchise": false
+        }
+      ],
+      "mainReasons": [
+        "At least one competitor has solid referring-domain authority",
+        "Google is reaching far to fill the pack (weaker immediate competition)",
+        "Top 3 include high-review incumbents",
+        "No major franchise/entity is dominating the pack",
+        "Competitors run strong dedicated local pages"
+      ],
+      "weakestSignalsInTop3": [],
+      "opportunityNotes": [
+        "Market is contested on every signal — needs a well-rounded profile"
+      ]
+    }
+  ]
+}

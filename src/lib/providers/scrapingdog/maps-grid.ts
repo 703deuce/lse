@@ -1,0 +1,131 @@
+import type { MapsLiveResult } from "@/lib/providers/dataforseo";
+import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
+import type { ScanDeviceProfile } from "@/lib/maps/scan-profiles";
+import { mapsSearchAtCoordinate, type MapsSearchResult } from "@/lib/providers/scrapingdog/index";
+
+export function mapsGridDepth(): number {
+  const n = Number(
+    process.env.SCRAPINGDOG_MAPS_DEPTH ??
+      process.env.DATAFORSEO_MAPS_DEPTH ??
+      LOCAL_FALCON_PARITY.gridDepth
+  );
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 100) : LOCAL_FALCON_PARITY.gridDepth;
+}
+
+export type MapsGridRequest = {
+  endpoint: string;
+  query: string;
+  ll: string;
+  domain: string;
+  language: string;
+  country: string;
+  depth: number;
+  search_engine: "google_maps";
+  device: ScanDeviceProfile["device"];
+  os: ScanDeviceProfile["os"];
+  browser: ScanDeviceProfile["browser"];
+  _meta: {
+    provider: "scrapingdog";
+    location_zoom: number;
+    scan_profile: Pick<ScanDeviceProfile, "device" | "os" | "browser">;
+    note: string;
+  };
+};
+
+export function buildMapsGridRequest(params: {
+  keyword: string;
+  lat: number;
+  lng: number;
+  device: ScanDeviceProfile["device"];
+  os: ScanDeviceProfile["os"];
+  browser: ScanDeviceProfile["browser"];
+  depth?: number;
+  zoom?: number;
+}): MapsGridRequest {
+  const depth = params.depth ?? mapsGridDepth();
+  const zoom = params.zoom ?? LOCAL_FALCON_PARITY.locationZoom;
+  const kw = params.keyword.trim();
+
+  return {
+    endpoint: "https://api.scrapingdog.com/google_maps",
+    query: kw,
+    ll: `@${params.lat},${params.lng},${zoom}z`,
+    domain: LOCAL_FALCON_PARITY.seDomain,
+    language: LOCAL_FALCON_PARITY.languageCode,
+    country: LOCAL_FALCON_PARITY.countryCode.toLowerCase(),
+    depth,
+    search_engine: "google_maps",
+    device: params.device,
+    os: params.os,
+    browser: params.browser,
+    _meta: {
+      provider: "scrapingdog",
+      location_zoom: zoom,
+      scan_profile: { device: params.device, os: params.os, browser: params.browser },
+      note: "ScrapingDog has no device param; profile stored for Local Falcon parity metadata",
+    },
+  };
+}
+
+export function normalizeScrapingDogResults(
+  items: MapsSearchResult[],
+  depth: number
+): MapsLiveResult[] {
+  return items.slice(0, depth).map((item, idx) => ({
+    rank_group: idx + 1,
+    rank_absolute: idx + 1,
+    title: item.title,
+    place_id: item.place_id,
+    cid: item.data_id,
+    rating:
+      item.rating != null
+        ? { value: item.rating, votes_count: item.reviews }
+        : undefined,
+    category: item.type,
+    address: item.address,
+    phone: item.phone,
+    url: item.website,
+    latitude: item.gps_coordinates?.latitude,
+    longitude: item.gps_coordinates?.longitude,
+  }));
+}
+
+export async function mapsGridCell(params: {
+  keyword: string;
+  lat: number;
+  lng: number;
+  device: ScanDeviceProfile["device"];
+  os: ScanDeviceProfile["os"];
+  browser: ScanDeviceProfile["browser"];
+  depth?: number;
+  organizationId?: string;
+}): Promise<{
+  items: MapsLiveResult[];
+  request: MapsGridRequest;
+  timestamp: string;
+}> {
+  const depth = params.depth ?? mapsGridDepth();
+  const request = buildMapsGridRequest(params);
+
+  const raw = await mapsSearchAtCoordinate({
+    query: request.query,
+    lat: params.lat,
+    lng: params.lng,
+    zoom: request._meta.location_zoom,
+    domain: request.domain,
+    language: request.language,
+    country: request.country,
+    organizationId: params.organizationId,
+  });
+
+  const items = normalizeScrapingDogResults(raw, depth);
+  if (!items.length) {
+    throw new Error("ScrapingDog returned no map results for this cell");
+  }
+
+  return {
+    items,
+    request,
+    timestamp: new Date().toISOString(),
+  };
+}

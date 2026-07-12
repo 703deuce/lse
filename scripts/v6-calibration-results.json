@@ -1,0 +1,67 @@
+[
+    {
+        "Market":  "Woodbridge",
+        "MKD":  25,
+        "Label":  "Easy",
+        "Authority":  1.5,
+        "Reviews":  13.5,
+        "Incumbent":  3,
+        "Proximity":  2.6,
+        "LocalPage":  2.1,
+        "GBP":  2.2,
+        "Brand":  0,
+        "TableStakes":  6.9
+    },
+    {
+        "Market":  "Front Royal",
+        "MKD":  43,
+        "Label":  "Moderate",
+        "Authority":  9.7,
+        "Reviews":  20.7,
+        "Incumbent":  7,
+        "Proximity":  3.3,
+        "LocalPage":  1.2,
+        "GBP":  0.3,
+        "Brand":  1,
+        "TableStakes":  4.8
+    },
+    {
+        "Market":  "Baltimore",
+        "MKD":  52,
+        "Label":  "Hard",
+        "Authority":  10,
+        "Reviews":  22,
+        "Incumbent":  10,
+        "Proximity":  3.7,
+        "LocalPage":  3.6,
+        "GBP":  0.3,
+        "Brand":  2,
+        "TableStakes":  7.6
+    },
+    {
+        "Market":  "Miami",
+        "MKD":  47,
+        "Label":  "Moderate",
+        "Authority":  12.8,
+        "Reviews":  21.5,
+        "Incumbent":  8,
+        "Proximity":  0,
+        "LocalPage":  1.9,
+        "GBP":  0.3,
+        "Brand":  2,
+        "TableStakes":  2.2
+    },
+    {
+        "Market":  "Los Angeles",
+        "MKD":  28,
+        "Label":  "Easy",
+        "Authority":  5.4,
+        "Reviews":  15.6,
+        "Incumbent":  4,
+        "Proximity":  0,
+        "LocalPage":  1.9,
+        "GBP":  0.3,
+        "Brand":  1,
+        "TableStakes":  2.2
+    }
+]

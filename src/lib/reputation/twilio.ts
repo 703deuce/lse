@@ -1,0 +1,76 @@
+import { normalizePhoneE164 } from "@/lib/reputation/phone";
+
+export type TwilioSendParams = {
+  toPhone: string;
+  body: string;
+};
+
+export type TwilioSendResult =
+  | { ok: true; messageSid: string; usedTrialTemplate?: boolean }
+  | { ok: false; error: string };
+
+/**
+ * Twilio auth: API key SID (SK...) + secret, with Account SID (AC...) in the URL.
+ * Trial accounts: set TWILIO_TRIAL_SMS_TEMPLATE (e.g. sms_appointment_reminders) —
+ * only predefined template bodies are allowed until the account is upgraded.
+ */
+export async function sendTwilioSms(params: TwilioSendParams): Promise<TwilioSendResult> {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const apiKeySid = process.env.TWILIO_API_KEY_SID;
+  const apiKeySecret = process.env.TWILIO_AUTH_TOKEN;
+  const fromNumber = process.env.TWILIO_FROM_NUMBER;
+  const trialTemplate = process.env.TWILIO_TRIAL_SMS_TEMPLATE?.trim();
+
+  if (!accountSid?.startsWith("AC")) {
+    return { ok: false, error: "TWILIO_ACCOUNT_SID must be your Account SID (starts with AC)" };
+  }
+  if (!apiKeySid?.startsWith("SK")) {
+    return { ok: false, error: "TWILIO_API_KEY_SID must be your API Key SID (starts with SK)" };
+  }
+  if (!apiKeySecret) return { ok: false, error: "TWILIO_AUTH_TOKEN is not configured" };
+  if (!fromNumber) return { ok: false, error: "TWILIO_FROM_NUMBER is not configured" };
+
+  const to = normalizePhoneE164(params.toPhone);
+  if (!to) return { ok: false, error: "Invalid phone number format" };
+
+  const outboundBody = trialTemplate || params.body;
+
+  const body = new URLSearchParams({
+    To: to,
+    From: fromNumber,
+    Body: outboundBody,
+  });
+
+  try {
+    const res = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${apiKeySid}:${apiKeySecret}`).toString("base64")}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: body.toString(),
+      }
+    );
+
+    const json = (await res.json().catch(() => ({}))) as {
+      sid?: string;
+      message?: string;
+      code?: number;
+    };
+
+    if (!res.ok) {
+      const detail = json.message ?? res.statusText;
+      return { ok: false, error: `Twilio error: ${detail}` };
+    }
+
+    return {
+      ok: true,
+      messageSid: json.sid ?? "unknown",
+      usedTrialTemplate: Boolean(trialTemplate),
+    };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Twilio request failed" };
+  }
+}

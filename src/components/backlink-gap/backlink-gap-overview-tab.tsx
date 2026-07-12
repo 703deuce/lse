@@ -1,0 +1,284 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { BarChart3, CheckCircle2, KeyRound, Lightbulb, Search, Sparkles, Target } from "lucide-react";
+import type { EnrichedOpportunity } from "@/components/backlink-gap/opportunities-panel";
+import { PanelCard, priorityBadge } from "@/components/backlink-gap/backlink-gap-ui";
+
+type Analytics = {
+  linkTypes: { dofollow: number; nofollow: number; unknown: number };
+  priorities: { high: number; medium: number; low: number };
+  sourceTypes: Array<{ name: string; count: number }>;
+  powerBuckets: Array<{ label: string; count: number }>;
+};
+
+const PIE_COLORS = ["#16A34A", "#3b82f6", "#f59e0b", "#8b5cf6", "#06b6d4", "#ec4899", "#64748b", "#84cc16"];
+
+function panelFooterLink(label: string, onClick?: () => void) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-xs font-medium text-emerald-700 hover:underline"
+    >
+      {label}
+    </button>
+  );
+}
+
+export function BacklinkGapOverviewTab({
+  businessId,
+  aiSummary,
+  topOpportunities,
+  onSelect,
+  onViewOpportunities,
+  onViewTasks,
+}: {
+  businessId: string;
+  aiSummary: string | null;
+  topOpportunities: EnrichedOpportunity[];
+  onSelect: (o: EnrichedOpportunity) => void;
+  onViewOpportunities?: () => void;
+  onViewTasks?: () => void;
+}) {
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/backlink-gap/${businessId}/stats`)
+      .then((r) => r.json())
+      .then((json) => setAnalytics(json))
+      .catch(() => setAnalytics(null));
+  }, [businessId]);
+
+  const linkTypeData = analytics
+    ? [
+        { name: "Dofollow", value: analytics.linkTypes.dofollow, color: "#16A34A" },
+        { name: "Nofollow", value: analytics.linkTypes.nofollow, color: "#3b82f6" },
+        { name: "Unknown", value: analytics.linkTypes.unknown, color: "#94a3b8" },
+      ].filter((d) => d.value > 0)
+    : [];
+
+  const categoryData = (analytics?.sourceTypes ?? []).slice(0, 6);
+  const categoryTotal = categoryData.reduce((s, d) => s + d.count, 0);
+  const linkTypeTotal = linkTypeData.reduce((s, d) => s + d.value, 0);
+  const totalOpps = analytics?.priorities
+    ? analytics.priorities.high + analytics.priorities.medium + analytics.priorities.low
+    : categoryTotal;
+
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
+        <PanelCard title="AI Summary" icon={Sparkles}>
+          {aiSummary ? (
+            <div className="space-y-4">
+              <p className="text-sm leading-relaxed text-zinc-600">{aiSummary}</p>
+              <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-4 py-3">
+                <div className="flex gap-2">
+                  <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  <div>
+                    <p className="text-xs font-semibold text-zinc-900">Key Takeaway</p>
+                    <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+                      Focus on medium to high power, relevant local directories and home-services sites
+                      where multiple competitors are listed but you are not.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-500">No summary available.</p>
+          )}
+        </PanelCard>
+
+        <PanelCard
+          title="Top Opportunities by Link Power"
+          icon={BarChart3}
+          action={
+            <button
+              type="button"
+              onClick={onViewOpportunities}
+              className="text-xs font-medium text-emerald-700 hover:underline"
+            >
+              View all opportunities →
+            </button>
+          }
+        >
+          {topOpportunities.length === 0 ? (
+            <p className="text-sm text-zinc-500">No opportunities yet.</p>
+          ) : (
+            <ol className="divide-y divide-zinc-100">
+              {topOpportunities.map((o, i) => (
+                <li key={o.id}>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(o)}
+                    className="flex w-full items-center gap-3 py-3 text-left first:pt-0 last:pb-0 hover:opacity-80"
+                  >
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-600">
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-emerald-700">{o.referring_domain}</p>
+                      <p className="mt-0.5 text-[11px] text-zinc-500">
+                        Power {o.powerScore ?? "—"}/100 · {o.source_type} ·{" "}
+                        {o.linkPassing === "passes" ? "dofollow" : o.linkPassing}
+                      </p>
+                    </div>
+                    {priorityBadge(o.priority)}
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
+        </PanelCard>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <PanelCard
+          title="Opportunity Categories"
+          className="[&>div:nth-child(2)]:p-4"
+          footer={panelFooterLink("View opportunities tab →", onViewOpportunities)}
+        >
+          {categoryData.length === 0 ? (
+            <p className="text-sm text-zinc-500">No category data.</p>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div className="relative mx-auto h-36 w-36 shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={categoryData}
+                      dataKey="count"
+                      nameKey="name"
+                      innerRadius={42}
+                      outerRadius={62}
+                      paddingAngle={2}
+                    >
+                      {categoryData.map((_, idx) => (
+                        <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <p className="text-lg font-bold text-zinc-900">{categoryTotal || totalOpps}</p>
+                  <p className="text-[10px] text-zinc-500">Total</p>
+                </div>
+              </div>
+              <div className="min-w-0 flex-1 space-y-1.5">
+                {categoryData.map((d, idx) => {
+                  const pct = categoryTotal > 0 ? Math.round((d.count / categoryTotal) * 100) : 0;
+                  return (
+                    <div key={d.name} className="flex items-center gap-2 text-[11px] text-zinc-600">
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: PIE_COLORS[idx % PIE_COLORS.length] }}
+                      />
+                      <span className="truncate">{d.name}</span>
+                      <span className="ml-auto font-medium tabular-nums">{pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </PanelCard>
+
+        <PanelCard
+          title="Link Power Distribution"
+          className="[&>div:nth-child(2)]:p-4"
+          footer={panelFooterLink("See full breakdown →", onViewOpportunities)}
+        >
+          <div className="h-40">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={analytics?.powerBuckets ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <XAxis dataKey="label" tick={{ fontSize: 9 }} interval={1} />
+                <YAxis tick={{ fontSize: 9 }} width={28} />
+                <Tooltip />
+                <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+                  {(analytics?.powerBuckets ?? []).map((_, idx) => (
+                    <Cell
+                      key={idx}
+                      fill={idx >= 7 ? "#16A34A" : idx >= 4 ? "#f59e0b" : "#ef4444"}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </PanelCard>
+
+        <PanelCard
+          title="Link Type Overview"
+          className="[&>div:nth-child(2)]:p-4"
+          footer={panelFooterLink("Explore opportunities →", onViewOpportunities)}
+        >
+          {linkTypeData.length === 0 ? (
+            <p className="text-sm text-zinc-500">No link type data.</p>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div className="relative mx-auto h-36 w-36 shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={linkTypeData} dataKey="value" nameKey="name" innerRadius={42} outerRadius={62}>
+                      {linkTypeData.map((d) => (
+                        <Cell key={d.name} fill={d.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <p className="text-lg font-bold text-zinc-900">{linkTypeTotal}</p>
+                  <p className="text-[10px] text-zinc-500">Total</p>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                {linkTypeData.map((d) => {
+                  const pct = linkTypeTotal > 0 ? Math.round((d.value / linkTypeTotal) * 100) : 0;
+                  return (
+                    <div key={d.name} className="text-[11px] text-zinc-600">
+                      <span className="font-medium text-zinc-900">{d.name}</span>{" "}
+                      <span>({pct}%)</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </PanelCard>
+
+        <PanelCard
+          title="Quick Insights"
+          className="[&>div:nth-child(2)]:p-4"
+          footer={panelFooterLink("View Tasks →", onViewTasks)}
+        >
+          <ul className="space-y-3 text-xs leading-relaxed text-zinc-600">
+            <li className="flex gap-2">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+              <span>
+                <strong className="text-zinc-900">{analytics?.priorities.high ?? 0}</strong> high-priority gaps
+                ready for outreach
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <Target className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+              <span>
+                <strong className="text-zinc-900">{analytics?.linkTypes.dofollow ?? 0}</strong> dofollow
+                opportunities pass link equity
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-sky-500" />
+              <span>
+                Top category: <strong className="text-zinc-900">{categoryData[0]?.name ?? "—"}</strong> (
+                {categoryData[0]?.count ?? 0} domains)
+              </span>
+            </li>
+          </ul>
+        </PanelCard>
+      </div>
+    </div>
+  );
+}
