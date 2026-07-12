@@ -22,6 +22,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SidebarUserMenu } from "@/components/auth/sidebar-user-menu";
 
 const navItems = [
   { href: "/businesses", label: "Businesses", icon: Building2 },
@@ -310,15 +311,7 @@ function DashboardSidebarInner({ businessId }: { businessId?: string }) {
             icon={Settings}
             active={pathname.startsWith(`/businesses/${businessId}/settings`)}
           />
-          <div className="flex items-center gap-2.5 rounded-lg px-3 py-1.5">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-semibold text-emerald-700">
-              JD
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-[13px] font-medium text-zinc-900">John Doe</p>
-              <p className="text-[10px] text-zinc-500">Agency Admin</p>
-            </div>
-          </div>
+          <SidebarUserMenu />
         </div>
       )}
     </aside>

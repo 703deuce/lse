@@ -4,6 +4,12 @@ import { createServiceClient } from "@/lib/db/client";
 import { scheduleScanProcessing } from "@/lib/jobs/schedule-scan";
 import { createScanSchema } from "@/lib/validation/schemas";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
+import {
+  assertWithinLimit,
+  gridMapCredits,
+  incrementUsage,
+  PlanLimitError,
+} from "@/lib/plans";
 
 const PARITY_SUMMARY = {
   search_engine: LOCAL_FALCON_PARITY.searchEngine,
@@ -27,6 +33,9 @@ export async function POST(request: Request) {
     const { businessId, gridSize, radiusMeters, scanType, device, os, browser, parityLabel } =
       parsed.data;
     const auth = await requireBusinessAccess(businessId);
+
+    const creditsNeeded = gridMapCredits(gridSize);
+    await assertWithinLimit(auth.organizationId, "map_credits_month", creditsNeeded);
 
     const supabase = createServiceClient();
     const { data: batch, error } = await supabase
@@ -55,9 +64,13 @@ export async function POST(request: Request) {
     }
 
     scheduleScanProcessing(batch.id, auth.organizationId);
+    await incrementUsage(auth.organizationId, "map_credits_used", creditsNeeded);
 
     return NextResponse.json({ scan: batch });
   } catch (err) {
+    if (err instanceof PlanLimitError) {
+      return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
+    }
     const message = err instanceof Error ? err.message : "Scan create failed";
     return NextResponse.json({ error: message }, { status: 403 });
   }

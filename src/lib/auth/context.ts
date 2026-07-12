@@ -1,7 +1,12 @@
 /**
- * Auth stub — Firebase will replace this.
- * When DEV_BYPASS_AUTH=true, uses fixed dev user/org from env.
+ * Auth context — Supabase Auth in production, dev bypass in local development only.
  */
+
+import { createClient } from "@/lib/supabase/server";
+import {
+  ensureUserOrganization,
+  getOrganizationIdForUser,
+} from "@/lib/auth/onboarding";
 
 export interface AuthContext {
   userId: string;
@@ -10,11 +15,14 @@ export interface AuthContext {
   isAuthenticated: boolean;
 }
 
-export async function getAuthContext(): Promise<AuthContext> {
-  const bypass = process.env.DEV_BYPASS_AUTH === "true";
-  const userId = process.env.DEV_USER_ID ?? "00000000-0000-0000-0000-000000000001";
+function isDevBypass(): boolean {
+  return process.env.NODE_ENV === "development" && process.env.DEV_BYPASS_AUTH === "true";
+}
 
-  if (bypass) {
+export async function getAuthContext(): Promise<AuthContext> {
+  if (isDevBypass()) {
+    const userId = process.env.DEV_USER_ID ?? "00000000-0000-0000-0000-000000000001";
+
     const orgId = process.env.DEV_ORG_ID;
     if (orgId) {
       return {
@@ -35,14 +43,37 @@ export async function getAuthContext(): Promise<AuthContext> {
     };
   }
 
-  // TODO: Firebase token verification
-  throw new Error("Authentication required. Firebase auth not yet configured.");
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      userId: "",
+      organizationId: "",
+      email: null,
+      isAuthenticated: false,
+    };
+  }
+
+  let organizationId = await getOrganizationIdForUser(user.id);
+  if (!organizationId) {
+    organizationId = await ensureUserOrganization(user);
+  }
+
+  return {
+    userId: user.id,
+    organizationId,
+    email: user.email ?? null,
+    isAuthenticated: true,
+  };
 }
 
 export async function requireAuth(): Promise<AuthContext> {
   const ctx = await getAuthContext();
   if (!ctx.isAuthenticated) {
-    throw new Error("Unauthorized");
+    throw new Error("Authentication required");
   }
   return ctx;
 }

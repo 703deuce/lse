@@ -7,6 +7,7 @@ import {
   computeExpansionReach,
   competitorsFromKdResult,
 } from "@/lib/maps-difficulty/expansion-reach";
+import { requireInternalMapsDifficulty } from "@/lib/auth/plan-guards";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ export const maxDuration = 300;
 export async function POST(request: Request) {
   try {
     const auth = await requireAuth();
+    await requireInternalMapsDifficulty(auth.organizationId);
 
     const body = (await request.json()) as {
       keyword?: string;

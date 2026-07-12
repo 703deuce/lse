@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
 import { setBusinessGeom } from "@/lib/db/geo";
 import { parseUsAddressCityState } from "@/lib/geo/us-address";
+import { assertWithinLimit, PlanLimitError } from "@/lib/plans";
 import { createBusinessSchema } from "@/lib/validation/schemas";
 
 export async function POST(request: Request) {
@@ -16,6 +17,8 @@ export async function POST(request: Request) {
 
     const data = parsed.data;
     const supabase = createServiceClient();
+
+    await assertWithinLimit(auth.organizationId, "max_businesses", 1);
 
     const { data: business, error } = await supabase
       .from("businesses")
@@ -59,6 +62,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ business });
   } catch (err) {
+    if (err instanceof PlanLimitError) {
+      return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
+    }
     const message = err instanceof Error ? err.message : "Create failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }

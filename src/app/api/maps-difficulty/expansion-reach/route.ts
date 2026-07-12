@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/context";
+import { requireInternalMapsDifficulty } from "@/lib/auth/plan-guards";
 import { BUSINESS_BASE_GEOCODE_ERROR, geocodeBusinessBase } from "@/lib/maps-difficulty/geocode";
 import {
   computeExpansionReach,
@@ -19,6 +20,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   try {
     const auth = await requireAuth();
+    await requireInternalMapsDifficulty(auth.organizationId);
     const body = (await request.json()) as {
       runId?: string;
       businessBaseAddress?: string;

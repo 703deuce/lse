@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { SetupMap } from "@/components/maps/setup-map";
 import { ScanSetupForm, defaultScanSetupValues } from "@/components/scan/scan-setup-form";
+import { AccountPlanUsageCard } from "@/components/settings/account-plan-usage-card";
 
 export function SettingsClient({
   businessId,
@@ -40,6 +41,10 @@ export function SettingsClient({
   return (
     <>
       <PageHeader title="Settings" subtitle="Scan defaults and business details" />
+
+      <div className="mb-8">
+        <AccountPlanUsageCard />
+      </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
         <section className="rounded-xl border border-zinc-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
@@ -97,7 +102,7 @@ export function SettingsClient({
       <section className="mt-8 rounded-xl border border-amber-200 bg-amber-50 p-5">
         <h2 className="font-semibold text-amber-900">Google connected mode</h2>
         <p className="mt-2 text-sm leading-relaxed text-amber-800">
-          Official GBP OAuth unlocks location sync, review replies, posts, media, and performance insights after Firebase auth + GCP approval.
+          Official GBP OAuth unlocks location sync, review replies, posts, media, and performance insights after Google Cloud approval.
         </p>
       </section>
     </>
