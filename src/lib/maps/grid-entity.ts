@@ -296,7 +296,8 @@ export function buildEntityGridCells(
 }
 
 export function metricsFromCells(cells: GridCellView[]): ScanAggregateMetrics {
-  const ranks = cells.map((c) => (c.notInResults ? null : c.rank));
+  const settled = cells.filter((c) => !c.pending);
+  const ranks = settled.map((c) => (c.notInResults || c.failed ? null : c.rank));
   return computeAggregateMetrics(ranks);
 }
 

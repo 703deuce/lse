@@ -352,7 +352,13 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
     const ids = confidence.failed_point_ids;
     return new Set(Array.isArray(ids) ? (ids as string[]) : []);
   }, [confidence.failed_point_ids]);
-  const cellsStillLoading = totalGridCells > 0 && loadedCells < totalGridCells;
+  const failedCellsCount = Math.max(
+    failedPointIds.size,
+    Number(batch?.cells_failed ?? confidence.failed_cells ?? 0)
+  );
+  // Failed cells never get a scan_results row — count them as settled, not "still loading".
+  const cellsAccountedFor = loadedCells + failedPointIds.size;
+  const cellsStillLoading = totalGridCells > 0 && cellsAccountedFor < totalGridCells;
   const cellsPending =
     hasCellsPending({
       status: batchStatus,
@@ -777,6 +783,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
               onKeywordChange={handleKeywordChange}
               onLocationChange={handleLocationChange}
               onScanStarted={handleScanStarted}
+              showBurstTest
             />
 
             {moveGridActive && (
@@ -1072,7 +1079,11 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
               </div>
             )}
 
-            {(displayMetrics.notFoundCells === displayMetrics.totalCells && displayMetrics.totalCells > 0) && (
+            {!scanActive &&
+              loadedCells === 0 &&
+              failedCellsCount === 0 &&
+              displayMetrics.notFoundCells === displayMetrics.totalCells &&
+              displayMetrics.totalCells > 0 && (
               <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
                 <p className="font-medium">No ranking data returned</p>
                 <p className="mt-1">

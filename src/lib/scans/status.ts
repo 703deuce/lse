@@ -93,14 +93,23 @@ export function scanProgressMessage(batch: {
   const failed = Number(batch.cells_failed ?? conf.failed_cells ?? 0);
 
   if (areCellsInFlight(batch.status ?? null)) {
+    const trailing = total > 0 ? Math.max(0, total - completed) : 0;
+    const trailingNote =
+      trailing > 0 && trailing <= 3
+        ? ` · Finishing last ${trailing} edge point${trailing === 1 ? "" : "s"} (often slower)`
+        : " · Showing results as they arrive.";
     return total > 0
-      ? `${completed} / ${total} locations analyzed · Showing results as they arrive.`
+      ? `${completed} / ${total} locations analyzed${trailingNote}`
       : "Scanning locations…";
   }
 
   const pending = total > 0 && completed < total ? total - completed : 0;
   if (pending > 0 && isMapRenderable(batch.status ?? null)) {
-    return `${completed} / ${total} locations analyzed · ${pending} still scanning…`;
+    const trailingNote =
+      pending <= 3
+        ? ` · Finishing last ${pending} edge point${pending === 1 ? "" : "s"} (often slower)`
+        : ` · ${pending} still scanning…`;
+    return `${completed} / ${total} locations analyzed${trailingNote}`;
   }
 
   if (batch.status === "rank_ready" || isEnrichmentRunning(batch)) {

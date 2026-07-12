@@ -7,7 +7,7 @@ import {
   useImperativeHandle,
   useState,
 } from "react";
-import { Loader2, Play, Plus } from "lucide-react";
+import { Loader2, Play, Plus, Zap } from "lucide-react";
 import { rankLabel } from "@/lib/maps/grid-metrics";
 import {
   GRID_SIZE_OPTIONS,
@@ -41,6 +41,7 @@ export interface GridToolbarProps {
   onLocationChange: (location: LocationScanSummary, scanId: string | null) => void;
   onScanStarted?: (scanId: string) => void;
   scanRunExtras?: Record<string, unknown>;
+  showBurstTest?: boolean;
   className?: string;
 }
 
@@ -58,6 +59,7 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
     onLocationChange,
     onScanStarted,
     scanRunExtras,
+    showBurstTest = false,
     className,
   },
   ref
@@ -305,19 +307,37 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
           </div>
         </div>
 
-        <button
-          type="button"
-          disabled={running || !selected}
-          onClick={() => void runScanForKeyword()}
-          className="inline-flex shrink-0 items-center justify-center gap-2 self-end rounded-md bg-[#137752] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f6244] disabled:opacity-50"
-        >
-          {running ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Play className="h-4 w-4" />
-          )}
-          Run {runGridSize}×{runGridSize} scan
-        </button>
+        <div className="flex shrink-0 flex-col gap-2 self-end">
+          <button
+            type="button"
+            disabled={running || !selected}
+            onClick={() => void runScanForKeyword()}
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-[#137752] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f6244] disabled:opacity-50"
+          >
+            {running ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )}
+            Run {runGridSize}×{runGridSize} scan
+          </button>
+          {showBurstTest ? (
+            <button
+              type="button"
+              disabled={running || !selected}
+              onClick={() => void runScanForKeyword({ burstMode: true })}
+              title="Test: fire all grid cells concurrently (Bright Data burst mode, 45s timeout, 3 retry rounds)"
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-violet-300 bg-violet-50 px-4 py-2 text-xs font-semibold text-violet-900 hover:bg-violet-100 disabled:opacity-50"
+            >
+              {running ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Zap className="h-3.5 w-3.5" />
+              )}
+              Burst test (all {runGridSize * runGridSize} at once)
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {selected && (

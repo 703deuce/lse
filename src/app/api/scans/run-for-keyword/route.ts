@@ -20,6 +20,7 @@ const schema = z.object({
   centerLng: z.number().optional(),
   centerLabel: z.string().optional(),
   movedFromScanId: z.string().uuid().optional(),
+  burstMode: z.boolean().optional(),
 });
 
 const PARITY_SUMMARY = {
@@ -56,6 +57,7 @@ export async function POST(request: Request) {
       centerLng,
       centerLabel,
       movedFromScanId,
+      burstMode,
     } = parsed.data;
     const auth = await requireBusinessAccess(businessId);
     const supabase = createServiceClient();
@@ -108,6 +110,7 @@ export async function POST(request: Request) {
           scan_profile: { device, os, browser },
           keyword_ids: [resolvedKeywordId],
           keyword_label: String(kwRow.keyword).trim(),
+          ...(burstMode ? { burst_mode: true, method: "burst_parallel" } : {}),
         },
       })
       .select("*")

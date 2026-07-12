@@ -24,6 +24,10 @@ import { invalidateScanGridCache } from "@/lib/maps/scan-queries";
 /** Bright Data SERP API: unlimited in-flight concurrency; keep a modest worker pool in-app. */
 const BRIGHTDATA_DEFAULT_CONCURRENCY = 10;
 const BRIGHTDATA_MAX_CONCURRENCY = 15;
+/** Bright Data global fair-use ~100 QPS — one grid can launch all cells at once. */
+const BRIGHTDATA_BURST_MAX_CONCURRENCY = 100;
+
+export type GridScanMode = "standard" | "burst";
 
 export function mapsConcurrency(totalCells?: number): number {
   if (process.env.GRID_MAPS_SEQUENTIAL === "true") return 1;
@@ -64,6 +68,28 @@ export function mapsCellTimeoutMs(): number {
       90000
   );
   return Number.isFinite(n) && n > 0 ? n : 90000;
+}
+
+/** Burst test: fire all grid cells concurrently (up to Bright Data QPS cap). */
+export function mapsBurstConcurrency(totalCells: number): number {
+  const envCap = Number(process.env.BRIGHTDATA_BURST_MAX_CONCURRENCY ?? BRIGHTDATA_BURST_MAX_CONCURRENCY);
+  const cap = Number.isFinite(envCap) && envCap > 0 ? envCap : BRIGHTDATA_BURST_MAX_CONCURRENCY;
+  return Math.min(totalCells, cap);
+}
+
+export function mapsBurstTimeoutMs(): number {
+  const n = Number(process.env.BRIGHTDATA_BURST_CELL_TIMEOUT_MS ?? 45000);
+  return Number.isFinite(n) && n > 0 ? n : 45000;
+}
+
+export function mapsBurstMaxAttempts(): number {
+  const n = Number(process.env.BRIGHTDATA_BURST_CELL_MAX_ATTEMPTS ?? 3);
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 5) : 3;
+}
+
+export function mapsBurstRetryDelayMs(): number {
+  const n = Number(process.env.BRIGHTDATA_BURST_RETRY_DELAY_MS ?? 1000);
+  return Number.isFinite(n) && n >= 0 ? n : 1000;
 }
 
 function parityDebug(): boolean {
@@ -466,7 +492,134 @@ function sortJobsCenterFirst(jobs: GridCellJob[]): GridCellJob[] {
   );
 }
 
-export async function runGridCellsLive(params: {
+function buildGridCellJobs(
+  params: Pick<
+    GridCellJob,
+    "scanBatchId" | "business" | "device" | "os" | "browser" | "organizationId"
+  > & {
+    points: GridCellJob["point"][];
+    keywords: GridCellJob["keyword"][];
+  }
+): GridCellJob[] {
+  const jobs: GridCellJob[] = [];
+  for (const keyword of params.keywords) {
+    for (const point of params.points) {
+      jobs.push({
+        scanBatchId: params.scanBatchId,
+        point,
+        keyword: { id: keyword.id, keyword: keyword.keyword.trim() },
+        business: params.business,
+        device: params.device,
+        os: params.os,
+        browser: params.browser,
+        organizationId: params.organizationId,
+      });
+    }
+  }
+  return jobs;
+}
+
+function failedJobsFromPass(jobs: GridCellJob[], results: GridCellRunResult[]): GridCellJob[] {
+  return jobs.filter((job) =>
+    results.some((r) => !r.success && r.pointId === job.point.id && r.keywordId === job.keyword.id)
+  );
+}
+
+async function runIntegrityPass(params: {
+  scanBatchId: string;
+  jobs: GridCellJob[];
+  depth: number;
+  timeoutMs: number;
+  maxAttempts: number;
+  concurrency: number;
+  totalCells: number;
+  organizationId?: string;
+  onCellSettled?: (success: boolean) => Promise<void>;
+}): Promise<{ failedCells: number; timings: CellPhaseTimings[] }> {
+  const supabase = createServiceClient();
+  const { data: pointRows } = await supabase
+    .from("scan_points")
+    .select("id")
+    .eq("scan_batch_id", params.scanBatchId);
+  const savedPointIds = (pointRows ?? []).map((p) => p.id as string);
+  const { data: savedResults } = savedPointIds.length
+    ? await supabase
+        .from("scan_results")
+        .select("scan_point_id, keyword_id, target_found, top_competitors_json")
+        .in("scan_point_id", savedPointIds)
+    : { data: [] };
+
+  const incompleteJobs = params.jobs.filter((job) => {
+    const row = (savedResults ?? []).find(
+      (r) => r.scan_point_id === job.point.id && r.keyword_id === job.keyword.id
+    );
+    return !validateStoredCellResult(row, params.depth).complete;
+  });
+
+  if (!incompleteJobs.length) {
+    return { failedCells: 0, timings: [] };
+  }
+
+  console.log(
+    `[Scan] Integrity retry for ${incompleteJobs.length} sparse/incomplete cells (concurrency=${params.concurrency})`
+  );
+  const integrityPass = await runJobsWithConcurrency(incompleteJobs, {
+    scanBatchId: params.scanBatchId,
+    depth: params.depth,
+    timeoutMs: params.timeoutMs,
+    maxAttempts: params.maxAttempts,
+    concurrency: params.concurrency,
+    totalCells: params.totalCells,
+    passLabel: "integrity",
+    updateProgress: true,
+    onCellSettled: params.onCellSettled,
+    organizationId: params.organizationId,
+  });
+
+  const { data: refreshedResults } = savedPointIds.length
+    ? await supabase
+        .from("scan_results")
+        .select("scan_point_id, keyword_id, target_found, top_competitors_json")
+        .in("scan_point_id", savedPointIds)
+    : { data: [] };
+
+  const stillIncompleteIds = incompleteJobs
+    .filter((job) => {
+      const row = (refreshedResults ?? []).find(
+        (r) => r.scan_point_id === job.point.id && r.keyword_id === job.keyword.id
+      );
+      return !validateStoredCellResult(row, params.depth).complete;
+    })
+    .map((job) => job.point.id);
+
+  const { data: existingBatch } = await supabase
+    .from("scan_batches")
+    .select("cells_failed, confidence_summary")
+    .eq("id", params.scanBatchId)
+    .single();
+  const prevFailed = Number(existingBatch?.cells_failed ?? 0);
+  const conf = (existingBatch?.confidence_summary ?? {}) as Record<string, unknown>;
+  const prevFailedIds = Array.isArray(conf.failed_point_ids)
+    ? (conf.failed_point_ids as string[])
+    : [];
+
+  await saveCellProgress(params.scanBatchId, params.totalCells, params.totalCells, prevFailed + stillIncompleteIds.length, {
+    pass: "integrity",
+    failed_point_ids: [...new Set([...prevFailedIds, ...stillIncompleteIds])],
+    sparse_point_ids: stillIncompleteIds,
+    integrity_retries: incompleteJobs.length,
+    integrity_recovered: incompleteJobs.length - stillIncompleteIds.length,
+  });
+  invalidateScanGridCache(params.scanBatchId);
+  console.log(
+    `[Scan] Integrity retry recovered ${incompleteJobs.length - stillIncompleteIds.length}/${incompleteJobs.length} cells; ${stillIncompleteIds.length} still sparse`
+  );
+
+  return { failedCells: stillIncompleteIds.length, timings: integrityPass.timings };
+}
+
+/** All cells at once — no center-first queue, no 90s background pass. */
+async function runGridCellsBurst(params: {
   scanBatchId: string;
   points: Array<{
     id: string;
@@ -484,25 +637,126 @@ export async function runGridCellsLive(params: {
   onSoftReady?: () => Promise<void>;
 }): Promise<{ failedCells: number; totalCells: number; successCells: number }> {
   const depth = mapsDepth();
+  const timeoutMs = mapsBurstTimeoutMs();
+  const maxRounds = mapsBurstMaxAttempts();
+  const retryDelayMs = mapsBurstRetryDelayMs();
+
+  const jobs = buildGridCellJobs(params);
+  const totalCells = jobs.length;
+  const concurrency = mapsBurstConcurrency(totalCells);
+
+  const supabase = createServiceClient();
+  await supabase
+    .from("scan_batches")
+    .update({ cells_total: totalCells, cells_completed: 0, cells_failed: 0 })
+    .eq("id", params.scanBatchId);
+
+  console.log("[Scan] Burst grid (all cells concurrent):", {
+    scanBatchId: params.scanBatchId,
+    totalCells,
+    concurrency,
+    timeoutMs,
+    maxRounds,
+    retryDelayMs,
+    depth,
+  });
+
+  const allTimings: CellPhaseTimings[] = [];
+  const scanWallStart = performance.now();
+  let remainingJobs = jobs;
+  let failedCells = 0;
+
+  const onCellSettled = async (success: boolean) => {
+    if (success) {
+      await refreshScanAggregateMetrics(params.scanBatchId);
+    }
+  };
+
+  for (let round = 1; round <= maxRounds && remainingJobs.length > 0; round++) {
+    if (round > 1 && retryDelayMs > 0) {
+      await sleep(retryDelayMs);
+    }
+    const passLabel = round === 1 ? "burst" : `burst-retry-${round}`;
+    console.log(`[Scan] Burst pass ${round}/${maxRounds}: ${remainingJobs.length} cells`);
+    const pass = await runJobsWithConcurrency(remainingJobs, {
+      scanBatchId: params.scanBatchId,
+      depth,
+      timeoutMs,
+      maxAttempts: 1,
+      concurrency,
+      totalCells,
+      passLabel,
+      updateProgress: true,
+      onCellSettled,
+      organizationId: params.organizationId,
+    });
+    allTimings.push(...pass.timings);
+    remainingJobs = failedJobsFromPass(remainingJobs, pass.results);
+    failedCells = remainingJobs.length;
+    if (remainingJobs.length > 0 && round < maxRounds) {
+      console.log(`[Scan] Burst round ${round}: ${remainingJobs.length} cells to retry`);
+    }
+  }
+
+  const integrity = await runIntegrityPass({
+    scanBatchId: params.scanBatchId,
+    jobs,
+    depth,
+    timeoutMs,
+    maxAttempts: 1,
+    concurrency,
+    totalCells,
+    organizationId: params.organizationId,
+    onCellSettled,
+  });
+  allTimings.push(...integrity.timings);
+  failedCells += integrity.failedCells;
+
+  const successCells = Math.max(0, totalCells - failedCells);
+  await saveCellProgress(params.scanBatchId, totalCells, totalCells, failedCells, {
+    pass: "burst-complete",
+    method: "burst_parallel",
+  });
+
+  if (params.onSoftReady) {
+    await params.onSoftReady();
+  }
+  await refreshScanAggregateMetrics(params.scanBatchId);
+
+  const wallSec = elapsedSec(scanWallStart);
+  console.log(`[ScanBenchmark] burst wall_clock=${wallSec}s`);
+  logCellPhaseTimings(params.scanBatchId, allTimings, concurrency);
+
+  return { failedCells, totalCells, successCells };
+}
+
+export async function runGridCellsLive(params: {
+  scanBatchId: string;
+  points: Array<{
+    id: string;
+    grid_label: string;
+    lat: number;
+    lng: number;
+    distance_from_center_m?: number;
+  }>;
+  keywords: Array<{ id: string; keyword: string }>;
+  business: GridCellJob["business"];
+  device: string;
+  os: string;
+  browser: string;
+  organizationId?: string;
+  mode?: GridScanMode;
+  onSoftReady?: () => Promise<void>;
+}): Promise<{ failedCells: number; totalCells: number; successCells: number }> {
+  if (params.mode === "burst") {
+    return runGridCellsBurst(params);
+  }
+  const depth = mapsDepth();
   const softTimeoutMs = mapsSoftTimeoutMs();
   const backgroundTimeoutMs = mapsCellTimeoutMs();
   const backgroundMaxAttempts = mapsCellMaxAttempts();
 
-  let jobs: GridCellJob[] = [];
-  for (const keyword of params.keywords) {
-    for (const point of params.points) {
-      jobs.push({
-        scanBatchId: params.scanBatchId,
-        point,
-        keyword: { id: keyword.id, keyword: keyword.keyword.trim() },
-        business: params.business,
-        device: params.device,
-        os: params.os,
-        browser: params.browser,
-        organizationId: params.organizationId,
-      });
-    }
-  }
+  let jobs: GridCellJob[] = buildGridCellJobs(params);
 
   jobs = sortJobsCenterFirst(jobs);
 
