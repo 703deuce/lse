@@ -31,8 +31,15 @@ export async function GET(
       .select("*")
       .eq("business_id", batch.business_id);
 
+    const conf = (batch.confidence_summary ?? {}) as {
+      keyword_ids?: string[];
+      keyword_label?: string;
+    };
+    const scanKeywordId = Array.isArray(conf.keyword_ids) ? conf.keyword_ids[0] : undefined;
+
     const activeKeyword =
       (keywordId ? allKeywords?.find((k) => k.id === keywordId) : null) ??
+      (scanKeywordId ? allKeywords?.find((k) => k.id === scanKeywordId) : null) ??
       allKeywords?.find((k) => k.is_primary) ??
       allKeywords?.[0];
 
@@ -69,6 +76,7 @@ export async function GET(
       business: business ?? null,
       primaryKeyword: activeKeyword?.keyword ?? null,
       primaryKeywordId: activeKeyword?.id ?? null,
+      scanKeywordId: scanKeywordId ?? activeKeyword?.id ?? null,
       primaryKeywordCity: activeKeyword?.city ?? null,
       primaryKeywordState: activeKeyword?.state ?? null,
       keywords: allKeywords ?? [],

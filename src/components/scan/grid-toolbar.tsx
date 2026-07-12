@@ -39,7 +39,7 @@ export interface GridToolbarProps {
   selectedLocationId: string | null;
   onKeywordChange: (keywordId: string, scanId: string | null) => void;
   onLocationChange: (location: LocationScanSummary, scanId: string | null) => void;
-  onScanStarted?: (scanId: string) => void;
+  onScanStarted?: (scanId: string, keywordId?: string) => void;
   scanRunExtras?: Record<string, unknown>;
   showBurstTest?: boolean;
   className?: string;
@@ -146,7 +146,7 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? "Scan failed to start");
-        onScanStarted?.(json.scan.id);
+        onScanStarted?.(json.scan.id, selected.id);
         onKeywordChange(selected.id, json.scan.id);
         void loadKeywords();
       } catch (e) {

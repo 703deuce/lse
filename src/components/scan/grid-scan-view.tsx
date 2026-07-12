@@ -93,6 +93,7 @@ type ScanViewData = {
   } | null;
   primaryKeyword?: string | null;
   primaryKeywordId?: string | null;
+  scanKeywordId?: string | null;
   primaryKeywordCity?: string | null;
   primaryKeywordState?: string | null;
   points: Array<Record<string, unknown>>;
@@ -153,6 +154,10 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
 
   useEffect(() => {
     setActiveScanId(scanId);
+    if (typeof window !== "undefined") {
+      const kw = new URLSearchParams(window.location.search).get("keywordId");
+      if (kw) setKeywordId(kw);
+    }
   }, [scanId]);
 
   const replaceGridUrl = useCallback(
@@ -242,8 +247,16 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
         scanDataCache.set(scanCacheKey(activeScanId, keywordId), json);
         setData(json);
         setTimelineFetching(false);
-        if (!keywordId && json.primaryKeywordId) {
-          setKeywordId(json.primaryKeywordId as string);
+        const batchKw = (json.batch?.confidence_summary as { keyword_ids?: string[] } | undefined)
+          ?.keyword_ids?.[0];
+        if (!keywordId) {
+          if (batchKw) {
+            setKeywordId(batchKw as string);
+          } else if (json.primaryKeywordId) {
+            setKeywordId(json.primaryKeywordId as string);
+          } else if (json.scanKeywordId) {
+            setKeywordId(json.scanKeywordId);
+          }
         }
         const status = json.batch?.status as string;
         if (
@@ -375,10 +388,12 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
     cellsStillLoading ||
     (cellsPending && batchStatus !== "failed");
 
+  const batchCellsCompleted = Number(batch?.cells_completed ?? confidence.completed_cells ?? 0);
+
   const progressMessage = scanProgressMessage({
     status: batchStatus,
     enrichment_status: batch?.enrichment_status as string | null | undefined,
-    cells_completed: loadedCells,
+    cells_completed: Math.max(loadedCells, batchCellsCompleted),
     cells_total: totalGridCells,
     cells_failed: batch?.cells_failed as number | null | undefined,
     confidence_summary: (batch?.confidence_summary ?? null) as Record<string, unknown> | null,
@@ -475,7 +490,10 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
     business?.lng ??
     gridCenterLng;
   const checkUrl = (data?.results?.[0]?.check_url as string) ?? null;
-  const progressCompleted = cellsInFlight || cellsStillLoading ? loadedCellsCount : Number(confidence.completed_cells ?? loadedCellsCount);
+  const progressCompleted =
+    cellsInFlight || cellsStillLoading
+      ? Math.max(loadedCellsCount, batchCellsCompleted)
+      : Number(confidence.completed_cells ?? loadedCellsCount);
   const progressTotal = Number(confidence.total_cells ?? totalGridCells);
   const allRanks = cells.map((c) => (c.notInResults ? null : c.rank));
   const weightedSolv = computeWeightedSolv(allRanks);
@@ -673,8 +691,8 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
     }
   }
 
-  function handleScanStarted(newScanId: string) {
-    switchScan(newScanId, keywordId);
+  function handleScanStarted(newScanId: string, newKeywordId?: string) {
+    switchScan(newScanId, newKeywordId ?? keywordId);
   }
 
   function handleCellClick(cell: GridCell) {
