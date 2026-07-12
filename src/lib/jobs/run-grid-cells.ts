@@ -448,10 +448,15 @@ async function runJobsWithConcurrency(
           params.concurrency
         );
         completed++;
-        if (result.success) successCount++;
-        else {
+        if (result.success) {
+          successCount++;
+          const failedIdx = failedPointIds.indexOf(job.point.id);
+          if (failedIdx >= 0) failedPointIds.splice(failedIdx, 1);
+        } else {
           failedCells++;
-          failedPointIds.push(job.point.id);
+          if (!failedPointIds.includes(job.point.id)) {
+            failedPointIds.push(job.point.id);
+          }
         }
 
         const progressStart = performance.now();
@@ -723,6 +728,7 @@ async function runGridCellsBurst(params: {
   await saveCellProgress(params.scanBatchId, totalCells, totalCells, failedCells, {
     pass: "burst-complete",
     method: "burst_parallel",
+    failed_point_ids: failedCells > 0 ? remainingJobs.map((j) => j.point.id) : [],
   });
 
   if (!rankReadyFired && params.onSoftReady) {

@@ -259,12 +259,16 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
           }
         }
         const status = json.batch?.status as string;
+        const pointsCount = (json.points as unknown[] | undefined)?.length ?? 0;
+        const resultsCount = (json.results as unknown[] | undefined)?.length ?? 0;
+        const awaitingResults = pointsCount > 0 && resultsCount < pointsCount && status !== "failed";
         if (
           shouldPollScan(status, {
             cells_completed: json.batch?.cells_completed as number | null | undefined,
             cells_total: json.batch?.cells_total as number | null | undefined,
             confidence_summary: (json.batch?.confidence_summary ?? null) as Record<string, unknown> | null,
-          })
+          }) ||
+          awaitingResults
         ) {
           const inFlight = areCellsInFlight(status);
           setTimeout(poll, inFlight ? 1500 : 3000);
@@ -369,9 +373,9 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
     failedPointIds.size,
     Number(batch?.cells_failed ?? confidence.failed_cells ?? 0)
   );
-  // Failed cells never get a scan_results row — count them as settled, not "still loading".
-  const cellsAccountedFor = loadedCells + failedPointIds.size;
-  const cellsStillLoading = totalGridCells > 0 && cellsAccountedFor < totalGridCells;
+  // Missing results stay pending until saved — do not treat retry failures as settled.
+  const cellsStillLoading =
+    totalGridCells > 0 && loadedCells < totalGridCells && batchStatus !== "failed";
   const cellsPending =
     hasCellsPending({
       status: batchStatus,

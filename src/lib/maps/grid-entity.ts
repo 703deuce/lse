@@ -254,13 +254,13 @@ export function buildEntityGridCells(
   const deduped = dedupeScanResults(results);
   const resultByPoint = new Map(deduped.map((r) => [r.scan_point_id, r]));
   const useTargetRank = entity.isTarget;
-  const failedIds = options?.failedPointIds;
 
   return points.map((p) => {
     const { row, col } = parseGridLabel(p.grid_label);
     const result = resultByPoint.get(p.id);
     const hasResult = result != null;
-    const failed = !hasResult && !options?.scanActive && (failedIds?.has(p.id) ?? false);
+    // Never show ✕ — cells retry in the background; show pending until a result lands.
+    const failed = false;
     let rank: number | null = null;
     let matchReason: string | null = null;
     let notInResults = false;
@@ -287,7 +287,7 @@ export function buildEntityGridCells(
       row,
       col,
       rank,
-      pending: options?.scanActive && !hasResult && !failed,
+      pending: !hasResult && (options?.scanActive !== false),
       failed,
       notInResults: hasResult && notInResults,
       matchReason,
