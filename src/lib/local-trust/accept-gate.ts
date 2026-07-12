@@ -225,7 +225,7 @@ export function resolveDisplayGroup(opp: {
     return "civic_membership";
   }
 
-  if (opp.opportunityType === "community_event" || opp.opportunityType === "school_sponsor") {
+  if (opp.opportunityType === "community_event") {
     return "local_sponsorship";
   }
 

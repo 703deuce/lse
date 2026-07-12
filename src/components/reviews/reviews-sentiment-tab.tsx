@@ -10,6 +10,17 @@ import { HighlightedReviewText } from "@/components/reviews/highlighted-review-t
 import { ReviewerAvatar, RvCard, StarRating } from "@/components/reviews/reviews-ui";
 import { cn } from "@/lib/utils";
 
+function formatPercentTooltip(value: unknown) {
+  const numberValue =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : 0;
+
+  return `${Number.isFinite(numberValue) ? numberValue : 0}%`;
+}
+
 function themeRefToListItem(ref: ThemeReviewRef, lookup: Map<string, ReviewListItem>): ReviewListItem {
   const found = lookup.get(ref.id);
   if (found) return found;
@@ -191,7 +202,7 @@ export function ReviewsSentimentTab({ data }: { data: ReviewsPageData }) {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" horizontal={false} />
                   <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
                   <YAxis type="category" dataKey="theme" width={130} tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(v: number) => `${v}%`} />
+                  <Tooltip formatter={formatPercentTooltip} />
                   <Legend />
                   <Bar dataKey="you" name="You" fill="#059669" radius={[0, 4, 4, 0]} />
                   <Bar dataKey="competitors" name="Competitor avg" fill="#94a3b8" radius={[0, 4, 4, 0]} />

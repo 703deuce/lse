@@ -302,12 +302,6 @@ export function MapsAuditWorkspace({ businessId }: { businessId: string }) {
                   if (newScanId) setScanId(newScanId);
                 }}
                 onScanStarted={(id) => setScanId(id)}
-                onMoveGridToggle={() => {
-                  window.location.href = `/businesses/${businessId}/grid/${scanId}`;
-                }}
-                onSinglePointToggle={() => {
-                  window.location.href = `/businesses/${businessId}/grid/${scanId}`;
-                }}
               />
               {entities.length > 0 && (
                 <CompetitorGridToggle

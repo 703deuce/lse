@@ -258,9 +258,9 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
         const status = json.batch?.status as string;
         if (
           shouldPollScan(status, {
-            cells_completed: json.batch?.cells_completed,
-            cells_total: json.batch?.cells_total,
-            confidence_summary: json.batch?.confidence_summary,
+            cells_completed: json.batch?.cells_completed as number | null | undefined,
+            cells_total: json.batch?.cells_total as number | null | undefined,
+            confidence_summary: (json.batch?.confidence_summary ?? null) as Record<string, unknown> | null,
           })
         ) {
           const inFlight = areCellsInFlight(status);
