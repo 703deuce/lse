@@ -47,7 +47,9 @@ export function SemiCircleGauge({
         )}
       </svg>
       <div className="absolute inset-x-0 bottom-0 flex flex-col items-center">
-        <span className="text-3xl font-bold tabular-nums leading-none text-zinc-900">{Math.round(clamped)}</span>
+        <span className={cn("font-bold tabular-nums leading-none text-zinc-900", size <= 120 ? "text-lg" : "text-3xl")}>
+          {Math.round(clamped)}
+        </span>
         <span className="mt-0.5 text-xs font-medium text-zinc-500">/100</span>
       </div>
     </div>
@@ -263,7 +265,7 @@ export function OverviewCardShell({
   className?: string;
 }) {
   const classes = cn(
-    "block rounded-xl border border-zinc-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition hover:border-emerald-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]",
+    "block rounded-xl border border-zinc-200/80 bg-white p-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition hover:border-emerald-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]",
     className
   );
 

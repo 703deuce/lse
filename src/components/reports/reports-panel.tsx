@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { Loader2, FileDown, Link2 } from "lucide-react";
-import { PageHeader } from "@/components/ui/page-header";
-import { ContentCard, EmptyState, btnPrimary } from "@/components/ui/design-system";
+import { ContentCard, EmptyState, ModuleHeader, ModulePage, btnPrimary } from "@/components/ui/design-system";
 
 export function ReportsPanel({
   businessId,
@@ -35,10 +34,11 @@ export function ReportsPanel({
   }
 
   return (
-    <>
-      <PageHeader
+    <ModulePage className="!space-y-4">
+      <ModuleHeader
         title="Reports"
         subtitle="Export shareable visibility reports for your business or clients."
+        className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
       />
 
       {!latestScanId ? (
@@ -47,7 +47,7 @@ export function ReportsPanel({
           description="Run a grid scan first — reports are generated from your latest scan results."
         />
       ) : (
-        <ContentCard className="max-w-xl">
+        <ContentCard className="max-w-xl !p-3.5">
           <div className="flex items-start gap-4">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
               <FileDown className="h-5 w-5" />
@@ -84,6 +84,6 @@ export function ReportsPanel({
           </div>
         </ContentCard>
       )}
-    </>
+    </ModulePage>
   );
 }

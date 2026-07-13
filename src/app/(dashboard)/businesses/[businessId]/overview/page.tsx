@@ -43,7 +43,7 @@ export default async function BusinessOverviewPage({
   ]);
 
   return (
-    <ModulePage wide className="!space-y-5">
+    <ModulePage wide className="!space-y-4">
       <DashboardHeader
         userName={displayNameFromEmail(auth.email)}
         businessId={businessId}

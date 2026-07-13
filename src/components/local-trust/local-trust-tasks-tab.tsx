@@ -189,7 +189,7 @@ export function LocalTrustTasksTab({ tasks }: { tasks: TaskRow[] }) {
         </SidebarCard>
 
         <SidebarCard title="Completed This Week" action="View all">
-          <p className="text-2xl font-bold text-zinc-900">{completed.length}</p>
+          <p className="text-base font-bold text-zinc-900">{completed.length}</p>
           <p className="text-[11px] font-medium text-emerald-600">+{completed.length > 0 ? 100 : 0}% vs last week</p>
           <ul className="mt-3 space-y-2">
             {completed.slice(0, 2).map((t) => (
@@ -205,7 +205,7 @@ export function LocalTrustTasksTab({ tasks }: { tasks: TaskRow[] }) {
         </SidebarCard>
 
         <SidebarCard title="High-Impact Actions" action="View all">
-          <p className="text-2xl font-bold text-zinc-900">{highImpact.length || tasks.filter((t) => t.priority === "high").length}</p>
+          <p className="text-base font-bold text-zinc-900">{highImpact.length || tasks.filter((t) => t.priority === "high").length}</p>
           <div className="mt-2 rounded-md bg-emerald-50 px-2.5 py-2 text-[11px] leading-snug text-emerald-800">
             <Star className="mb-0.5 inline h-3 w-3" /> Focus on high-impact tasks to maximize visibility and community trust.
           </div>

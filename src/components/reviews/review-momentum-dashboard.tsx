@@ -256,14 +256,14 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
 
   if (loading && !data?.run) {
     return (
-      <div className="flex items-center gap-2 py-20 text-zinc-500">
-        <Loader2 className="h-5 w-5 animate-spin" /> Loading Review Momentum…
+      <div className="flex items-center gap-2 py-10 text-[13px] text-zinc-500">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading Review Momentum…
       </div>
     );
   }
 
   return (
-    <ModulePage className="!space-y-5">
+    <ModulePage className="!space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <MomentumPageHeader />
         <MomentumTopBar running={running} onRun={() => void runAudit()} />
@@ -272,10 +272,10 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
       {error && <AlertBanner variant="error">{error}</AlertBanner>}
 
       {!data?.run ? (
-        <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-12 text-center">
+        <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-3.5 py-8 text-center text-[13px]">
           <TrendingUp className="mx-auto h-10 w-10 text-zinc-400" />
           <p className="mt-4 font-medium text-zinc-900">No momentum report yet.</p>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-[13px] text-zinc-500">
             Run a grid scan first, then click Run Momentum Audit.
           </p>
         </div>

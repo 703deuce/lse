@@ -44,14 +44,14 @@ export function CoreScoresRow({ scores }: { scores: CoreScoreItem[] }) {
       {scores.map((score) => {
         const content = (
           <div
-            className={`rounded-xl border p-4 transition ${
+            className={`rounded-xl border p-3.5 transition ${
               score.highlight
                 ? "border-emerald-300 bg-primary-subtle/50 dark:border-emerald-800 dark:bg-emerald-950/30"
                 : "border-border bg-surface dark:border-zinc-800 dark:bg-zinc-950"
             } ${score.href ? "hover:border-emerald-300 hover:shadow-sm dark:hover:border-emerald-700" : ""}`}
           >
             <p className="text-xs font-medium uppercase tracking-wide text-text-muted">{score.label}</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums">
+            <p className="mt-1 text-base font-bold tabular-nums">
               {score.value ?? "—"}
             </p>
           </div>
@@ -209,7 +209,7 @@ export function ReviewMomentumHero({
         <div>
           <p className={dashboardSectionLabel}>Review Momentum™</p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <p className="text-2xl font-semibold tabular-nums tracking-tight text-zinc-900">
+            <p className="text-lg font-semibold tabular-nums tracking-tight text-zinc-900">
               {Math.round(momentumScore)}
             </p>
             <span className={cn(dashboardBadge, momentumBadgeClass(momentumLabel))}>
@@ -527,7 +527,7 @@ export function ReviewMomentumCardEnhanced({
   return (
     <Link
       href={`/businesses/${businessId}/review-momentum`}
-      className="block rounded-xl border border-border p-5 transition hover:border-emerald-300 hover:shadow-sm dark:border-zinc-800 dark:hover:border-emerald-700"
+      className="block rounded-xl border border-border p-3.5 transition hover:border-emerald-300 hover:shadow-sm dark:border-zinc-800 dark:hover:border-emerald-700"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-2">
@@ -535,7 +535,7 @@ export function ReviewMomentumCardEnhanced({
           <h2 className="font-semibold">Review Momentum™</h2>
         </div>
         {hasData && momentumScore != null && (
-          <span className="text-3xl font-bold tabular-nums text-primary-muted dark:text-emerald-400">
+          <span className="text-lg font-bold tabular-nums text-primary-muted dark:text-emerald-400">
             {Math.round(momentumScore)}
           </span>
         )}

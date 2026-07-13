@@ -209,7 +209,7 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
 
   if (tasks.length === 0) {
     return (
-      <div className={cn(dashboardCard, "border-dashed p-6 text-center")}>
+      <div className={cn(dashboardCard, "border-dashed px-3.5 py-8 text-center text-[13px]")}>
         <p className="text-[13px] text-zinc-500">No tasks yet. Run analysis or click Create Tasks.</p>
       </div>
     );

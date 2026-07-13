@@ -171,7 +171,7 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
   const competitors = data?.competitors ?? run?.selected_competitors ?? [];
 
   return (
-    <ModulePage className="!space-y-5">
+    <ModulePage className="!space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <GapPageHeader />
         <GapTopBar businessId={businessId} />
@@ -226,7 +226,7 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
       )}
 
       {!loading && !run && (
-        <div className="rounded-xl border border-dashed border-border bg-white p-6 text-center">
+        <div className="rounded-xl border border-dashed border-border bg-white px-3.5 py-8 text-center text-[13px]">
           <p className="text-[13px] text-text-muted">
             No backlink gap analysis yet. Run your first analysis to find competitor link opportunities.
           </p>

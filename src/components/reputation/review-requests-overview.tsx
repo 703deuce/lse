@@ -27,7 +27,7 @@ export async function ReviewRequestsOverviewCard({ businessId }: { businessId: s
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-text">Review Requests</p>
-            <p className="mt-2 text-3xl font-bold tabular-nums text-text">
+            <p className="mt-2 text-xl font-bold tabular-nums text-text">
               {stats ? String(count) : "—"}
             </p>
             {stats ? (

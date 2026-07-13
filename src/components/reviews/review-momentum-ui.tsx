@@ -26,6 +26,7 @@ export function MomentumPageHeader() {
     <ModuleHeader
       title="Review Momentum™"
       subtitle="30-day review velocity vs. competitors — 7-day counts are exact; days 8–30 use weekly buckets."
+      className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
       meta={
         <p className="text-[11px] text-zinc-400">
           90-day trend shows whether growth is consistent or a one-time spike.
@@ -46,7 +47,7 @@ export function MomentumTopBar({
     <div className="flex shrink-0 flex-wrap items-center gap-2">
       <button
         type="button"
-        className={cn(dashboardControl, "inline-flex items-center gap-2 px-3 font-medium text-zinc-600")}
+        className={cn(dashboardControl, "inline-flex h-9 items-center gap-2 px-3 font-medium text-zinc-600")}
       >
         <Calendar className="h-3.5 w-3.5 text-zinc-400" />
         Last 30 Days

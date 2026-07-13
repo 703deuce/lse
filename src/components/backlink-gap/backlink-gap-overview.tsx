@@ -19,7 +19,7 @@ export async function BacklinkGapOverviewCard({ businessId }: { businessId: stri
           </span>
           <div>
             <p className="text-sm font-semibold text-text">Backlink Gap</p>
-            <p className="mt-2 text-3xl font-bold text-text">—</p>
+            <p className="mt-2 text-xl font-bold text-text">—</p>
             <p className="mt-2 text-xs text-text-muted">Run competitor backlink analysis</p>
           </div>
         </div>
@@ -41,7 +41,7 @@ export async function BacklinkGapOverviewCard({ businessId }: { businessId: stri
             </span>
             <p className="text-sm font-semibold text-text">Backlink Gap</p>
           </div>
-          <p className="mt-3 text-3xl font-bold tabular-nums text-text">{count}</p>
+          <p className="mt-3 text-xl font-bold tabular-nums text-text">{count}</p>
           <p className="mt-2 text-xs text-text-muted">{sub}</p>
         </div>
         <Sparkline data={sparkFromCount(count)} color="#f97316" width={72} height={28} />
