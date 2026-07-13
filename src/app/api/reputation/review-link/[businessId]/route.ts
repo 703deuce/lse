@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
-import { loadReviewRequestKit } from "@/lib/reputation/review-requests";
+import { isDevPreviewBusiness } from "@/lib/auth/dev";
 
 export async function GET(
   _request: Request,
@@ -8,6 +7,16 @@ export async function GET(
 ) {
   try {
     const { businessId } = await params;
+
+    if (isDevPreviewBusiness(businessId)) {
+      return NextResponse.json({
+        businessName: "Bright Smile Dental",
+        businessId,
+      });
+    }
+
+    const { requireBusinessAccess } = await import("@/lib/auth/api-auth");
+    const { loadReviewRequestKit } = await import("@/lib/reputation/review-requests");
     const auth = await requireBusinessAccess(businessId);
     const data = await loadReviewRequestKit(businessId, auth.organizationId);
     return NextResponse.json(data);

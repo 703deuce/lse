@@ -109,7 +109,7 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
   if (!data) return null;
 
   return (
-    <ModulePage wide>
+    <ModulePage wide className="!space-y-4">
       <ReviewsHeader
         businessId={businessId}
         loading={loading || running}
@@ -130,7 +130,7 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
 
       <ReviewsTabs active={tab} onChange={handleTabChange} />
 
-      <div className={cn("space-y-6", tab === "overview" || tab === "your-reviews" ? "" : "")}>
+      <div className={cn("space-y-4", tab === "overview" || tab === "your-reviews" ? "" : "")}>
         <div className="min-w-0">
           {tab === "overview" && (
             <ReviewsOverviewTab data={data} onTabChange={handleTabChange} />

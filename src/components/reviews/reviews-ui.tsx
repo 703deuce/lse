@@ -30,9 +30,8 @@ import {
   btnSecondary,
   cardClass,
   cardLabelClass,
-  StatValue,
-  KpiGrid,
 } from "@/components/ui/design-system";
+import { GridMetricCard } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 import type { ReviewListItem, ReviewsPageData } from "@/lib/reviews/reviews-page-data";
 
@@ -47,19 +46,35 @@ export const REVIEWS_TABS = [
 export type ReviewsTabId = (typeof REVIEWS_TABS)[number]["id"];
 
 export function RvCard({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn(cardClass, "p-5", className)}>{children}</div>;
+  return <div className={cn(cardClass, "p-4", className)}>{children}</div>;
 }
 
 export function RvSectionTitle({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
   return (
-    <div className="mb-4 flex items-start justify-between gap-3">
+    <div className="mb-3 flex items-start justify-between gap-3">
       <div>
-        <h2 className="text-base font-semibold text-zinc-900">{title}</h2>
-        {subtitle && <p className="mt-0.5 text-sm text-zinc-500">{subtitle}</p>}
+        <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
+        {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
       </div>
       {action}
     </div>
   );
+}
+
+function kpiDeltaSub(
+  value: number | null,
+  suffix: string,
+  invert = false
+): { sub?: string; trendPositive?: boolean } {
+  if (value == null || value === 0) {
+    const trimmed = suffix.trim();
+    return trimmed ? { sub: trimmed } : {};
+  }
+  const positive = invert ? value < 0 : value > 0;
+  return {
+    sub: `${positive ? "↑" : "↓"} ${Math.abs(value)}${suffix}`,
+    trendPositive: positive,
+  };
 }
 
 export function DeltaText({
@@ -239,58 +254,94 @@ export function ReviewsKpiRow({
 }) {
   if (variant === "unanswered") {
     const cards = [
-      { label: "UNANSWERED REVIEWS (90D)", value: kpis.unanswered90d ?? 0, delta: kpis.newReviews90dDelta, invert: true },
-      { label: "AVG. DAYS WAITING", value: kpis.avgDaysWaiting ?? "—", delta: null as number | null },
-      { label: "RESPONSE RATE (90D)", value: `${kpis.responseRate}%`, delta: kpis.responseRateDelta, suffix: "%" },
-      { label: "URGENT (SLA > 7 DAYS)", value: kpis.urgentCount ?? 0, delta: null as number | null },
+      {
+        label: "UNANSWERED REVIEWS (90D)",
+        value: kpis.unanswered90d ?? 0,
+        icon: MessageSquare,
+        iconWrapClassName: "bg-amber-50",
+        iconClassName: "text-amber-600",
+        ...kpiDeltaSub(kpis.newReviews90dDelta, " vs prior 90 days", true),
+      },
+      {
+        label: "AVG. DAYS WAITING",
+        value: kpis.avgDaysWaiting ?? "—",
+        icon: Clock,
+        iconWrapClassName: "bg-zinc-100",
+        iconClassName: "text-zinc-600",
+      },
+      {
+        label: "RESPONSE RATE (90D)",
+        value: `${kpis.responseRate}%`,
+        icon: CheckCircle2,
+        iconWrapClassName: "bg-emerald-50",
+        iconClassName: "text-emerald-600",
+        ...kpiDeltaSub(kpis.responseRateDelta, "% vs prior 90 days"),
+      },
+      {
+        label: "URGENT (SLA > 7 DAYS)",
+        value: kpis.urgentCount ?? 0,
+        icon: Shield,
+        iconWrapClassName: "bg-red-50",
+        iconClassName: "text-red-600",
+      },
     ];
     return (
-      <KpiGrid>
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((c) => (
-          <RvCard key={c.label} className="!p-5">
-            <p className={cardLabelClass}>{c.label}</p>
-            <div className="mt-2">
-              <StatValue value={c.value} />
-            </div>
-            {c.delta != null ? (
-              <div className="mt-2">
-                <DeltaText value={c.delta} suffix={c.suffix ? `${c.suffix} vs prior 90 days` : " vs prior 90 days"} invert={c.invert} />
-              </div>
-            ) : null}
-          </RvCard>
+          <GridMetricCard key={c.label} variant="default" compact {...c} />
         ))}
-      </KpiGrid>
+      </div>
     );
   }
 
   const cards = [
-    { label: "AVERAGE RATING", value: kpis.avgRating?.toFixed(1) ?? "—", star: true, delta: kpis.avgRatingDelta, footer: null as string | null },
-    { label: "TOTAL REVIEWS", value: kpis.totalReviews, star: false, delta: null, footer: "All time" },
-    { label: "NEW REVIEWS (90D)", value: kpis.newReviews90d, star: false, delta: kpis.newReviews90dDelta, footer: null },
-    { label: "REVIEW GAP VS TOP 3", value: `+${kpis.reviewGap}`, star: false, delta: null, footer: "More to match top 3" },
-    { label: "RESPONSE RATE", value: `${kpis.responseRate}%`, star: false, delta: kpis.responseRateDelta, footer: null },
+    {
+      label: "AVERAGE RATING",
+      value: `${kpis.avgRating?.toFixed(1) ?? "—"} ★`,
+      icon: Star,
+      iconWrapClassName: "bg-emerald-50",
+      iconClassName: "text-emerald-600",
+      variant: "primary" as const,
+      ...kpiDeltaSub(kpis.avgRatingDelta, " vs prior 90 days"),
+    },
+    {
+      label: "TOTAL REVIEWS",
+      value: kpis.totalReviews,
+      icon: MessageSquare,
+      iconWrapClassName: "bg-sky-50",
+      iconClassName: "text-sky-600",
+      sub: "All time",
+    },
+    {
+      label: "NEW REVIEWS (90D)",
+      value: kpis.newReviews90d,
+      icon: TrendingUp,
+      iconWrapClassName: "bg-violet-50",
+      iconClassName: "text-violet-600",
+      ...kpiDeltaSub(kpis.newReviews90dDelta, " vs prior 90 days"),
+    },
+    {
+      label: "REVIEW GAP VS TOP 3",
+      value: `+${kpis.reviewGap}`,
+      icon: Building2,
+      iconWrapClassName: "bg-orange-50",
+      iconClassName: "text-orange-600",
+      sub: "More to match top 3",
+    },
+    {
+      label: "RESPONSE RATE",
+      value: `${kpis.responseRate}%`,
+      icon: CheckCircle2,
+      iconWrapClassName: "bg-emerald-50",
+      iconClassName: "text-emerald-600",
+      ...kpiDeltaSub(kpis.responseRateDelta, "% vs prior 90 days"),
+    },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
+    <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-3 xl:grid-cols-5">
       {cards.map((c) => (
-        <RvCard key={c.label} className="!p-5">
-          <p className={cardLabelClass}>{c.label}</p>
-          <div className="mt-2 flex items-center gap-1.5">
-            <StatValue value={c.value} />
-            {c.star && <Star className="h-5 w-5 fill-emerald-500 text-emerald-500" />}
-          </div>
-          {c.delta != null ? (
-            <div className="mt-2">
-              <DeltaText
-                value={c.delta}
-                suffix={c.label === "RESPONSE RATE" ? "% vs prior 90 days" : " vs prior 90 days"}
-              />
-            </div>
-          ) : (
-            c.footer && <p className="mt-2 text-xs text-zinc-500">{c.footer}</p>
-          )}
-        </RvCard>
+        <GridMetricCard key={c.label} compact {...c} />
       ))}
     </div>
   );
@@ -305,6 +356,7 @@ export function ReviewsTabs({
 }) {
   return (
     <TabBar
+      className="[&>div]:gap-4 [&_button]:pb-2"
       tabs={REVIEWS_TABS.map((t) => ({ id: t.id as ReviewsTabId, label: t.label }))}
       active={active}
       onChange={onChange}
@@ -489,41 +541,44 @@ export function ReviewsPagination({
   for (let i = from; i <= to; i++) pages.push(i);
 
   return (
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-500">
-      <span>
-        Showing {start}–{end} of {total} reviews
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-3">
+      <span className="text-xs text-zinc-500">
+        Showing {start}–{end} of {total} review{total === 1 ? "" : "s"}
+        {totalPages > 1 ? ` · Page ${page} of ${totalPages}` : ""}
       </span>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          disabled={page <= 1}
-          onClick={() => onPageChange(page - 1)}
-          className="rounded-md px-2 py-1 text-zinc-600 hover:bg-zinc-100 disabled:opacity-40"
-        >
-          Prev
-        </button>
-        {pages.map((p) => (
+      {totalPages > 1 ? (
+        <div className="flex items-center gap-1">
           <button
-            key={p}
             type="button"
-            onClick={() => onPageChange(p)}
-            className={cn(
-              "flex h-7 min-w-[1.75rem] items-center justify-center rounded-full px-2",
-              p === page ? "bg-emerald-600 text-white" : "text-zinc-600 hover:bg-zinc-100"
-            )}
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+            className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
           >
-            {p}
+            Previous
           </button>
-        ))}
-        <button
-          type="button"
-          disabled={page >= totalPages}
-          onClick={() => onPageChange(page + 1)}
-          className="rounded-md px-2 py-1 text-zinc-600 hover:bg-zinc-100 disabled:opacity-40"
-        >
-          Next
-        </button>
-      </div>
+          {pages.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onPageChange(p)}
+              className={cn(
+                "flex h-7 min-w-[1.75rem] items-center justify-center rounded-full px-2 text-xs font-medium",
+                p === page ? "bg-emerald-600 text-white" : "text-zinc-600 hover:bg-zinc-100"
+              )}
+            >
+              {p}
+            </button>
+          ))}
+          <button
+            type="button"
+            disabled={page >= totalPages}
+            onClick={() => onPageChange(page + 1)}
+            className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -547,20 +602,20 @@ export function ReviewsTable({
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-zinc-100 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-            {showBusiness ? <th className="pb-3 pr-4 font-semibold">Business</th> : <th className="pb-3 pr-4">Reviewer</th>}
-            <th className="pb-3 pr-4">Rating</th>
-            {!showUrgency && <th className="pb-3 pr-4">Date</th>}
-            <th className="pb-3 pr-4">{showUrgency ? "Review (excerpt)" : "Review Text"}</th>
-            {!showBusiness && !showUrgency && <th className="pb-3 pr-4">Source</th>}
-            <th className="pb-3 pr-4">Keywords</th>
+            {showBusiness ? <th className="pb-2 pr-3 font-semibold">Business</th> : <th className="pb-2 pr-3">Reviewer</th>}
+            <th className="pb-2 pr-3">Rating</th>
+            {!showUrgency && <th className="pb-2 pr-3">Date</th>}
+            <th className="pb-2 pr-3">{showUrgency ? "Review (excerpt)" : "Review Text"}</th>
+            {!showBusiness && !showUrgency && <th className="pb-2 pr-3">Source</th>}
+            <th className="pb-2 pr-3">Keywords</th>
             {showUrgency && (
               <>
-                <th className="pb-3 pr-4">Days Waiting</th>
-                <th className="pb-3 pr-4">SLA / Urgency</th>
+                <th className="pb-2 pr-3">Days Waiting</th>
+                <th className="pb-2 pr-3">SLA / Urgency</th>
               </>
             )}
-            <th className="pb-3 pr-4">Status</th>
-            <th className="pb-3">Action</th>
+            <th className="pb-2 pr-3">Status</th>
+            <th className="pb-2">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -570,11 +625,11 @@ export function ReviewsTable({
               className={cn("border-b border-zinc-50 hover:bg-zinc-50/60", onViewReview && "cursor-pointer")}
               onClick={() => onViewReview?.(row)}
             >
-              <td className="py-3.5 pr-4">
+              <td className="py-2.5 pr-3">
                 {showBusiness ? (
                   <BusinessCell row={row} />
                 ) : (
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2">
                     <ReviewerAvatar name={row.reviewerName} size="sm" />
                     <div>
                       <p className="font-medium text-zinc-900">{row.reviewerName}</p>
@@ -583,11 +638,11 @@ export function ReviewsTable({
                   </div>
                 )}
               </td>
-              <td className="py-3.5 pr-4">
+              <td className="py-2.5 pr-3">
                 <StarRating rating={row.rating} />
               </td>
               {!showUrgency && (
-                <td className="py-3.5 pr-4 whitespace-nowrap">
+                <td className="py-2.5 pr-3 whitespace-nowrap">
                   <p className="text-zinc-900">
                     {row.reviewDate
                       ? new Date(row.reviewDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
@@ -596,7 +651,7 @@ export function ReviewsTable({
                   {row.relativeDate && <p className="text-[11px] text-zinc-500">{row.relativeDate}</p>}
                 </td>
               )}
-              <td className="min-w-[200px] max-w-md py-3.5 pr-4">
+              <td className="min-w-[200px] max-w-md py-2.5 pr-3">
                 {textDisplay === "full" ? (
                   <p className="whitespace-pre-wrap text-zinc-700">{row.reviewText?.trim() || "—"}</p>
                 ) : (
@@ -618,29 +673,29 @@ export function ReviewsTable({
                 )}
               </td>
               {!showBusiness && !showUrgency && (
-                <td className="py-3.5 pr-4">
+                <td className="py-2.5 pr-3">
                   <SourceIcon source={row.source} />
                 </td>
               )}
-              <td className="py-3.5 pr-4">
+              <td className="py-2.5 pr-3">
                 <TagPills tags={row.tags} />
               </td>
               {showUrgency && (
                 <>
-                  <td className="py-3.5 pr-4">
+                  <td className="py-2.5 pr-3">
                     <span className={cn("text-sm font-medium", (row.daysWaiting ?? 0) >= 7 ? "text-red-600" : "text-amber-600")}>
                       {row.daysWaiting ?? 0} days
                     </span>
                   </td>
-                  <td className="py-3.5 pr-4">
+                  <td className="py-2.5 pr-3">
                     <UrgencyBadge urgency={row.urgency} />
                   </td>
                 </>
               )}
-              <td className="py-3.5 pr-4">
+              <td className="py-2.5 pr-3">
                 <ReviewStatusBadge replied={row.replied} variant={mode === "default" ? "pill" : "default"} />
               </td>
-              <td className="py-3.5">
+              <td className="py-2.5">
                 <div className="flex items-center gap-1">
                   {!row.replied && (
                     <button

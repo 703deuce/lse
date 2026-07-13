@@ -25,7 +25,15 @@ Google Maps-first SaaS that audits local visibility, compares competitors, and t
    ```sql
    SELECT cron.schedule('weekly-scans', '0 9 * * 1', $$ SELECT process_due_scheduled_scans(); $$);
    ```
-5. Set `DEV_BYPASS_AUTH=true` until Firebase auth is wired.
+5. For local UI work without logging in, copy `.env.example` to `.env.local` and keep:
+   ```env
+   DEV_BYPASS_AUTH=true
+   NEXT_PUBLIC_DEV_BYPASS_AUTH=true
+   DEV_MOCK_AUTH=true
+   DEV_BYPASS_BUSINESS_ACCESS=true
+   DEV_BUSINESS_ID=preview
+   ```
+   Then open `http://localhost:3000/businesses/preview/reviews` — full dashboard sidebar + mock review data. **Turn these off before production.**
 
 ```powershell
 npm install
