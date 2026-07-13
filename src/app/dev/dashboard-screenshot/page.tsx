@@ -14,7 +14,7 @@ import {
 
 export default function DashboardScreenshotPage() {
   return (
-    <ModulePage wide className="!space-y-4 px-5 py-6 lg:px-8">
+    <ModulePage wide className="!space-y-5 px-5 py-6 lg:px-8">
       <DashboardHeader
         userName="Anthony"
         businessId={SCREENSHOT_BUSINESS_ID}

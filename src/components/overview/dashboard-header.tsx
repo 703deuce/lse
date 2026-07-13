@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Building2, Calendar, ChevronDown, Play } from "lucide-react";
+import { pageSubtitleClass, pageTitleClass, btnPrimary } from "@/components/ui/design-system";
+import {
+  dashboardControl,
+} from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
 
 function greetingForHour(hour: number): string {
@@ -35,26 +39,27 @@ export function DashboardHeader({
   const greeting = greetingForHour(new Date().getHours());
 
   return (
-    <header className="space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
-            {greeting}, {userName}! <span aria-hidden>👋</span>
+    <header className="border-b border-zinc-200/70 pb-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className={cn(pageTitleClass, "text-[1.35rem] font-semibold")}>
+            {greeting}, {userName}
           </h1>
-          <p className="mt-0.5 text-sm text-zinc-500">
-            Here&apos;s what&apos;s happening with {businessName}.
+          <p className={cn(pageSubtitleClass, "mt-1 text-[13px] text-zinc-500")}>
+            Performance snapshot for{" "}
+            <span className="font-medium text-zinc-700">{businessName}</span>
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <label className="relative min-w-[12rem]">
+          <label className="relative min-w-[11.5rem]">
             <Building2 className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
             <select
               value={businessId}
               onChange={(e) => router.push(`/businesses/${e.target.value}/overview`)}
               className={cn(
-                "w-full appearance-none rounded-lg border border-zinc-200 bg-white py-2 pl-8 pr-8",
-                "text-sm text-zinc-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+                dashboardControl,
+                "w-full appearance-none py-0 pl-8 pr-8 font-medium"
               )}
             >
               {businesses.map((b) => (
@@ -69,20 +74,20 @@ export function DashboardHeader({
           <button
             type="button"
             className={cn(
-              "inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2",
-              "text-sm text-zinc-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+              dashboardControl,
+              "inline-flex items-center gap-2 px-3 font-medium text-zinc-600"
             )}
           >
-            <Calendar className="h-4 w-4 text-zinc-400" />
-            {formatDateRange()}
+            <Calendar className="h-3.5 w-3.5 text-zinc-400" />
+            <span className="whitespace-nowrap">{formatDateRange()}</span>
             <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
           </button>
 
           <Link
             href={`/businesses/${businessId}/scans`}
-            className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+            className={cn(btnPrimary, "h-9 px-3.5 text-[13px]")}
           >
-            <Play className="h-4 w-4 fill-current" />
+            <Play className="h-3.5 w-3.5 fill-current" />
             Run Quick Scan
           </Link>
         </div>

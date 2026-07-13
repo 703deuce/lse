@@ -13,8 +13,8 @@ export function DashboardFeaturedReports({
   const showAi = data.ai.hasData;
 
   return (
-    <section className="space-y-3">
-      <div className="grid gap-3 lg:grid-cols-2">
+    <section className="space-y-2.5">
+      <div className="grid gap-2.5 lg:grid-cols-2">
         <DashboardReviewPerformanceCard businessId={businessId} data={data.review} />
         {showAi ? (
           <DashboardAiVisibilityCard businessId={businessId} data={data.ai} />
