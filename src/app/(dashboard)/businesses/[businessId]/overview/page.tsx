@@ -1,30 +1,22 @@
 import { requireAuth } from "@/lib/auth/context";
-import {
-  getBusiness,
-  getLatestScan,
-  getBusinessKeywords,
-  getLatestAudit,
-  getActionPlanForAudit,
-} from "@/lib/db/queries";
+import { getBusiness } from "@/lib/db/queries";
+import { createServiceClient } from "@/lib/db/client";
 import { notFound } from "next/navigation";
-import { loadLatestMomentumRun } from "@/lib/reviews/momentum-engine";
-import { loadLatestGrowthAudit } from "@/lib/growth-audit/engine";
-import { CitationHealthOverviewCard } from "@/components/citations/citation-health-overview";
-import { ReputationHealthOverviewCard } from "@/components/reputation/reputation-health-overview";
-import { ReviewRequestsOverviewCard } from "@/components/reputation/review-requests-overview";
-import { BacklinkGapOverviewCard } from "@/components/backlink-gap/backlink-gap-overview";
-import { KeywordVisibilityOverviewCard } from "@/components/keyword-tracker/keyword-overview";
-import { GrowthAuditOverviewCard } from "@/components/growth-audit/growth-audit-overview-card";
-import { ReviewMomentumOverviewSection } from "@/components/reviews/review-momentum-overview-section";
-import { OverviewPageHeader } from "@/components/overview/overview-header";
-import {
-  OverviewCoreScores,
-  OverviewAuditSnapshot,
-  OverviewRecommendedActions,
-  OverviewFooterCta,
-} from "@/components/overview/overview-sections";
+import { DashboardHeader } from "@/components/overview/dashboard-header";
+import { DashboardQuickActions } from "@/components/overview/dashboard-quick-actions";
+import { DashboardRecentScans } from "@/components/overview/dashboard-recent-scans";
+import { DashboardFeaturedReports } from "@/components/overview/dashboard-featured-reports";
+import { DashboardToolsRow } from "@/components/overview/dashboard-tools-row";
+import { loadDashboardRecentScans } from "@/lib/overview/load-dashboard-scans";
+import { loadDashboardFeatured } from "@/lib/overview/load-dashboard-featured";
 import { ModulePage } from "@/components/ui/design-system";
-import type { GrowthTask } from "@/lib/growth-audit/types";
+
+function displayNameFromEmail(email: string | null): string {
+  if (!email) return "there";
+  const local = email.split("@")[0] ?? "there";
+  const token = local.split(/[._-]/)[0] ?? local;
+  return token.charAt(0).toUpperCase() + token.slice(1);
+}
 
 export default async function BusinessOverviewPage({
   params,
@@ -36,111 +28,41 @@ export default async function BusinessOverviewPage({
   const business = await getBusiness(businessId, auth.organizationId);
   if (!business) notFound();
 
-  const [latestScan, keywords, audit, momentumData, growthAudit] = await Promise.all([
-    getLatestScan(businessId),
-    getBusinessKeywords(businessId),
-    getLatestAudit(businessId),
-    loadLatestMomentumRun(businessId),
-    loadLatestGrowthAudit(businessId),
+  const supabase = createServiceClient();
+  const { data: businesses } = await supabase
+    .from("businesses")
+    .select("id, name")
+    .eq("organization_id", auth.organizationId)
+    .order("name");
+
+  const [recentScans, featured] = await Promise.all([
+    loadDashboardRecentScans(businessId, { preview: 3 }),
+    loadDashboardFeatured(businessId),
   ]);
 
-  const { items } = audit ? await getActionPlanForAudit(audit.id) : { items: [] };
-  const metrics = (latestScan?.aggregate_metrics ?? {}) as Record<string, number | null>;
-  const momentumTarget = momentumData?.entities.find((e) => e.entity_type === "target");
-  const mapsScore = metrics.visibilityScore ?? audit?.overall_score ?? null;
-  const growthScore = growthAudit?.growth_score ?? null;
-
-  const coreScores = [
-    {
-      label: "Growth Score",
-      value: growthScore != null ? Math.round(growthScore) : null,
-      href: `/businesses/${businessId}/growth-audit`,
-    },
-    {
-      label: "Maps Score",
-      value: mapsScore != null ? Math.round(Number(mapsScore)) : null,
-      href: latestScan ? `/businesses/${businessId}/grid/${latestScan.id}` : undefined,
-    },
-    {
-      label: "Review Momentum™",
-      value:
-        momentumTarget?.momentum_score != null
-          ? Math.round(Number(momentumTarget.momentum_score))
-          : null,
-      href: `/businesses/${businessId}/review-momentum`,
-    },
-    {
-      label: "Grid Visibility",
-      value:
-        metrics.visibilityScore != null ? Math.round(Number(metrics.visibilityScore)) : null,
-      href: latestScan ? `/businesses/${businessId}/grid/${latestScan.id}` : undefined,
-    },
-  ];
-
-  const growthPlanTasks = (growthAudit?.growth_plan_json as GrowthTask[] | null) ?? [];
-  const recommendedItems =
-    items.length > 0
-      ? items.slice(0, 3)
-      : growthPlanTasks.slice(0, 3).map((task, index) => ({
-          id: `growth-${index}`,
-          title: task.title,
-          description: task.description,
-          impact: task.impact,
-        }));
-
-  const auditScores = audit
-    ? [
-        { label: "Overall", value: audit.overall_score },
-        { label: "Relevance", value: audit.relevance_score },
-        { label: "Distance", value: audit.distance_score },
-        { label: "Prominence", value: audit.prominence_score },
-        { label: "Trust", value: audit.trust_score },
-      ]
-    : [];
-
   return (
-    <ModulePage wide>
-      <OverviewPageHeader
-          businessId={businessId}
-          name={business.name}
-          address={business.address_text}
-          primaryCategory={business.primary_category}
-        />
+    <ModulePage wide className="!space-y-4">
+      <DashboardHeader
+        userName={displayNameFromEmail(auth.email)}
+        businessId={businessId}
+        businessName={business.name}
+        businesses={(businesses ?? []).map((b) => ({
+          id: b.id as string,
+          name: b.name as string,
+        }))}
+      />
 
-        <section className="mt-6">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <GrowthAuditOverviewCard businessId={businessId} />
-            <CitationHealthOverviewCard businessId={businessId} />
-            <ReputationHealthOverviewCard businessId={businessId} />
-            <ReviewRequestsOverviewCard businessId={businessId} />
-            <BacklinkGapOverviewCard businessId={businessId} />
-            <KeywordVisibilityOverviewCard businessId={businessId} />
-          </div>
-        </section>
+      <DashboardQuickActions businessId={businessId} />
 
-        <section className="mt-6">
-          <OverviewCoreScores businessId={businessId} scores={coreScores} />
-        </section>
+      <DashboardRecentScans
+        businessId={businessId}
+        rows={recentScans.rows}
+        total={recentScans.total}
+      />
 
-        <section className="mt-6">
-          <ReviewMomentumOverviewSection businessId={businessId} />
-        </section>
+      <DashboardFeaturedReports businessId={businessId} data={featured} />
 
-        {auditScores.length > 0 && (
-          <section className="mt-6">
-            <OverviewAuditSnapshot scores={auditScores} />
-          </section>
-        )}
-
-        {recommendedItems.length > 0 && (
-          <section className="mt-6">
-            <OverviewRecommendedActions businessId={businessId} items={recommendedItems} />
-          </section>
-        )}
-
-        <section className="mt-6">
-          <OverviewFooterCta businessId={businessId} />
-        </section>
+      <DashboardToolsRow businessId={businessId} />
     </ModulePage>
   );
 }

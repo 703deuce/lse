@@ -50,35 +50,35 @@ export function OverviewMomentumCard({
     momentumLabel === "Accelerating" || momentumLabel === "Exploding" || momentumLabel === "Healthy";
 
   return (
-    <section className="rounded-xl border border-border/80 bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-      <div className="mb-5 flex items-center gap-2">
-        <TrendingUp className="h-4 w-4 text-primary" />
-        <h2 className="text-base font-semibold text-text">Review Momentum™</h2>
+    <section className="rounded-xl border border-border/80 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+      <div className="mb-3 flex items-center gap-2">
+        <TrendingUp className="h-3.5 w-3.5 text-primary" />
+        <h2 className="text-sm font-semibold text-text">Review Momentum™</h2>
         <Info className="h-3.5 w-3.5 text-text-muted" />
       </div>
 
       {!hasData ? (
-        <div className="py-8 text-center">
-          <p className="text-sm text-text-muted">
+        <div className="py-5 text-center">
+          <p className="text-xs text-text-muted">
             Compare review velocity vs competitors. Run a momentum audit.
           </p>
           <Link
             href={`/businesses/${businessId}/review-momentum`}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
+            className="mt-3 inline-flex items-center gap-1 rounded-lg bg-primary px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-primary-hover"
           >
             Open Review Momentum
-            <ArrowUpRight className="h-4 w-4" />
+            <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
         </div>
       ) : (
         <>
-          <div className="flex flex-col gap-5 md:flex-row md:items-center">
-            <div className="w-full shrink-0 space-y-4 md:w-[260px]">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <div className="w-full shrink-0 space-y-2.5 md:w-[220px]">
               <div className="flex items-center gap-2">
                 {momentumLabel && (
                   <span
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold",
+                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
                       momentumBadgeClass(momentumLabel)
                     )}
                   >
@@ -89,7 +89,7 @@ export function OverviewMomentumCard({
               </div>
 
               {targetSharePct != null && (
-                <p className="text-sm leading-relaxed text-text-muted">
+                <p className="text-xs leading-relaxed text-text-muted">
                   Only{" "}
                   <span className="font-semibold text-text">{targetSharePct}%</span> of new market
                   reviews went to you (30d).
@@ -98,7 +98,7 @@ export function OverviewMomentumCard({
                       {" "}
                       Need{" "}
                       <span className="font-semibold text-emerald-700">
-                        +{weeklyPaceGap} reviews/week
+                        +{weeklyPaceGap}/wk
                       </span>{" "}
                       to match top competitors.
                     </>
@@ -106,15 +106,15 @@ export function OverviewMomentumCard({
                 </p>
               )}
 
-              <ul className="space-y-2 text-sm">
+              <ul className="space-y-1 text-xs">
                 {reviews30d != null && (
-                  <li className="flex items-center justify-between gap-4">
+                  <li className="flex items-center justify-between gap-3">
                     <span className="text-text-muted">New reviews (30d)</span>
                     <span className="font-semibold tabular-nums text-text">{reviews30d}</span>
                   </li>
                 )}
                 {weeklyPaceGap != null && weeklyPaceGap > 0 && (
-                  <li className="flex items-center justify-between gap-4">
+                  <li className="flex items-center justify-between gap-3">
                     <span className="text-text-muted">Reviews needed / week</span>
                     <span className="font-semibold tabular-nums text-emerald-700">
                       +{weeklyPaceGap}
@@ -122,7 +122,7 @@ export function OverviewMomentumCard({
                   </li>
                 )}
                 {marketPotential && (
-                  <li className="flex items-center justify-between gap-4">
+                  <li className="flex items-center justify-between gap-3">
                     <span className="text-text-muted">Market potential</span>
                     <span className="font-semibold text-emerald-700">{marketPotential}</span>
                   </li>
@@ -131,17 +131,17 @@ export function OverviewMomentumCard({
 
               <Link
                 href={`/businesses/${businessId}/review-momentum`}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
+                className="inline-flex items-center gap-1 rounded-lg bg-primary px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-primary-hover"
               >
                 Open Review Momentum
-                <ArrowUpRight className="h-4 w-4" />
+                <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
             </div>
 
-            <div className="h-44 min-h-[176px] flex-1">
+            <div className="h-28 min-h-[112px] flex-1">
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                  <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                     <defs>
                       <linearGradient id="momentumFill" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#059669" stopOpacity={0.25} />
@@ -150,7 +150,7 @@ export function OverviewMomentumCard({
                     </defs>
                     <XAxis
                       dataKey="label"
-                      tick={{ fontSize: 10, fill: "#a1a1aa" }}
+                      tick={{ fontSize: 9, fill: "#a1a1aa" }}
                       axisLine={false}
                       tickLine={false}
                       interval="preserveStartEnd"
@@ -167,7 +167,7 @@ export function OverviewMomentumCard({
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex h-full items-center justify-center rounded-lg bg-surface-subtle text-sm text-text-muted">
+                <div className="flex h-full items-center justify-center rounded-lg bg-surface-subtle text-xs text-text-muted">
                   No trend data yet
                 </div>
               )}
@@ -175,15 +175,15 @@ export function OverviewMomentumCard({
 
             {momentumScore != null && (
               <div className="flex shrink-0 items-center justify-center md:justify-end">
-                <CircularGauge score={momentumScore} size={136} />
+                <CircularGauge score={momentumScore} size={96} />
               </div>
             )}
           </div>
 
           {alertMessage && (
-            <div className="mt-5 flex items-start gap-3 rounded-lg border border-emerald-100 bg-emerald-50/80 px-4 py-3">
-              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <p className="text-sm text-emerald-900">{alertMessage}</p>
+            <div className="mt-3 flex items-start gap-2 rounded-lg border border-emerald-100 bg-emerald-50/80 px-3 py-2">
+              <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+              <p className="text-xs text-emerald-900">{alertMessage}</p>
             </div>
           )}
         </>
