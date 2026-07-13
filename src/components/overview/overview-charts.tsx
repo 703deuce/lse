@@ -139,7 +139,14 @@ export function CircularGauge({
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-bold tabular-nums text-zinc-900">{Math.round(clamped)}</span>
+        <span
+          className={cn(
+            "font-bold tabular-nums text-zinc-900",
+            size <= 96 ? "text-lg" : "text-2xl"
+          )}
+        >
+          {Math.round(clamped)}
+        </span>
         <span className="text-[10px] font-medium text-zinc-500">/100 Score</span>
       </div>
     </div>

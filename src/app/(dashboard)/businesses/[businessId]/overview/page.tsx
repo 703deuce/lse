@@ -99,7 +99,7 @@ export default async function BusinessOverviewPage({
     : [];
 
   return (
-    <ModulePage wide>
+    <ModulePage wide className="!space-y-4">
       <OverviewPageHeader
           businessId={businessId}
           name={business.name}
@@ -107,7 +107,7 @@ export default async function BusinessOverviewPage({
           primaryCategory={business.primary_category}
         />
 
-        <section className="mt-6">
+        <section>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <GrowthAuditOverviewCard businessId={businessId} />
             <CitationHealthOverviewCard businessId={businessId} />
@@ -118,27 +118,27 @@ export default async function BusinessOverviewPage({
           </div>
         </section>
 
-        <section className="mt-6">
+        <section>
           <OverviewCoreScores businessId={businessId} scores={coreScores} />
         </section>
 
-        <section className="mt-6">
+        <section>
           <ReviewMomentumOverviewSection businessId={businessId} />
         </section>
 
         {auditScores.length > 0 && (
-          <section className="mt-6">
+          <section>
             <OverviewAuditSnapshot scores={auditScores} />
           </section>
         )}
 
         {recommendedItems.length > 0 && (
-          <section className="mt-6">
+          <section>
             <OverviewRecommendedActions businessId={businessId} items={recommendedItems} />
           </section>
         )}
 
-        <section className="mt-6">
+        <section>
           <OverviewFooterCta businessId={businessId} />
         </section>
     </ModulePage>
