@@ -12,6 +12,7 @@ import {
 } from "@/lib/jobs/scan-cell-benchmark";
 import { saveCellTelemetry } from "@/lib/jobs/scan-cell-telemetry";
 import { refreshScanAggregateMetrics } from "@/lib/jobs/refresh-scan-metrics";
+import { mergeScanConfidenceSummary } from "@/lib/jobs/merge-confidence-summary";
 import {
   isRetryableCellSerpError,
   validateLiveCellSerp,
@@ -150,36 +151,32 @@ async function saveCellProgress(
   extra?: Record<string, unknown>
 ) {
   const supabase = createServiceClient();
-  const { data: existing } = await supabase
-    .from("scan_batches")
-    .select("confidence_summary")
-    .eq("id", scanBatchId)
-    .single();
-  const prev = (existing?.confidence_summary ?? {}) as Record<string, unknown>;
   const failedPointIds = Array.isArray(extra?.failed_point_ids)
     ? (extra.failed_point_ids as string[])
-    : Array.isArray(prev.failed_point_ids)
-      ? (prev.failed_point_ids as string[])
-      : [];
+    : [];
 
+  const { failed_point_ids: _ignored, ...restExtra } = extra ?? {};
+  const patch: Record<string, unknown> = {
+    provider: "brightdata",
+    method: "live_parallel",
+    completed_cells: completed,
+    total_cells: total,
+    failed_cells: failed,
+    failed_point_ids: failedPointIds,
+    ...restExtra,
+  };
+
+  // Counters on columns; confidence keys merge so parallel writers cannot wipe siblings.
   await supabase
     .from("scan_batches")
     .update({
       cells_total: total,
       cells_completed: completed,
       cells_failed: failed,
-      confidence_summary: {
-        ...prev,
-        provider: "brightdata",
-        method: "live_parallel",
-        completed_cells: completed,
-        total_cells: total,
-        failed_cells: failed,
-        failed_point_ids: failedPointIds,
-        ...extra,
-      },
     })
     .eq("id", scanBatchId);
+
+  await mergeScanConfidenceSummary(supabase, scanBatchId, patch);
 }
 
 async function runOneCell(

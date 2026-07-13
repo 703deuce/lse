@@ -20,24 +20,11 @@ export async function refreshScanAggregateMetrics(scanBatchId: string): Promise<
   const allRanks = (results ?? []).map((r) => r.target_rank as number | null);
   const aggregateMetrics = computeAggregateMetrics(allRanks);
 
-  const { data: batch } = await supabase
-    .from("scan_batches")
-    .select("confidence_summary, cells_total, cells_completed, cells_failed")
-    .eq("id", scanBatchId)
-    .single();
-
-  const conf = (batch?.confidence_summary ?? {}) as Record<string, unknown>;
-
+  // Only touch aggregate_metrics — do not rewrite confidence_summary (avoids racing cell progress).
   await supabase
     .from("scan_batches")
     .update({
       aggregate_metrics: aggregateMetrics,
-      confidence_summary: {
-        ...conf,
-        completed_cells: batch?.cells_completed ?? conf.completed_cells,
-        total_cells: batch?.cells_total ?? conf.total_cells,
-        failed_cells: batch?.cells_failed ?? conf.failed_cells,
-      },
     })
     .eq("id", scanBatchId);
 }
