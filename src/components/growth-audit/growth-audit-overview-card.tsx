@@ -7,14 +7,14 @@ export async function GrowthAuditOverviewCard({ businessId }: { businessId: stri
 
   return (
     <OverviewCardShell href={`/businesses/${businessId}/growth-audit`}>
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-text">Google Maps Growth Audit</p>
-          <p className="mt-2 text-3xl font-bold tabular-nums text-text">
+          <p className="text-[13px] font-semibold text-text">Google Maps Growth Audit</p>
+          <p className="mt-1.5 text-lg font-bold tabular-nums text-text">
             {score != null ? `${score}/100` : "—"}
           </p>
           {run?.started_at && (
-            <p className="mt-3 text-xs text-text-muted">
+            <p className="mt-2 text-[11px] text-text-muted">
               Last run:{" "}
               {new Date(run.started_at).toLocaleDateString("en-US", {
                 month: "short",

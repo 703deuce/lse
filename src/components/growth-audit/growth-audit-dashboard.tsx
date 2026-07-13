@@ -46,16 +46,18 @@ function ExtendedModulesBanner({
   ];
 
   return (
-    <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm">
-      <p className="font-medium">Extended modules {running ? "(running in background…)" : ""}</p>
-      {progressStage && running && <p className="mt-1 text-zinc-500">{progressStage}</p>}
-      <div className="mt-2 flex flex-wrap gap-3">
+    <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-[13px]">
+      <p className="text-[13px] font-medium text-zinc-900">
+        Extended modules {running ? "(running in background…)" : ""}
+      </p>
+      {progressStage && running && <p className="mt-0.5 text-[11px] text-zinc-500">{progressStage}</p>}
+      <div className="mt-1.5 flex flex-wrap gap-1.5">
         {modules.map((m) => (
           <Link
             key={m.key}
             href={m.href}
             className={cn(
-              "rounded-md px-2 py-1 text-xs font-medium",
+              "rounded-md px-2 py-0.5 text-[11px] font-medium",
               m.data?.status === "complete" || m.data?.status === "empty"
                 ? "bg-emerald-100 text-emerald-800"
                 : m.data?.status === "failed"
@@ -172,8 +174,8 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
 
   if (loading && !sections) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+      <div className="flex items-center justify-center py-12 text-zinc-500">
+        <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
       </div>
     );
   }
@@ -181,14 +183,14 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
   const score = growthScore ?? sections?.overview.growthScore ?? 0;
 
   return (
-    <ModulePage wide>
+    <ModulePage wide className="!space-y-4">
       <GrowthAuditHeader startedAt={startedAt} running={running} onRun={() => void runAudit()} />
 
       {error && <AlertBanner variant="error">{error}</AlertBanner>}
 
       {!sections ? (
-        <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-12 text-center">
-          <p className="text-zinc-500">No audit yet. Run your first Full Growth Audit to see results.</p>
+        <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-3.5 py-8 text-center">
+          <p className="text-[13px] text-zinc-500">No audit yet. Run your first Full Growth Audit to see results.</p>
         </div>
       ) : (
         <>

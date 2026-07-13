@@ -22,7 +22,6 @@ import {
   Plus,
   MessageSquare,
   ChevronRight,
-  Sparkles,
 } from "lucide-react";
 import { ScoreProgressBar } from "@/components/overview/overview-charts";
 import {
@@ -135,8 +134,8 @@ export function GrowthAuditOverviewTab({
   const topTasks = sections.growthPlan.tasks.slice(0, 4);
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 xl:grid-cols-[minmax(220px,1.25fr)_repeat(5,minmax(0,1fr))]">
+    <div className="space-y-4">
+      <div className="grid gap-2.5 xl:grid-cols-[minmax(220px,1.25fr)_repeat(5,minmax(0,1fr))]">
         <ScoreGaugeCard title="Overall Audit Score" score={growthScore} />
         <MiniScoreCard title="GBP Score" score={sections.gbp.score} />
         <MiniScoreCard title="Website Match" score={sections.website.score} />
@@ -150,8 +149,8 @@ export function GrowthAuditOverviewTab({
           title="Review Momentum"
           subtitle="Compare your review velocity against top local competitors."
         />
-        <div className="grid gap-6 lg:grid-cols-[1fr_1.5fr_1fr] lg:items-center">
-          <p className="text-sm leading-relaxed text-zinc-600">
+        <div className="grid gap-3 lg:grid-cols-[1fr_1.5fr_1fr] lg:items-center">
+          <p className="text-[13px] leading-relaxed text-zinc-600">
             {sections.gbp.reviews.reviewCount > 0
               ? `You have ${sections.gbp.reviews.reviewCount} reviews at ${sections.gbp.reviews.rating ?? "—"}★. Steady review growth helps close the gap with top competitors.`
               : "Review velocity is a key local ranking signal. Start building momentum to compete."}
@@ -167,20 +166,20 @@ export function GrowthAuditOverviewTab({
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-full items-center justify-center text-sm text-zinc-400">
+              <div className="flex h-full items-center justify-center text-[13px] text-zinc-400">
                 Run Review Momentum for trend data
               </div>
             )}
           </div>
-          <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
             <div className="flex items-start gap-2">
               <Target className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
               <div>
-                <p className="text-sm font-medium text-zinc-900">Focus on increasing review velocity</p>
-                <p className="mt-1 text-xs text-zinc-500">Consistent reviews improve trust and prominence.</p>
+                <p className="text-[13px] font-medium text-zinc-900">Focus on increasing review velocity</p>
+                <p className="mt-1 text-[11px] text-zinc-500">Consistent reviews improve trust and prominence.</p>
                 <Link
                   href={`/businesses/${businessId}/review-momentum`}
-                  className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+                  className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:text-emerald-700"
                 >
                   View Review Insights
                   <ChevronRight className="h-3.5 w-3.5" />
@@ -192,21 +191,21 @@ export function GrowthAuditOverviewTab({
       </GaCard>
 
       <section>
-        <div className="mb-4">
+        <div className="mb-2.5">
           <h2 className="text-base font-semibold text-zinc-900">Audit Snapshot</h2>
-          <p className="mt-0.5 text-sm text-zinc-500">Key factors that influence your Google Maps visibility.</p>
+          <p className="mt-0.5 text-[11px] text-zinc-500">Key factors that influence your Google Maps visibility.</p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
           {snapshotItems.map((item) => {
             const meta = SNAPSHOT_META[item.label];
             const Icon = meta.icon;
             return (
-              <GaCard key={item.label} className="!p-4">
+              <GaCard key={item.label} className="!p-3.5">
                 <div className="flex items-center gap-2">
                   <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg", meta.color)}>
                     <Icon className="h-4 w-4" />
                   </span>
-                  <p className="text-xs font-medium text-zinc-500">{item.label}</p>
+                  <p className="text-[11px] font-medium text-zinc-500">{item.label}</p>
                 </div>
                 <span
                   className={cn(
@@ -216,8 +215,8 @@ export function GrowthAuditOverviewTab({
                 >
                   {item.value >= 70 ? "Strong" : "Needs Work"}
                 </span>
-                <p className="mt-2 text-xs leading-relaxed text-zinc-500">{meta.description(item.value)}</p>
-                <p className="mt-3 text-lg font-bold tabular-nums text-zinc-900">{item.value}/100</p>
+                <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">{meta.description(item.value)}</p>
+                <p className="mt-2 text-base font-bold tabular-nums text-zinc-900">{item.value}/100</p>
                 <div className="mt-2">
                   <ScoreProgressBar score={item.value} />
                 </div>
@@ -228,10 +227,10 @@ export function GrowthAuditOverviewTab({
       </section>
 
       <section>
-        <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="mb-2.5 flex items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold text-zinc-900">Top Opportunities</h2>
-            <p className="mt-0.5 text-sm text-zinc-500">High-impact actions to improve your Maps visibility.</p>
+            <p className="mt-0.5 text-[11px] text-zinc-500">High-impact actions to improve your Maps visibility.</p>
           </div>
           <GaLink onClick={onGoToActionPlan}>View Full Action Plan</GaLink>
         </div>
@@ -244,30 +243,30 @@ export function GrowthAuditOverviewTab({
                   key={`${task.title}-${i}`}
                   type="button"
                   onClick={onGoToActionPlan}
-                  className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-zinc-50"
+                  className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition hover:bg-zinc-50"
                 >
                   <PriorityTag priority={task.priority} />
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-50 text-zinc-500">
                     <Icon className="h-4 w-4" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-zinc-900">{task.title}</p>
-                    <p className="mt-0.5 truncate text-sm text-zinc-500">{task.description}</p>
+                    <p className="text-[13px] font-semibold text-zinc-900">{task.title}</p>
+                    <p className="mt-0.5 truncate text-[11px] text-zinc-500">{task.description}</p>
                   </div>
-                  <div className="hidden shrink-0 items-center gap-6 sm:flex">
+                  <div className="hidden shrink-0 items-center gap-3 sm:flex">
                     <div className="text-center">
                       <p className="text-[10px] font-medium uppercase text-zinc-400">Impact</p>
                       <ImpactStars count={task.impactStars} />
                     </div>
                     <div className="text-center">
                       <p className="text-[10px] font-medium uppercase text-zinc-400">Difficulty</p>
-                      <p className={cn("text-xs font-medium capitalize", task.difficulty === "easy" ? "text-emerald-600" : "text-amber-600")}>
+                      <p className={cn("text-[11px] font-medium capitalize", task.difficulty === "easy" ? "text-emerald-600" : "text-amber-600")}>
                         {task.difficulty}
                       </p>
                     </div>
                     <div className="text-center">
                       <p className="text-[10px] font-medium uppercase text-zinc-400">Est. Time</p>
-                      <p className="text-xs font-medium text-zinc-700">{task.timeEstimate}</p>
+                      <p className="text-[11px] font-medium text-zinc-700">{task.timeEstimate}</p>
                     </div>
                   </div>
                   <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />
@@ -276,11 +275,11 @@ export function GrowthAuditOverviewTab({
             })}
           </div>
           {sections.growthPlan.tasks.length > 4 && (
-            <div className="border-t border-zinc-100 px-5 py-3 text-center">
+            <div className="border-t border-zinc-100 px-3.5 py-2.5 text-center">
               <button
                 type="button"
                 onClick={onGoToActionPlan}
-                className="text-sm font-medium text-zinc-600 hover:text-zinc-900"
+                className="text-[12px] font-medium text-zinc-600 hover:text-zinc-900"
               >
                 View All Opportunities ({sections.growthPlan.tasks.length})
               </button>
@@ -291,36 +290,36 @@ export function GrowthAuditOverviewTab({
 
       {sections.overview.strengths.length > 0 && (
         <section>
-          <h2 className="mb-4 text-base font-semibold text-zinc-900">Insights</h2>
-          <div className="grid gap-4 md:grid-cols-3">
+          <h2 className="mb-2.5 text-base font-semibold text-zinc-900">Insights</h2>
+          <div className="grid gap-3 md:grid-cols-3">
             {sections.overview.strengths.slice(0, 1).map((s) => (
-              <GaCard key={s} className="!p-4">
+              <GaCard key={s} className="!p-3.5">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
                   <div>
-                    <p className="font-semibold text-zinc-900">Core information is consistent</p>
-                    <p className="mt-1 text-sm text-zinc-500">{s}</p>
+                    <p className="text-[13px] font-semibold text-zinc-900">Core information is consistent</p>
+                    <p className="mt-1 text-[11px] text-zinc-500">{s}</p>
                   </div>
                 </div>
               </GaCard>
             ))}
             {sections.overview.weaknesses.slice(0, 1).map((s) => (
-              <GaCard key={s} className="!p-4">
+              <GaCard key={s} className="!p-3.5">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
                   <div>
-                    <p className="font-semibold text-zinc-900">Engagement needs attention</p>
-                    <p className="mt-1 text-sm text-zinc-500">{s}</p>
+                    <p className="text-[13px] font-semibold text-zinc-900">Engagement needs attention</p>
+                    <p className="mt-1 text-[11px] text-zinc-500">{s}</p>
                   </div>
                 </div>
               </GaCard>
             ))}
-            <GaCard className="!p-4">
+            <GaCard className="!p-3.5">
               <div className="flex items-start gap-3">
                 <BarChart3 className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
                 <div>
-                  <p className="font-semibold text-zinc-900">Review momentum</p>
-                  <p className="mt-1 text-sm text-zinc-500">
+                  <p className="text-[13px] font-semibold text-zinc-900">Review momentum</p>
+                  <p className="mt-1 text-[11px] text-zinc-500">
                     {sections.gbp.reviews.reviewCount >= 20
                       ? "You're building review volume. Keep up consistent requests."
                       : "Growing reviews consistently will improve trust and rankings."}

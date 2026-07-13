@@ -104,8 +104,8 @@ export function GrowthAuditActionPlanTab({
   const topTask = selectedTask ?? growthPlan.tasks[0];
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="space-y-4">
+      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryStatCard
           icon={Target}
           iconClassName="bg-emerald-50 text-emerald-600"
@@ -136,9 +136,9 @@ export function GrowthAuditActionPlanTab({
         />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_300px]">
+      <div className="grid gap-3 xl:grid-cols-[1fr_300px]">
         <GaCard className="!p-0 overflow-hidden">
-          <div className="flex flex-wrap items-center gap-3 border-b border-zinc-100 px-5 py-4">
+          <div className="flex flex-wrap items-center gap-2.5 border-b border-zinc-100 px-3.5 py-2.5">
             <FilterPills
               value={priorityFilter}
               onChange={setPriorityFilter}
@@ -163,17 +163,17 @@ export function GrowthAuditActionPlanTab({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
+            <table className="w-full min-w-[900px] text-[12px]">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50/80 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-                  <th className="w-8 px-3 py-2.5" />
-                  <th className="px-3 py-2.5">Priority</th>
-                  <th className="px-3 py-2.5">Task</th>
-                  <th className="px-3 py-2.5">Why it matters</th>
-                  <th className="px-3 py-2.5">Impact</th>
-                  <th className="px-3 py-2.5">Difficulty</th>
-                  <th className="px-3 py-2.5">Est. Time</th>
-                  <th className="px-3 py-2.5">Status</th>
+                  <th className="w-8 px-3 py-2" />
+                  <th className="px-3 py-2">Priority</th>
+                  <th className="px-3 py-2">Task</th>
+                  <th className="px-3 py-2">Why it matters</th>
+                  <th className="px-3 py-2">Impact</th>
+                  <th className="px-3 py-2">Difficulty</th>
+                  <th className="px-3 py-2">Est. Time</th>
+                  <th className="px-3 py-2">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -182,10 +182,10 @@ export function GrowthAuditActionPlanTab({
                   return (
                     <Fragment key={group.label}>
                       <tr className="bg-zinc-50/60">
-                        <td colSpan={8} className="px-5 py-2.5">
+                        <td colSpan={8} className="px-3 py-2">
                           <div className="flex items-center gap-2">
                             <GroupIcon className="h-3.5 w-3.5 text-emerald-600" />
-                            <span className="text-xs font-semibold text-zinc-700">
+                            <span className="text-[11px] font-semibold text-zinc-700">
                               {group.label} ({group.tasks.length})
                             </span>
                           </div>
@@ -203,13 +203,13 @@ export function GrowthAuditActionPlanTab({
                               active && "bg-emerald-50/40"
                             )}
                           >
-                            <td className="px-3 py-3">
+                            <td className="px-3 py-2">
                               <GripVertical className="h-4 w-4 text-zinc-300" />
                             </td>
-                            <td className="px-3 py-3">
+                            <td className="px-3 py-2">
                               <PriorityTag priority={task.priority} />
                             </td>
-                            <td className="px-3 py-3">
+                            <td className="px-3 py-2">
                               <div className="flex items-center gap-2">
                                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-zinc-50 text-zinc-500">
                                   <Icon className="h-3.5 w-3.5" />
@@ -217,16 +217,16 @@ export function GrowthAuditActionPlanTab({
                                 <span className="font-medium text-zinc-900">{task.title}</span>
                               </div>
                             </td>
-                            <td className="max-w-[200px] px-3 py-3 text-xs text-zinc-500">{task.why}</td>
-                            <td className="px-3 py-3">
+                            <td className="max-w-[200px] px-3 py-2 text-[11px] text-zinc-500">{task.why}</td>
+                            <td className="px-3 py-2">
                               <ImpactStars count={task.impactStars} />
                             </td>
-                            <td className="px-3 py-3">
+                            <td className="px-3 py-2">
                               <DifficultyTag difficulty={task.difficulty} />
                             </td>
-                            <td className="whitespace-nowrap px-3 py-3 text-xs text-zinc-600">{task.timeEstimate}</td>
-                            <td className="px-3 py-3">
-                              <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500">
+                            <td className="whitespace-nowrap px-3 py-2 text-[11px] text-zinc-600">{task.timeEstimate}</td>
+                            <td className="px-3 py-2">
+                              <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500">
                                 <span className="h-3.5 w-3.5 rounded-full border-2 border-zinc-300" />
                                 Not Started
                               </span>
@@ -246,24 +246,24 @@ export function GrowthAuditActionPlanTab({
           <GaCard className="h-fit xl:sticky xl:top-4">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-emerald-600" />
-              <p className="text-sm font-semibold text-zinc-900">Next best action</p>
+              <p className="text-[13px] font-semibold text-zinc-900">Next best action</p>
             </div>
-            <div className="mt-4 flex items-start gap-2">
+            <div className="mt-3 flex items-start gap-2">
               <p className="flex-1 text-base font-bold leading-snug text-zinc-900">{topTask.title}</p>
               <PriorityTag priority={topTask.priority} />
             </div>
-            <p className="mt-2 text-sm text-zinc-600">{topTask.description}</p>
+            <p className="mt-2 text-[13px] text-zinc-600">{topTask.description}</p>
             <button
               type="button"
-              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-[13px] font-semibold text-white hover:bg-emerald-700"
             >
               Start Now
               <ChevronRight className="h-4 w-4" />
             </button>
-            <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
               <div>
                 <p className="text-[10px] font-medium uppercase text-zinc-400">Est. Time</p>
-                <p className="text-sm font-semibold text-zinc-900">{topTask.timeEstimate}</p>
+                <p className="text-[12px] font-semibold text-zinc-900">{topTask.timeEstimate}</p>
               </div>
               <div>
                 <p className="text-[10px] font-medium uppercase text-zinc-400">Difficulty</p>
@@ -274,24 +274,24 @@ export function GrowthAuditActionPlanTab({
                 <ImpactStars count={topTask.impactStars} className="justify-center" />
               </div>
             </div>
-            <div className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50/60 p-3">
-              <p className="text-xs font-semibold text-emerald-900">Why this first?</p>
-              <p className="mt-1 text-xs leading-relaxed text-emerald-800">{topTask.why}</p>
+            <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/60 p-3">
+              <p className="text-[11px] font-semibold text-emerald-900">Why this first?</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-emerald-800">{topTask.why}</p>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="mt-3 grid grid-cols-2 gap-2">
               <div className="rounded-lg border border-zinc-100 bg-white p-3">
                 <p className="text-[10px] font-medium text-zinc-500">Position Lift</p>
-                <p className="text-sm font-bold text-emerald-700">+12</p>
+                <p className="text-[12px] font-bold text-emerald-700">+12</p>
                 <Sparkline data={[2, 5, 8, 12]} color="#059669" width={80} height={24} />
               </div>
               <div className="rounded-lg border border-zinc-100 bg-white p-3">
                 <p className="text-[10px] font-medium text-zinc-500">More Clicks</p>
-                <p className="text-sm font-bold text-emerald-700">+18%</p>
+                <p className="text-[12px] font-bold text-emerald-700">+18%</p>
                 <Sparkline data={[4, 8, 12, 18]} color="#059669" width={80} height={24} />
               </div>
             </div>
-            <div className="mt-5">
-              <p className="text-xs font-semibold text-zinc-900">Success Checklist</p>
+            <div className="mt-3">
+              <p className="text-[11px] font-semibold text-zinc-900">Success Checklist</p>
               <ul className="mt-2 space-y-2">
                 {[
                   "Add regular business hours",
@@ -299,16 +299,16 @@ export function GrowthAuditActionPlanTab({
                   "Verify hours on website",
                   "Confirm hours display on Maps",
                 ].map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-xs text-zinc-600">
+                  <li key={item} className="flex items-center gap-2 text-[11px] text-zinc-600">
                     <span className="h-3.5 w-3.5 rounded border border-zinc-300" />
                     {item}
                   </li>
                 ))}
               </ul>
             </div>
-            <div className="mt-5 border-t border-zinc-100 pt-4">
-              <p className="text-xs font-semibold text-zinc-900">Related Insights</p>
-              <ul className="mt-2 space-y-1 text-xs text-zinc-600">
+            <div className="mt-3 border-t border-zinc-100 pt-3">
+              <p className="text-[11px] font-semibold text-zinc-900">Related Insights</p>
+              <ul className="mt-2 space-y-1 text-[11px] text-zinc-600">
                 <li>GBP Profile Score: {gbp.score}/100</li>
                 <li>Website Match: {website.score}/100</li>
               </ul>

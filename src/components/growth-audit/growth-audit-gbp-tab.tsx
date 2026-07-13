@@ -101,8 +101,8 @@ export function GrowthAuditGbpTab({
   ].filter((i) => i.show);
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 lg:grid-cols-[280px_1fr_280px]">
+    <div className="space-y-4">
+      <div className="grid gap-3 lg:grid-cols-[280px_1fr_280px]">
         <ScoreGaugeCard
           title="GBP Profile Score"
           score={gbp.score}
@@ -111,42 +111,42 @@ export function GrowthAuditGbpTab({
 
         <GaCard className="!p-0 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-[12px]">
               <thead>
-                <tr className="border-b border-zinc-100 bg-zinc-50/80 text-left text-xs font-medium uppercase tracking-wide text-zinc-500">
-                  <th className="px-4 py-3">Check</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">GBP</th>
-                  <th className="px-4 py-3">Website</th>
-                  <th className="px-4 py-3">Bucket</th>
+                <tr className="border-b border-zinc-100 bg-zinc-50/80 text-left text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                  <th className="px-3 py-2">Check</th>
+                  <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">GBP</th>
+                  <th className="px-3 py-2">Website</th>
+                  <th className="px-3 py-2">Bucket</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 {gbp.checks.map((c) => (
                   <tr key={c.id} className="hover:bg-zinc-50/50">
-                    <td className="px-4 py-3 font-medium text-zinc-900">{c.label}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 font-medium text-zinc-900">{c.label}</td>
+                    <td className="px-3 py-2">
                       <MatchStatusBadge status={c.status} />
                     </td>
-                    <td className="max-w-[140px] truncate px-4 py-3 text-zinc-600">{c.gbpValue ?? "—"}</td>
-                    <td className="max-w-[140px] truncate px-4 py-3 text-zinc-600">{c.websiteValue ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs font-medium text-zinc-500">{bucketLabel(c.bucket)}</span>
+                    <td className="max-w-[140px] truncate px-3 py-2 text-zinc-600">{c.gbpValue ?? "—"}</td>
+                    <td className="max-w-[140px] truncate px-3 py-2 text-zinc-600">{c.websiteValue ?? "—"}</td>
+                    <td className="px-3 py-2">
+                      <span className="text-[11px] font-medium text-zinc-500">{bucketLabel(c.bucket)}</span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <div className="border-t border-zinc-100 px-4 py-3">
+          <div className="border-t border-zinc-100 px-3.5 py-2.5">
             <GaLink>View full GBP profile details</GaLink>
           </div>
         </GaCard>
 
-        <div className="space-y-4">
-          <GaCard className="!p-4">
-            <p className="text-sm font-semibold text-zinc-900">Profile Snapshot</p>
-            <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className="space-y-3">
+          <GaCard className="!p-3.5">
+            <p className="text-[13px] font-semibold text-zinc-900">Profile Snapshot</p>
+            <div className="mt-2.5 grid grid-cols-2 gap-2.5">
               <SnapshotMini
                 icon={Star}
                 label="Reviews"
@@ -182,21 +182,21 @@ export function GrowthAuditGbpTab({
             </div>
           </GaCard>
 
-          <GaCard className="!p-4">
-            <p className="text-sm font-semibold text-zinc-900">Top Fixes</p>
-            <ul className="mt-3 space-y-3">
+          <GaCard className="!p-3.5">
+            <p className="text-[13px] font-semibold text-zinc-900">Top Fixes</p>
+            <ul className="mt-2.5 space-y-2">
               {topFixes.length > 0 ? (
                 topFixes.map((fix) => (
                   <li key={fix.title} className="flex items-center justify-between gap-2">
-                    <span className="text-sm text-zinc-700">{fix.title}</span>
+                    <span className="text-[13px] text-zinc-700">{fix.title}</span>
                     <FixPriorityBadge priority={fix.priority} />
                   </li>
                 ))
               ) : (
-                <li className="text-sm text-zinc-500">No critical fixes identified.</li>
+                <li className="text-[13px] text-zinc-500">No critical fixes identified.</li>
               )}
             </ul>
-            <div className="mt-4">
+            <div className="mt-3">
               <GaLink onClick={onGoToActionPlan}>View all recommendations</GaLink>
             </div>
           </GaCard>
@@ -204,28 +204,28 @@ export function GrowthAuditGbpTab({
       </div>
 
       {alignment && alignment.competitorCount > 0 && (
-        <section className="space-y-4">
+        <section className="space-y-3">
           <div className="flex items-start gap-2">
             <Tags className="mt-0.5 h-5 w-5 text-emerald-600" />
             <div>
               <h2 className="text-base font-semibold text-zinc-900">Category alignment</h2>
-              <p className="mt-0.5 text-sm text-zinc-500">
+              <p className="mt-0.5 text-[11px] text-zinc-500">
                 Categories observed on ranking competitors in live Maps results — not invented keywords.
               </p>
             </div>
           </div>
 
-          <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-4 py-3 text-sm text-blue-900">
+          <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-3.5 py-2.5 text-[13px] text-blue-900">
             <div className="flex gap-2">
               <Info className="mt-0.5 h-4 w-4 shrink-0" />
               <p>{alignment.disclaimer}</p>
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-3">
-            <GaCard className="!p-4 lg:col-span-1">
-              <p className="text-sm font-semibold text-zinc-900">Your current categories</p>
-              <dl className="mt-3 space-y-2 text-sm">
+          <div className="grid gap-3 lg:grid-cols-3">
+            <GaCard className="!p-3.5 lg:col-span-1">
+              <p className="text-[13px] font-semibold text-zinc-900">Your current categories</p>
+              <dl className="mt-2.5 space-y-2 text-[13px]">
                 <div>
                   <dt className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Primary</dt>
                   <dd className="font-medium text-zinc-900">{alignment.currentPrimary ?? "Not set"}</dd>
@@ -242,17 +242,17 @@ export function GrowthAuditGbpTab({
             </GaCard>
 
             <GaCard className="!p-0 overflow-hidden lg:col-span-2">
-              <div className="border-b border-zinc-100 px-4 py-3">
-                <p className="text-sm font-semibold text-zinc-900">Competitor category patterns</p>
-                <p className="text-xs text-zinc-500">
+              <div className="border-b border-zinc-100 px-3.5 py-2.5">
+                <p className="text-[13px] font-semibold text-zinc-900">Competitor category patterns</p>
+                <p className="text-[11px] text-zinc-500">
                   Based on top {alignment.competitorCount} Maps results for this keyword/location
                 </p>
               </div>
               <div className="max-h-80 overflow-auto">
-                <table className="w-full text-left text-sm">
+                <table className="w-full text-left text-[12px]">
                   <thead className="sticky top-0 bg-zinc-50 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                     <tr>
-                      <th className="px-4 py-2">Category</th>
+                      <th className="px-3 py-2">Category</th>
                       <th className="px-3 py-2">Your GBP</th>
                       <th className="px-3 py-2">Top 3</th>
                       <th className="px-3 py-2">Top 20</th>
@@ -263,16 +263,16 @@ export function GrowthAuditGbpTab({
                   <tbody className="divide-y divide-zinc-100">
                     {alignment.patterns.slice(0, 12).map((row) => (
                       <tr key={row.category} className="hover:bg-zinc-50/50">
-                        <td className="px-4 py-2.5 font-medium text-zinc-900">{row.category}</td>
-                        <td className="px-3 py-2.5">{row.onYourGbp ? "Yes" : "No"}</td>
-                        <td className="px-3 py-2.5 tabular-nums">
+                        <td className="px-3 py-2 font-medium text-zinc-900">{row.category}</td>
+                        <td className="px-3 py-2">{row.onYourGbp ? "Yes" : "No"}</td>
+                        <td className="px-3 py-2 tabular-nums">
                           {row.top3Count}/3
                         </td>
-                        <td className="px-3 py-2.5 tabular-nums">
+                        <td className="px-3 py-2 tabular-nums">
                           {row.top20Count}/{row.totalCompetitors}
                         </td>
-                        <td className="px-3 py-2.5">{confidenceBadge(row.confidence)}</td>
-                        <td className="px-3 py-2.5 text-xs text-zinc-600">
+                        <td className="px-3 py-2">{confidenceBadge(row.confidence)}</td>
+                        <td className="px-3 py-2 text-[11px] text-zinc-600">
                           {recommendationLabel(row.recommendation)}
                         </td>
                       </tr>
@@ -284,19 +284,19 @@ export function GrowthAuditGbpTab({
           </div>
 
           {alignment.recommendations.length > 0 && (
-            <GaCard className="!p-4">
-              <p className="text-sm font-semibold text-zinc-900">Evidence-based category suggestions</p>
-              <ul className="mt-3 space-y-3">
+            <GaCard className="!p-3.5">
+              <p className="text-[13px] font-semibold text-zinc-900">Evidence-based category suggestions</p>
+              <ul className="mt-2.5 space-y-2">
                 {alignment.recommendations.slice(0, 5).map((rec) => (
                   <li key={rec.category} className="rounded-lg border border-zinc-100 bg-zinc-50/50 p-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold text-zinc-900">{rec.category}</span>
+                      <span className="text-[13px] font-semibold text-zinc-900">{rec.category}</span>
                       {confidenceBadge(rec.confidence)}
-                      <span className="text-xs text-zinc-500">
+                      <span className="text-[11px] text-zinc-500">
                         {rec.top3Count}/3 top · {rec.top20Count}/{rec.totalCompetitors} overall
                       </span>
                     </div>
-                    <p className="mt-1.5 text-sm text-zinc-600">{rec.recommendationText}</p>
+                    <p className="mt-1.5 text-[13px] text-zinc-600">{rec.recommendationText}</p>
                   </li>
                 ))}
               </ul>
@@ -304,10 +304,10 @@ export function GrowthAuditGbpTab({
           )}
 
           {alignment.reviewIdeas.length > 0 && (
-            <GaCard className="!p-4">
-              <p className="text-sm font-semibold text-zinc-900">Category ideas to review</p>
-              <p className="mt-0.5 text-xs text-zinc-500">Lower confidence — verify before adding to GBP.</p>
-              <ul className="mt-2 space-y-1 text-sm text-zinc-600">
+            <GaCard className="!p-3.5">
+              <p className="text-[13px] font-semibold text-zinc-900">Category ideas to review</p>
+              <p className="mt-0.5 text-[11px] text-zinc-500">Lower confidence — verify before adding to GBP.</p>
+              <ul className="mt-2 space-y-1 text-[13px] text-zinc-600">
                 {alignment.reviewIdeas.slice(0, 5).map((r) => (
                   <li key={r.category}>
                     {r.category} ({r.top20Count}/{r.totalCompetitors}) — {r.notes}
@@ -322,19 +322,19 @@ export function GrowthAuditGbpTab({
       {insights.length > 0 && (
         <section>
           <h2 className="mb-1 text-base font-semibold text-zinc-900">Insights</h2>
-          <p className="mb-4 text-sm text-zinc-500">
+          <p className="mb-2.5 text-[11px] text-zinc-500">
             Your profile is missing key trust signals and engagement drivers.
           </p>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-3">
             {insights.map((item) => {
               const Icon = item.icon;
               return (
-                <GaCard key={item.title} className="!p-4">
+                <GaCard key={item.title} className="!p-3.5">
                   <div className="flex items-start gap-3">
                     <Icon className={cn("mt-0.5 h-5 w-5 shrink-0", item.color)} />
                     <div>
-                      <p className="font-semibold text-zinc-900">{item.title}</p>
-                      <p className="mt-1 text-sm text-zinc-500">{item.text}</p>
+                      <p className="text-[13px] font-semibold text-zinc-900">{item.title}</p>
+                      <p className="mt-1 text-[11px] text-zinc-500">{item.text}</p>
                     </div>
                   </div>
                 </GaCard>
