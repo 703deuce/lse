@@ -110,10 +110,9 @@ function TrendLine({
 }) {
   if (delta == null || delta === 0) return null;
   const improved = delta > 0;
-  const good = invert ? !improved : improved;
   const arrow = invert ? (improved ? "↓" : "↑") : improved ? "↑" : "↓";
   return (
-    <p className={cn("mt-0.5 text-[11px] font-medium", good ? "text-emerald-600" : "text-red-600")}>
+    <p className={cn("mt-0.5 text-[11px] font-medium", improved ? "text-emerald-600" : "text-red-600")}>
       {arrow} {Math.abs(delta)} {label}
     </p>
   );
