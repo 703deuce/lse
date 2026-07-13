@@ -121,17 +121,17 @@ export function LocalTrustCompetitorsTab({
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-zinc-500">
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[13px] text-zinc-500">
           See where your top competitors are mentioned locally—and how you can get featured too.
         </p>
-        <button type="button" className="text-sm font-medium text-emerald-700 hover:underline">
+        <button type="button" className="text-[12px] font-medium text-emerald-700 hover:underline">
           Insights summary →
         </button>
       </div>
 
-      <div className="flex flex-wrap items-end gap-3 border-b border-zinc-100 pb-4">
+      <div className="flex flex-wrap items-end gap-2.5 border-b border-zinc-100 pb-3">
         <TrustFilterSelect
           label="Competitor"
           value="all"
@@ -182,47 +182,47 @@ export function LocalTrustCompetitorsTab({
         </button>
         <button
           type="button"
-          className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+          className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-emerald-700"
         >
-          <Download className="h-4 w-4" />
+          <Download className="h-3.5 w-3.5" />
           Export
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 rounded-xl border border-emerald-200 bg-emerald-50/50 px-4 py-3">
-        <Sparkles className="h-4 w-4 shrink-0 text-emerald-600" />
-        <p className="flex-1 text-sm text-zinc-700">
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-2.5">
+        <Sparkles className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+        <p className="flex-1 text-[13px] text-zinc-700">
           <strong>Competitive Insight:</strong>{" "}
           {total > 0
             ? `Found ${total} pages where competitors appear locally. Focus on chamber and community pages for the fastest gap closure.`
             : "No competitor mentions found yet in this market. Run another scan or check Opportunities for open placements."}
         </p>
-        <button type="button" className="shrink-0 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
+        <button type="button" className="shrink-0 rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50">
           View gap analysis →
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+      <div className={cn(dashboardCard, "overflow-hidden")}>
         {loading ? (
-          <div className="flex items-center justify-center py-12 text-zinc-500">
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+          <div className="flex items-center justify-center py-10 text-zinc-500">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Loading competitor mentions…
           </div>
         ) : filtered.length === 0 ? (
-          <p className="px-5 py-12 text-center text-sm text-zinc-500">
+          <p className="px-3.5 py-10 text-center text-[13px] text-zinc-500">
             No competitor mentions found for this scan. Competitors may not yet appear on local trust pages in your market.
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="border-b border-zinc-100 bg-zinc-50/80 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            <table className="min-w-full text-[12px]">
+              <thead className="border-b border-zinc-100 bg-zinc-50/80 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                 <tr>
-                  <th className="px-4 py-3">Source / Site</th>
-                  <th className="px-4 py-3">Mention Type</th>
-                  <th className="px-4 py-3">Local Relevance</th>
-                  <th className="px-4 py-3">Authority / Score</th>
-                  <th className="px-4 py-3">Suggested Action</th>
-                  <th className="w-10 px-4 py-3" />
+                  <th className="px-3 py-2">Source / Site</th>
+                  <th className="px-3 py-2">Mention Type</th>
+                  <th className="px-3 py-2">Local Relevance</th>
+                  <th className="px-3 py-2">Authority / Score</th>
+                  <th className="px-3 py-2">Suggested Action</th>
+                  <th className="w-10 px-3 py-2" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -234,9 +234,9 @@ export function LocalTrustCompetitorsTab({
                   const snippet = String(row.evidence_snippet ?? "").slice(0, 120);
                   return (
                     <tr key={String(row.id)} className="align-top hover:bg-zinc-50/80">
-                      <td className="px-4 py-4">
-                        <div className="flex items-start gap-3">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-600">
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-start gap-2">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-bold text-zinc-600">
                             {domainInitials(domain)}
                           </span>
                           <div className="min-w-0">
@@ -244,42 +244,42 @@ export function LocalTrustCompetitorsTab({
                               href={String(row.url)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="flex items-center gap-1 font-semibold text-zinc-900 hover:text-emerald-700"
+                              className="flex items-center gap-1 text-[13px] font-semibold text-zinc-900 hover:text-emerald-700"
                             >
                               {String(row.title)}
                               <ExternalLink className="h-3 w-3 shrink-0 text-zinc-400" />
                             </a>
-                            <p className="mt-0.5 text-xs text-zinc-400">{domain}</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-400">{domain}</p>
                             {snippet && (
-                              <p className="mt-1 text-xs italic leading-relaxed text-zinc-500">&ldquo;{snippet}…&rdquo;</p>
+                              <p className="mt-0.5 text-[11px] italic leading-snug text-zinc-500">&ldquo;{snippet}…&rdquo;</p>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4">{mentionTypeBadge(String(row.opportunity_type))}</td>
-                      <td className="px-4 py-4">
+                      <td className="px-3 py-2.5">{mentionTypeBadge(String(row.opportunity_type))}</td>
+                      <td className="px-3 py-2.5">
                         <div className="font-semibold tabular-nums text-zinc-800">{relevance}</div>
-                        <div className="mt-1 h-1 w-16 overflow-hidden rounded-full bg-zinc-100">
+                        <div className="mt-0.5 h-1 w-14 overflow-hidden rounded-full bg-zinc-100">
                           <div className="h-full bg-emerald-500" style={{ width: `${relevance}%` }} />
                         </div>
-                        <div className="mt-1">{localMatchDisplay(!!row.city_match, !!row.county_match)}</div>
+                        <div className="mt-0.5">{localMatchDisplay(!!row.city_match, !!row.county_match)}</div>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-3 py-2.5">
                         <AuthorityRing score={Math.round(authority)} label={authLabel} />
                       </td>
-                      <td className="max-w-xs px-4 py-4">
-                        <p className="text-xs leading-relaxed text-zinc-600">
+                      <td className="max-w-xs px-3 py-2.5">
+                        <p className="text-[11px] leading-snug text-zinc-600">
                           {String(row.suggested_action ?? "Reach out to get featured on this page.")}
                         </p>
                         <button
                           type="button"
-                          className="mt-2 inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                          className="mt-1.5 inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50"
                         >
                           View Opportunity
                           <ArrowRight className="h-3 w-3" />
                         </button>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-3 py-2.5">
                         <button type="button" className="rounded p-1 text-zinc-400 hover:bg-zinc-100">
                           <MoreVertical className="h-4 w-4" />
                         </button>
@@ -293,7 +293,7 @@ export function LocalTrustCompetitorsTab({
         )}
 
         {total > 0 && (
-          <div className="flex items-center justify-between border-t border-zinc-100 px-4 py-3 text-xs text-zinc-500">
+          <div className="flex items-center justify-between border-t border-zinc-100 px-3 py-2 text-[11px] text-zinc-500">
             <span>
               Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total} results
             </span>

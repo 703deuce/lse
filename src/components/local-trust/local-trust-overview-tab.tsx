@@ -99,43 +99,43 @@ export function LocalTrustOverviewTab({
   ].filter((d) => d.value > 0);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       {aiSummary && (
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-emerald-200 bg-emerald-50/70 px-5 py-4">
-          <div className="flex min-w-0 flex-1 items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-              <Sparkles className="h-4 w-4" />
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3.5 py-3">
+          <div className="flex min-w-0 flex-1 items-start gap-2.5">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <Sparkles className="h-3.5 w-3.5" />
             </span>
             <div>
-              <p className="text-sm font-semibold text-emerald-800">AI Summary</p>
-              <p className="mt-1 text-sm leading-relaxed text-zinc-700">{aiSummary}</p>
+              <p className="text-[13px] font-semibold text-emerald-800">AI Summary</p>
+              <p className="mt-0.5 text-[13px] leading-snug text-zinc-700">{aiSummary}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onViewOpportunities}
-            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-50"
+            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-800 shadow-sm hover:bg-zinc-50"
           >
             View all opportunities
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid gap-3 lg:grid-cols-3">
         <TrustPanelCard
           title="Quick Wins"
           subtitle="Low effort actions with high local impact"
           action={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
         >
           {quickWins.length === 0 ? (
-            <p className="text-sm text-zinc-500">Run the finder to generate quick wins.</p>
+            <p className="text-[13px] text-zinc-500">Run the finder to generate quick wins.</p>
           ) : (
-            <ul className="space-y-3">
+            <ul className="space-y-2">
               {quickWins.slice(0, 6).map((w) => (
-                <li key={w} className="flex items-start gap-2.5 text-sm text-zinc-700">
-                  <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full border-2 border-emerald-500 bg-white" />
-                  <span className="leading-relaxed">{w}</span>
+                <li key={w} className="flex items-start gap-2 text-[13px] text-zinc-700">
+                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full border-2 border-emerald-500 bg-white" />
+                  <span className="leading-snug">{w}</span>
                 </li>
               ))}
             </ul>
@@ -143,7 +143,7 @@ export function LocalTrustOverviewTab({
           <button
             type="button"
             onClick={onViewOpportunities}
-            className="mt-4 text-sm font-medium text-emerald-700 hover:underline"
+            className="mt-3 text-[12px] font-medium text-emerald-700 hover:underline"
           >
             View all easy wins →
           </button>
@@ -155,26 +155,26 @@ export function LocalTrustOverviewTab({
           action={<Grid3x3 className="h-4 w-4 text-emerald-600" />}
         >
           {counts.length === 0 ? (
-            <p className="text-sm text-zinc-500">No categories yet.</p>
+            <p className="text-[13px] text-zinc-500">No categories yet.</p>
           ) : (
-            <ul className="space-y-4">
+            <ul className="space-y-3">
               {counts.slice(0, 4).map((c) => {
                 const pct = total > 0 ? Math.round((c.count / total) * 100) : 0;
                 const label = categoryLabel(c.type);
                 const Icon = CATEGORY_ICONS[c.type] ?? Building2;
                 return (
-                  <li key={c.type} className="flex items-start gap-3">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-                      <Icon className="h-4 w-4" />
+                  <li key={c.type} className="flex items-start gap-2.5">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600">
+                      <Icon className="h-3.5 w-3.5" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between text-[13px]">
                         <span className="font-medium text-zinc-800">{label}</span>
-                        <span className="text-xs text-zinc-500">
+                        <span className="text-[11px] text-zinc-500">
                           {c.count} · {pct}%
                         </span>
                       </div>
-                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-zinc-100">
+                      <div className="mt-1 h-1 overflow-hidden rounded-full bg-zinc-100">
                         <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
                       </div>
                     </div>
@@ -186,7 +186,7 @@ export function LocalTrustOverviewTab({
           <button
             type="button"
             onClick={onViewOpportunities}
-            className="mt-4 text-sm font-medium text-emerald-700 hover:underline"
+            className="mt-3 text-[12px] font-medium text-emerald-700 hover:underline"
           >
             View all categories →
           </button>
@@ -195,10 +195,10 @@ export function LocalTrustOverviewTab({
         <TrustPanelCard
           title="Priority Breakdown"
           subtitle="Focus your outreach efforts"
-          action={<PieChartIcon className="h-4 w-4 text-emerald-600" />}
+          action={<PieChartIcon className="h-3.5 w-3.5 text-emerald-600" />}
         >
-          <div className="flex items-center gap-4">
-            <div className="relative h-36 w-36 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="relative h-28 w-28 shrink-0">
               {pieData.length > 0 ? (
                 <>
                   <ResponsiveContainer width="100%" height="100%">
@@ -211,7 +211,7 @@ export function LocalTrustOverviewTab({
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-lg font-bold text-zinc-900">{total}</span>
+                    <span className="text-base font-bold text-zinc-900">{total}</span>
                     <span className="text-[10px] text-zinc-500">Total</span>
                   </div>
                 </>
@@ -219,9 +219,9 @@ export function LocalTrustOverviewTab({
                 <div className="flex h-full items-center justify-center text-xs text-zinc-400">No data</div>
               )}
             </div>
-            <div className="min-w-0 flex-1 space-y-2">
+            <div className="min-w-0 flex-1 space-y-1.5">
               {pieData.map((d) => (
-                <div key={d.name} className="flex items-center justify-between text-xs">
+                <div key={d.name} className="flex items-center justify-between text-[11px]">
                   <span className="flex items-center gap-2 text-zinc-600">
                     <span className="h-2 w-2 rounded-full" style={{ backgroundColor: d.color }} />
                     {d.name}
@@ -234,8 +234,8 @@ export function LocalTrustOverviewTab({
               ))}
             </div>
           </div>
-          <div className="mt-4 rounded-lg bg-emerald-50 px-3 py-2.5 text-xs leading-relaxed text-emerald-800">
-            <Target className="mb-1 inline h-3.5 w-3.5" /> Focus on Medium Priority opportunities for the biggest
+          <div className="mt-3 rounded-md bg-emerald-50 px-2.5 py-2 text-[11px] leading-snug text-emerald-800">
+            <Target className="mb-0.5 inline h-3 w-3" /> Focus on Medium Priority opportunities for the biggest
             impact.
           </div>
         </TrustPanelCard>

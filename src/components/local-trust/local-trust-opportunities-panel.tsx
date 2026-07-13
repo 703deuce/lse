@@ -30,6 +30,7 @@ import {
   trustDifficultyBadge,
   trustPriorityBadge,
 } from "@/components/local-trust/local-trust-ui";
+import { dashboardCard } from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZES = [10, 20, 50] as const;
@@ -60,27 +61,27 @@ function avgScore(rows: OppRow[]): number {
 
 function OpportunityTable({ rows, showMarketBadge }: { rows: OppRow[]; showMarketBadge?: boolean }) {
   if (!rows.length) {
-    return <p className="px-4 py-8 text-center text-sm text-zinc-500">No results in this category.</p>;
+    return <p className="px-3 py-6 text-center text-[13px] text-zinc-500">No results in this category.</p>;
   }
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full text-sm">
-        <thead className="border-b border-zinc-100 bg-zinc-50/80 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+      <table className="min-w-full text-[12px]">
+        <thead className="border-b border-zinc-100 bg-zinc-50/80 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
           <tr>
-            <th className="px-4 py-3">Opportunity</th>
-            <th className="px-4 py-3">Type</th>
-            <th className="px-4 py-3">Local Match</th>
-            <th className="px-4 py-3">
+            <th className="px-3 py-2">Opportunity</th>
+            <th className="px-3 py-2">Type</th>
+            <th className="px-3 py-2">Local Match</th>
+            <th className="px-3 py-2">
               <span className="inline-flex items-center gap-1">
                 Score
                 <Info className="h-3 w-3 text-zinc-400" />
               </span>
             </th>
-            <th className="px-4 py-3">Difficulty</th>
-            <th className="px-4 py-3">Priority</th>
-            <th className="px-4 py-3">Suggested Action</th>
-            <th className="w-10 px-4 py-3" />
+            <th className="px-3 py-2">Difficulty</th>
+            <th className="px-3 py-2">Priority</th>
+            <th className="px-3 py-2">Suggested Action</th>
+            <th className="w-10 px-3 py-2" />
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-100">
@@ -91,7 +92,7 @@ function OpportunityTable({ rows, showMarketBadge }: { rows: OppRow[]; showMarke
             const score = Number(row.relevance_score ?? 0);
             return (
               <tr key={String(row.id ?? row.url)} className="align-top hover:bg-zinc-50/80">
-                <td className="px-4 py-3">
+                <td className="px-3 py-2">
                   <div className="flex items-start gap-1.5">
                     <a
                       href={String(row.url)}
@@ -103,26 +104,26 @@ function OpportunityTable({ rows, showMarketBadge }: { rows: OppRow[]; showMarke
                     </a>
                     <ExternalLink className="mt-0.5 h-3 w-3 shrink-0 text-zinc-400" />
                   </div>
-                  <p className="mt-0.5 text-xs text-zinc-400">{String(row.domain ?? "")}</p>
+                  <p className="mt-0.5 text-[11px] text-zinc-400">{String(row.domain ?? "")}</p>
                   {showMarketBadge && row.market_city != null && row.market_state != null ? (
                     <span className="mt-1 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 ring-1 ring-emerald-100">
                       {String(row.market_city)}, {String(row.market_state)}
                     </span>
                   ) : null}
                 </td>
-                <td className="px-4 py-3 text-xs text-zinc-600">
+                <td className="px-3 py-2 text-[11px] text-zinc-600">
                   {typeLabel(
                     String(raw?.displayGroup ?? row.opportunity_type)
                   )}
                 </td>
-                <td className="px-4 py-3">{localMatchDisplay(!!row.city_match, !!row.county_match)}</td>
-                <td className="px-4 py-3">
+                <td className="px-3 py-2">{localMatchDisplay(!!row.city_match, !!row.county_match)}</td>
+                <td className="px-3 py-2">
                   <ScoreDiamond score={score} />
                 </td>
-                <td className="px-4 py-3">{trustDifficultyBadge(String(row.difficulty))}</td>
-                <td className="px-4 py-3">{trustPriorityBadge(String(row.priority))}</td>
-                <td className="max-w-xs px-4 py-3 text-xs leading-relaxed text-zinc-600">{actionText}</td>
-                <td className="px-4 py-3">
+                <td className="px-3 py-2">{trustDifficultyBadge(String(row.difficulty))}</td>
+                <td className="px-3 py-2">{trustPriorityBadge(String(row.priority))}</td>
+                <td className="max-w-xs px-3 py-2 text-[11px] leading-snug text-zinc-600">{actionText}</td>
+                <td className="px-3 py-2">
                   <button type="button" className="rounded p-1 text-zinc-400 hover:bg-zinc-100">
                     <MoreHorizontal className="h-4 w-4" />
                   </button>
@@ -154,7 +155,7 @@ function Pagination({
   const to = Math.min(page * pageSize, totalItems);
 
   return (
-    <div className="flex items-center justify-between border-t border-zinc-100 px-4 py-3 text-xs text-zinc-500">
+    <div className="flex items-center justify-between border-t border-zinc-100 px-3 py-2 text-[11px] text-zinc-500">
       <span>
         Showing {from} to {to} of {totalItems} results
       </span>
@@ -339,7 +340,7 @@ export function LocalTrustOpportunitiesPanel({
   const highImpact = counts.filter((c) => c.count >= 2).reduce((s, c) => s + c.count, 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <TrustFilterBar>
         <TrustFilterSelect
           label="Category"
@@ -412,44 +413,44 @@ export function LocalTrustOpportunitiesPanel({
           }}
           options={PAGE_SIZES.map((n) => ({ value: String(n), label: String(n) }))}
         />
-        <p className="ml-auto flex items-center gap-1 self-end pb-2 text-xs text-zinc-500">
+        <p className="ml-auto flex items-center gap-1 self-end pb-1.5 text-[11px] text-zinc-500">
           <ArrowUpDown className="h-3.5 w-3.5" />
           Sorted by relevance score (high to low)
         </p>
       </TrustFilterBar>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-          <Sparkles className="h-5 w-5 text-blue-500" />
+      <div className="grid gap-2.5 sm:grid-cols-3">
+        <div className="flex items-center gap-2.5 rounded-lg border border-zinc-200/70 bg-white px-3 py-2.5 shadow-sm">
+          <Sparkles className="h-4 w-4 text-blue-500" />
           <div>
-            <p className="text-sm font-semibold text-zinc-900">{oppTotal} opportunities</p>
-            <p className="text-xs text-zinc-500">Across {categoryCount} categories</p>
+            <p className="text-[13px] font-semibold text-zinc-900">{oppTotal} opportunities</p>
+            <p className="text-[11px] text-zinc-500">Across {categoryCount} categories</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-          <Zap className="h-5 w-5 text-emerald-600" />
+        <div className="flex items-center gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+          <Zap className="h-4 w-4 text-emerald-600" />
           <div>
-            <p className="text-sm font-semibold text-emerald-900">{easyWins} Easy wins</p>
-            <p className="text-xs text-emerald-700">Low effort, high impact</p>
+            <p className="text-[13px] font-semibold text-emerald-900">{easyWins} Easy wins</p>
+            <p className="text-[11px] text-emerald-700">Low effort, high impact</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
-          <Link2 className="h-5 w-5 text-blue-600" />
+        <div className="flex items-center gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5">
+          <Link2 className="h-4 w-4 text-blue-600" />
           <div>
-            <p className="text-sm font-semibold text-blue-900">{highImpact} High-impact actions</p>
-            <p className="text-xs text-blue-700">Stronger local authority</p>
+            <p className="text-[13px] font-semibold text-blue-900">{highImpact} High-impact actions</p>
+            <p className="text-[11px] text-blue-700">Stronger local authority</p>
           </div>
         </div>
       </div>
 
       {typeFilter !== "all" ? (
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
-          <div className="border-b border-zinc-100 px-4 py-3">
-            <h3 className="text-sm font-semibold text-zinc-900">{typeLabel(typeFilter)}</h3>
-            <p className="text-xs text-zinc-500">{total} opportunities</p>
+        <div className={cn(dashboardCard, "overflow-hidden")}>
+          <div className="border-b border-zinc-100 px-3 py-2">
+            <h3 className="text-[13px] font-semibold text-zinc-900">{typeLabel(typeFilter)}</h3>
+            <p className="text-[11px] text-zinc-500">{total} opportunities</p>
           </div>
           {loading ? (
-            <div className="flex items-center justify-center py-10 text-zinc-500">
+            <div className="flex items-center justify-center py-8 text-zinc-500">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Loading…
             </div>
@@ -467,11 +468,11 @@ export function LocalTrustOpportunitiesPanel({
           )}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {groupedTypes.length === 0 && !loading && (
-            <p className="text-sm text-zinc-500">No opportunities yet. Run the finder to discover local trust opportunities.</p>
+            <p className="text-[13px] text-zinc-500">No opportunities yet. Run the finder to discover local trust opportunities.</p>
           )}
-          {groupedTypes.map((type, idx) => {
+          {groupedTypes.map((type) => {
             const isOpen = expanded[type] ?? false;
             const count = counts.find((c) => c.type === type)?.count ?? groupTotals[type] ?? 0;
             const gPage = groupPages[type] ?? 1;
@@ -480,27 +481,27 @@ export function LocalTrustOpportunitiesPanel({
             const avg = avgScore(rows);
 
             return (
-              <div key={type} className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+              <div key={type} className={cn(dashboardCard, "overflow-hidden")}>
                 <button
                   type="button"
                   onClick={() => setExpanded((e) => ({ ...e, [type]: !isOpen }))}
-                  className="flex w-full items-center gap-3 border-b border-zinc-100 bg-white px-4 py-3.5 text-left hover:bg-zinc-50/80"
+                  className="flex w-full items-center gap-2.5 border-b border-zinc-100 bg-white px-3 py-2.5 text-left hover:bg-zinc-50/80"
                 >
                   {isOpen ? (
-                    <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400" />
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
                   )}
-                  <span className="flex-1 text-sm font-semibold text-zinc-900">{typeLabel(type)}</span>
-                  <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-zinc-100 px-2 text-xs font-semibold text-zinc-600">
+                  <span className="flex-1 text-[13px] font-semibold text-zinc-900">{typeLabel(type)}</span>
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-zinc-100 px-1.5 text-[11px] font-semibold text-zinc-600">
                     {count}
                   </span>
-                  <span className="text-xs text-zinc-500">Avg. Score: {avg || "—"}</span>
+                  <span className="text-[11px] text-zinc-500">Avg. Score: {avg || "—"}</span>
                 </button>
                 {isOpen && (
                   <>
                     {groupLoading[type] ? (
-                      <div className="flex items-center justify-center py-8 text-zinc-500">
+                      <div className="flex items-center justify-center py-6 text-zinc-500">
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Loading…
                       </div>
