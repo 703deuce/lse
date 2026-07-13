@@ -3,15 +3,11 @@
 import { DashboardHeader } from "@/components/overview/dashboard-header";
 import { DashboardQuickActions } from "@/components/overview/dashboard-quick-actions";
 import { DashboardRecentScans } from "@/components/overview/dashboard-recent-scans";
-import {
-  OverviewAuditSnapshot,
-  OverviewCoreScores,
-  OverviewFooterCta,
-  OverviewRecommendedActions,
-} from "@/components/overview/overview-sections";
-import { OverviewMomentumCard } from "@/components/overview/overview-momentum-card";
+import { DashboardFeaturedReports } from "@/components/overview/dashboard-featured-reports";
+import { DashboardToolsRow } from "@/components/overview/dashboard-tools-row";
 import { ModulePage } from "@/components/ui/design-system";
 import type { DashboardScanRow } from "@/lib/overview/load-dashboard-scans";
+import type { DashboardFeaturedData } from "@/lib/overview/load-dashboard-featured";
 
 const MOCK_BUSINESS_ID = "preview";
 
@@ -57,83 +53,58 @@ const mockScans: DashboardScanRow[] = [
   },
 ];
 
-const coreScores = [
-  { label: "Growth Score", value: 72, href: `/businesses/${MOCK_BUSINESS_ID}/growth-audit` },
-  { label: "Maps Score", value: 68, href: `/businesses/${MOCK_BUSINESS_ID}/scans` },
-  { label: "Review Momentum™", value: 81, href: `/businesses/${MOCK_BUSINESS_ID}/review-momentum` },
-  { label: "Grid Visibility", value: 64, href: `/businesses/${MOCK_BUSINESS_ID}/scans` },
-];
+const mockFeatured: DashboardFeaturedData = {
+  review: {
+    rating: 5.0,
+    newReviews90d: 2,
+    weeklyPaceGap: 1.5,
+    yourSharePct: 24,
+    top3SharePct: 58,
+    trend: [0, 1, 1, 2, 1, 2],
+    hasData: true,
+  },
+  ai: {
+    hasData: true,
+    engines: [
+      { engine: "chatgpt", label: "ChatGPT", mentioned: true },
+      { engine: "gemini", label: "Gemini", mentioned: true },
+      { engine: "claude", label: "Claude", mentioned: false },
+      { engine: "perplexity", label: "Perplexity", mentioned: false },
+    ],
+    topMentions: ["Junk King", "College Hunks", "Junk Removal Woodbridge"],
+    companyCount: 39,
+  },
+  local: {
+    hasData: true,
+    items: [
+      { id: "1", title: "Prince William Chamber" },
+      { id: "2", title: "Tunnel to Towers" },
+      { id: "3", title: "Woodbridge Little League" },
+    ],
+    total: 21,
+  },
+};
 
 export default function OverviewPreviewPage() {
   return (
     <ModulePage wide className="!space-y-4 px-5 py-6 lg:px-8">
       <DashboardHeader
         userName="Anthony"
-        businessName="Junk Removal Woodbridge"
         businessId={MOCK_BUSINESS_ID}
+        businessName="Junk Removal Woodbridge"
+        businesses={[
+          { id: MOCK_BUSINESS_ID, name: "Junk Removal Woodbridge" },
+          { id: "b2", name: "Bright Smile Dental" },
+        ]}
       />
 
       <DashboardQuickActions businessId={MOCK_BUSINESS_ID} />
 
       <DashboardRecentScans businessId={MOCK_BUSINESS_ID} rows={mockScans} total={38} />
 
-      <OverviewCoreScores businessId={MOCK_BUSINESS_ID} scores={coreScores} />
+      <DashboardFeaturedReports businessId={MOCK_BUSINESS_ID} data={mockFeatured} />
 
-      <OverviewMomentumCard
-        businessId={MOCK_BUSINESS_ID}
-        hasData
-        momentumScore={81}
-        momentumLabel="Healthy"
-        weeklyPaceGap={3}
-        targetSharePct={24}
-        reviews30d={12}
-        marketPotential="Medium"
-        chartData={[
-          { label: "Jun 1", value: 2 },
-          { label: "Jun 8", value: 4 },
-          { label: "Jun 15", value: 3 },
-          { label: "Jun 22", value: 6 },
-          { label: "Jun 29", value: 5 },
-          { label: "Jul 6", value: 8 },
-        ]}
-        alertMessage="Your review momentum is healthy. Stay consistent to maintain your edge."
-      />
-
-      <OverviewAuditSnapshot
-        scores={[
-          { label: "Overall", value: 72 },
-          { label: "Relevance", value: 78 },
-          { label: "Distance", value: 65 },
-          { label: "Prominence", value: 70 },
-          { label: "Trust", value: 74 },
-        ]}
-      />
-
-      <OverviewRecommendedActions
-        businessId={MOCK_BUSINESS_ID}
-        items={[
-          {
-            id: "1",
-            title: "Add service-area pages",
-            description: "Create landing pages for your top neighborhoods.",
-            impact: "high",
-          },
-          {
-            id: "2",
-            title: "Request reviews from recent customers",
-            description: "Send review requests to customers from the last 30 days.",
-            impact: "high",
-          },
-          {
-            id: "3",
-            title: "Fix NAP inconsistencies",
-            description: "Update directory listings with correct business info.",
-            impact: "medium",
-          },
-        ]}
-      />
-
-      <OverviewFooterCta businessId={MOCK_BUSINESS_ID} />
+      <DashboardToolsRow businessId={MOCK_BUSINESS_ID} />
     </ModulePage>
   );
 }
