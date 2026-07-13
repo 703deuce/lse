@@ -304,7 +304,7 @@ export function ReputationAuditDashboard({ businessId }: { businessId: string })
           )}
 
           {tab === "momentum" && metrics && (
-            <div className="space-y-6">
+            <div className="space-y-5">
               {market && (
                 <>
                   <MarketActivityBanner market={market} />
@@ -315,18 +315,18 @@ export function ReputationAuditDashboard({ businessId }: { businessId: string })
                     velocityTrendLabel={market.velocityTrendLabel}
                     targetSharePct={market.targetSharePct30d}
                   />
-                  <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="grid gap-2.5 lg:grid-cols-2">
                     <WeeklyPacePanel market={market} />
                     <ShareOfReviewsPanel market={market} />
                   </div>
                   <RecencyAndStreakPanel market={market} entities={recencyEntities} />
                 </>
               )}
-              <div className="grid gap-6 lg:grid-cols-2">
+              <div className="grid gap-2.5 lg:grid-cols-2">
                 {dailyExact7.length > 0 && (
-                  <div className="rounded-xl border border-border p-4 dark:border-zinc-800">
-                    <h3 className="mb-4 text-sm font-semibold">Last 7 days (exact)</h3>
-                    <ResponsiveContainer width="100%" height={200}>
+                  <div className="rounded-xl border border-zinc-200/70 bg-white p-3.5 shadow-sm">
+                    <h3 className="mb-2 text-[13px] font-semibold text-zinc-900">Last 7 days (exact)</h3>
+                    <ResponsiveContainer width="100%" height={160}>
                       <BarChart data={dailyExact7}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="date" tick={{ fontSize: 11 }} />
@@ -337,9 +337,9 @@ export function ReputationAuditDashboard({ businessId }: { businessId: string })
                     </ResponsiveContainer>
                   </div>
                 )}
-                <div className="rounded-xl border border-border p-4 dark:border-zinc-800">
-                  <h3 className="mb-4 text-sm font-semibold">30-day velocity vs competitors</h3>
-                  <ResponsiveContainer width="100%" height={200}>
+                <div className="rounded-xl border border-zinc-200/70 bg-white p-3.5 shadow-sm">
+                  <h3 className="mb-2 text-[13px] font-semibold text-zinc-900">30-day velocity vs competitors</h3>
+                  <ResponsiveContainer width="100%" height={160}>
                     <BarChart data={velocityChart}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" tick={{ fontSize: 11 }} />

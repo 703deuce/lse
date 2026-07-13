@@ -1,6 +1,7 @@
 "use client";
 
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import {
   Calendar,
@@ -12,9 +13,17 @@ import {
   Users,
 } from "lucide-react";
 import { momentumBadgeClass, type MomentumLabel } from "@/lib/reviews/metrics";
-import { cardLabelClass, StatValue, cardClass } from "@/components/ui/design-system";
+import { GridMetricCard } from "@/components/ui/metric-card";
+import {
+  dashboardBadge,
+  dashboardCard,
+  dashboardCardMeta,
+  dashboardCardTitle,
+  dashboardMicro,
+  dashboardSectionLabel,
+} from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
-import { formatPace, momentumCardClass } from "@/components/reviews/review-momentum-ui";
+import { formatPace, MomentumPanel, MomentumSectionTitle } from "@/components/reviews/review-momentum-ui";
 import {
   recencyStatusClass,
   type MarketInsights,
@@ -104,70 +113,55 @@ export function ReviewMomentumTopKpis({
   market: MarketInsights;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div className={cn(momentumCardClass, "flex min-h-[108px] flex-col justify-center p-5")}>
-        <p className={cardLabelClass}>Review Momentum™</p>
-        <div className="mt-2 flex flex-wrap items-center gap-2.5">
-          <p className="text-4xl font-bold leading-none tabular-nums tracking-tight text-zinc-900">
-            {Math.round(momentumScore)}
-          </p>
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
-            <TrendingUp className="h-3 w-3 shrink-0" aria-hidden />
-            {momentumLabel}
-          </span>
-        </div>
-      </div>
-
-      <div className={cn(momentumCardClass, "flex min-h-[108px] items-center p-5")}>
-        <div>
-          <p className={cardLabelClass}>Velocity Trend</p>
-          <div className="mt-2 flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50">
-              {velocityTrend === "accelerating" ? (
-                <TrendingUp className="h-4 w-4 text-emerald-600" />
-              ) : velocityTrend === "losing" ? (
-                <TrendingDown className="h-4 w-4 text-red-600" />
-              ) : (
-                <TrendingUp className="h-4 w-4 text-zinc-400" />
-              )}
-            </span>
-            <p
-              className={cn(
-                "text-xl font-semibold",
-                velocityTrend === "accelerating" && "text-emerald-700",
-                velocityTrend === "losing" && "text-red-600",
-                velocityTrend === "stable" && "text-zinc-800"
-              )}
-            >
-              {velocityTrendLabel}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className={cn(momentumCardClass, "flex min-h-[108px] flex-col justify-center p-5")}>
-        <p className={cardLabelClass}>Share of New Reviews (30D)</p>
-        <p className="mt-2 text-4xl font-bold leading-none tabular-nums tracking-tight text-zinc-900">
-          {targetSharePct}%
-        </p>
-        <p className="mt-1.5 text-xs text-zinc-500">You vs. competitors</p>
-      </div>
-
-      <div className={cn(momentumCardClass, "flex min-h-[108px] items-center p-5")}>
-        <div className="flex items-start gap-2.5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50">
-            <Users className="h-4 w-4 text-emerald-600" />
-          </span>
-          <div>
-            <p className={cardLabelClass}>Market Activity</p>
-            <p className="mt-0.5 text-lg font-semibold text-zinc-900">{market.marketActivityLabel}</p>
-            <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-500">
-              Top {market.entityCount} businesses in your scan received {market.marketReviews30d} new
-              reviews in the last 30 days — below typical market pace.
-            </p>
-          </div>
-        </div>
-      </div>
+    <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-4">
+      <GridMetricCard
+        compact
+        variant="primary"
+        label="Review Momentum™"
+        value={Math.round(momentumScore)}
+        sub={momentumLabel}
+        icon={TrendingUp}
+        iconWrapClassName="bg-emerald-50"
+        iconClassName="text-emerald-600"
+      />
+      <GridMetricCard
+        compact
+        label="Velocity Trend"
+        value={velocityTrendLabel}
+        sub={
+          velocityTrend === "accelerating"
+            ? "Gaining share"
+            : velocityTrend === "losing"
+              ? "Losing share"
+              : "Holding steady"
+        }
+        icon={velocityTrend === "losing" ? TrendingDown : TrendingUp}
+        iconWrapClassName={
+          velocityTrend === "losing" ? "bg-red-50" : velocityTrend === "accelerating" ? "bg-emerald-50" : "bg-zinc-100"
+        }
+        iconClassName={
+          velocityTrend === "losing" ? "text-red-600" : velocityTrend === "accelerating" ? "text-emerald-600" : "text-zinc-500"
+        }
+        trendPositive={velocityTrend === "accelerating" ? true : velocityTrend === "losing" ? false : undefined}
+      />
+      <GridMetricCard
+        compact
+        label="Share of New Reviews (30D)"
+        value={`${targetSharePct}%`}
+        sub="You vs. competitors"
+        icon={Users}
+        iconWrapClassName="bg-sky-50"
+        iconClassName="text-sky-600"
+      />
+      <GridMetricCard
+        compact
+        label="Market Activity"
+        value={market.marketActivityLabel}
+        sub={`${market.marketReviews30d} new reviews · top ${market.entityCount}`}
+        icon={Users}
+        iconWrapClassName="bg-violet-50"
+        iconClassName="text-violet-600"
+      />
     </div>
   );
 }
@@ -178,26 +172,21 @@ export function MomentumSnapshotCard({
   value,
   sub,
 }: {
-  icon: ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   label: string;
   value: string;
   sub?: string;
 }) {
   return (
-    <div className={cn(cardClass, "p-5")}>
-      <div className="flex items-start gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500">
-          <Icon className="h-4 w-4" />
-        </span>
-        <div className="min-w-0">
-          <p className={cardLabelClass}>{label}</p>
-          <div className="mt-1.5">
-            <StatValue value={value} />
-          </div>
-          {sub && <p className="mt-1 text-xs leading-relaxed text-zinc-500">{sub}</p>}
-        </div>
-      </div>
-    </div>
+    <GridMetricCard
+      compact
+      label={label}
+      value={value}
+      sub={sub}
+      icon={Icon}
+      iconWrapClassName="bg-zinc-100"
+      iconClassName="text-zinc-500"
+    />
   );
 }
 
@@ -215,97 +204,91 @@ export function ReviewMomentumHero({
   targetSharePct: number;
 }) {
   return (
-    <div className="rounded-2xl border border-primary/25 bg-linear-to-br from-emerald-50 to-white p-6 dark:border-emerald-900 dark:from-emerald-950/40 dark:to-zinc-950">
-      <div className="flex flex-wrap items-start justify-between gap-6">
+    <MomentumPanel>
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-primary-muted dark:text-emerald-400">
-            Review Momentum™
-          </p>
-          <p className="mt-2 text-5xl font-bold tabular-nums text-text dark:text-zinc-50">
-            {Math.round(momentumScore)}
-          </p>
-          <span
-            className={`mt-3 inline-flex rounded-full px-3 py-1 text-sm font-semibold ${momentumBadgeClass(momentumLabel)}`}
-          >
-            {momentumLabel}
-          </span>
+          <p className={dashboardSectionLabel}>Review Momentum™</p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <p className="text-2xl font-semibold tabular-nums tracking-tight text-zinc-900">
+              {Math.round(momentumScore)}
+            </p>
+            <span className={cn(dashboardBadge, momentumBadgeClass(momentumLabel))}>
+              {momentumLabel}
+            </span>
+          </div>
         </div>
-        <div className="space-y-3 text-sm">
+        <div className="flex flex-wrap gap-4 text-[13px]">
           <div>
-            <p className="text-xs uppercase tracking-wide text-text-muted">Velocity trend</p>
+            <p className={dashboardSectionLabel}>Velocity trend</p>
             <span
-              className={`mt-1 inline-flex rounded-full px-3 py-1 font-semibold ${velocityTrendClass(velocityTrend)}`}
+              className={cn(
+                "mt-1 inline-flex rounded-md px-2 py-0.5 text-[12px] font-semibold",
+                velocityTrendClass(velocityTrend)
+              )}
             >
               {velocityTrendLabel}
             </span>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-text-muted">Share of new reviews (30d)</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums">{targetSharePct}%</p>
+            <p className={dashboardSectionLabel}>Share of new reviews (30d)</p>
+            <p className="mt-1 text-lg font-semibold tabular-nums text-zinc-900">{targetSharePct}%</p>
           </div>
         </div>
       </div>
-    </div>
+    </MomentumPanel>
   );
 }
 
 export function WeeklyPacePanel({ market }: { market: MarketInsights }) {
   return (
-    <div className={cn(momentumCardClass, "h-full p-4")}>
-      <h3 className="text-sm font-semibold text-zinc-900">Weekly Review Pace</h3>
-      <p className="mt-0.5 text-[11px] text-zinc-500">
-        To match top competitors, aim for ~{market.recommendedWeeklyPace} reviews every week.
-      </p>
+    <MomentumPanel className="h-full">
+      <MomentumSectionTitle
+        title="Weekly Review Pace"
+        subtitle={`Aim for ~${market.recommendedWeeklyPace} reviews per week to match leaders.`}
+      />
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-3">
-        <PaceStat label="CURRENT PACE" value={`${formatPace(market.currentWeeklyPace)}/week`} />
+      <div className="grid gap-2 sm:grid-cols-3">
+        <PaceStat label="Current pace" value={`${formatPace(market.currentWeeklyPace)}/wk`} />
         <PaceStat
-          label="RECOMMENDED PACE"
-          value={`${formatPace(market.recommendedWeeklyPace)}/week`}
+          label="Recommended"
+          value={`${formatPace(market.recommendedWeeklyPace)}/wk`}
           highlight
         />
         <PaceStat
-          label="DIFFERENCE"
-          value={`+${formatPace(market.weeklyPaceGap)} reviews/week`}
-          sub="to close the gap"
+          label="Gap"
+          value={`+${formatPace(market.weeklyPaceGap)}/wk`}
+          sub="to close"
           difference
         />
       </div>
 
-      <div className="mt-4 overflow-x-auto">
-        <table className="min-w-full text-xs">
-          <thead className="text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
-            <tr>
-              <th className="pb-2 pr-3 font-semibold">Business</th>
-              <th className="pb-2 font-semibold">Avg Reviews / Week</th>
+      <div className="mt-3 overflow-x-auto">
+        <table className="min-w-full text-[12px]">
+          <thead>
+            <tr className="text-left">
+              <th className={cn(dashboardSectionLabel, "pb-1.5 pr-3")}>Business</th>
+              <th className={cn(dashboardSectionLabel, "pb-1.5")}>Avg / week</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-zinc-100">
             {market.weeklyPace.map((row) => (
-              <tr key={row.name} className="border-t border-zinc-100">
-                <td className="py-2 pr-3 font-medium text-zinc-800">
+              <tr key={row.name}>
+                <td className="py-1.5 pr-3 font-medium text-zinc-800">
                   {row.entityType === "target" ? "You" : row.name}
-                  {row.entityType === "target" && (
-                    <span className="ml-1.5 rounded bg-zinc-200 px-1.5 py-0.5 text-[9px] font-bold text-zinc-600">
-                      YOU
-                    </span>
-                  )}
                 </td>
-                <td className="py-2 tabular-nums text-zinc-700">
+                <td className="py-1.5 tabular-nums text-zinc-600">
                   {formatPace(row.avgReviewsPerWeek)}
                 </td>
               </tr>
             ))}
-            <tr className="border-t border-zinc-200 font-semibold">
-              <td className="py-2 pr-3 text-zinc-800">Top 3 average</td>
-              <td className="py-2 tabular-nums text-zinc-800">
-                {formatPace(market.top3AvgWeeklyPace)}
-              </td>
+            <tr className="font-semibold text-zinc-800">
+              <td className="py-1.5 pr-3">Top 3 average</td>
+              <td className="py-1.5 tabular-nums">{formatPace(market.top3AvgWeeklyPace)}</td>
             </tr>
           </tbody>
         </table>
       </div>
-    </div>
+    </MomentumPanel>
   );
 }
 
@@ -325,22 +308,22 @@ function PaceStat({
   return (
     <div
       className={cn(
-        "rounded-lg border px-2.5 py-2",
-        highlight && "border-emerald-200 bg-emerald-50/80",
-        difference && "border-sky-100 bg-sky-50",
-        !highlight && !difference && "border-zinc-100 bg-zinc-50"
+        "rounded-lg border px-2 py-1.5",
+        highlight && "border-emerald-100 bg-emerald-50/60",
+        difference && "border-sky-100 bg-sky-50/60",
+        !highlight && !difference && "border-zinc-100 bg-zinc-50/80"
       )}
     >
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className={dashboardSectionLabel}>{label}</p>
       <p
         className={cn(
-          "mt-1 text-sm font-bold tabular-nums leading-tight",
+          "mt-0.5 text-[13px] font-semibold tabular-nums leading-tight",
           difference ? "text-sky-700" : highlight ? "text-emerald-700" : "text-zinc-900"
         )}
       >
         {value}
       </p>
-      {sub && <p className="mt-0.5 text-[10px] text-zinc-500">{sub}</p>}
+      {sub && <p className={cn(dashboardMicro, "mt-0.5")}>{sub}</p>}
     </div>
   );
 }
@@ -350,25 +333,23 @@ export function ShareOfReviewsPanel({ market }: { market: MarketInsights }) {
   const topCompetitorShare = sorted.find((r) => r.entityType !== "target" && r.sharePct > 0)?.sharePct;
 
   return (
-    <div className={cn(momentumCardClass, "h-full p-4")}>
-      <h3 className="text-sm font-semibold text-zinc-900">Share of New Reviews - Last 30 Days</h3>
-      <p className="mt-0.5 text-[11px] text-zinc-500">
-        What percentage of new market reviews went to each business.
-      </p>
-      <ul className="mt-4 space-y-3.5">
+    <MomentumPanel className="h-full">
+      <MomentumSectionTitle
+        title="Share of New Reviews"
+        subtitle="Percent of new market reviews in the last 30 days."
+      />
+      <ul className="space-y-2.5">
         {sorted.map((row) => {
           const isTarget = row.entityType === "target";
           const isTopCompetitor =
             !isTarget && row.sharePct > 0 && row.sharePct === topCompetitorShare;
           return (
             <li key={row.name}>
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-zinc-800">
-                  {isTarget ? "You" : row.name}
-                </span>
-                <span className="tabular-nums font-semibold text-zinc-800">{row.sharePct}%</span>
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-medium text-zinc-800">{isTarget ? "You" : row.name}</span>
+                <span className="font-semibold tabular-nums text-zinc-700">{row.sharePct}%</span>
               </div>
-              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-zinc-100">
+              <div className="mt-1 h-1 overflow-hidden rounded-full bg-zinc-100">
                 <div
                   className={cn(
                     "h-full rounded-full",
@@ -389,7 +370,7 @@ export function ShareOfReviewsPanel({ market }: { market: MarketInsights }) {
           );
         })}
       </ul>
-    </div>
+    </MomentumPanel>
   );
 }
 
@@ -407,10 +388,9 @@ export function MomentumScoreBarsPanel({
   const topCompetitorName = sorted.find((e) => e.entity_type !== "target")?.name;
 
   return (
-    <div className={cn(momentumCardClass, "h-full p-4")}>
-      <h3 className="text-sm font-semibold text-zinc-900">Momentum Score (30D)</h3>
-      <p className="mt-0.5 text-[11px] text-zinc-500">Velocity momentum comparison.</p>
-      <ul className="mt-4 space-y-3.5">
+    <MomentumPanel className="h-full">
+      <MomentumSectionTitle title="Momentum Score (30D)" subtitle="Velocity comparison." />
+      <ul className="space-y-2.5">
         {sorted.map((e) => {
           const isTarget = e.entity_type === "target";
           const isTopCompetitor = !isTarget && e.name === topCompetitorName;
@@ -423,12 +403,12 @@ export function MomentumScoreBarsPanel({
           const score = Math.round(e.momentum_score);
           return (
             <li key={e.name}>
-              <div className="flex items-center gap-2 text-xs">
+              <div className="flex items-center gap-2 text-[11px]">
                 <span className="w-[38%] min-w-0 truncate font-medium text-zinc-800">
                   {isTarget ? "You" : e.name}
                 </span>
                 <div className="flex min-w-0 flex-1 items-center gap-2">
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100">
+                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-zinc-100">
                     <div
                       className={cn("h-full rounded-full", barColor)}
                       style={{ width: `${Math.max(widthPct, score > 0 ? 6 : 0)}%` }}
@@ -436,9 +416,9 @@ export function MomentumScoreBarsPanel({
                   </div>
                   <span
                     className={cn(
-                      "w-8 shrink-0 rounded px-1.5 py-0.5 text-center text-[10px] font-bold tabular-nums",
+                      "w-7 shrink-0 rounded px-1 py-0.5 text-center text-[10px] font-bold tabular-nums",
                       isTarget
-                        ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                        ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
                         : "bg-zinc-100 text-zinc-700"
                     )}
                   >
@@ -450,7 +430,7 @@ export function MomentumScoreBarsPanel({
           );
         })}
       </ul>
-    </div>
+    </MomentumPanel>
   );
 }
 
@@ -462,12 +442,12 @@ export function RecencyAndStreakPanel({
   market: MarketInsights;
 }) {
   return (
-    <div className="rounded-xl border border-border p-5 dark:border-zinc-800">
-      <h3 className="text-sm font-semibold">Days Since Last Review</h3>
-      <p className="mt-1 text-xs text-text-muted">
-        Fresh reviews signal active engagement. Compare your recency vs competitors.
-      </p>
-      <ul className="mt-4 space-y-2">
+    <MomentumPanel>
+      <MomentumSectionTitle
+        title="Days Since Last Review"
+        subtitle="Fresh reviews signal active engagement."
+      />
+      <ul className="space-y-1.5">
         {entities
           .filter((e) => e.days_since_last_review != null || e.entity_type === "target")
           .slice(0, 6)
@@ -478,13 +458,16 @@ export function RecencyAndStreakPanel({
             return (
               <li
                 key={e.name}
-                className="flex items-center justify-between rounded-lg px-3 py-2 text-sm bg-surface-subtle dark:bg-zinc-900/50"
+                className="flex items-center justify-between rounded-md bg-zinc-50/80 px-2.5 py-1.5 text-[12px]"
               >
-                <span className="font-medium">
+                <span className="font-medium text-zinc-800">
                   {e.entity_type === "target" ? "You" : e.name.slice(0, 28)}
                 </span>
                 <span
-                  className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${recencyStatusClass(status)}`}
+                  className={cn(
+                    "rounded-md px-1.5 py-0.5 text-[10px] font-semibold",
+                    recencyStatusClass(status)
+                  )}
                 >
                   {formatDaysSince(days)}
                 </span>
@@ -493,39 +476,34 @@ export function RecencyAndStreakPanel({
           })}
       </ul>
 
-      <div className="mt-5 rounded-lg border border-border p-4 dark:border-zinc-700">
-        <p className="text-xs uppercase tracking-wide text-text-muted">Review streak</p>
+      <div className="mt-3 rounded-lg border border-zinc-100 bg-zinc-50/60 p-2.5">
+        <p className={dashboardSectionLabel}>Review streak</p>
         {market.reviewStreakWeeks > 0 ? (
-          <p className="mt-1 text-lg font-bold text-primary-muted dark:text-emerald-400">
-            {market.reviewStreakWeeks} week{market.reviewStreakWeeks === 1 ? "" : "s"} with at least
-            one review
+          <p className="mt-1 text-[13px] font-semibold text-emerald-700">
+            {market.reviewStreakWeeks} week{market.reviewStreakWeeks === 1 ? "" : "s"} with reviews
           </p>
         ) : market.daysWithoutReview != null && market.daysWithoutReview > 0 ? (
-          <p className="mt-1 text-lg font-bold text-red-700 dark:text-red-400">
+          <p className="mt-1 text-[13px] font-semibold text-red-600">
             No reviews for {market.daysWithoutReview} days
           </p>
         ) : (
-          <p className="mt-1 text-sm text-text-muted">Run an audit to calculate streak.</p>
+          <p className={cn(dashboardMicro, "mt-1")}>Run an audit to calculate streak.</p>
         )}
       </div>
-    </div>
+    </MomentumPanel>
   );
 }
 
 export function MarketActivityBanner({ market }: { market: MarketInsights }) {
   return (
-    <div className={`rounded-xl border p-5 ${marketActivityClass(market.marketActivityLevel)}`}>
-      <p className="text-xs font-semibold uppercase tracking-wide opacity-80">Market Review Activity</p>
-      <p className="mt-1 text-2xl font-bold">{market.marketActivityLabel}</p>
-      <p className="mt-2 text-sm opacity-90">
-        Top {market.entityCount} businesses in your scan received{" "}
-        <span className="font-bold">{market.marketReviews30d}</span> new reviews in the last 30 days.
+    <MomentumPanel className={marketActivityClass(market.marketActivityLevel)}>
+      <p className={dashboardSectionLabel}>Market review activity</p>
+      <p className="mt-1 text-lg font-semibold">{market.marketActivityLabel}</p>
+      <p className={cn(dashboardMicro, "mt-1.5 opacity-90")}>
+        Top {market.entityCount} businesses received{" "}
+        <span className="font-semibold">{market.marketReviews30d}</span> new reviews in 30 days.
       </p>
-      <p className="mt-2 text-xs opacity-75">
-        Targets are relative to your market — a competitive market needs a higher weekly pace than a
-        quiet one.
-      </p>
-    </div>
+    </MomentumPanel>
   );
 }
 
