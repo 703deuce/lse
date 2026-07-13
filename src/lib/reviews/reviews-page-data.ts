@@ -179,11 +179,19 @@ export async function loadReviewsPageData(businessId: string): Promise<ReviewsPa
 
   const competitorIds = compEntities.map((e) => e.competitor_id).filter(Boolean) as string[];
 
-  const targetRows = await loadStoredReviews(supabase, { businessId, lookbackDays });
+  const [targetRows, allLoadedCompRows] = await Promise.all([
+    loadStoredReviews(supabase, { businessId, lookbackDays }),
+    competitorIds.length
+      ? loadStoredReviews(supabase, { competitorIds, lookbackDays })
+      : Promise.resolve([] as StoredReviewRow[]),
+  ]);
   const compRowsById = new Map<string, StoredReviewRow[]>();
-  for (const compId of competitorIds) {
-    const rows = await loadStoredReviews(supabase, { competitorId: compId, lookbackDays });
-    compRowsById.set(compId, rows);
+  for (const compId of competitorIds) compRowsById.set(compId, []);
+  for (const row of allLoadedCompRows) {
+    if (!row.competitor_id) continue;
+    const list = compRowsById.get(row.competitor_id) ?? [];
+    list.push(row);
+    compRowsById.set(row.competitor_id, list);
   }
 
   const allCompRows = Array.from(compRowsById.values()).flat();
