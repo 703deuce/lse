@@ -1,7 +1,22 @@
+import { formatDistanceToNow } from "date-fns";
 import { createServiceClient } from "@/lib/db/client";
 import { loadAiVisibilityData } from "@/lib/ai-visibility/engine";
+import { queryLocalTrustOpportunities } from "@/lib/local-trust/engine";
+import {
+  MOCKUP_GROUP_LABELS,
+  OPPORTUNITY_TYPE_LABELS,
+  type OpportunityDisplayGroup,
+  type OpportunityType,
+} from "@/lib/local-trust/types";
 import { loadLatestMomentumRun } from "@/lib/reviews/momentum-engine";
 import { buildMarketInsightsFromEntityRows } from "@/lib/reviews/market-insights";
+import { hasOwnerResponse } from "@/lib/reviews/normalize";
+import {
+  calcResponseRate,
+  loadStoredReviews,
+  reviewsInWindow,
+  type StoredReviewRow,
+} from "@/lib/reviews/review-store";
 import { loadLatestReputationAudit } from "@/lib/reputation/engine";
 import { ENGINE_LABELS } from "@/lib/ai-visibility/types";
 import type { AiEngine } from "@/lib/ai-visibility/types";
@@ -27,30 +42,89 @@ export type {
 
 const DISPLAY_ENGINES: AiEngine[] = ["chatgpt", "gemini", "claude", "perplexity"];
 
+function mapStoredReview(row: StoredReviewRow): DashboardLatestReview {
+  const relativeDate = row.review_date
+    ? formatDistanceToNow(new Date(row.review_date), { addSuffix: true })
+    : row.relative_date_text;
+
+  return {
+    reviewerName: row.reviewer_name ?? "Customer",
+    rating: row.rating != null ? Number(row.rating) : null,
+    reviewText: (row.review_text ?? "").trim(),
+    relativeDate,
+    replied: hasOwnerResponse(row.owner_response_text),
+  };
+}
+
+async function loadLatestDashboardReviews(
+  businessId: string,
+  limit = 2
+): Promise<DashboardLatestReview[]> {
+  const supabase = createServiceClient();
+  const stored = await loadStoredReviews(supabase, { businessId, lookbackDays: 365, limit: 12 });
+  const byId = new Map<string, StoredReviewRow>();
+  for (const row of stored) byId.set(row.id, row);
+
+  if (byId.size < limit) {
+    const { data: extra } = await supabase
+      .from("business_reviews")
+      .select("*")
+      .eq("business_id", businessId)
+      .not("review_text", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(12);
+
+    for (const row of extra ?? []) {
+      if (!byId.has(row.id as string)) byId.set(row.id as string, row as StoredReviewRow);
+    }
+  }
+
+  return [...byId.values()]
+    .filter((row) => (row.review_text ?? "").trim())
+    .sort((a, b) => {
+      const da = a.review_date
+        ? new Date(a.review_date).getTime()
+        : new Date(a.created_at).getTime();
+      const db = b.review_date
+        ? new Date(b.review_date).getTime()
+        : new Date(b.created_at).getTime();
+      return db - da;
+    })
+    .slice(0, limit)
+    .map(mapStoredReview);
+}
+
+function opportunityTypeLabel(row: Record<string, unknown>): string {
+  const raw = row.raw_json as Record<string, unknown> | undefined;
+  const displayGroup = raw?.displayGroup as string | undefined;
+  if (displayGroup) {
+    return (
+      MOCKUP_GROUP_LABELS[displayGroup as OpportunityDisplayGroup] ??
+      formatOpportunityType(displayGroup)
+    );
+  }
+  const type = String(row.opportunity_type ?? "");
+  return OPPORTUNITY_TYPE_LABELS[type as OpportunityType] ?? formatOpportunityType(type);
+}
+
+function suggestedActionForRow(row: Record<string, unknown>): string | null {
+  const raw = row.raw_json as Record<string, unknown> | undefined;
+  const verification = raw?.verification as Record<string, unknown> | undefined;
+  const action = verification?.nextAction ?? row.suggested_action;
+  if (action == null || action === "") return null;
+  return String(action);
+}
+
 export async function loadDashboardFeatured(businessId: string): Promise<DashboardFeaturedData> {
   const supabase = createServiceClient();
 
-  const [reputation, momentum, aiData, localRes, latestReviewRes] = await Promise.all([
+  const [reputation, momentum, aiData, localResult, latestReviews, targetRows] = await Promise.all([
     loadLatestReputationAudit(businessId),
     loadLatestMomentumRun(businessId),
     loadAiVisibilityData(businessId).catch(() => null),
-    supabase
-      .from("local_trust_opportunities")
-      .select(
-        "id, title, opportunity_type, priority, suggested_action, evidence_snippet, domain",
-        { count: "exact" }
-      )
-      .eq("business_id", businessId)
-      .order("relevance_score", { ascending: false })
-      .limit(4),
-    supabase
-      .from("review_records")
-      .select("reviewer_name, rating, review_text, relative_date_text, owner_response_present")
-      .eq("business_id", businessId)
-      .not("review_text", "is", null)
-      .order("fetched_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+    queryLocalTrustOpportunities({ businessId, page: 1, pageSize: 4 }),
+    loadLatestDashboardReviews(businessId, 2),
+    loadStoredReviews(supabase, { businessId, lookbackDays: 365 }),
   ]);
 
   const target = momentum?.entities.find((e) => e.entity_type === "target");
@@ -79,39 +153,36 @@ export async function loadDashboardFeatured(businessId: string): Promise<Dashboa
   const total30 = yourReviews30 + top3Reviews;
   const top3SharePct = total30 > 0 ? Math.round((top3Reviews / total30) * 100) : 0;
 
-  const repReview = reputation?.targetReviews?.[0];
-  const latestRow = latestReviewRes.data ?? repReview;
-  const latestReview: DashboardLatestReview | null = latestRow
-    ? {
-        reviewerName:
-          (latestRow.reviewer_name as string | null) ??
-          (latestRow as { reviewerName?: string }).reviewerName ??
-          "Customer",
-        rating: latestRow.rating != null ? Number(latestRow.rating) : null,
-        reviewText: ((latestRow.review_text as string | null) ?? "").trim(),
-        relativeDate: (latestRow.relative_date_text as string | null) ?? null,
-        replied: Boolean(
-          latestRow.owner_response_present ??
-            (latestRow as { owner_response_present?: boolean }).owner_response_present
-        ),
-      }
-    : null;
+  const target90 = reviewsInWindow(targetRows, 90);
+  const storedResponseRate = target90.length ? calcResponseRate(target90) : null;
 
   const review: DashboardReviewPerformance = {
-    rating: reputation?.audit?.rating != null ? Number(reputation.audit.rating) : null,
-    totalReviews: (reputation?.audit?.total_reviews as number | undefined) ?? 0,
+    rating:
+      reputation?.audit?.rating != null
+        ? Number(reputation.audit.rating)
+        : target?.rating_current != null
+          ? Number(target.rating_current)
+          : null,
+    totalReviews:
+      (reputation?.audit?.total_reviews as number | undefined) ??
+      target?.total_reviews_current ??
+      targetRows.length,
     newReviews90d:
-      (reputation?.audit?.reviews_30d as number | undefined) ?? target?.reviews_30d ?? 0,
+      target90.length ||
+      (reputation?.audit?.reviews_90d as number | undefined) ||
+      target?.reviews_30d ||
+      0,
     responseRate:
-      reputation?.audit?.response_rate != null
+      storedResponseRate ??
+      (reputation?.audit?.response_rate != null
         ? Math.round(Number(reputation.audit.response_rate))
-        : null,
+        : null),
     momentumLabel: (target?.momentum_label as MomentumLabel | null) ?? null,
     weeklyPaceGap: market?.weeklyPaceGap ?? null,
     yourSharePct: yourShare,
     top3SharePct,
     trend,
-    latestReview: latestReview?.reviewText ? latestReview : null,
+    latestReviews,
     topCompetitor: topMomentumCompetitor
       ? {
           name: topMomentumCompetitor.name,
@@ -120,7 +191,7 @@ export async function loadDashboardFeatured(businessId: string): Promise<Dashboa
             topMomentumCompetitor.rating != null ? Number(topMomentumCompetitor.rating) : null,
         }
       : null,
-    hasData: Boolean(reputation?.audit || target),
+    hasData: Boolean(reputation?.audit || target || targetRows.length > 0),
   };
 
   const engineMentioned = new Map<AiEngine, boolean>();
@@ -158,12 +229,12 @@ export async function loadDashboardFeatured(businessId: string): Promise<Dashboa
       null,
   };
 
-  const localItems: DashboardLocalOpportunity[] = (localRes.data ?? []).map((o) => ({
+  const localItems: DashboardLocalOpportunity[] = (localResult.items ?? []).map((o) => ({
     id: o.id as string,
     title: o.title as string,
-    opportunityType: formatOpportunityType(o.opportunity_type as string),
+    opportunityType: opportunityTypeLabel(o as Record<string, unknown>),
     priority: (o.priority as string) ?? "medium",
-    suggestedAction: (o.suggested_action as string | null) ?? null,
+    suggestedAction: suggestedActionForRow(o as Record<string, unknown>),
     evidenceSnippet: (o.evidence_snippet as string | null) ?? null,
     domain: (o.domain as string | null) ?? null,
   }));
@@ -174,7 +245,7 @@ export async function loadDashboardFeatured(businessId: string): Promise<Dashboa
     local: {
       hasData: localItems.length > 0,
       items: localItems,
-      total: localRes.count ?? localItems.length,
+      total: localResult.total ?? localItems.length,
     },
   };
 }

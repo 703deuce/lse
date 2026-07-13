@@ -1,173 +1,81 @@
-"use client";
-
+import { createServiceClient } from "@/lib/db/client";
 import { DashboardHeader } from "@/components/overview/dashboard-header";
 import { DashboardQuickActions } from "@/components/overview/dashboard-quick-actions";
 import { DashboardRecentScans } from "@/components/overview/dashboard-recent-scans";
 import { DashboardFeaturedReports } from "@/components/overview/dashboard-featured-reports";
 import { DashboardToolsRow } from "@/components/overview/dashboard-tools-row";
 import { ModulePage } from "@/components/ui/design-system";
-import type { DashboardScanRow } from "@/lib/overview/load-dashboard-scans";
-import type { DashboardFeaturedData } from "@/lib/overview/dashboard-featured-types";
+import { loadDashboardFeatured } from "@/lib/overview/load-dashboard-featured";
+import { loadDashboardRecentScans } from "@/lib/overview/load-dashboard-scans";
 
-const MOCK_BUSINESS_ID = "preview";
+async function resolvePreviewBusiness(): Promise<{
+  id: string;
+  name: string;
+  businesses: Array<{ id: string; name: string }>;
+} | null> {
+  const supabase = createServiceClient();
+  const envId = process.env.DEV_BUSINESS_ID?.trim();
+  const useEnvId = envId && envId !== "preview" && envId.length >= 8;
 
-const mockScans: DashboardScanRow[] = [
-  {
-    id: "scan-1",
-    keyword: "junk removal woodbridge",
-    keywordId: "kw-1",
-    finishedAt: new Date(Date.now() - 86400000).toISOString(),
-    gridSize: 7,
-    arp: 4.2,
-    solv: 42,
-    saiv: 38,
-    change: 3.3,
-    ranks: Array.from({ length: 49 }, (_, i) => (i % 5 === 0 ? 3 : i % 3 === 0 ? 8 : 14)),
-    status: "ready",
-  },
-  {
-    id: "scan-2",
-    keyword: "junk removal woodbridge",
-    keywordId: "kw-1",
-    finishedAt: new Date(Date.now() - 172800000).toISOString(),
-    gridSize: 7,
-    arp: 5.1,
-    solv: 38,
-    saiv: 35,
-    change: -2.8,
-    ranks: Array.from({ length: 49 }, (_, i) => (i % 4 === 0 ? 5 : i % 2 === 0 ? 11 : 18)),
-    status: "ready",
-  },
-  {
-    id: "scan-3",
-    keyword: "junk removal woodbridge",
-    keywordId: "kw-1",
-    finishedAt: new Date(Date.now() - 259200000).toISOString(),
-    gridSize: 3,
-    arp: 6.8,
-    solv: 22,
-    saiv: 20,
-    change: 1.1,
-    ranks: [2, 5, 8, 4, 12, 9, 15, 7, 11],
-    status: "ready",
-  },
-];
+  const { data: allBusinesses } = await supabase
+    .from("businesses")
+    .select("id, name")
+    .order("name");
 
-const mockFeatured: DashboardFeaturedData = {
-  review: {
-    rating: 5.0,
-    totalReviews: 127,
-    newReviews90d: 2,
-    responseRate: 68,
-    momentumLabel: "Accelerating",
-    weeklyPaceGap: 1.5,
-    yourSharePct: 24,
-    top3SharePct: 58,
-    trend: [0, 1, 1, 2, 1, 2],
-    latestReview: {
-      reviewerName: "Sarah M.",
-      rating: 5,
-      reviewText:
-        "They showed up on time and cleared out our entire garage in under two hours. Super professional crew and fair pricing.",
-      relativeDate: "2 weeks ago",
-      replied: false,
-    },
-    topCompetitor: {
-      name: "Junk King",
-      reviews30d: 14,
-      rating: 4.9,
-    },
-    hasData: true,
-  },
-  ai: {
-    hasData: true,
-    visibilityScore: 42,
-    lastRunAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-    targetMentioned: true,
-    engines: [
-      { engine: "chatgpt", label: "ChatGPT", mentioned: true },
-      { engine: "gemini", label: "Gemini", mentioned: true },
-      { engine: "claude", label: "Claude", mentioned: false },
-      { engine: "perplexity", label: "Perplexity", mentioned: false },
-    ],
-    mentions: [
-      { name: "Junk King", sharePct: 28, engineCount: 4, isTarget: false },
-      { name: "College Hunks Hauling Junk", sharePct: 22, engineCount: 3, isTarget: false },
-      { name: "Junk Removal Woodbridge", sharePct: 18, engineCount: 2, isTarget: true },
-      { name: "1-800-GOT-JUNK?", sharePct: 12, engineCount: 2, isTarget: false },
-      { name: "LoadUp", sharePct: 8, engineCount: 1, isTarget: false },
-      { name: "Waste Management", sharePct: 6, engineCount: 1, isTarget: false },
-    ],
-    companyCount: 39,
-    primaryPrompt: "Who is the best junk removal company in Woodbridge, VA?",
-  },
-  local: {
-    hasData: true,
-    items: [
-      {
-        id: "1",
-        title: "Prince William Chamber of Commerce",
-        opportunityType: "Chamber Membership",
-        priority: "high",
-        suggestedAction: "Apply for business membership and sponsor the annual golf outing",
-        evidenceSnippet:
-          "Listed sponsors include two direct competitors. Chamber directory ranks on page 1 for 'woodbridge business directory'.",
-        domain: "pwchamber.org",
-      },
-      {
-        id: "2",
-        title: "Tunnel to Towers Foundation",
-        opportunityType: "Community Sponsorship",
-        priority: "high",
-        suggestedAction: "Sponsor a local 5K run booth or in-kind junk haul for event cleanup",
-        evidenceSnippet:
-          "Annual Woodbridge run draws 800+ attendees. No junk removal sponsor listed for 2025.",
-        domain: "tunnel2towers.org",
-      },
-      {
-        id: "3",
-        title: "Woodbridge Little League",
-        opportunityType: "Youth Sports Sponsor",
-        priority: "medium",
-        suggestedAction: "Offer discounted field cleanup and jersey back sponsorship",
-        evidenceSnippet: "League website lists HVAC and roofing sponsors but no hauling partner.",
-        domain: "woodbridgelittleleague.org",
-      },
-      {
-        id: "4",
-        title: "Northern Virginia Vendor List",
-        opportunityType: "Vendor Directory",
-        priority: "medium",
-        suggestedAction: "Submit application as approved residential junk removal vendor",
-        evidenceSnippet:
-          "County procurement page links approved vendors for estate cleanouts and bulk pickup.",
-        domain: "fairfaxcounty.gov",
-      },
-    ],
-    total: 21,
-  },
-};
+  const businesses = (allBusinesses ?? []).map((b) => ({
+    id: b.id as string,
+    name: b.name as string,
+  }));
 
-export default function OverviewPreviewPage() {
+  if (!businesses.length) return null;
+
+  const selected =
+    (useEnvId ? businesses.find((b) => b.id === envId) : null) ?? businesses[0];
+
+  return { id: selected.id, name: selected.name, businesses };
+}
+
+export default async function OverviewPreviewPage() {
+  const resolved = await resolvePreviewBusiness();
+
+  if (!resolved) {
+    return (
+      <ModulePage wide className="!space-y-4 px-5 py-6 lg:px-8">
+        <p className="text-sm text-zinc-600">
+          No businesses found. Set <code className="text-xs">DEV_BUSINESS_ID</code> to a real
+          business UUID to preview the dashboard with live data.
+        </p>
+      </ModulePage>
+    );
+  }
+
+  const { id: businessId, name: businessName, businesses } = resolved;
+
+  const [recentScans, featured] = await Promise.all([
+    loadDashboardRecentScans(businessId, { preview: 3 }),
+    loadDashboardFeatured(businessId),
+  ]);
+
   return (
     <ModulePage wide className="!space-y-4 px-5 py-6 lg:px-8">
       <DashboardHeader
         userName="Anthony"
-        businessId={MOCK_BUSINESS_ID}
-        businessName="Junk Removal Woodbridge"
-        businesses={[
-          { id: MOCK_BUSINESS_ID, name: "Junk Removal Woodbridge" },
-          { id: "b2", name: "Bright Smile Dental" },
-        ]}
+        businessId={businessId}
+        businessName={businessName}
+        businesses={businesses}
       />
 
-      <DashboardQuickActions businessId={MOCK_BUSINESS_ID} />
+      <DashboardQuickActions businessId={businessId} />
 
-      <DashboardRecentScans businessId={MOCK_BUSINESS_ID} rows={mockScans} total={38} />
+      <DashboardRecentScans
+        businessId={businessId}
+        rows={recentScans.rows}
+        total={recentScans.total}
+      />
 
-      <DashboardFeaturedReports businessId={MOCK_BUSINESS_ID} data={mockFeatured} />
+      <DashboardFeaturedReports businessId={businessId} data={featured} />
 
-      <DashboardToolsRow businessId={MOCK_BUSINESS_ID} />
+      <DashboardToolsRow businessId={businessId} />
     </ModulePage>
   );
 }

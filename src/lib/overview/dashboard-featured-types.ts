@@ -25,7 +25,7 @@ export type DashboardReviewPerformance = {
   yourSharePct: number;
   top3SharePct: number;
   trend: number[];
-  latestReview: DashboardLatestReview | null;
+  latestReviews: DashboardLatestReview[];
   topCompetitor: DashboardTopCompetitor | null;
   hasData: boolean;
 };

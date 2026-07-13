@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Star } from "lucide-react";
-import type { DashboardReviewPerformance } from "@/lib/overview/dashboard-featured-types";
+import type { DashboardLatestReview, DashboardReviewPerformance } from "@/lib/overview/dashboard-featured-types";
 import { Sparkline } from "@/components/overview/overview-charts";
 import { momentumBadgeClass } from "@/lib/reviews/metrics";
 import { cn } from "@/lib/utils";
@@ -31,12 +31,41 @@ function MiniStars({ rating }: { rating: number | null }) {
         <Star
           key={i}
           className={cn(
-            "h-3 w-3",
+            "h-2.5 w-2.5",
             i < Math.round(stars) ? "fill-amber-400 text-amber-400" : "text-zinc-200"
           )}
         />
       ))}
     </span>
+  );
+}
+
+function ReviewSnippet({ review }: { review: DashboardLatestReview }) {
+  return (
+    <div className="rounded-lg border border-zinc-100 bg-zinc-50/80 p-2">
+      <div className="flex flex-wrap items-center justify-between gap-1.5">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <MiniStars rating={review.rating} />
+          <span className="truncate text-[11px] font-semibold text-zinc-900">
+            {review.reviewerName}
+          </span>
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5 text-[10px] text-zinc-500">
+          {review.relativeDate && <span>{review.relativeDate}</span>}
+          <span
+            className={cn(
+              "rounded-full px-1.5 py-0.5 font-medium",
+              review.replied ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+            )}
+          >
+            {review.replied ? "Replied" : "Unreplied"}
+          </span>
+        </div>
+      </div>
+      <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-zinc-600">
+        {review.reviewText}
+      </p>
+    </div>
   );
 }
 
@@ -105,32 +134,14 @@ export function DashboardReviewPerformanceCard({
         <ShareBar label="Top 3" pct={data.top3SharePct} tone="them" />
       </div>
 
-      {data.latestReview && (
-        <div className="mt-2.5 rounded-lg border border-zinc-100 bg-zinc-50/80 p-2.5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <MiniStars rating={data.latestReview.rating} />
-              <span className="truncate text-xs font-semibold text-zinc-900">
-                {data.latestReview.reviewerName}
-              </span>
-            </div>
-            <div className="flex shrink-0 items-center gap-2 text-[11px] text-zinc-500">
-              {data.latestReview.relativeDate && <span>{data.latestReview.relativeDate}</span>}
-              <span
-                className={cn(
-                  "rounded-full px-1.5 py-0.5 font-medium",
-                  data.latestReview.replied
-                    ? "bg-emerald-50 text-emerald-700"
-                    : "bg-amber-50 text-amber-700"
-                )}
-              >
-                {data.latestReview.replied ? "Replied" : "Unreplied"}
-              </span>
-            </div>
-          </div>
-          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-zinc-600">
-            {data.latestReview.reviewText}
+      {data.latestReviews.length > 0 && (
+        <div className="mt-2.5 space-y-1.5">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+            Recent reviews
           </p>
+          {data.latestReviews.map((review, index) => (
+            <ReviewSnippet key={`${review.reviewerName}-${index}`} review={review} />
+          ))}
         </div>
       )}
 
