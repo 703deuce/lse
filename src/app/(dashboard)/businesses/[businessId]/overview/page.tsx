@@ -2,29 +2,32 @@ import { requireAuth } from "@/lib/auth/context";
 import {
   getBusiness,
   getLatestScan,
-  getBusinessKeywords,
   getLatestAudit,
   getActionPlanForAudit,
 } from "@/lib/db/queries";
 import { notFound } from "next/navigation";
 import { loadLatestMomentumRun } from "@/lib/reviews/momentum-engine";
 import { loadLatestGrowthAudit } from "@/lib/growth-audit/engine";
-import { CitationHealthOverviewCard } from "@/components/citations/citation-health-overview";
-import { ReputationHealthOverviewCard } from "@/components/reputation/reputation-health-overview";
-import { ReviewRequestsOverviewCard } from "@/components/reputation/review-requests-overview";
-import { BacklinkGapOverviewCard } from "@/components/backlink-gap/backlink-gap-overview";
-import { KeywordVisibilityOverviewCard } from "@/components/keyword-tracker/keyword-overview";
-import { GrowthAuditOverviewCard } from "@/components/growth-audit/growth-audit-overview-card";
 import { ReviewMomentumOverviewSection } from "@/components/reviews/review-momentum-overview-section";
-import { OverviewPageHeader } from "@/components/overview/overview-header";
+import { DashboardHeader } from "@/components/overview/dashboard-header";
+import { DashboardQuickActions } from "@/components/overview/dashboard-quick-actions";
+import { DashboardRecentScans } from "@/components/overview/dashboard-recent-scans";
 import {
   OverviewCoreScores,
   OverviewAuditSnapshot,
   OverviewRecommendedActions,
   OverviewFooterCta,
 } from "@/components/overview/overview-sections";
+import { loadDashboardRecentScans } from "@/lib/overview/load-dashboard-scans";
 import { ModulePage } from "@/components/ui/design-system";
 import type { GrowthTask } from "@/lib/growth-audit/types";
+
+function displayNameFromEmail(email: string | null): string {
+  if (!email) return "there";
+  const local = email.split("@")[0] ?? "there";
+  const token = local.split(/[._-]/)[0] ?? local;
+  return token.charAt(0).toUpperCase() + token.slice(1);
+}
 
 export default async function BusinessOverviewPage({
   params,
@@ -36,12 +39,12 @@ export default async function BusinessOverviewPage({
   const business = await getBusiness(businessId, auth.organizationId);
   if (!business) notFound();
 
-  const [latestScan, keywords, audit, momentumData, growthAudit] = await Promise.all([
+  const [latestScan, audit, momentumData, growthAudit, recentScans] = await Promise.all([
     getLatestScan(businessId),
-    getBusinessKeywords(businessId),
     getLatestAudit(businessId),
     loadLatestMomentumRun(businessId),
     loadLatestGrowthAudit(businessId),
+    loadDashboardRecentScans(businessId, { preview: 3 }),
   ]);
 
   const { items } = audit ? await getActionPlanForAudit(audit.id) : { items: [] };
@@ -100,47 +103,43 @@ export default async function BusinessOverviewPage({
 
   return (
     <ModulePage wide className="!space-y-4">
-      <OverviewPageHeader
-          businessId={businessId}
-          name={business.name}
-          address={business.address_text}
-          primaryCategory={business.primary_category}
-        />
+      <DashboardHeader
+        userName={displayNameFromEmail(auth.email)}
+        businessName={business.name}
+        businessId={businessId}
+      />
 
+      <DashboardQuickActions businessId={businessId} />
+
+      <DashboardRecentScans
+        businessId={businessId}
+        rows={recentScans.rows}
+        total={recentScans.total}
+      />
+
+      <section>
+        <OverviewCoreScores businessId={businessId} scores={coreScores} />
+      </section>
+
+      <section>
+        <ReviewMomentumOverviewSection businessId={businessId} />
+      </section>
+
+      {auditScores.length > 0 && (
         <section>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <GrowthAuditOverviewCard businessId={businessId} />
-            <CitationHealthOverviewCard businessId={businessId} />
-            <ReputationHealthOverviewCard businessId={businessId} />
-            <ReviewRequestsOverviewCard businessId={businessId} />
-            <BacklinkGapOverviewCard businessId={businessId} />
-            <KeywordVisibilityOverviewCard businessId={businessId} />
-          </div>
+          <OverviewAuditSnapshot scores={auditScores} />
         </section>
+      )}
 
+      {recommendedItems.length > 0 && (
         <section>
-          <OverviewCoreScores businessId={businessId} scores={coreScores} />
+          <OverviewRecommendedActions businessId={businessId} items={recommendedItems} />
         </section>
+      )}
 
-        <section>
-          <ReviewMomentumOverviewSection businessId={businessId} />
-        </section>
-
-        {auditScores.length > 0 && (
-          <section>
-            <OverviewAuditSnapshot scores={auditScores} />
-          </section>
-        )}
-
-        {recommendedItems.length > 0 && (
-          <section>
-            <OverviewRecommendedActions businessId={businessId} items={recommendedItems} />
-          </section>
-        )}
-
-        <section>
-          <OverviewFooterCta businessId={businessId} />
-        </section>
+      <section>
+        <OverviewFooterCta businessId={businessId} />
+      </section>
     </ModulePage>
   );
 }

@@ -208,8 +208,8 @@ function DashboardSidebarInner({ businessId }: { businessId?: string }) {
 
   const mainModules: NavItem[] = businessId
     ? [
-        { href: `/businesses/${businessId}/overview`, label: "Overview", icon: LayoutDashboard },
-        { href: `/businesses/${businessId}/scans`, label: "Rank Grid", icon: Grid3X3, isRankGrid: true },
+        { href: `/businesses/${businessId}/overview`, label: "Dashboard", icon: LayoutDashboard },
+        { href: `/businesses/${businessId}/scans`, label: "Maps Scans", icon: Grid3X3, isRankGrid: true },
         { href: `/businesses/${businessId}/review-momentum`, label: "Review Momentum™", icon: TrendingUp },
       ]
     : [];
