@@ -37,7 +37,7 @@ await mkdir(outDir, { recursive: true });
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({
-  viewport: { width: 320, height: 1200 },
+  viewport: { width: 1440, height: 900 },
   deviceScaleFactor: 2,
 });
 
@@ -48,9 +48,27 @@ try {
   await page.getByText("Reports").first().waitFor({ state: "visible", timeout: 15_000 });
   await page.waitForTimeout(800);
 
-  const sidebar = page.locator("aside").first();
+  // Clip to header + nav only — full aside height is mostly empty navy and looks like a blank blue panel.
+  const clip = await page.evaluate(() => {
+    const aside = document.querySelector("aside");
+    const nav = aside?.querySelector("nav");
+    if (!aside || !nav) return null;
+    const asideBox = aside.getBoundingClientRect();
+    const navBox = nav.getBoundingClientRect();
+    return {
+      x: asideBox.x,
+      y: asideBox.y,
+      width: asideBox.width,
+      height: Math.ceil(navBox.bottom - asideBox.y + 12),
+    };
+  });
+
   const menuFile = path.join(outDir, "reviews-sidebar-menu.png");
-  await sidebar.screenshot({ path: menuFile });
+  if (clip) {
+    await page.screenshot({ path: menuFile, clip });
+  } else {
+    await page.locator("aside").first().screenshot({ path: menuFile });
+  }
   console.log(`Menu screenshot saved to ${menuFile}`);
 
   const manifestFile = path.join(outDir, "reviews-sidebar-menu.txt");

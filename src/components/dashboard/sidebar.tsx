@@ -46,8 +46,8 @@ function SidebarNavItemRow({
   const className = cn(
     "relative flex items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
     showActive
-      ? "bg-emerald-500/15 pl-3.5 text-emerald-200"
-      : "text-white/90 hover:bg-white/10 hover:text-white"
+      ? "bg-emerald-500/15 pl-3.5 text-emerald-300"
+      : "text-slate-300 hover:bg-white/5 hover:text-white"
   );
 
   const content = (
@@ -55,7 +55,7 @@ function SidebarNavItemRow({
       {showActive && (
         <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full bg-emerald-500" />
       )}
-      <Icon className={cn("h-4 w-4 shrink-0", showActive ? "text-emerald-300" : "text-white/70")} />
+      <Icon className={cn("h-4 w-4 shrink-0", showActive ? "text-emerald-400" : "text-slate-400")} />
       {label}
     </>
   );
@@ -90,7 +90,7 @@ function SidebarNavSubItemRow({
 
   const className = cn(
     "relative flex items-center gap-2 rounded-md py-1.5 pl-8 pr-3 text-[13px] font-medium transition-colors",
-    showActive ? "text-emerald-200" : "text-white/90 hover:bg-white/10 hover:text-white"
+    showActive ? "text-emerald-300" : "text-slate-300 hover:bg-white/5 hover:text-white"
   );
 
   const content = (
@@ -128,7 +128,7 @@ function NavSection({
 }) {
   return (
     <div className="mb-2">
-      <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/55">
+      <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
         {title}
       </p>
       <div className="space-y-0.5">
@@ -177,24 +177,24 @@ export function DashboardSidebarPanel({
                 Maps Growth Agent
               </Link>
             )}
-            <p className="text-[11px] text-white/60">Local SEO Platform</p>
+            <p className="text-[11px] text-slate-400">Local SEO Platform</p>
           </div>
         </div>
         {businessId && (
           staticLinks ? (
-            <div className="mx-1 mt-2.5 flex items-center gap-2 rounded-md border border-white/15 bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white/90">
-              <Building2 className="h-3.5 w-3.5 shrink-0 text-white/70" />
+            <div className="mx-1 mt-2.5 flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-slate-300">
+              <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
               <span className="min-w-0 flex-1 truncate">{businessName ?? "Select business…"}</span>
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-white/70" />
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
             </div>
           ) : (
             <Link
               href="/businesses"
-              className="mx-1 mt-2.5 flex items-center gap-2 rounded-md border border-white/15 bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white/90 hover:bg-white/15"
+              className="mx-1 mt-2.5 flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/10"
             >
-              <Building2 className="h-3.5 w-3.5 shrink-0 text-white/70" />
+              <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
               <span className="min-w-0 flex-1 truncate">{businessName ?? "Select business…"}</span>
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-white/70" />
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
             </Link>
           )
         )}
@@ -225,7 +225,7 @@ export function DashboardSidebarPanel({
               staticLinks={staticLinks}
             />
             <div className="mb-2">
-              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/55">
+              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                 {nav.reputation.title}
               </p>
               <div className="space-y-0.5">

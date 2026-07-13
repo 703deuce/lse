@@ -27,8 +27,25 @@ try {
 
   const sidebar = page.locator("aside").first();
   if (await sidebar.count()) {
+    const clip = await page.evaluate(() => {
+      const aside = document.querySelector("aside");
+      const nav = aside?.querySelector("nav");
+      if (!aside || !nav) return null;
+      const asideBox = aside.getBoundingClientRect();
+      const navBox = nav.getBoundingClientRect();
+      return {
+        x: asideBox.x,
+        y: asideBox.y,
+        width: asideBox.width,
+        height: Math.ceil(navBox.bottom - asideBox.y + 12),
+      };
+    });
     const sidebarFile = path.join(outDir, "reviews-page-sidebar-full.png");
-    await sidebar.screenshot({ path: sidebarFile });
+    if (clip) {
+      await page.screenshot({ path: sidebarFile, clip });
+    } else {
+      await sidebar.screenshot({ path: sidebarFile });
+    }
     console.log(`Sidebar screenshot saved to ${sidebarFile}`);
   }
 
