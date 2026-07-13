@@ -45,8 +45,8 @@ export function buildBusinessSidebarNav(businessId: string): {
     main: {
       title: "Main",
       items: [
-        { href: `${base}/overview`, label: "Overview", icon: LayoutDashboard },
-        { href: `${base}/scans`, label: "Rank Grid", icon: Grid3X3, isRankGrid: true },
+        { href: `${base}/overview`, label: "Dashboard", icon: LayoutDashboard },
+        { href: `${base}/scans`, label: "Maps Scans", icon: Grid3X3, isRankGrid: true },
         { href: `${base}/growth-audit`, label: "Growth Audit", icon: FileSearch },
         { href: `${base}/review-momentum`, label: "Review Momentum™", icon: TrendingUp },
       ],

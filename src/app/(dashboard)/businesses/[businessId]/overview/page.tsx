@@ -11,6 +11,8 @@ import { loadDashboardRecentScans } from "@/lib/overview/load-dashboard-scans";
 import { loadDashboardFeatured } from "@/lib/overview/load-dashboard-featured";
 import { ModulePage } from "@/components/ui/design-system";
 
+export const dynamic = "force-dynamic";
+
 function displayNameFromEmail(email: string | null): string {
   if (!email) return "there";
   const local = email.split("@")[0] ?? "there";
