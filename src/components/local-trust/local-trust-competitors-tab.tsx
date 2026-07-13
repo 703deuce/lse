@@ -20,6 +20,7 @@ import {
   localMatchDisplay,
   trustPriorityBadge,
 } from "@/components/local-trust/local-trust-ui";
+import { dashboardCard } from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
 
 type OppRow = Record<string, unknown>;
