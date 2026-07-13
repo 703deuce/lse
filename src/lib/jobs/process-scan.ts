@@ -45,15 +45,12 @@ export async function processScanBatch(scanBatchId: string, organizationId?: str
 
   const confidence = (batch.confidence_summary ?? {}) as {
     keyword_ids?: string[];
-    burst_mode?: boolean;
   };
   if (confidence.keyword_ids?.length) {
     const allowed = new Set(confidence.keyword_ids);
     keywordList = keywordList.filter((k) => allowed.has(k.id as string));
     if (!keywordList.length) throw new Error("No matching keywords for this scan");
   }
-
-  const burstMode = confidence.burst_mode === true;
 
   const centerLat =
     (batch.center_lat as number | null) ??
@@ -111,7 +108,6 @@ export async function processScanBatch(scanBatchId: string, organizationId?: str
     businessId: business.id,
     scanType: batch.scan_type,
     provider: "brightdata",
-    mode: burstMode ? "burst" : "standard",
     gridSize: batch.grid_size,
     radiusMeters: batch.radius_meters,
     keywordCount: keywordList.length,
@@ -153,7 +149,6 @@ export async function processScanBatch(scanBatchId: string, organizationId?: str
     os: batch.os ?? "android",
     browser: (batch as { browser?: string }).browser ?? "chrome",
     organizationId,
-    mode: burstMode ? "burst" : "standard",
     onSoftReady: async () => {
       if (rankReadyFired) return;
       rankReadyFired = true;

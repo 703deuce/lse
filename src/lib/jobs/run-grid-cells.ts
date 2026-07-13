@@ -7,7 +7,6 @@ import { mapsGridCell } from "@/lib/providers/brightdata";
 import {
   elapsedSec,
   logCellPhaseTimings,
-  mapsConcurrencyForCellCount,
   softReadyMinSuccess,
   type CellPhaseTimings,
 } from "@/lib/jobs/scan-cell-benchmark";
@@ -20,36 +19,8 @@ import {
 } from "@/lib/maps/cell-result-integrity";
 import { invalidateScanGridCache } from "@/lib/maps/scan-queries";
 
-/** Bright Data SERP API: unlimited in-flight concurrency; keep a modest worker pool in-app. */
-const BRIGHTDATA_DEFAULT_CONCURRENCY = 10;
-const BRIGHTDATA_MAX_CONCURRENCY = 15;
-/** Bright Data global fair-use ~100 QPS — one grid can launch all cells at once. */
-const BRIGHTDATA_BURST_MAX_CONCURRENCY = 100;
-
-export type GridScanMode = "standard" | "burst";
-
-export function mapsConcurrency(totalCells?: number): number {
-  if (process.env.GRID_MAPS_SEQUENTIAL === "true") return 1;
-  if (totalCells != null && totalCells > 0) {
-    return Math.min(mapsConcurrencyForCellCount(totalCells), BRIGHTDATA_MAX_CONCURRENCY);
-  }
-  const n = Number(
-    process.env.BRIGHTDATA_MAPS_CONCURRENCY ??
-      process.env.SCRAPINGDOG_MAPS_CONCURRENCY ??
-      BRIGHTDATA_DEFAULT_CONCURRENCY
-  );
-  return Number.isFinite(n) && n > 0 ? Math.min(n, BRIGHTDATA_MAX_CONCURRENCY) : BRIGHTDATA_DEFAULT_CONCURRENCY;
-}
-
-export function mapsCellMaxAttempts(): number {
-  const n = Number(process.env.BRIGHTDATA_MAPS_CELL_MAX_ATTEMPTS ?? 4);
-  return Number.isFinite(n) && n > 0 ? Math.min(n, 8) : 4;
-}
-
-export function mapsSoftTimeoutMs(): number {
-  const n = Number(process.env.BRIGHTDATA_MAPS_SOFT_TIMEOUT_MS ?? 25000);
-  return Number.isFinite(n) && n > 0 ? n : 25000;
-}
+/** Bright Data global fair-use ~100 QPS — primary pass runs in batches of this size. */
+const BRIGHTDATA_GRID_BATCH_SIZE = 100;
 
 export function mapsDepth(): number {
   const n = Number(
@@ -60,34 +31,43 @@ export function mapsDepth(): number {
   return Number.isFinite(n) && n > 0 ? Math.min(n, 100) : LOCAL_FALCON_PARITY.gridDepth;
 }
 
-export function mapsCellTimeoutMs(): number {
+export function mapsCellBatchSize(): number {
   const n = Number(
-    process.env.BRIGHTDATA_MAPS_CELL_TIMEOUT_MS ??
-      process.env.SCRAPINGDOG_MAPS_CELL_TIMEOUT_MS ??
-      90000
+    process.env.BRIGHTDATA_GRID_BATCH_SIZE ??
+      process.env.BRIGHTDATA_BURST_MAX_CONCURRENCY ??
+      BRIGHTDATA_GRID_BATCH_SIZE
   );
-  return Number.isFinite(n) && n > 0 ? n : 90000;
+  return Number.isFinite(n) && n > 0 ? n : BRIGHTDATA_GRID_BATCH_SIZE;
 }
 
-/** Burst test: fire all grid cells concurrently (up to Bright Data QPS cap). */
-export function mapsBurstConcurrency(totalCells: number): number {
-  const envCap = Number(process.env.BRIGHTDATA_BURST_MAX_CONCURRENCY ?? BRIGHTDATA_BURST_MAX_CONCURRENCY);
-  const cap = Number.isFinite(envCap) && envCap > 0 ? envCap : BRIGHTDATA_BURST_MAX_CONCURRENCY;
-  return Math.min(totalCells, cap);
+export function mapsGridConcurrency(cellCount: number): number {
+  return Math.min(cellCount, mapsCellBatchSize());
 }
 
-export function mapsBurstTimeoutMs(): number {
-  const n = Number(process.env.BRIGHTDATA_BURST_CELL_TIMEOUT_MS ?? 45000);
+export function mapsGridCellTimeoutMs(): number {
+  const n = Number(
+    process.env.BRIGHTDATA_GRID_CELL_TIMEOUT_MS ??
+      process.env.BRIGHTDATA_BURST_CELL_TIMEOUT_MS ??
+      45000
+  );
   return Number.isFinite(n) && n > 0 ? n : 45000;
 }
 
-export function mapsBurstMaxAttempts(): number {
-  const n = Number(process.env.BRIGHTDATA_BURST_CELL_MAX_ATTEMPTS ?? 3);
+export function mapsGridMaxRetryRounds(): number {
+  const n = Number(
+    process.env.BRIGHTDATA_GRID_RETRY_ROUNDS ??
+      process.env.BRIGHTDATA_BURST_CELL_MAX_ATTEMPTS ??
+      3
+  );
   return Number.isFinite(n) && n > 0 ? Math.min(n, 5) : 3;
 }
 
-export function mapsBurstRetryDelayMs(): number {
-  const n = Number(process.env.BRIGHTDATA_BURST_RETRY_DELAY_MS ?? 1000);
+export function mapsGridRetryDelayMs(): number {
+  const n = Number(
+    process.env.BRIGHTDATA_GRID_RETRY_DELAY_MS ??
+      process.env.BRIGHTDATA_BURST_RETRY_DELAY_MS ??
+      1000
+  );
   return Number.isFinite(n) && n >= 0 ? n : 1000;
 }
 
@@ -486,12 +466,12 @@ async function runJobsWithConcurrency(
   return { results, failedCells, timings };
 }
 
-function sortJobsCenterFirst(jobs: GridCellJob[]): GridCellJob[] {
-  return [...jobs].sort(
-    (a, b) =>
-      (a.point.distance_from_center_m ?? Number.MAX_SAFE_INTEGER) -
-      (b.point.distance_from_center_m ?? Number.MAX_SAFE_INTEGER)
-  );
+function chunkJobs<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
 }
 
 function buildGridCellJobs(
@@ -620,129 +600,6 @@ async function runIntegrityPass(params: {
   return { failedCells: stillIncompleteIds.length, timings: integrityPass.timings };
 }
 
-/** All cells at once — no center-first queue, no 90s background pass. */
-async function runGridCellsBurst(params: {
-  scanBatchId: string;
-  points: Array<{
-    id: string;
-    grid_label: string;
-    lat: number;
-    lng: number;
-    distance_from_center_m?: number;
-  }>;
-  keywords: Array<{ id: string; keyword: string }>;
-  business: GridCellJob["business"];
-  device: string;
-  os: string;
-  browser: string;
-  organizationId?: string;
-  onSoftReady?: () => Promise<void>;
-}): Promise<{ failedCells: number; totalCells: number; successCells: number }> {
-  const depth = mapsDepth();
-  const timeoutMs = mapsBurstTimeoutMs();
-  const maxRounds = mapsBurstMaxAttempts();
-  const retryDelayMs = mapsBurstRetryDelayMs();
-
-  const jobs = buildGridCellJobs(params);
-  const totalCells = jobs.length;
-  const concurrency = mapsBurstConcurrency(totalCells);
-
-  const supabase = createServiceClient();
-  await supabase
-    .from("scan_batches")
-    .update({ cells_total: totalCells, cells_completed: 0, cells_failed: 0 })
-    .eq("id", params.scanBatchId);
-
-  console.log("[Scan] Burst grid (all cells concurrent):", {
-    scanBatchId: params.scanBatchId,
-    totalCells,
-    concurrency,
-    timeoutMs,
-    maxRounds,
-    retryDelayMs,
-    depth,
-  });
-
-  const allTimings: CellPhaseTimings[] = [];
-  const scanWallStart = performance.now();
-  let remainingJobs = jobs;
-  let failedCells = 0;
-  let rankReadyFired = false;
-  const softMin = softReadyMinSuccess(totalCells);
-
-  const onSoftReady = async () => {
-    if (rankReadyFired || !params.onSoftReady) return;
-    rankReadyFired = true;
-    await params.onSoftReady();
-  };
-
-  const onCellSettled = async (success: boolean) => {
-    if (success) {
-      await refreshScanAggregateMetrics(params.scanBatchId);
-    }
-  };
-
-  for (let round = 1; round <= maxRounds && remainingJobs.length > 0; round++) {
-    if (round > 1 && retryDelayMs > 0) {
-      await sleep(retryDelayMs);
-    }
-    const passLabel = round === 1 ? "burst" : `burst-retry-${round}`;
-    console.log(`[Scan] Burst pass ${round}/${maxRounds}: ${remainingJobs.length} cells`);
-    const pass = await runJobsWithConcurrency(remainingJobs, {
-      scanBatchId: params.scanBatchId,
-      depth,
-      timeoutMs,
-      maxAttempts: 1,
-      concurrency,
-      totalCells,
-      passLabel,
-      updateProgress: true,
-      softReadyMinSuccess: round === 1 ? softMin : undefined,
-      onSoftReady: round === 1 ? onSoftReady : undefined,
-      onCellSettled,
-      organizationId: params.organizationId,
-    });
-    allTimings.push(...pass.timings);
-    remainingJobs = failedJobsFromPass(remainingJobs, pass.results);
-    failedCells = remainingJobs.length;
-    if (remainingJobs.length > 0 && round < maxRounds) {
-      console.log(`[Scan] Burst round ${round}: ${remainingJobs.length} cells to retry`);
-    }
-  }
-
-  const integrity = await runIntegrityPass({
-    scanBatchId: params.scanBatchId,
-    jobs,
-    depth,
-    timeoutMs,
-    maxAttempts: 1,
-    concurrency,
-    totalCells,
-    organizationId: params.organizationId,
-    onCellSettled,
-  });
-  allTimings.push(...integrity.timings);
-  failedCells += integrity.failedCells;
-
-  const successCells = Math.max(0, totalCells - failedCells);
-  await saveCellProgress(params.scanBatchId, totalCells, totalCells, failedCells, {
-    pass: "burst-complete",
-    method: "burst_parallel",
-    failed_point_ids: failedCells > 0 ? remainingJobs.map((j) => j.point.id) : [],
-  });
-
-  if (!rankReadyFired && params.onSoftReady) {
-    await onSoftReady();
-  }
-  await refreshScanAggregateMetrics(params.scanBatchId);
-
-  const wallSec = elapsedSec(scanWallStart);
-  console.log(`[ScanBenchmark] burst wall_clock=${wallSec}s`);
-  logCellPhaseTimings(params.scanBatchId, allTimings, concurrency, totalCells);
-
-  return { failedCells, totalCells, successCells };
-}
-
 export async function runGridCellsLive(params: {
   scanBatchId: string;
   points: Array<{
@@ -758,24 +615,17 @@ export async function runGridCellsLive(params: {
   os: string;
   browser: string;
   organizationId?: string;
-  mode?: GridScanMode;
   onSoftReady?: () => Promise<void>;
 }): Promise<{ failedCells: number; totalCells: number; successCells: number }> {
-  if (params.mode === "burst") {
-    return runGridCellsBurst(params);
-  }
   const depth = mapsDepth();
-  const softTimeoutMs = mapsSoftTimeoutMs();
-  const backgroundTimeoutMs = mapsCellTimeoutMs();
-  const backgroundMaxAttempts = mapsCellMaxAttempts();
+  const timeoutMs = mapsGridCellTimeoutMs();
+  const maxRounds = mapsGridMaxRetryRounds();
+  const retryDelayMs = mapsGridRetryDelayMs();
+  const batchSize = mapsCellBatchSize();
 
-  let jobs: GridCellJob[] = buildGridCellJobs(params);
-
-  jobs = sortJobsCenterFirst(jobs);
-
+  const jobs = buildGridCellJobs(params);
   const totalCells = jobs.length;
-  const concurrency = mapsConcurrency(totalCells);
-  const softMin = softReadyMinSuccess(totalCells);
+  const primaryChunks = chunkJobs(jobs, batchSize);
 
   const supabase = createServiceClient();
   await supabase
@@ -786,11 +636,11 @@ export async function runGridCellsLive(params: {
   console.log("[Scan] Live parallel grid (Bright Data):", {
     scanBatchId: params.scanBatchId,
     totalCells,
-    concurrency,
-    softReadyMinSuccess: softMin,
-    softTimeoutMs,
-    backgroundTimeoutMs,
-    backgroundMaxAttempts,
+    batchSize,
+    primaryBatches: primaryChunks.length,
+    timeoutMs,
+    maxRetryRounds: maxRounds - 1,
+    retryDelayMs,
     depth,
     device: params.device,
     os: params.os,
@@ -801,6 +651,7 @@ export async function runGridCellsLive(params: {
   const allTimings: CellPhaseTimings[] = [];
   const scanWallStart = performance.now();
   let rankReadyFired = false;
+  const softMin = softReadyMinSuccess(totalCells);
 
   const onSoftReady = async () => {
     if (rankReadyFired || !params.onSoftReady) return;
@@ -809,169 +660,102 @@ export async function runGridCellsLive(params: {
   };
 
   const onCellSettled = async (success: boolean) => {
-    if (success && rankReadyFired) {
+    if (success) {
       await refreshScanAggregateMetrics(params.scanBatchId);
     }
   };
 
-  // Primary pass: fast timeout (25s), single attempt — don't let slow cells block the map
-  const firstPass = await runJobsWithConcurrency(jobs, {
-    scanBatchId: params.scanBatchId,
-    depth,
-    timeoutMs: softTimeoutMs,
-    maxAttempts: 1,
-    concurrency,
-    totalCells,
-    passLabel: "primary",
-    softReadyMinSuccess: softMin,
-    onSoftReady,
-    onCellSettled,
-    organizationId: params.organizationId,
-  });
-  allTimings.push(...firstPass.timings);
+  let completedOffset = 0;
+  const failedFromPrimary: GridCellJob[] = [];
 
-  const failedJobs = jobs.filter((job) =>
-    firstPass.results.some((r) => !r.success && r.pointId === job.point.id && r.keywordId === job.keyword.id)
-  );
-
-  let failedCells = firstPass.failedCells;
-  let successCells = totalCells - failedCells;
-
-  if (failedJobs.length > 0) {
+  for (let batchIndex = 0; batchIndex < primaryChunks.length; batchIndex++) {
+    const chunk = primaryChunks[batchIndex];
+    const passLabel =
+      primaryChunks.length > 1 ? `primary-batch-${batchIndex + 1}` : "primary";
     console.log(
-      `[Scan] Background retry for ${failedJobs.length} cells (concurrency=3, timeout=${backgroundTimeoutMs}ms)`
+      `[Scan] Primary batch ${batchIndex + 1}/${primaryChunks.length}: ${chunk.length} cells`
     );
-    const retryPass = await runJobsWithConcurrency(failedJobs, {
+    const pass = await runJobsWithConcurrency(chunk, {
       scanBatchId: params.scanBatchId,
       depth,
-      timeoutMs: backgroundTimeoutMs,
-      maxAttempts: backgroundMaxAttempts,
-      concurrency: 3,
+      timeoutMs,
+      maxAttempts: 1,
+      concurrency: mapsGridConcurrency(chunk.length),
       totalCells,
-      passLabel: "background",
-      updateProgress: false,
+      passLabel,
+      completedOffset,
+      updateProgress: true,
+      softReadyMinSuccess: rankReadyFired ? undefined : softMin,
+      onSoftReady: rankReadyFired ? undefined : onSoftReady,
       onCellSettled,
       organizationId: params.organizationId,
     });
-    allTimings.push(...retryPass.timings);
-
-    const recovered = failedJobs.length - retryPass.failedCells;
-    failedCells = firstPass.failedCells - recovered;
-    successCells = totalCells - failedCells;
-
-    const stillFailedIds = failedJobs
-      .filter((job) =>
-        retryPass.results.some(
-          (r) => !r.success && r.pointId === job.point.id && r.keywordId === job.keyword.id
-        )
-      )
-      .map((j) => j.point.id);
-
-    await saveCellProgress(params.scanBatchId, totalCells, totalCells, failedCells, {
-      pass: "background",
-      failed_point_ids: stillFailedIds,
-    });
-    console.log(`[Scan] Background retry recovered ${recovered}/${failedJobs.length} cells`);
+    allTimings.push(...pass.timings);
+    failedFromPrimary.push(...failedJobsFromPass(chunk, pass.results));
+    completedOffset += chunk.length;
   }
 
-  const { data: pointRows } = await supabase
-    .from("scan_points")
-    .select("id")
-    .eq("scan_batch_id", params.scanBatchId);
-  const savedPointIds = (pointRows ?? []).map((p) => p.id as string);
-  const { data: savedResults } = savedPointIds.length
-    ? await supabase
-        .from("scan_results")
-        .select("scan_point_id, keyword_id, target_found, top_competitors_json")
-        .in("scan_point_id", savedPointIds)
-    : { data: [] };
+  let remainingJobs = failedFromPrimary;
+  let failedCells = remainingJobs.length;
 
-  const incompleteJobs = jobs.filter((job) => {
-    const row = (savedResults ?? []).find(
-      (r) => r.scan_point_id === job.point.id && r.keyword_id === job.keyword.id
-    );
-    return !validateStoredCellResult(row, depth).complete;
-  });
-
-  if (incompleteJobs.length > 0) {
-    console.log(
-      `[Scan] Integrity retry for ${incompleteJobs.length} sparse/incomplete cells (concurrency=3)`
-    );
-    const integrityPass = await runJobsWithConcurrency(incompleteJobs, {
-      scanBatchId: params.scanBatchId,
-      depth,
-      timeoutMs: backgroundTimeoutMs,
-      maxAttempts: backgroundMaxAttempts,
-      concurrency: 3,
-      totalCells,
-      passLabel: "integrity",
-      updateProgress: false,
-      onCellSettled,
-      organizationId: params.organizationId,
-    });
-    allTimings.push(...integrityPass.timings);
-
-    const { data: refreshedResults } = savedPointIds.length
-      ? await supabase
-          .from("scan_results")
-          .select("scan_point_id, keyword_id, target_found, top_competitors_json")
-          .in("scan_point_id", savedPointIds)
-      : { data: [] };
-
-    const stillIncompleteIds = incompleteJobs
-      .filter((job) => {
-        const row = (refreshedResults ?? []).find(
-          (r) => r.scan_point_id === job.point.id && r.keyword_id === job.keyword.id
-        );
-        return !validateStoredCellResult(row, depth).complete;
-      })
-      .map((job) => job.point.id);
-
-    const integrityRecovered = incompleteJobs.length - stillIncompleteIds.length;
-    if (stillIncompleteIds.length > 0) {
-      failedCells += stillIncompleteIds.length;
-      successCells = totalCells - failedCells;
+  for (let round = 2; round <= maxRounds && remainingJobs.length > 0; round++) {
+    if (retryDelayMs > 0) {
+      await sleep(retryDelayMs);
     }
-
-    const { data: existingBatch } = await supabase
-      .from("scan_batches")
-      .select("confidence_summary")
-      .eq("id", params.scanBatchId)
-      .single();
-    const prevFailedIds = Array.isArray(
-      (existingBatch?.confidence_summary as Record<string, unknown> | undefined)?.failed_point_ids
-    )
-      ? ((existingBatch?.confidence_summary as Record<string, unknown>).failed_point_ids as string[])
-      : [];
-
-    await saveCellProgress(params.scanBatchId, totalCells, totalCells, failedCells, {
-      pass: "integrity",
-      failed_point_ids: [...new Set([...prevFailedIds, ...stillIncompleteIds])],
-      sparse_point_ids: stillIncompleteIds,
-      integrity_retries: incompleteJobs.length,
-      integrity_recovered: integrityRecovered,
-    });
-    invalidateScanGridCache(params.scanBatchId);
+    const passLabel = `retry-${round - 1}`;
     console.log(
-      `[Scan] Integrity retry recovered ${integrityRecovered}/${incompleteJobs.length} cells; ${stillIncompleteIds.length} still sparse`
+      `[Scan] Retry round ${round - 1}/${maxRounds - 1}: ${remainingJobs.length} failed cells`
     );
+    const pass = await runJobsWithConcurrency(remainingJobs, {
+      scanBatchId: params.scanBatchId,
+      depth,
+      timeoutMs,
+      maxAttempts: 1,
+      concurrency: mapsGridConcurrency(remainingJobs.length),
+      totalCells,
+      passLabel,
+      updateProgress: true,
+      onCellSettled,
+      organizationId: params.organizationId,
+    });
+    allTimings.push(...pass.timings);
+    remainingJobs = failedJobsFromPass(remainingJobs, pass.results);
+    failedCells = remainingJobs.length;
+    if (remainingJobs.length > 0 && round < maxRounds) {
+      console.log(`[Scan] ${remainingJobs.length} cells still failing after ${passLabel}`);
+    }
   }
+
+  const integrityConcurrency = mapsGridConcurrency(totalCells);
+  const integrity = await runIntegrityPass({
+    scanBatchId: params.scanBatchId,
+    jobs,
+    depth,
+    timeoutMs,
+    maxAttempts: 1,
+    concurrency: integrityConcurrency,
+    totalCells,
+    organizationId: params.organizationId,
+    onCellSettled,
+  });
+  allTimings.push(...integrity.timings);
+  failedCells += integrity.failedCells;
+
+  const successCells = Math.max(0, totalCells - failedCells);
+  await saveCellProgress(params.scanBatchId, totalCells, totalCells, failedCells, {
+    pass: "complete",
+    method: "live_parallel",
+    failed_point_ids: failedCells > 0 ? remainingJobs.map((j) => j.point.id) : [],
+  });
 
   if (!rankReadyFired && params.onSoftReady) {
     await onSoftReady();
   }
-
-  if (rankReadyFired) {
-    await refreshScanAggregateMetrics(params.scanBatchId);
-  }
+  await refreshScanAggregateMetrics(params.scanBatchId);
 
   const wallSec = elapsedSec(scanWallStart);
-  console.log(`[ScanBenchmark] wall_clock=${wallSec}s (cells phase only)`);
-  logCellPhaseTimings(params.scanBatchId, allTimings, concurrency, totalCells);
+  console.log(`[ScanBenchmark] wall_clock=${wallSec}s`);
+  logCellPhaseTimings(params.scanBatchId, allTimings, integrityConcurrency, totalCells);
 
-  return {
-    failedCells,
-    totalCells,
-    successCells,
-  };
+  return { failedCells, totalCells, successCells };
 }

@@ -805,7 +805,6 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
               onKeywordChange={handleKeywordChange}
               onLocationChange={handleLocationChange}
               onScanStarted={handleScanStarted}
-              showBurstTest
             />
 
             {moveGridActive && (
