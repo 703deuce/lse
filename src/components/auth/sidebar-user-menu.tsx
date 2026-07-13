@@ -51,10 +51,10 @@ export function SidebarUserMenu() {
         </div>
         <div className="min-w-0">
           <p className="truncate text-[13px] font-medium text-slate-200">{name ?? "Loading…"}</p>
-          <p className="truncate text-[10px] text-sidebar-text-muted">{email ?? "Signed in"}</p>
+          <p className="truncate text-[10px] text-slate-400">{email ?? "Signed in"}</p>
         </div>
       </div>
-      <LogoutButton className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium text-sidebar-text hover:bg-[var(--sidebar-hover)] hover:text-slate-200" />
+      <LogoutButton className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/5 hover:text-white" />
     </div>
   );
 }
