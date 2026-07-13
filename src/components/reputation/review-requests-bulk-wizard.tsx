@@ -21,6 +21,11 @@ import {
 import type { ValidatedRecipient, ValidationSummary } from "@/lib/reputation/bulk-validate";
 import { estimateBusinessDays } from "@/lib/reputation/campaign-scheduler";
 import { rrInputClass, rrLabelClass, rrOutlineBtn, rrPrimaryBtn } from "@/components/reputation/review-requests-ui";
+import {
+  dashboardCard,
+  dashboardCardTitle,
+  dashboardMicro,
+} from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
 
 const STEPS = ["Upload", "Map Columns", "Review Contacts", "Schedule"] as const;
@@ -41,9 +46,9 @@ type TemplateRow = { id: string; channel: string; name: string };
 
 function SummaryCard({ label, value, tone }: { label: string; value: number; tone?: string }) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className={cn("mt-1 text-2xl font-bold tabular-nums", tone ?? "text-zinc-900")}>{value}</p>
+    <div className={cn(dashboardCard, "p-3")}>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className={cn("mt-1 text-xl font-bold leading-none tabular-nums", tone ?? "text-zinc-900")}>{value}</p>
     </div>
   );
 }
@@ -232,10 +237,10 @@ export function ReviewRequestsBulkWizard({
 
   if (done) {
     return (
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-8 text-center">
-        <Check className="mx-auto h-10 w-10 text-emerald-600" />
-        <h3 className="mt-3 text-lg font-semibold text-emerald-900">Campaign created</h3>
-        <p className="mt-1 text-sm text-emerald-800">
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-8 text-center">
+        <Check className="mx-auto h-8 w-8 text-emerald-600" />
+        <h3 className="mt-2.5 text-[13px] font-semibold text-emerald-900">Campaign created</h3>
+        <p className="mt-1 text-[13px] text-emerald-800">
           {readyCount} contacts queued for paced sending. View progress in Tracking.
         </p>
       </div>
@@ -243,10 +248,10 @@ export function ReviewRequestsBulkWizard({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-zinc-900">Bulk Review Requests</h2>
-        <p className="mt-1 text-sm text-zinc-500">
+        <h2 className={dashboardCardTitle}>Bulk Review Requests</h2>
+        <p className={`mt-0.5 ${dashboardMicro}`}>
           Upload a customer list and send review requests safely over time.
         </p>
       </div>
@@ -267,15 +272,15 @@ export function ReviewRequestsBulkWizard({
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-[13px] text-red-800">{error}</div>
       )}
 
       {step === 0 && (
-        <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-10 text-center">
+        <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 px-3.5 py-8 text-center">
           <Upload className="mx-auto h-8 w-8 text-zinc-400" />
-          <p className="mt-3 text-sm font-medium text-zinc-700">Upload a CSV file</p>
-          <p className="mt-1 text-xs text-zinc-500">Accepted format: .csv only. Each row needs phone or email.</p>
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
+          <p className="mt-2.5 text-[13px] font-medium text-zinc-700">Upload a CSV file</p>
+          <p className="mt-1 text-[11px] text-zinc-500">Accepted format: .csv only. Each row needs phone or email.</p>
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
             <label className={cn(rrPrimaryBtn, "cursor-pointer")}>
               Upload CSV
               <input
@@ -313,30 +318,30 @@ export function ReviewRequestsBulkWizard({
 
       {step === 1 && (
         <div className="space-y-4">
-          <p className="text-sm text-zinc-600">Map your CSV columns. We auto-detected mappings — confirm before continuing.</p>
+          <p className="text-[13px] text-zinc-600">Map your CSV columns. We auto-detected mappings — confirm before continuing.</p>
           {mappingError && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{mappingError}</div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-900">{mappingError}</div>
           )}
-          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
-            <table className="min-w-full text-sm">
-              <thead className="bg-zinc-50 text-left text-[11px] font-semibold uppercase text-zinc-500">
+          <div className={cn(dashboardCard, "overflow-hidden")}>
+            <table className="min-w-full text-[12px]">
+              <thead className="bg-zinc-50 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                 <tr>
-                  <th className="px-4 py-2">CSV Column</th>
-                  <th className="px-4 py-2">Sample Value</th>
-                  <th className="px-4 py-2">Map To</th>
+                  <th className="px-3 py-2">CSV Column</th>
+                  <th className="px-3 py-2">Sample Value</th>
+                  <th className="px-3 py-2">Map To</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 {headers.map((header) => (
                   <tr key={header}>
-                    <td className="px-4 py-3 font-medium">{header}</td>
-                    <td className="px-4 py-3 text-zinc-500">
+                    <td className="px-3 py-2 font-medium">{header}</td>
+                    <td className="px-3 py-2 text-zinc-500">
                       {sampleRows.map((r, i) => {
                         const idx = headers.indexOf(header);
                         return <div key={i}>{r[idx] || "—"}</div>;
                       })}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2">
                       <select
                         className={rrInputClass}
                         value={mappings[header] ?? "ignore"}
@@ -370,7 +375,7 @@ export function ReviewRequestsBulkWizard({
 
       {step === 2 && summary && (
         <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
             <SummaryCard label="Total rows" value={summary.total_rows} />
             <SummaryCard label="Ready to send" value={summary.ready} tone="text-emerald-700" />
             <SummaryCard label="Duplicates removed" value={summary.duplicate} />
@@ -387,7 +392,7 @@ export function ReviewRequestsBulkWizard({
               <Download className="h-4 w-4" /> Download skipped rows
             </button>
             {summary.recently_contacted > 0 && (
-              <label className="flex w-full items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <label className="flex w-full items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-900">
                 <input
                   type="checkbox"
                   checked={bypassRecentContact}
@@ -416,13 +421,13 @@ export function ReviewRequestsBulkWizard({
       )}
 
       {step === 3 && (
-        <div className="space-y-5">
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="block text-sm">
+        <div className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="block text-[13px]">
               <span className={rrLabelClass}>Campaign name</span>
               <input className={rrInputClass} value={campaignName} onChange={(e) => setCampaignName(e.target.value)} />
             </label>
-            <label className="block text-sm">
+            <label className="block text-[13px]">
               <span className={rrLabelClass}>Channel</span>
               <select className={rrInputClass} value={channel} onChange={(e) => setChannel(e.target.value as typeof channel)}>
                 <option value="sms">SMS only</option>
@@ -430,7 +435,7 @@ export function ReviewRequestsBulkWizard({
                 <option value="both">SMS + Email if both exist</option>
               </select>
             </label>
-            <label className="block text-sm">
+            <label className="block text-[13px]">
               <span className={rrLabelClass}>Template (optional)</span>
               <select className={rrInputClass} value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
                 <option value="">Default template</option>
@@ -441,11 +446,11 @@ export function ReviewRequestsBulkWizard({
                 ))}
               </select>
             </label>
-            <label className="block text-sm">
+            <label className="block text-[13px]">
               <span className={rrLabelClass}>Start date</span>
               <input type="date" className={rrInputClass} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </label>
-            <label className="block text-sm">
+            <label className="block text-[13px]">
               <span className={rrLabelClass}>Daily send limit</span>
               <select
                 className={rrInputClass}
@@ -461,7 +466,7 @@ export function ReviewRequestsBulkWizard({
               </select>
             </label>
             {![5, 10, 20].includes(dailyLimit) && (
-              <label className="block text-sm">
+              <label className="block text-[13px]">
                 <span className={rrLabelClass}>Custom daily limit</span>
                 <input
                   type="number"
@@ -478,15 +483,15 @@ export function ReviewRequestsBulkWizard({
           </div>
 
           {dailyLimit > 20 && (
-            <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] text-amber-900">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               Higher send volume may create review spikes and increase unsubscribe/complaint risk.
             </div>
           )}
 
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
-            <p className="font-semibold text-zinc-900">Campaign summary</p>
-            <ul className="mt-2 space-y-1 text-xs">
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3.5 text-[13px] text-zinc-700">
+            <p className={dashboardCardTitle}>Campaign summary</p>
+            <ul className="mt-2 space-y-1 text-[11px]">
               <li>This campaign will send to {readyCount} customers over ~{businessDays} business days.</li>
               <li>Daily limit: {dailyLimit}/day</li>
               <li>Send window: Monday–Friday, 10 AM–6 PM (America/New_York)</li>
@@ -494,7 +499,7 @@ export function ReviewRequestsBulkWizard({
             </ul>
           </div>
 
-          <label className="flex items-start gap-2 text-sm text-zinc-700">
+          <label className="flex items-start gap-2 text-[13px] text-zinc-700">
             <input type="checkbox" className="mt-1" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
             I confirm these customers gave permission to be contacted about their service experience.
           </label>

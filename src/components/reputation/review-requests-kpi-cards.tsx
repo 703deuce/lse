@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentType, ReactNode } from "react";
-import { cardClass, cardLabelClass, StatValue } from "@/components/ui/design-system";
+import { GridMetricCard } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 
 export function ReviewRequestsKpiCard({
@@ -28,36 +28,30 @@ export function ReviewRequestsKpiCard({
   const trendGood = invertTrendColor ? trendDown : trendUp;
   const trendBad = invertTrendColor ? trendUp : trendDown;
 
+  const subParts: string[] = [];
+  if (trend) subParts.push(trendLabel ? `${trend} ${trendLabel}` : trend);
+  if (typeof sub === "string" && sub) subParts.push(sub);
+  const composedSub = subParts.join(" · ") || undefined;
+
+  const iconWrap = iconClass.includes("bg-")
+    ? iconClass.split(" ").find((c) => c.startsWith("bg-")) ?? "bg-emerald-50"
+    : "bg-emerald-50";
+  const iconColor = iconClass.includes("text-")
+    ? iconClass.split(" ").find((c) => c.startsWith("text-")) ?? "text-emerald-600"
+    : "text-emerald-600";
+
   return (
-    <div className={cn(cardClass, "p-5")}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className={cardLabelClass}>{label}</p>
-          <div className="mt-2">
-            <StatValue value={value} />
-          </div>
-          {sub && <p className="mt-1 text-xs leading-relaxed text-zinc-500">{sub}</p>}
-          {trend && (
-            <p className="mt-1.5 text-xs leading-relaxed">
-              <span
-                className={cn(
-                  "font-semibold",
-                  trendGood && "text-emerald-600",
-                  trendBad && "text-red-600",
-                  !trendGood && !trendBad && "text-zinc-500"
-                )}
-              >
-                {trend}
-              </span>
-              {trendLabel && <span className="ml-1 text-zinc-500">{trendLabel}</span>}
-            </p>
-          )}
-        </div>
-        <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", iconClass)}>
-          <Icon className="h-4 w-4" />
-        </span>
-      </div>
-    </div>
+    <GridMetricCard
+      compact
+      label={label}
+      value={value}
+      sub={composedSub}
+      icon={Icon as never}
+      iconWrapClassName={iconWrap}
+      iconClassName={iconColor}
+      trendPositive={trendGood ? true : trendBad ? false : undefined}
+      className={cn(!composedSub && typeof sub !== "string" && sub ? "[&>p:last-child]:hidden" : undefined)}
+    />
   );
 }
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { dashboardCard } from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
 
 export type ReviewReplyRow = {
@@ -58,7 +59,7 @@ export function ReviewRequestRepliesPanel({
 
   if (replies.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-zinc-200 px-4 py-6 text-center text-sm text-zinc-500">
+      <div className="rounded-lg border border-dashed border-zinc-200 px-3.5 py-6 text-center text-[13px] text-zinc-500">
         No customer replies yet. Replies to review request emails will appear here.
       </div>
     );
@@ -67,7 +68,7 @@ export function ReviewRequestRepliesPanel({
   return (
     <div>
       {showTabs && (
-        <div className="mb-3 flex flex-wrap gap-1 border-b border-zinc-100">
+        <div className="mb-2.5 flex flex-wrap gap-1 border-b border-zinc-100">
           {(
             [
               { id: "all" as const, label: "All" },
@@ -104,7 +105,7 @@ export function ReviewRequestRepliesPanel({
           const avatarColor = AVATAR_COLORS[i % AVATAR_COLORS.length];
 
           return (
-            <li key={reply.id} className={compact ? "py-3" : "rounded-xl border border-zinc-200 bg-white p-4"}>
+            <li key={reply.id} className={compact ? "py-2" : cn(dashboardCard, "p-3.5")}>
               <div className="flex items-start gap-2.5">
                 <span
                   className={cn(
@@ -116,7 +117,7 @@ export function ReviewRequestRepliesPanel({
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="truncate text-sm font-semibold text-zinc-900">{who}</p>
+                    <p className="truncate text-[13px] font-semibold text-zinc-900">{who}</p>
                     <span className="shrink-0 text-[10px] text-zinc-400">{timeAgo(reply.created_at)}</span>
                   </div>
                   {reply.reply_body && (
@@ -152,7 +153,7 @@ export function ReviewRequestRepliesPanel({
       {showViewAll && businessId && (
         <Link
           href={`/businesses/${businessId}/review-requests?tab=tracking`}
-          className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:underline"
+          className="mt-2.5 inline-flex items-center gap-1 text-[12px] font-semibold text-emerald-700 hover:underline"
         >
           View all replies →
         </Link>

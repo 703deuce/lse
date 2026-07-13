@@ -6,43 +6,48 @@ import type { ReviewRequestsSection } from "@/components/reputation/review-reque
 import {
   ModuleHeader,
   TabBar,
+  btnIcon,
   btnPrimary,
   btnSecondary,
   inputClass,
   fieldLabelClass,
 } from "@/components/ui/design-system";
+import { dashboardControl } from "@/components/overview/dashboard-ui";
 
 export function ReviewRequestsPageHeader() {
   return (
     <ModuleHeader
       title="Review Requests"
       subtitle="Manage your review links, templates, sending, and tracking in one place."
+      className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
     />
   );
 }
 
 export function ReviewRequestsTopBar() {
-  const btn =
-    "inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50";
-
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <button type="button" className={btn}>
-        <BookOpen className="h-3.5 w-3.5 text-zinc-500" />
-        Learn
+    <div className="flex shrink-0 flex-wrap items-center gap-2">
+      <button type="button" className={cn(btnIcon, "h-9 w-9")} aria-label="Learn">
+        <BookOpen className="h-3.5 w-3.5" />
       </button>
-      <button type="button" className={`relative ${btn}`} aria-label="Notifications">
-        <Bell className="h-3.5 w-3.5 text-zinc-500" />
-        <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+      <button type="button" className={cn(btnIcon, "relative h-9 w-9")} aria-label="Notifications">
+        <Bell className="h-3.5 w-3.5" />
+        <span className="absolute -right-1 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-bold text-white">
           8
         </span>
       </button>
-      <button type="button" className={btn}>
+      <button
+        type="button"
+        className={cn(
+          dashboardControl,
+          "inline-flex items-center gap-1.5 px-2.5 font-medium text-zinc-700"
+        )}
+      >
         <Calendar className="h-3.5 w-3.5 text-zinc-500" />
         Last 30 days
         <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
       </button>
-      <span className="hidden h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white sm:inline-flex">
+      <span className="hidden h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-bold text-white sm:inline-flex">
         JD
       </span>
     </div>
@@ -64,7 +69,14 @@ export function ReviewRequestsSubTabsBar({
   active: ReviewRequestsSection;
   onChange: (section: ReviewRequestsSection) => void;
 }) {
-  return <TabBar tabs={SECTIONS} active={active} onChange={onChange} />;
+  return (
+    <TabBar
+      tabs={SECTIONS}
+      active={active}
+      onChange={onChange}
+      className="[&_button]:pb-2.5 [&_button]:text-[13px] [&>div]:gap-4"
+    />
+  );
 }
 
 export function statusPill(status: string, hasReply?: boolean) {

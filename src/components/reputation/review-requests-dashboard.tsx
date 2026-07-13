@@ -5,10 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ReviewRequestsPanel } from "@/components/reputation/review-requests-panel";
 import type { ReviewRequestsSection } from "@/components/reputation/review-requests-sub-tabs";
 import {
+  ReviewRequestsPageHeader,
   ReviewRequestsSubTabsBar,
   ReviewRequestsTopBar,
 } from "@/components/reputation/review-requests-ui";
-import { ModulePage, ModuleHeader } from "@/components/ui/design-system";
+import { ModulePage } from "@/components/ui/design-system";
 
 const VALID_SECTIONS: ReviewRequestsSection[] = ["poster", "messages", "send", "bulk", "tracking"];
 
@@ -43,12 +44,11 @@ export function ReviewRequestsDashboard({ businessId }: { businessId: string }) 
   );
 
   return (
-    <ModulePage>
-      <ModuleHeader
-        title="Review Requests"
-        subtitle="Manage your review links, templates, sending, and tracking in one place."
-        actions={<ReviewRequestsTopBar />}
-      />
+    <ModulePage className="!space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <ReviewRequestsPageHeader />
+        <ReviewRequestsTopBar />
+      </div>
 
       <ReviewRequestsSubTabsBar active={section} onChange={handleSectionChange} />
 

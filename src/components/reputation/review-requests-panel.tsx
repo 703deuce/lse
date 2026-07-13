@@ -22,6 +22,13 @@ import {
   responseRate,
   ReviewRequestsKpiCard,
 } from "@/components/reputation/review-requests-kpi-cards";
+import {
+  dashboardBody,
+  dashboardCard,
+  dashboardCardTitle,
+  dashboardMicro,
+} from "@/components/overview/dashboard-ui";
+import { cn } from "@/lib/utils";
 
 type TemplateRow = {
   id: string;
@@ -81,10 +88,10 @@ function MessageWithLink({
 }) {
   const idx = text.indexOf(linkLabel);
   if (!linkUrl || idx === -1) {
-    return <p className={className ?? "whitespace-pre-wrap text-sm leading-relaxed text-zinc-800"}>{text}</p>;
+    return <p className={className ?? "whitespace-pre-wrap text-[13px] leading-relaxed text-zinc-800"}>{text}</p>;
   }
   return (
-    <p className={className ?? "whitespace-pre-wrap text-sm leading-relaxed text-zinc-800"}>
+    <p className={className ?? "whitespace-pre-wrap text-[13px] leading-relaxed text-zinc-800"}>
       {text.slice(0, idx)}
       <a
         href={linkUrl}
@@ -277,7 +284,7 @@ export function ReviewRequestsPanel({
 
   if (loading && !data) {
     return (
-      <div className="flex items-center gap-2 py-12 text-text-muted">
+      <div className="flex items-center gap-2 py-8 text-[13px] text-text-muted">
         <Loader2 className="h-5 w-5 animate-spin" /> Loading review request kit…
       </div>
     );
@@ -285,19 +292,19 @@ export function ReviewRequestsPanel({
 
   if (!data?.link) {
     return (
-      <div className="rounded-2xl border border-dashed border-border bg-surface-subtle p-12 text-center dark:border-zinc-700 dark:bg-zinc-900/30">
-        <h3 className="text-lg font-semibold">Review poster & request kit</h3>
-        <p className="mx-auto mt-2 max-w-md text-sm text-text-muted">
+      <div className={cn(dashboardCard, "border-dashed px-3.5 py-8 text-center")}>
+        <h3 className={dashboardCardTitle}>Review poster & request kit</h3>
+        <p className="mx-auto mt-1.5 max-w-md text-[13px] text-text-muted">
           Generate a Google review link, QR poster, and message templates for your team to send manually.
         </p>
         {data?.warning && (
-          <p className="mt-4 text-sm text-amber-700">{data.warning}</p>
+          <p className="mt-3 text-[13px] text-amber-700">{data.warning}</p>
         )}
         <button
           type="button"
           onClick={() => void createLink()}
           disabled={creating || !!data?.warning}
-          className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50"
+          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-primary-hover disabled:opacity-50"
         >
           {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
           Generate Review Link
@@ -307,9 +314,9 @@ export function ReviewRequestsPanel({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] text-red-800">{error}</div>
       )}
 
       {!hideSubTabs && (
@@ -326,7 +333,7 @@ export function ReviewRequestsPanel({
               key={t.id}
               type="button"
               onClick={() => setInternalSection(t.id)}
-              className={`px-4 py-2.5 text-sm font-medium ${
+                className={`px-3 py-2 text-[13px] font-medium ${
                 section === t.id
                   ? "border-b-2 border-primary text-primary-muted"
                   : "text-text-muted hover:text-text"
@@ -339,15 +346,15 @@ export function ReviewRequestsPanel({
       )}
 
       {section === "poster" && (
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+        <div className={cn(dashboardCard, "overflow-hidden")}>
           <div className="grid lg:grid-cols-[minmax(0,1fr)_380px]">
-            <div className="space-y-6 border-b border-zinc-100 p-6 lg:border-b-0 lg:border-r">
-              <section className="border-b border-zinc-100 pb-6">
-                <h3 className="text-sm font-semibold text-zinc-900">Create a review link</h3>
-                <p className="mt-0.5 text-xs text-zinc-500">
+            <div className="space-y-4 border-b border-zinc-100 p-3.5 lg:border-b-0 lg:border-r">
+              <section className="border-b border-zinc-100 pb-4">
+                <h3 className={dashboardCardTitle}>Create a review link</h3>
+                <p className={`mt-0.5 ${dashboardMicro}`}>
                   Build a clean link to collect Google reviews and convert more customers.
                 </p>
-                <div className="mt-4 flex flex-wrap items-center gap-2">
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                 <div className="flex min-w-0 flex-1 overflow-hidden rounded-lg border border-zinc-200">
                   <span className="flex items-center bg-zinc-50 px-3 text-xs text-zinc-500">
                     reviews.mapsgrowth.app/
@@ -356,7 +363,7 @@ export function ReviewRequestsPanel({
                     type="text"
                     value={shortSlug}
                     onChange={(e) => setShortSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                    className="min-w-0 flex-1 border-0 bg-white px-3 py-2 text-sm outline-none focus:ring-0"
+                    className="min-w-0 flex-1 border-0 bg-white px-3 py-2 text-[13px] outline-none focus:ring-0"
                   />
                 </div>
                 <button
@@ -382,14 +389,14 @@ export function ReviewRequestsPanel({
             </section>
 
             {(data.keywordSuggestions ?? []).length > 0 && (
-              <section className="border-b border-zinc-100 pb-6">
+              <section className="border-b border-zinc-100 pb-4">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-zinc-900">Important phrases</h3>
+                  <h3 className={dashboardCardTitle}>Important phrases</h3>
                   <button type="button" className="text-[10px] text-emerald-700 hover:underline">
                     Help
                   </button>
                 </div>
-                <p className="mt-0.5 text-xs text-zinc-500">
+                <p className={`mt-0.5 ${dashboardMicro}`}>
                   Suggest themes customers can mention naturally in their reviews.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -420,9 +427,9 @@ export function ReviewRequestsPanel({
               </section>
             )}
 
-            <section className="border-b border-zinc-100 pb-6">
-              <h3 className="text-sm font-semibold text-zinc-900">Match colors with your brand</h3>
-              <p className="mt-0.5 text-xs text-zinc-500">
+            <section className="border-b border-zinc-100 pb-4">
+              <h3 className={dashboardCardTitle}>Match colors with your brand</h3>
+              <p className={`mt-0.5 ${dashboardMicro}`}>
                 Pick colors that reflect your brand identity. These will be used in the poster.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -446,7 +453,7 @@ export function ReviewRequestsPanel({
             </section>
 
             <section>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="text-xs font-medium text-zinc-500">Title</label>
                   <input
@@ -454,7 +461,7 @@ export function ReviewRequestsPanel({
                     maxLength={50}
                     value={poster.title}
                     onChange={(e) => setPoster((p) => ({ ...p, title: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                    className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-[13px] outline-none focus:border-emerald-500"
                   />
                   <p className="mt-1 text-right text-[10px] text-zinc-400">
                     {poster.title.length} / 50
@@ -467,7 +474,7 @@ export function ReviewRequestsPanel({
                     maxLength={60}
                     value={poster.description}
                     onChange={(e) => setPoster((p) => ({ ...p, description: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                    className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-[13px] outline-none focus:border-emerald-500"
                   />
                   <p className="mt-1 text-right text-[10px] text-zinc-400">
                     {poster.description.length} / 60
@@ -475,7 +482,7 @@ export function ReviewRequestsPanel({
                 </div>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-zinc-100 pt-4">
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-3">
                 <div>
                   <label className="flex cursor-pointer items-center gap-3">
                     <span
@@ -495,7 +502,7 @@ export function ReviewRequestsPanel({
                         }`}
                       />
                     </span>
-                    <span className="text-sm font-medium text-zinc-900">Show footer</span>
+                    <span className="text-[13px] font-medium text-zinc-900">Show footer</span>
                   </label>
                   <p className="mt-0.5 pl-12 text-[10px] text-zinc-500">
                     Adds your business name below the QR code.
@@ -525,7 +532,7 @@ export function ReviewRequestsPanel({
               </div>
             </section>
 
-            <section className="flex flex-wrap items-center gap-3 border-t border-zinc-100 pt-5">
+            <section className="flex flex-wrap items-center gap-2.5 border-t border-zinc-100 pt-4">
               <button
                 type="button"
                 onClick={() => void savePosterSettings()}
@@ -550,7 +557,7 @@ export function ReviewRequestsPanel({
             </section>
             </div>
 
-            <div className="bg-gradient-to-b from-zinc-50 to-zinc-100/90 p-6 lg:sticky lg:top-4 lg:self-start">
+            <div className="bg-gradient-to-b from-zinc-50 to-zinc-100/90 p-3.5 lg:sticky lg:top-4 lg:self-start">
               <ReviewPosterPreview
                 ref={posterRef}
                 businessName={data.businessName}
@@ -708,8 +715,8 @@ function MessagesSection({
   const copyBody = active ? renderTemplate(active.body, varsCopy) : "";
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <div className="space-y-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+    <div className="grid gap-3 lg:grid-cols-2">
+      <div className={cn(dashboardCard, "space-y-3 p-3.5")}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex gap-1 rounded-lg border border-zinc-200 bg-zinc-50/50 p-0.5">
             {(
@@ -723,7 +730,7 @@ function MessagesSection({
                 key={id}
                 type="button"
                 onClick={() => setTemplateChannel(id)}
-                className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium ${
+                className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium ${
                   templateChannel === id
                     ? "bg-emerald-600 text-white shadow-sm"
                     : "text-zinc-600 hover:bg-white"
@@ -738,7 +745,7 @@ function MessagesSection({
             type="button"
             onClick={() => void onGenerate()}
             disabled={generating}
-            className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-emerald-600 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-emerald-600 px-3 py-1.5 text-[13px] font-medium text-emerald-700 hover:bg-emerald-50"
           >
             {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             AI Templates
@@ -769,7 +776,7 @@ function MessagesSection({
                   readOnly
                   rows={6}
                   value={active.body}
-                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 pr-10 text-sm leading-relaxed outline-none"
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 pr-10 text-[13px] leading-relaxed outline-none"
                 />
                 <button
                   type="button"
@@ -824,9 +831,9 @@ function MessagesSection({
               </select>
             </div>
 
-            <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-4">
-              <p className="text-xs font-semibold text-zinc-900">Template Settings</p>
-              <div className="mt-3 space-y-4">
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3">
+              <p className={dashboardCardTitle}>Template Settings</p>
+              <div className="mt-2.5 space-y-3">
                 <label className="flex items-start justify-between gap-3">
                   <div>
                     <span className="text-xs font-medium text-zinc-700">Include review link</span>
@@ -860,7 +867,7 @@ function MessagesSection({
               <button
                 type="button"
                 onClick={() => void onCopy(copyBody, templateChannel)}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-[13px] font-medium text-white hover:bg-emerald-700"
               >
                 <Check className="h-4 w-4" />
                 Save Template
@@ -882,15 +889,15 @@ function MessagesSection({
             </div>
           </>
         ) : (
-          <p className="text-sm text-zinc-500">No templates yet. Generate AI templates to get started.</p>
+          <p className={dashboardBody}>No templates yet. Generate AI templates to get started.</p>
         )}
       </div>
 
-      <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+      <div className={cn(dashboardCard, "p-3.5")}>
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-zinc-900">Live Preview</h3>
-            <p className="mt-0.5 text-[11px] text-zinc-500">
+            <h3 className={dashboardCardTitle}>Live Preview</h3>
+            <p className={`mt-0.5 ${dashboardMicro}`}>
               This is how your message will appear to customers.
             </p>
           </div>
@@ -902,7 +909,7 @@ function MessagesSection({
             Copy {templateChannel.toUpperCase()}
           </button>
         </div>
-        <div className="mx-auto mt-5 max-w-[260px] rounded-[2rem] border-[3px] border-zinc-800 bg-zinc-800 p-1.5 shadow-xl">
+        <div className="mx-auto mt-3 max-w-[260px] rounded-[2rem] border-[3px] border-zinc-800 bg-zinc-800 p-1.5 shadow-xl">
           <div className="overflow-hidden rounded-[1.65rem] bg-zinc-100">
             <div className="flex items-center justify-between bg-white px-4 py-1.5 text-[10px] font-semibold text-zinc-900">
               <span>9:41</span>
@@ -929,7 +936,7 @@ function MessagesSection({
           ✨ Preview uses sample data. Tokens will be replaced when sent.
         </p>
 
-        <div className="mt-5 rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+        <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
           <div className="flex gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100">
               <Shield className="h-4 w-4 text-emerald-700" />
@@ -1014,11 +1021,11 @@ function TrackingSection({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <ReviewRequestsCampaignsTable businessId={businessId} />
 
       {stats && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
           <ReviewRequestsKpiCard
             label="Requests Sent"
             value={stats.last_30_days}
@@ -1071,11 +1078,11 @@ function TrackingSection({
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="space-y-6">
-          <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-semibold text-zinc-900">Log a manual send</h3>
-            <p className="mt-0.5 text-xs text-zinc-500">
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="space-y-3">
+          <div className={cn(dashboardCard, "p-3.5")}>
+            <h3 className={dashboardCardTitle}>Log a manual send</h3>
+            <p className={`mt-0.5 ${dashboardMicro}`}>
               Record review requests sent outside the platform (in person, phone, etc.).
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -1134,11 +1141,11 @@ function TrackingSection({
             </button>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3">
+          <div className={cn(dashboardCard, "overflow-hidden")}>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-3.5 py-2.5">
               <div>
-                <h3 className="text-sm font-semibold text-zinc-900">Recent Requests</h3>
-                <p className="mt-0.5 text-xs text-zinc-500">Track every review request sent from this business.</p>
+                <h3 className={dashboardCardTitle}>Recent Requests</h3>
+                <p className={`mt-0.5 ${dashboardMicro}`}>Track every review request sent from this business.</p>
               </div>
               <button
                 type="button"
@@ -1148,7 +1155,7 @@ function TrackingSection({
                 Export
               </button>
             </div>
-            <div className="flex flex-wrap gap-2 border-b border-zinc-100 px-4 py-2.5">
+            <div className="flex flex-wrap gap-2 border-b border-zinc-100 px-3.5 py-2.5">
               <div className="relative min-w-[200px] flex-1">
                 <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
                 <input
@@ -1170,18 +1177,18 @@ function TrackingSection({
               </button>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-xs">
+              <table className="min-w-full text-left text-[12px]">
                 <thead className="bg-zinc-50 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                   <tr>
-                    <th className="w-10 px-4 py-2.5">
+                    <th className="w-10 px-3 py-2">
                       <input type="checkbox" className="rounded border-zinc-300" aria-label="Select all" />
                     </th>
-                    <th className="px-3 py-2.5">Status</th>
-                    <th className="px-3 py-2.5">Recipient</th>
-                    <th className="px-3 py-2.5">Channel</th>
-                    <th className="px-3 py-2.5">Message Preview</th>
-                    <th className="px-3 py-2.5">Sent At</th>
-                    <th className="px-3 py-2.5" />
+                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">Recipient</th>
+                    <th className="px-3 py-2">Channel</th>
+                    <th className="px-3 py-2">Message Preview</th>
+                    <th className="px-3 py-2">Sent At</th>
+                    <th className="px-3 py-2" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
@@ -1194,13 +1201,13 @@ function TrackingSection({
                   ) : (
                     filteredSends.slice(0, 10).map((s) => (
                       <tr key={s.id} className="hover:bg-zinc-50">
-                        <td className="px-4 py-2.5">
+                        <td className="px-3 py-2">
                           <input type="checkbox" className="rounded border-zinc-300" aria-label="Select row" />
                         </td>
-                        <td className="px-3 py-2.5">
+                        <td className="px-3 py-2">
                           {statusPill(s.status, s.has_reply)}
                         </td>
-                        <td className="px-3 py-2.5">
+                        <td className="px-3 py-2">
                           <p className="font-medium text-zinc-900">
                             {s.review_request_contacts?.customer_name ?? "—"}
                           </p>
@@ -1208,7 +1215,7 @@ function TrackingSection({
                             {s.recipient_email ?? s.recipient_phone ?? "—"}
                           </p>
                         </td>
-                        <td className="px-3 py-2.5">
+                        <td className="px-3 py-2">
                           <span className="inline-flex items-center gap-1 capitalize text-zinc-700">
                             {s.channel === "email" ? (
                               <Mail className="h-3.5 w-3.5 text-violet-500" />
@@ -1218,10 +1225,10 @@ function TrackingSection({
                             {s.channel}
                           </span>
                         </td>
-                        <td className="max-w-[180px] truncate px-3 py-2.5 text-zinc-500">
+                        <td className="max-w-[180px] truncate px-3 py-2 text-zinc-500">
                           {s.message_body?.slice(0, 50) ?? "—"}
                         </td>
-                        <td className="px-3 py-2.5 text-zinc-500">
+                        <td className="px-3 py-2 text-zinc-500">
                           {new Date(s.sent_at ?? s.created_at).toLocaleString("en-US", {
                             month: "short",
                             day: "numeric",
@@ -1230,7 +1237,7 @@ function TrackingSection({
                             minute: "2-digit",
                           })}
                         </td>
-                        <td className="px-3 py-2.5">
+                        <td className="px-3 py-2">
                           <button type="button" className="rounded p-1 hover:bg-zinc-100" aria-label="More actions">
                             <MoreHorizontal className="h-4 w-4 text-zinc-400" />
                           </button>
@@ -1241,12 +1248,12 @@ function TrackingSection({
                 </tbody>
               </table>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 px-4 py-2.5 text-xs text-zinc-500">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 px-3.5 py-2.5 text-[11px] text-zinc-500">
               <span>
                 Showing 1 to {Math.min(10, filteredSends.length)} of {filteredSends.length} results
               </span>
               <div className="flex items-center gap-2">
-                <select className="rounded border border-zinc-200 px-2 py-1 text-sm">
+                <select className="rounded border border-zinc-200 px-2 py-1 text-[12px]">
                   <option>10 per page</option>
                   <option>25 per page</option>
                 </select>
@@ -1273,17 +1280,17 @@ function TrackingSection({
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm xl:sticky xl:top-4 xl:self-start">
+        <div className={cn(dashboardCard, "p-3.5 xl:sticky xl:top-4 xl:self-start")}>
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-zinc-900">Customer Replies</h3>
+            <h3 className={dashboardCardTitle}>Customer Replies</h3>
             <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">
               {replies.length}
             </span>
           </div>
-          <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
+          <p className={`mt-1 ${dashboardMicro}`}>
             View and manage replies from your review requests.
           </p>
-          <div className="mt-4">
+          <div className="mt-3">
             <ReviewRequestRepliesPanel
               replies={replies}
               compact

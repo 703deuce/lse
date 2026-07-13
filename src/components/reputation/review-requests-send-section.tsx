@@ -27,6 +27,12 @@ import {
   rrPrimaryBtn,
   statusPill,
 } from "@/components/reputation/review-requests-ui";
+import {
+  dashboardBody,
+  dashboardCard,
+  dashboardCardTitle,
+  dashboardMicro,
+} from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
 
 type TemplateRow = {
@@ -214,9 +220,9 @@ export function ReviewRequestsSendSection({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {stats && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
           <ReviewRequestsKpiCard
             label="7 days"
             value={stats.last_7_days}
@@ -271,23 +277,23 @@ export function ReviewRequestsSendSection({
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h3 className="text-base font-semibold text-zinc-900">Send review request</h3>
-          <p className="mt-1 text-sm text-zinc-500">
+      <div className="grid gap-3 lg:grid-cols-2">
+        <div className={cn(dashboardCard, "p-3.5")}>
+          <h3 className={dashboardCardTitle}>Send review request</h3>
+          <p className={`mt-0.5 ${dashboardBody}`}>
             Fill in the details below to send a review request to your customer.
           </p>
 
           {error && (
-            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
+            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] text-red-800">{error}</div>
           )}
           {success && (
-            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+            <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-[13px] text-emerald-800">
               {success}
             </div>
           )}
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <label className={rrLabelClass}>
                 Customer name <span className="text-red-500">*</span>
@@ -333,7 +339,7 @@ export function ReviewRequestsSendSection({
                   placeholder="(555) 123-4567"
                   value={form.customerPhone}
                   onChange={(e) => setForm((f) => ({ ...f, customerPhone: e.target.value }))}
-                  className="min-w-0 flex-1 border-0 bg-white px-3 py-2 text-sm outline-none"
+                  className="min-w-0 flex-1 border-0 bg-white px-3 py-2 text-[13px] outline-none"
                 />
               </div>
             </div>
@@ -348,7 +354,7 @@ export function ReviewRequestsSendSection({
                   type="button"
                   onClick={() => setForm((f) => ({ ...f, channel: ch }))}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium capitalize",
+                    "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[13px] font-medium capitalize",
                     form.channel === ch
                       ? "border-emerald-600 bg-emerald-50 text-emerald-700"
                       : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
@@ -368,14 +374,14 @@ export function ReviewRequestsSendSection({
               maxLength={250}
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-              className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+              className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-[13px] outline-none focus:border-emerald-500"
               placeholder="Internal notes about this request…"
             />
             <p className="mt-1 text-right text-[10px] text-zinc-400">{form.notes.length} / 250</p>
           </div>
 
           {stats?.trial_sms_template && (
-            <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+            <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] text-amber-900">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
               <p>
                 SMS is in trial mode — messages will use the <strong>{stats.trial_sms_template}</strong>{" "}
@@ -384,7 +390,7 @@ export function ReviewRequestsSendSection({
             </div>
           )}
 
-          <div className="mt-5 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-2">
             <button
               type="button"
               disabled={!!sending}
@@ -419,11 +425,11 @@ export function ReviewRequestsSendSection({
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <div className={cn(dashboardCard, "p-3.5")}>
           <div className="flex items-center justify-between gap-2">
             <div>
-              <h3 className="text-base font-semibold text-zinc-900">Message preview</h3>
-              <p className="mt-0.5 text-sm text-zinc-500">
+              <h3 className={dashboardCardTitle}>Message preview</h3>
+              <p className={`mt-0.5 ${dashboardMicro}`}>
                 This is how your message will appear to the customer.
               </p>
             </div>
@@ -444,15 +450,15 @@ export function ReviewRequestsSendSection({
               ))}
             </div>
           </div>
-          <div className="mt-4 rounded-lg border border-zinc-100 bg-zinc-50 p-4">
+          <div className="mt-3 rounded-lg border border-zinc-100 bg-zinc-50 p-3">
             {form.channel === "email" || form.channel === "both" ? (
-              <div className="space-y-3 text-sm">
+              <div className="space-y-2.5 text-[13px]">
                 <p className="font-semibold text-zinc-900">
                   {emailTemplate?.subject ?? "We'd love your feedback!"}
                 </p>
                 <p className="whitespace-pre-wrap leading-relaxed text-zinc-700">{previewBody}</p>
                 <div className="pt-2 text-center">
-                  <span className="inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">
+                  <span className="inline-block rounded-lg bg-emerald-600 px-4 py-2 text-[13px] font-semibold text-white">
                     Leave a review on Google
                   </span>
                 </div>
@@ -460,43 +466,43 @@ export function ReviewRequestsSendSection({
                 <p className="text-xs text-zinc-400">We value your feedback!</p>
               </div>
             ) : (
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">{previewBody}</p>
+              <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-zinc-700">{previewBody}</p>
             )}
           </div>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
-        <div className="border-b border-zinc-100 px-4 py-3">
-          <h3 className="text-sm font-semibold text-zinc-900">Recent sends</h3>
+      <div className={cn(dashboardCard, "overflow-hidden")}>
+        <div className="border-b border-zinc-100 px-3.5 py-2.5">
+          <h3 className={dashboardCardTitle}>Recent sends</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
+          <table className="min-w-full text-left text-[12px]">
             <thead className="bg-zinc-50 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
               <tr>
-                <th className="px-4 py-2.5">Customer</th>
-                <th className="px-3 py-2.5">Channel</th>
-                <th className="px-3 py-2.5">Recipient</th>
-                <th className="px-3 py-2.5">Status</th>
-                <th className="px-3 py-2.5">Sent</th>
-                <th className="px-3 py-2.5">Preview</th>
-                <th className="w-10 px-3 py-2.5" />
+                <th className="px-3 py-2">Customer</th>
+                <th className="px-3 py-2">Channel</th>
+                <th className="px-3 py-2">Recipient</th>
+                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2">Sent</th>
+                <th className="px-3 py-2">Preview</th>
+                <th className="w-10 px-3 py-2" />
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {(stats?.recent_sends ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-zinc-500">
+                  <td colSpan={7} className="px-3 py-8 text-center text-[13px] text-zinc-500">
                     No sends yet.
                   </td>
                 </tr>
               ) : (
                 stats?.recent_sends.map((row) => (
                   <tr key={row.id} className="hover:bg-zinc-50/80">
-                    <td className="px-4 py-3 font-medium text-zinc-900">
+                    <td className="px-3 py-2 font-medium text-zinc-900">
                       {row.review_request_contacts?.customer_name ?? "—"}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-2">
                       <span className="inline-flex items-center gap-1.5 text-zinc-700">
                         {row.channel === "email" ? (
                           <Mail className="h-3.5 w-3.5 text-violet-500" />
@@ -506,20 +512,20 @@ export function ReviewRequestsSendSection({
                         <span className="capitalize text-xs">{row.channel}</span>
                       </span>
                     </td>
-                    <td className="px-3 py-3 text-xs text-zinc-500">
+                    <td className="px-3 py-2 text-zinc-500">
                       {row.recipient_email ?? row.recipient_phone ?? "—"}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-2">
                       {statusPill(sendStatusKey(row.status, row.has_reply), row.has_reply)}
                     </td>
-                    <td className="px-3 py-3 text-xs text-zinc-500">
+                    <td className="px-3 py-2 text-zinc-500">
                       {formatSentAt(row.sent_at ?? row.created_at)}
                     </td>
-                    <td className="max-w-[200px] truncate px-3 py-3 text-xs text-zinc-500" title={row.message_body}>
+                    <td className="max-w-[200px] truncate px-3 py-2 text-zinc-500" title={row.message_body}>
                       {row.message_body.slice(0, 60)}
                       {row.message_body.length > 60 ? "…" : ""}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-2">
                       <button type="button" className="rounded p-1 hover:bg-zinc-100" aria-label="More actions">
                         <MoreHorizontal className="h-4 w-4 text-zinc-400" />
                       </button>
