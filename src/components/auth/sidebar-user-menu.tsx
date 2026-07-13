@@ -9,17 +9,31 @@ export function SidebarUserMenu() {
   const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      const display =
-        (user.user_metadata?.full_name as string | undefined) ??
-        (user.user_metadata?.name as string | undefined) ??
-        user.email?.split("@")[0] ??
-        "User";
-      setName(display);
-      setEmail(user.email ?? null);
-    });
+    const devBypass =
+      process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+
+    if (devBypass) {
+      setName("Dev User");
+      setEmail("dev@localhost");
+      return;
+    }
+
+    try {
+      const supabase = createClient();
+      void supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) return;
+        const display =
+          (user.user_metadata?.full_name as string | undefined) ??
+          (user.user_metadata?.name as string | undefined) ??
+          user.email?.split("@")[0] ??
+          "User";
+        setName(display);
+        setEmail(user.email ?? null);
+      });
+    } catch {
+      setName("Signed in");
+      setEmail(null);
+    }
   }, []);
 
   const initials = (name ?? "U")

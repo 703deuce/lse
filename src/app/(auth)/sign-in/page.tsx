@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { getDevDefaultAppPath, isDevBypassEnabled } from "@/lib/auth/dev";
 
 export default async function SignInPage({
   searchParams,
@@ -7,8 +8,8 @@ export default async function SignInPage({
   searchParams: Promise<{ error?: string; next?: string }>;
 }) {
   const params = await searchParams;
-  const devBypass =
-    process.env.NODE_ENV === "development" && process.env.DEV_BYPASS_AUTH === "true";
+  const devBypass = isDevBypassEnabled();
+  const devHref = params.next?.startsWith("/") ? params.next : getDevDefaultAppPath();
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg p-8">
@@ -32,10 +33,10 @@ export default async function SignInPage({
           <div className="mt-6 border-t border-border pt-6 text-center">
             <p className="text-xs text-text-muted">Development only</p>
             <Link
-              href={params.next?.startsWith("/") ? params.next : "/businesses"}
+              href={devHref}
               className="mt-2 inline-block text-sm font-medium text-primary hover:underline"
             >
-              Continue in dev mode
+              Continue in dev mode (no login)
             </Link>
           </div>
         )}

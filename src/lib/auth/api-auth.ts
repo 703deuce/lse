@@ -1,10 +1,23 @@
 import { requireAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
+import {
+  isDevBypassEnabled,
+  isDevPreviewBusiness,
+  getDevAuthContext,
+} from "@/lib/auth/dev";
 
 export async function requireBusinessAccess(businessId: string): Promise<{
   userId: string;
   organizationId: string;
 }> {
+  if (
+    isDevBypassEnabled() &&
+    (process.env.DEV_BYPASS_BUSINESS_ACCESS === "true" || isDevPreviewBusiness(businessId))
+  ) {
+    const auth = getDevAuthContext();
+    return { userId: auth.userId, organizationId: auth.organizationId };
+  }
+
   const auth = await requireAuth();
   const supabase = createServiceClient();
   const { data: business } = await supabase

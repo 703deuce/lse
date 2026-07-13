@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { getDevDefaultAppPath, isDevBypassEnabled } from "@/lib/auth/dev";
 
 const PUBLIC_PREFIXES = [
   "/sign-in",
@@ -31,8 +32,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const devBypass =
-    process.env.NODE_ENV === "development" && process.env.DEV_BYPASS_AUTH === "true";
+  const devBypass = isDevBypassEnabled();
+
+  if (devBypass) {
+    if (pathname === "/" || pathname === "/sign-in" || pathname === "/sign-up") {
+      const target = new URL(getDevDefaultAppPath(), request.url);
+      return NextResponse.redirect(target);
+    }
+  }
 
   if (devBypass || !isProtectedPath(pathname)) {
     return NextResponse.next();

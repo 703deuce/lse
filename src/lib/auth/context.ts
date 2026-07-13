@@ -7,6 +7,7 @@ import {
   ensureUserOrganization,
   getOrganizationIdForUser,
 } from "@/lib/auth/onboarding";
+import { getDevAuthContext, isDevBypassEnabled, isDevMockAuthEnabled } from "@/lib/auth/dev";
 
 export interface AuthContext {
   userId: string;
@@ -16,11 +17,15 @@ export interface AuthContext {
 }
 
 function isDevBypass(): boolean {
-  return process.env.NODE_ENV === "development" && process.env.DEV_BYPASS_AUTH === "true";
+  return isDevBypassEnabled();
 }
 
 export async function getAuthContext(): Promise<AuthContext> {
   if (isDevBypass()) {
+    if (isDevMockAuthEnabled()) {
+      return getDevAuthContext();
+    }
+
     const userId = process.env.DEV_USER_ID ?? "00000000-0000-0000-0000-000000000001";
 
     const orgId = process.env.DEV_ORG_ID;

@@ -2,7 +2,7 @@ import { chromium } from "playwright";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 
-const url = process.env.PREVIEW_URL ?? "http://127.0.0.1:3000/dev/reviews-preview";
+const url = process.env.PREVIEW_URL ?? "http://127.0.0.1:3000/businesses/preview/reviews";
 const outDir = process.env.ARTIFACT_DIR ?? "/opt/cursor/artifacts/screenshots";
 
 await mkdir(outDir, { recursive: true });
