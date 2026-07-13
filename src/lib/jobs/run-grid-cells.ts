@@ -400,20 +400,26 @@ async function runJobsWithConcurrency(
   let successCount = 0;
   let failedCells = 0;
   let softReadyFired = false;
+  let softReadyGate: Promise<void> = Promise.resolve();
   const failedPointIds: string[] = [];
   const timings: CellPhaseTimings[] = [];
 
+  // Serialize soft-ready so parallel settling cells cannot fire onSoftReady twice.
   const maybeSoftReady = async () => {
-    if (softReadyFired || !params.onSoftReady || !params.softReadyMinSuccess) return;
+    if (!params.onSoftReady || !params.softReadyMinSuccess) return;
     const maxTrailing = params.totalCells - params.softReadyMinSuccess;
     const remaining = params.totalCells - completed;
-    if (remaining <= maxTrailing && completed >= params.softReadyMinSuccess) {
+    if (!(remaining <= maxTrailing && completed >= params.softReadyMinSuccess)) return;
+
+    softReadyGate = softReadyGate.then(async () => {
+      if (softReadyFired) return;
       softReadyFired = true;
       console.log(
         `[Scan] Soft rank_ready: ${completed}/${params.totalCells} cells done, ${successCount} succeeded, ${remaining} still in flight`
       );
-      await params.onSoftReady();
-    }
+      await params.onSoftReady!();
+    });
+    await softReadyGate;
   };
 
   const results = await Promise.all(
@@ -650,13 +656,17 @@ export async function runGridCellsLive(params: {
 
   const allTimings: CellPhaseTimings[] = [];
   const scanWallStart = performance.now();
-  let rankReadyFired = false;
+  let rankReadyStarted = false;
+  let rankReadyPromise: Promise<void> | null = null;
   const softMin = softReadyMinSuccess(totalCells);
 
   const onSoftReady = async () => {
-    if (rankReadyFired || !params.onSoftReady) return;
-    rankReadyFired = true;
-    await params.onSoftReady();
+    if (!params.onSoftReady) return;
+    if (!rankReadyPromise) {
+      rankReadyStarted = true;
+      rankReadyPromise = params.onSoftReady();
+    }
+    await rankReadyPromise;
   };
 
   const onCellSettled = async (success: boolean) => {
@@ -685,8 +695,8 @@ export async function runGridCellsLive(params: {
       passLabel,
       completedOffset,
       updateProgress: true,
-      softReadyMinSuccess: rankReadyFired ? undefined : softMin,
-      onSoftReady: rankReadyFired ? undefined : onSoftReady,
+      softReadyMinSuccess: rankReadyStarted ? undefined : softMin,
+      onSoftReady: rankReadyStarted ? undefined : onSoftReady,
       onCellSettled,
       organizationId: params.organizationId,
     });
@@ -748,7 +758,7 @@ export async function runGridCellsLive(params: {
     failed_point_ids: failedCells > 0 ? remainingJobs.map((j) => j.point.id) : [],
   });
 
-  if (!rankReadyFired && params.onSoftReady) {
+  if (!rankReadyPromise && params.onSoftReady) {
     await onSoftReady();
   }
   await refreshScanAggregateMetrics(params.scanBatchId);

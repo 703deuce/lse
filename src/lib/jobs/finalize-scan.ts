@@ -11,6 +11,9 @@ function gridScanAutoEnrichment(): boolean {
 /**
  * Phase 1 — mark scan rank-ready as soon as grid cells are saved. Map is usable.
  * Enrichment is opt-in only (GRID_SCAN_AUTO_ENRICHMENT=true); grid scans do not run it by default.
+ *
+ * Uses a conditional status claim so soft-ready + end-of-scan (or duplicate soft-ready)
+ * cannot run finalize twice.
  */
 export async function finalizeRankReady(
   scanBatchId: string,
@@ -20,8 +23,21 @@ export async function finalizeRankReady(
 ): Promise<void> {
   const supabase = createServiceClient();
 
-  const { data: batch } = await supabase.from("scan_batches").select("*").eq("id", scanBatchId).single();
-  if (!batch) throw new Error("Scan batch not found");
+  // Claim: only one finalize may leave provider_running/dispatching → normalizing.
+  const { data: claimed } = await supabase
+    .from("scan_batches")
+    .update({ status: "normalizing" })
+    .eq("id", scanBatchId)
+    .in("status", ["provider_running", "dispatching"])
+    .select("*")
+    .maybeSingle();
+
+  if (!claimed) {
+    console.log("[finalizeRankReady] skip — already claimed or not in-flight", scanBatchId);
+    return;
+  }
+
+  const batch = claimed;
 
   const { data: business } = await supabase.from("businesses").select("*").eq("id", batch.business_id).single();
   if (!business) throw new Error("Business not found");
@@ -29,8 +45,6 @@ export async function finalizeRankReady(
   const { data: keywords } = await supabase.from("business_keywords").select("*").eq("business_id", business.id);
   const primaryKeyword = keywords?.find((k) => k.is_primary) ?? keywords?.[0];
   if (!primaryKeyword) throw new Error("No keywords configured");
-
-  await supabase.from("scan_batches").update({ status: "normalizing" }).eq("id", scanBatchId);
 
   const { data: points } = await supabase
     .from("scan_points")
@@ -63,8 +77,18 @@ export async function finalizeRankReady(
   const actualFailed = Math.max(0, failedCells);
   const cellsCompleted = Math.min(actualCompleted, totalCells > 0 ? totalCells : actualCompleted);
 
+  // Re-read progress fields — cells may still settle while we normalize.
+  const { data: latest } = await supabase
+    .from("scan_batches")
+    .select("confidence_summary")
+    .eq("id", scanBatchId)
+    .eq("status", "normalizing")
+    .maybeSingle();
+  const conf = ((latest?.confidence_summary ?? batch.confidence_summary ?? {}) as Record<string, unknown>);
+  const failedPointIds = Array.isArray(conf.failed_point_ids) ? conf.failed_point_ids : [];
+
   if (actualFailed >= totalCells || (totalCells > 0 && actualFailed > totalCells * 0.5 && actualCompleted === 0)) {
-    await supabase
+    const { data: failedRow } = await supabase
       .from("scan_batches")
       .update({
         status: "failed",
@@ -77,14 +101,17 @@ export async function finalizeRankReady(
         error_message: "All scan points failed",
         finished_at: rankReadyAt,
       })
-      .eq("id", scanBatchId);
+      .eq("id", scanBatchId)
+      .eq("status", "normalizing")
+      .select("id")
+      .maybeSingle();
+    if (!failedRow) {
+      console.log("[finalizeRankReady] failed write skipped — status moved", scanBatchId);
+    }
     return;
   }
 
-  const conf = (batch.confidence_summary ?? {}) as Record<string, unknown>;
-  const failedPointIds = Array.isArray(conf.failed_point_ids) ? conf.failed_point_ids : [];
-
-  await supabase
+  const { data: readyRow } = await supabase
     .from("scan_batches")
     .update({
       status: "rank_ready",
@@ -117,7 +144,15 @@ export async function finalizeRankReady(
             ? `${failedCells} of ${totalCells} points failed. Rank map is still usable.`
             : null,
     })
-    .eq("id", scanBatchId);
+    .eq("id", scanBatchId)
+    .eq("status", "normalizing")
+    .select("id")
+    .maybeSingle();
+
+  if (!readyRow) {
+    console.log("[finalizeRankReady] rank_ready write skipped — status moved", scanBatchId);
+    return;
+  }
 
   invalidateScanGridCache(scanBatchId);
 
