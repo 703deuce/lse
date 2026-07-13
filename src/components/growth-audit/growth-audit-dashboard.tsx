@@ -174,7 +174,7 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
 
   if (loading && !sections) {
     return (
-      <div className="flex items-center justify-center py-12 text-zinc-500">
+      <div className="flex items-center justify-center py-8 text-zinc-500">
         <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
       </div>
     );

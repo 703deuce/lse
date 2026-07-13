@@ -256,7 +256,7 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
 
   if (loading && !data?.run) {
     return (
-      <div className="flex items-center gap-2 py-10 text-[13px] text-zinc-500">
+      <div className="flex items-center gap-2 py-8 text-[13px] text-zinc-500">
         <Loader2 className="h-4 w-4 animate-spin" /> Loading Review Momentum…
       </div>
     );

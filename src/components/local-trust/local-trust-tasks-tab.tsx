@@ -54,7 +54,7 @@ export function LocalTrustTasksTab({ tasks }: { tasks: TaskRow[] }) {
 
   if (!tasks.length) {
     return (
-      <div className={cn(dashboardCard, "px-3.5 py-10 text-center")}>
+      <div className={cn(dashboardCard, "px-3.5 py-8 text-center")}>
         <p className="text-[13px] text-zinc-500">No tasks yet. Run the finder to generate recommended actions.</p>
       </div>
     );

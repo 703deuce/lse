@@ -70,25 +70,28 @@ export default async function ScansPage({
   return (
     <>
       <PageHeader
-        title="Scans"
+        title="Maps Scans"
         subtitle="Run grid scans by keyword and review your rank history."
+        className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
       />
 
-      <ScansHub
-        businessId={businessId}
-        scans={scanItems}
-        keywords={(keywords ?? []).map((k) => ({
-          id: k.id as string,
-          keyword: String(k.keyword).trim(),
-          is_primary: !!k.is_primary,
-        }))}
-        defaultCenterLat={
-          (business.scan_center_lat as number | null) ?? (business.lat as number) ?? 0
-        }
-        defaultCenterLng={
-          (business.scan_center_lng as number | null) ?? (business.lng as number) ?? 0
-        }
-      />
+      <div className="mt-4">
+        <ScansHub
+          businessId={businessId}
+          scans={scanItems}
+          keywords={(keywords ?? []).map((k) => ({
+            id: k.id as string,
+            keyword: String(k.keyword).trim(),
+            is_primary: !!k.is_primary,
+          }))}
+          defaultCenterLat={
+            (business.scan_center_lat as number | null) ?? (business.lat as number) ?? 0
+          }
+          defaultCenterLng={
+            (business.scan_center_lng as number | null) ?? (business.lng as number) ?? 0
+          }
+        />
+      </div>
     </>
   );
 }

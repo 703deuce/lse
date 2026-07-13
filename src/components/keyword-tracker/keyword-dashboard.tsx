@@ -404,7 +404,7 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
       </div>
 
       {loading && !data ? (
-        <div className="flex items-center justify-center py-12 text-text-muted">
+        <div className="flex items-center justify-center py-8 text-text-muted">
           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
           Loading keywords…
         </div>

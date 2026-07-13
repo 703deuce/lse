@@ -48,6 +48,7 @@ export function GapPageHeader() {
     <ModuleHeader
       title="Competitor Backlink Gap"
       subtitle="Find websites linking to competitors but not to you."
+      className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
     />
   );
 }

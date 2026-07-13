@@ -133,7 +133,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
 
   if (loading && !data) {
     return (
-      <div className="flex justify-center py-12">
+      <div className="flex justify-center py-8">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
@@ -453,7 +453,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
             </div>
           </div>
         ) : (
-          <div className="hidden items-center justify-center rounded-lg border border-dashed border-border bg-surface-subtle/50 p-6 text-[13px] text-text-muted xl:flex">
+          <div className="hidden items-center justify-center rounded-lg border border-dashed border-border bg-surface-subtle/50 p-3.5 text-[13px] text-text-muted xl:flex">
             Select a prompt to edit
           </div>
         )}

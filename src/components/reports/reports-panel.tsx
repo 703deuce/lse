@@ -34,11 +34,10 @@ export function ReportsPanel({
   }
 
   return (
-    <ModulePage className="!space-y-4">
+    <ModulePage>
       <ModuleHeader
         title="Reports"
         subtitle="Export shareable visibility reports for your business or clients."
-        className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
       />
 
       {!latestScanId ? (
@@ -47,14 +46,14 @@ export function ReportsPanel({
           description="Run a grid scan first — reports are generated from your latest scan results."
         />
       ) : (
-        <ContentCard className="max-w-xl !p-3.5">
-          <div className="flex items-start gap-4">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-              <FileDown className="h-5 w-5" />
+        <ContentCard className="max-w-xl">
+          <div className="flex items-start gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+              <FileDown className="h-4 w-4" />
             </span>
             <div className="min-w-0 flex-1">
-              <h2 className="text-base font-semibold text-zinc-900">Visibility report</h2>
-              <p className="mt-1 text-sm leading-relaxed text-zinc-500">
+              <h2 className="text-[13px] font-semibold text-zinc-900">Visibility report</h2>
+              <p className="mt-0.5 text-[12px] leading-snug text-zinc-500">
                 Generates a shareable PDF from your latest grid scan — rankings, coverage, and
                 competitor comparison.
               </p>
@@ -62,14 +61,14 @@ export function ReportsPanel({
                 type="button"
                 onClick={exportReport}
                 disabled={loading}
-                className={`mt-4 ${btnPrimary}`}
+                className={`mt-3 h-9 px-3 text-[13px] ${btnPrimary}`}
               >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
                 Export PDF report
               </button>
               {shareUrl && (
-                <p className="mt-4 flex items-center gap-1.5 text-sm text-zinc-600">
-                  <Link2 className="h-4 w-4 shrink-0 text-zinc-400" />
+                <p className="mt-2.5 flex items-center gap-1.5 text-[12px] text-zinc-600">
+                  <Link2 className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
                   <a
                     href={shareUrl}
                     className="truncate font-medium text-emerald-600 hover:underline"

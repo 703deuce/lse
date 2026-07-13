@@ -15,8 +15,8 @@ export async function KeywordVisibilityOverviewCard({ businessId }: { businessId
           </span>
           <div>
             <p className="text-sm font-semibold text-text">Keyword Visibility</p>
-            <p className="mt-2 text-xl font-bold text-text">—</p>
-            <p className="mt-2 text-xs text-text-muted">Track Maps rankings for local keywords</p>
+            <p className="mt-1.5 text-base font-bold text-text">—</p>
+            <p className="mt-1.5 text-[11px] text-text-muted">Track Maps rankings for local keywords</p>
           </div>
         </div>
       </OverviewCardShell>
@@ -39,10 +39,10 @@ export async function KeywordVisibilityOverviewCard({ businessId }: { businessId
             </span>
             <p className="text-sm font-semibold text-text">Keyword Visibility</p>
           </div>
-          <p className="mt-3 text-xl font-bold tabular-nums text-text">
+          <p className="mt-2 text-base font-bold tabular-nums text-text">
             {summary.avg_rank != null ? summary.avg_rank : "—"}
           </p>
-          <p className="mt-2 text-xs text-text-muted">{sub}</p>
+          <p className="mt-1 text-[11px] text-text-muted">{sub}</p>
         </div>
         <MiniBarChart data={barData.length ? barData : [0]} color="#0ea5e9" width={64} height={32} />
       </div>

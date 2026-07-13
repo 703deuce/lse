@@ -110,7 +110,7 @@ export function DashboardReviewPerformanceCard({
         <div className="space-y-1">
           <div className="flex items-baseline gap-1.5">
             <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-            <span className="text-xl font-semibold tabular-nums tracking-tight text-zinc-900">
+            <span className="text-base font-semibold tabular-nums tracking-tight text-zinc-900">
               {rating}
             </span>
           </div>

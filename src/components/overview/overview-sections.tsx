@@ -85,7 +85,7 @@ export function OverviewCoreScores({
                   value={numValue != null ? numValue : "—"}
                   suffix={numValue != null ? "/100" : undefined}
                   score={numValue}
-                  className="text-xl"
+                  className="text-base"
                 />
               </div>
               {numValue != null && (
@@ -144,7 +144,7 @@ export function OverviewAuditSnapshot({
                   value={item.value != null ? item.value : "—"}
                   suffix={item.value != null ? "/100" : undefined}
                   score={item.value}
-                  className="text-lg"
+                  className="text-base"
                 />
               </div>
               {item.value != null && (

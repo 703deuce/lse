@@ -27,16 +27,16 @@ export async function ReviewRequestsOverviewCard({ businessId }: { businessId: s
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-text">Review Requests</p>
-            <p className="mt-2 text-xl font-bold tabular-nums text-text">
+            <p className="mt-1.5 text-base font-bold tabular-nums text-text">
               {stats ? String(count) : "—"}
             </p>
             {stats ? (
               <>
-                <p className="mt-1 text-xs text-text-muted">{count} sent this month</p>
-                {breakdown && <p className="mt-1 text-xs text-text-muted">{breakdown}</p>}
+                <p className="mt-1 text-[11px] text-text-muted">{count} sent this month</p>
+                {breakdown && <p className="mt-0.5 text-[11px] text-text-muted">{breakdown}</p>}
               </>
             ) : (
-              <p className="mt-2 text-xs text-text-muted">Send review requests from Reputation</p>
+              <p className="mt-1.5 text-[11px] text-text-muted">Send review requests from Reputation</p>
             )}
           </div>
         </div>

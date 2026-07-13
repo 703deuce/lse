@@ -12,12 +12,12 @@ interface MetricCardProps {
 
 export function MetricCard({ label, value, sub, className }: MetricCardProps) {
   return (
-    <div className={cn(cardClass, "p-5", className)}>
+    <div className={cn(cardClass, "p-3.5", className)}>
       <p className={cardLabelClass}>{label}</p>
-      <div className="mt-2">
+      <div className="mt-1.5">
         <StatValue value={value} />
       </div>
-      {sub ? <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{sub}</p> : null}
+      {sub ? <p className="mt-1 text-[11px] leading-snug text-zinc-500">{sub}</p> : null}
     </div>
   );
 }
@@ -116,7 +116,7 @@ export function GridTopCellsGroup({
   return (
     <div
       className={cn(
-        "flex divide-x divide-zinc-100 rounded-xl border border-zinc-200/80 bg-white px-1 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
+        "flex divide-x divide-zinc-100 rounded-lg border border-zinc-200/80 bg-white px-1 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
         className
       )}
     >
@@ -132,13 +132,13 @@ export function GridTopCellsGroup({
         },
         { label: "Top 20", value: top20, sub: "cells" },
       ].map((item) => (
-        <div key={item.label} className="flex-1 px-3 text-center">
+        <div key={item.label} className="flex-1 px-2.5 text-center">
           <p className={cardLabelClass}>{item.label}</p>
-          <p className="mt-1 text-xl font-bold tabular-nums leading-none text-zinc-900">{item.value}</p>
+          <p className="mt-0.5 text-base font-bold tabular-nums leading-none text-zinc-900">{item.value}</p>
           {item.sub && (
             <p
               className={cn(
-                "mt-1 text-xs",
+                "mt-0.5 text-[11px]",
                 item.label === "Top 10" && top10Delta != null
                   ? trendTextClass(top10Delta)
                   : "text-zinc-500"

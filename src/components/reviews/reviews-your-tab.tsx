@@ -55,7 +55,7 @@ export function ReviewsYourTab({ data }: { data: ReviewsPageData }) {
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Response Rate</p>
             <div className="mt-1 flex items-end justify-between gap-2">
               <div>
-                <p className="text-xl font-bold leading-none text-zinc-900">{data.kpis.responseRate}%</p>
+                <p className="text-base font-bold leading-none text-zinc-900">{data.kpis.responseRate}%</p>
                 <div className="mt-1">
                   <DeltaText value={data.kpis.responseRateDelta} suffix="% vs prior 90 days" />
                 </div>
@@ -65,7 +65,7 @@ export function ReviewsYourTab({ data }: { data: ReviewsPageData }) {
           </RvCard>
           <RvCard className="!p-3">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Avg Reply Time</p>
-            <p className="mt-1 text-xl font-bold leading-none text-zinc-900">4h 32m</p>
+            <p className="mt-1 text-base font-bold leading-none text-zinc-900">4h 32m</p>
             <p className="mt-0.5 text-[11px] font-medium text-emerald-600">↓ 1h 12m vs prior period</p>
             <Clock className="mt-1.5 h-4 w-4 text-emerald-500" />
           </RvCard>

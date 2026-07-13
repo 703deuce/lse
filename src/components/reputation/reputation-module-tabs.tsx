@@ -53,7 +53,7 @@ export function ReputationModuleTabs({
 }) {
   return (
     <div className="-mb-px border-b border-zinc-200">
-      <div className="flex flex-wrap gap-6 overflow-x-auto">
+      <div className="flex flex-wrap gap-4 overflow-x-auto">
         {MODULE_TABS.map((tab) => {
           const Icon = tab.icon;
           const active = tab.id === activeTab;

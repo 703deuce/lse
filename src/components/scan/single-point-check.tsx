@@ -191,7 +191,7 @@ export function SpotCheckInspector({
         ) : data ? (
           <>
             <p className="text-sm text-text-muted">{data.keyword}</p>
-            <p className="mt-1 text-2xl font-bold">
+            <p className="mt-1 text-lg font-bold tabular-nums leading-none">
               {data.rank != null ? `#${rankLabel(data.rank)}` : "20+"}
             </p>
             {data.match_reason && (

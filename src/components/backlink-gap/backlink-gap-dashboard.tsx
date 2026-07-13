@@ -339,7 +339,7 @@ function SourceDetailDrawer({
           <div className="grid grid-cols-2 gap-2.5">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Link power (0–100)</p>
-              <p className="text-xl font-bold text-emerald-700">{o.powerScore ?? "—"}</p>
+              <p className="text-base font-bold text-emerald-700">{o.powerScore ?? "—"}</p>
             </div>
             <div>
               <p className="text-xs text-text-muted">Opportunity score</p>

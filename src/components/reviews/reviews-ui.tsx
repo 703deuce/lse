@@ -231,6 +231,7 @@ export function ReviewsHeader({
     <ModuleHeader
       title="Reviews"
       subtitle="Monitor your review feed, compare competitors, and spot momentum over the last 90 days."
+      className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
       actions={
         <>
           <button type="button" onClick={onRefresh} disabled={loading} className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>

@@ -96,9 +96,9 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
 
   if (error && !data) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center">
-        <p className="text-red-800">{error}</p>
-        <button type="button" onClick={() => void load()} className="mt-4 text-sm font-medium text-emerald-600">
+      <div className="rounded-lg border border-red-200 bg-red-50 p-3.5 text-center">
+        <p className="text-[13px] text-red-800">{error}</p>
+        <button type="button" onClick={() => void load()} className="mt-2.5 text-[13px] font-medium text-emerald-600">
           Try again
         </button>
       </div>
@@ -130,7 +130,7 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
       <ReviewsTabs active={tab} onChange={handleTabChange} />
 
       {tab === "overview" && (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,18rem)] xl:items-start">
+        <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,18rem)] xl:items-start">
           <ReviewsOverviewTab data={data} onTabChange={handleTabChange} />
           <aside>
             <SuggestedActionsSidebar suggestions={data.suggestions} businessId={businessId} onTabChange={handleTabChange} />
@@ -139,7 +139,7 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
       )}
 
       {tab === "your-reviews" && (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,18rem)] xl:items-start">
+        <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,18rem)] xl:items-start">
           <ReviewsYourTab data={data} />
           <aside>
             <SuggestedReplyTasksSidebar data={data} businessId={businessId} />
