@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { priorityBadge } from "@/components/backlink-gap/backlink-gap-ui";
+import { dashboardCard, dashboardControl, dashboardMicro } from "@/components/overview/dashboard-ui";
+import { GridMetricCard } from "@/components/ui/metric-card";
 
 type TaskRow = {
   id: string;
@@ -207,33 +209,31 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
 
   if (tasks.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-zinc-200 bg-white p-10 text-center shadow-sm">
-        <p className="text-sm text-zinc-500">No tasks yet. Run analysis or click Create Tasks.</p>
+      <div className={cn(dashboardCard, "border-dashed p-6 text-center")}>
+        <p className="text-[13px] text-zinc-500">No tasks yet. Run analysis or click Create Tasks.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="space-y-4">
+      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
         {kpiCards.map((card) => (
-          <div key={card.label} className="rounded-xl border border-zinc-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{card.label}</p>
-                <p className="mt-2 text-3xl font-bold leading-none tabular-nums text-zinc-900">{card.value}</p>
-                <p className="mt-1.5 text-xs text-zinc-500">{card.sub}</p>
-              </div>
-              <span className={cn("flex h-9 w-9 items-center justify-center rounded-lg", card.color)}>
-                <card.icon className="h-4 w-4" />
-              </span>
-            </div>
-          </div>
+          <GridMetricCard
+            key={card.label}
+            compact
+            label={card.label}
+            value={card.value}
+            sub={card.sub}
+            icon={card.icon}
+            iconWrapClassName={card.color.split(" ").slice(1).join(" ")}
+            iconClassName={card.color.split(" ")[0]}
+          />
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex flex-wrap gap-1.5">
           {TASK_FILTERS.map((f) => (
             <button
               key={f.id}
@@ -243,7 +243,7 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
                 setPage(1);
               }}
               className={cn(
-                "rounded-full border px-3 py-1 text-xs font-medium",
+                "rounded-full border px-2.5 py-1 text-[11px] font-medium",
                 filter === f.id
                   ? "border-emerald-600 bg-emerald-50 text-emerald-700"
                   : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
@@ -253,14 +253,14 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
-            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+            className={cn(dashboardControl, "px-3 text-[12px] font-medium text-zinc-600")}
           >
             Filters
           </button>
-          <select className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs text-zinc-600">
+          <select className={cn(dashboardControl, "px-3 text-[12px] text-zinc-600")}>
             <option>Sort: Priority</option>
           </select>
           <div className="flex rounded-lg border border-zinc-200 p-0.5">
@@ -290,22 +290,22 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+      <div className={cn(dashboardCard, "overflow-hidden p-0")}>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-zinc-50 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+          <table className="min-w-full text-[13px]">
+            <thead className="bg-zinc-50 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
               <tr>
-                <th className="px-4 py-3">
+                <th className="px-3 py-2">
                   <input type="checkbox" className="rounded border-zinc-300" aria-label="Select all" />
                 </th>
-                <th className="px-4 py-3">Task</th>
-                <th className="px-4 py-3">Impact</th>
-                <th className="px-4 py-3">Effort</th>
-                <th className="px-4 py-3">Priority</th>
-                <th className="px-4 py-3">Owner</th>
-                <th className="px-4 py-3">Due Date</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3" />
+                <th className="px-3 py-2">Task</th>
+                <th className="px-3 py-2">Impact</th>
+                <th className="px-3 py-2">Effort</th>
+                <th className="px-3 py-2">Priority</th>
+                <th className="px-3 py-2">Owner</th>
+                <th className="px-3 py-2">Due Date</th>
+                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2" />
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -313,35 +313,35 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
                 const TaskIcon = TASK_ICONS[(page - 1) * pageSize + idx] ?? Globe;
                 return (
                   <tr key={task.id} className="hover:bg-zinc-50">
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2">
                       <input
                         type="checkbox"
                         className="rounded border-zinc-300"
                         aria-label={`Select ${task.title}`}
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2">
                       <div className="flex items-start gap-2">
-                        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                          <TaskIcon className="h-3.5 w-3.5" />
+                        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                          <TaskIcon className="h-3 w-3" />
                         </span>
                         <div>
                           <p className="font-medium text-zinc-900">{task.title}</p>
                           {task.description && (
-                            <p className="mt-0.5 line-clamp-2 text-xs text-zinc-500">{task.description}</p>
+                            <p className={`mt-0.5 line-clamp-2 ${dashboardMicro}`}>{task.description}</p>
                           )}
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3">{impactDisplay(String(task.impact ?? "medium"))}</td>
-                    <td className="px-4 py-3">{effortDisplay(String(task.effort ?? "medium"))}</td>
-                    <td className="px-4 py-3">{priorityBadge(String(task.priority ?? "medium"))}</td>
-                    <td className="px-4 py-3">{ownerDisplay((page - 1) * pageSize + idx)}</td>
-                    <td className="px-4 py-3">{dueDateDisplay((page - 1) * pageSize + idx)}</td>
-                    <td className="px-4 py-3">{statusBadge(String(task.status ?? "open"))}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2">{impactDisplay(String(task.impact ?? "medium"))}</td>
+                    <td className="px-3 py-2">{effortDisplay(String(task.effort ?? "medium"))}</td>
+                    <td className="px-3 py-2">{priorityBadge(String(task.priority ?? "medium"))}</td>
+                    <td className="px-3 py-2">{ownerDisplay((page - 1) * pageSize + idx)}</td>
+                    <td className="px-3 py-2">{dueDateDisplay((page - 1) * pageSize + idx)}</td>
+                    <td className="px-3 py-2">{statusBadge(String(task.status ?? "open"))}</td>
+                    <td className="px-3 py-2">
                       <button type="button" className="rounded p-1 hover:bg-zinc-100" aria-label="More actions">
-                        <MoreHorizontal className="h-4 w-4 text-zinc-400" />
+                        <MoreHorizontal className="h-3.5 w-3.5 text-zinc-400" />
                       </button>
                     </td>
                   </tr>
@@ -350,7 +350,7 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
             </tbody>
           </table>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 px-4 py-3 text-xs text-zinc-500">
+        <div className={`flex flex-wrap items-center justify-between gap-2.5 border-t border-zinc-100 px-3.5 py-2.5 ${dashboardMicro}`}>
           <span>
             Showing {from} to {to} of {filtered.length} tasks
           </span>
@@ -395,7 +395,7 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
                 setPageSize(Number(e.target.value));
                 setPage(1);
               }}
-              className="rounded border border-zinc-200 px-2 py-1 text-sm"
+              className="rounded border border-zinc-200 px-2 py-0.5 text-[12px]"
             >
               <option value={10}>10</option>
               <option value={25}>25</option>

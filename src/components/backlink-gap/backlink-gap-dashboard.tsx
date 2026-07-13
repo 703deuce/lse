@@ -171,8 +171,8 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
   const competitors = data?.competitors ?? run?.selected_competitors ?? [];
 
   return (
-    <ModulePage>
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <ModulePage className="!space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <GapPageHeader />
         <GapTopBar businessId={businessId} />
       </div>
@@ -190,8 +190,8 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
       {error && <AlertBanner variant="error">{error}</AlertBanner>}
 
       {isRunning && run?.progress_stage && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-3.5 py-2.5 text-[13px] text-blue-800">
+          <Loader2 className="mr-2 inline h-3.5 w-3.5 animate-spin" />
           {run.progress_stage}…
         </div>
       )}
@@ -219,15 +219,15 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
       <GapTabs active={tab} onChange={setTab} />
 
       {loading && !data && (
-        <div className="flex items-center justify-center py-12 text-text-muted">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          Loading saved results…
+        <div className="flex items-center justify-center py-10 text-text-muted">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <span className="text-[13px]">Loading saved results…</span>
         </div>
       )}
 
       {!loading && !run && (
-        <div className="rounded-xl border border-dashed border-border bg-white p-8 text-center">
-          <p className="text-text-muted">
+        <div className="rounded-xl border border-dashed border-border bg-white p-6 text-center">
+          <p className="text-[13px] text-text-muted">
             No backlink gap analysis yet. Run your first analysis to find competitor link opportunities.
           </p>
         </div>
@@ -329,17 +329,17 @@ function SourceDetailDrawer({
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
       <div className="flex h-full w-full max-w-lg flex-col bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h2 className="text-lg font-semibold">{o.referring_domain}</h2>
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h2 className="text-[15px] font-semibold">{o.referring_domain}</h2>
           <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-surface-subtle">
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4 text-sm">
-          <div className="grid grid-cols-2 gap-3">
+        <div className="flex-1 space-y-3.5 overflow-y-auto px-4 py-3.5 text-[13px]">
+          <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <p className="text-xs text-text-muted">Link power (0–100)</p>
-              <p className="text-2xl font-bold text-emerald-700">{o.powerScore ?? "—"}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Link power (0–100)</p>
+              <p className="text-xl font-bold text-emerald-700">{o.powerScore ?? "—"}</p>
             </div>
             <div>
               <p className="text-xs text-text-muted">Opportunity score</p>
@@ -430,12 +430,12 @@ function SourceDetailDrawer({
             <p className="mt-1 text-text-muted">{o.suggested_action ?? "—"}</p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2 border-t border-border px-6 py-4">
+        <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
           <button
             type="button"
             disabled={updating}
             onClick={onCreateTask}
-            className="rounded-lg bg-[#16A34A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#15803D] disabled:opacity-50"
+            className="rounded-lg bg-[#16A34A] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#15803D] disabled:opacity-50"
           >
             Create Task
           </button>
@@ -443,7 +443,7 @@ function SourceDetailDrawer({
             type="button"
             disabled={updating}
             onClick={onIgnore}
-            className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-surface-subtle disabled:opacity-50"
+            className="rounded-lg border border-border px-3.5 py-2 text-[13px] font-medium hover:bg-surface-subtle disabled:opacity-50"
           >
             Mark Ignore
           </button>
@@ -451,7 +451,7 @@ function SourceDetailDrawer({
             type="button"
             disabled={updating}
             onClick={onComplete}
-            className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-surface-subtle disabled:opacity-50"
+            className="rounded-lg border border-border px-3.5 py-2 text-[13px] font-medium hover:bg-surface-subtle disabled:opacity-50"
           >
             Mark Completed
           </button>

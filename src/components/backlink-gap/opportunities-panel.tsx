@@ -29,6 +29,7 @@ import {
   priorityPickBadge,
   topicalBadge,
 } from "@/components/backlink-gap/backlink-gap-ui";
+import { dashboardCard, dashboardCardTitle, dashboardControl, dashboardMicro } from "@/components/overview/dashboard-ui";
 
 const PAGE_SIZES = [10, 25, 50, 100] as const;
 
@@ -112,8 +113,8 @@ function IgnoredTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full text-sm">
-        <thead className="bg-zinc-50 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+      <table className="min-w-full text-[13px]">
+        <thead className="bg-zinc-50 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
           <tr>
             <th className="px-3 py-2.5">
               <input type="checkbox" className="rounded border-border" aria-label="Select all" />
@@ -194,8 +195,8 @@ function OpportunityTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full text-sm">
-        <thead className="bg-zinc-50 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+      <table className="min-w-full text-[13px]">
+        <thead className="bg-zinc-50 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
           <tr>
             <th className="px-3 py-2.5">Domain</th>
             <th className="px-3 py-2.5">Power</th>
@@ -256,12 +257,12 @@ function Pagination({
   const to = Math.min(page * pageSize, totalItems);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 px-4 py-3 text-xs text-zinc-500">
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 px-3.5 py-2.5 text-[11px] text-zinc-500">
       <span>
         Showing {from} to {to} of {totalItems} results
       </span>
       <div className="flex items-center gap-2">
-        <select className="rounded border border-zinc-200 px-2 py-1 text-sm" defaultValue={pageSize}>
+        <select className="rounded border border-zinc-200 px-2 py-0.5 text-[12px]" defaultValue={pageSize}>
           <option value={10}>10 per page</option>
           <option value={25}>25 per page</option>
         </select>
@@ -487,12 +488,11 @@ export function OpportunitiesPanel({
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  const filterSelect =
-    "rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 shadow-sm";
+  const filterSelect = cn(dashboardControl, "px-3 text-[13px] text-zinc-700");
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
+    <div className="space-y-4">
+      <div className={cn(dashboardCard, "flex flex-wrap items-center gap-2 p-2.5")}>
         <select
           value={competitorFilter}
           onChange={(e) => {
@@ -538,7 +538,7 @@ export function OpportunitiesPanel({
           <option value="random">Random / generic</option>
         </select>
 
-        <button type="button" onClick={resetFilters} className="text-xs font-medium text-text-muted hover:text-text">
+        <button type="button" onClick={resetFilters} className="text-[11px] font-medium text-text-muted hover:text-text">
           Reset filters
         </button>
 
@@ -571,16 +571,16 @@ export function OpportunitiesPanel({
             </select>
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium hover:bg-zinc-50"
+              className={cn(dashboardControl, "inline-flex items-center gap-1.5 px-3 font-medium")}
             >
-              <Filter className="h-4 w-4" />
+              <Filter className="h-3.5 w-3.5" />
               More filters
             </button>
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium hover:bg-zinc-50"
+              className={cn(dashboardControl, "inline-flex items-center gap-1.5 px-3 font-medium")}
             >
-              <Bookmark className="h-4 w-4" />
+              <Bookmark className="h-3.5 w-3.5" />
               Save view
             </button>
           </>
@@ -611,7 +611,7 @@ export function OpportunitiesPanel({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search domains..."
-                className="rounded-md border border-border py-2 pl-8 pr-3 text-sm outline-none focus:border-emerald-500"
+                className={cn(dashboardControl, "py-0 pl-8 pr-3 text-[13px]")}
               />
             </div>
           )}
@@ -632,17 +632,17 @@ export function OpportunitiesPanel({
           </select>
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-surface-subtle"
+            className={cn(dashboardControl, "inline-flex items-center gap-1.5 px-3 font-medium")}
           >
-            <Download className="h-4 w-4" />
+            <Download className="h-3.5 w-3.5" />
             Export
           </button>
         </div>
       </div>
 
       {status === "open" && statsSummary && (
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 shadow-sm">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+        <div className={cn(dashboardCard, "bg-zinc-50 px-3.5 py-2.5")}>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px]">
             <span className="font-semibold text-zinc-900">{total || statsSummary.total} Total opportunities</span>
             <span className="flex items-center gap-1.5 text-zinc-600">
               <span className="h-2 w-2 rounded-full bg-sky-500" />
@@ -673,38 +673,38 @@ export function OpportunitiesPanel({
       )}
 
       {status === "open" && aiPicks.length > 0 && (
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-4 shadow-sm">
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3.5 shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
-                  <Sparkles className="h-4 w-4" />
+                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-100 text-emerald-600">
+                  <Sparkles className="h-3.5 w-3.5" />
                 </span>
-                <h3 className="text-sm font-semibold text-zinc-900">AI Picks: Best next links to pursue</h3>
+                <h3 className={dashboardCardTitle}>AI Picks: Best next links to pursue</h3>
               </div>
-              <p className="mt-1 text-xs text-zinc-600">
+              <p className={`mt-0.5 ${dashboardMicro}`}>
                 Highest impact opportunities based on Power, Relevance, and your competitors.
               </p>
             </div>
-            <button type="button" className="text-xs font-medium text-emerald-700 hover:underline">
+            <button type="button" className="text-[12px] font-medium text-emerald-700 hover:underline">
               View full recommendations →
             </button>
           </div>
-          <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
+          <div className="mt-3 flex gap-2.5 overflow-x-auto pb-1">
             {aiPicks.map((o) => (
               <button
                 key={o.id}
                 type="button"
                 onClick={() => onSelect(o)}
-                className="min-w-[200px] shrink-0 rounded-lg border border-zinc-200 bg-white p-3 text-left shadow-sm hover:border-emerald-200"
+                className="min-w-[180px] shrink-0 rounded-lg border border-zinc-200 bg-white p-2.5 text-left shadow-sm hover:border-emerald-200"
               >
-                <p className="font-medium text-zinc-900">{o.referring_domain}</p>
-                <p className="mt-1 text-[11px] text-zinc-500">
+                <p className="text-[13px] font-medium text-zinc-900">{o.referring_domain}</p>
+                <p className={`mt-0.5 ${dashboardMicro}`}>
                   Power {o.powerScore ?? "—"} · Relevance {o.topicalFit === "topical" ? "High" : "Medium"}
                 </p>
-                <div className="mt-2 flex items-center justify-between gap-2">
+                <div className="mt-1.5 flex items-center justify-between gap-2">
                   {priorityPickBadge(o.priority)}
-                  <span className="rounded-md border border-emerald-200 bg-white px-2 py-1 text-[10px] font-semibold text-emerald-700">
+                  <span className="rounded-md border border-emerald-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
                     Add to tasks
                   </span>
                 </div>
@@ -715,10 +715,10 @@ export function OpportunitiesPanel({
       )}
 
       {status === "ignored" && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 shadow-sm">
+        <div className={cn(dashboardCard, "flex flex-wrap items-center gap-2 px-3.5 py-2")}>
           <input type="checkbox" className="rounded border-zinc-300" aria-label="Select all rows" />
-          <span className="text-xs text-zinc-500">0 selected</span>
-          <select className="rounded-lg border border-emerald-200 px-2 py-1 text-xs font-medium text-emerald-700">
+          <span className={dashboardMicro}>0 selected</span>
+          <select className="rounded-lg border border-emerald-200 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
             <option>Bulk actions</option>
           </select>
           {["Mark as Ignore", "Mark as Spam", "Restore to Active", "Move to Review"].map((label) => (
@@ -726,19 +726,19 @@ export function OpportunitiesPanel({
               key={label}
               type="button"
               disabled
-              className="rounded-lg border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600"
+              className="rounded-lg border border-zinc-200 px-2 py-0.5 text-[11px] font-medium text-zinc-600"
             >
               {label}
             </button>
           ))}
-          <button type="button" disabled className="rounded-lg border border-red-100 px-2.5 py-1 text-xs font-medium text-red-400">
+          <button type="button" disabled className="rounded-lg border border-red-100 px-2 py-0.5 text-[11px] font-medium text-red-400">
             Delete
           </button>
         </div>
       )}
 
       {status === "ignored" ? (
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+        <div className={cn(dashboardCard, "overflow-hidden p-0")}>
           {loading ? (
             <div className="flex items-center justify-center py-10 text-text-muted">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -762,10 +762,10 @@ export function OpportunitiesPanel({
           )}
         </div>
       ) : competitorFilter !== "all" ? (
-        <div className="overflow-hidden rounded-xl border border-border bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-          <div className="border-b border-border px-4 py-3">
-            <h3 className="font-semibold text-text">{competitorFilter}</h3>
-            <p className="text-xs text-text-muted">{total} gaps · highest power first</p>
+        <div className={cn(dashboardCard, "overflow-hidden p-0")}>
+          <div className="border-b border-border px-3.5 py-2.5">
+            <h3 className={dashboardCardTitle}>{competitorFilter}</h3>
+            <p className={dashboardMicro}>{total} gaps · highest power first</p>
           </div>
           {loading ? (
             <div className="flex items-center justify-center py-10 text-text-muted">
@@ -786,7 +786,7 @@ export function OpportunitiesPanel({
           )}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {competitors.map((c, idx) => {
             const isOpen = expanded[c.name] ?? idx === 0;
             const count = counts.find((x) => x.name === c.name)?.count ?? groupTotals[c.name] ?? 0;
@@ -797,23 +797,23 @@ export function OpportunitiesPanel({
             return (
               <div
                 key={c.name}
-                className="overflow-hidden rounded-xl border border-border bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+                className={cn(dashboardCard, "overflow-hidden p-0")}
               >
                 <button
                   type="button"
                   onClick={() => setExpanded((e) => ({ ...e, [c.name]: !isOpen }))}
-                  className="flex w-full items-center gap-2 border-b border-border px-4 py-3 text-left hover:bg-surface-subtle"
+                  className="flex w-full items-center gap-2 border-b border-border px-3.5 py-2.5 text-left hover:bg-surface-subtle"
                 >
                   {isOpen ? (
-                    <ChevronDown className="h-4 w-4 text-text-muted" />
+                    <ChevronDown className="h-3.5 w-3.5 text-text-muted" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 text-text-muted" />
+                    <ChevronRight className="h-3.5 w-3.5 text-text-muted" />
                   )}
                   <div className="flex-1">
-                    <span className="font-semibold text-text">{c.name}</span>
-                    {c.domain && <span className="ml-2 text-xs text-text-muted">{c.domain}</span>}
+                    <span className="text-[13px] font-semibold text-text">{c.name}</span>
+                    {c.domain && <span className={`ml-2 ${dashboardMicro}`}>{c.domain}</span>}
                   </div>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-100">
                     {count} gaps
                   </span>
                 </button>

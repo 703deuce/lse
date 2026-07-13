@@ -19,15 +19,18 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import {
+  dashboardCard,
+  dashboardCardTitle,
+  dashboardControl,
+} from "@/components/overview/dashboard-ui";
+import {
   ModuleHeader,
   TabBar,
-  StatCard,
-  KpiGrid,
   btnPrimary,
   btnSecondary,
   btnIcon,
-  cardClass,
 } from "@/components/ui/design-system";
+import { GridMetricCard } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 
 export type BacklinkGapTabId = "overview" | "opportunities" | "matrix" | "ignored" | "tasks";
@@ -51,27 +54,30 @@ export function GapPageHeader() {
 
 export function GapTopBar({ businessId }: { businessId: string }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex shrink-0 items-center gap-2">
       <Link
         href={`/businesses/${businessId}/workspace`}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50"
+        className={cn(
+          dashboardControl,
+          "inline-flex items-center gap-1.5 px-3 font-medium text-zinc-600"
+        )}
       >
         ← Maps Workspace
       </Link>
-      <button type="button" className={btnIcon} aria-label="Help">
-        <CircleHelp className="h-4 w-4" />
+      <button type="button" className={cn(btnIcon, "h-9 w-9")} aria-label="Help">
+        <CircleHelp className="h-3.5 w-3.5" />
       </button>
       <button
         type="button"
-        className={cn(btnIcon, "relative")}
+        className={cn(btnIcon, "relative h-9 w-9")}
         aria-label="Notifications"
       >
-        <Bell className="h-4 w-4" />
-        <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+        <Bell className="h-3.5 w-3.5" />
+        <span className="absolute -right-1 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-bold text-white">
           3
         </span>
       </button>
-      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">
+      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-bold text-white">
         JD
       </span>
     </div>
@@ -101,21 +107,36 @@ export function GapActionBar({
         type="button"
         onClick={onRun}
         disabled={isRunning}
-        className={btnPrimary}
+        className={cn(btnPrimary, "h-9 px-3.5 text-[13px]")}
       >
-        <Play className="h-4 w-4 fill-current" />
+        <Play className="h-3.5 w-3.5 fill-current" />
         Run Backlink Gap
       </button>
-      <button type="button" onClick={onRerun} disabled={isRunning || !hasRun} className={btnSecondary}>
-        <RefreshCw className="h-4 w-4" />
+      <button
+        type="button"
+        onClick={onRerun}
+        disabled={isRunning || !hasRun}
+        className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
+      >
+        <RefreshCw className="h-3.5 w-3.5" />
         Re-run
       </button>
-      <button type="button" onClick={onCreateTasks} disabled={!hasRun || isRunning} className={btnSecondary}>
-        <ListPlus className="h-4 w-4" />
+      <button
+        type="button"
+        onClick={onCreateTasks}
+        disabled={!hasRun || isRunning}
+        className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
+      >
+        <ListPlus className="h-3.5 w-3.5" />
         Create Tasks
       </button>
-      <button type="button" onClick={onRefresh} disabled={loading} className={btnSecondary}>
-        <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+      <button
+        type="button"
+        onClick={onRefresh}
+        disabled={loading}
+        className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
+      >
+        <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
         Refresh
       </button>
     </div>
@@ -134,12 +155,12 @@ export function GapKpiRow({
   highPriority: number | string;
 }) {
   return (
-    <KpiGrid>
-      <StatCard label="Target Referring Domains" value={targetDomains} sub="Domains pointing to you" icon={Globe} />
-      <StatCard label="Competitor Domains Found" value={competitorDomains} sub="Unique domains found" icon={Users} />
-      <StatCard label="Missing Opportunities" value={missing} sub="Opportunities to capture" icon={Target} />
-      <StatCard label="High Priority Links" value={highPriority} sub="High priority opportunities" icon={Star} />
-    </KpiGrid>
+    <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-4">
+      <GridMetricCard compact label="Target Referring Domains" value={targetDomains} sub="Domains pointing to you" icon={Globe} />
+      <GridMetricCard compact label="Competitor Domains Found" value={competitorDomains} sub="Unique domains found" icon={Users} />
+      <GridMetricCard compact label="Missing Opportunities" value={missing} sub="Opportunities to capture" icon={Target} />
+      <GridMetricCard compact label="High Priority Links" value={highPriority} sub="High priority opportunities" icon={Star} />
+    </div>
   );
 }
 
@@ -155,12 +176,12 @@ export function GapIgnoredKpiRow({
   review: number;
 }) {
   return (
-    <KpiGrid>
-      <StatCard label="Ignored Domains" value={ignored} sub="Links you've ignored" icon={Eye} />
-      <StatCard label="Spam Candidates" value={spam} sub="Flagged as potentially spam" icon={Shield} />
-      <StatCard label="Restored Links" value={restored} sub="Restored to active" icon={RefreshCw} />
-      <StatCard label="Review Needed" value={review} sub="Require your review" icon={ClipboardList} />
-    </KpiGrid>
+    <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-4">
+      <GridMetricCard compact label="Ignored Domains" value={ignored} sub="Links you've ignored" icon={Eye} />
+      <GridMetricCard compact label="Spam Candidates" value={spam} sub="Flagged as potentially spam" icon={Shield} iconWrapClassName="bg-red-50" iconClassName="text-red-600" />
+      <GridMetricCard compact label="Restored Links" value={restored} sub="Restored to active" icon={RefreshCw} />
+      <GridMetricCard compact label="Review Needed" value={review} sub="Require your review" icon={ClipboardList} iconWrapClassName="bg-amber-50" iconClassName="text-amber-600" />
+    </div>
   );
 }
 
@@ -172,7 +193,7 @@ export function GapTargetLine({
   competitorCount: number;
 }) {
   return (
-    <p className="flex flex-wrap items-center gap-1.5 text-sm text-zinc-500">
+    <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
       <Target className="h-3.5 w-3.5 text-emerald-600" />
       Target domain: <span className="font-semibold text-zinc-900">{targetDomain}</span>
       {competitorCount > 0 && (
@@ -192,7 +213,14 @@ export function GapTabs({
   active: BacklinkGapTabId;
   onChange: (tab: BacklinkGapTabId) => void;
 }) {
-  return <TabBar tabs={BACKLINK_GAP_TABS} active={active} onChange={onChange} />;
+  return (
+    <TabBar
+      tabs={BACKLINK_GAP_TABS}
+      active={active}
+      onChange={onChange}
+      className="[&_button]:pb-2.5 [&_button]:text-[13px] [&>div]:gap-4"
+    />
+  );
 }
 
 export function GapPageFooter({
@@ -220,7 +248,7 @@ export function GapPageFooter({
     : "—";
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-zinc-200 pt-4 text-xs text-zinc-500">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-zinc-200/70 pt-3 text-[11px] text-zinc-500">
       <span className="inline-flex items-center gap-1.5" suppressHydrationWarning>
         <Clock className="h-3.5 w-3.5" />
         Last run: Today at {lastRunTime}
@@ -392,20 +420,20 @@ export function PanelCard({
   footer?: ReactNode;
 }) {
   return (
-    <div className={cn(cardClass, className)}>
-      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 px-5 py-3.5">
+    <div className={cn(dashboardCard, "overflow-hidden", className)}>
+      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 px-3.5 py-2.5">
         <div className="flex items-center gap-2">
           {Icon && (
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-              <Icon className="h-4 w-4" />
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-50 text-emerald-600">
+              <Icon className="h-3.5 w-3.5" />
             </span>
           )}
-          <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
+          <h3 className={dashboardCardTitle}>{title}</h3>
         </div>
         {action}
       </div>
-      <div className="p-5">{children}</div>
-      {footer && <div className="border-t border-zinc-100 px-5 py-3">{footer}</div>}
+      <div className="p-3.5">{children}</div>
+      {footer && <div className="border-t border-zinc-100 px-3.5 py-2.5">{footer}</div>}
     </div>
   );
 }
