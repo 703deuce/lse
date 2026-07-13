@@ -1,4 +1,4 @@
-import type { DashboardFeaturedData } from "@/lib/overview/load-dashboard-featured";
+import type { DashboardFeaturedData } from "@/lib/overview/dashboard-featured-types";
 import { DashboardAiVisibilityCard } from "@/components/overview/dashboard-ai-visibility-card";
 import { DashboardLocalOpportunitiesCard } from "@/components/overview/dashboard-local-opportunities-card";
 import { DashboardReviewPerformanceCard } from "@/components/overview/dashboard-review-performance-card";
@@ -23,6 +23,7 @@ export function DashboardFeaturedReports({
             businessId={businessId}
             items={data.local.items}
             total={data.local.total}
+            compact
           />
         )}
       </div>
