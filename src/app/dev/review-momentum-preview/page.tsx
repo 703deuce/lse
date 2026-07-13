@@ -1,35 +1,45 @@
 "use client";
 
-import { useEffect } from "react";
+import { useLayoutEffect, useState } from "react";
 import { ReviewMomentumDashboard } from "@/components/reviews/review-momentum-dashboard";
 import {
   REVIEW_MOMENTUM_PREVIEW_BUSINESS_ID,
   reviewMomentumPreviewPayload,
 } from "@/lib/reviews/review-momentum-preview-data";
 
+let fetchPatched = false;
+
+function patchMomentumPreviewFetch() {
+  if (typeof window === "undefined" || fetchPatched) return;
+  fetchPatched = true;
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes(`/api/reviews/momentum/latest?businessId=${REVIEW_MOMENTUM_PREVIEW_BUSINESS_ID}`)) {
+      return new Response(JSON.stringify(reviewMomentumPreviewPayload), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (url.includes("/api/reviews/momentum/run")) {
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }
+    if (url.includes("/api/reviews/momentum/tasks/")) {
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }
+    return originalFetch(input, init);
+  };
+}
+
 export default function ReviewMomentumPreviewPage() {
-  useEffect(() => {
-    const originalFetch = window.fetch.bind(window);
-    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.includes(`/api/reviews/momentum/latest?businessId=${REVIEW_MOMENTUM_PREVIEW_BUSINESS_ID}`)) {
-        return new Response(JSON.stringify(reviewMomentumPreviewPayload), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-      if (url.includes("/api/reviews/momentum/run")) {
-        return new Response(JSON.stringify({ ok: true }), { status: 200 });
-      }
-      if (url.includes("/api/reviews/momentum/tasks/")) {
-        return new Response(JSON.stringify({ ok: true }), { status: 200 });
-      }
-      return originalFetch(input, init);
-    };
-    return () => {
-      window.fetch = originalFetch;
-    };
+  const [ready, setReady] = useState(false);
+
+  useLayoutEffect(() => {
+    patchMomentumPreviewFetch();
+    setReady(true);
   }, []);
+
+  if (!ready) return null;
 
   return (
     <div className="px-5 py-6 lg:px-8">
