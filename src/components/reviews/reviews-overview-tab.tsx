@@ -53,7 +53,7 @@ export function ReviewsOverviewTab({
     <div className="space-y-5">
       <section>
         <RvSectionTitle title="Review Feed Snapshot" />
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)] lg:items-start">
           <RvCard>
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-zinc-900">
@@ -75,25 +75,25 @@ export function ReviewsOverviewTab({
           </RvCard>
 
           <RvCard>
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-2.5 flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-zinc-900">Competitor Activity — Last 90 Days</h3>
               <button
                 type="button"
                 onClick={() => onTabChange?.("competitor-reviews")}
-                className="text-sm font-medium text-emerald-600 hover:text-emerald-700"
+                className="shrink-0 text-sm font-medium text-emerald-600 hover:text-emerald-700"
               >
                 View all →
               </button>
             </div>
-            <div className="space-y-4">
+            <div className="divide-y divide-zinc-100">
               {data.competitorActivity.length === 0 ? (
-                <p className="text-sm text-zinc-500">No competitor data yet.</p>
+                <p className="py-4 text-sm text-zinc-500">No competitor data yet.</p>
               ) : (
                 data.competitorActivity.map((c) => (
-                  <div key={c.id} className="flex items-center gap-3">
+                  <div key={c.id} className="flex items-center gap-2.5 py-2.5 first:pt-0 last:pb-0">
                     <ReviewerAvatar name={c.name} />
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-zinc-900">{c.name}</p>
+                      <p className="text-sm font-medium text-zinc-900">{c.name}</p>
                       <p className="text-xs text-zinc-500">
                         {c.rating?.toFixed(1) ?? "—"} ★ · {c.newReviews90d} new reviews
                       </p>
