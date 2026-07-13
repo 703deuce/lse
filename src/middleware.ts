@@ -8,6 +8,7 @@ const PUBLIC_PREFIXES = [
   "/r/",
   "/reports/share/",
   "/api/webhooks/",
+  "/dev/",
 ];
 
 function isPublicPath(pathname: string): boolean {
