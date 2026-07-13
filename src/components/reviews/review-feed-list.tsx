@@ -34,7 +34,7 @@ export function ReviewFeedList({
         const showPreview = previewLines > 0 && isLong;
 
         return (
-          <article key={row.id} className="py-5 first:pt-0 last:pb-0">
+          <article key={row.id} className="py-3 first:pt-0 last:pb-0">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-3">
                 {!showBusiness && <ReviewerAvatar name={row.reviewerName} />}

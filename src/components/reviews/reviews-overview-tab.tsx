@@ -50,12 +50,12 @@ export function ReviewsOverviewTab({
   }, [filtered, streamPage]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <section>
         <RvSectionTitle title="Review Feed Snapshot" />
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-3 lg:grid-cols-2">
           <RvCard>
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-zinc-900">
                 Your Latest Reviews ({data.yourReviews.length})
               </h3>
@@ -75,7 +75,7 @@ export function ReviewsOverviewTab({
           </RvCard>
 
           <RvCard>
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-zinc-900">Competitor Activity — Last 90 Days</h3>
               <button
                 type="button"
@@ -116,7 +116,7 @@ export function ReviewsOverviewTab({
 
       <section>
         <RvSectionTitle title="Review Insights" />
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-3 lg:grid-cols-3">
           <KeywordCloud
             items={data.sentiment.yours.themes.map((t) => ({ keyword: t.label, count: t.reviewCount })).slice(0, 6)}
             title="Top Themes in Your Reviews"
@@ -146,7 +146,7 @@ export function ReviewsOverviewTab({
       </section>
 
       <RvCard>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-zinc-900">
             Recent Review Stream ({filtered.length} in last 90 days)
           </h3>

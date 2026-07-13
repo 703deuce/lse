@@ -46,29 +46,29 @@ export function ReviewsYourTab({ data }: { data: ReviewsPageData }) {
   const newest = data.yourReviews[0];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <section>
         <RvSectionTitle title={`Your Review Insights (${data.yourReviews.length} reviews, last 90 days)`} />
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <RvCard className="!p-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <RvCard className="!px-3.5 !py-2.5">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Response Rate</p>
-            <div className="mt-2 flex items-end justify-between gap-2">
+            <div className="mt-1.5 flex items-end justify-between gap-2">
               <div>
-                <p className="text-[32px] font-bold leading-none text-zinc-900">{data.kpis.responseRate}%</p>
-                <div className="mt-2">
+                <p className="text-2xl font-bold leading-none text-zinc-900">{data.kpis.responseRate}%</p>
+                <div className="mt-1">
                   <DeltaText value={data.kpis.responseRateDelta} suffix="% vs prior 90 days" />
                 </div>
               </div>
-              <DonutScore score={data.kpis.responseRate} size={52} strokeWidth={6} />
+              <DonutScore score={data.kpis.responseRate} size={44} strokeWidth={5} />
             </div>
           </RvCard>
-          <RvCard className="!p-4">
+          <RvCard className="!px-3.5 !py-2.5">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Avg Reply Time</p>
-            <p className="mt-2 text-[32px] font-bold leading-none text-zinc-900">4h 32m</p>
-            <p className="mt-2 text-xs font-medium text-emerald-600">↓ 1h 12m vs prior period</p>
-            <Clock className="mt-3 h-7 w-7 text-emerald-500" />
+            <p className="mt-1.5 text-2xl font-bold leading-none text-zinc-900">4h 32m</p>
+            <p className="mt-1 text-xs font-medium text-emerald-600">↓ 1h 12m vs prior period</p>
+            <Clock className="mt-2 h-5 w-5 text-emerald-500" />
           </RvCard>
-          <RvCard className="!p-4">
+          <RvCard className="!px-3.5 !py-2.5">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Newest Review</p>
             {newest ? (
               <div className="mt-3">
@@ -92,7 +92,7 @@ export function ReviewsYourTab({ data }: { data: ReviewsPageData }) {
               <p className="mt-3 text-sm text-zinc-500">No reviews yet.</p>
             )}
           </RvCard>
-          <RvCard className="!p-4">
+          <RvCard className="!px-3.5 !py-2.5">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Review Sources (90D)</p>
             <div className="mt-3 space-y-2.5">
               {[
