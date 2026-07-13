@@ -192,7 +192,7 @@ export function GrowthAuditOverviewTab({
 
       <section>
         <div className="mb-2.5">
-          <h2 className="text-base font-semibold text-zinc-900">Audit Snapshot</h2>
+          <h2 className="text-[13px] font-semibold tracking-tight text-zinc-900">Audit Snapshot</h2>
           <p className="mt-0.5 text-[11px] text-zinc-500">Key factors that influence your Google Maps visibility.</p>
         </div>
         <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
@@ -200,24 +200,24 @@ export function GrowthAuditOverviewTab({
             const meta = SNAPSHOT_META[item.label];
             const Icon = meta.icon;
             return (
-              <GaCard key={item.label} className="!p-3.5">
+              <GaCard key={item.label} className="!p-2.5">
                 <div className="flex items-center gap-2">
-                  <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg", meta.color)}>
-                    <Icon className="h-4 w-4" />
+                  <span className={cn("flex h-7 w-7 items-center justify-center rounded-md", meta.color)}>
+                    <Icon className="h-3.5 w-3.5" />
                   </span>
-                  <p className="text-[11px] font-medium text-zinc-500">{item.label}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{item.label}</p>
                 </div>
                 <span
                   className={cn(
-                    "mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                    "mt-1.5 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
                     item.value >= 70 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
                   )}
                 >
                   {item.value >= 70 ? "Strong" : "Needs Work"}
                 </span>
-                <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">{meta.description(item.value)}</p>
-                <p className="mt-2 text-base font-bold tabular-nums text-zinc-900">{item.value}/100</p>
-                <div className="mt-2">
+                <p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-zinc-500">{meta.description(item.value)}</p>
+                <p className="mt-1.5 text-[13px] font-bold tabular-nums text-zinc-900">{item.value}/100</p>
+                <div className="mt-1.5">
                   <ScoreProgressBar score={item.value} />
                 </div>
               </GaCard>
