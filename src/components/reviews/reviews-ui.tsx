@@ -286,7 +286,7 @@ export function ReviewsKpiRow({
       },
     ];
     return (
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((c) => (
           <GridMetricCard key={c.label} variant="default" compact {...c} />
         ))}
@@ -339,7 +339,7 @@ export function ReviewsKpiRow({
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-5">
+    <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-3 xl:grid-cols-5">
       {cards.map((c) => (
         <GridMetricCard key={c.label} compact {...c} />
       ))}

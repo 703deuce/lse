@@ -59,14 +59,14 @@ function NavLink({
       className={cn(
         "relative flex items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
         showActive
-          ? "bg-emerald-50 pl-3.5 text-emerald-800"
-          : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+          ? "bg-emerald-500/15 pl-3.5 text-emerald-300"
+          : "text-sidebar-text hover:bg-[var(--sidebar-hover)] hover:text-slate-200"
       )}
     >
       {showActive && (
-        <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full bg-emerald-600" />
+        <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full bg-emerald-500" />
       )}
-      <Icon className={cn("h-4 w-4 shrink-0", showActive ? "text-emerald-600" : "text-zinc-400")} />
+      <Icon className={cn("h-4 w-4 shrink-0", showActive ? "text-emerald-400" : "text-sidebar-text-muted")} />
       {label}
     </Link>
   );
@@ -93,11 +93,11 @@ function NavSubLink({
       suppressHydrationWarning
       className={cn(
         "relative flex items-center gap-2 rounded-md py-1.5 pl-8 pr-3 text-[13px] font-medium transition-colors",
-        showActive ? "text-emerald-800" : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+        showActive ? "text-emerald-300" : "text-sidebar-text hover:bg-[var(--sidebar-hover)] hover:text-slate-200"
       )}
     >
       {dot && showActive && (
-        <span className="absolute left-4 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-emerald-600" />
+        <span className="absolute left-4 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-emerald-400" />
       )}
       {label}
     </Link>
@@ -116,7 +116,7 @@ function ReputationNavSection({
 
   return (
     <div className="mb-2">
-      <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+      <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-text-muted">
         Reputation
       </p>
       <div className="space-y-0.5">
@@ -148,7 +148,7 @@ function NavSection({
 }) {
   return (
     <div className="mb-2">
-      <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+      <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-text-muted">
         {title}
       </p>
       <div className="space-y-0.5">
@@ -182,12 +182,12 @@ export function DashboardSidebar({
 
 function SidebarFallback({ businessId }: { businessId?: string }) {
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-zinc-200 bg-white">
-      <div className="border-b border-zinc-100 px-4 py-3.5">
-        <p className="text-sm font-bold text-zinc-900">Maps Growth Agent</p>
+    <aside className="flex w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
+      <div className="border-b border-sidebar-border px-4 py-3.5">
+        <p className="text-sm font-bold text-white">Maps Growth Agent</p>
       </div>
       <div className="flex-1 p-2.5" />
-      {businessId && <div className="border-t border-zinc-100 p-2.5" />}
+      {businessId && <div className="border-t border-sidebar-border p-2.5" />}
     </aside>
   );
 }
@@ -241,29 +241,29 @@ function DashboardSidebarInner({ businessId }: { businessId?: string }) {
   }
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-zinc-200 bg-white">
-      <div className="border-b border-zinc-100 px-4 py-3.5">
+    <aside className="flex w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
+      <div className="border-b border-sidebar-border px-4 py-3.5">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-600">
             <MapPin className="h-4 w-4 text-white" />
           </div>
           <div className="min-w-0">
-            <Link href="/businesses" className="block truncate text-sm font-bold text-zinc-900">
+            <Link href="/businesses" className="block truncate text-sm font-bold text-white">
               Maps Growth Agent
             </Link>
-            <p className="text-[11px] text-zinc-500">Local SEO Platform</p>
+            <p className="text-[11px] text-sidebar-text-muted">Local SEO Platform</p>
           </div>
         </div>
         {businessId && (
           <Link
             href="/businesses"
-            className="mx-1 mt-2.5 flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
+            className="mx-1 mt-2.5 flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/10"
           >
-            <Building2 className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+            <Building2 className="h-3.5 w-3.5 shrink-0 text-sidebar-text-muted" />
             <span className="min-w-0 flex-1 truncate">
               {businessName ?? "Select business…"}
             </span>
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-sidebar-text-muted" />
           </Link>
         )}
       </div>
@@ -283,7 +283,7 @@ function DashboardSidebarInner({ businessId }: { businessId?: string }) {
             />
           ))}
         {businessId && (
-          <div className="mt-3 border-t border-zinc-100 pt-3">
+          <div className="mt-3 border-t border-sidebar-border pt-3">
             <NavSection title="Main" items={mainModules} isActive={isActive} />
             <ReputationNavSection businessId={businessId} pathname={pathname} />
             <NavSection title="Research" items={researchModules} isActive={isActive} />
@@ -292,14 +292,14 @@ function DashboardSidebarInner({ businessId }: { businessId?: string }) {
         )}
       </nav>
       {businessId && (
-        <div className="space-y-2 border-t border-zinc-100 p-2.5">
-          <div className="mx-1 rounded-xl border border-emerald-100 bg-emerald-50/80 p-3">
-            <p className="text-xs font-semibold text-emerald-900">Need help growing?</p>
+        <div className="space-y-2 border-t border-sidebar-border p-2.5">
+          <div className="mx-1 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3">
+            <p className="text-xs font-semibold text-emerald-200">Need help growing?</p>
             <a
               href="https://calendly.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+              className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
             >
               <Phone className="h-3.5 w-3.5" />
               Book a Strategy Call

@@ -49,25 +49,33 @@ export function GridMetricCard({
 }: GridMetricCardProps) {
   const isPrimary = variant === "primary";
   return (
-    <div className={cn(cardClass, compact ? "px-3 py-2" : "px-4 py-3", className)}>
-      <div className="flex items-start justify-between gap-2">
-        <p className={cardLabelClass}>{label}</p>
+    <div className={cn(cardClass, compact ? "rounded-lg px-2.5 py-1.5" : "px-4 py-3", className)}>
+      <div className="flex items-start justify-between gap-1.5">
+        <p className={cn(compact ? "text-[10px] font-medium uppercase tracking-wide text-zinc-500" : cardLabelClass)}>
+          {label}
+        </p>
         {Icon ? (
           <span
             className={cn(
-              "flex shrink-0 items-center justify-center rounded-lg",
-              compact ? "h-6 w-6" : "h-7 w-7",
+              "flex shrink-0 items-center justify-center rounded-md",
+              compact ? "h-5 w-5" : "h-7 w-7 rounded-lg",
               iconWrapClassName
             )}
           >
-            <Icon className={cn(compact ? "h-3 w-3" : "h-3.5 w-3.5", iconClassName)} />
+            <Icon className={cn(compact ? "h-2.5 w-2.5" : "h-3.5 w-3.5", iconClassName)} />
           </span>
         ) : null}
       </div>
       <p
         className={cn(
           "font-bold tabular-nums leading-none text-zinc-900",
-          compact ? (isPrimary ? "mt-1 text-xl" : "mt-1 text-lg") : isPrimary ? "mt-1.5 text-2xl" : "mt-1.5 text-xl"
+          compact
+            ? isPrimary
+              ? "mt-0.5 text-lg"
+              : "mt-0.5 text-base"
+            : isPrimary
+              ? "mt-1.5 text-2xl"
+              : "mt-1.5 text-xl"
         )}
       >
         {value}
@@ -75,8 +83,7 @@ export function GridMetricCard({
       {sub ? (
         <p
           className={cn(
-            compact ? "mt-0.5" : "mt-1",
-            "text-xs leading-relaxed",
+            compact ? "mt-0.5 text-[11px] leading-snug" : "mt-1 text-xs leading-relaxed",
             trendPositive === true && "font-medium text-emerald-600",
             trendPositive === false && "font-medium text-red-600",
             trendPositive == null && "text-zinc-500"
