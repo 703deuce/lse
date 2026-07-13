@@ -9,7 +9,9 @@ import {
   YAxis,
 } from "recharts";
 import { ExternalLink, Sparkles } from "lucide-react";
+import { dashboardCard, dashboardCardTitle, dashboardMicro } from "@/components/overview/dashboard-ui";
 import { formatTimeAgo } from "@/lib/keyword-tracker/visibility";
+import { cn } from "@/lib/utils";
 
 type RankPoint = {
   rank: number | null;
@@ -28,8 +30,8 @@ type BestKeyword = {
 export function KeywordBestOpportunityPanel({ keyword }: { keyword: BestKeyword | null }) {
   if (!keyword) {
     return (
-      <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <p className="text-sm text-zinc-500">No opportunity data yet. Add keywords and run a check.</p>
+      <div className={cn(dashboardCard, "px-3.5 py-8 text-center")}>
+        <p className="text-[13px] text-zinc-500">No opportunity data yet. Add keywords and run a check.</p>
       </div>
     );
   }
@@ -52,24 +54,24 @@ export function KeywordBestOpportunityPanel({ keyword }: { keyword: BestKeyword 
   }
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white shadow-sm">
-      <div className="border-b border-zinc-100 px-5 py-4">
-        <div className="flex items-center gap-2 text-emerald-700">
-          <Sparkles className="h-4 w-4" />
-          <h3 className="text-sm font-semibold">Best Opportunity</h3>
+    <div className={cn(dashboardCard, "overflow-hidden")}>
+      <div className="border-b border-zinc-100 px-3.5 py-2.5">
+        <div className="flex items-center gap-1.5 text-emerald-700">
+          <Sparkles className="h-3.5 w-3.5" />
+          <h3 className={dashboardCardTitle}>Best Opportunity</h3>
         </div>
-        <p className="mt-2 text-base font-semibold text-zinc-900">{keyword.keyword}</p>
-        <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+        <p className="mt-1.5 text-[13px] font-semibold text-zinc-900">{keyword.keyword}</p>
+        <p className={cn("mt-1", dashboardMicro)}>
           This keyword has high potential to break into the top 3 results with focused optimization.
         </p>
       </div>
 
-      <div className="space-y-5 p-5">
+      <div className="space-y-3.5 p-3.5">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Opportunity Score</p>
-          <div className="mt-3 flex items-center gap-4">
-            <div className="relative h-[72px] w-[72px] shrink-0">
-              <svg viewBox="0 0 36 36" className="h-[72px] w-[72px] -rotate-90">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Opportunity Score</p>
+          <div className="mt-2 flex items-center gap-3">
+            <div className="relative h-14 w-14 shrink-0">
+              <svg viewBox="0 0 36 36" className="h-14 w-14 -rotate-90">
                 <circle cx="18" cy="18" r="15" fill="none" stroke="#e4e4e7" strokeWidth="3" />
                 <circle
                   cx="18"
@@ -84,12 +86,12 @@ export function KeywordBestOpportunityPanel({ keyword }: { keyword: BestKeyword 
               </svg>
             </div>
             <div>
-              <p className="text-3xl font-bold tabular-nums text-zinc-900">
+              <p className="text-base font-bold tabular-nums leading-none text-zinc-900">
                 {scorePct}
-                <span className="text-lg font-normal text-zinc-400"> / 100</span>
+                <span className="text-[11px] font-medium text-zinc-400"> / 100</span>
               </p>
               {excellent && (
-                <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+                <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
                   Excellent
                 </span>
               )}
@@ -99,13 +101,13 @@ export function KeywordBestOpportunityPanel({ keyword }: { keyword: BestKeyword 
 
         {chartData.length > 0 ? (
           <div>
-            <p className="text-sm font-semibold text-zinc-900">Rank History</p>
-            <p className="text-xs text-zinc-500">Last 30 days</p>
-            <div className="mt-3 h-36">
+            <p className={dashboardCardTitle}>Rank History</p>
+            <p className={dashboardMicro}>Last 30 days</p>
+            <div className="mt-2 h-28">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#71717a" }} interval="preserveStartEnd" />
-                  <YAxis reversed tick={{ fontSize: 10, fill: "#71717a" }} width={32} domain={[1, 30]} />
+                  <YAxis reversed tick={{ fontSize: 10, fill: "#71717a" }} width={28} domain={[1, 30]} />
                   <Tooltip />
                   <Area
                     type="monotone"
@@ -114,7 +116,7 @@ export function KeywordBestOpportunityPanel({ keyword }: { keyword: BestKeyword 
                     fill="#10b981"
                     fillOpacity={0.15}
                     strokeWidth={2}
-                    dot={{ r: 3, fill: "#10b981" }}
+                    dot={{ r: 2.5, fill: "#10b981" }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -125,22 +127,22 @@ export function KeywordBestOpportunityPanel({ keyword }: { keyword: BestKeyword 
           </div>
         ) : (
           <div>
-            <p className="text-sm font-semibold text-zinc-900">Rank History</p>
-            <p className="text-xs text-zinc-500">Last 30 days</p>
-            <div className="mt-3 flex h-36 items-center justify-center rounded-lg border border-dashed border-zinc-200 bg-zinc-50 text-xs text-zinc-400">
+            <p className={dashboardCardTitle}>Rank History</p>
+            <p className={dashboardMicro}>Last 30 days</p>
+            <div className="mt-2 flex h-28 items-center justify-center rounded-lg border border-dashed border-zinc-200 bg-zinc-50 text-[11px] text-zinc-400">
               Run a keyword check to see rank history
             </div>
           </div>
         )}
 
-        <p className="text-xs leading-relaxed text-zinc-500">
+        <p className={cn("leading-snug", dashboardMicro)}>
           Optimize your Google Business Profile, build relevant local citations, and encourage more reviews to
           improve rankings.
         </p>
 
         <button
           type="button"
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-[13px] font-semibold text-white shadow-sm hover:bg-emerald-700"
         >
           View Optimization Tips
           <ExternalLink className="h-3.5 w-3.5" />

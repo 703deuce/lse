@@ -102,7 +102,7 @@ function RankBadge({ rank, bucket }: { rank: number | null; bucket: string }) {
   const label = rank != null && rank > 0 ? String(rank) : "20+";
   return (
     <span
-      className={`inline-flex min-w-[2rem] justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ${rankBadgeClass(bucket as RankBucket)}`}
+      className={`inline-flex min-w-[1.75rem] justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${rankBadgeClass(bucket as RankBucket)}`}
     >
       {label}
     </span>
@@ -110,10 +110,10 @@ function RankBadge({ rank, bucket }: { rank: number | null; bucket: string }) {
 }
 
 function ChangeCell({ change }: { change: number | null }) {
-  if (change == null || change === 0) return <span className="text-xs text-text-muted">—</span>;
+  if (change == null || change === 0) return <span className="text-[11px] text-text-muted">—</span>;
   const up = change > 0;
   return (
-    <span className={cn("text-xs font-medium tabular-nums", up ? "text-primary" : "text-red-600")}>
+    <span className={cn("text-[11px] font-medium tabular-nums", up ? "text-primary" : "text-red-600")}>
       {up ? "↑" : "↓"} {Math.abs(change)}
     </span>
   );
@@ -273,7 +273,7 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
       : "—";
 
   return (
-    <ModulePage>
+    <ModulePage className="!space-y-4">
       <KeywordsPageHeader businessId={businessId} />
 
       {market && <KeywordsMarketBanner ready={marketReady} display={market.display} />}
@@ -283,7 +283,7 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
           type="button"
           onClick={() => setShowAdd(true)}
           disabled={!!busy}
-          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[13px] font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
         >
           <Plus className="h-4 w-4" />
           Add Keyword
@@ -302,7 +302,7 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
               if (!res.ok) throw new Error(json.error ?? "Check failed");
             })
           }
-          className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-[13px] font-medium text-zinc-800 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
         >
           {busy === "check" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
           Run Keyword Check
@@ -321,7 +321,7 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
               if (!res.ok) throw new Error(json.error ?? "Volume refresh failed");
             })
           }
-          className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-[13px] font-medium text-zinc-800 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
         >
           {busy === "volume" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           Refresh Volumes
@@ -341,7 +341,7 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
               setShowSuggest(true);
             })
           }
-          className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-[13px] font-medium text-zinc-800 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
         >
           {busy === "suggest" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           Suggest Keywords
@@ -350,7 +350,7 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
           type="button"
           onClick={() => void load()}
           disabled={loading}
-          className="ml-auto inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
+          className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-[13px] font-medium text-zinc-800 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
         >
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
           Refresh
@@ -358,10 +358,10 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">{error}</div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         <KeywordsKpiCard
           label="Tracked Keywords"
           value={summary?.tracked_count ?? 0}
@@ -409,22 +409,22 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
           Loading keywords…
         </div>
       ) : (
-        <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
+        <div className="grid gap-3 xl:grid-cols-[1fr_300px]">
           <KeywordsPanel className="overflow-hidden">
-            <div className="flex flex-wrap items-center gap-2 border-b border-zinc-100 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-2 border-b border-zinc-100 px-3.5 py-2.5">
               <div className="relative min-w-[200px] flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search keywords..."
-                  className="w-full rounded-lg border border-zinc-200 py-2 pl-9 pr-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="h-9 w-full rounded-lg border border-zinc-200 py-1.5 pl-9 pr-3 text-[13px] text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
               <select
                 value={locationFilter}
                 onChange={(e) => setLocationFilter(e.target.value)}
-                className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700"
+                className="h-9 rounded-lg border border-zinc-200 bg-white px-2.5 text-[12px] font-medium text-zinc-700"
               >
                 <option value="all">All Locations</option>
                 {locations.map((loc) => (
@@ -436,7 +436,7 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
               <select
                 value={rankFilter}
                 onChange={(e) => setRankFilter(e.target.value)}
-                className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700"
+                className="h-9 rounded-lg border border-zinc-200 bg-white px-2.5 text-[12px] font-medium text-zinc-700"
               >
                 <option value="all">All Ranks</option>
                 <option value="top3">Top 3</option>
@@ -449,7 +449,7 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
               </select>
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
               >
                 <Columns3 className="h-3.5 w-3.5" />
                 Columns
@@ -457,38 +457,38 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
             </div>
 
             {!keywords.length ? (
-              <div className="p-10 text-center text-sm text-text-muted">
+              <div className="px-3.5 py-8 text-center text-[13px] text-text-muted">
                 No keywords tracked yet. Add keywords or use Suggest Keywords to get started.
               </div>
             ) : (
               <>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm">
+                  <table className="min-w-full text-[12px]">
                     <thead className="border-b border-zinc-100 bg-zinc-50/80">
                       <tr>
-                        <th className="w-8 px-4 py-3" />
-                        <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                        <th className="w-8 px-3 py-2" />
+                        <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                           Keyword
                         </th>
-                        <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                        <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                           Location
                         </th>
-                        <th className="px-3 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                        <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                           Search Volume
                         </th>
-                        <th className="px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                        <th className="px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                           Rank
                         </th>
-                        <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                        <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                           Visibility
                         </th>
-                        <th className="px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                        <th className="px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                           Change
                         </th>
-                        <th className="px-3 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                        <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                           Updated
                         </th>
-                        <th className="w-10 px-3 py-3" />
+                        <th className="w-10 px-3 py-2" />
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-100">
@@ -501,30 +501,30 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
                             selectedId === k.id && "bg-emerald-50/40"
                           )}
                         >
-                          <td className="px-3 py-3">
+                          <td className="px-3 py-2">
                             <Star className="h-4 w-4 text-zinc-300" />
                           </td>
-                          <td className="px-3 py-3">
+                          <td className="px-3 py-2">
                             <div className="flex items-center gap-1.5">
                               <span className="font-medium text-zinc-900">{k.keyword}</span>
                               <ExternalLink className="h-3 w-3 text-zinc-400" />
                             </div>
                           </td>
-                          <td className="px-3 py-3 text-xs text-zinc-500">{formatLocation(k.location_name)}</td>
-                          <td className="px-3 py-3 text-right tabular-nums text-text-muted">{formatVolume(k.search_volume)}</td>
-                          <td className="px-3 py-3 text-center">
+                          <td className="px-3 py-2 text-[11px] text-zinc-500">{formatLocation(k.location_name)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-text-muted">{formatVolume(k.search_volume)}</td>
+                          <td className="px-3 py-2 text-center">
                             <RankBadge rank={k.latest_check?.rank ?? null} bucket={k.latest_check?.rank_bucket ?? "beyond"} />
                           </td>
-                          <td className="px-3 py-3">
+                          <td className="px-3 py-2">
                             <VisibilityBar score={k.latest_check?.visibility_score} />
                           </td>
-                          <td className="px-3 py-3 text-center">
+                          <td className="px-3 py-2 text-center">
                             <ChangeCell change={k.rank_change} />
                           </td>
-                          <td className="px-3 py-3 text-right text-xs text-text-muted">
+                          <td className="px-3 py-2 text-right text-[11px] text-text-muted">
                             {formatTimeAgo(k.latest_check?.checked_at)}
                           </td>
-                          <td className="relative px-3 py-3 text-right">
+                          <td className="relative px-3 py-2 text-right">
                             <button
                               type="button"
                               onClick={(e) => {
@@ -569,7 +569,7 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
                   </table>
                 </div>
 
-                <div className="flex items-center justify-between border-t border-zinc-100 px-4 py-3 text-xs text-zinc-500">
+                <div className="flex items-center justify-between border-t border-zinc-100 px-3.5 py-2 text-[11px] text-zinc-500">
                   <span>
                     Showing {(pageSafe - 1) * PAGE_SIZE + 1} to {Math.min(pageSafe * PAGE_SIZE, filtered.length)} of{" "}
                     {filtered.length} keywords
@@ -749,13 +749,13 @@ function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-lg rounded-xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h2 className="text-lg font-semibold">{title}</h2>
+        <div className="flex items-center justify-between border-b border-border px-3.5 py-2.5">
+          <h2 className="text-[13px] font-semibold text-zinc-900">{title}</h2>
           <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-surface-subtle">
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="px-6 py-4">{children}</div>
+        <div className="px-3.5 py-3">{children}</div>
       </div>
     </div>
   );
