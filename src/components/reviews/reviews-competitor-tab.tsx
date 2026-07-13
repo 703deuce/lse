@@ -70,10 +70,10 @@ function CompetitorReviewSection({
       </div>
 
       <p className={`mb-3 ${dashboardMicro}`}>
-        All reviews for {group.name} — full text shown below. Click any review to open the reader panel.
+        Reviews for {group.name} — compact previews below. Click any review to read the full text.
       </p>
 
-      <ReviewFeedList rows={pageRows} onViewReview={onViewReview} previewLines={0} />
+      <ReviewFeedList rows={pageRows} onViewReview={onViewReview} previewLines={3} />
       <ReviewsPagination
         page={page}
         pageSize={REVIEWS_PER_PAGE}

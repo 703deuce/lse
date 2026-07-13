@@ -664,7 +664,7 @@ export function ReviewsTable({
                 ) : (
                   <div>
                     <p className="line-clamp-3 text-zinc-600">{row.reviewText ?? "—"}</p>
-                    {onViewReview && row.reviewText && row.reviewText.length > 120 && (
+                    {onViewReview && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -673,7 +673,7 @@ export function ReviewsTable({
                         }}
                         className="mt-1 text-xs font-medium text-emerald-600 hover:text-emerald-700"
                       >
-                        Read full review
+                        Read full review →
                       </button>
                     )}
                   </div>

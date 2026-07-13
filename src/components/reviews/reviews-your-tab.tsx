@@ -152,10 +152,10 @@ export function ReviewsYourTab({ data }: { data: ReviewsPageData }) {
         </div>
 
         <p className={`mb-3 ${dashboardMicro}`}>
-          {filtered.length} review{filtered.length === 1 ? "" : "s"} — full text shown below. Click any review to open it in a reader panel.
+          {filtered.length} review{filtered.length === 1 ? "" : "s"} — previews below. Click any review to read the full text.
         </p>
 
-        <ReviewFeedList rows={pageRows} onViewReview={setSelectedReview} previewLines={0} />
+        <ReviewFeedList rows={pageRows} onViewReview={setSelectedReview} previewLines={3} />
         <ReviewsPagination page={page} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
       </RvCard>
 
