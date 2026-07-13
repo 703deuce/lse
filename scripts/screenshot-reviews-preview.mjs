@@ -2,7 +2,8 @@ import { chromium } from "playwright";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 
-const url = process.env.PREVIEW_URL ?? "http://127.0.0.1:3000/businesses/preview/reviews";
+// Dev preview renders the same sidebar + reviews UI without auth/Suspense issues in headless capture.
+const url = process.env.PREVIEW_URL ?? "http://127.0.0.1:3000/dev/reviews-preview";
 const outDir = process.env.ARTIFACT_DIR ?? "/opt/cursor/artifacts/screenshots";
 
 await mkdir(outDir, { recursive: true });
@@ -15,11 +16,21 @@ const page = await browser.newPage({
 
 try {
   await page.goto(url, { waitUntil: "networkidle", timeout: 60_000 });
-  await page.waitForTimeout(1500);
+  await page.getByText("Backlink Gap").waitFor({ state: "visible", timeout: 10_000 });
+  await page.getByText("Growth Plan").waitFor({ state: "visible", timeout: 10_000 });
+  await page.getByText("AVERAGE RATING").waitFor({ state: "visible", timeout: 15_000 });
+  await page.waitForTimeout(500);
 
   const viewportFile = path.join(outDir, "reviews-page-compact.png");
   await page.screenshot({ path: viewportFile, fullPage: false });
   console.log(`Viewport screenshot saved to ${viewportFile}`);
+
+  const sidebar = page.locator("aside").first();
+  if (await sidebar.count()) {
+    const sidebarFile = path.join(outDir, "reviews-page-sidebar-full.png");
+    await sidebar.screenshot({ path: sidebarFile });
+    console.log(`Sidebar screenshot saved to ${sidebarFile}`);
+  }
 
   const stream = page.locator("text=Recent Review Stream").first();
   if (await stream.count()) {
