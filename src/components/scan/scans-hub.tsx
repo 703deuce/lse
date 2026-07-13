@@ -4,6 +4,12 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, Play, Plus } from "lucide-react";
+import {
+  dashboardCard,
+  dashboardCardTitle,
+  dashboardControl,
+  dashboardMicro,
+} from "@/components/overview/dashboard-ui";
 import { StatusBadge } from "@/components/ui/metric-card";
 import { EmptyState } from "@/components/ui/design-system";
 import {
@@ -16,6 +22,7 @@ import {
 } from "@/lib/maps/grid-metrics";
 import { DEFAULT_SCAN_PROFILE } from "@/lib/maps/scan-profiles";
 import { computeSolv } from "@/lib/maps/grid-metrics";
+import { cn } from "@/lib/utils";
 
 export type ScanListItem = {
   id: string;
@@ -55,6 +62,9 @@ function formatRadius(meters: number): string {
   const miles = meters / 1609.34;
   return miles >= 1 ? `${Math.round(miles * 10) / 10} mi` : `${meters} m`;
 }
+
+const fieldLabel = "text-[10px] font-semibold uppercase tracking-wide text-zinc-500";
+const fieldSelect = cn(dashboardControl, "mt-1 h-auto w-full px-2.5 py-1.5");
 
 export function ScansHub({
   businessId,
@@ -148,20 +158,20 @@ export function ScansHub({
   }
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h2 className="text-base font-semibold text-zinc-900">Run a new grid scan</h2>
-        <p className="mt-1 text-sm text-zinc-500">
+    <div className="space-y-4">
+      <section className={cn(dashboardCard, "p-3.5")}>
+        <h2 className={dashboardCardTitle}>Run a new grid scan</h2>
+        <p className={cn("mt-0.5", dashboardMicro)}>
           Pick a keyword, grid size, and radius — then start scanning.
         </p>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="text-xs font-medium text-zinc-600">
+        <div className="mt-3 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+          <label className={fieldLabel}>
             Keyword
             <select
               value={selectedKeywordId}
               onChange={(e) => setSelectedKeywordId(e.target.value)}
-              className="mt-1 w-full rounded-md border border-zinc-200 px-3 py-2 text-sm"
+              className={fieldSelect}
             >
               {keywords.map((k) => (
                 <option key={k.id} value={k.id}>
@@ -170,12 +180,12 @@ export function ScansHub({
               ))}
             </select>
           </label>
-          <label className="text-xs font-medium text-zinc-600">
+          <label className={fieldLabel}>
             Grid
             <select
               value={gridSize}
               onChange={(e) => setGridSize(Number(e.target.value))}
-              className="mt-1 w-full rounded-md border border-zinc-200 px-3 py-2 text-sm"
+              className={fieldSelect}
             >
               {GRID_SIZE_OPTIONS.map((n) => (
                 <option key={n} value={n}>
@@ -184,12 +194,12 @@ export function ScansHub({
               ))}
             </select>
           </label>
-          <label className="text-xs font-medium text-zinc-600">
+          <label className={fieldLabel}>
             Radius
             <select
               value={closestRadiusMiles}
               onChange={(e) => setRadiusMeters(milesToMeters(Number(e.target.value)))}
-              className="mt-1 w-full rounded-md border border-zinc-200 px-3 py-2 text-sm"
+              className={fieldSelect}
             >
               {RADIUS_MILE_PRESETS.map((p) => (
                 <option key={p.miles} value={p.miles}>
@@ -198,41 +208,41 @@ export function ScansHub({
               ))}
             </select>
           </label>
-          <div className="flex flex-col items-stretch justify-end gap-2">
+          <div className="flex flex-col items-stretch justify-end gap-1.5">
             <button
               type="button"
               disabled={running || !selectedKeywordId}
               onClick={() => void runScan(selectedKeywordId)}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-[#137752] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f6244] disabled:opacity-50"
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-[#137752] px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-[#0f6244] disabled:opacity-50"
             >
-              {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+              {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
               Run scan
             </button>
             <button
               type="button"
               onClick={() => setShowAddKeyword((v) => !v)}
-              className="rounded-md border border-zinc-200 px-3 py-2 text-zinc-600 hover:bg-zinc-50"
+              className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-zinc-600 hover:bg-zinc-50"
               title="Add keyword"
             >
-              <Plus className="h-4 w-4 mx-auto" />
+              <Plus className="mx-auto h-3.5 w-3.5" />
             </button>
           </div>
         </div>
 
         {showAddKeyword && (
-          <div className="mt-3 flex flex-col gap-2 border-t border-zinc-100 pt-3 sm:flex-row">
+          <div className="mt-2.5 flex flex-col gap-2 border-t border-zinc-100 pt-2.5 sm:flex-row">
             <input
               type="text"
               value={newKeyword}
               onChange={(e) => setNewKeyword(e.target.value)}
               placeholder='New keyword, e.g. "junk removal woodbridge"'
-              className="flex-1 rounded-md border border-zinc-200 px-3 py-2 text-sm"
+              className="flex-1 rounded-md border border-zinc-200 px-2.5 py-1.5 text-[13px]"
             />
             <button
               type="button"
               disabled={running || !newKeyword.trim()}
               onClick={() => void addKeyword(false)}
-              className="rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium"
+              className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-[12px] font-medium"
             >
               Add keyword
             </button>
@@ -240,29 +250,29 @@ export function ScansHub({
               type="button"
               disabled={running || !newKeyword.trim()}
               onClick={() => void addKeyword(true)}
-              className="rounded-md bg-[#137752] px-3 py-2 text-sm font-semibold text-white"
+              className="rounded-md bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white"
             >
               Add & run
             </button>
           </div>
         )}
 
-        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-        <p className="mt-2 text-xs text-zinc-400">
+        {error && <p className="mt-2 text-[12px] text-red-600">{error}</p>}
+        <p className="mt-2 text-[11px] text-zinc-400">
           Scan center uses your saved business location ({defaultCenterLat.toFixed(4)},{" "}
           {defaultCenterLng.toFixed(4)}). Change it from the grid map with Move Grid.
         </p>
       </section>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
         <div>
-          <h2 className="text-base font-semibold text-zinc-900">Scan history</h2>
-          <p className="text-sm text-zinc-500">{filteredScans.length} scan(s)</p>
+          <h2 className={dashboardCardTitle}>Scan history</h2>
+          <p className={dashboardMicro}>{filteredScans.length} scan(s)</p>
         </div>
         <select
           value={keywordFilter}
           onChange={(e) => setKeywordFilter(e.target.value)}
-          className="rounded-md border border-zinc-200 px-3 py-2 text-sm"
+          className={cn(dashboardControl, "h-auto px-2.5 py-1.5")}
         >
           <option value="all">All keywords</option>
           {keywords.map((k) => (
@@ -273,7 +283,7 @@ export function ScansHub({
         </select>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {filteredScans.map((scan) => {
           const metrics = scan.aggregate_metrics ?? {};
           const solv =
@@ -284,18 +294,21 @@ export function ScansHub({
             <Link
               key={scan.id}
               href={`/businesses/${businessId}/grid/${scan.id}`}
-              className="block rounded-xl border border-zinc-200/80 bg-white p-5 shadow-sm transition hover:border-emerald-200 hover:shadow-md"
+              className={cn(
+                dashboardCard,
+                "block p-3.5 transition hover:border-emerald-200 hover:shadow-md"
+              )}
             >
-              <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex flex-wrap items-start justify-between gap-2.5">
                 <div className="min-w-0 flex-1">
-                  <p className="text-lg font-semibold text-zinc-900">
+                  <p className="text-[15px] font-semibold text-zinc-900">
                     {scan.keyword ? `“${scan.keyword}”` : "Unknown keyword"}
                   </p>
-                  <p className="mt-1 text-sm text-zinc-600">
+                  <p className="mt-0.5 text-[12px] text-zinc-600">
                     {scan.grid_size}×{scan.grid_size} grid · {formatRadius(scan.radius_meters)} radius
                     {scan.center_label ? ` · ${scan.center_label}` : ""}
                   </p>
-                  <p className="mt-1 text-sm text-zinc-500">
+                  <p className="mt-0.5 text-[11px] text-zinc-500">
                     {formatScanDate(scan.finished_at ?? scan.created_at)}
                     {metrics.averageRank != null && (
                       <> · Avg rank {metrics.averageRank}</>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   BarChart3,
@@ -32,6 +32,7 @@ import {
   compareSelectClass,
   compareFieldLabel,
 } from "@/components/scan/grid-compare-ui";
+import { GridMetricCard } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 
 const ScanMap = dynamic(
@@ -311,14 +312,14 @@ export function GridCompareView({
   return (
     <div className={cn("fixed inset-y-0 right-0 left-60 z-50 flex min-h-screen", comparePageBg)}>
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="border-b border-zinc-200 bg-white px-5 py-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+        <header className="border-b border-zinc-200 bg-white px-4 py-2">
+          <div className="flex flex-wrap items-start justify-between gap-2.5">
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-zinc-900">
+              <h1 className="text-lg font-bold tracking-tight text-zinc-900">
                 Compare Rank Grids
               </h1>
-              <p className="mt-0.5 text-sm text-zinc-500">
-                Visualize rank movement and performance changes between two scans.
+              <p className="mt-0.5 text-[12px] text-zinc-500">
+                Rank movement and performance between two scans.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -346,14 +347,14 @@ export function GridCompareView({
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex-1 overflow-y-auto px-4 py-2.5">
           {/* Mode tabs */}
-          <div className="mb-4 inline-flex rounded-lg border border-zinc-200 bg-white p-0.5 shadow-sm">
+          <div className="mb-3 inline-flex rounded-lg border border-zinc-200 bg-white p-0.5 shadow-sm">
             <button
               type="button"
               onClick={() => setMode("scans")}
               className={cn(
-                "rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
+                "rounded-md px-3 py-1 text-[12px] font-medium transition-colors",
                 mode === "scans"
                   ? "bg-[#137752] text-white shadow-sm"
                   : "border border-[#137752] bg-white text-[#137752]"
@@ -365,7 +366,7 @@ export function GridCompareView({
               type="button"
               onClick={() => setMode("competitors")}
               className={cn(
-                "rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
+                "rounded-md px-3 py-1 text-[12px] font-medium transition-colors",
                 mode === "competitors"
                   ? "bg-[#137752] text-white shadow-sm"
                   : "border border-[#137752] bg-white text-[#137752]"
@@ -377,7 +378,7 @@ export function GridCompareView({
 
           {/* Scan selection cards */}
           {mode === "scans" ? (
-            <div className="mb-4 flex items-stretch gap-2">
+            <div className="mb-3 flex items-stretch gap-2">
               <ScanSelectCard
                 sectionLabel="Earlier Scan"
                 badge="Baseline"
@@ -417,7 +418,7 @@ export function GridCompareView({
               />
             </div>
           ) : (
-            <div className="mb-4 grid gap-3 lg:grid-cols-2">
+            <div className="mb-3 grid gap-2.5 lg:grid-cols-2">
               <ScanSelectCard
                 sectionLabel="Your scan"
                 badge="Baseline"
@@ -429,14 +430,14 @@ export function GridCompareView({
                 metaLine={scanMetaLine(gridSize, radiusMeters, deviceLabel, osLabel, browserLabel)}
                 onScanChange={setCompetitorScanId}
               />
-              <div className={cn(compareCardClass, "p-4")}>
+              <div className={cn(compareCardClass, "p-3")}>
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-xs font-semibold text-zinc-900">Competitor scan</p>
+                  <p className="text-[12px] font-semibold text-zinc-900">Competitor scan</p>
                   <span className="inline-flex shrink-0 rounded-full border border-emerald-300 bg-white px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
                     Current
                   </span>
                 </div>
-                <label className="mt-3 block">
+                <label className="mt-2 block">
                   <span className={compareFieldLabel}>Competitor</span>
                   <select
                     className={selectClass}
@@ -454,7 +455,7 @@ export function GridCompareView({
                     )}
                   </select>
                 </label>
-                <p className="mt-3 text-[11px] leading-relaxed text-zinc-500">
+                <p className="mt-2 text-[11px] leading-snug text-zinc-500">
                   Side-by-side: your grid vs theirs on the same scan
                 </p>
               </div>
@@ -462,14 +463,14 @@ export function GridCompareView({
           )}
 
           {loading && (
-            <div className="flex items-center justify-center gap-2 py-16 text-zinc-500">
+            <div className="flex items-center justify-center gap-2 py-12 text-zinc-500">
               <Loader2 className="h-5 w-5 animate-spin" />
               Comparing scans…
             </div>
           )}
 
           {error && (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
               {error}
             </p>
           )}
@@ -477,8 +478,9 @@ export function GridCompareView({
           {summary && !loading && data && (
             <>
               {/* KPI row */}
-              <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
-                <CompareKpiCard
+              <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
+                <GridMetricCard
+                  compact
                   label="Avg Rank Δ"
                   value={
                     isCompetitorMode
@@ -497,13 +499,14 @@ export function GridCompareView({
                   icon={BarChart3}
                   iconWrapClassName="bg-emerald-50"
                   iconClassName="text-emerald-600"
-                  positive={
+                  trendPositive={
                     !isCompetitorMode && summary.avgRankDelta != null
                       ? summary.avgRankDelta > 0
                       : undefined
                   }
                 />
-                <CompareKpiCard
+                <GridMetricCard
+                  compact
                   label="SOV Δ"
                   value={
                     isCompetitorMode
@@ -518,9 +521,10 @@ export function GridCompareView({
                   icon={Target}
                   iconWrapClassName="bg-emerald-50"
                   iconClassName="text-emerald-600"
-                  positive={!isCompetitorMode ? summary.solvDelta >= 0 : undefined}
+                  trendPositive={!isCompetitorMode ? summary.solvDelta >= 0 : undefined}
                 />
-                <CompareKpiCard
+                <GridMetricCard
+                  compact
                   label="Top 3 Δ"
                   value={
                     isCompetitorMode
@@ -535,28 +539,30 @@ export function GridCompareView({
                   icon={TrendingUp}
                   iconWrapClassName="bg-blue-50"
                   iconClassName="text-blue-600"
-                  valueClassName="text-blue-600"
-                  positive={!isCompetitorMode ? summary.top3Delta >= 0 : undefined}
+                  trendPositive={!isCompetitorMode ? summary.top3Delta >= 0 : undefined}
                 />
-                <CompareKpiCard
+                <GridMetricCard
+                  compact
                   label="Improved cells"
                   value={summary.improvedCells}
                   sub={`↑ ${summary.improvedCells} cells`}
                   icon={TrendingUp}
                   iconWrapClassName="bg-emerald-50"
                   iconClassName="text-emerald-600"
-                  positive
+                  trendPositive
                 />
-                <CompareKpiCard
+                <GridMetricCard
+                  compact
                   label="Declined cells"
                   value={summary.declinedCells}
                   sub={`↓ ${summary.declinedCells} cells`}
                   icon={TrendingDown}
                   iconWrapClassName="bg-red-50"
                   iconClassName="text-red-600"
-                  positive={false}
+                  trendPositive={false}
                 />
-                <CompareKpiCard
+                <GridMetricCard
+                  compact
                   label="Unchanged cells"
                   value={summary.unchangedCells}
                   sub={`— ${summary.unchangedCells} cells`}
@@ -564,7 +570,8 @@ export function GridCompareView({
                   iconWrapClassName="bg-zinc-100"
                   iconClassName="text-zinc-500"
                 />
-                <CompareKpiCard
+                <GridMetricCard
+                  compact
                   label="Data coverage"
                   value={`${dataCoverage}%`}
                   sub={`${matchedCells - (summary.missingCells ?? 0)} / ${matchedCells} cells matched`}
@@ -574,9 +581,9 @@ export function GridCompareView({
                 />
               </div>
 
-              <div className="space-y-4">
-                <div className="grid gap-4 xl:grid-cols-12">
-                  <div className="space-y-3 xl:col-span-9">
+              <div className="space-y-3">
+                <div className="grid gap-3 xl:grid-cols-12">
+                  <div className="space-y-2.5 xl:col-span-9">
                     <div
                       className={cn(
                         "grid items-stretch gap-2",
@@ -629,9 +636,9 @@ export function GridCompareView({
                       />
                     </div>
 
-                    <div className={cn(compareCardClass, "flex flex-wrap items-center justify-between gap-2 px-4 py-2.5")}>
-                      <div className="flex flex-wrap items-center gap-4">
-                        <label className="inline-flex items-center gap-2 text-xs text-zinc-600">
+                    <div className={cn(compareCardClass, "flex flex-wrap items-center justify-between gap-2 px-3 py-2")}>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <label className="inline-flex items-center gap-1.5 text-[11px] text-zinc-600">
                           <button
                             type="button"
                             role="switch"
@@ -652,7 +659,7 @@ export function GridCompareView({
                           <Link2 className="h-3 w-3 text-zinc-400" />
                           Synchronized maps
                         </label>
-                        <label className="inline-flex items-center gap-2 text-xs text-zinc-600">
+                        <label className="inline-flex items-center gap-1.5 text-[11px] text-zinc-600">
                           <button
                             type="button"
                             role="switch"
@@ -676,7 +683,7 @@ export function GridCompareView({
                       <button
                         type="button"
                         onClick={() => setResetViewKey((k) => k + 1)}
-                        className="text-xs font-medium text-zinc-600 hover:text-zinc-900"
+                        className="text-[11px] font-medium text-zinc-600 hover:text-zinc-900"
                       >
                         Reset view
                       </button>
@@ -736,10 +743,10 @@ function ScanSelectCard({
   onScanChange: (id: string) => void;
 }) {
   return (
-    <div className={cn(compareCardClass, "min-w-0 flex-1 p-4")}>
+    <div className={cn(compareCardClass, "min-w-0 flex-1 p-3")}>
       <div className="flex items-start justify-between gap-2">
         {sectionLabel ? (
-          <p className="text-xs font-semibold text-zinc-900">{sectionLabel}</p>
+          <p className="text-[12px] font-semibold text-zinc-900">{sectionLabel}</p>
         ) : (
           <span />
         )}
@@ -754,7 +761,7 @@ function ScanSelectCard({
           {badge}
         </span>
       </div>
-      <label className="mt-3 block">
+      <label className="mt-2 block">
         <div className="relative">
           <Calendar className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
           <select
@@ -784,70 +791,7 @@ function ScanSelectCard({
           </select>
         </label>
       </div>
-      <p className="mt-3 text-[11px] leading-relaxed text-zinc-500">{metaLine}</p>
-    </div>
-  );
-}
-
-function CompareKpiCard({
-  label,
-  value,
-  sub,
-  icon: Icon,
-  iconWrapClassName,
-  iconClassName,
-  valueClassName,
-  positive,
-}: {
-  label: string;
-  value: string | number;
-  sub?: string;
-  icon?: ComponentType<{ className?: string }>;
-  iconWrapClassName?: string;
-  iconClassName?: string;
-  valueClassName?: string;
-  positive?: boolean;
-}) {
-  return (
-    <div className={cn(compareCardClass, "px-3 py-2.5")}>
-      <div className="flex items-start justify-between gap-1">
-        <p className="text-[9px] font-semibold uppercase leading-tight tracking-wide text-zinc-500">
-          {label}
-        </p>
-        {Icon ? (
-          <span
-            className={cn(
-              "flex h-5 w-5 shrink-0 items-center justify-center rounded-md",
-              iconWrapClassName ?? "bg-emerald-50"
-            )}
-          >
-            <Icon className={cn("h-2.5 w-2.5", iconClassName ?? "text-emerald-600")} />
-          </span>
-        ) : null}
-      </div>
-      <p
-        className={cn(
-          "mt-1 text-lg font-bold leading-none tracking-tight",
-          valueClassName,
-          !valueClassName && positive === true && "text-emerald-600",
-          !valueClassName && positive === false && "text-red-600",
-          !valueClassName && positive === undefined && "text-zinc-900"
-        )}
-      >
-        {value}
-      </p>
-      {sub ? (
-        <p
-          className={cn(
-            "mt-0.5 text-[10px] leading-tight",
-            positive === true && "font-medium text-emerald-600",
-            positive === false && "font-medium text-red-600",
-            positive === undefined && "text-zinc-500"
-          )}
-        >
-          {sub}
-        </p>
-      ) : null}
+      <p className="mt-2 text-[11px] leading-snug text-zinc-500">{metaLine}</p>
     </div>
   );
 }
@@ -897,7 +841,7 @@ function CompareMapPanel({
   return (
     <div className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
       <div
-        className="relative min-h-[280px] flex-1"
+        className="relative min-h-[240px] flex-1"
         onMouseLeave={() => onCellHover(null)}
       >
         <ScanMap
@@ -905,7 +849,7 @@ function CompareMapPanel({
           cells={cells}
           businessName={businessName}
           colorMode={colorMode}
-          height="min(42vh, 380px)"
+          height="min(38vh, 340px)"
           showDeltaOverlay={showDelta}
           gridSize={gridSize}
           radiusMeters={radiusMeters}
@@ -917,9 +861,9 @@ function CompareMapPanel({
           onCellClick={(c) => onCellHover(c.label)}
         />
       </div>
-      <div className="border-t border-zinc-100 px-3 py-2 text-center">
+      <div className="border-t border-zinc-100 px-3 py-1.5 text-center">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">{title}</p>
-        <p className="text-xs font-medium text-zinc-700">{subtitle}</p>
+        <p className="text-[11px] font-medium text-zinc-700">{subtitle}</p>
       </div>
     </div>
   );
@@ -939,7 +883,7 @@ function CompareMapLegend({
   const items = legendItems(colorMode);
 
   return (
-    <div className="w-36 rounded-lg border border-zinc-200 bg-white p-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+    <div className="w-32 rounded-lg border border-zinc-200 bg-white p-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
       <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
         Delta (change)
       </p>

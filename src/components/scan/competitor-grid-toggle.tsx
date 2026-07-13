@@ -48,7 +48,7 @@ export function CompetitorGridToggle({
           type="button"
           disabled
           title="Add competitor from Cell Inspector fingerprint"
-          className="inline-flex items-center gap-1 rounded-md border border-dashed border-border bg-surface px-3 py-1 text-[13px] text-text-muted"
+          className="inline-flex items-center gap-1 rounded-md border border-dashed border-border bg-surface px-2.5 py-0.5 text-[12px] text-text-muted"
         >
           <Plus className="h-3 w-3" /> Add Competitor
         </button>

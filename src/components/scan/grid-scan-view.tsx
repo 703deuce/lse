@@ -718,11 +718,11 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
 
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", gridRankPageBg)}>
-      <div className="border-b border-zinc-200 bg-white px-5 py-2.5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3">
+      <div className="border-b border-zinc-200 bg-white px-4 py-2">
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex flex-wrap items-center gap-2.5">
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight text-zinc-900">Rank Grid</h1>
+                <h1 className="text-lg font-bold tracking-tight text-zinc-900">Rank Grid</h1>
                 {batch?.status ? <StatusBadge status={String(batch.status)} /> : null}
                 {enrichmentRunning ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900">
@@ -787,7 +787,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-3">
+        <div className="flex-1 overflow-y-auto px-4 py-2.5">
         {!data ? (
           <div className="flex items-center gap-2 text-zinc-500">
             <Loader2 className="h-5 w-5 animate-spin" /> Loading scan…
@@ -825,6 +825,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
               }`}
             >
               <GridMetricCard
+                compact
                 variant="primary"
                 label="SoLV (Top-3 Pack)"
                 value={`${solv}%`}
@@ -834,6 +835,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                 iconClassName="text-emerald-600"
               />
               <GridMetricCard
+                compact
                 label="Weighted SoLV"
                 value={`${weightedSolv}%`}
                 sub="Partial credit 4–20"
@@ -842,6 +844,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                 iconClassName="text-emerald-600"
               />
               <GridMetricCard
+                compact
                 label="Average Rank"
                 value={displayMetrics.averageRank ?? "—"}
                 sub={
@@ -855,6 +858,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                 iconClassName="text-violet-600"
               />
               <GridMetricCard
+                compact
                 label="Top 3 Cells"
                 value={`${displayMetrics.top3Cells ?? 0} of ${displayMetrics.totalCells || totalGridCells}`}
                 icon={Grid3x3}
@@ -862,6 +866,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                 iconClassName="text-sky-600"
               />
               <GridMetricCard
+                compact
                 label="Top 10"
                 value={displayMetrics.top10Cells ?? 0}
                 sub={
@@ -874,6 +879,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                 iconClassName="text-sky-500"
               />
               <GridMetricCard
+                compact
                 label="Top 20"
                 value={displayMetrics.top20Cells ?? 0}
                 sub="cells"
@@ -882,6 +888,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                 iconClassName="text-blue-600"
               />
               <GridMetricCard
+                compact
                 label="Visibility"
                 value={`${displayMetrics.visibilityScore ?? 0}%`}
                 sub={
@@ -906,15 +913,15 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
             )}
 
             {(scanActive || (progressCompleted > 0 && progressCompleted < progressTotal)) && (
-              <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/80 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/40">
-                <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+              <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50/80 px-3 py-2 dark:border-emerald-900 dark:bg-emerald-950/40">
+                <p className="text-xs font-medium text-emerald-900 dark:text-emerald-100">
                   {cellsInFlight || cellsStillLoading
                     ? "Analyzing locations"
                     : cellsPending
                       ? "Map ready"
                       : "Scan progress"}
                 </p>
-                <p className="mt-1 text-sm text-emerald-800 dark:text-emerald-200">
+                <p className="mt-0.5 text-xs text-emerald-800 dark:text-emerald-200">
                   {cellsInFlight || cellsStillLoading ? (
                     <>
                       <Loader2 className="mr-1 inline h-4 w-4 animate-spin text-emerald-600" />
@@ -947,8 +954,8 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
             )}
 
             {!scanActive && (enrichmentRunning || batchStatus === "rank_ready") && progressMessage && (
-              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/80 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/40">
-                <p className="text-sm text-amber-900 dark:text-amber-100">{progressMessage}</p>
+              <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 dark:border-amber-900 dark:bg-amber-950/40">
+                <p className="text-xs text-amber-900 dark:text-amber-100">{progressMessage}</p>
               </div>
             )}
 
@@ -1118,7 +1125,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
             )}
 
             {entityKey === "you" && topCompetitors.length > 0 && (
-              <div className="mt-6 grid gap-4 lg:grid-cols-2">
+              <div className="mt-4 grid gap-3 lg:grid-cols-2">
                 <GridScanCompetitorsTable
                   competitors={topCompetitors}
                   keyword={data?.primaryKeyword}
@@ -1135,8 +1142,8 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
               </div>
             )}
 
-            <section className="mt-4 rounded-lg border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-              <h3 className="mb-3 text-sm font-semibold text-zinc-900">Run new scan</h3>
+            <section className="mt-3 rounded-lg border border-zinc-200 bg-white p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+              <h3 className="mb-2.5 text-[13px] font-semibold text-zinc-900">Run new scan</h3>
               <ScanSetupForm
                 businessId={businessId}
                 defaults={defaultScanSetupValues(officeLat, officeLng)}

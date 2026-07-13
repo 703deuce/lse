@@ -218,8 +218,8 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
   }
 
   return (
-    <div className={cn(gridRankCardClass, "mb-3 px-3 py-3", className)}>
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
+    <div className={cn(gridRankCardClass, "mb-2.5 px-3 py-2.5", className)}>
+      <div className="flex flex-col gap-2.5 xl:flex-row xl:items-end">
         <div className="min-w-0 flex-1">
           <label className={fieldLabel}>Keyword</label>
           {loading ? (
@@ -310,7 +310,7 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
             type="button"
             disabled={running || !selected}
             onClick={() => void runScanForKeyword()}
-            className="inline-flex items-center justify-center gap-2 rounded-md bg-[#137752] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f6244] disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[#137752] px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-[#0f6244] disabled:opacity-50"
           >
             {running ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -343,7 +343,7 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
             value={newKeyword}
             onChange={(e) => setNewKeyword(e.target.value)}
             placeholder='New keyword, e.g. "junk removal woodbridge"'
-            className="flex-1 rounded-md border border-zinc-200 px-3 py-2 text-sm"
+            className="flex-1 rounded-md border border-zinc-200 px-2.5 py-1.5 text-[13px]"
             onKeyDown={(e) => e.key === "Enter" && void addKeyword(false)}
           />
           <button

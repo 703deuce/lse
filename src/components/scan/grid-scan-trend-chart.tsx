@@ -69,14 +69,14 @@ export function GridScanTrendChart({
   }));
 
   return (
-    <div className={`rounded-lg border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${className}`}>
-      <h3 className="text-sm font-semibold text-zinc-900">Compare over time</h3>
+    <div className={`rounded-lg border border-zinc-200 bg-white p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${className}`}>
+      <h3 className="text-[13px] font-semibold text-zinc-900">Compare over time</h3>
       {loading && !chartData.length ? (
-        <div className="mt-4 flex h-40 items-center justify-center text-sm text-text-muted">
+        <div className="mt-3 flex h-32 items-center justify-center text-[13px] text-text-muted">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…
         </div>
       ) : chartData.length < 2 ? (
-        <p className="mt-3 text-sm text-text-muted">Run at least two scans to see trends.</p>
+        <p className="mt-2.5 text-[13px] text-text-muted">Run at least two scans to see trends.</p>
       ) : (
         <div className="mt-3 h-44">
           <ResponsiveContainer width="100%" height="100%">

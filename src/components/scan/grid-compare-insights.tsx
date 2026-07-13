@@ -4,6 +4,10 @@ import { ArrowDown, ArrowUp, Lightbulb, StickyNote } from "lucide-react";
 import type { CellComparison } from "@/lib/maps/grid-entity";
 import { rankLabel } from "@/lib/maps/grid-metrics";
 import { compareCardClass } from "@/components/scan/grid-compare-ui";
+import {
+  dashboardCardTitle,
+  dashboardMicro,
+} from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
 
 interface GridCompareInsightsProps {
@@ -30,22 +34,22 @@ export function GridCompareInsights({
   const losses = topChanges(cells, "declined");
 
   return (
-    <div className="space-y-3">
-      <div className={cn(compareCardClass, "p-4")}>
-        <h3 className="text-sm font-semibold text-zinc-900">Insights</h3>
-        <div className="mt-3 space-y-3">
+    <div className="space-y-2.5">
+      <div className={cn(compareCardClass, "p-3")}>
+        <h3 className={dashboardCardTitle}>Insights</h3>
+        <div className="mt-2.5 space-y-2.5">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
               Biggest gains
             </p>
             {gains.length === 0 ? (
-              <p className="mt-1 text-xs text-zinc-500">No improvements in this comparison.</p>
+              <p className={cn("mt-1", dashboardMicro)}>No improvements in this comparison.</p>
             ) : (
-              <ul className="mt-1.5 space-y-2">
+              <ul className="mt-1 space-y-1.5">
                 {gains.map((c) => (
                   <li
                     key={c.label}
-                    className="flex items-center justify-between gap-2 text-xs text-zinc-800"
+                    className="flex items-center justify-between gap-2 text-[11px] text-zinc-800"
                   >
                     <span>
                       <span className="font-semibold text-zinc-900">{c.label}</span>
@@ -75,7 +79,7 @@ export function GridCompareInsights({
               <button
                 type="button"
                 onClick={onViewAllGains}
-                className="mt-2 text-xs font-medium text-emerald-700 hover:text-emerald-800"
+                className="mt-1.5 text-[11px] font-medium text-emerald-700 hover:text-emerald-800"
               >
                 View all gains
               </button>
@@ -86,13 +90,13 @@ export function GridCompareInsights({
               Biggest losses
             </p>
             {losses.length === 0 ? (
-              <p className="mt-1 text-xs text-zinc-500">No declines in this comparison.</p>
+              <p className={cn("mt-1", dashboardMicro)}>No declines in this comparison.</p>
             ) : (
-              <ul className="mt-1.5 space-y-2">
+              <ul className="mt-1 space-y-1.5">
                 {losses.map((c) => (
                   <li
                     key={c.label}
-                    className="flex items-center justify-between gap-2 text-xs text-zinc-800"
+                    className="flex items-center justify-between gap-2 text-[11px] text-zinc-800"
                   >
                     <span>
                       <span className="font-semibold text-zinc-900">{c.label}</span>
@@ -122,7 +126,7 @@ export function GridCompareInsights({
               <button
                 type="button"
                 onClick={onViewAllLosses}
-                className="mt-2 text-xs font-medium text-red-600 hover:text-red-700"
+                className="mt-1.5 text-[11px] font-medium text-red-600 hover:text-red-700"
               >
                 View all losses
               </button>
@@ -131,24 +135,24 @@ export function GridCompareInsights({
         </div>
       </div>
 
-      <div className={cn(compareCardClass, "p-4")}>
+      <div className={cn(compareCardClass, "p-3")}>
         <div className="flex items-center gap-2">
-          <StickyNote className="h-4 w-4 text-zinc-400" />
-          <h3 className="text-sm font-semibold text-zinc-900">Scan notes</h3>
+          <StickyNote className="h-3.5 w-3.5 text-zinc-400" />
+          <h3 className={dashboardCardTitle}>Scan notes</h3>
         </div>
-        <p className="mt-2 text-xs text-zinc-500">No notes added to either scan.</p>
+        <p className={cn("mt-1.5", dashboardMicro)}>No notes added to either scan.</p>
         <button
           type="button"
-          className="mt-2 text-xs font-medium text-emerald-700 hover:text-emerald-800"
+          className="mt-1.5 text-[11px] font-medium text-emerald-700 hover:text-emerald-800"
         >
           Add note
         </button>
       </div>
 
-      <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-3.5">
+      <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-2.5">
         <div className="flex gap-2">
-          <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-          <p className="text-xs leading-relaxed text-emerald-900">
+          <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+          <p className="text-[11px] leading-snug text-emerald-900">
             <span className="font-semibold">Tip:</span> Hover over any cell on the map or in the
             table to highlight that location.
           </p>
