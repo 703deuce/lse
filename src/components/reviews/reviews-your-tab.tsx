@@ -17,7 +17,7 @@ import {
 import { DonutScore } from "@/components/overview/overview-charts";
 import { cn } from "@/lib/utils";
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 8;
 
 export function ReviewsYourTab({ data }: { data: ReviewsPageData }) {
   const [statusFilter, setStatusFilter] = useState<"all" | "replied" | "unreplied">("all");

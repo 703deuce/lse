@@ -541,41 +541,44 @@ export function ReviewsPagination({
   for (let i = from; i <= to; i++) pages.push(i);
 
   return (
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-500">
-      <span>
-        Showing {start}–{end} of {total} reviews
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-3">
+      <span className="text-xs text-zinc-500">
+        Showing {start}–{end} of {total} review{total === 1 ? "" : "s"}
+        {totalPages > 1 ? ` · Page ${page} of ${totalPages}` : ""}
       </span>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          disabled={page <= 1}
-          onClick={() => onPageChange(page - 1)}
-          className="rounded-md px-2 py-1 text-zinc-600 hover:bg-zinc-100 disabled:opacity-40"
-        >
-          Prev
-        </button>
-        {pages.map((p) => (
+      {totalPages > 1 ? (
+        <div className="flex items-center gap-1">
           <button
-            key={p}
             type="button"
-            onClick={() => onPageChange(p)}
-            className={cn(
-              "flex h-7 min-w-[1.75rem] items-center justify-center rounded-full px-2",
-              p === page ? "bg-emerald-600 text-white" : "text-zinc-600 hover:bg-zinc-100"
-            )}
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+            className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
           >
-            {p}
+            Previous
           </button>
-        ))}
-        <button
-          type="button"
-          disabled={page >= totalPages}
-          onClick={() => onPageChange(page + 1)}
-          className="rounded-md px-2 py-1 text-zinc-600 hover:bg-zinc-100 disabled:opacity-40"
-        >
-          Next
-        </button>
-      </div>
+          {pages.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onPageChange(p)}
+              className={cn(
+                "flex h-7 min-w-[1.75rem] items-center justify-center rounded-full px-2 text-xs font-medium",
+                p === page ? "bg-emerald-600 text-white" : "text-zinc-600 hover:bg-zinc-100"
+              )}
+            >
+              {p}
+            </button>
+          ))}
+          <button
+            type="button"
+            disabled={page >= totalPages}
+            onClick={() => onPageChange(page + 1)}
+            className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

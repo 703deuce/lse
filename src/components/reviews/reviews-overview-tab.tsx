@@ -17,7 +17,7 @@ import {
 } from "@/components/reviews/reviews-ui";
 import { Sparkline } from "@/components/overview/overview-charts";
 
-const STREAM_PAGE_SIZE = 10;
+const STREAM_PAGE_SIZE = 6;
 const LATEST_PREVIEW = 3;
 
 export function ReviewsOverviewTab({
