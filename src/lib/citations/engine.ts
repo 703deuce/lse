@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/db/client";
 import { buildGridTopCompetitors } from "@/lib/maps/grid";
+import { SCAN_RESULT_COMPETITOR_COLUMNS } from "@/lib/maps/scan-result-columns";
 import {
   buildDiscoveryQueries,
   buildSiteQueries,
@@ -265,7 +266,10 @@ export async function runCitationAudit(params: {
       const { data: points } = await supabase.from("scan_points").select("id").eq("scan_batch_id", latestScan.id);
       const pointIds = (points ?? []).map((p) => p.id);
       const { data: results } = pointIds.length
-        ? await supabase.from("scan_results").select("*").in("scan_point_id", pointIds)
+        ? await supabase
+            .from("scan_results")
+            .select(SCAN_RESULT_COMPETITOR_COLUMNS)
+            .in("scan_point_id", pointIds)
         : { data: [] };
       competitors = buildGridTopCompetitors(results ?? [], {
         excludeCid: business.cid,
