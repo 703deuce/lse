@@ -15,6 +15,8 @@ import type { ReviewListItem, ReviewsPageData } from "@/lib/reviews/reviews-page
 import { ReviewDetailDrawer } from "@/components/reviews/review-detail-drawer";
 import { ReviewFeedList } from "@/components/reviews/review-feed-list";
 import { MiniSpark, ReviewsPagination, RvCard, StarRating } from "@/components/reviews/reviews-ui";
+import { dashboardCardTitle, dashboardControl, dashboardMicro, dashboardSectionLabel } from "@/components/overview/dashboard-ui";
+import { cn } from "@/lib/utils";
 
 const LINE_COLORS = ["#059669", "#2563eb", "#7c3aed", "#ea580c", "#dc2626"];
 const REVIEWS_PER_PAGE = 10;
@@ -47,14 +49,14 @@ function CompetitorReviewSection({
 
   return (
     <RvCard>
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-zinc-100 pb-4">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100">
-            <Building2 className="h-5 w-5 text-zinc-600" />
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2 border-b border-zinc-100 pb-3">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-100">
+            <Building2 className="h-4 w-4 text-zinc-600" />
           </span>
           <div className="min-w-0">
-            <h3 className="text-base font-semibold text-zinc-900">{group.name}</h3>
-            <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-600">
+            <h3 className="text-[13px] font-semibold text-zinc-900">{group.name}</h3>
+            <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[12px] text-zinc-600">
               <StarRating rating={group.rating} />
               <span>{group.reviews.length} review{group.reviews.length === 1 ? "" : "s"} (90 days)</span>
               {group.newReviews90d > 0 && (
@@ -67,7 +69,7 @@ function CompetitorReviewSection({
         </div>
       </div>
 
-      <p className="mb-4 text-sm text-zinc-600">
+      <p className={`mb-3 ${dashboardMicro}`}>
         All reviews for {group.name} — full text shown below. Click any review to open the reader panel.
       </p>
 
@@ -127,12 +129,12 @@ export function ReviewsCompetitorTab({ data }: { data: ReviewsPageData }) {
   const totalCompetitorReviews = data.competitorReviews.length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={competitorFilter}
           onChange={(e) => setCompetitorFilter(e.target.value)}
-          className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700"
+          className={cn(dashboardControl, "px-3 text-[13px] text-zinc-700")}
         >
           <option value="all">All Competitors ({data.competitors.length})</option>
           {data.competitors.map((c) => (
@@ -141,41 +143,41 @@ export function ReviewsCompetitorTab({ data }: { data: ReviewsPageData }) {
             </option>
           ))}
         </select>
-        <select className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700">
+        <select className={cn(dashboardControl, "px-3 text-[13px] text-zinc-700")}>
           <option>Last 90 days</option>
         </select>
-        <select className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700">
+        <select className={cn(dashboardControl, "px-3 text-[13px] text-zinc-700")}>
           <option>All Ratings</option>
         </select>
-        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700">
-          <SlidersHorizontal className="h-4 w-4" />
+        <button type="button" className={cn(dashboardControl, "inline-flex items-center gap-1.5 px-3 font-medium text-zinc-700")}>
+          <SlidersHorizontal className="h-3.5 w-3.5" />
           More Filters
         </button>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-5">
+      <div className="grid gap-3 xl:grid-cols-5">
         <RvCard className="xl:col-span-3">
-          <h3 className="text-sm font-semibold text-zinc-900">Competitor Leaderboard (Last 90 Days)</h3>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-left text-sm">
+          <h3 className={dashboardCardTitle}>Competitor Leaderboard (Last 90 Days)</h3>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-left text-[13px]">
               <thead>
-                <tr className="border-b border-zinc-100 text-xs font-medium uppercase text-zinc-500">
-                  <th className="pb-2 pr-3">#</th>
-                  <th className="pb-2 pr-3">Competitor</th>
-                  <th className="pb-2 pr-3">Avg. Rating</th>
-                  <th className="pb-2 pr-3">Total Reviews</th>
-                  <th className="pb-2 pr-3">New Reviews</th>
-                  <th className="pb-2">Review Velocity</th>
+                <tr className="border-b border-zinc-100">
+                  <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>#</th>
+                  <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Competitor</th>
+                  <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Avg. Rating</th>
+                  <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Total Reviews</th>
+                  <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>New Reviews</th>
+                  <th className={cn(dashboardSectionLabel, "pb-2")}>Review Velocity</th>
                 </tr>
               </thead>
               <tbody>
                 {data.competitors.map((c, i) => (
                   <tr key={c.id} className="border-b border-zinc-50">
-                    <td className="py-3 pr-3 text-zinc-500">{i + 1}</td>
-                    <td className="py-3 pr-3 font-medium text-zinc-900">{c.name}</td>
-                    <td className="py-3 pr-3">{c.avgRating?.toFixed(1) ?? c.rating?.toFixed(1) ?? "—"}</td>
-                    <td className="py-3 pr-3">{c.totalReviews}</td>
-                    <td className="py-3 pr-3">
+                    <td className="py-2 pr-2.5 text-zinc-500">{i + 1}</td>
+                    <td className="py-2 pr-2.5 font-medium text-zinc-900">{c.name}</td>
+                    <td className="py-2 pr-2.5">{c.avgRating?.toFixed(1) ?? c.rating?.toFixed(1) ?? "—"}</td>
+                    <td className="py-2 pr-2.5">{c.totalReviews}</td>
+                    <td className="py-2 pr-2.5">
                       <span>{c.newReviews90d}</span>
                       {c.newReviewsDeltaPct != null && (
                         <span
@@ -187,7 +189,7 @@ export function ReviewsCompetitorTab({ data }: { data: ReviewsPageData }) {
                         </span>
                       )}
                     </td>
-                    <td className="py-3">
+                    <td className="py-2">
                       <MiniSpark data={c.velocitySpark} />
                     </td>
                   </tr>
@@ -198,8 +200,8 @@ export function ReviewsCompetitorTab({ data }: { data: ReviewsPageData }) {
         </RvCard>
 
         <RvCard className="xl:col-span-2">
-          <h3 className="text-sm font-semibold text-zinc-900">Competitor Momentum</h3>
-          <div className="mt-4 h-48">
+          <h3 className={dashboardCardTitle}>Competitor Momentum</h3>
+          <div className="mt-3 h-40">
             {data.competitors.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
@@ -213,12 +215,12 @@ export function ReviewsCompetitorTab({ data }: { data: ReviewsPageData }) {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-sm text-zinc-500">No competitor momentum data.</p>
+              <p className={dashboardMicro}>No competitor momentum data.</p>
             )}
           </div>
-          <div className="mt-2 flex flex-wrap gap-3">
+          <div className="mt-2 flex flex-wrap gap-2">
             {data.competitors.slice(0, 5).map((c, i) => (
-              <span key={c.id} className="flex items-center gap-1 text-xs text-zinc-600">
+              <span key={c.id} className="flex items-center gap-1 text-[11px] text-zinc-600">
                 <span className="h-2 w-2 rounded-full" style={{ background: LINE_COLORS[i % LINE_COLORS.length] }} />
                 {c.name}
               </span>
@@ -227,17 +229,17 @@ export function ReviewsCompetitorTab({ data }: { data: ReviewsPageData }) {
         </RvCard>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
-        <div className="space-y-6 xl:col-span-2">
+      <div className="grid gap-3 xl:grid-cols-3">
+        <div className="space-y-3 xl:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-zinc-900">
+            <h3 className={dashboardCardTitle}>
               Competitor Reviews by Company ({totalCompetitorReviews} total)
             </h3>
             {competitorFilter !== "all" && (
               <button
                 type="button"
                 onClick={() => setCompetitorFilter("all")}
-                className="text-sm font-medium text-emerald-600 hover:text-emerald-700"
+                className="text-[12px] font-medium text-emerald-600 hover:text-emerald-700"
               >
                 Show all competitors →
               </button>
@@ -246,7 +248,7 @@ export function ReviewsCompetitorTab({ data }: { data: ReviewsPageData }) {
 
           {visibleGroups.length === 0 ? (
             <RvCard>
-              <p className="text-sm text-zinc-500">No competitor reviews synced for this filter yet.</p>
+              <p className={dashboardMicro}>No competitor reviews synced for this filter yet.</p>
             </RvCard>
           ) : (
             visibleGroups.map((group) => (
@@ -255,20 +257,20 @@ export function ReviewsCompetitorTab({ data }: { data: ReviewsPageData }) {
           )}
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           <RvCard>
-            <h3 className="text-sm font-semibold text-zinc-900">Top Strengths</h3>
-            <ul className="mt-3 space-y-3 text-sm">
-              <li className="flex gap-2"><Clock className="h-4 w-4 text-emerald-600" /> On-time arrival mentioned often</li>
-              <li className="flex gap-2"><DollarSign className="h-4 w-4 text-emerald-600" /> Fair pricing themes</li>
-              <li className="flex gap-2"><Smile className="h-4 w-4 text-emerald-600" /> Professional, friendly crews</li>
+            <h3 className={dashboardCardTitle}>Top Strengths</h3>
+            <ul className="mt-2 space-y-2 text-[13px]">
+              <li className="flex gap-2"><Clock className="h-3.5 w-3.5 text-emerald-600" /> On-time arrival mentioned often</li>
+              <li className="flex gap-2"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /> Fair pricing themes</li>
+              <li className="flex gap-2"><Smile className="h-3.5 w-3.5 text-emerald-600" /> Professional, friendly crews</li>
             </ul>
           </RvCard>
           <RvCard>
-            <h3 className="text-sm font-semibold text-zinc-900">Common Praise Themes</h3>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <h3 className={dashboardCardTitle}>Common Praise Themes</h3>
+            <div className="mt-2 flex flex-wrap gap-1.5">
               {data.sentiment.competitors.flatMap((c) => c.themes).length === 0 ? (
-                <p className="text-sm text-zinc-500">No competitor theme data yet.</p>
+                <p className={dashboardMicro}>No competitor theme data yet.</p>
               ) : (
                 Object.entries(
                   data.sentiment.competitors
@@ -289,13 +291,13 @@ export function ReviewsCompetitorTab({ data }: { data: ReviewsPageData }) {
             </div>
           </RvCard>
           <RvCard className="border-emerald-100 bg-emerald-50/40">
-            <h3 className="text-sm font-semibold text-zinc-900">Opportunities for You</h3>
-            <ul className="mt-3 space-y-2 text-sm text-zinc-700">
-              <li className="flex gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" /> Increase review velocity to match top 3</li>
-              <li className="flex gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" /> Deliver on speed & value themes customers already praise</li>
-              <li className="flex gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" /> Reply faster to protect rating momentum</li>
+            <h3 className={dashboardCardTitle}>Opportunities for You</h3>
+            <ul className="mt-2 space-y-1.5 text-[13px] text-zinc-700">
+              <li className="flex gap-2"><CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" /> Increase review velocity to match top 3</li>
+              <li className="flex gap-2"><CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" /> Deliver on speed & value themes customers already praise</li>
+              <li className="flex gap-2"><CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" /> Reply faster to protect rating momentum</li>
             </ul>
-            <button type="button" className="mt-4 text-sm font-medium text-emerald-600">View full competitor report →</button>
+            <button type="button" className="mt-3 text-[12px] font-medium text-emerald-600">View full competitor report →</button>
           </RvCard>
         </div>
       </div>

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { ModulePage, AlertBanner } from "@/components/ui/design-system";
-import { cn } from "@/lib/utils";
 import { ReviewsCompetitorTab } from "@/components/reviews/reviews-competitor-tab";
 import { ReviewsSentimentTab } from "@/components/reviews/reviews-sentiment-tab";
 import { ReviewsOverviewTab } from "@/components/reviews/reviews-overview-tab";
@@ -118,7 +117,7 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
       />
 
       {data.syncState.needsRun && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[13px] text-amber-900">
           {data.syncState.message}{" "}
           <button type="button" onClick={() => void runMomentum()} className="font-semibold text-emerald-700 underline">
             Run Review Momentum
@@ -130,27 +129,27 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
 
       <ReviewsTabs active={tab} onChange={handleTabChange} />
 
-      <div className={cn("space-y-4", tab === "overview" || tab === "your-reviews" ? "" : "")}>
-        <div className="min-w-0">
-          {tab === "overview" && (
-            <ReviewsOverviewTab data={data} onTabChange={handleTabChange} />
-          )}
-          {tab === "your-reviews" && <ReviewsYourTab data={data} />}
-          {tab === "competitor-reviews" && <ReviewsCompetitorTab data={data} />}
-          {tab === "sentiment" && <ReviewsSentimentTab data={data} />}
-          {tab === "unanswered" && <ReviewsUnansweredTab data={data} businessId={businessId} />}
-        </div>
-        {tab === "overview" && (
+      {tab === "overview" && (
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,18rem)] xl:items-start">
+          <ReviewsOverviewTab data={data} onTabChange={handleTabChange} />
           <aside>
             <SuggestedActionsSidebar suggestions={data.suggestions} businessId={businessId} onTabChange={handleTabChange} />
           </aside>
-        )}
-        {tab === "your-reviews" && (
+        </div>
+      )}
+
+      {tab === "your-reviews" && (
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,18rem)] xl:items-start">
+          <ReviewsYourTab data={data} />
           <aside>
             <SuggestedReplyTasksSidebar data={data} businessId={businessId} />
           </aside>
-        )}
-      </div>
+        </div>
+      )}
+
+      {tab === "competitor-reviews" && <ReviewsCompetitorTab data={data} />}
+      {tab === "sentiment" && <ReviewsSentimentTab data={data} />}
+      {tab === "unanswered" && <ReviewsUnansweredTab data={data} businessId={businessId} />}
     </ModulePage>
   );
 }

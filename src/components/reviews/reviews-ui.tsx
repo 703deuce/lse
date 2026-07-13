@@ -22,14 +22,20 @@ import {
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
+import {
+  dashboardAccentLink,
+  dashboardCard,
+  dashboardCardTitle,
+  dashboardControl,
+  dashboardMicro,
+  dashboardSectionLabel,
+} from "@/components/overview/dashboard-ui";
 import { Sparkline } from "@/components/overview/overview-charts";
 import {
   ModuleHeader,
   TabBar,
   btnPrimary,
   btnSecondary,
-  cardClass,
-  cardLabelClass,
 } from "@/components/ui/design-system";
 import { GridMetricCard } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
@@ -46,15 +52,15 @@ export const REVIEWS_TABS = [
 export type ReviewsTabId = (typeof REVIEWS_TABS)[number]["id"];
 
 export function RvCard({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn(cardClass, "p-4", className)}>{children}</div>;
+  return <div className={cn(dashboardCard, "p-3.5", className)}>{children}</div>;
 }
 
 export function RvSectionTitle({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
   return (
-    <div className="mb-3 flex items-start justify-between gap-3">
+    <div className="mb-2.5 flex items-start justify-between gap-2">
       <div>
-        <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
-        {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
+        <h2 className={dashboardCardTitle}>{title}</h2>
+        {subtitle && <p className={`mt-0.5 ${dashboardMicro}`}>{subtitle}</p>}
       </div>
       {action}
     </div>
@@ -227,16 +233,16 @@ export function ReviewsHeader({
       subtitle="Monitor your review feed, compare competitors, and spot momentum over the last 90 days."
       actions={
         <>
-          <button type="button" onClick={onRefresh} disabled={loading} className={btnSecondary}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          <button type="button" onClick={onRefresh} disabled={loading} className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             Refresh
           </button>
-          <Link href={`/businesses/${businessId}/review-requests`} className={btnSecondary}>
-            <Mail className="h-4 w-4" />
+          <Link href={`/businesses/${businessId}/review-requests`} className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
+            <Mail className="h-3.5 w-3.5" />
             Request Reviews
           </Link>
-          <button type="button" onClick={onRunMomentum} className={btnPrimary}>
-            <Plus className="h-4 w-4" />
+          <button type="button" onClick={onRunMomentum} className={cn(btnPrimary, "h-9 px-3.5 text-[13px]")}>
+            <Plus className="h-3.5 w-3.5" />
             Create Reply Tasks
           </button>
         </>
@@ -286,7 +292,7 @@ export function ReviewsKpiRow({
       },
     ];
     return (
-      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((c) => (
           <GridMetricCard key={c.label} variant="default" compact {...c} />
         ))}
@@ -339,7 +345,7 @@ export function ReviewsKpiRow({
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-3 xl:grid-cols-5">
+    <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3 xl:grid-cols-5">
       {cards.map((c) => (
         <GridMetricCard key={c.label} compact {...c} />
       ))}
@@ -356,7 +362,7 @@ export function ReviewsTabs({
 }) {
   return (
     <TabBar
-      className="[&>div]:gap-4 [&_button]:pb-2"
+      className="[&>div]:gap-4 [&_button]:pb-2.5 [&_button]:text-[13px]"
       tabs={REVIEWS_TABS.map((t) => ({ id: t.id as ReviewsTabId, label: t.label }))}
       active={active}
       onChange={onChange}
@@ -381,7 +387,7 @@ export function FilterChips<T extends string>({
           type="button"
           onClick={() => onChange(opt.id)}
           className={cn(
-            "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+            "rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors",
             value === opt.id ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
           )}
         >
@@ -409,12 +415,12 @@ export function SuggestedActionsSidebar({
   };
 
   return (
-    <RvCard className="sticky top-6 !p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <Sparkles className="h-4 w-4 text-emerald-600" />
-        <h3 className="text-sm font-semibold text-zinc-900">Suggested Actions</h3>
+    <RvCard className="sticky top-6 !p-3">
+      <div className="mb-2.5 flex items-center gap-2">
+        <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+        <h3 className={dashboardCardTitle}>Suggested Actions</h3>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {suggestions.map((s) => {
           const Icon = icons[s.type] ?? MessageSquare;
           return (
@@ -427,21 +433,21 @@ export function SuggestedActionsSidebar({
                 else if (s.type === "sentiment") onTabChange?.("sentiment");
                 else if (s.type === "competitor") onTabChange?.("competitor-reviews");
               }}
-              className="flex w-full items-start gap-3 rounded-lg border border-zinc-100 bg-zinc-50/50 p-3 text-left transition-colors hover:border-emerald-200 hover:bg-emerald-50/40"
+              className="flex w-full items-start gap-2.5 rounded-lg border border-zinc-100 bg-zinc-50/50 p-2.5 text-left transition-colors hover:border-emerald-200 hover:bg-emerald-50/40"
             >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-600 shadow-sm ring-1 ring-zinc-100">
-                <Icon className="h-4 w-4" />
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white text-emerald-600 shadow-sm ring-1 ring-zinc-100">
+                <Icon className="h-3.5 w-3.5" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-zinc-900">{s.title}</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-zinc-500 line-clamp-2">{s.description}</p>
+                <p className="text-[13px] font-medium text-zinc-900">{s.title}</p>
+                <p className={`mt-0.5 line-clamp-2 ${dashboardMicro}`}>{s.description}</p>
               </div>
-              <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-zinc-400" />
+              <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400" />
             </button>
           );
         })}
       </div>
-      <button type="button" className="mt-4 text-sm font-medium text-emerald-600 hover:text-emerald-700">
+      <button type="button" className={cn("mt-3", dashboardAccentLink)}>
         View all insights & actions →
       </button>
     </RvCard>
@@ -451,29 +457,29 @@ export function SuggestedActionsSidebar({
 export function SuggestedReplyTasksSidebar({ data, businessId }: { data: ReviewsPageData; businessId: string }) {
   const themes = data.sentiment.yours.themes.slice(0, 3);
   return (
-    <RvCard className="sticky top-6 !p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <Sparkles className="h-4 w-4 text-emerald-600" />
-        <h3 className="text-sm font-semibold text-zinc-900">Suggested Reply Tasks</h3>
+    <RvCard className="sticky top-6 !p-3">
+      <div className="mb-2.5 flex items-center gap-2">
+        <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+        <h3 className={dashboardCardTitle}>Suggested Reply Tasks</h3>
       </div>
-      <div className="space-y-3 text-sm">
+      <div className="space-y-2.5 text-[13px]">
         {data.unanswered.length > 0 && (
-          <div className="rounded-lg border border-zinc-100 bg-zinc-50/50 p-3">
+          <div className="rounded-lg border border-zinc-100 bg-zinc-50/50 p-2.5">
             <div className="flex items-start gap-2">
-              <MessageSquare className="mt-0.5 h-4 w-4 text-emerald-600" />
+              <MessageSquare className="mt-0.5 h-3.5 w-3.5 text-emerald-600" />
               <div>
                 <p className="font-medium text-zinc-900">{data.unanswered.length} reviews need a response</p>
-                <button type="button" className="mt-1 text-xs font-medium text-emerald-600">View tasks →</button>
+                <button type="button" className="mt-0.5 text-[11px] font-medium text-emerald-600">View tasks →</button>
               </div>
             </div>
           </div>
         )}
-        <div className="rounded-lg border border-zinc-100 bg-zinc-50/50 p-3">
+        <div className="rounded-lg border border-zinc-100 bg-zinc-50/50 p-2.5">
           <div className="flex items-start gap-2">
-            <TrendingUp className="mt-0.5 h-4 w-4 text-emerald-600" />
+            <TrendingUp className="mt-0.5 h-3.5 w-3.5 text-emerald-600" />
             <div>
               <p className="font-medium text-zinc-900">Maintain Momentum</p>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className={`mt-0.5 ${dashboardMicro}`}>
                 {data.kpis.avgRatingDelta != null && data.kpis.avgRatingDelta > 0
                   ? `Your rating improved ${data.kpis.avgRatingDelta} stars this period.`
                   : "Keep replying quickly to protect your rating."}
@@ -481,33 +487,33 @@ export function SuggestedReplyTasksSidebar({ data, businessId }: { data: Reviews
             </div>
           </div>
         </div>
-        <div className="rounded-lg border border-zinc-100 bg-zinc-50/50 p-3">
+        <div className="rounded-lg border border-zinc-100 bg-zinc-50/50 p-2.5">
           <div className="flex items-start gap-2">
-            <ThumbsUp className="mt-0.5 h-4 w-4 text-emerald-600" />
+            <ThumbsUp className="mt-0.5 h-3.5 w-3.5 text-emerald-600" />
             <div>
               <p className="font-medium text-zinc-900">Top Positive Themes</p>
-              <ul className="mt-2 space-y-1 text-xs text-zinc-600">
+              <ul className={`mt-1.5 space-y-0.5 ${dashboardMicro}`}>
                 {themes.map((t) => (
                   <li key={t.themeId} className="capitalize">
                     {t.label} ({t.reviewCount})
                   </li>
                 ))}
               </ul>
-              <button type="button" className="mt-2 text-xs font-medium text-emerald-600">View all themes →</button>
+              <button type="button" className="mt-1.5 text-[11px] font-medium text-emerald-600">View all themes →</button>
             </div>
           </div>
         </div>
-        <div className="rounded-lg border border-emerald-100 bg-emerald-50/40 p-3">
+        <div className="rounded-lg border border-emerald-100 bg-emerald-50/40 p-2.5">
           <div className="flex items-start gap-2">
-            <Shield className="mt-0.5 h-4 w-4 text-emerald-600" />
-            <p className="text-xs text-zinc-600">
+            <Shield className="mt-0.5 h-3.5 w-3.5 text-emerald-600" />
+            <p className={dashboardMicro}>
               Your {data.kpis.responseRate}% response rate is above the local industry average.
             </p>
           </div>
         </div>
         <Link
           href={`/businesses/${businessId}/review-requests`}
-          className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700"
+          className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 hover:text-emerald-700"
         >
           Send review requests →
         </Link>
@@ -541,8 +547,8 @@ export function ReviewsPagination({
   for (let i = from; i <= to; i++) pages.push(i);
 
   return (
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-3">
-      <span className="text-xs text-zinc-500">
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-2.5">
+      <span className={dashboardMicro}>
         Showing {start}–{end} of {total} review{total === 1 ? "" : "s"}
         {totalPages > 1 ? ` · Page ${page} of ${totalPages}` : ""}
       </span>
@@ -599,23 +605,23 @@ export function ReviewsTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm">
+      <table className="w-full text-left text-[13px]">
         <thead>
-          <tr className="border-b border-zinc-100 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-            {showBusiness ? <th className="pb-2 pr-3 font-semibold">Business</th> : <th className="pb-2 pr-3">Reviewer</th>}
-            <th className="pb-2 pr-3">Rating</th>
-            {!showUrgency && <th className="pb-2 pr-3">Date</th>}
-            <th className="pb-2 pr-3">{showUrgency ? "Review (excerpt)" : "Review Text"}</th>
-            {!showBusiness && !showUrgency && <th className="pb-2 pr-3">Source</th>}
-            <th className="pb-2 pr-3">Keywords</th>
+          <tr className="border-b border-zinc-100">
+            {showBusiness ? <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5 font-semibold")}>Business</th> : <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Reviewer</th>}
+            <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Rating</th>
+            {!showUrgency && <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Date</th>}
+            <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>{showUrgency ? "Review (excerpt)" : "Review Text"}</th>
+            {!showBusiness && !showUrgency && <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Source</th>}
+            <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Keywords</th>
             {showUrgency && (
               <>
-                <th className="pb-2 pr-3">Days Waiting</th>
-                <th className="pb-2 pr-3">SLA / Urgency</th>
+                <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Days Waiting</th>
+                <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>SLA / Urgency</th>
               </>
             )}
-            <th className="pb-2 pr-3">Status</th>
-            <th className="pb-2">Action</th>
+            <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Status</th>
+            <th className={cn(dashboardSectionLabel, "pb-2")}>Action</th>
           </tr>
         </thead>
         <tbody>
@@ -625,7 +631,7 @@ export function ReviewsTable({
               className={cn("border-b border-zinc-50 hover:bg-zinc-50/60", onViewReview && "cursor-pointer")}
               onClick={() => onViewReview?.(row)}
             >
-              <td className="py-2.5 pr-3">
+              <td className="py-2 pr-2.5">
                 {showBusiness ? (
                   <BusinessCell row={row} />
                 ) : (
@@ -638,11 +644,11 @@ export function ReviewsTable({
                   </div>
                 )}
               </td>
-              <td className="py-2.5 pr-3">
+              <td className="py-2 pr-2.5">
                 <StarRating rating={row.rating} />
               </td>
               {!showUrgency && (
-                <td className="py-2.5 pr-3 whitespace-nowrap">
+                <td className="py-2 pr-2.5 whitespace-nowrap">
                   <p className="text-zinc-900">
                     {row.reviewDate
                       ? new Date(row.reviewDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
@@ -651,7 +657,7 @@ export function ReviewsTable({
                   {row.relativeDate && <p className="text-[11px] text-zinc-500">{row.relativeDate}</p>}
                 </td>
               )}
-              <td className="min-w-[200px] max-w-md py-2.5 pr-3">
+              <td className="min-w-[200px] max-w-md py-2 pr-2.5">
                 {textDisplay === "full" ? (
                   <p className="whitespace-pre-wrap text-zinc-700">{row.reviewText?.trim() || "—"}</p>
                 ) : (
@@ -673,29 +679,29 @@ export function ReviewsTable({
                 )}
               </td>
               {!showBusiness && !showUrgency && (
-                <td className="py-2.5 pr-3">
+                <td className="py-2 pr-2.5">
                   <SourceIcon source={row.source} />
                 </td>
               )}
-              <td className="py-2.5 pr-3">
+              <td className="py-2 pr-2.5">
                 <TagPills tags={row.tags} />
               </td>
               {showUrgency && (
                 <>
-                  <td className="py-2.5 pr-3">
+                  <td className="py-2 pr-2.5">
                     <span className={cn("text-sm font-medium", (row.daysWaiting ?? 0) >= 7 ? "text-red-600" : "text-amber-600")}>
                       {row.daysWaiting ?? 0} days
                     </span>
                   </td>
-                  <td className="py-2.5 pr-3">
+                  <td className="py-2 pr-2.5">
                     <UrgencyBadge urgency={row.urgency} />
                   </td>
                 </>
               )}
-              <td className="py-2.5 pr-3">
+              <td className="py-2 pr-2.5">
                 <ReviewStatusBadge replied={row.replied} variant={mode === "default" ? "pill" : "default"} />
               </td>
-              <td className="py-2.5">
+              <td className="py-2">
                 <div className="flex items-center gap-1">
                   {!row.replied && (
                     <button
@@ -741,14 +747,14 @@ export function KeywordList({
   linkLabel?: string;
 }) {
   return (
-    <RvCard className="!p-4">
-      <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
-      <ul className="mt-3 space-y-2.5">
+    <RvCard className="!p-3">
+      <h3 className={dashboardCardTitle}>{title}</h3>
+      <ul className="mt-2.5 space-y-2">
         {items.length === 0 ? (
-          <li className="text-sm text-zinc-500">No keywords yet.</li>
+          <li className={dashboardMicro}>No keywords yet.</li>
         ) : (
           items.map((k) => (
-            <li key={k.keyword} className="flex items-center justify-between gap-2 text-sm">
+            <li key={k.keyword} className="flex items-center justify-between gap-2 text-[13px]">
               <span className="capitalize text-zinc-700">{k.keyword}</span>
               <span className="font-semibold tabular-nums text-zinc-900">{k.count}</span>
             </li>
@@ -756,7 +762,7 @@ export function KeywordList({
         )}
       </ul>
       {linkLabel && items.length > 0 && (
-        <button type="button" className="mt-4 text-sm font-medium text-emerald-600 hover:text-emerald-700">
+        <button type="button" className={cn("mt-3", dashboardAccentLink)}>
           {linkLabel} →
         </button>
       )}
@@ -766,14 +772,14 @@ export function KeywordList({
 
 export function KeywordCloud({ items, title, linkLabel }: { items: Array<{ keyword: string; count: number }>; title: string; linkLabel?: string }) {
   return (
-    <RvCard className="!p-4">
-      <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
-      <div className="mt-3 flex flex-wrap gap-2">
+    <RvCard className="!p-3">
+      <h3 className={dashboardCardTitle}>{title}</h3>
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
         {items.length === 0 ? (
-          <p className="text-sm text-zinc-500">No keywords yet.</p>
+          <p className={dashboardMicro}>No keywords yet.</p>
         ) : (
           items.map((k) => (
-            <span key={k.keyword} className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700">
+            <span key={k.keyword} className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[11px] text-zinc-700">
               <span className="capitalize">{k.keyword}</span>{" "}
               <span className="text-zinc-400">{k.count}</span>
             </span>
@@ -781,7 +787,7 @@ export function KeywordCloud({ items, title, linkLabel }: { items: Array<{ keywo
         )}
       </div>
       {linkLabel && items.length > 0 && (
-        <button type="button" className="mt-4 text-sm font-medium text-emerald-600 hover:text-emerald-700">
+        <button type="button" className={cn("mt-3", dashboardAccentLink)}>
           {linkLabel} →
         </button>
       )}

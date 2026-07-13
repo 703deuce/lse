@@ -15,6 +15,7 @@ import {
   StarRating,
 } from "@/components/reviews/reviews-ui";
 import { DonutScore } from "@/components/overview/overview-charts";
+import { dashboardControl, dashboardMicro } from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 8;
@@ -46,32 +47,32 @@ export function ReviewsYourTab({ data }: { data: ReviewsPageData }) {
   const newest = data.yourReviews[0];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <section>
         <RvSectionTitle title={`Your Review Insights (${data.yourReviews.length} reviews, last 90 days)`} />
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <RvCard className="!px-3.5 !py-2.5">
+        <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
+          <RvCard className="!p-3">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Response Rate</p>
-            <div className="mt-1.5 flex items-end justify-between gap-2">
+            <div className="mt-1 flex items-end justify-between gap-2">
               <div>
-                <p className="text-2xl font-bold leading-none text-zinc-900">{data.kpis.responseRate}%</p>
+                <p className="text-xl font-bold leading-none text-zinc-900">{data.kpis.responseRate}%</p>
                 <div className="mt-1">
                   <DeltaText value={data.kpis.responseRateDelta} suffix="% vs prior 90 days" />
                 </div>
               </div>
-              <DonutScore score={data.kpis.responseRate} size={44} strokeWidth={5} />
+              <DonutScore score={data.kpis.responseRate} size={40} strokeWidth={4} />
             </div>
           </RvCard>
-          <RvCard className="!px-3.5 !py-2.5">
+          <RvCard className="!p-3">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Avg Reply Time</p>
-            <p className="mt-1.5 text-2xl font-bold leading-none text-zinc-900">4h 32m</p>
-            <p className="mt-1 text-xs font-medium text-emerald-600">↓ 1h 12m vs prior period</p>
-            <Clock className="mt-2 h-5 w-5 text-emerald-500" />
+            <p className="mt-1 text-xl font-bold leading-none text-zinc-900">4h 32m</p>
+            <p className="mt-0.5 text-[11px] font-medium text-emerald-600">↓ 1h 12m vs prior period</p>
+            <Clock className="mt-1.5 h-4 w-4 text-emerald-500" />
           </RvCard>
-          <RvCard className="!px-3.5 !py-2.5">
+          <RvCard className="!p-3">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Newest Review</p>
             {newest ? (
-              <div className="mt-3">
+              <div className="mt-2">
                 <div className="flex items-center gap-2">
                   <ReviewerAvatar name={newest.reviewerName} size="sm" />
                   <div>
@@ -79,28 +80,28 @@ export function ReviewsYourTab({ data }: { data: ReviewsPageData }) {
                     <p className="text-[11px] text-zinc-500">{newest.relativeDate}</p>
                   </div>
                 </div>
-                <p className="mt-2 line-clamp-4 text-sm leading-relaxed text-zinc-600">{newest.reviewText}</p>
+                <p className="mt-1.5 line-clamp-3 text-[13px] leading-snug text-zinc-600">{newest.reviewText}</p>
                 <button
                   type="button"
                   onClick={() => setSelectedReview(newest)}
-                  className="mt-2 text-sm font-medium text-emerald-600 hover:text-emerald-700"
+                  className="mt-1.5 text-[12px] font-medium text-emerald-600 hover:text-emerald-700"
                 >
                   Read full review →
                 </button>
               </div>
             ) : (
-              <p className="mt-3 text-sm text-zinc-500">No reviews yet.</p>
+              <p className={`mt-2 ${dashboardMicro}`}>No reviews yet.</p>
             )}
           </RvCard>
-          <RvCard className="!px-3.5 !py-2.5">
+          <RvCard className="!p-3">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Review Sources (90D)</p>
-            <div className="mt-3 space-y-2.5">
+            <div className="mt-2 space-y-2">
               {[
                 { source: "google" as const, count: Math.round(data.kpis.newReviews90d * 0.69), pct: 69 },
                 { source: "facebook" as const, count: Math.round(data.kpis.newReviews90d * 0.19), pct: 19 },
                 { source: "yelp" as const, count: Math.round(data.kpis.newReviews90d * 0.12), pct: 12 },
               ].map((s) => (
-                <div key={s.source} className="flex items-center justify-between text-sm">
+                <div key={s.source} className="flex items-center justify-between text-[13px]">
                   <div className="flex items-center gap-2">
                     <SourceIcon source={s.source} />
                     <span className="capitalize text-zinc-700">{s.source}</span>
@@ -116,15 +117,15 @@ export function ReviewsYourTab({ data }: { data: ReviewsPageData }) {
       </section>
 
       <RvCard>
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[200px] flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[180px] flex-1">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
             <input
               type="search"
               placeholder="Search reviews..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-zinc-200 py-2 pl-9 pr-3 text-sm"
+              className={cn(dashboardControl, "w-full py-0 pl-8 pr-3 text-[13px]")}
             />
           </div>
           <div className="flex rounded-lg border border-zinc-200 bg-zinc-50 p-0.5">
@@ -140,7 +141,7 @@ export function ReviewsYourTab({ data }: { data: ReviewsPageData }) {
                 type="button"
                 onClick={() => setStatusFilter(f)}
                 className={cn(
-                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
                   statusFilter === f ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-600 hover:text-zinc-900"
                 )}
               >
@@ -150,7 +151,7 @@ export function ReviewsYourTab({ data }: { data: ReviewsPageData }) {
           </div>
         </div>
 
-        <p className="mb-4 text-sm text-zinc-600">
+        <p className={`mb-3 ${dashboardMicro}`}>
           {filtered.length} review{filtered.length === 1 ? "" : "s"} — full text shown below. Click any review to open it in a reader panel.
         </p>
 

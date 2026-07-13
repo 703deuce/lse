@@ -8,11 +8,9 @@ import {
   Grid3X3,
   KeyRound,
   LayoutDashboard,
-  Library,
   Link2,
   Star,
   TrendingUp,
-  Users,
 } from "lucide-react";
 
 export type SidebarNavItem = {
@@ -61,10 +59,8 @@ export function buildBusinessSidebarNav(businessId: string): {
       items: [
         { href: `${base}/backlink-gap`, label: "Backlink Gap", icon: Link2 },
         { href: `${base}/trust`, label: "Local Trust", icon: Award },
-        { href: `${base}/citations`, label: "Citations", icon: Library },
         { href: `${base}/keywords`, label: "Keywords", icon: KeyRound },
         { href: `${base}/ai-visibility`, label: "AI Visibility", icon: Bot },
-        { href: `${base}/competitors`, label: "Competitors", icon: Users },
       ],
     },
     reports: {
