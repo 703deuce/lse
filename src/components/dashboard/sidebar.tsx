@@ -5,37 +5,26 @@ import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
   Building2,
-  LayoutDashboard,
-  ClipboardList,
   FileText,
-  Settings,
-  Users,
-  Grid3X3,
-  Award,
-  TrendingUp,
-  Star,
-  Link2,
-  KeyRound,
-  Bot,
   MapPin,
   Phone,
+  Settings,
+  Users,
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SidebarUserMenu } from "@/components/auth/sidebar-user-menu";
+import {
+  buildBusinessSidebarNav,
+  isSidebarHrefActive,
+  type SidebarNavItem,
+} from "@/components/dashboard/dashboard-nav";
 
 const navItems = [
   { href: "/businesses", label: "Businesses", icon: Building2 },
   { href: "/agency/clients", label: "Clients", icon: Users },
   { href: "/agency/reports", label: "Reports", icon: FileText },
 ];
-
-type NavItem = {
-  href: string;
-  label: string;
-  icon: typeof Building2;
-  isRankGrid?: boolean;
-};
 
 function NavLink({
   href,
@@ -104,47 +93,16 @@ function NavSubLink({
   );
 }
 
-function ReputationNavSection({
-  businessId,
-  pathname,
-}: {
-  businessId: string;
-  pathname: string;
-}) {
-  const reviewsActive = pathname.includes(`/businesses/${businessId}/reviews`);
-  const reviewRequestsActive = pathname.includes(`/businesses/${businessId}/review-requests`);
-
-  return (
-    <div className="mb-2">
-      <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-text-muted">
-        Reputation
-      </p>
-      <div className="space-y-0.5">
-        <NavLink
-          href={`/businesses/${businessId}/reviews`}
-          label="Reviews"
-          icon={Star}
-          active={reviewsActive}
-        />
-        <NavSubLink
-          href={`/businesses/${businessId}/review-requests`}
-          label="Review Requests"
-          active={reviewRequestsActive}
-          dot
-        />
-      </div>
-    </div>
-  );
-}
-
 function NavSection({
   title,
   items,
-  isActive,
+  businessId,
+  pathname,
 }: {
   title: string;
-  items: NavItem[];
-  isActive: (href: string, flags?: { isRankGrid?: boolean }) => boolean;
+  items: SidebarNavItem[];
+  businessId: string;
+  pathname: string;
 }) {
   return (
     <div className="mb-2">
@@ -158,7 +116,7 @@ function NavSection({
             href={item.href}
             label={item.label}
             icon={item.icon}
-            active={isActive(item.href, { isRankGrid: item.isRankGrid })}
+            active={isSidebarHrefActive(pathname, item.href, businessId, { isRankGrid: item.isRankGrid })}
           />
         ))}
       </div>
@@ -206,39 +164,7 @@ function DashboardSidebarInner({ businessId }: { businessId?: string }) {
       .catch(() => undefined);
   }, [businessId]);
 
-  const mainModules: NavItem[] = businessId
-    ? [
-        { href: `/businesses/${businessId}/overview`, label: "Overview", icon: LayoutDashboard },
-        { href: `/businesses/${businessId}/scans`, label: "Rank Grid", icon: Grid3X3, isRankGrid: true },
-        { href: `/businesses/${businessId}/review-momentum`, label: "Review Momentum™", icon: TrendingUp },
-      ]
-    : [];
-
-  const researchModules: NavItem[] = businessId
-    ? [
-        { href: `/businesses/${businessId}/backlink-gap`, label: "Backlink Gap", icon: Link2 },
-        { href: `/businesses/${businessId}/trust`, label: "Local Trust", icon: Award },
-        { href: `/businesses/${businessId}/ai-visibility`, label: "AI Visibility", icon: Bot },
-        { href: `/businesses/${businessId}/keywords`, label: "Keywords", icon: KeyRound },
-      ]
-    : [];
-
-  const reportModules: NavItem[] = businessId
-    ? [
-        { href: `/businesses/${businessId}/tasks`, label: "Growth Plan", icon: ClipboardList },
-        { href: `/businesses/${businessId}/reports`, label: "Reports", icon: FileText },
-      ]
-    : [];
-
-  function isActive(href: string, flags?: { isRankGrid?: boolean }) {
-    if (flags?.isRankGrid && businessId) {
-      return pathname.includes(`/businesses/${businessId}/grid/`) || pathname === href;
-    }
-    if (businessId && href.includes("/review-requests")) {
-      return pathname.includes(`/businesses/${businessId}/review-requests`);
-    }
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
+  const nav = businessId ? buildBusinessSidebarNav(businessId) : null;
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
@@ -282,12 +208,36 @@ function DashboardSidebarInner({ businessId }: { businessId?: string }) {
               }
             />
           ))}
-        {businessId && (
+        {nav && (
           <div className="mt-3 border-t border-sidebar-border pt-3">
-            <NavSection title="Main" items={mainModules} isActive={isActive} />
-            <ReputationNavSection businessId={businessId} pathname={pathname} />
-            <NavSection title="Research" items={researchModules} isActive={isActive} />
-            <NavSection title="Reports" items={reportModules} isActive={isActive} />
+            <NavSection title={nav.main.title} items={nav.main.items} businessId={businessId!} pathname={pathname} />
+            <div className="mb-2">
+              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-text-muted">
+                {nav.reputation.title}
+              </p>
+              <div className="space-y-0.5">
+                {nav.reputation.items.map((item) => (
+                  <NavLink
+                    key={item.href}
+                    href={item.href}
+                    label={item.label}
+                    icon={item.icon}
+                    active={isSidebarHrefActive(pathname, item.href, businessId!)}
+                  />
+                ))}
+                {nav.reputation.subLinks.map((item) => (
+                  <NavSubLink
+                    key={item.href}
+                    href={item.href}
+                    label={item.label}
+                    active={isSidebarHrefActive(pathname, item.href, businessId!)}
+                    dot
+                  />
+                ))}
+              </div>
+            </div>
+            <NavSection title={nav.research.title} items={nav.research.items} businessId={businessId!} pathname={pathname} />
+            <NavSection title={nav.reports.title} items={nav.reports.items} businessId={businessId!} pathname={pathname} />
           </div>
         )}
       </nav>

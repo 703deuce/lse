@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Building2, LayoutDashboard, MapPin, Star, TrendingUp } from "lucide-react";
+import { useState, type ComponentType } from "react";
+import { Building2, MapPin } from "lucide-react";
 import { ModulePage } from "@/components/ui/design-system";
+import { buildBusinessSidebarNav } from "@/components/dashboard/dashboard-nav";
 import { ReviewsOverviewTab } from "@/components/reviews/reviews-overview-tab";
 import {
   ReviewsHeader,
@@ -14,12 +15,34 @@ import {
 import { REVIEWS_PREVIEW_DATA } from "@/lib/reviews/reviews-preview-data";
 import { cn } from "@/lib/utils";
 
-function PreviewSidebar() {
-  const links = [
-    { label: "Overview", icon: LayoutDashboard, active: false },
-    { label: "Reviews", icon: Star, active: true },
-    { label: "Review Momentum™", icon: TrendingUp, active: false },
-  ];
+function PreviewSidebar({ businessId, activeHref }: { businessId: string; activeHref: string }) {
+  const nav = buildBusinessSidebarNav(businessId);
+
+  const renderItem = (href: string, label: string, Icon: ComponentType<{ className?: string }>) => {
+    const active = href === activeHref;
+    return (
+      <div
+        key={href}
+        className={cn(
+          "relative flex items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] font-medium",
+          active ? "bg-emerald-500/15 pl-3.5 text-emerald-300" : "text-sidebar-text"
+        )}
+      >
+        {active && (
+          <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full bg-emerald-500" />
+        )}
+        <Icon className={cn("h-4 w-4 shrink-0", active ? "text-emerald-400" : "text-sidebar-text-muted")} />
+        {label}
+      </div>
+    );
+  };
+
+  const renderSection = (title: string, items: Array<{ href: string; label: string; icon: ComponentType<{ className?: string }> }>) => (
+    <div className="mb-2">
+      <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-text-muted">{title}</p>
+      <div className="space-y-0.5">{items.map((item) => renderItem(item.href, item.label, item.icon))}</div>
+    </div>
+  );
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
@@ -38,29 +61,30 @@ function PreviewSidebar() {
           <span className="min-w-0 flex-1 truncate">Bright Smile Dental</span>
         </div>
       </div>
-      <nav className="flex-1 p-2.5">
-        <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-text-muted">Main</p>
-        <div className="space-y-0.5">
-          {links.map((item) => {
-            const Icon = item.icon;
-            return (
-              <div
-                key={item.label}
-                className={cn(
-                  "relative flex items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] font-medium",
-                  item.active
-                    ? "bg-emerald-500/15 pl-3.5 text-emerald-300"
-                    : "text-sidebar-text"
-                )}
-              >
-                {item.active && (
-                  <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full bg-emerald-500" />
-                )}
-                <Icon className={cn("h-4 w-4 shrink-0", item.active ? "text-emerald-400" : "text-sidebar-text-muted")} />
-                {item.label}
-              </div>
-            );
-          })}
+      <nav className="flex-1 overflow-y-auto p-2.5">
+        <div className="mt-3 border-t border-sidebar-border pt-3">
+          {renderSection(nav.main.title, nav.main.items)}
+          <div className="mb-2">
+            <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-text-muted">
+              {nav.reputation.title}
+            </p>
+            <div className="space-y-0.5">
+              {nav.reputation.items.map((item) => renderItem(item.href, item.label, item.icon))}
+              {nav.reputation.subLinks.map((item) => (
+                <div
+                  key={item.href}
+                  className={cn(
+                    "relative py-1.5 pl-8 pr-3 text-[13px] font-medium",
+                    item.href === activeHref ? "text-emerald-300" : "text-sidebar-text"
+                  )}
+                >
+                  {item.label}
+                </div>
+              ))}
+            </div>
+          </div>
+          {renderSection(nav.research.title, nav.research.items)}
+          {renderSection(nav.reports.title, nav.reports.items)}
         </div>
       </nav>
     </aside>
@@ -73,7 +97,7 @@ export default function ReviewsPreviewPage() {
 
   return (
     <div className="flex min-h-screen bg-surface-muted">
-      <PreviewSidebar />
+      <PreviewSidebar businessId={data.businessId} activeHref={`/businesses/${data.businessId}/reviews`} />
       <main className="min-w-0 flex-1 overflow-y-auto px-5 py-6 lg:px-8">
         <ModulePage wide className="!space-y-4">
           <ReviewsHeader
