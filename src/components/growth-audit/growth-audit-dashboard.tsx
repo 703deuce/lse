@@ -183,7 +183,7 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
   const score = growthScore ?? sections?.overview.growthScore ?? 0;
 
   return (
-    <ModulePage wide className="!space-y-4">
+    <ModulePage wide>
       <GrowthAuditHeader startedAt={startedAt} running={running} onRun={() => void runAudit()} />
 
       {error && <AlertBanner variant="error">{error}</AlertBanner>}

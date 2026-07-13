@@ -40,7 +40,7 @@ export default async function OverviewPreviewPage() {
 
   if (!resolved) {
     return (
-      <ModulePage wide className="!space-y-4 px-5 py-6 lg:px-8">
+      <ModulePage wide className="!space-y-3 px-5 py-6 lg:px-8">
         <p className="text-sm text-zinc-600">
           No businesses found. Set <code className="text-xs">DEV_BUSINESS_ID</code> to a real
           business UUID to preview the dashboard with live data.
@@ -57,7 +57,7 @@ export default async function OverviewPreviewPage() {
   ]);
 
   return (
-    <ModulePage wide className="!space-y-4 px-5 py-6 lg:px-8">
+    <ModulePage wide className="!space-y-3 px-5 py-6 lg:px-8">
       <DashboardHeader
         userName="Anthony"
         businessId={businessId}

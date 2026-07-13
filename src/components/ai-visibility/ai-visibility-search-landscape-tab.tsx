@@ -66,7 +66,7 @@ export function AiVisibilitySearchLandscapeTab({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <TintedKpiCard
           label="AI & Google Overlap"
           value={`${inBoth} companies`}
@@ -198,7 +198,7 @@ export function AiVisibilitySearchLandscapeTab({
         </div>
       </AiPanel>
 
-      <div className="grid gap-2.5 lg:grid-cols-3">
+      <div className="grid gap-2 lg:grid-cols-3">
         <AiPanel title="Google Map Pack (Top 3)" action={<Info className="h-3.5 w-3.5 text-zinc-300" />}>
           <ol className="space-y-2">
             {mapPack.slice(0, 3).map((m) => (

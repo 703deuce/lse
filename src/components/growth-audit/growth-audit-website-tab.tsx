@@ -80,7 +80,7 @@ export function GrowthAuditWebsiteTab({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-2.5 lg:grid-cols-5">
+      <div className="grid gap-2 lg:grid-cols-5">
         <ScoreGaugeCard title="Website Match Score" score={website.score} size="md" statusVariant="website" />
         <StatHighlightCard
           title="Critical Mismatches"

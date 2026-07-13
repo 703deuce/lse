@@ -40,7 +40,7 @@ export function GridScanCompetitorsTable({
   if (!competitors.length) return null;
 
   return (
-    <div className={cn(dashboardCard, "p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]", className)}>
+    <div className={cn(dashboardCard, "p-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)]", className)}>
       <h3 className={dashboardCardTitle}>Top competitors this scan</h3>
       <p className={cn("mt-0.5", dashboardMicro)}>
         Top-3 local pack{keyword ? ` · “${keyword}”` : ""}

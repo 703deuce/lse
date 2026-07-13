@@ -51,7 +51,7 @@ export function LocalTrustMarketBar({
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2.5 rounded-lg border border-zinc-200/70 bg-white px-3 py-2.5 shadow-sm">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200/70 bg-white px-3 py-2.5 shadow-sm">
         <div className="flex items-center gap-1.5 text-[13px] font-medium text-zinc-700">
           <MapPin className="h-3.5 w-3.5 text-emerald-600" />
           Market

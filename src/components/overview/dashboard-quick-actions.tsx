@@ -29,7 +29,7 @@ export function DashboardQuickActions({ businessId }: { businessId: string }) {
   ] as const;
 
   return (
-    <div className="grid gap-2.5 sm:grid-cols-3">
+    <div className="grid gap-2 sm:grid-cols-3">
       {actions.map((action) => (
         <Link
           key={action.title}

@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 export const dashboardCard =
   "rounded-xl border border-zinc-200/70 bg-white shadow-sm";
 
-export const dashboardCardPad = "p-3.5";
+export const dashboardCardPad = "p-3";
 
 export const dashboardSectionLabel =
   "text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400";
@@ -24,7 +24,7 @@ export const dashboardAccentLink =
   "text-[12px] font-medium text-emerald-600 transition-colors hover:text-emerald-700";
 
 export const dashboardControl =
-  "h-9 rounded-lg border border-zinc-200/80 bg-white text-[13px] text-zinc-800 shadow-sm";
+  "h-8 rounded-lg border border-zinc-200/80 bg-white text-[13px] text-zinc-800 shadow-sm";
 
 export const dashboardBadge =
   "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold";

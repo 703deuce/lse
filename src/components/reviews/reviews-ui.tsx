@@ -37,7 +37,7 @@ import {
   btnPrimary,
   btnSecondary,
 } from "@/components/ui/design-system";
-import { GridMetricCard } from "@/components/ui/metric-card";
+import { GridMetricCard, KpiRow } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 import type { ReviewListItem, ReviewsPageData } from "@/lib/reviews/reviews-page-data";
 
@@ -52,7 +52,7 @@ export const REVIEWS_TABS = [
 export type ReviewsTabId = (typeof REVIEWS_TABS)[number]["id"];
 
 export function RvCard({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn(dashboardCard, "p-3.5", className)}>{children}</div>;
+  return <div className={cn(dashboardCard, "p-3", className)}>{children}</div>;
 }
 
 export function RvSectionTitle({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
@@ -293,11 +293,11 @@ export function ReviewsKpiRow({
       },
     ];
     return (
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+      <KpiRow cols={4}>
         {cards.map((c) => (
-          <GridMetricCard key={c.label} variant="default" compact {...c} />
+          <GridMetricCard key={c.label} variant="default" {...c} />
         ))}
-      </div>
+      </KpiRow>
     );
   }
 
@@ -346,11 +346,11 @@ export function ReviewsKpiRow({
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3 xl:grid-cols-5">
+    <KpiRow cols={5}>
       {cards.map((c) => (
-        <GridMetricCard key={c.label} compact {...c} />
+        <GridMetricCard key={c.label} {...c} />
       ))}
-    </div>
+    </KpiRow>
   );
 }
 

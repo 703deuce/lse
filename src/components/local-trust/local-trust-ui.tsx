@@ -33,7 +33,7 @@ import {
   btnSecondary,
   btnIcon,
 } from "@/components/ui/design-system";
-import { GridMetricCard } from "@/components/ui/metric-card";
+import { GridMetricCard, KpiRow } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 
 export type LocalTrustTabId =
@@ -193,9 +193,8 @@ export function TrustKpiRow({
   easyWins: number | string;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-4">
+    <KpiRow cols={4}>
       <GridMetricCard
-        compact
         label="Opportunities Found"
         value={opportunitiesFound}
         sub="Total opportunities"
@@ -204,7 +203,6 @@ export function TrustKpiRow({
         iconClassName="text-emerald-600"
       />
       <GridMetricCard
-        compact
         label="High Priority"
         value={highPriority}
         sub="Require immediate action"
@@ -213,7 +211,6 @@ export function TrustKpiRow({
         iconClassName="text-red-600"
       />
       <GridMetricCard
-        compact
         label="Local Relevance Score"
         value={relevanceScore}
         sub="Out of 100"
@@ -222,7 +219,6 @@ export function TrustKpiRow({
         iconClassName="text-blue-600"
       />
       <GridMetricCard
-        compact
         label="Easy Wins"
         value={easyWins}
         sub="Low effort, high impact"
@@ -230,7 +226,7 @@ export function TrustKpiRow({
         iconWrapClassName="bg-emerald-50"
         iconClassName="text-emerald-600"
       />
-    </div>
+    </KpiRow>
   );
 }
 
@@ -250,9 +246,8 @@ export function TrustQueryKpiRow({
   lastRunTime: string;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-5">
+    <KpiRow cols={5}>
       <GridMetricCard
-        compact
         label="Total Queries"
         value={totalQueries}
         sub={`+${Math.max(0, Math.round(totalQueries * 0.08))} from last run`}
@@ -261,7 +256,6 @@ export function TrustQueryKpiRow({
         iconClassName="text-emerald-600"
       />
       <GridMetricCard
-        compact
         label="Successful Discoveries"
         value={successfulDiscoveries}
         sub={
@@ -274,7 +268,6 @@ export function TrustQueryKpiRow({
         iconClassName="text-emerald-600"
       />
       <GridMetricCard
-        compact
         label="Avg. Local Relevance"
         value={avgRelevance}
         sub="Out of 100"
@@ -283,7 +276,6 @@ export function TrustQueryKpiRow({
         iconClassName="text-blue-600"
       />
       <GridMetricCard
-        compact
         label="Unique Domains Found"
         value={uniqueDomains}
         sub={`+${Math.max(0, Math.round(uniqueDomains * 0.15))} from last run`}
@@ -292,7 +284,6 @@ export function TrustQueryKpiRow({
         iconClassName="text-violet-600"
       />
       <GridMetricCard
-        compact
         label="Last Run"
         value={lastRunDate}
         sub={`${lastRunTime} · Completed`}
@@ -300,7 +291,7 @@ export function TrustQueryKpiRow({
         iconWrapClassName="bg-emerald-50"
         iconClassName="text-emerald-600"
       />
-    </div>
+    </KpiRow>
   );
 }
 
@@ -326,7 +317,7 @@ export function TrustTabs({
 
 export const trustFilterBarClass = cn(
   dashboardCard,
-  "flex flex-wrap items-end gap-2.5 p-3"
+  "flex flex-wrap items-end gap-2 p-3"
 );
 
 export function TrustFilterBar({ children }: { children: ReactNode }) {
@@ -499,7 +490,7 @@ export function TrustPanelCard({
         </div>
         {action}
       </div>
-      <div className="p-3.5">{children}</div>
+      <div className="p-3">{children}</div>
     </div>
   );
 }

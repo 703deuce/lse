@@ -7,21 +7,21 @@ import { scoreTextClass, trendTextClass } from "@/lib/design/score-colors";
 
 /* ── Layout tokens ───────────────────────────────────────────── */
 
-export const moduleStack = "space-y-4";
+export const moduleStack = "space-y-3";
 export const moduleMaxWidth = "mx-auto w-full max-w-[1600px]";
 export const tableHeadClass =
   "bg-zinc-50 text-left text-xs font-medium uppercase tracking-wide text-zinc-500";
-export const sectionGap = "mt-6";
-export const cardGrid = "grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4";
-export const cardGrid3 = "grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3";
+export const sectionGap = "mt-5";
+export const cardGrid = "grid gap-2 sm:grid-cols-2 xl:grid-cols-4";
+export const cardGrid3 = "grid gap-2 sm:grid-cols-2 lg:grid-cols-3";
 
 /* ── Surface tokens ──────────────────────────────────────────── */
 
 export const cardClass =
   "rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]";
-export const cardPadding = "p-3.5";
+export const cardPadding = "p-3";
 export const filterBarClass =
-  "flex flex-wrap items-end gap-2.5 rounded-xl border border-zinc-200/80 bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]";
+  "flex flex-wrap items-end gap-2 rounded-xl border border-zinc-200/80 bg-white p-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]";
 
 /* ── Typography tokens ───────────────────────────────────────── */
 
@@ -220,16 +220,16 @@ export function StatCard({
   className?: string;
 }) {
   return (
-    <div className={cn(cardClass, "p-3.5", className)}>
-      <div className="flex items-start justify-between gap-2.5">
+    <div className={cn(cardClass, "p-3", className)}>
+      <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className={cardLabelClass}>{label}</p>
-          <div className="mt-1.5">
+          <div className="mt-1">
             <StatValue value={value} suffix={suffix} score={score} />
           </div>
-          {sub ? <p className="mt-1 text-[11px] leading-snug text-zinc-500">{sub}</p> : null}
+          {sub ? <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">{sub}</p> : null}
           {trend != null && trend !== 0 ? (
-            <p className={cn("mt-1 text-[11px] font-medium", trendTextClass(trend))}>
+            <p className={cn("mt-0.5 text-[11px] font-medium", trendTextClass(trend))}>
               {trend > 0 ? "+" : ""}
               {trend} vs last
             </p>
@@ -238,11 +238,11 @@ export function StatCard({
         {Icon ? (
           <span
             className={cn(
-              "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
+              "flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
               iconWrapClassName
             )}
           >
-            <Icon className="h-3.5 w-3.5" />
+            <Icon className="h-3 w-3" />
           </span>
         ) : null}
       </div>

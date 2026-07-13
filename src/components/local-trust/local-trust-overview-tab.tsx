@@ -102,7 +102,7 @@ export function LocalTrustOverviewTab({
     <div className="space-y-3">
       {aiSummary && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3.5 py-3">
-          <div className="flex min-w-0 flex-1 items-start gap-2.5">
+          <div className="flex min-w-0 flex-1 items-start gap-2">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
               <Sparkles className="h-3.5 w-3.5" />
             </span>
@@ -163,7 +163,7 @@ export function LocalTrustOverviewTab({
                 const label = categoryLabel(c.type);
                 const Icon = CATEGORY_ICONS[c.type] ?? Building2;
                 return (
-                  <li key={c.type} className="flex items-start gap-2.5">
+                  <li key={c.type} className="flex items-start gap-2">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600">
                       <Icon className="h-3.5 w-3.5" />
                     </span>

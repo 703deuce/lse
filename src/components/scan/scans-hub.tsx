@@ -159,13 +159,13 @@ export function ScansHub({
 
   return (
     <div className="space-y-4">
-      <section className={cn(dashboardCard, "p-3.5")}>
+      <section className={cn(dashboardCard, "p-3")}>
         <h2 className={dashboardCardTitle}>Run a new grid scan</h2>
         <p className={cn("mt-0.5", dashboardMicro)}>
           Pick a keyword, grid size, and radius — then start scanning.
         </p>
 
-        <div className="mt-3 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <label className={fieldLabel}>
             Keyword
             <select
@@ -264,7 +264,7 @@ export function ScansHub({
         </p>
       </section>
 
-      <div className="flex flex-wrap items-center justify-between gap-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className={dashboardCardTitle}>Scan history</h2>
           <p className={dashboardMicro}>{filteredScans.length} scan(s)</p>
@@ -296,10 +296,10 @@ export function ScansHub({
               href={`/businesses/${businessId}/grid/${scan.id}`}
               className={cn(
                 dashboardCard,
-                "block p-3.5 transition hover:border-emerald-200 hover:shadow-md"
+                "block p-3 transition hover:border-emerald-200 hover:shadow-md"
               )}
             >
-              <div className="flex flex-wrap items-start justify-between gap-2.5">
+              <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-[15px] font-semibold text-zinc-900">
                     {scan.keyword ? `“${scan.keyword}”` : "Unknown keyword"}

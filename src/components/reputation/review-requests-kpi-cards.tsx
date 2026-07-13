@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentType, ReactNode } from "react";
-import { GridMetricCard } from "@/components/ui/metric-card";
+import { GridMetricCard, KpiRow } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 
 export function ReviewRequestsKpiCard({
@@ -42,7 +42,6 @@ export function ReviewRequestsKpiCard({
 
   return (
     <GridMetricCard
-      compact
       label={label}
       value={value}
       sub={composedSub}
@@ -54,6 +53,8 @@ export function ReviewRequestsKpiCard({
     />
   );
 }
+
+export { KpiRow as ReviewRequestsKpiRow };
 
 export function pctOfTotal(part: number, total: number): string {
   if (total <= 0) return "0% of total";

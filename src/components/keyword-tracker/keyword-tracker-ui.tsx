@@ -7,9 +7,15 @@ import {
   dashboardCard,
   dashboardControl,
   dashboardMicro,
-  dashboardSectionLabel,
 } from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
+import {
+  kpiCardSurface,
+  kpiIconWrapClass,
+  kpiLabelClass,
+  kpiSubClass,
+  kpiValueClass,
+} from "@/components/ui/metric-card";
 import { ModuleHeader, btnIcon, btnSecondary } from "@/components/ui/design-system";
 
 export function KeywordsPageHeader({ businessId }: { businessId: string }) {
@@ -142,23 +148,23 @@ export function KeywordsKpiCard({
   isKeywordValue?: boolean;
 }) {
   return (
-    <div className={cn(dashboardCard, "rounded-lg px-2.5 py-1.5")}>
+    <div className={cn(kpiCardSurface, "flex h-full flex-col")}>
       <div className="flex items-start justify-between gap-1.5">
         <div className="min-w-0 flex-1">
-          <p className={dashboardSectionLabel}>{label}</p>
+          <p className={kpiLabelClass}>{label}</p>
           {isKeywordValue ? (
             <p className="mt-0.5 truncate text-[13px] font-semibold text-emerald-700">{value}</p>
           ) : (
-            <p className="mt-0.5 text-base font-bold tabular-nums leading-none text-zinc-900">{value}</p>
+            <p className={kpiValueClass}>{value}</p>
           )}
           {sub && (
-            <p className={cn("mt-0.5", dashboardMicro, isKeywordValue && "font-medium text-zinc-600")}>{sub}</p>
+            <p className={cn(kpiSubClass, isKeywordValue && "font-medium text-zinc-600")}>{sub}</p>
           )}
           {trendLabel && <TrendLine delta={trend ?? null} label={trendLabel} invert={invertTrend} />}
         </div>
         <div className="flex shrink-0 items-start gap-1">
           <div className="flex flex-col items-end gap-1">
-            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-emerald-50 text-emerald-600">
+            <span className={cn(kpiIconWrapClass, "bg-emerald-50 text-emerald-600")}>
               <Icon className="h-2.5 w-2.5" />
             </span>
             {sparkPoints && sparkPoints.length > 0 && <MiniSparkline points={sparkPoints} />}

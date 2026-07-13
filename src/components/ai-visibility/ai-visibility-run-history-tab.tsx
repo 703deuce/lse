@@ -59,7 +59,7 @@ export function AiVisibilityRunHistoryTab({
   }
 
   return (
-    <div className="grid gap-2.5 lg:grid-cols-[1fr_280px]">
+    <div className="grid gap-2 lg:grid-cols-[1fr_280px]">
       <div className="space-y-4">
         <AiPanel title="Visibility score over time" subtitle="Line chart shows your visibility score across all runs in the selected time range." action={
           <select className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-[10px] font-medium text-zinc-600 shadow-sm" defaultValue="all">

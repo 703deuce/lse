@@ -132,7 +132,7 @@ export function LocalTrustCompetitorsTab({
         </button>
       </div>
 
-      <div className="flex flex-wrap items-end gap-2.5 border-b border-zinc-100 pb-3">
+      <div className="flex flex-wrap items-end gap-2 border-b border-zinc-100 pb-3">
         <TrustFilterSelect
           label="Competitor"
           value="all"

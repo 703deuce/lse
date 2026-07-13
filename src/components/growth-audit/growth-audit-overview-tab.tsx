@@ -135,7 +135,7 @@ export function GrowthAuditOverviewTab({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-2.5 xl:grid-cols-[minmax(220px,1.25fr)_repeat(5,minmax(0,1fr))]">
+      <div className="grid gap-2 xl:grid-cols-[minmax(220px,1.25fr)_repeat(5,minmax(0,1fr))]">
         <ScoreGaugeCard title="Overall Audit Score" score={growthScore} />
         <MiniScoreCard title="GBP Score" score={sections.gbp.score} />
         <MiniScoreCard title="Website Match" score={sections.website.score} />
@@ -195,7 +195,7 @@ export function GrowthAuditOverviewTab({
           <h2 className="text-[13px] font-semibold tracking-tight text-zinc-900">Audit Snapshot</h2>
           <p className="mt-0.5 text-[11px] text-zinc-500">Key factors that influence your Google Maps visibility.</p>
         </div>
-        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           {snapshotItems.map((item) => {
             const meta = SNAPSHOT_META[item.label];
             const Icon = meta.icon;

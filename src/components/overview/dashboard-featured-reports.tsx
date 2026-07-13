@@ -14,7 +14,7 @@ export function DashboardFeaturedReports({
 
   return (
     <section className="space-y-2.5">
-      <div className="grid gap-2.5 lg:grid-cols-2">
+      <div className="grid gap-2 lg:grid-cols-2">
         <DashboardReviewPerformanceCard businessId={businessId} data={data.review} />
         {showAi ? (
           <DashboardAiVisibilityCard businessId={businessId} data={data.ai} />

@@ -217,7 +217,7 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         {kpiCards.map((card) => (
           <GridMetricCard
             key={card.label}
@@ -232,7 +232,7 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1.5">
           {TASK_FILTERS.map((f) => (
             <button
@@ -350,7 +350,7 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
             </tbody>
           </table>
         </div>
-        <div className={`flex flex-wrap items-center justify-between gap-2.5 border-t border-zinc-100 px-3.5 py-2.5 ${dashboardMicro}`}>
+        <div className={`flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 px-3.5 py-2.5 ${dashboardMicro}`}>
           <span>
             Showing {from} to {to} of {filtered.length} tasks
           </span>

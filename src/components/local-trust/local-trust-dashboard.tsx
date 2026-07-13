@@ -215,8 +215,8 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
     (data?.aiJson?.rescan_summary as Record<string, unknown> | undefined);
 
   return (
-    <ModulePage className="!space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-2.5">
+    <ModulePage>
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <TrustPageHeader />
         <TrustTopBar />
       </div>
@@ -239,7 +239,7 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
         )}
 
         {run && (
-          <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <TrustMetaLine
               city={activeCity}
               state={activeState}

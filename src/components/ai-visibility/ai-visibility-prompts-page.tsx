@@ -140,7 +140,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
   }
 
   return (
-    <ModulePage className="!space-y-4">
+    <ModulePage>
       <div className="flex items-center gap-1 text-xs text-text-muted">
         <Link href={`/businesses/${businessId}/ai-visibility`} className="hover:text-emerald-700">
           AI Visibility

@@ -171,7 +171,7 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
   const targetEngines = leaderboard.find((r) => r.isTargetBrand)?.engines ?? [];
 
   return (
-    <ModulePage className="!space-y-4">
+    <ModulePage>
       <AiVisibilityHeaderRow
         businessId={businessId}
         isRunning={isRunning}
@@ -211,7 +211,7 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
       )}
 
       {tab === "dashboard" && (
-        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <AiKpiCard
             label="Visibility Score"
             value={visibilityScore ?? "—"}
@@ -275,7 +275,7 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
       {tab === "history" && (
         <>
           <AiVisibilityTabFilters primaryPrompt={data?.primaryPrompt?.prompt_text} />
-          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <AiKpiCard
               label="Total Runs"
               value={aggregate?.completeRuns ?? "—"}

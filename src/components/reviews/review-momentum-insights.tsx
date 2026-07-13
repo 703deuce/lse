@@ -13,7 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { momentumBadgeClass, type MomentumLabel } from "@/lib/reviews/metrics";
-import { GridMetricCard } from "@/components/ui/metric-card";
+import { GridMetricCard, KpiRow } from "@/components/ui/metric-card";
 import {
   dashboardBadge,
   dashboardCard,
@@ -113,9 +113,8 @@ export function ReviewMomentumTopKpis({
   market: MarketInsights;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-4">
+    <KpiRow cols={4}>
       <GridMetricCard
-        compact
         variant="primary"
         label="Review Momentum™"
         value={Math.round(momentumScore)}
@@ -125,7 +124,6 @@ export function ReviewMomentumTopKpis({
         iconClassName="text-emerald-600"
       />
       <GridMetricCard
-        compact
         label="Velocity Trend"
         value={velocityTrendLabel}
         sub={
@@ -145,7 +143,6 @@ export function ReviewMomentumTopKpis({
         trendPositive={velocityTrend === "accelerating" ? true : velocityTrend === "losing" ? false : undefined}
       />
       <GridMetricCard
-        compact
         label="Share of New Reviews (30D)"
         value={`${targetSharePct}%`}
         sub="You vs. competitors"
@@ -154,7 +151,6 @@ export function ReviewMomentumTopKpis({
         iconClassName="text-sky-600"
       />
       <GridMetricCard
-        compact
         label="Market Activity"
         value={market.marketActivityLabel}
         sub={`${market.marketReviews30d} new reviews · top ${market.entityCount}`}
@@ -162,7 +158,7 @@ export function ReviewMomentumTopKpis({
         iconWrapClassName="bg-violet-50"
         iconClassName="text-violet-600"
       />
-    </div>
+    </KpiRow>
   );
 }
 
@@ -179,7 +175,6 @@ export function MomentumSnapshotCard({
 }) {
   return (
     <GridMetricCard
-      compact
       label={label}
       value={value}
       sub={sub}

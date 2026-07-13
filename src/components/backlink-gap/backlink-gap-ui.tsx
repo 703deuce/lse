@@ -30,7 +30,7 @@ import {
   btnSecondary,
   btnIcon,
 } from "@/components/ui/design-system";
-import { GridMetricCard } from "@/components/ui/metric-card";
+import { GridMetricCard, KpiRow } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 
 export type BacklinkGapTabId = "overview" | "opportunities" | "matrix" | "ignored" | "tasks";
@@ -156,12 +156,12 @@ export function GapKpiRow({
   highPriority: number | string;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-4">
-      <GridMetricCard compact label="Target Referring Domains" value={targetDomains} sub="Domains pointing to you" icon={Globe} />
-      <GridMetricCard compact label="Competitor Domains Found" value={competitorDomains} sub="Unique domains found" icon={Users} />
-      <GridMetricCard compact label="Missing Opportunities" value={missing} sub="Opportunities to capture" icon={Target} />
-      <GridMetricCard compact label="High Priority Links" value={highPriority} sub="High priority opportunities" icon={Star} />
-    </div>
+    <KpiRow cols={4}>
+      <GridMetricCard label="Target Referring Domains" value={targetDomains} sub="Domains pointing to you" icon={Globe} />
+      <GridMetricCard label="Competitor Domains Found" value={competitorDomains} sub="Unique domains found" icon={Users} />
+      <GridMetricCard label="Missing Opportunities" value={missing} sub="Opportunities to capture" icon={Target} />
+      <GridMetricCard label="High Priority Links" value={highPriority} sub="High priority opportunities" icon={Star} />
+    </KpiRow>
   );
 }
 
@@ -177,12 +177,12 @@ export function GapIgnoredKpiRow({
   review: number;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-4">
-      <GridMetricCard compact label="Ignored Domains" value={ignored} sub="Links you've ignored" icon={Eye} />
-      <GridMetricCard compact label="Spam Candidates" value={spam} sub="Flagged as potentially spam" icon={Shield} iconWrapClassName="bg-red-50" iconClassName="text-red-600" />
-      <GridMetricCard compact label="Restored Links" value={restored} sub="Restored to active" icon={RefreshCw} />
-      <GridMetricCard compact label="Review Needed" value={review} sub="Require your review" icon={ClipboardList} iconWrapClassName="bg-amber-50" iconClassName="text-amber-600" />
-    </div>
+    <KpiRow cols={4}>
+      <GridMetricCard label="Ignored Domains" value={ignored} sub="Links you've ignored" icon={Eye} />
+      <GridMetricCard label="Spam Candidates" value={spam} sub="Flagged as potentially spam" icon={Shield} iconWrapClassName="bg-red-50" iconClassName="text-red-600" />
+      <GridMetricCard label="Restored Links" value={restored} sub="Restored to active" icon={RefreshCw} />
+      <GridMetricCard label="Review Needed" value={review} sub="Require your review" icon={ClipboardList} iconWrapClassName="bg-amber-50" iconClassName="text-amber-600" />
+    </KpiRow>
   );
 }
 
@@ -433,7 +433,7 @@ export function PanelCard({
         </div>
         {action}
       </div>
-      <div className="p-3.5">{children}</div>
+      <div className="p-3">{children}</div>
       {footer && <div className="border-t border-zinc-100 px-3.5 py-2.5">{footer}</div>}
     </div>
   );

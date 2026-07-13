@@ -138,7 +138,7 @@ export function LocalTrustQueriesTab({
           </span>
         }
       >
-        <div className="flex gap-2.5 overflow-x-auto pb-1">
+        <div className="flex gap-2 overflow-x-auto pb-1">
           {clusters.map((cluster) => {
             const Icon = cluster.icon;
             const rate = cluster.queries > 0 ? Math.round((cluster.discoveries / cluster.queries) * 100) : 0;
@@ -230,7 +230,7 @@ export function LocalTrustQueriesTab({
           >
             <ul className="space-y-2">
               {footprints.map((f, i) => (
-                <li key={f.title} className="flex items-center gap-2.5">
+                <li key={f.title} className="flex items-center gap-2">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-bold text-zinc-600">
                     {i + 1}
                   </span>

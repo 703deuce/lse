@@ -110,7 +110,7 @@ export function LocalTrustTasksTab({ tasks }: { tasks: TaskRow[] }) {
                 key={String(t.id ?? i)}
                 className={cn(dashboardCard, "p-3")}
               >
-                <div className="flex items-start gap-2.5">
+                <div className="flex items-start gap-2">
                   <span
                     className={cn(
                       "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white",

@@ -75,7 +75,7 @@ export function AiVisibilityEvidenceTab({
   return (
     <div className="space-y-4">
       {!isCombined && (
-        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <AiKpiCard
             label="Total Sources"
             value={sources.length}
@@ -139,7 +139,7 @@ export function AiVisibilityEvidenceTab({
       </div>
 
       {subTab === "by-engine" ? (
-        <div className="grid gap-2.5 sm:grid-cols-2">
+        <div className="grid gap-2 sm:grid-cols-2">
           {Object.entries(sourcesByEngine).map(([engine, rows]) => (
             <AiPanel key={engine} title={ENGINE_LABELS[engine as AiEngine]} subtitle={`${rows.length} sources`}>
               <ul className="space-y-2 text-xs">
@@ -151,7 +151,7 @@ export function AiVisibilityEvidenceTab({
           ))}
         </div>
       ) : (
-        <div className="grid gap-2.5 lg:grid-cols-[1fr_300px]">
+        <div className="grid gap-2 lg:grid-cols-[1fr_300px]">
           {subTab === "citations" ? (
             <AiPanel
               title="Cited Sources"

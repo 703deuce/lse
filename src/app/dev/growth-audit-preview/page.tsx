@@ -83,7 +83,7 @@ export default function GrowthAuditPreviewPage() {
 
   return (
     <div className="px-5 py-6 lg:px-8">
-      <ModulePage wide className="!space-y-4">
+      <ModulePage wide>
         <GrowthAuditHeader
           startedAt={growthAuditPreviewApi.run.startedAt}
           running={false}

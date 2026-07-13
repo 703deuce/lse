@@ -21,6 +21,7 @@ import {
   pctOfTotal,
   responseRate,
   ReviewRequestsKpiCard,
+  ReviewRequestsKpiRow as KpiRow,
 } from "@/components/reputation/review-requests-kpi-cards";
 import {
   dashboardBody,
@@ -348,7 +349,7 @@ export function ReviewRequestsPanel({
       {section === "poster" && (
         <div className={cn(dashboardCard, "overflow-hidden")}>
           <div className="grid lg:grid-cols-[minmax(0,1fr)_380px]">
-            <div className="space-y-4 border-b border-zinc-100 p-3.5 lg:border-b-0 lg:border-r">
+            <div className="space-y-4 border-b border-zinc-100 p-3 lg:border-b-0 lg:border-r">
               <section className="border-b border-zinc-100 pb-4">
                 <h3 className={dashboardCardTitle}>Create a review link</h3>
                 <p className={`mt-0.5 ${dashboardMicro}`}>
@@ -557,7 +558,7 @@ export function ReviewRequestsPanel({
             </section>
             </div>
 
-            <div className="bg-gradient-to-b from-zinc-50 to-zinc-100/90 p-3.5 lg:sticky lg:top-4 lg:self-start">
+            <div className="bg-gradient-to-b from-zinc-50 to-zinc-100/90 p-3 lg:sticky lg:top-4 lg:self-start">
               <ReviewPosterPreview
                 ref={posterRef}
                 businessName={data.businessName}
@@ -716,7 +717,7 @@ function MessagesSection({
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      <div className={cn(dashboardCard, "space-y-3 p-3.5")}>
+      <div className={cn(dashboardCard, "space-y-3 p-3")}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex gap-1 rounded-lg border border-zinc-200 bg-zinc-50/50 p-0.5">
             {(
@@ -893,7 +894,7 @@ function MessagesSection({
         )}
       </div>
 
-      <div className={cn(dashboardCard, "p-3.5")}>
+      <div className={cn(dashboardCard, "p-3")}>
         <div className="flex items-center justify-between">
           <div>
             <h3 className={dashboardCardTitle}>Live Preview</h3>
@@ -1025,7 +1026,7 @@ function TrackingSection({
       <ReviewRequestsCampaignsTable businessId={businessId} />
 
       {stats && (
-        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        <KpiRow cols={6}>
           <ReviewRequestsKpiCard
             label="Requests Sent"
             value={stats.last_30_days}
@@ -1075,12 +1076,12 @@ function TrackingSection({
             icon={ArrowLeftRight}
             iconClass="bg-emerald-50 text-emerald-600"
           />
-        </div>
+        </KpiRow>
       )}
 
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="space-y-3">
-          <div className={cn(dashboardCard, "p-3.5")}>
+          <div className={cn(dashboardCard, "p-3")}>
             <h3 className={dashboardCardTitle}>Log a manual send</h3>
             <p className={`mt-0.5 ${dashboardMicro}`}>
               Record review requests sent outside the platform (in person, phone, etc.).
@@ -1280,7 +1281,7 @@ function TrackingSection({
           </div>
         </div>
 
-        <div className={cn(dashboardCard, "p-3.5 xl:sticky xl:top-4 xl:self-start")}>
+        <div className={cn(dashboardCard, "p-3 xl:sticky xl:top-4 xl:self-start")}>
           <div className="flex items-center gap-2">
             <h3 className={dashboardCardTitle}>Customer Replies</h3>
             <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">

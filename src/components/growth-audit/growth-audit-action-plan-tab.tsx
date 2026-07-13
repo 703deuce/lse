@@ -105,7 +105,7 @@ export function GrowthAuditActionPlanTab({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryStatCard
           icon={Target}
           iconClassName="bg-emerald-50 text-emerald-600"
@@ -138,7 +138,7 @@ export function GrowthAuditActionPlanTab({
 
       <div className="grid gap-3 xl:grid-cols-[1fr_300px]">
         <GaCard className="!p-0 overflow-hidden">
-          <div className="flex flex-wrap items-center gap-2.5 border-b border-zinc-100 px-3.5 py-2.5">
+          <div className="flex flex-wrap items-center gap-2 border-b border-zinc-100 px-3.5 py-2.5">
             <FilterPills
               value={priorityFilter}
               onChange={setPriorityFilter}

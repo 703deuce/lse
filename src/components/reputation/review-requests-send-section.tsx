@@ -19,6 +19,7 @@ import {
   replyRate,
   failureRate,
   ReviewRequestsKpiCard,
+  ReviewRequestsKpiRow as KpiRow,
 } from "@/components/reputation/review-requests-kpi-cards";
 import {
   rrInputClass,
@@ -222,7 +223,7 @@ export function ReviewRequestsSendSection({
   return (
     <div className="space-y-4">
       {stats && (
-        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        <KpiRow cols={6}>
           <ReviewRequestsKpiCard
             label="7 days"
             value={stats.last_7_days}
@@ -274,11 +275,11 @@ export function ReviewRequestsSendSection({
             iconClass="bg-red-50 text-red-600"
             invertTrendColor
           />
-        </div>
+        </KpiRow>
       )}
 
       <div className="grid gap-3 lg:grid-cols-2">
-        <div className={cn(dashboardCard, "p-3.5")}>
+        <div className={cn(dashboardCard, "p-3")}>
           <h3 className={dashboardCardTitle}>Send review request</h3>
           <p className={`mt-0.5 ${dashboardBody}`}>
             Fill in the details below to send a review request to your customer.
@@ -425,7 +426,7 @@ export function ReviewRequestsSendSection({
           </div>
         </div>
 
-        <div className={cn(dashboardCard, "p-3.5")}>
+        <div className={cn(dashboardCard, "p-3")}>
           <div className="flex items-center justify-between gap-2">
             <div>
               <h3 className={dashboardCardTitle}>Message preview</h3>

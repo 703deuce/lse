@@ -690,7 +690,7 @@ export function OpportunitiesPanel({
               View full recommendations →
             </button>
           </div>
-          <div className="mt-3 flex gap-2.5 overflow-x-auto pb-1">
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
             {aiPicks.map((o) => (
               <button
                 key={o.id}

@@ -1,7 +1,47 @@
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { cardLabelClass, cardClass, StatValue } from "@/components/ui/design-system";
 import { trendTextClass } from "@/lib/design/score-colors";
 import { cn } from "@/lib/utils";
+
+/** Canonical KPI surface — used by GridMetricCard and module-specific KPI variants. */
+export const kpiCardSurface =
+  "rounded-lg border border-zinc-200/80 bg-white px-2.5 py-1 shadow-[0_1px_3px_rgba(0,0,0,0.04)]";
+
+export const kpiLabelClass =
+  "text-[10px] font-medium uppercase tracking-wide text-zinc-500";
+
+export const kpiValueClass = "mt-0.5 text-base font-bold tabular-nums leading-none text-zinc-900";
+
+export const kpiValuePrimaryClass =
+  "mt-0.5 text-lg font-bold tabular-nums leading-none text-zinc-900";
+
+export const kpiSubClass = "mt-0.5 text-[11px] leading-snug text-zinc-500";
+
+export const kpiIconWrapClass =
+  "flex h-5 w-5 shrink-0 items-center justify-center rounded-md";
+
+const kpiRowCols: Record<3 | 4 | 5 | 6, string> = {
+  3: "grid-cols-2 xl:grid-cols-3",
+  4: "grid-cols-2 xl:grid-cols-4",
+  5: "grid-cols-2 lg:grid-cols-3 xl:grid-cols-5",
+  6: "grid-cols-2 md:grid-cols-3 xl:grid-cols-6",
+};
+
+/** Shared KPI row — same height, gap, and column rhythm on every module. */
+export function KpiRow({
+  children,
+  cols = 4,
+  className,
+}: {
+  children: ReactNode;
+  cols?: 3 | 4 | 5 | 6;
+  className?: string;
+}) {
+  return (
+    <div className={cn("grid items-stretch gap-2", kpiRowCols[cols], className)}>{children}</div>
+  );
+}
 
 interface MetricCardProps {
   label: string;
@@ -12,12 +52,12 @@ interface MetricCardProps {
 
 export function MetricCard({ label, value, sub, className }: MetricCardProps) {
   return (
-    <div className={cn(cardClass, "p-3.5", className)}>
+    <div className={cn(cardClass, "p-3", className)}>
       <p className={cardLabelClass}>{label}</p>
-      <div className="mt-1.5">
+      <div className="mt-1">
         <StatValue value={value} />
       </div>
-      {sub ? <p className="mt-1 text-[11px] leading-snug text-zinc-500">{sub}</p> : null}
+      {sub ? <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">{sub}</p> : null}
     </div>
   );
 }
@@ -31,6 +71,7 @@ interface GridMetricCardProps {
   iconClassName?: string;
   trendPositive?: boolean;
   variant?: "primary" | "default";
+  /** @deprecated Compact is now the product default; kept for call-site compatibility. */
   compact?: boolean;
   className?: string;
 }
@@ -44,46 +85,24 @@ export function GridMetricCard({
   iconClassName = "text-emerald-600",
   trendPositive,
   variant = "default",
-  compact = false,
   className,
 }: GridMetricCardProps) {
   const isPrimary = variant === "primary";
   return (
-    <div className={cn(cardClass, compact ? "rounded-lg px-2.5 py-1.5" : "px-4 py-3", className)}>
+    <div className={cn(kpiCardSurface, "flex h-full flex-col", className)}>
       <div className="flex items-start justify-between gap-1.5">
-        <p className={cn(compact ? "text-[10px] font-medium uppercase tracking-wide text-zinc-500" : cardLabelClass)}>
-          {label}
-        </p>
+        <p className={kpiLabelClass}>{label}</p>
         {Icon ? (
-          <span
-            className={cn(
-              "flex shrink-0 items-center justify-center rounded-md",
-              compact ? "h-5 w-5" : "h-7 w-7 rounded-lg",
-              iconWrapClassName
-            )}
-          >
-            <Icon className={cn(compact ? "h-2.5 w-2.5" : "h-3.5 w-3.5", iconClassName)} />
+          <span className={cn(kpiIconWrapClass, iconWrapClassName)}>
+            <Icon className={cn("h-2.5 w-2.5", iconClassName)} />
           </span>
         ) : null}
       </div>
-      <p
-        className={cn(
-          "font-bold tabular-nums leading-none text-zinc-900",
-          compact
-            ? isPrimary
-              ? "mt-0.5 text-lg"
-              : "mt-0.5 text-base"
-            : isPrimary
-              ? "mt-1.5 text-2xl"
-              : "mt-1.5 text-xl"
-        )}
-      >
-        {value}
-      </p>
+      <p className={isPrimary ? kpiValuePrimaryClass : kpiValueClass}>{value}</p>
       {sub ? (
         <p
           className={cn(
-            compact ? "mt-0.5 text-[11px] leading-snug" : "mt-1 text-xs leading-relaxed",
+            kpiSubClass,
             trendPositive === true && "font-medium text-emerald-600",
             trendPositive === false && "font-medium text-red-600",
             trendPositive == null && "text-zinc-500"
@@ -116,7 +135,7 @@ export function GridTopCellsGroup({
   return (
     <div
       className={cn(
-        "flex divide-x divide-zinc-100 rounded-lg border border-zinc-200/80 bg-white px-1 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
+        "flex divide-x divide-zinc-100 rounded-lg border border-zinc-200/80 bg-white px-1 py-1.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
         className
       )}
     >
@@ -132,7 +151,7 @@ export function GridTopCellsGroup({
         },
         { label: "Top 20", value: top20, sub: "cells" },
       ].map((item) => (
-        <div key={item.label} className="flex-1 px-2.5 text-center">
+        <div key={item.label} className="flex-1 px-2 text-center">
           <p className={cardLabelClass}>{item.label}</p>
           <p className="mt-0.5 text-base font-bold tabular-nums leading-none text-zinc-900">{item.value}</p>
           {item.sub && (

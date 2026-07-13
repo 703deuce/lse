@@ -71,7 +71,7 @@ export default function ReviewRequestsPreviewPage() {
 
   return (
     <div className="px-5 py-6 lg:px-8">
-      <ModulePage className="!space-y-4">
+      <ModulePage>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <ReviewRequestsPageHeader />
           <ReviewRequestsTopBar />

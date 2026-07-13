@@ -106,7 +106,7 @@ export function GaCard({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={cn(dashboardCard, "p-3.5", className)}>{children}</div>;
+  return <div className={cn(dashboardCard, "p-3", className)}>{children}</div>;
 }
 
 export function GaSectionTitle({
@@ -276,7 +276,6 @@ export function SummaryStatCard({
 
   return (
     <GridMetricCard
-      compact
       label={label}
       value={value}
       sub={sub}

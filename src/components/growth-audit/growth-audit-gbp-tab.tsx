@@ -146,7 +146,7 @@ export function GrowthAuditGbpTab({
         <div className="space-y-3">
           <GaCard className="!p-3.5">
             <p className="text-[13px] font-semibold text-zinc-900">Profile Snapshot</p>
-            <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+            <div className="mt-2.5 grid grid-cols-2 gap-2">
               <SnapshotMini
                 icon={Star}
                 label="Reviews"

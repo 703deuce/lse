@@ -419,22 +419,22 @@ export function LocalTrustOpportunitiesPanel({
         </p>
       </TrustFilterBar>
 
-      <div className="grid gap-2.5 sm:grid-cols-3">
-        <div className="flex items-center gap-2.5 rounded-lg border border-zinc-200/70 bg-white px-3 py-2.5 shadow-sm">
+      <div className="grid gap-2 sm:grid-cols-3">
+        <div className="flex items-center gap-2 rounded-lg border border-zinc-200/70 bg-white px-3 py-2.5 shadow-sm">
           <Sparkles className="h-4 w-4 text-blue-500" />
           <div>
             <p className="text-[13px] font-semibold text-zinc-900">{oppTotal} opportunities</p>
             <p className="text-[11px] text-zinc-500">Across {categoryCount} categories</p>
           </div>
         </div>
-        <div className="flex items-center gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
           <Zap className="h-4 w-4 text-emerald-600" />
           <div>
             <p className="text-[13px] font-semibold text-emerald-900">{easyWins} Easy wins</p>
             <p className="text-[11px] text-emerald-700">Low effort, high impact</p>
           </div>
         </div>
-        <div className="flex items-center gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5">
+        <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5">
           <Link2 className="h-4 w-4 text-blue-600" />
           <div>
             <p className="text-[13px] font-semibold text-blue-900">{highImpact} High-impact actions</p>
@@ -485,7 +485,7 @@ export function LocalTrustOpportunitiesPanel({
                 <button
                   type="button"
                   onClick={() => setExpanded((e) => ({ ...e, [type]: !isOpen }))}
-                  className="flex w-full items-center gap-2.5 border-b border-zinc-100 bg-white px-3 py-2.5 text-left hover:bg-zinc-50/80"
+                  className="flex w-full items-center gap-2 border-b border-zinc-100 bg-white px-3 py-2.5 text-left hover:bg-zinc-50/80"
                 >
                   {isOpen ? (
                     <ChevronDown className="h-3.5 w-3.5 shrink-0 text-zinc-400" />

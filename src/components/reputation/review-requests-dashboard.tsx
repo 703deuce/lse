@@ -44,7 +44,7 @@ export function ReviewRequestsDashboard({ businessId }: { businessId: string }) 
   );
 
   return (
-    <ModulePage className="!space-y-4">
+    <ModulePage>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <ReviewRequestsPageHeader />
         <ReviewRequestsTopBar />

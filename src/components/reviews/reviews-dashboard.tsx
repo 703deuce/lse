@@ -108,7 +108,7 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
   if (!data) return null;
 
   return (
-    <ModulePage wide className="!space-y-4">
+    <ModulePage wide>
       <ReviewsHeader
         businessId={businessId}
         loading={loading || running}
@@ -130,7 +130,7 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
       <ReviewsTabs active={tab} onChange={handleTabChange} />
 
       {tab === "overview" && (
-        <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,18rem)] xl:items-start">
+        <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,18rem)] xl:items-start">
           <ReviewsOverviewTab data={data} onTabChange={handleTabChange} />
           <aside>
             <SuggestedActionsSidebar suggestions={data.suggestions} businessId={businessId} onTabChange={handleTabChange} />
@@ -139,7 +139,7 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
       )}
 
       {tab === "your-reviews" && (
-        <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,18rem)] xl:items-start">
+        <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,18rem)] xl:items-start">
           <ReviewsYourTab data={data} />
           <aside>
             <SuggestedReplyTasksSidebar data={data} businessId={businessId} />

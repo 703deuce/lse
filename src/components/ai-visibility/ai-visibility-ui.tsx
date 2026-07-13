@@ -31,7 +31,14 @@ import {
   dashboardMicro,
   dashboardSectionLabel,
 } from "@/components/overview/dashboard-ui";
-import { GridMetricCard } from "@/components/ui/metric-card";
+import {
+  GridMetricCard,
+  kpiCardSurface,
+  kpiIconWrapClass,
+  kpiLabelClass,
+  kpiSubClass,
+  kpiValueClass,
+} from "@/components/ui/metric-card";
 import {
   ModuleHeader,
   btnPrimary,
@@ -357,7 +364,6 @@ export function AiKpiCard({
   if (!hideValue && !children && !trend && !sparkPoints) {
     return (
       <GridMetricCard
-        compact
         label={label}
         value={valueSuffix ? `${value} ${valueSuffix}` : value}
         sub={sub}
@@ -369,20 +375,20 @@ export function AiKpiCard({
   }
 
   return (
-    <div className={cn(dashboardCard, "rounded-lg px-2.5 py-1.5")}>
+    <div className={cn(kpiCardSurface, "flex h-full flex-col")}>
       <div className="flex items-start justify-between gap-1.5">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1">
-            <p className={dashboardSectionLabel}>{label}</p>
+            <p className={kpiLabelClass}>{label}</p>
             <Info className="h-2.5 w-2.5 text-zinc-300" aria-hidden />
           </div>
           {!hideValue && (
-            <p className="mt-0.5 text-base font-bold tabular-nums leading-none text-zinc-900">
+            <p className={kpiValueClass}>
               {value}
               {valueSuffix ? <span className="ml-1 text-[11px] font-medium text-zinc-500">{valueSuffix}</span> : null}
             </p>
           )}
-          {sub && <p className={cn("mt-0.5", dashboardMicro)}>{sub}</p>}
+          {sub && <p className={kpiSubClass}>{sub}</p>}
           {trend && (
             <p className="mt-0.5 text-[11px] font-medium text-emerald-600">
               {trend.replace(/^▲/, "▲ ").replace(/^▼/, "▼ ")} {trendLabel}
@@ -393,7 +399,8 @@ export function AiKpiCard({
         <div className="flex shrink-0 flex-col items-end gap-1">
           <span
             className={cn(
-              "flex h-5 w-5 items-center justify-center rounded-md bg-emerald-50 text-emerald-600",
+              kpiIconWrapClass,
+              "bg-emerald-50 text-emerald-600",
               iconClassName
             )}
           >
@@ -424,7 +431,7 @@ export function AiPanel({
   return (
     <div className={cn(dashboardCard, "overflow-hidden", className)}>
       {(title || action) && (
-        <div className="flex items-start justify-between gap-2 border-b border-zinc-100 px-3.5 py-2.5">
+        <div className="flex items-start justify-between gap-2 border-b border-zinc-100 px-3 py-2">
           <div>
             {title && <h3 className={dashboardCardTitle}>{title}</h3>}
             {subtitle && <p className={cn("mt-0.5", dashboardMicro)}>{subtitle}</p>}
@@ -432,7 +439,7 @@ export function AiPanel({
           {action}
         </div>
       )}
-      <div className={cn("p-3.5", bodyClassName)}>{children}</div>
+      <div className={cn("p-3", bodyClassName)}>{children}</div>
     </div>
   );
 }
@@ -543,15 +550,15 @@ export function TintedKpiCard({
     amber: "text-amber-600",
   };
   return (
-    <div className={cn("rounded-lg border px-2.5 py-2 shadow-sm", tints[tint])}>
-      <div className="flex items-start justify-between gap-2">
+    <div className={cn("flex h-full flex-col rounded-lg border px-2.5 py-1 shadow-sm", tints[tint])}>
+      <div className="flex items-start justify-between gap-1.5">
         <div>
-          <p className={dashboardSectionLabel}>{label}</p>
-          <p className="mt-0.5 text-base font-bold leading-none tabular-nums text-zinc-900">{value}</p>
-          <p className={cn("mt-0.5", dashboardMicro, "text-zinc-600")}>{sub}</p>
+          <p className={kpiLabelClass}>{label}</p>
+          <p className={kpiValueClass}>{value}</p>
+          <p className={cn(kpiSubClass, "text-zinc-600")}>{sub}</p>
         </div>
-        <span className={cn("flex h-7 w-7 items-center justify-center rounded-lg bg-white/70 shadow-sm", iconTints[tint])}>
-          <Icon className="h-3.5 w-3.5" />
+        <span className={cn(kpiIconWrapClass, "bg-white/70 shadow-sm", iconTints[tint])}>
+          <Icon className="h-2.5 w-2.5" />
         </span>
       </div>
     </div>

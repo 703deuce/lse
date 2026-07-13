@@ -171,7 +171,7 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
   const competitors = data?.competitors ?? run?.selected_competitors ?? [];
 
   return (
-    <ModulePage className="!space-y-4">
+    <ModulePage>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <GapPageHeader />
         <GapTopBar businessId={businessId} />
@@ -336,7 +336,7 @@ function SourceDetailDrawer({
           </button>
         </div>
         <div className="flex-1 space-y-3.5 overflow-y-auto px-4 py-3.5 text-[13px]">
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 gap-2">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Link power (0–100)</p>
               <p className="text-base font-bold text-emerald-700">{o.powerScore ?? "—"}</p>

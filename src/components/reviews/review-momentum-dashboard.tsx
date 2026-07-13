@@ -47,6 +47,7 @@ import {
   momentumCardClass,
 } from "@/components/reviews/review-momentum-ui";
 import { ModulePage, AlertBanner, btnSecondary } from "@/components/ui/design-system";
+import { KpiRow } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 
 interface EntityRow {
@@ -263,7 +264,7 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
   }
 
   return (
-    <ModulePage className="!space-y-4">
+    <ModulePage>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <MomentumPageHeader />
         <MomentumTopBar running={running} onRun={() => void runAudit()} />
@@ -313,7 +314,7 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
                 market={market}
               />
 
-              <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-6">
+              <KpiRow cols={6}>
                 <MomentumSnapshotCard
                   icon={Calendar}
                   label="Last 7 Days (Exact)"
@@ -354,9 +355,9 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
                   }
                   sub="reviews per week"
                 />
-              </div>
+              </KpiRow>
 
-              <div className="grid gap-2.5 xl:grid-cols-3">
+              <div className="grid gap-2 xl:grid-cols-3">
                 <WeeklyPacePanel market={market} />
                 <ShareOfReviewsPanel market={market} />
                 <MomentumScoreBarsPanel entities={displayEntities} />
@@ -468,7 +469,7 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
           </MomentumTableShell>
 
           {targetVelocityAvailable && (
-            <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
               <MiniChartCard title="30-Day Velocity">
                 <ResponsiveContainer width="100%" height={108}>
                   <BarChart data={velocityChart} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -574,10 +575,10 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
           )}
 
           {(data.run.ai_summary || data.tasks.length > 0) && (
-            <div className="grid gap-2.5 lg:grid-cols-12 lg:items-start">
+            <div className="grid gap-2 lg:grid-cols-12 lg:items-start">
               {data.run.ai_summary && (
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3.5 lg:col-span-4">
-                  <div className="flex gap-2.5">
+                  <div className="flex gap-2">
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100">
                       <Lightbulb className="h-3.5 w-3.5 text-emerald-700" />
                     </span>
@@ -594,7 +595,7 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
               {data.tasks.length > 0 && (
                 <div className={cn("min-w-0", data.run.ai_summary ? "lg:col-span-8" : "lg:col-span-12")}>
                   <h2 className="mb-2 text-[13px] font-semibold text-zinc-900">Suggested tasks</h2>
-                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
                   {data.tasks.map((t, i) => {
                     const Icon = TASK_ICONS[i % TASK_ICONS.length];
                     const iconColor = TASK_ICON_COLORS[i % TASK_ICON_COLORS.length];

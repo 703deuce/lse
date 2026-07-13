@@ -85,7 +85,7 @@ export function AiVisibilityDashboardTab({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-2.5 lg:grid-cols-10">
+      <div className="grid gap-2 lg:grid-cols-10">
         <AiPanel className="lg:col-span-4" bodyClassName="pt-3">
           <div className="flex items-center gap-2 text-emerald-700">
             <Sparkles className="h-4 w-4" />
@@ -146,7 +146,7 @@ export function AiVisibilityDashboardTab({
         </AiPanel>
       </div>
 
-      <div className="grid gap-2.5 lg:grid-cols-10">
+      <div className="grid gap-2 lg:grid-cols-10">
         <AiPanel
           title={isCombined ? "Who AI Recommends" : "Who AI Recommends (this run)"}
           className="lg:col-span-4"

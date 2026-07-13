@@ -114,7 +114,7 @@ export function BacklinkGapOverviewTab({
                   <button
                     type="button"
                     onClick={() => onSelect(o)}
-                    className="flex w-full items-center gap-2.5 py-2 text-left first:pt-0 last:pb-0 hover:opacity-80"
+                    className="flex w-full items-center gap-2 py-2 text-left first:pt-0 last:pb-0 hover:opacity-80"
                   >
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-bold text-zinc-600">
                       {i + 1}
@@ -144,7 +144,7 @@ export function BacklinkGapOverviewTab({
           {categoryData.length === 0 ? (
             <p className={dashboardMicro}>No category data.</p>
           ) : (
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <div className="relative mx-auto h-28 w-28 shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -218,7 +218,7 @@ export function BacklinkGapOverviewTab({
           {linkTypeData.length === 0 ? (
             <p className={dashboardMicro}>No link type data.</p>
           ) : (
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <div className="relative mx-auto h-28 w-28 shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>

@@ -36,6 +36,7 @@ import {
   type RankBucket,
 } from "@/lib/keyword-tracker/visibility";
 import { cn } from "@/lib/utils";
+import { KpiRow } from "@/components/ui/metric-card";
 import { ModulePage } from "@/components/ui/design-system";
 
 type RankCheck = {
@@ -273,7 +274,7 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
       : "—";
 
   return (
-    <ModulePage className="!space-y-4">
+    <ModulePage>
       <KeywordsPageHeader businessId={businessId} />
 
       {market && <KeywordsMarketBanner ready={marketReady} display={market.display} />}
@@ -361,7 +362,7 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
         <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">{error}</div>
       )}
 
-      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+      <KpiRow cols={4}>
         <KeywordsKpiCard
           label="Tracked Keywords"
           value={summary?.tracked_count ?? 0}
@@ -401,7 +402,7 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
           />
           <span className="sr-only">View best opportunity</span>
         </button>
-      </div>
+      </KpiRow>
 
       {loading && !data ? (
         <div className="flex items-center justify-center py-8 text-text-muted">
