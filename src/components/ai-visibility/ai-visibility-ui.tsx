@@ -20,17 +20,20 @@ import {
   History,
   TrendingUp,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { ENGINE_LABELS, type AiEngine } from "@/lib/ai-visibility/types";
 import { cn } from "@/lib/utils";
 import {
+  dashboardCard,
+  dashboardCardTitle,
+  dashboardMicro,
+  dashboardSectionLabel,
+} from "@/components/overview/dashboard-ui";
+import { GridMetricCard } from "@/components/ui/metric-card";
+import {
   ModuleHeader,
-  ContentCard,
-  StatCard,
-  cardClass,
-  cardLabelClass,
-  StatValue,
   btnPrimary,
   btnSecondary,
   inputClass,
@@ -74,23 +77,24 @@ export function AiVisibilityHeaderRow({
       title="AI Visibility"
       subtitle="Track how AI platforms discover and recommend your business across the web."
       icon={Sparkles}
+      className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
       actions={
         <>
           <button
             type="button"
             onClick={onRun}
             disabled={isRunning || !hasPrimary}
-            className={btnPrimary}
+            className={cn(btnPrimary, "h-9 px-3 text-[13px]")}
           >
-            <Play className="h-4 w-4" />
+            <Play className="h-3.5 w-3.5" />
             Run Check
           </button>
-          <button type="button" onClick={onRefresh} disabled={loading} className={btnSecondary}>
-            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+          <button type="button" onClick={onRefresh} disabled={loading} className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
+            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             Refresh
           </button>
-          <Link href={`/businesses/${businessId}/ai-visibility/prompts`} className={btnSecondary}>
-            <Settings className="h-4 w-4" />
+          <Link href={`/businesses/${businessId}/ai-visibility/prompts`} className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
+            <Settings className="h-3.5 w-3.5" />
             Manage Prompts
           </Link>
         </>
@@ -222,8 +226,8 @@ export function AiVisibilitySearchBar({
           className={cn(inputClass, "py-2.5 pl-10 pr-3 shadow-sm")}
         />
       </div>
-      <button type="button" className={btnSecondary}>
-        <Filter className="h-4 w-4" />
+      <button type="button" className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
+        <Filter className="h-3.5 w-3.5" />
         Filter
       </button>
     </div>
@@ -275,7 +279,7 @@ export function AiVisibilityTabs({
   onTabChange: (t: AiVisibilityTabId) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-8 border-b border-zinc-200">
+    <div className="flex flex-wrap gap-4 border-b border-zinc-200">
       {AI_VISIBILITY_TABS.map((t) => {
         const Icon = t.icon;
         const active = tab === t.id;
@@ -285,13 +289,13 @@ export function AiVisibilityTabs({
             type="button"
             onClick={() => onTabChange(t.id)}
             className={cn(
-              "inline-flex items-center gap-2 border-b-[3px] pb-3 text-sm font-medium transition-colors -mb-px",
+              "inline-flex items-center gap-1.5 border-b-[3px] pb-2 text-[13px] font-medium transition-colors -mb-px",
               active
                 ? "border-emerald-600 text-emerald-700"
                 : "border-transparent text-zinc-500 hover:border-zinc-200 hover:text-zinc-700"
             )}
           >
-            <Icon className={cn("h-4 w-4", active ? "text-emerald-600" : "text-zinc-400")} />
+            <Icon className={cn("h-3.5 w-3.5", active ? "text-emerald-600" : "text-zinc-400")} />
             {t.label}
           </button>
         );
@@ -303,7 +307,7 @@ export function AiVisibilityTabs({
 function MiniSparkline({ points }: { points: number[] }) {
   if (points.length < 2) {
     return (
-      <svg viewBox="0 0 64 24" className="h-6 w-16 text-primary" aria-hidden>
+      <svg viewBox="0 0 64 24" className="h-5 w-14 text-primary" aria-hidden>
         <polyline fill="none" stroke="currentColor" strokeWidth="1.5" points="0,18 16,14 32,10 48,8 64,4" />
       </svg>
     );
@@ -319,7 +323,7 @@ function MiniSparkline({ points }: { points: number[] }) {
     })
     .join(" ");
   return (
-    <svg viewBox="0 0 64 24" className="h-6 w-16 text-primary" aria-hidden>
+    <svg viewBox="0 0 64 24" className="h-5 w-14 text-primary" aria-hidden>
       <polyline fill="none" stroke="currentColor" strokeWidth="1.5" points={coords} />
     </svg>
   );
@@ -342,7 +346,7 @@ export function AiKpiCard({
   value: string | number;
   valueSuffix?: string;
   sub?: string;
-  icon: ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   iconClassName?: string;
   sparkPoints?: number[];
   trend?: string;
@@ -352,46 +356,48 @@ export function AiKpiCard({
 }) {
   if (!hideValue && !children && !trend && !sparkPoints) {
     return (
-      <StatCard
+      <GridMetricCard
+        compact
         label={label}
-        value={value}
-        suffix={valueSuffix}
+        value={valueSuffix ? `${value} ${valueSuffix}` : value}
         sub={sub}
         icon={Icon}
-        iconWrapClassName={cn("rounded-full bg-emerald-50 text-emerald-600", iconClassName)}
+        iconWrapClassName={cn("bg-emerald-50 text-emerald-600", iconClassName)}
+        iconClassName="text-current"
       />
     );
   }
 
   return (
-    <div className={cn(cardClass, "p-5")}>
-      <div className="flex items-start justify-between gap-3">
+    <div className={cn(dashboardCard, "rounded-lg px-2.5 py-1.5")}>
+      <div className="flex items-start justify-between gap-1.5">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1">
-            <p className={cardLabelClass}>{label}</p>
-            <Info className="h-3 w-3 text-zinc-300" aria-hidden />
+            <p className={dashboardSectionLabel}>{label}</p>
+            <Info className="h-2.5 w-2.5 text-zinc-300" aria-hidden />
           </div>
           {!hideValue && (
-            <div className="mt-2">
-              <StatValue value={value} suffix={valueSuffix} />
-            </div>
+            <p className="mt-0.5 text-base font-bold tabular-nums leading-none text-zinc-900">
+              {value}
+              {valueSuffix ? <span className="ml-1 text-[11px] font-medium text-zinc-500">{valueSuffix}</span> : null}
+            </p>
           )}
-          {sub && <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{sub}</p>}
+          {sub && <p className={cn("mt-0.5", dashboardMicro)}>{sub}</p>}
           {trend && (
-            <p className="mt-1.5 text-xs font-medium text-emerald-600">
+            <p className="mt-0.5 text-[11px] font-medium text-emerald-600">
               {trend.replace(/^▲/, "▲ ").replace(/^▼/, "▼ ")} {trendLabel}
             </p>
           )}
           {children}
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-2">
+        <div className="flex shrink-0 flex-col items-end gap-1">
           <span
             className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600",
+              "flex h-5 w-5 items-center justify-center rounded-md bg-emerald-50 text-emerald-600",
               iconClassName
             )}
           >
-            <Icon className="h-4 w-4" />
+            <Icon className="h-2.5 w-2.5" />
           </span>
           {sparkPoints && sparkPoints.length > 1 && <MiniSparkline points={sparkPoints} />}
         </div>
@@ -416,18 +422,18 @@ export function AiPanel({
   bodyClassName?: string;
 }) {
   return (
-    <ContentCard padding={false} className={className}>
+    <div className={cn(dashboardCard, "overflow-hidden", className)}>
       {(title || action) && (
-        <div className="flex items-start justify-between gap-2 border-b border-zinc-100 px-5 py-4">
+        <div className="flex items-start justify-between gap-2 border-b border-zinc-100 px-3.5 py-2.5">
           <div>
-            {title && <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>}
-            {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
+            {title && <h3 className={dashboardCardTitle}>{title}</h3>}
+            {subtitle && <p className={cn("mt-0.5", dashboardMicro)}>{subtitle}</p>}
           </div>
           {action}
         </div>
       )}
-      <div className={cn("p-5", bodyClassName)}>{children}</div>
-    </ContentCard>
+      <div className={cn("p-3.5", bodyClassName)}>{children}</div>
+    </div>
   );
 }
 
@@ -537,15 +543,15 @@ export function TintedKpiCard({
     amber: "text-amber-600",
   };
   return (
-    <div className={cn("rounded-xl border px-4 py-4 shadow-sm", tints[tint])}>
+    <div className={cn("rounded-lg border px-2.5 py-2 shadow-sm", tints[tint])}>
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</p>
-          <p className="mt-2 text-3xl font-bold leading-none tabular-nums text-zinc-900">{value}</p>
-          <p className="mt-1.5 text-xs leading-relaxed text-zinc-600">{sub}</p>
+          <p className={dashboardSectionLabel}>{label}</p>
+          <p className="mt-0.5 text-base font-bold leading-none tabular-nums text-zinc-900">{value}</p>
+          <p className={cn("mt-0.5", dashboardMicro, "text-zinc-600")}>{sub}</p>
         </div>
-        <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl bg-white/70 shadow-sm", iconTints[tint])}>
-          <Icon className="h-5 w-5" />
+        <span className={cn("flex h-7 w-7 items-center justify-center rounded-lg bg-white/70 shadow-sm", iconTints[tint])}>
+          <Icon className="h-3.5 w-3.5" />
         </span>
       </div>
     </div>

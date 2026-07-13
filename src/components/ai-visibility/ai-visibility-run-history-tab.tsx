@@ -55,11 +55,11 @@ export function AiVisibilityRunHistoryTab({
   }, [completeRuns]);
 
   if (!completeRuns.length) {
-    return <p className="text-sm text-text-muted">No completed runs yet. Run a check to start tracking.</p>;
+    return <p className="text-[13px] text-text-muted">No completed runs yet. Run a check to start tracking.</p>;
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
+    <div className="grid gap-2.5 lg:grid-cols-[1fr_280px]">
       <div className="space-y-4">
         <AiPanel title="Visibility score over time" subtitle="Line chart shows your visibility score across all runs in the selected time range." action={
           <select className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-[10px] font-medium text-zinc-600 shadow-sm" defaultValue="all">
@@ -80,16 +80,16 @@ export function AiVisibilityRunHistoryTab({
 
         <AiPanel title={`Run history (${completeRuns.length} runs)`} subtitle="Detailed log of all visibility checks in the selected time range." className="overflow-hidden p-0">
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+            <table className="min-w-full text-[13px]">
               <thead className="border-b border-border bg-surface-subtle/80">
                 <tr>
-                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase text-text-muted">Date & Time</th>
-                  <th className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase text-text-muted">Visibility Score</th>
-                  <th className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase text-text-muted">Mentioned You?</th>
-                  <th className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase text-text-muted">Companies Found</th>
-                  <th className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase text-text-muted">Sources Cited</th>
-                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase text-text-muted">Engines Mentioning You</th>
-                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase text-text-muted">Action</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Date & Time</th>
+                  <th className="px-3 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Visibility Score</th>
+                  <th className="px-3 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Mentioned You?</th>
+                  <th className="px-3 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Companies Found</th>
+                  <th className="px-3 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Sources Cited</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Engines Mentioning You</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase text-text-muted">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -105,8 +105,8 @@ export function AiVisibilityRunHistoryTab({
                     : [];
                   return (
                     <tr key={r.id} className="hover:bg-surface-subtle/50">
-                      <td className="px-3 py-3 font-medium">{new Date(r.created_at).toLocaleString()}</td>
-                      <td className="px-3 py-3 text-center">
+                      <td className="px-3 py-2 font-medium">{new Date(r.created_at).toLocaleString()}</td>
+                      <td className="px-3 py-2 text-center">
                         <span className="font-semibold tabular-nums">{r.visibility_score ?? "—"}%</span>
                         {delta != null && delta !== 0 && (
                           <span className={cn("ml-1 text-xs", delta > 0 ? "text-primary" : "text-red-600")}>
@@ -114,15 +114,15 @@ export function AiVisibilityRunHistoryTab({
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-3 text-center">
+                      <td className="px-3 py-2 text-center">
                         <StatusPill yes={!!r.target_mentioned} />
                       </td>
-                      <td className="px-3 py-3 text-center tabular-nums">{trend?.companyCount ?? r.companyCount}</td>
-                      <td className="px-3 py-3 text-center tabular-nums">{r.sources_count}</td>
-                      <td className="px-3 py-3">
+                      <td className="px-3 py-2 text-center tabular-nums">{trend?.companyCount ?? r.companyCount}</td>
+                      <td className="px-3 py-2 text-center tabular-nums">{r.sources_count}</td>
+                      <td className="px-3 py-2">
                         <EngineIconRow engines={runEngines} />
                       </td>
-                      <td className="px-3 py-3 text-right">
+                      <td className="px-3 py-2 text-right">
                         <button
                           type="button"
                           onClick={() => onSelectRun(r.id)}
@@ -138,7 +138,7 @@ export function AiVisibilityRunHistoryTab({
               </tbody>
             </table>
           </div>
-          <p className="border-t border-border px-4 py-2 text-xs text-text-muted">
+          <p className="border-t border-border px-3.5 py-2 text-xs text-text-muted">
             1–{Math.min(10, completeRuns.length)} of {completeRuns.length}
           </p>
         </AiPanel>
@@ -214,7 +214,7 @@ function InsightRow({
       <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", iconClass)} />
       <div>
         <p className="text-xs font-medium text-text-muted">{title}</p>
-        <p className="text-sm font-semibold text-text">{value}</p>
+        <p className="text-[13px] font-semibold text-text">{value}</p>
         <p className="text-[10px] text-text-muted">{sub}</p>
       </div>
     </div>

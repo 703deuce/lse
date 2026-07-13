@@ -77,21 +77,21 @@ export function AiVisibilityDashboardTab({
   });
 
   if (!isCombined && !run) {
-    return <p className="text-sm text-text-muted">Run a check to see who AI recommends for your prompt.</p>;
+    return <p className="text-[13px] text-text-muted">Run a check to see who AI recommends for your prompt.</p>;
   }
   if (isCombined && !aggregate?.completeRuns) {
-    return <p className="text-sm text-text-muted">Run a check to start building your AI visibility history.</p>;
+    return <p className="text-[13px] text-text-muted">Run a check to start building your AI visibility history.</p>;
   }
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 lg:grid-cols-10">
+      <div className="grid gap-2.5 lg:grid-cols-10">
         <AiPanel className="lg:col-span-4" bodyClassName="pt-3">
           <div className="flex items-center gap-2 text-emerald-700">
             <Sparkles className="h-4 w-4" />
-            <h3 className="text-sm font-semibold">AI Summary</h3>
+            <h3 className="text-[13px] font-semibold">AI Summary</h3>
           </div>
-          <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+          <p className="mt-2 text-[13px] leading-snug text-zinc-600">
             {aiSummary ??
               (isCombined
                 ? `Tracking ${aggregate?.completeRuns ?? 0} runs across ${aggregate?.totalEngineChecks ?? 0} engine checks.`
@@ -146,7 +146,7 @@ export function AiVisibilityDashboardTab({
         </AiPanel>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-10">
+      <div className="grid gap-2.5 lg:grid-cols-10">
         <AiPanel
           title={isCombined ? "Who AI Recommends" : "Who AI Recommends (this run)"}
           className="lg:col-span-4"
@@ -154,10 +154,10 @@ export function AiVisibilityDashboardTab({
           bodyClassName="pt-2"
         >
           {recommendRows.length === 0 ? (
-            <p className="text-sm text-text-muted">No mention data yet.</p>
+            <p className="text-[13px] text-text-muted">No mention data yet.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
+              <table className="min-w-full text-[13px]">
                 <thead>
                   <tr className="text-left text-[10px] font-semibold uppercase tracking-wide text-text-muted">
                     <th className="pb-2 pr-2">#</th>

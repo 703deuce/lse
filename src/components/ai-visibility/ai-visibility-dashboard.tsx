@@ -25,7 +25,7 @@ import {
   TrendingUp,
   Users,
 } from "@/components/ai-visibility/ai-visibility-ui";
-import { ModulePage, AlertBanner } from "@/components/ui/design-system";
+import { ModulePage } from "@/components/ui/design-system";
 import type { RunSummary } from "@/lib/ai-visibility/types";
 
 function formatRunLabel(r: RunSummary) {
@@ -157,8 +157,8 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
 
   if ((loading && !data) || runView === "pending") {
     return (
-      <div className="flex justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
   }
@@ -171,7 +171,7 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
   const targetEngines = leaderboard.find((r) => r.isTargetBrand)?.engines ?? [];
 
   return (
-    <ModulePage>
+    <ModulePage className="!space-y-4">
       <AiVisibilityHeaderRow
         businessId={businessId}
         isRunning={isRunning}
@@ -182,12 +182,12 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
       />
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2 text-[13px] text-red-800">{error}</div>
       )}
 
       {activeRun?.progress_stage && isRunning && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2 text-[13px] text-amber-900">
+          <Loader2 className="mr-2 inline h-3.5 w-3.5 animate-spin" />
           {activeRun.progress_stage}…
         </div>
       )}
@@ -211,7 +211,7 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
       )}
 
       {tab === "dashboard" && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <AiKpiCard
             label="Visibility Score"
             value={visibilityScore ?? "—"}
@@ -275,7 +275,7 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
       {tab === "history" && (
         <>
           <AiVisibilityTabFilters primaryPrompt={data?.primaryPrompt?.prompt_text} />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
             <AiKpiCard
               label="Total Runs"
               value={aggregate?.completeRuns ?? "—"}

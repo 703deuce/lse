@@ -104,7 +104,7 @@ export function AiVisibilityMentionsTab({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
         <AiKpiCard label="Top Competitors" value="" hideValue icon={Sparkles}>
           <ol className="mt-1 space-y-1.5">
             {topCompetitors.slice(0, 5).map((c, i) => (
@@ -191,7 +191,7 @@ export function AiVisibilityMentionsTab({
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
             placeholder="Search companies…"
-            className="w-full rounded-md border border-border bg-white py-1.5 pl-8 pr-3 text-sm shadow-sm"
+            className="w-full rounded-md border border-border bg-white py-1.5 pl-8 pr-3 text-[13px] shadow-sm"
           />
         </div>
         <select
@@ -223,18 +223,18 @@ export function AiVisibilityMentionsTab({
 
       <AiPanel className="overflow-hidden p-0">
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className="min-w-full text-[13px]">
             <thead className="border-b border-border bg-surface-subtle/80">
               <tr>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase text-text-muted">#</th>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase text-text-muted">Company</th>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase text-text-muted">Run Share</th>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase text-text-muted">Trend (Across Runs)</th>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase text-text-muted">Avg. Position</th>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase text-text-muted">Engines Mentioned In</th>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase text-text-muted">Last Seen</th>
-                <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase text-text-muted">Status</th>
-                <th className="w-10 px-3 py-2.5" />
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">#</th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Company</th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Run Share</th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Trend (Across Runs)</th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Avg. Position</th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Engines Mentioned In</th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Last Seen</th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Status</th>
+                <th className="w-10 px-3 py-2" />
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -243,8 +243,8 @@ export function AiVisibilityMentionsTab({
                 const StatusIcon = st.Icon;
                 return (
                   <tr key={row.key} className={row.isTarget ? "bg-emerald-50/30" : "hover:bg-surface-subtle/50"}>
-                    <td className="px-3 py-3 text-text-muted">{(page - 1) * pageSize + i + 1}</td>
-                    <td className="px-3 py-3 font-medium">
+                    <td className="px-3 py-2 text-text-muted">{(page - 1) * pageSize + i + 1}</td>
+                    <td className="px-3 py-2 font-medium">
                       {row.name}
                       {row.isTarget && (
                         <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
@@ -252,7 +252,7 @@ export function AiVisibilityMentionsTab({
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-14 overflow-hidden rounded-full bg-surface-subtle">
                           <div className="h-full bg-emerald-500" style={{ width: `${row.sharePct}%` }} />
@@ -262,25 +262,25 @@ export function AiVisibilityMentionsTab({
                         </span>
                       </div>
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-2">
                       <TrendSparkline seed={i} />
                     </td>
-                    <td className={cn("px-3 py-3 tabular-nums font-medium", posColor(row.avgPosition))}>
+                    <td className={cn("px-3 py-2 tabular-nums font-medium", posColor(row.avgPosition))}>
                       {row.avgPosition ?? "—"}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-2">
                       <EngineIconRow engines={row.engines} />
                     </td>
-                    <td className="px-3 py-3 text-xs text-text-muted">
+                    <td className="px-3 py-2 text-xs text-text-muted">
                       {row.lastSeen ? new Date(row.lastSeen).toLocaleDateString() : showCombined ? `${recentRunCount} runs` : "—"}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-2">
                       <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium", st.className)}>
                         <StatusIcon className="h-3 w-3" />
                         {st.label}
                       </span>
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-2">
                       <button type="button" className="rounded p-1 text-text-muted hover:bg-surface-subtle">
                         <MoreHorizontal className="h-4 w-4" />
                       </button>
@@ -291,7 +291,7 @@ export function AiVisibilityMentionsTab({
             </tbody>
           </table>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 text-xs text-text-muted">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3.5 py-2 text-xs text-text-muted">
           <span>
             Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, filtered.length)} of {filtered.length} companies
           </span>

@@ -15,6 +15,7 @@ import { scoreToStars } from "@/lib/ai-visibility/limits";
 import { ENGINE_LABELS, type AiEngine } from "@/lib/ai-visibility/types";
 import { cn } from "@/lib/utils";
 import type { PromptRow, VisibilityData } from "@/components/ai-visibility/ai-visibility-types";
+import { ModulePage } from "@/components/ui/design-system";
 
 const GROUP_COLORS: Record<string, string> = {
   "Core Visibility": "bg-emerald-100 text-emerald-800",
@@ -132,14 +133,14 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
 
   if (loading && !data) {
     return (
-      <div className="flex justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-5">
+    <ModulePage className="!space-y-4">
       <div className="flex items-center gap-1 text-xs text-text-muted">
         <Link href={`/businesses/${businessId}/ai-visibility`} className="hover:text-emerald-700">
           AI Visibility
@@ -148,26 +149,26 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
         <span className="text-text">Manage Prompts</span>
       </div>
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-text">Manage Prompts</h1>
-          <p className="mt-1 text-sm text-text-muted">
+          <h1 className="text-xl font-bold text-text">Manage Prompts</h1>
+          <p className="mt-1 text-[13px] leading-snug text-text-muted">
             Create, organize, and manage AI prompts used to track visibility and surface insights across AI platforms.
           </p>
         </div>
         <button
           type="button"
           onClick={() => setShowAdd(true)}
-          className="inline-flex items-center gap-2 rounded-md bg-[#16A34A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#15803D]"
+          className="inline-flex h-9 items-center gap-1.5 rounded-md bg-[#16A34A] px-3 text-[13px] font-semibold text-white hover:bg-[#15803D]"
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-3.5 w-3.5" />
           Add Prompt
         </button>
       </div>
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>}
+      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2 text-[13px] text-red-800">{error}</div>}
 
-      <div className="flex flex-wrap gap-4 border-b border-border pb-1 text-sm">
+      <div className="flex flex-wrap gap-4 border-b border-border pb-1 text-[13px]">
         {[
           { id: "all", label: "All Prompts" },
           { id: "active", label: `Active (${activeCount})` },
@@ -194,7 +195,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search prompts by name or keyword…"
-          className="min-w-[220px] flex-1 rounded-md border border-border bg-white px-3 py-2 text-sm shadow-sm"
+          className="min-w-[220px] flex-1 rounded-md border border-border bg-white px-3 py-2 text-[13px] shadow-sm"
         />
         <select className="rounded-md border border-border bg-white px-2.5 py-2 text-xs font-medium text-text shadow-sm" defaultValue="all">
           <option value="all">All Groups</option>
@@ -220,19 +221,19 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
         </select>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1fr_380px]">
+      <div className="grid gap-3 xl:grid-cols-[1fr_380px]">
         <div className="rounded-lg border border-border bg-white shadow-sm overflow-hidden">
-          <table className="min-w-full text-sm">
+          <table className="min-w-full text-[13px]">
             <thead className="border-b border-border bg-surface-subtle/80">
               <tr>
-                <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase text-text-muted">Prompt</th>
-                <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase text-text-muted">Group</th>
-                <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase text-text-muted">Status</th>
-                <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase text-text-muted">Active</th>
-                <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase text-text-muted">Last Run</th>
-                <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase text-text-muted">Schedule</th>
-                <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase text-text-muted">Runs</th>
-                <th className="w-10 px-4 py-3" />
+                <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Prompt</th>
+                <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Group</th>
+                <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Status</th>
+                <th className="px-3.5 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Active</th>
+                <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Last Run</th>
+                <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Schedule</th>
+                <th className="px-3.5 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Runs</th>
+                <th className="w-10 px-3.5 py-2" />
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -245,16 +246,16 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                     selected?.id === p.id && "bg-emerald-50/50 ring-1 ring-inset ring-emerald-200"
                   )}
                 >
-                  <td className="max-w-xs px-4 py-3">
+                  <td className="max-w-xs px-3.5 py-2">
                     <p className="font-medium text-text">{promptTitle(p.prompt_text)}</p>
                     <p className="mt-0.5 text-xs text-text-muted">{promptDescription(p.prompt_text)}</p>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3.5 py-2">
                     <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", groupColor(p.category))}>
                       {p.category ?? "Core Visibility"}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3.5 py-2">
                     <span
                       className={cn(
                         "text-xs font-medium capitalize",
@@ -264,14 +265,14 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                       {p.status === "suggested" ? "Draft" : p.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-3.5 py-2 text-center">
                     {p.status === "active" ? (
                       <Check className="mx-auto h-4 w-4 text-primary" />
                     ) : (
                       <span className="text-zinc-300">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs text-text-muted">
+                  <td className="px-3.5 py-2 text-xs text-text-muted">
                     {p.last_run_at
                       ? new Date(p.last_run_at).toLocaleString(undefined, {
                           month: "short",
@@ -282,9 +283,9 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                         })
                       : "Never"}
                   </td>
-                  <td className="px-4 py-3 text-xs text-text-muted">Daily 8:00 AM</td>
-                  <td className="px-4 py-3 text-center tabular-nums text-text">{p.mention_count ?? 128}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-3.5 py-2 text-xs text-text-muted">Daily 8:00 AM</td>
+                  <td className="px-3.5 py-2 text-center tabular-nums text-text">{p.mention_count ?? 128}</td>
+                  <td className="px-3.5 py-2">
                     <button type="button" className="rounded p-1 text-text-muted hover:bg-surface-subtle">
                       <MoreVertical className="h-4 w-4" />
                     </button>
@@ -293,7 +294,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
               ))}
             </tbody>
           </table>
-          <div className="flex items-center justify-between border-t border-border px-4 py-3 text-xs text-text-muted">
+          <div className="flex items-center justify-between border-t border-border px-3.5 py-2 text-xs text-text-muted">
             <span>
               Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, prompts.length)} of {prompts.length} prompts
             </span>
@@ -317,7 +318,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
 
         {selected ? (
           <div className="rounded-lg border border-border bg-white shadow-sm xl:sticky xl:top-6 xl:self-start">
-            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <div className="flex items-center justify-between border-b border-border px-3.5 py-2.5">
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-text">Edit Prompt</h3>
                 <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold capitalize text-emerald-800">
@@ -333,8 +334,8 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                 </button>
               </div>
             </div>
-            <div className="max-h-[calc(100vh-12rem)] space-y-4 overflow-y-auto p-4">
-              <label className="block text-sm">
+            <div className="max-h-[calc(100vh-12rem)] space-y-3 overflow-y-auto p-3.5">
+              <label className="block text-[13px]">
                 <span className="mb-1 flex justify-between text-xs font-medium text-text-muted">
                   Prompt Name
                   <span className="text-text-muted">{promptTitle(selected.prompt_text).length}/80</span>
@@ -342,19 +343,19 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                 <input
                   readOnly
                   value={promptTitle(selected.prompt_text)}
-                  className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-border bg-white px-3 py-2 text-[13px]"
                 />
               </label>
-              <label className="block text-sm">
+              <label className="block text-[13px]">
                 <span className="mb-1 block text-xs font-medium text-text-muted">Prompt Group</span>
-                <select className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm" defaultValue={selected.category ?? "Core Visibility"}>
+                <select className="w-full rounded-md border border-border bg-white px-3 py-2 text-[13px]" defaultValue={selected.category ?? "Core Visibility"}>
                   <option>Core Visibility</option>
                   <option>Pricing & Services</option>
                   <option>Service Quality</option>
                   <option>Trust & Authority</option>
                 </select>
               </label>
-              <label className="block text-sm">
+              <label className="block text-[13px]">
                 <span className="mb-1 flex justify-between text-xs font-medium text-text-muted">
                   Prompt Text
                   <span className="text-text-muted">{selected.prompt_text.length}/2000</span>
@@ -363,7 +364,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                   readOnly
                   value={selected.prompt_text}
                   rows={5}
-                  className="w-full rounded-md border border-border bg-surface-subtle px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-border bg-surface-subtle px-3 py-2 text-[13px]"
                 />
                 <button type="button" className="mt-1 text-[10px] font-medium text-emerald-700">
                   Insert Variable {"{}"}
@@ -371,7 +372,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
               </label>
               <div>
                 <span className="mb-1 block text-xs font-medium text-text-muted">Location Context</span>
-                <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-subtle px-3 py-2 text-sm">
+                <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-subtle px-3 py-2 text-[13px]">
                   <span>{city && state ? `${city}, ${state}` : "Business location"}</span>
                   <span className="rounded bg-border px-1.5 py-0.5 text-[10px] font-medium text-text-muted">25 mi radius</span>
                 </div>
@@ -382,11 +383,11 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
               <div>
                 <span className="mb-1 block text-xs font-medium text-text-muted">Run Frequency</span>
                 <div className="flex flex-wrap gap-2">
-                  <select className="rounded-md border border-border px-2 py-2 text-sm" defaultValue="daily">
+                  <select className="rounded-md border border-border px-2 py-2 text-[13px]" defaultValue="daily">
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
                   </select>
-                  <select className="rounded-md border border-border px-2 py-2 text-sm" defaultValue="8">
+                  <select className="rounded-md border border-border px-2 py-2 text-[13px]" defaultValue="8">
                     <option value="8">8:00 AM</option>
                     <option value="12">12:00 PM</option>
                   </select>
@@ -410,7 +411,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                   </button>
                 </div>
               </div>
-              <label className="block text-sm">
+              <label className="block text-[13px]">
                 <span className="mb-1 flex justify-between text-xs font-medium text-text-muted">
                   Notes (Optional)
                   <span className="text-text-muted">{(selected.reason ?? "").length}/500</span>
@@ -420,18 +421,18 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                   value={selected.reason ?? ""}
                   rows={3}
                   placeholder="Internal notes about this prompt…"
-                  className="w-full rounded-md border border-border bg-surface-subtle px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-border bg-surface-subtle px-3 py-2 text-[13px]"
                 />
               </label>
               {selected.opportunity_score != null && (
                 <p className="text-xs text-text-muted">Opportunity: {scoreToStars(selected.opportunity_score)}</p>
               )}
             </div>
-            <div className="flex gap-2 border-t border-border p-4">
-              <button type="button" onClick={() => setSelected(null)} className="flex-1 rounded-md border border-border py-2 text-sm font-medium text-text hover:bg-surface-subtle">
+            <div className="flex gap-2 border-t border-border p-3.5">
+              <button type="button" onClick={() => setSelected(null)} className="flex-1 rounded-md border border-border py-2 text-[13px] font-medium text-text hover:bg-surface-subtle">
                 Cancel
               </button>
-              <button type="button" className="flex-1 rounded-md border border-border py-2 text-sm font-medium text-text hover:bg-surface-subtle">
+              <button type="button" className="flex-1 rounded-md border border-border py-2 text-[13px] font-medium text-text hover:bg-surface-subtle">
                 Save as Draft
               </button>
               {selected.status === "suggested" && (
@@ -439,20 +440,20 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                   type="button"
                   disabled={busy === selected.id || activeCount >= (data?.limits.activePrompts ?? 1)}
                   onClick={() => void activatePrompt(selected.id)}
-                  className="flex-1 rounded-md bg-[#16A34A] py-2 text-sm font-semibold text-white hover:bg-[#15803D] disabled:opacity-50"
+                  className="flex-1 rounded-md bg-[#16A34A] py-2 text-[13px] font-semibold text-white hover:bg-[#15803D] disabled:opacity-50"
                 >
                   {busy === selected.id ? "Saving…" : "Save & Set Active"}
                 </button>
               )}
               {selected.status === "active" && (
-                <button type="button" className="flex-1 rounded-md bg-[#16A34A] py-2 text-sm font-semibold text-white hover:bg-[#15803D]">
+                <button type="button" className="flex-1 rounded-md bg-[#16A34A] py-2 text-[13px] font-semibold text-white hover:bg-[#15803D]">
                   Save & Set Active
                 </button>
               )}
             </div>
           </div>
         ) : (
-          <div className="hidden items-center justify-center rounded-lg border border-dashed border-border bg-surface-subtle/50 p-8 text-sm text-text-muted xl:flex">
+          <div className="hidden items-center justify-center rounded-lg border border-dashed border-border bg-surface-subtle/50 p-6 text-[13px] text-text-muted xl:flex">
             Select a prompt to edit
           </div>
         )}
@@ -474,7 +475,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
               { title: "Trust & Authority Check", group: "Trust & Authority" },
             ].map((t) => (
               <div key={t.title} className="rounded-lg border border-border bg-white p-3 shadow-sm">
-                <p className="text-sm font-medium text-text">{t.title}</p>
+                <p className="text-[13px] font-medium text-text">{t.title}</p>
                 <span className={cn("mt-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold", groupColor(t.group))}>
                   {t.group}
                 </span>
@@ -483,6 +484,6 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
           </div>
         </div>
       )}
-    </div>
+    </ModulePage>
   );
 }
