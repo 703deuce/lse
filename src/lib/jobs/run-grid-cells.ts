@@ -609,7 +609,7 @@ async function runIntegrityPass(params: {
   totalCells: number;
   organizationId?: string;
   onCellSettled?: (success: boolean) => Promise<void>;
-}): Promise<{ failedCells: number; timings: CellPhaseTimings[] }> {
+}): Promise<{ failedCells: number; failedPointIds: string[]; timings: CellPhaseTimings[] }> {
   const supabase = createServiceClient();
   const { data: pointRows } = await supabase
     .from("scan_points")
@@ -631,7 +631,7 @@ async function runIntegrityPass(params: {
   });
 
   if (!incompleteJobs.length) {
-    return { failedCells: 0, timings: [] };
+    return { failedCells: 0, failedPointIds: [], timings: [] };
   }
 
   console.log(
@@ -666,28 +666,18 @@ async function runIntegrityPass(params: {
     })
     .map((job) => job.point.id);
 
-  const { data: existingBatch } = await supabase
-    .from("scan_batches")
-    .select("cells_failed, confidence_summary")
-    .eq("id", params.scanBatchId)
-    .single();
-  const prevFailed = Number(existingBatch?.cells_failed ?? 0);
-  const conf = (existingBatch?.confidence_summary ?? {}) as Record<string, unknown>;
-  const prevFailedIds = Array.isArray(conf.failed_point_ids)
-    ? (conf.failed_point_ids as string[])
-    : [];
-
+  // Replace — do not union with previous failed ids (recovered cells would stay marked failed).
   await scheduleCellProgress(
     params.scanBatchId,
     params.totalCells,
     params.totalCells,
-    prevFailed + stillIncompleteIds.length,
+    stillIncompleteIds.length,
     {
-    pass: "integrity",
-    failed_point_ids: [...new Set([...prevFailedIds, ...stillIncompleteIds])],
-    sparse_point_ids: stillIncompleteIds,
-    integrity_retries: incompleteJobs.length,
-    integrity_recovered: incompleteJobs.length - stillIncompleteIds.length,
+      pass: "integrity",
+      failed_point_ids: stillIncompleteIds,
+      sparse_point_ids: stillIncompleteIds,
+      integrity_retries: incompleteJobs.length,
+      integrity_recovered: incompleteJobs.length - stillIncompleteIds.length,
     },
     { force: true }
   );
@@ -696,7 +686,11 @@ async function runIntegrityPass(params: {
     `[Scan] Integrity retry recovered ${incompleteJobs.length - stillIncompleteIds.length}/${incompleteJobs.length} cells; ${stillIncompleteIds.length} still sparse`
   );
 
-  return { failedCells: stillIncompleteIds.length, timings: integrityPass.timings };
+  return {
+    failedCells: stillIncompleteIds.length,
+    failedPointIds: stillIncompleteIds,
+    timings: integrityPass.timings,
+  };
 }
 
 export async function runGridCellsLive(params: {
@@ -916,7 +910,10 @@ export async function runGridCellsLive(params: {
     onCellSettled,
   });
   allTimings.push(...integrity.timings);
-  failedCells += integrity.failedCells;
+  const failedPointIds = [
+    ...new Set([...remainingJobs.map((j) => j.point.id), ...integrity.failedPointIds]),
+  ];
+  failedCells = failedPointIds.length;
 
   const successCells = Math.max(0, totalCells - failedCells);
   await scheduleCellProgress(
@@ -927,7 +924,7 @@ export async function runGridCellsLive(params: {
     {
       pass: "complete",
       method: params.resume ? "live_parallel_resume" : "live_parallel",
-      failed_point_ids: failedCells > 0 ? remainingJobs.map((j) => j.point.id) : [],
+      failed_point_ids: failedPointIds,
     },
     { force: true }
   );
