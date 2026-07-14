@@ -12,18 +12,15 @@ import {
 } from "recharts";
 import { ENGINE_LABELS, type AiEngine, type RunSummary, type VisibilityTrendPoint } from "@/lib/ai-visibility/types";
 import { AiPanel, EngineIconRow, StatusPill } from "@/components/ai-visibility/ai-visibility-ui";
-import type { EngineResultRow } from "@/components/ai-visibility/ai-visibility-types";
 import { cn } from "@/lib/utils";
 
 export function AiVisibilityRunHistoryTab({
   runs,
   visibilityTrend,
-  engineResults,
   onSelectRun,
 }: {
   runs: RunSummary[];
   visibilityTrend: VisibilityTrendPoint[];
-  engineResults: EngineResultRow[];
   onSelectRun: (runId: string) => void;
 }) {
   const completeRuns = runs.filter((r) => r.status === "complete");
@@ -100,9 +97,7 @@ export function AiVisibilityRunHistoryTab({
                       ? r.visibility_score - prev.visibility_score
                       : null;
                   const trend = visibilityTrend.find((t) => t.runId === r.id);
-                  const runEngines = r.id === engineResults[0]?.id
-                    ? engineResults.filter((e) => e.target_mentioned).map((e) => e.engine as AiEngine)
-                    : [];
+                  const runEngines = (r.enginesMentioningYou ?? []) as AiEngine[];
                   return (
                     <tr key={r.id} className="hover:bg-surface-subtle/50">
                       <td className="px-3.5 py-2 font-medium">{new Date(r.created_at).toLocaleString()}</td>

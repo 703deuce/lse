@@ -169,10 +169,11 @@ export async function loadDashboardFeatured(businessId: string): Promise<Dashboa
       target?.total_reviews_current ??
       targetRows.length,
     newReviews90d:
-      target90.length ||
-      (reputation?.audit?.reviews_90d as number | undefined) ||
-      target?.reviews_30d ||
-      0,
+      target90.length > 0
+        ? target90.length
+        : (reputation?.audit?.reviews_90d as number | undefined) ??
+          (target?.reviews_90d as number | undefined) ??
+          0,
     responseRate:
       storedResponseRate ??
       (reputation?.audit?.response_rate != null

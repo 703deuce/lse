@@ -230,7 +230,11 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
   const pollStatus = useCallback(async (signal?: AbortSignal) => {
     const params = keywordId ? `?keywordId=${keywordId}` : "";
     const res = await fetch(`/api/scans/${activeScanId}/status${params}`, { signal });
-    return res.json();
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error((json as { error?: string }).error ?? `Status ${res.status}`);
+    }
+    return json;
   }, [activeScanId, keywordId]);
 
   useEffect(() => {
@@ -269,16 +273,12 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
           }
         }
         const status = json.batch?.status as string;
-        const pointsCount = (json.points as unknown[] | undefined)?.length ?? 0;
-        const resultsCount = (json.results as unknown[] | undefined)?.length ?? 0;
-        const awaitingResults = pointsCount > 0 && resultsCount < pointsCount && status !== "failed";
         if (
           shouldPollScan(status, {
             cells_completed: json.batch?.cells_completed as number | null | undefined,
             cells_total: json.batch?.cells_total as number | null | undefined,
             confidence_summary: (json.batch?.confidence_summary ?? null) as Record<string, unknown> | null,
-          }) ||
-          awaitingResults
+          })
         ) {
           const cellsInFlight = areCellsInFlight(status);
           scheduleNext(cellsInFlight ? 1500 : 3000);

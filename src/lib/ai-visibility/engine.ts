@@ -289,6 +289,9 @@ export async function loadAiVisibilityData(businessId: string, selectedRunId?: s
     created_at: run.created_at as string,
     finished_at: run.finished_at as string | null,
     companyCount: countUniqueCompanies(engineResultsByRun.get(run.id as string) ?? []),
+    enginesMentioningYou: allHistoricalEngineResults
+      .filter((er) => er.run_id === run.id && er.target_mentioned)
+      .map((er) => er.engine as AiEngine),
   }));
 
   const aggregateMetrics = buildAggregateMetrics({

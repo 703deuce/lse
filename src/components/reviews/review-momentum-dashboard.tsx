@@ -199,7 +199,7 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
     await fetch(`/api/reviews/momentum/tasks/${taskId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "done" }),
+      body: JSON.stringify({ status: "done", businessId }),
     });
     await load();
   }

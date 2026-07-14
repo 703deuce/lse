@@ -150,6 +150,7 @@ export type RunSummary = {
   created_at: string;
   finished_at: string | null;
   companyCount: number;
+  enginesMentioningYou?: AiEngine[];
 };
 
 export type AggregateMetrics = {

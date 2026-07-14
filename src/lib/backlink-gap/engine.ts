@@ -672,7 +672,7 @@ export async function queryBacklinkGapOpportunities(params: OpportunityQueryPara
   if (params.status === "open") {
     query = query.eq("status", "open");
   } else if (params.status === "ignored") {
-    query = query.or("status.eq.spam,priority.eq.ignore");
+    query = query.or("status.eq.ignored,status.eq.spam,priority.eq.ignore");
   }
 
   if (params.linkFilter === "dofollow") query = query.eq("dofollow", true);
@@ -731,7 +731,7 @@ export async function getCompetitorGapCounts(
         .filter("linked_competitors", "cs", JSON.stringify([{ name: c.name }]));
 
       if (status === "open") q = q.eq("status", "open");
-      else q = q.or("status.eq.spam,priority.eq.ignore");
+      else q = q.or("status.eq.ignored,status.eq.spam,priority.eq.ignore");
 
       const { count } = await q;
       return { ...c, count: count ?? 0 };
@@ -769,7 +769,7 @@ export async function getBacklinkGapAnalytics(businessId: string) {
     .from("backlink_gap_opportunities")
     .select("id, status, priority")
     .eq("run_id", runId)
-    .or("status.eq.spam,priority.eq.ignore");
+    .or("status.eq.ignored,status.eq.spam,priority.eq.ignore");
 
   let sharedByAll = 0;
   let sharedBySome = 0;
