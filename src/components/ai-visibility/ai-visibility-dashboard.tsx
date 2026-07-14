@@ -26,6 +26,7 @@ import {
   Users,
 } from "@/components/ai-visibility/ai-visibility-ui";
 import { ModulePage } from "@/components/ui/design-system";
+import { KpiRow } from "@/components/ui/metric-card";
 import type { RunSummary } from "@/lib/ai-visibility/types";
 
 function formatRunLabel(r: RunSummary) {
@@ -232,7 +233,7 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
       )}
 
       {tab === "dashboard" && (
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <KpiRow cols={6}>
           <AiKpiCard
             label="Visibility Score"
             value={visibilityScore ?? "—"}
@@ -252,18 +253,13 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
                   : "—"
             }
             icon={BarChart3}
-            sparkPoints={trendSpark}
-            trend={visDelta ? "▲ 12%" : undefined}
-            trendLabel="vs last run"
           />
           <AiKpiCard
-            label="Engines Mentioning You"
+            label="Engines Mentioning"
             value={`${enginesMentioning} / ${aggregate?.totalEngines ?? 5}`}
             icon={Sparkles}
-            trend={enginesMentioning > 0 ? "▲ 1" : undefined}
-            trendLabel="vs last run"
           >
-            <div className="mt-2">
+            <div className="mt-1">
               <EngineIconRow engines={targetEngines} />
             </div>
           </AiKpiCard>
@@ -271,15 +267,11 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
             label="Companies Found"
             value={isCombined ? (aggregate?.totalCompaniesFound ?? "—") : leaderboard.length || "—"}
             icon={Building2}
-            trend="▲ 2"
-            trendLabel="vs last run"
           />
           <AiKpiCard
             label="Sources Cited"
             value={isCombined ? "—" : (run?.sources_count ?? "—")}
             icon={BarChart3}
-            trend={!isCombined && run?.sources_count ? "▲ 7" : undefined}
-            trendLabel="vs last run"
           />
           <AiKpiCard
             label="Total Runs"
@@ -288,7 +280,7 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
             icon={Calendar}
             iconClassName="bg-sky-50 text-sky-600"
           />
-        </div>
+        </KpiRow>
       )}
 
       <AiVisibilityTabs tab={tab} onTabChange={setTab} />
@@ -296,7 +288,7 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
       {tab === "history" && (
         <>
           <AiVisibilityTabFilters primaryPrompt={data?.primaryPrompt?.prompt_text} />
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiRow cols={4}>
             <AiKpiCard
               label="Total Runs"
               value={aggregate?.completeRuns ?? "—"}
@@ -309,7 +301,7 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
               value={visDelta ? visDelta.replace("pts", "%") : "+0%"}
               icon={TrendingUp}
               sparkPoints={trendSpark}
-              trendLabel="vs 30 days ago"
+              trendLabel="vs prior run"
             />
             <AiKpiCard
               label="Mention Rate"
@@ -323,13 +315,13 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
               iconClassName="bg-violet-50 text-violet-600"
             />
             <AiKpiCard
-              label="Avg. Companies Found"
+              label="Avg. Companies"
               value={avgCompanies || "—"}
               sub="per run"
               icon={Users}
               iconClassName="bg-amber-50 text-amber-600"
             />
-          </div>
+          </KpiRow>
         </>
       )}
 

@@ -82,25 +82,24 @@ export function AiVisibilityHeaderRow({
   return (
     <ModuleHeader
       title="AI Visibility"
-      subtitle="Track how AI platforms discover and recommend your business across the web."
+      subtitle="Track how AI platforms discover and recommend your business."
       icon={Sparkles}
-      className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
       actions={
         <>
           <button
             type="button"
             onClick={onRun}
             disabled={isRunning || !hasPrimary}
-            className={cn(btnPrimary, "h-9 px-3 text-[13px]")}
+            className={cn(btnPrimary, "h-8 px-3 text-[13px]")}
           >
             <Play className="h-3.5 w-3.5" />
             Run Check
           </button>
-          <button type="button" onClick={onRefresh} disabled={loading} className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
+          <button type="button" onClick={onRefresh} disabled={loading} className={cn(btnSecondary, "h-8 px-3 text-[13px]")}>
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             Refresh
           </button>
-          <Link href={`/businesses/${businessId}/ai-visibility/prompts`} className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
+          <Link href={`/businesses/${businessId}/ai-visibility/prompts`} className={cn(btnSecondary, "h-8 px-3 text-[13px]")}>
             <Settings className="h-3.5 w-3.5" />
             Manage Prompts
           </Link>
@@ -170,16 +169,16 @@ export function AiVisibilityViewControls({
         : "current";
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <span className="text-xs font-medium text-zinc-500">View</span>
-      <div className="inline-flex rounded-lg border border-zinc-200 bg-zinc-100/80 p-1">
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-[11px] font-medium text-zinc-500">View</span>
+      <div className="inline-flex rounded-lg border border-zinc-200 bg-zinc-100/80 p-0.5">
         {viewButtons.map((b) => (
           <button
             key={b.id}
             type="button"
             onClick={() => handleViewClick(b.id)}
             className={cn(
-              "rounded-md px-3.5 py-1.5 text-xs font-medium transition-colors",
+              "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
               activeView === b.id
                 ? "border border-emerald-600/30 bg-white text-emerald-700 shadow-sm"
                 : "border border-transparent text-zinc-500 hover:text-zinc-700"
@@ -190,12 +189,12 @@ export function AiVisibilityViewControls({
         ))}
       </div>
       {!isCombined && (
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-zinc-500">Run</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-medium text-zinc-500">Run</span>
           <select
             value={runView}
             onChange={(e) => onRunViewChange(e.target.value)}
-            className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm"
+            className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] font-medium text-zinc-800 shadow-sm"
           >
             {completeRuns.map((r) => (
               <option key={r.id} value={r.id}>
@@ -314,7 +313,7 @@ export function AiVisibilityTabs({
 function MiniSparkline({ points }: { points: number[] }) {
   if (points.length < 2) {
     return (
-      <svg viewBox="0 0 64 24" className="h-5 w-14 text-primary" aria-hidden>
+      <svg viewBox="0 0 64 24" className="h-4 w-12 text-primary" aria-hidden>
         <polyline fill="none" stroke="currentColor" strokeWidth="1.5" points="0,18 16,14 32,10 48,8 64,4" />
       </svg>
     );
@@ -330,7 +329,7 @@ function MiniSparkline({ points }: { points: number[] }) {
     })
     .join(" ");
   return (
-    <svg viewBox="0 0 64 24" className="h-5 w-14 text-primary" aria-hidden>
+    <svg viewBox="0 0 64 24" className="h-4 w-12 text-primary" aria-hidden>
       <polyline fill="none" stroke="currentColor" strokeWidth="1.5" points={coords} />
     </svg>
   );
