@@ -71,12 +71,14 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
 
       if (runView === "pending") {
         const latest = (json.runs as RunSummary[] | undefined)?.find((r) => r.status === "complete");
-        if (latest) setRunView(latest.id);
+        // Always leave pending after first settle — empty/failed history still renders the empty CTA.
+        setRunView(latest?.id ?? "combined");
       }
 
       setData(json);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Load failed");
+      if (runView === "pending") setRunView("combined");
     } finally {
       setLoading(false);
     }
@@ -155,13 +157,32 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
     }
   }
 
-  if ((loading && !data) || runView === "pending") {
+  if (loading && !data) {
     return (
       <div className="flex justify-center py-8">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
   }
+
+  if (error && !data) {
+    return (
+      <ModulePage>
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-3 text-[13px] text-red-800">
+          {error}
+        </div>
+        <button
+          type="button"
+          onClick={() => void load()}
+          className="mt-3 text-[13px] font-medium text-emerald-700 hover:underline"
+        >
+          Try again
+        </button>
+      </ModulePage>
+    );
+  }
+
+  if (!data) return null;
 
   const enginesMentioning = isCombined
     ? (aggregate?.enginesMentioningTarget ?? 0)
