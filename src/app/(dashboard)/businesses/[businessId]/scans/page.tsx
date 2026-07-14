@@ -71,7 +71,7 @@ export default async function ScansPage({
     <>
       <PageHeader
         title="Maps Scans"
-        subtitle="Run grid scans by keyword and review your rank history."
+        subtitle="Configure your local search grid, exclude unused points, then run — nothing bills until you click Run scan."
         className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
       />
 
@@ -90,6 +90,7 @@ export default async function ScansPage({
           defaultCenterLng={
             (business.scan_center_lng as number | null) ?? (business.lng as number) ?? 0
           }
+          businessName={business.name as string}
         />
       </div>
     </>

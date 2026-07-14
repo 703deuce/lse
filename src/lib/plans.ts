@@ -422,6 +422,7 @@ export async function setOrganizationPlan(
   if (error) throw new Error(error.message);
 }
 
-export function gridMapCredits(gridSize: number): number {
-  return gridSize * gridSize;
+export function gridMapCredits(gridSize: number, excludedCount = 0): number {
+  const total = gridSize * gridSize;
+  return Math.max(1, total - Math.max(0, excludedCount));
 }

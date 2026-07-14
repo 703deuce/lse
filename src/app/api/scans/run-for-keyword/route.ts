@@ -26,6 +26,7 @@ const schema = z.object({
   centerLng: z.number().optional(),
   centerLabel: z.string().optional(),
   movedFromScanId: z.string().uuid().optional(),
+  excludedLabels: z.array(z.string().min(1).max(8)).max(121).optional(),
 });
 
 const PARITY_SUMMARY = {
@@ -61,6 +62,7 @@ export async function POST(request: Request) {
       centerLng,
       centerLabel,
       movedFromScanId,
+      excludedLabels = [],
     } = parsed.data;
     const auth = await requireBusinessAccess(businessId);
     const supabase = createServiceClient();
@@ -115,7 +117,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const creditsNeeded = gridMapCredits(gridSize);
+    const uniqueExcluded = [...new Set(excludedLabels.map((l) => l.trim().toUpperCase()).filter(Boolean))];
+    if (uniqueExcluded.length >= gridSize * gridSize) {
+      return NextResponse.json(
+        { error: "Include at least one grid point before running a scan." },
+        { status: 400 }
+      );
+    }
+
+    const creditsNeeded = gridMapCredits(gridSize, uniqueExcluded.length);
     await reserveUsageOrThrow(auth.organizationId, "map_credits_used", creditsNeeded);
 
     try {
@@ -142,6 +152,8 @@ export async function POST(request: Request) {
             keyword_ids: [resolvedKeywordId],
             keyword_label: String(kwRow.keyword).trim(),
             method: "live_parallel",
+            ...(uniqueExcluded.length ? { excluded_labels: uniqueExcluded } : {}),
+            included_cells: gridSize * gridSize - uniqueExcluded.length,
           },
         })
         .select("*")
