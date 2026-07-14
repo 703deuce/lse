@@ -151,7 +151,7 @@ export function CitationAuditDashboard({ businessId }: { businessId: string }) {
         </button>
         <button
           type="button"
-          onClick={load}
+          onClick={() => void load()}
           disabled={loading}
           className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-surface-subtle dark:border-zinc-700"
         >
