@@ -199,11 +199,24 @@ export function scanProgressMessage(batch: {
   const conf = (batch.confidence_summary ?? {}) as Record<string, unknown>;
   const completed = Number(batch.cells_completed ?? conf.completed_cells ?? 0);
   const total = Number(batch.cells_total ?? conf.total_cells ?? 0);
+  const pass = String(conf.pass ?? "");
 
   if (areCellsInFlight(batch.status ?? null)) {
+    if (total > 0 && completed >= total) {
+      return "Creating your map…";
+    }
+    if (pass.startsWith("retry") || pass === "integrity") {
+      return total > 0
+        ? `Retrying remaining locations… ${completed} / ${total} ready`
+        : "Retrying remaining locations…";
+    }
     return total > 0
       ? `Scanning ${completed} / ${total} locations…`
       : "Scanning locations…";
+  }
+
+  if (batch.status === "normalizing") {
+    return "Creating your map…";
   }
 
   const pending = total > 0 && completed < total ? total - completed : 0;
@@ -224,4 +237,25 @@ export function scanProgressMessage(batch: {
   }
 
   return "";
+}
+
+/** Wait-screen phase while the rank map is still hidden. */
+export type ScanWaitPhase = "scanning" | "retrying" | "creating_map";
+
+export function scanWaitPhase(batch: {
+  status?: string | null;
+  cells_completed?: number | null;
+  cells_total?: number | null;
+  confidence_summary?: Record<string, unknown> | null;
+}): ScanWaitPhase {
+  const conf = (batch.confidence_summary ?? {}) as Record<string, unknown>;
+  const completed = Number(batch.cells_completed ?? conf.completed_cells ?? 0);
+  const total = Number(batch.cells_total ?? conf.total_cells ?? 0);
+  const pass = String(conf.pass ?? "");
+  const status = batch.status ?? null;
+
+  if (status === "normalizing" || pass === "complete") return "creating_map";
+  if (total > 0 && completed >= total) return "creating_map";
+  if (pass.startsWith("retry") || pass === "integrity") return "retrying";
+  return "scanning";
 }

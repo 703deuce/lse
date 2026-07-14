@@ -494,7 +494,12 @@ async function runJobsWithConcurrency(
     updateProgress?: boolean;
     organizationId?: string;
   }
-): Promise<{ results: GridCellRunResult[]; failedCells: number; timings: CellPhaseTimings[] }> {
+): Promise<{
+  results: GridCellRunResult[];
+  failedCells: number;
+  successCount: number;
+  timings: CellPhaseTimings[];
+}> {
   const limit = pLimit(params.concurrency);
   const completedOffset = params.completedOffset ?? 0;
   const updateProgress = params.updateProgress !== false;
@@ -549,9 +554,11 @@ async function runJobsWithConcurrency(
 
         const progressStart = performance.now();
         if (updateProgress) {
+          // Count successes only — counting every settled (incl. failed) cell made the
+          // bar hit 100% at the end of primary while retries still had 10+ seconds left.
           await scheduleCellProgress(
             params.scanBatchId,
-            Math.min(completedOffset + completed, params.totalCells),
+            Math.min(completedOffset + successCount, params.totalCells),
             params.totalCells,
             failedCells,
             { pass: params.passLabel, failed_point_ids: [...new Set(failedPointIds)] }
@@ -574,7 +581,7 @@ async function runJobsWithConcurrency(
   if (updateProgress) {
     await scheduleCellProgress(
       params.scanBatchId,
-      Math.min(completedOffset + completed, params.totalCells),
+      Math.min(completedOffset + successCount, params.totalCells),
       params.totalCells,
       failedCells,
       { pass: params.passLabel, failed_point_ids: [...new Set(failedPointIds)] },
@@ -582,7 +589,7 @@ async function runJobsWithConcurrency(
     );
   }
 
-  return { results, failedCells, timings };
+  return { results, failedCells, successCount, timings };
 }
 
 function chunkJobs<T>(items: T[], size: number): T[][] {
@@ -636,7 +643,12 @@ async function runIntegrityPass(params: {
   totalCells: number;
   organizationId?: string;
   onCellSettled?: (success: boolean) => Promise<void>;
-}): Promise<{ failedCells: number; failedPointIds: string[]; timings: CellPhaseTimings[] }> {
+}): Promise<{
+  failedCells: number;
+  failedPointIds: string[];
+  timings: CellPhaseTimings[];
+  successCount: number;
+}> {
   const supabase = createServiceClient();
   const { data: pointRows } = await supabase
     .from("scan_points")
@@ -658,7 +670,7 @@ async function runIntegrityPass(params: {
   });
 
   if (!incompleteJobs.length) {
-    return { failedCells: 0, failedPointIds: [], timings: [] };
+    return { failedCells: 0, failedPointIds: [], timings: [], successCount: 0 };
   }
 
   console.log(
@@ -718,6 +730,7 @@ async function runIntegrityPass(params: {
     failedCells: stillIncompleteIds.length,
     failedPointIds: stillIncompleteIds,
     timings: integrityPass.timings,
+    successCount: integrityPass.successCount,
   };
 }
 
@@ -891,7 +904,8 @@ export async function runGridCellsLive(params: {
     });
     allTimings.push(...pass.timings);
     failedFromPrimary.push(...failedJobsFromPass(chunk, pass.results));
-    completedOffset += chunk.length;
+    // Advance by successes only — failed cells stay off the public counter until retry/finish.
+    completedOffset += pass.successCount;
   }
 
   let remainingJobs = failedFromPrimary;
@@ -905,7 +919,8 @@ export async function runGridCellsLive(params: {
     console.log(
       `[Scan] Retry round ${round - 1}/${maxRounds - 1}: ${remainingJobs.length} failed cells`
     );
-    const retryOffset = Math.max(0, totalCells - remainingJobs.length);
+    // Offset = cells already successful; retries fill the gap instead of sitting at 100%.
+    const retryOffset = completedOffset;
     const pass = await runJobsWithConcurrency(remainingJobs, {
       scanBatchId: params.scanBatchId,
       depth,
@@ -920,6 +935,7 @@ export async function runGridCellsLive(params: {
       organizationId: params.organizationId,
     });
     allTimings.push(...pass.timings);
+    completedOffset += pass.successCount;
     remainingJobs = failedJobsFromPass(remainingJobs, pass.results);
     failedCells = remainingJobs.length;
     if (remainingJobs.length > 0 && round < maxRounds) {

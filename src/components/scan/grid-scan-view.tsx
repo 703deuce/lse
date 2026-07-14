@@ -39,6 +39,7 @@ import {
   isEnrichmentRunning,
   isScanMapReady,
   scanProgressMessage,
+  scanWaitPhase,
   shouldPollUntilMapReady,
 } from "@/lib/scans/status";
 import { RankByDistanceCard } from "@/components/maps/rank-by-distance-card";
@@ -268,8 +269,9 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
         setData(json);
         setTimelineFetching(false);
         const conf = (json.batch?.confidence_summary ?? {}) as Record<string, unknown>;
+        // Peak latches cells_completed only (not results.length) — failed cells can
+        // already have a sparse row while retries are still running.
         const settled = Math.max(
-          json.results?.length ?? 0,
           Number(json.batch?.cells_completed ?? 0),
           Number(conf.completed_cells ?? 0)
         );
@@ -468,8 +470,10 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
   const progressMessage = scanProgressMessage({
     status: batchStatus,
     enrichment_status: batch?.enrichment_status as string | null | undefined,
-    cells_completed: Math.max(loadedCells, batchCellsCompleted),
-    cells_total: totalGridCells,
+    // Use server success counters only — saved result rows can exist for cells
+    // that still need retry, which made the wait UI look finished early.
+    cells_completed: batchCellsCompleted,
+    cells_total: Math.max(totalGridCells, Number(batch?.cells_total ?? 0)),
     cells_failed: batch?.cells_failed as number | null | undefined,
     confidence_summary: (batch?.confidence_summary ?? null) as Record<string, unknown> | null,
   });
@@ -543,7 +547,6 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
     pointId: c.pointId,
   }));
 
-  const loadedCellsCount = loadedCells;
   const notInPackCells = cells.filter((c) => c.notInResults).length;
 
   const mid = Math.floor((cells.length - 1) / 2);
@@ -566,7 +569,6 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
     gridCenterLng;
   const checkUrl = (data?.results?.[0]?.check_url as string) ?? null;
   const rawProgressCompleted = Math.max(
-    loadedCellsCount,
     batchCellsCompleted,
     Number(confidence.completed_cells ?? 0)
   );
@@ -579,6 +581,31 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
     Math.max(peakProgress, rawProgressCompleted),
     progressTotal > 0 ? progressTotal : Number.POSITIVE_INFINITY
   );
+  const waitPhase = scanWaitPhase({
+    status: batchStatus,
+    cells_completed: progressCompleted,
+    cells_total: progressTotal,
+    confidence_summary: confidence,
+  });
+  const waitTitle =
+    waitPhase === "creating_map"
+      ? "Creating your map"
+      : waitPhase === "retrying"
+        ? "Finishing a few locations"
+        : "Scan running";
+  const waitBody =
+    waitPhase === "creating_map"
+      ? "Locations are in — assembling the rank map now. This usually only takes a few more seconds."
+      : waitPhase === "retrying"
+        ? "Most points are done. We’re retrying the rest so the map is complete before it appears."
+        : "We’re checking every grid point now. The rank map will appear when the full scan finishes — including any automatic retries.";
+  const waitShowCounter = waitPhase !== "creating_map";
+  const waitBarPct =
+    waitPhase === "creating_map"
+      ? 100
+      : progressTotal > 0
+        ? Math.round((progressCompleted / progressTotal) * 100)
+        : 8;
   const allRanks = cells.map((c) => (c.notInResults ? null : c.rank));
   const weightedSolv = computeWeightedSolv(allRanks);
   const gridSize = Number(batch?.grid_size ?? 5);
@@ -918,30 +945,34 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
             {waitingForMap ? (
               <div className="mb-3 flex min-h-[min(62vh,560px)] flex-col items-center justify-center rounded-xl border border-zinc-200 bg-gradient-to-b from-emerald-50/80 to-white px-6 py-12 text-center shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
                 <Loader2 className="h-9 w-9 animate-spin text-emerald-600" />
-                <h2 className="mt-4 text-[18px] font-semibold text-zinc-900">Scan running</h2>
+                <h2 className="mt-4 text-[18px] font-semibold text-zinc-900">{waitTitle}</h2>
                 <p className="mt-1.5 max-w-md text-[13px] leading-relaxed text-zinc-600">
-                  We’re checking every grid point now. The rank map will appear when the full scan
-                  finishes — including any automatic retries.
+                  {waitBody}
                 </p>
                 <p className="mt-4 text-[14px] font-medium text-zinc-800">
-                  {progressTotal > 0 ? (
-                    <>
-                      {progressCompleted} / {progressTotal} locations
-                    </>
+                  {waitShowCounter ? (
+                    progressTotal > 0 ? (
+                      <>
+                        {progressCompleted} / {progressTotal} locations
+                      </>
+                    ) : (
+                      "Starting…"
+                    )
                   ) : (
-                    "Starting…"
+                    "Assembling map…"
                   )}
                 </p>
                 <div className="mt-3 h-2 w-full max-w-sm overflow-hidden rounded-full bg-emerald-100">
                   <div
                     className="h-full rounded-full bg-emerald-600 transition-all duration-500"
-                    style={{
-                      width: `${progressTotal > 0 ? Math.round((progressCompleted / progressTotal) * 100) : 8}%`,
-                    }}
+                    style={{ width: `${waitBarPct}%` }}
                   />
                 </div>
                 <p className="mt-3 text-[12px] text-zinc-500">
-                  {progressMessage || "This usually takes under a minute."}
+                  {progressMessage ||
+                    (waitPhase === "creating_map"
+                      ? "Hang tight — almost ready."
+                      : "This usually takes under a minute.")}
                 </p>
               </div>
             ) : (
