@@ -12,7 +12,11 @@ export async function POST(
     const access = await requireScanAccess(scanId);
     const supabase = createServiceClient();
 
-    const { data: batch } = await supabase.from("scan_batches").select("*").eq("id", scanId).single();
+    const { data: batch } = await supabase
+      .from("scan_batches")
+      .select("id, status, enrichment_status")
+      .eq("id", scanId)
+      .single();
     if (!batch) return NextResponse.json({ error: "Scan not found" }, { status: 404 });
 
     if (batch.status === "failed") {
@@ -31,9 +35,16 @@ export async function POST(
       return NextResponse.json({ ok: true, message: "Enrichment already running" });
     }
 
-    void runScanEnrichment(scanId, access.organizationId).catch((err) => {
-      console.error("[enrich] manual trigger failed", scanId, err);
-    });
+    // Claim happens inside runScanEnrichment — TOCTOU-safe vs parallel POSTs.
+    void runScanEnrichment(scanId, access.organizationId)
+      .then((result) => {
+        if (!result.started) {
+          console.log("[enrich] claim skipped (already running or not claimable)", scanId);
+        }
+      })
+      .catch((err) => {
+        console.error("[enrich] manual trigger failed", scanId, err);
+      });
 
     return NextResponse.json({ ok: true, message: "Enrichment started" });
   } catch (err) {

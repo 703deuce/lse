@@ -23,35 +23,58 @@ function mapProfile(p: EnrichedProfile) {
   };
 }
 
+const ENRICHABLE_STATUSES = ["rank_ready", "enriching", "scoring", "ai_planning"] as const;
+const CLAIMABLE_ENRICHMENT = ["pending", "failed", "skipped"] as const;
+
 /**
  * Phase 2 — background enrichment, audit, cache precompute. Does not block rank map.
+ * Claims enrichment via conditional status update so parallel/manual triggers cannot double-run.
  */
 export async function runScanEnrichment(
   scanBatchId: string,
   organizationId?: string
-): Promise<void> {
+): Promise<{ started: boolean }> {
   const supabase = createServiceClient();
   const now = new Date().toISOString();
 
-  const { data: batch } = await supabase.from("scan_batches").select("*").eq("id", scanBatchId).single();
-  if (!batch) throw new Error("Scan batch not found");
+  const { data: batchPreview } = await supabase
+    .from("scan_batches")
+    .select("id, status, enrichment_status, enrichment_started_at")
+    .eq("id", scanBatchId)
+    .maybeSingle();
 
-  if (batch.status === "ready" || batch.status === "partial") {
-    return;
+  if (!batchPreview) throw new Error("Scan batch not found");
+
+  if (batchPreview.status === "ready" || batchPreview.status === "partial") {
+    return { started: false };
   }
 
-  if (batch.status === "failed") {
-    return;
+  if (batchPreview.status === "failed") {
+    return { started: false };
   }
 
-  await supabase
+  // Atomic claim — only one worker may move enrichment into running.
+  const { data: claimed } = await supabase
     .from("scan_batches")
     .update({
       status: "enriching",
       enrichment_status: "running",
-      enrichment_started_at: batch.enrichment_started_at ?? now,
+      enrichment_started_at: batchPreview.enrichment_started_at ?? now,
     })
-    .eq("id", scanBatchId);
+    .eq("id", scanBatchId)
+    .in("status", [...ENRICHABLE_STATUSES])
+    .or(
+      `enrichment_status.is.null,enrichment_status.in.(${CLAIMABLE_ENRICHMENT.join(",")})`
+    )
+    .select("*")
+    .maybeSingle();
+
+  if (!claimed) {
+    console.log("[runScanEnrichment] skip — already running or not claimable", scanBatchId);
+    return { started: false };
+  }
+
+  const batch = claimed;
 
   try {
     const { data: business } = await supabase.from("businesses").select("*").eq("id", batch.business_id).single();
@@ -110,7 +133,11 @@ export async function runScanEnrichment(
       websiteProbe = await probeWebsite(business.website_url, primaryKeyword.keyword);
     }
 
-    await supabase.from("scan_batches").update({ status: "scoring" }).eq("id", scanBatchId);
+    await supabase
+      .from("scan_batches")
+      .update({ status: "scoring" })
+      .eq("id", scanBatchId)
+      .eq("enrichment_status", "running");
 
     const { data: audit } = await supabase
       .from("audits")
@@ -149,7 +176,11 @@ export async function runScanEnrichment(
       })
       .eq("id", audit.id);
 
-    await supabase.from("scan_batches").update({ status: "ai_planning" }).eq("id", scanBatchId);
+    await supabase
+      .from("scan_batches")
+      .update({ status: "ai_planning" })
+      .eq("id", scanBatchId)
+      .eq("enrichment_status", "running");
 
     const { data: findings } = await supabase.from("audit_findings").select("*").eq("audit_id", audit.id);
 
@@ -218,7 +249,8 @@ export async function runScanEnrichment(
         ready_at: finishedAt,
         finished_at: finishedAt,
       })
-      .eq("id", scanBatchId);
+      .eq("id", scanBatchId)
+      .eq("enrichment_status", "running");
   } catch (err) {
     console.error("[runScanEnrichment]", scanBatchId, err);
     const message = err instanceof Error ? err.message : "Enrichment failed";
@@ -229,7 +261,10 @@ export async function runScanEnrichment(
         enrichment_status: "failed",
         error_message: message,
       })
-      .eq("id", scanBatchId);
+      .eq("id", scanBatchId)
+      .eq("enrichment_status", "running");
     throw err;
   }
+
+  return { started: true };
 }

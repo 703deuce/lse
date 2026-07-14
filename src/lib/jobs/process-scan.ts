@@ -121,7 +121,7 @@ export async function processScanBatch(scanBatchId: string, organizationId?: str
     .update({ status: "provider_running", provider: "brightdata" })
     .eq("id", scanBatchId);
 
-  let rankReadyFired = false;
+  let rankReadyPromise: Promise<void> | null = null;
   const totalCellsPlanned = insertedPoints.length * keywordList.length;
 
   const { failedCells, totalCells, successCells } = await runGridCellsLive({
@@ -150,24 +150,30 @@ export async function processScanBatch(scanBatchId: string, organizationId?: str
     browser: (batch as { browser?: string }).browser ?? "chrome",
     organizationId,
     onSoftReady: async () => {
-      if (rankReadyFired) return;
-      rankReadyFired = true;
-      const { data: progress } = await supabase
-        .from("scan_batches")
-        .select("cells_failed")
-        .eq("id", scanBatchId)
-        .single();
-      await finalizeRankReady(
-        scanBatchId,
-        organizationId,
-        Number(progress?.cells_failed ?? 0),
-        totalCellsPlanned
-      );
+      if (!rankReadyPromise) {
+        rankReadyPromise = (async () => {
+          const { data: progress } = await supabase
+            .from("scan_batches")
+            .select("cells_failed")
+            .eq("id", scanBatchId)
+            .single();
+          await finalizeRankReady(
+            scanBatchId,
+            organizationId,
+            Number(progress?.cells_failed ?? 0),
+            totalCellsPlanned
+          );
+        })();
+      }
+      await rankReadyPromise;
     },
   });
 
-  if (!rankReadyFired) {
+  // finalizeRankReady is claim-guarded — safe if soft-ready already finished.
+  if (!rankReadyPromise) {
     await finalizeRankReady(scanBatchId, organizationId, failedCells, totalCells);
+  } else {
+    await rankReadyPromise;
   }
   console.log("[Scan] Live batch finished:", {
     scanBatchId,
