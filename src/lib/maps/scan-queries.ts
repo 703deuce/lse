@@ -6,6 +6,7 @@ import {
   dedupeScanResults,
   pickScanResultForPoint,
 } from "@/lib/maps/cell-result-integrity";
+import { SCAN_RESULT_GRID_COLUMNS } from "@/lib/maps/scan-result-columns";
 import type { BusinessKeywordRow, BusinessRow, ScanBatchRow, ScanPointRow, ScanResultRow } from "@/lib/db/types";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
@@ -363,12 +364,12 @@ async function fetchScanGridData(
   const pointIds = points.map((p) => p.id);
   let results: ScanResultRow[] = [];
   if (pointIds.length) {
-    let query = supabase.from("scan_results").select("*").in("scan_point_id", pointIds);
+    let query = supabase.from("scan_results").select(SCAN_RESULT_GRID_COLUMNS).in("scan_point_id", pointIds);
     if (activeKeyword?.id) {
       query = query.eq("keyword_id", activeKeyword.id);
     }
     const { data } = await query;
-    results = dedupeScanResults((data ?? []) as ScanResultRow[]);
+    results = dedupeScanResults((data ?? []) as unknown as ScanResultRow[]);
   }
 
   return {

@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/db/client";
 import { aggregateCompetitors, type AggregatedCompetitor } from "@/lib/maps/grid";
+import { SCAN_RESULT_GRID_COLUMNS } from "@/lib/maps/scan-result-columns";
 import { randomBytes } from "crypto";
 
 export async function generateReport(params: {
@@ -58,7 +59,10 @@ export async function generateReport(params: {
   let checkUrl: string | null = null;
   let topCompetitors: AggregatedCompetitor[] = [];
   if (pointIds.length) {
-    const { data: results } = await supabase.from("scan_results").select("*").in("scan_point_id", pointIds);
+    const { data: results } = await supabase
+      .from("scan_results")
+      .select(SCAN_RESULT_GRID_COLUMNS)
+      .in("scan_point_id", pointIds);
     checkUrl = results?.[0]?.check_url ?? null;
     topCompetitors = aggregateCompetitors(results ?? [], {
       excludeCid: business.cid,

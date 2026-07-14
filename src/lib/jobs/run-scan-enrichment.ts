@@ -7,6 +7,7 @@ import { actionPlanOutputSchema } from "@/lib/validation/schemas";
 import { probeWebsite } from "@/lib/rules/website-probe";
 import { precomputeScanWorkspace } from "@/lib/maps/precompute-workspace";
 import type { EnrichedProfile } from "@/lib/jobs/enrich-competitors";
+import { SCAN_RESULT_COMPETITOR_COLUMNS } from "@/lib/maps/scan-result-columns";
 
 function mapProfile(p: EnrichedProfile) {
   return {
@@ -90,7 +91,10 @@ export async function runScanEnrichment(
       .eq("scan_batch_id", scanBatchId);
     const pointIds = (points ?? []).map((p) => p.id);
     const { data: results } = pointIds.length
-      ? await supabase.from("scan_results").select("*").in("scan_point_id", pointIds)
+      ? await supabase
+          .from("scan_results")
+          .select(SCAN_RESULT_COMPETITOR_COLUMNS)
+          .in("scan_point_id", pointIds)
       : { data: [] };
 
     const ranksByDistance = (results ?? []).map((r) => {

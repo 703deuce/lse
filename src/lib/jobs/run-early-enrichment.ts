@@ -2,6 +2,7 @@ import pLimit from "p-limit";
 import { createServiceClient } from "@/lib/db/client";
 import { aggregateCompetitors } from "@/lib/maps/grid";
 import { enrichTargetBusiness, enrichCompetitor } from "@/lib/jobs/enrich-competitors";
+import { SCAN_RESULT_COMPETITOR_COLUMNS } from "@/lib/maps/scan-result-columns";
 
 /** Start lightweight enrichment once enough rank cells exist — does not block the scan. */
 export const EARLY_ENRICHMENT_MIN_CELLS = 17;
@@ -70,7 +71,10 @@ async function runEarlyEnrichment(scanBatchId: string, organizationId?: string):
     .eq("scan_batch_id", scanBatchId);
   const pointIds = (points ?? []).map((p) => p.id);
   const { data: results } = pointIds.length
-    ? await supabase.from("scan_results").select("*").in("scan_point_id", pointIds)
+    ? await supabase
+        .from("scan_results")
+        .select(SCAN_RESULT_COMPETITOR_COLUMNS)
+        .in("scan_point_id", pointIds)
     : { data: [] };
 
   if (!(results ?? []).length) return;

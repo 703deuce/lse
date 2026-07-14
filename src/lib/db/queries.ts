@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/db/client";
+import { SCAN_RESULT_GRID_COLUMNS } from "@/lib/maps/scan-result-columns";
 import type {
   BusinessRow,
   ScanBatchRow,
@@ -50,8 +51,11 @@ export async function getScanWithResults(scanId: string) {
   const pointIds = ((points ?? []) as ScanPointRow[]).map((p) => p.id);
   let results: ScanResultRow[] = [];
   if (pointIds.length) {
-    const { data } = await supabase.from("scan_results").select("*").in("scan_point_id", pointIds);
-    results = (data ?? []) as ScanResultRow[];
+    const { data } = await supabase
+      .from("scan_results")
+      .select(SCAN_RESULT_GRID_COLUMNS)
+      .in("scan_point_id", pointIds);
+    results = (data ?? []) as unknown as ScanResultRow[];
   }
   return {
     batch: batch as ScanBatchRow | null,
