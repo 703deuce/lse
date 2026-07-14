@@ -73,9 +73,9 @@ export function AiVisibilityEvidenceTab({
   }, {});
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {!isCombined && (
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid items-start gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <AiKpiCard
             label="Total Sources"
             value={sources.length}
@@ -139,10 +139,10 @@ export function AiVisibilityEvidenceTab({
       </div>
 
       {subTab === "by-engine" ? (
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid items-start gap-2 sm:grid-cols-2">
           {Object.entries(sourcesByEngine).map(([engine, rows]) => (
             <AiPanel key={engine} title={ENGINE_LABELS[engine as AiEngine]} subtitle={`${rows.length} sources`}>
-              <ul className="space-y-2 text-xs">
+              <ul className="space-y-1.5 text-xs">
                 {rows.slice(0, 6).map((s, i) => (
                   <li key={i} className="truncate text-text-muted">{s.label ?? s.url}</li>
                 ))}
@@ -151,7 +151,7 @@ export function AiVisibilityEvidenceTab({
           ))}
         </div>
       ) : (
-        <div className="grid gap-2 lg:grid-cols-[1fr_300px]">
+        <div className="grid items-start gap-2 lg:grid-cols-[1fr_300px]">
           {subTab === "citations" ? (
             <AiPanel
               title="Cited Sources"
@@ -182,8 +182,8 @@ export function AiVisibilityEvidenceTab({
                       const auth = authorityScore(i);
                       return (
                         <tr key={`${s.url}-${i}`} className="hover:bg-surface-subtle/50">
-                          <td className="px-3 py-2 text-text-muted">{s.position ?? i + 1}</td>
-                          <td className="max-w-xs px-3 py-2">
+                          <td className="px-3 py-1.5 text-text-muted">{s.position ?? i + 1}</td>
+                          <td className="max-w-xs px-3 py-1.5">
                             <p className="font-medium text-text">{s.label ?? s.url ?? "Source"}</p>
                             {s.url && (
                               <a href={s.url} target="_blank" rel="noopener noreferrer" className="mt-0.5 flex items-center gap-1 truncate text-xs text-sky-700 hover:underline">
@@ -192,19 +192,19 @@ export function AiVisibilityEvidenceTab({
                               </a>
                             )}
                           </td>
-                          <td className="px-3 py-2">
+                          <td className="px-3 py-1.5">
                             <EngineBadge engine={s.engine} />
                           </td>
-                          <td className="px-3 py-2">
+                          <td className="px-3 py-1.5">
                             <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", TYPE_CLASS[type])}>{type}</span>
                           </td>
-                          <td className="px-3 py-2">
+                          <td className="px-3 py-1.5">
                             <span className="inline-flex items-center gap-1 tabular-nums text-xs font-medium">
                               {auth}
                               <CheckCircle2 className={cn("h-3.5 w-3.5", auth >= 85 ? "text-emerald-500" : "text-amber-500")} />
                             </span>
                           </td>
-                          <td className="max-w-[140px] px-3 py-2">
+                          <td className="max-w-[140px] px-3 py-1.5">
                             <p className="line-clamp-2 text-[11px] text-text-muted">
                               {s.label ? `${s.label.slice(0, 60)}…` : "Referenced in AI response"}
                             </p>

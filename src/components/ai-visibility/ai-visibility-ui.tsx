@@ -430,7 +430,7 @@ export function AiPanel({
   return (
     <div className={cn(dashboardCard, "overflow-hidden", className)}>
       {(title || action) && (
-        <div className="flex items-start justify-between gap-2 border-b border-zinc-100 px-3 py-2">
+        <div className="flex items-start justify-between gap-2 border-b border-zinc-100 px-3 py-1.5">
           <div>
             {title && <h3 className={dashboardCardTitle}>{title}</h3>}
             {subtitle && <p className={cn("mt-0.5", dashboardMicro)}>{subtitle}</p>}
@@ -438,7 +438,7 @@ export function AiPanel({
           {action}
         </div>
       )}
-      <div className={cn("p-3", bodyClassName)}>{children}</div>
+      <div className={cn("p-2.5", bodyClassName)}>{children}</div>
     </div>
   );
 }
