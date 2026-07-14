@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "leaflet/dist/leaflet.css";
+import { GoogleMapsKeyProvider } from "@/components/maps/google-maps-key-context";
+import { getGoogleMapsApiKey } from "@/lib/maps/google-maps-key";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,12 +24,16 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const mapsApiKey = getGoogleMapsApiKey() ?? null;
+
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <GoogleMapsKeyProvider apiKey={mapsApiKey}>{children}</GoogleMapsKeyProvider>
+      </body>
     </html>
   );
 }
