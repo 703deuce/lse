@@ -84,7 +84,21 @@ export async function loadDashboardRecentScans(
       .select("scan_point_id, target_rank, keyword_id")
       .in("scan_point_id", allPointIds);
 
+    const preferredKeywordByBatch = new Map<string, string | null>();
+    for (const batch of previewBatches) {
+      const conf = (batch.confidence_summary ?? {}) as { keyword_ids?: string[] };
+      preferredKeywordByBatch.set(batch.id, conf.keyword_ids?.[0] ?? null);
+    }
+
+    const pointToBatch = new Map<string, string>();
+    for (const p of (pointsData ?? []) as ScanPointRow[]) {
+      pointToBatch.set(p.id, p.scan_batch_id);
+    }
+
     for (const r of (resultsData ?? []) as ScanResultRow[]) {
+      const batchId = pointToBatch.get(r.scan_point_id);
+      const preferred = batchId ? preferredKeywordByBatch.get(batchId) : null;
+      if (preferred && r.keyword_id !== preferred) continue;
       if (!rankByPointId.has(r.scan_point_id)) {
         rankByPointId.set(r.scan_point_id, r.target_rank);
       }

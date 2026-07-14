@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { createServiceClient } from "@/lib/db/client";
 import { processProviderTaskResult } from "@/lib/jobs/process-scan";
+import { finalizeRankReady } from "@/lib/jobs/finalize-scan";
 
 function authorizeWebhook(request: Request): NextResponse | null {
   const secret = process.env.DATAFORSEO_WEBHOOK_SECRET?.trim();
@@ -23,6 +25,37 @@ function authorizeWebhook(request: Request): NextResponse | null {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   return null;
+}
+
+async function markProviderTaskFailed(tag: string, statusCode: number): Promise<void> {
+  const supabase = createServiceClient();
+  await supabase
+    .from("scan_provider_tasks")
+    .update({
+      status: "failed",
+      result_json: { error: true, status_code: statusCode },
+    })
+    .eq("tag", tag);
+
+  const parts = tag.split(":");
+  const scanBatchId = parts[0];
+  if (!scanBatchId) return;
+
+  const { data: pending } = await supabase
+    .from("scan_provider_tasks")
+    .select("id")
+    .eq("scan_batch_id", scanBatchId)
+    .eq("status", "pending");
+
+  if ((pending ?? []).length === 0) {
+    const { data: allTasks } = await supabase
+      .from("scan_provider_tasks")
+      .select("status")
+      .eq("scan_batch_id", scanBatchId);
+    const failed = (allTasks ?? []).filter((t) => t.status === "failed").length;
+    const total = (allTasks ?? []).length;
+    await finalizeRankReady(scanBatchId, undefined, failed, total);
+  }
 }
 
 export async function POST(request: Request) {
@@ -55,6 +88,7 @@ export async function POST(request: Request) {
           taskId: task.id,
           statusCode: task.status_code,
         });
+        await markProviderTaskFailed(tag, task.status_code);
         continue;
       }
 

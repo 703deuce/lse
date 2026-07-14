@@ -324,7 +324,18 @@ export async function addTrackedKeyword(params: {
   let search_volume: number | null = null;
   let search_volume_source: string | null = null;
 
-  if (params.fetchVolume !== false) {
+  if (params.suggestionId && params.fetchVolume === false) {
+    const { data: suggestion } = await supabase
+      .from("keyword_suggestions")
+      .select("search_volume")
+      .eq("id", params.suggestionId)
+      .eq("business_id", params.businessId)
+      .maybeSingle();
+    if (suggestion?.search_volume != null) {
+      search_volume = suggestion.search_volume;
+      search_volume_source = "suggestion";
+    }
+  } else if (params.fetchVolume !== false) {
     try {
       const volumes = await fetchKeywordVolumes({
         keywords: [keyword],

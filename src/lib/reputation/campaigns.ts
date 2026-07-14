@@ -322,7 +322,8 @@ export async function listCampaigns(businessId: string) {
 export async function updateCampaignStatus(
   campaignId: string,
   businessId: string,
-  status: CampaignStatus
+  status: CampaignStatus,
+  organizationId?: string
 ) {
   const supabase = createServiceClient();
   const patch: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
@@ -330,14 +331,15 @@ export async function updateCampaignStatus(
   if (status === "completed" || status === "cancelled") {
     patch.completed_at = new Date().toISOString();
   }
-  const { data, error } = await supabase
+  let query = supabase
     .from("review_request_campaigns")
     .update(patch)
     .eq("id", campaignId)
-    .eq("business_id", businessId)
-    .select("*")
-    .single();
+    .eq("business_id", businessId);
+  if (organizationId) query = query.eq("organization_id", organizationId);
+  const { data, error } = await query.select("*").maybeSingle();
   if (error) throw new Error(error.message);
+  if (!data) throw new Error("Campaign not found");
   return data;
 }
 

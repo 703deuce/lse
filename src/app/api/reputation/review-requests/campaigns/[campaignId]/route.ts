@@ -15,7 +15,7 @@ export async function PATCH(
       return NextResponse.json({ error: "businessId and action required" }, { status: 400 });
     }
 
-    await requireBusinessAccess(businessId);
+    const auth = await requireBusinessAccess(businessId);
 
     const statusMap: Record<string, CampaignStatus> = {
       pause: "paused",
@@ -28,10 +28,16 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
 
-    const campaign = await updateCampaignStatus(campaignId, businessId, status);
+    const campaign = await updateCampaignStatus(
+      campaignId,
+      businessId,
+      status,
+      auth.organizationId
+    );
     return NextResponse.json({ campaign });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to update campaign";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const statusCode = message.includes("not found") ? 404 : 500;
+    return NextResponse.json({ error: message }, { status: statusCode });
   }
 }

@@ -35,6 +35,7 @@ export async function PATCH(
       .update({ status })
       .eq("id", taskId)
       .eq("business_id", businessId)
+      .eq("organization_id", auth.organizationId)
       .select("*")
       .single();
 
@@ -42,6 +43,7 @@ export async function PATCH(
     return NextResponse.json({ task: updated });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Update failed";
-    return NextResponse.json({ error: message }, { status: 403 });
+    const statusCode = message.includes("access denied") || message.includes("not found") ? 403 : 500;
+    return NextResponse.json({ error: message }, { status: statusCode });
   }
 }

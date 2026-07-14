@@ -354,9 +354,13 @@ async function fetchScanGridData(
 
   const batchRow = batch as ScanBatchRow;
   const keywordRows = (keywordsResult.data ?? []) as BusinessKeywordRow[];
+  const conf = (batchRow.confidence_summary ?? {}) as { keyword_ids?: string[] };
+  const scopedKeywordId = conf.keyword_ids?.[0] ?? null;
 
+  // Prefer explicit keywordId, then the scan's scoped keyword, then primary.
   const activeKeyword =
     (keywordId ? keywordRows.find((k) => k.id === keywordId) : null) ??
+    (scopedKeywordId ? keywordRows.find((k) => k.id === scopedKeywordId) : null) ??
     keywordRows.find((k) => k.is_primary) ??
     keywordRows[0];
 
