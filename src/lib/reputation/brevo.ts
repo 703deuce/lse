@@ -1,3 +1,5 @@
+import { fetchWithTimeout, providerTimeoutMs } from "@/lib/providers/fetch-with-timeout";
+
 export type BrevoSendParams = {
   toEmail: string;
   toName?: string;
@@ -33,15 +35,19 @@ export async function sendBrevoEmail(params: BrevoSendParams): Promise<BrevoSend
   }
 
   try {
-    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        "api-key": apiKey,
-        "Content-Type": "application/json",
-        Accept: "application/json",
+    const res = await fetchWithTimeout(
+      "https://api.brevo.com/v3/smtp/email",
+      {
+        method: "POST",
+        headers: {
+          "api-key": apiKey,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify(payload),
-    });
+      { provider: "brevo", timeoutMs: providerTimeoutMs("brevo", 20_000), label: "sendEmail" }
+    );
 
     const json = (await res.json().catch(() => ({}))) as { messageId?: string; message?: string; code?: string };
 

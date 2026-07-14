@@ -1,4 +1,9 @@
 import { logProviderRun } from "@/lib/providers/dataforseo";
+import {
+  estimateProviderCost,
+  fetchWithTimeout,
+  providerTimeoutMs,
+} from "@/lib/providers/fetch-with-timeout";
 
 export type JsonLlmResult = {
   ok: boolean;
@@ -48,19 +53,23 @@ async function callDeepSeek(
   const model = process.env.DEEPSEEK_MODEL ?? "deepseek-chat";
   const start = Date.now();
   try {
-    const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: params.systemPrompt },
-          { role: "user", content: params.userContent },
-        ],
-        response_format: { type: "json_object" },
-        temperature,
-      }),
-    });
+    const res = await fetchWithTimeout(
+      "https://api.deepseek.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: params.systemPrompt },
+            { role: "user", content: params.userContent },
+          ],
+          response_format: { type: "json_object" },
+          temperature,
+        }),
+      },
+      { provider: "deepseek", timeoutMs: providerTimeoutMs("deepseek", 60_000), label: params.endpoint }
+    );
     const latencyMs = Date.now() - start;
     const data = await res.json();
     await logProviderRun({
@@ -71,6 +80,7 @@ async function callDeepSeek(
       response: data,
       statusCode: res.status,
       latencyMs,
+      costEstimate: estimateProviderCost("deepseek"),
     });
     if (!res.ok) {
       const msg = (data as { error?: { message?: string } }).error?.message ?? res.statusText;
@@ -100,15 +110,19 @@ async function callGemini(
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const start = Date.now();
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: params.systemPrompt }] },
-        contents: [{ role: "user", parts: [{ text: params.userContent }] }],
-        generationConfig: { responseMimeType: "application/json", temperature },
-      }),
-    });
+    const res = await fetchWithTimeout(
+      url,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: params.systemPrompt }] },
+          contents: [{ role: "user", parts: [{ text: params.userContent }] }],
+          generationConfig: { responseMimeType: "application/json", temperature },
+        }),
+      },
+      { provider: "gemini", timeoutMs: providerTimeoutMs("gemini", 60_000), label: params.endpoint }
+    );
     const latencyMs = Date.now() - start;
     const data = await res.json();
     await logProviderRun({
@@ -119,6 +133,7 @@ async function callGemini(
       response: data,
       statusCode: res.status,
       latencyMs,
+      costEstimate: estimateProviderCost("gemini"),
     });
     if (!res.ok) {
       const msg = (data as { error?: { message?: string } }).error?.message ?? res.statusText;
@@ -150,19 +165,23 @@ async function callKimi(
   const model = process.env.KIMI_MODEL ?? "moonshot-v1-8k";
   const start = Date.now();
   try {
-    const res = await fetch("https://api.moonshot.cn/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: params.systemPrompt },
-          { role: "user", content: params.userContent },
-        ],
-        response_format: { type: "json_object" },
-        temperature,
-      }),
-    });
+    const res = await fetchWithTimeout(
+      "https://api.moonshot.cn/v1/chat/completions",
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: params.systemPrompt },
+            { role: "user", content: params.userContent },
+          ],
+          response_format: { type: "json_object" },
+          temperature,
+        }),
+      },
+      { provider: "kimi", timeoutMs: providerTimeoutMs("kimi", 60_000), label: params.endpoint }
+    );
     const latencyMs = Date.now() - start;
     const data = await res.json();
     await logProviderRun({
@@ -173,6 +192,7 @@ async function callKimi(
       response: data,
       statusCode: res.status,
       latencyMs,
+      costEstimate: estimateProviderCost("kimi"),
     });
     if (!res.ok) {
       const msg = (data as { error?: { message?: string } }).error?.message ?? res.statusText;

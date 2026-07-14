@@ -3,6 +3,11 @@ import { hashRequest } from "@/lib/utils";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
 import type { ScanDeviceProfile } from "@/lib/maps/scan-profiles";
 import { buildBrightDataMapsUrl } from "@/lib/providers/brightdata/url";
+import {
+  estimateProviderCost,
+  fetchWithTimeout,
+  providerTimeoutMs,
+} from "@/lib/providers/fetch-with-timeout";
 
 function getApiKey(): string {
   const key = process.env.BRIGHTDATA_API_KEY;
@@ -14,9 +19,11 @@ async function resolveBrightDataZone(): Promise<string> {
   const fromEnv = process.env.BRIGHTDATA_ZONE ?? process.env.BRIGHTDATA_SERP_ZONE;
   if (fromEnv?.trim()) return fromEnv.trim();
 
-  const res = await fetch("https://api.brightdata.com/zone/get_active_zones", {
-    headers: { Authorization: `Bearer ${getApiKey()}` },
-  });
+  const res = await fetchWithTimeout(
+    "https://api.brightdata.com/zone/get_active_zones",
+    { headers: { Authorization: `Bearer ${getApiKey()}` } },
+    { provider: "brightdata", timeoutMs: providerTimeoutMs("brightdata", 15_000), label: "zones" }
+  );
   if (res.ok) {
     const zones = (await res.json()) as Array<{ name?: string; type?: string }>;
     const serp = zones.find((z) => /serp|unlocker/i.test(z.type ?? "") || /serp/i.test(z.name ?? ""));
@@ -70,6 +77,7 @@ async function logBrightDataRun(params: {
   response: unknown;
   statusCode: number;
   latencyMs: number;
+  costEstimate?: number;
 }): Promise<void> {
   try {
     const supabase = createServiceClient();
@@ -81,6 +89,7 @@ async function logBrightDataRun(params: {
       request_hash: requestHash,
       status_code: params.statusCode,
       latency_ms: params.latencyMs,
+      cost_estimate: params.costEstimate ?? null,
       raw_request_json: params.request,
       raw_response_json: params.response as Record<string, unknown>,
     });
@@ -148,14 +157,22 @@ export async function mapsSearchAtCoordinate(params: {
     data_format: "parsed_light" as const,
   };
 
-  const res = await fetch("https://api.brightdata.com/request", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${getApiKey()}`,
-      "Content-Type": "application/json",
+  const res = await fetchWithTimeout(
+    "https://api.brightdata.com/request",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${getApiKey()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
     },
-    body: JSON.stringify(requestBody),
-  });
+    {
+      provider: "brightdata",
+      timeoutMs: providerTimeoutMs("brightdata", 45_000),
+      label: "mapsSearchAtCoordinate",
+    }
+  );
 
   const text = await res.text();
   const latencyMs = Date.now() - start;
@@ -173,6 +190,7 @@ export async function mapsSearchAtCoordinate(params: {
     response: parsed,
     statusCode: res.status,
     latencyMs,
+    costEstimate: estimateProviderCost("brightdata"),
   });
 
   if (!res.ok) {
