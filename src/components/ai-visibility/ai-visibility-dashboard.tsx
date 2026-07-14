@@ -383,7 +383,6 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
         <AiVisibilityRunHistoryTab
           runs={data?.runs ?? []}
           visibilityTrend={data?.visibilityTrend ?? []}
-          engineResults={data?.engineResults ?? []}
           onSelectRun={(id) => {
             selectRun(id);
             setTab("dashboard");

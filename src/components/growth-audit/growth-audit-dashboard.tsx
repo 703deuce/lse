@@ -136,15 +136,20 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
   useEffect(() => {
     if (runStatus !== "extended_running" && runStatus !== "running") return;
     const id = setInterval(async () => {
-      const res = await fetch(`/api/growth-audit/${businessId}/status`);
-      const json = await res.json();
-      if (json.status) {
-        setRunStatus(json.status);
-        setExtended(json.extended ?? {});
-        setProgressStage(json.progressStage);
-        if (json.status === "complete" || json.status === "core_ready") {
-          void load();
+      try {
+        const res = await fetch(`/api/growth-audit/${businessId}/status`);
+        const json = await res.json();
+        if (!res.ok) return;
+        if (json.status) {
+          setRunStatus(json.status);
+          setExtended(json.extended ?? {});
+          setProgressStage(json.progressStage);
+          if (json.status === "complete" || json.status === "core_ready") {
+            void load();
+          }
         }
+      } catch {
+        /* soft-fail poll */
       }
     }, 5000);
     return () => clearInterval(id);

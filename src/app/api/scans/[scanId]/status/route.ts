@@ -38,7 +38,7 @@ export async function GET(
     const { data: batch } = await supabase
       .from("scan_batches")
       .select(
-        "id, business_id, status, scan_type, grid_size, radius_meters, device, os, provider, started_at, finished_at, confidence_summary, aggregate_metrics, error_message, created_at, updated_at, cells_completed, cells_total, cells_failed, lease_expires_at, lease_owner, enrichment_status"
+        "id, business_id, status, scan_type, grid_size, radius_meters, device, os, browser, provider, started_at, finished_at, confidence_summary, aggregate_metrics, error_message, created_at, updated_at, cells_completed, cells_total, cells_failed, lease_expires_at, lease_owner, enrichment_status, center_lat, center_lng, center_label"
       )
       .eq("id", scanId)
       .single();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { SetupMap } from "@/components/maps/setup-map";
 import { ScanSetupForm, defaultScanSetupValues } from "@/components/scan/scan-setup-form";
@@ -9,6 +9,7 @@ import { AccountPlanUsageCard } from "@/components/settings/account-plan-usage-c
 export function SettingsClient({
   businessId,
   business,
+  initialWeeklyEnabled = false,
 }: {
   businessId: string;
   business: {
@@ -21,21 +22,51 @@ export function SettingsClient({
     lat: number | null;
     lng: number | null;
   };
+  initialWeeklyEnabled?: boolean;
 }) {
   const [center, setCenter] = useState<[number, number]>([
     business.scan_center_lat ?? business.lat ?? 40.7128,
     business.scan_center_lng ?? business.lng ?? -74.006,
   ]);
-  const [weeklyEnabled, setWeeklyEnabled] = useState(false);
+  const [weeklyEnabled, setWeeklyEnabled] = useState(initialWeeklyEnabled);
+  const [weeklySaving, setWeeklySaving] = useState(false);
+  const [weeklyError, setWeeklyError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const res = await fetch(`/api/schedule?businessId=${businessId}`);
+        const json = await res.json();
+        if (!active) return;
+        if (res.ok) setWeeklyEnabled(Boolean(json.enabled));
+      } catch {
+        /* ignore hydrate failures — keep initial */
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [businessId]);
 
   async function toggleWeekly() {
     const next = !weeklyEnabled;
-    setWeeklyEnabled(next);
-    await fetch("/api/schedule", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ businessId, enabled: next }),
-    });
+    setWeeklySaving(true);
+    setWeeklyError(null);
+    try {
+      const res = await fetch("/api/schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId, enabled: next }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to update schedule");
+      setWeeklyEnabled(Boolean(json.enabled));
+    } catch (err) {
+      setWeeklyError(err instanceof Error ? err.message : "Failed to update schedule");
+    } finally {
+      setWeeklySaving(false);
+    }
   }
 
   return (
@@ -92,11 +123,13 @@ export function SettingsClient({
         <p className="mt-1 text-sm leading-relaxed text-zinc-500">Automatically re-run your baseline scan every week to track ranking changes over time.</p>
         <button
           type="button"
-          onClick={toggleWeekly}
-          className="mt-4 rounded-lg border border-zinc-200 px-4 py-2 text-sm transition hover:bg-zinc-50"
+          onClick={() => void toggleWeekly()}
+          disabled={weeklySaving}
+          className="mt-4 rounded-lg border border-zinc-200 px-4 py-2 text-sm transition hover:bg-zinc-50 disabled:opacity-60"
         >
-          {weeklyEnabled ? "Disable" : "Enable"} weekly scan
+          {weeklySaving ? "Saving…" : weeklyEnabled ? "Disable" : "Enable"} weekly scan
         </button>
+        {weeklyError && <p className="mt-2 text-sm text-red-600">{weeklyError}</p>}
       </section>
 
       <section className="mt-8 rounded-xl border border-amber-200 bg-amber-50 p-5">

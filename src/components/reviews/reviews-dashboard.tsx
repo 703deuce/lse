@@ -116,6 +116,8 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
         onRunMomentum={() => void runMomentum()}
       />
 
+      {error && <AlertBanner variant="error">{error}</AlertBanner>}
+
       {data.syncState.needsRun && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[13px] text-amber-900">
           {data.syncState.message}{" "}

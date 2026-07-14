@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/context";
+import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 
 export async function PATCH(
@@ -8,15 +8,21 @@ export async function PATCH(
 ) {
   try {
     const { taskId } = await params;
-    const auth = await requireAuth();
     const body = await request.json();
-    const status = (body as { status?: string }).status ?? "done";
+    const status = (body as { status?: string; businessId?: string }).status ?? "done";
+    const businessId = (body as { businessId?: string }).businessId;
 
+    if (!businessId) {
+      return NextResponse.json({ error: "businessId required" }, { status: 400 });
+    }
+
+    const auth = await requireBusinessAccess(businessId);
     const supabase = createServiceClient();
     const { data: task } = await supabase
       .from("review_momentum_tasks")
-      .select("*")
+      .select("id")
       .eq("id", taskId)
+      .eq("business_id", businessId)
       .eq("organization_id", auth.organizationId)
       .maybeSingle();
 
@@ -28,6 +34,7 @@ export async function PATCH(
       .from("review_momentum_tasks")
       .update({ status })
       .eq("id", taskId)
+      .eq("business_id", businessId)
       .select("*")
       .single();
 

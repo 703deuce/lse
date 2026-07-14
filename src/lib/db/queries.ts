@@ -29,6 +29,7 @@ export async function getLatestScan(businessId: string) {
     .from("scan_batches")
     .select("*")
     .eq("business_id", businessId)
+    .in("status", ["ready", "partial", "rank_ready"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

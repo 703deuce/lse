@@ -201,6 +201,18 @@ export async function runGrowthAudit(params: {
 
 export async function loadLatestGrowthAudit(businessId: string): Promise<GrowthAuditRunRow | null> {
   const supabase = createServiceClient();
+  // Prefer newest usable audit (has sections). A failed/blank latest must not hide prior good runs.
+  const { data: usable } = await supabase
+    .from("growth_audit_runs")
+    .select("*")
+    .eq("business_id", businessId)
+    .not("sections_json", "is", null)
+    .neq("status", "failed")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (usable) return usable as GrowthAuditRunRow;
+
   const { data } = await supabase
     .from("growth_audit_runs")
     .select("*")

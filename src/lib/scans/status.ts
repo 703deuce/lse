@@ -54,10 +54,13 @@ export function hasCellsPending(batch: {
   cells_total?: number | null;
   confidence_summary?: Record<string, unknown> | null;
 }): boolean {
+  // Only while cells are actively being fetched — not after ready/partial
+  // (failed cells leave completed < total forever and must not spin the poller).
+  if (!areCellsInFlight(batch.status ?? null)) return false;
   const conf = (batch.confidence_summary ?? {}) as Record<string, unknown>;
   const completed = Number(batch.cells_completed ?? conf.completed_cells ?? 0);
   const total = Number(batch.cells_total ?? conf.total_cells ?? 0);
-  return isMapRenderable(batch.status ?? null) && total > 0 && completed < total;
+  return total > 0 && completed < total;
 }
 
 export function isEnrichmentRunning(batch: {
