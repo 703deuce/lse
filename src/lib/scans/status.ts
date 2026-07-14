@@ -40,21 +40,58 @@ export function isMapRenderable(status: string | null | undefined): boolean {
   return status ? MAP_RENDERABLE_STATUSES.has(status) : false;
 }
 
+export function areCellsInFlight(status: string | null | undefined): boolean {
+  return status ? CELLS_IN_FLIGHT_STATUSES.has(status) : false;
+}
+
+function cellCounters(batch: {
+  cells_completed?: number | null;
+  cells_total?: number | null;
+  cells_failed?: number | null;
+  confidence_summary?: Record<string, unknown> | null;
+}): { completed: number; total: number; failed: number } {
+  const conf = (batch.confidence_summary ?? {}) as Record<string, unknown>;
+  return {
+    completed: Number(batch.cells_completed ?? conf.completed_cells ?? 0),
+    total: Number(batch.cells_total ?? conf.total_cells ?? 0),
+    failed: Number(batch.cells_failed ?? conf.failed_cells ?? 0),
+  };
+}
+
+/**
+ * Soft-ready promotes to rank_ready while trailing cells retry.
+ * Keep the UI poller alive until completed catches up to total (final pass
+ * always writes cells_completed = total, even when some points permanently fail).
+ */
+export function hasTrailingCellsSettling(batch: {
+  status?: string | null;
+  cells_completed?: number | null;
+  cells_total?: number | null;
+  cells_failed?: number | null;
+  confidence_summary?: Record<string, unknown> | null;
+}): boolean {
+  const status = batch.status ?? null;
+  if (!status || !isMapRenderable(status)) return false;
+  if (areCellsInFlight(status)) return false;
+  const { completed, total } = cellCounters(batch);
+  return total > 0 && completed < total;
+}
+
 export function shouldPollScan(
   status: string | null | undefined,
   batch?: {
     cells_completed?: number | null;
     cells_total?: number | null;
+    cells_failed?: number | null;
     confidence_summary?: Record<string, unknown> | null;
   }
 ): boolean {
   if (status && SCAN_POLL_STATUSES.has(status)) return true;
   if (batch && hasCellsPending({ status, ...batch })) return true;
+  // Soft-ready → rank_ready while 1–3 edge cells retry; keep polling so the
+  // map picks up recovered results instead of leaving those bubbles gray.
+  if (batch && hasTrailingCellsSettling({ status, ...batch })) return true;
   return false;
-}
-
-export function areCellsInFlight(status: string | null | undefined): boolean {
-  return status ? CELLS_IN_FLIGHT_STATUSES.has(status) : false;
 }
 
 export function hasCellsPending(batch: {
@@ -66,9 +103,7 @@ export function hasCellsPending(batch: {
   // Only while cells are actively being fetched — not after ready/partial
   // (failed cells leave completed < total forever and must not spin the poller).
   if (!areCellsInFlight(batch.status ?? null)) return false;
-  const conf = (batch.confidence_summary ?? {}) as Record<string, unknown>;
-  const completed = Number(batch.cells_completed ?? conf.completed_cells ?? 0);
-  const total = Number(batch.cells_total ?? conf.total_cells ?? 0);
+  const { completed, total } = cellCounters(batch);
   return total > 0 && completed < total;
 }
 

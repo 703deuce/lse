@@ -156,8 +156,18 @@ export async function finalizeRankReady(
     sparse_point_ids: sparsePointIds,
     sparse_cells: sparsePointIds.length,
   };
-  if (Array.isArray(conf.failed_point_ids)) {
-    confidencePatch.failed_point_ids = conf.failed_point_ids;
+  // Only keep failed_point_ids that still have no saved result — soft-ready can
+  // race with trailing retries that already recovered cells.
+  const resultPointIds = new Set(
+    (results ?? []).map((r) => r.scan_point_id as string).filter(Boolean)
+  );
+  const rawFailedIds = Array.isArray(conf.failed_point_ids)
+    ? (conf.failed_point_ids as string[])
+    : [];
+  const stillFailedIds = rawFailedIds.filter((id) => id && !resultPointIds.has(id));
+  confidencePatch.failed_point_ids = stillFailedIds;
+  if (stillFailedIds.length !== actualFailed) {
+    confidencePatch.failed_cells = stillFailedIds.length;
   }
   if (hasEmptyProviderData) {
     confidencePatch.provider_error =

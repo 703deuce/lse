@@ -35,6 +35,7 @@ import { CompetitorGridToggle, type EntityOption } from "@/components/scan/compe
 import {
   areCellsInFlight,
   hasCellsPending,
+  hasTrailingCellsSettling,
   isEnrichmentRunning,
   scanProgressMessage,
   shouldPollScan,
@@ -274,15 +275,24 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
           }
         }
         const status = json.batch?.status as string;
-        if (
-          shouldPollScan(status, {
-            cells_completed: json.batch?.cells_completed as number | null | undefined,
-            cells_total: json.batch?.cells_total as number | null | undefined,
-            confidence_summary: (json.batch?.confidence_summary ?? null) as Record<string, unknown> | null,
-          })
-        ) {
+        const batchPoll = {
+          cells_completed: json.batch?.cells_completed as number | null | undefined,
+          cells_total: json.batch?.cells_total as number | null | undefined,
+          cells_failed: json.batch?.cells_failed as number | null | undefined,
+          confidence_summary: (json.batch?.confidence_summary ?? null) as Record<
+            string,
+            unknown
+          > | null,
+        };
+        // Also keep polling when the soft-ready map is up but some bubbles are still
+        // missing results (retries land in scan_results without always bumping status).
+        const missingResults =
+          (json.points?.length ?? 0) > 0 &&
+          (json.results?.length ?? 0) < (json.points?.length ?? 0) &&
+          hasTrailingCellsSettling({ status, ...batchPoll });
+        if (shouldPollScan(status, batchPoll) || missingResults) {
           const cellsInFlight = areCellsInFlight(status);
-          scheduleNext(cellsInFlight ? 1500 : 3000);
+          scheduleNext(cellsInFlight ? 1500 : 2000);
         }
       } catch (err) {
         if (!active) return;
@@ -403,9 +413,22 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
     failedPointIds.size,
     Number(batch?.cells_failed ?? confidence.failed_cells ?? 0)
   );
-  // Missing results stay pending until saved — do not treat retry failures as settled.
+  const batchCellsCompleted = Number(batch?.cells_completed ?? confidence.completed_cells ?? 0);
+  const trailingSettling = hasTrailingCellsSettling({
+    status: batchStatus,
+    cells_completed: batch?.cells_completed as number | null | undefined,
+    cells_total: batch?.cells_total as number | null | undefined,
+    cells_failed: batch?.cells_failed as number | null | undefined,
+    confidence_summary: (batch?.confidence_summary ?? null) as Record<string, unknown> | null,
+  });
+  // Missing results stay pending only while cells are still expected to land.
+  // Once cells_completed catches total (final pass), stop treating gaps as "loading"
+  // so permanent failures don't leave forever-gray bubbles.
   const cellsStillLoading =
-    totalGridCells > 0 && loadedCells < totalGridCells && batchStatus !== "failed";
+    totalGridCells > 0 &&
+    loadedCells < totalGridCells &&
+    batchStatus !== "failed" &&
+    (cellsInFlight || trailingSettling);
   const cellsPending =
     hasCellsPending({
       status: batchStatus,
@@ -420,9 +443,8 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
   const scanActive =
     cellsInFlight ||
     cellsStillLoading ||
+    trailingSettling ||
     (cellsPending && batchStatus !== "failed");
-
-  const batchCellsCompleted = Number(batch?.cells_completed ?? confidence.completed_cells ?? 0);
 
   const progressMessage = scanProgressMessage({
     status: batchStatus,

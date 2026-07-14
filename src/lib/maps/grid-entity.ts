@@ -255,12 +255,16 @@ export function buildEntityGridCells(
   const resultByPoint = new Map(deduped.map((r) => [r.scan_point_id, r]));
   const useTargetRank = entity.isTarget;
 
+  const scanActive = options?.scanActive !== false;
+  const failedPointIds = options?.failedPointIds;
+
   return points.map((p) => {
     const { row, col } = parseGridLabel(p.grid_label);
     const result = resultByPoint.get(p.id);
     const hasResult = result != null;
-    // Never show ✕ — cells retry in the background; show pending until a result lands.
-    const failed = false;
+    // While scanning/retrying: never paint ✕ — keep pending until a result lands.
+    // After settle: mark confirmed failures (no saved result) so they don't look "stuck".
+    const failed = !hasResult && !scanActive && !!failedPointIds?.has(p.id);
     let rank: number | null = null;
     let matchReason: string | null = null;
     let notInResults = false;
@@ -287,7 +291,7 @@ export function buildEntityGridCells(
       row,
       col,
       rank,
-      pending: !hasResult && (options?.scanActive !== false),
+      pending: !hasResult && !failed && scanActive,
       failed,
       notInResults: hasResult && notInResults,
       matchReason,
