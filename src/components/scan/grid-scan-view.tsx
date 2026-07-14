@@ -39,8 +39,7 @@ import {
   isEnrichmentRunning,
   isScanMapReady,
   scanProgressMessage,
-  shouldPollForMapReveal,
-  shouldPollScan,
+  shouldPollUntilMapReady,
 } from "@/lib/scans/status";
 import { RankByDistanceCard } from "@/components/maps/rank-by-distance-card";
 import { ScanTimelineSlider, type TimelineMode } from "@/components/scan/scan-timeline-slider";
@@ -265,22 +264,16 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
         scanDataCache.set(scanCacheKey(activeScanId, keywordId), json);
         setData(json);
         setTimelineFetching(false);
-        const batchKw = (json.batch?.confidence_summary as { keyword_ids?: string[] } | undefined)
-          ?.keyword_ids?.[0];
-        if (!keywordId) {
-          if (batchKw) {
-            setKeywordId(batchKw as string);
-          } else if (json.primaryKeywordId) {
-            setKeywordId(json.primaryKeywordId as string);
-          } else if (json.scanKeywordId) {
-            setKeywordId(json.scanKeywordId);
-          }
-        }
+        // Do not setKeywordId from poll results — remounting this effect (keywordId dep)
+        // can abort the poll that would have revealed the finished map.
         const status = json.batch?.status as string;
         const batchPoll = {
+          status,
           cells_completed: json.batch?.cells_completed as number | null | undefined,
           cells_total: json.batch?.cells_total as number | null | undefined,
           cells_failed: json.batch?.cells_failed as number | null | undefined,
+          finished_at: (json.batch?.finished_at as string | null | undefined) ?? null,
+          rank_ready_at: (json.batch?.rank_ready_at as string | null | undefined) ?? null,
           confidence_summary: (json.batch?.confidence_summary ?? null) as Record<
             string,
             unknown
@@ -288,14 +281,9 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
         };
         const pointsLen = json.points?.length ?? 0;
         const resultsLen = json.results?.length ?? 0;
-        // Critical: rank_ready alone used to stop the poller while results were still
-        // catching up — UI stayed on "Scan running" forever after the batch finished.
-        if (
-          shouldPollScan(status, batchPoll) ||
-          shouldPollForMapReveal(status, resultsLen, pointsLen)
-        ) {
-          const cellsInFlight = areCellsInFlight(status);
-          scheduleNext(cellsInFlight ? 1500 : 2000);
+        // Same condition as the wait UI: never stop until the map is ready to show.
+        if (shouldPollUntilMapReady(batchPoll, resultsLen, pointsLen)) {
+          scheduleNext(areCellsInFlight(status) ? 1500 : 2000);
         }
       } catch (err) {
         if (!active) return;
@@ -450,24 +438,22 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
     (cellsPending && batchStatus !== "failed");
 
   // Hold the rank map until every cell has finished (incl. retries). No partial maps.
+  // Poller uses this same helper — do not invent a second "done" definition.
   const mapReady = isScanMapReady(
     {
       status: batchStatus,
       cells_completed: batch?.cells_completed as number | null | undefined,
       cells_total: batch?.cells_total as number | null | undefined,
       cells_failed: batch?.cells_failed as number | null | undefined,
+      finished_at: (batch?.finished_at as string | null | undefined) ?? null,
+      rank_ready_at: (batch?.rank_ready_at as string | null | undefined) ?? null,
       confidence_summary: (batch?.confidence_summary ?? null) as Record<string, unknown> | null,
     },
     loadedCells,
     totalGridCells
   );
   const waitingForMap =
-    !!batch &&
-    batchStatus !== "failed" &&
-    !mapReady &&
-    (scanActive ||
-      areCellsInFlight(batchStatus) ||
-      (totalGridCells > 0 && loadedCells < totalGridCells));
+    !!batch && batchStatus !== "failed" && !mapReady && totalGridCells > 0;
 
   const progressMessage = scanProgressMessage({
     status: batchStatus,
