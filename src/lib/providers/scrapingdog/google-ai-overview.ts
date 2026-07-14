@@ -30,7 +30,7 @@ function flattenTextBlocks(textBlocks: unknown): string {
   return parts.join("\n\n").slice(0, 12_000);
 }
 
-function referencesFromList(refs: unknown): Array<{ url?: string; label?: string }> {
+function referencesFromList(refs: unknown): Array<{ url?: string; label?: string; position?: number }> {
   if (!Array.isArray(refs)) return [];
   return refs
     .map((r, i) => {
@@ -70,31 +70,36 @@ function extractInlineAiOverview(raw: Record<string, unknown>): Record<string, u
   return null;
 }
 
-function findAiOverviewFetchUrl(raw: unknown, depth = 0): string | null {
-  if (depth > 14 || raw == null) return null;
-  if (typeof raw === "string") {
-    if (!raw.startsWith("http")) return null;
-    if (/vertexaisearch|\/async=_rpc|ai_overview/i.test(raw) && raw.length < 4000) return raw;
-    return null;
+/** Prefer ScrapingDog's ready-made link, then Google's async URL from the ai_overview stub. */
+function resolveAiOverviewFetchTarget(serpRaw: Record<string, unknown>): {
+  kind: "scrapingdog_link" | "google_url";
+  value: string;
+} | null {
+  const aio = serpRaw.ai_overview ?? serpRaw.aiOverview;
+  if (!isRecord(aio)) return null;
+
+  const scrapingdogLink =
+    typeof aio.scrapingdog_link === "string"
+      ? aio.scrapingdog_link
+      : typeof aio.scrapingdogLink === "string"
+        ? aio.scrapingdogLink
+        : null;
+  if (scrapingdogLink?.startsWith("http")) {
+    return { kind: "scrapingdog_link", value: scrapingdogLink };
   }
-  if (Array.isArray(raw)) {
-    for (const el of raw) {
-      const f = findAiOverviewFetchUrl(el, depth + 1);
-      if (f) return f;
-    }
-    return null;
+
+  const googleUrl =
+    typeof aio.url === "string"
+      ? aio.url
+      : typeof aio.ai_overview_url === "string"
+        ? aio.ai_overview_url
+        : typeof aio.aiOverviewUrl === "string"
+          ? aio.aiOverviewUrl
+          : null;
+  if (googleUrl?.startsWith("http")) {
+    return { kind: "google_url", value: googleUrl };
   }
-  if (!isRecord(raw)) return null;
-  const preferKeys = ["ai_overview_link", "ai_overview_url", "aiOverviewLink", "ai_overview_page_url"];
-  for (const k of preferKeys) {
-    const v = raw[k];
-    if (typeof v === "string" && v.startsWith("http")) return v;
-  }
-  for (const [k, v] of Object.entries(raw)) {
-    if (typeof v === "string" && v.startsWith("http") && /overview|vertexai|ai_overview/i.test(k)) return v;
-    const nested = findAiOverviewFetchUrl(v, depth + 1);
-    if (nested) return nested;
-  }
+
   return null;
 }
 
@@ -102,14 +107,20 @@ async function fetchGoogleSerp(query: string, organizationId?: string): Promise<
   const apiKey = getApiKey();
   if (!apiKey) throw new Error("SCRAPINGDOG_API_KEY is not configured");
 
+  // advance_search is required for reliable AI Overview payloads (inline or fallback stub).
   const url = new URL("https://api.scrapingdog.com/google");
   url.searchParams.set("api_key", apiKey);
   url.searchParams.set("query", query.slice(0, 400));
   url.searchParams.set("country", "us");
   url.searchParams.set("language", "en");
+  url.searchParams.set("advance_search", "true");
 
   const start = Date.now();
-  const res = await fetch(url.toString(), { headers: { Accept: "application/json" }, cache: "no-store" });
+  const res = await fetch(url.toString(), {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+    signal: AbortSignal.timeout(60_000),
+  });
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   const latencyMs = Date.now() - start;
 
@@ -117,7 +128,7 @@ async function fetchGoogleSerp(query: string, organizationId?: string): Promise<
     organizationId,
     provider: "scrapingdog",
     endpoint: "google",
-    request: { query },
+    request: { query, advance_search: true },
     response: data,
     statusCode: res.status,
     latencyMs,
@@ -129,7 +140,7 @@ async function fetchGoogleSerp(query: string, organizationId?: string): Promise<
   return data;
 }
 
-async function fetchAiOverviewByUrl(fetchUrl: string, organizationId?: string): Promise<Record<string, unknown>> {
+async function fetchAiOverviewByGoogleUrl(fetchUrl: string, organizationId?: string): Promise<Record<string, unknown>> {
   const apiKey = getApiKey();
   if (!apiKey) throw new Error("SCRAPINGDOG_API_KEY is not configured");
 
@@ -138,7 +149,11 @@ async function fetchAiOverviewByUrl(fetchUrl: string, organizationId?: string): 
   url.searchParams.set("url", fetchUrl);
 
   const start = Date.now();
-  const res = await fetch(url.toString(), { headers: { Accept: "application/json" }, cache: "no-store" });
+  const res = await fetch(url.toString(), {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+    signal: AbortSignal.timeout(60_000),
+  });
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   const latencyMs = Date.now() - start;
 
@@ -158,6 +173,36 @@ async function fetchAiOverviewByUrl(fetchUrl: string, organizationId?: string): 
   return data;
 }
 
+async function fetchAiOverviewByScrapingDogLink(
+  scrapingdogLink: string,
+  organizationId?: string
+): Promise<Record<string, unknown>> {
+  const start = Date.now();
+  // scrapingdog_link already includes api_key + url — call it as-is.
+  const res = await fetch(scrapingdogLink, {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+    signal: AbortSignal.timeout(60_000),
+  });
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  const latencyMs = Date.now() - start;
+
+  await logProviderRun({
+    organizationId,
+    provider: "scrapingdog",
+    endpoint: "google/ai_overview (scrapingdog_link)",
+    request: { scrapingdog_link: scrapingdogLink.slice(0, 200) },
+    response: data,
+    statusCode: res.status,
+    latencyMs,
+  });
+
+  if (!res.ok) {
+    throw new Error(String(data.message ?? data.error ?? `ScrapingDog ai_overview link ${res.status}`));
+  }
+  return data;
+}
+
 export type GoogleAiOverviewResult = {
   text: string;
   sources: Array<{ url?: string; label?: string; position?: number }>;
@@ -165,14 +210,20 @@ export type GoogleAiOverviewResult = {
   hasAiOverview: boolean;
 };
 
-export async function fetchGoogleAiOverview(params: {
+export type GoogleAiOverviewOutcome =
+  | { ok: true; result: GoogleAiOverviewResult }
+  | { ok: false; error: string };
+
+export async function fetchGoogleAiOverviewDetailed(params: {
   query: string;
   organizationId?: string;
-}): Promise<GoogleAiOverviewResult | null> {
-  if (!isScrapingDogGoogleAiConfigured()) return null;
+}): Promise<GoogleAiOverviewOutcome> {
+  if (!isScrapingDogGoogleAiConfigured()) {
+    return { ok: false, error: "SCRAPINGDOG_API_KEY not configured — required for Google AI Overview" };
+  }
 
   const q = params.query.trim().slice(0, 400);
-  if (!q) return null;
+  if (!q) return { ok: false, error: "Google AI Overview query is empty" };
 
   try {
     const serpRaw = await fetchGoogleSerp(q, params.organizationId);
@@ -180,21 +231,44 @@ export async function fetchGoogleAiOverview(params: {
     if (inline) {
       const parsed = buildOverviewPayload(inline);
       if (parsed.text || parsed.sources.length) {
-        return { ...parsed, fanouts: [], hasAiOverview: true };
+        return {
+          ok: true,
+          result: { ...parsed, fanouts: [], hasAiOverview: true },
+        };
       }
     }
 
-    const fetchUrl = findAiOverviewFetchUrl(serpRaw);
-    if (!fetchUrl) {
-      return { text: "", sources: [], fanouts: [], hasAiOverview: false };
+    const target = resolveAiOverviewFetchTarget(serpRaw);
+    if (!target) {
+      return {
+        ok: true,
+        result: { text: "", sources: [], fanouts: [], hasAiOverview: false },
+      };
     }
 
-    const detail = await fetchAiOverviewByUrl(fetchUrl, params.organizationId);
-    const inner = (detail.ai_overview as Record<string, unknown>) ?? detail;
+    const detail =
+      target.kind === "scrapingdog_link"
+        ? await fetchAiOverviewByScrapingDogLink(target.value, params.organizationId)
+        : await fetchAiOverviewByGoogleUrl(target.value, params.organizationId);
+
+    const inner = isRecord(detail.ai_overview)
+      ? (detail.ai_overview as Record<string, unknown>)
+      : isRecord(detail.aiOverview)
+        ? (detail.aiOverview as Record<string, unknown>)
+        : detail;
     const parsed = buildOverviewPayload(inner);
     const hasAiOverview = Boolean(parsed.text || parsed.sources.length);
-    return { ...parsed, fanouts: [], hasAiOverview };
-  } catch {
-    return null;
+    return { ok: true, result: { ...parsed, fanouts: [], hasAiOverview } };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "ScrapingDog AI Overview request failed";
+    return { ok: false, error: message };
   }
+}
+
+export async function fetchGoogleAiOverview(params: {
+  query: string;
+  organizationId?: string;
+}): Promise<GoogleAiOverviewResult | null> {
+  const outcome = await fetchGoogleAiOverviewDetailed(params);
+  return outcome.ok ? outcome.result : null;
 }

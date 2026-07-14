@@ -1,3 +1,4 @@
+import pLimit from "p-limit";
 import type { AiEngine } from "@/lib/ai-visibility/types";
 import {
   cloroMonitorDetailed,
@@ -5,11 +6,14 @@ import {
   type CloroMonitorResult,
 } from "@/lib/providers/cloro";
 import { groundedResearch } from "@/lib/providers/gemini";
-import { claudeWebSearch } from "@/lib/providers/anthropic";
+import { claudeWebSearchDetailed } from "@/lib/providers/anthropic";
 import {
-  fetchGoogleAiOverview,
+  fetchGoogleAiOverviewDetailed,
   isScrapingDogGoogleAiConfigured,
 } from "@/lib/providers/scrapingdog/google-ai-overview";
+
+/** Cloro sync monitors share plan concurrency — run one at a time across ChatGPT/Perplexity. */
+const cloroLimit = pLimit(1);
 
 export type EngineCheckResult = CloroMonitorResult | { error: string };
 
@@ -43,14 +47,16 @@ export async function checkAiEngine(params: {
     case "perplexity": {
       if (!isCloroConfigured()) {
         return {
-          error: "CLORO_API_KEY not configured — add to .env.local and restart dev server",
+          error: "CLORO_API_KEY not configured — add to .env.local / Coolify and restart",
         };
       }
-      const cloro = await cloroMonitorDetailed({
-        engine: params.engine,
-        prompt: params.prompt,
-        organizationId: params.organizationId,
-      });
+      const cloro = await cloroLimit(() =>
+        cloroMonitorDetailed({
+          engine: params.engine,
+          prompt: params.prompt,
+          organizationId: params.organizationId,
+        })
+      );
       if (cloro.ok) return cloroResult(cloro.result);
       return { error: cloro.error };
     }
@@ -80,19 +86,20 @@ export async function checkAiEngine(params: {
     }
 
     case "google_ai_overview": {
+      // Google AI Overview stays on ScrapingDog (not Cloro).
       if (!isScrapingDogGoogleAiConfigured()) {
         return {
           error: "SCRAPINGDOG_API_KEY not configured — required for Google AI Overview",
         };
       }
-      const aio = await fetchGoogleAiOverview({
+      const aio = await fetchGoogleAiOverviewDetailed({
         query: params.prompt,
         organizationId: params.organizationId,
       });
-      if (!aio) {
-        return { error: "Google AI Overview check failed (ScrapingDog)" };
+      if (!aio.ok) {
+        return { error: aio.error };
       }
-      if (!aio.hasAiOverview) {
+      if (!aio.result.hasAiOverview) {
         return directResult({
           text: "No AI Overview appeared for this query.",
           sources: [],
@@ -100,31 +107,28 @@ export async function checkAiEngine(params: {
         });
       }
       return directResult({
-        text: aio.text,
-        sources: aio.sources,
-        fanouts: aio.fanouts,
+        text: aio.result.text,
+        sources: aio.result.sources,
+        fanouts: aio.result.fanouts,
       });
     }
 
     case "claude": {
-      const claude = await claudeWebSearch({
+      // Claude stays on Anthropic Messages + web_search tool.
+      const claude = await claudeWebSearchDetailed({
         prompt: params.prompt,
         city: params.city,
         state: params.state,
         organizationId: params.organizationId,
       });
-      if (claude?.answer) {
+      if (claude.ok) {
         return directResult({
-          text: claude.answer,
-          sources: claude.sources,
-          fanouts: claude.fanouts,
+          text: claude.result.answer,
+          sources: claude.result.sources,
+          fanouts: claude.result.fanouts,
         });
       }
-      return {
-        error: process.env.ANTHROPIC_API_KEY?.trim()
-          ? "Claude check failed (Anthropic web search)"
-          : "Claude requires ANTHROPIC_API_KEY — add to .env.local and restart dev server",
-      };
+      return { error: claude.error };
     }
 
     default:
