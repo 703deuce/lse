@@ -6,6 +6,7 @@ import {
   countSentTodayInTz,
   isOnOrAfterStartDate,
   isWithinSendWindow,
+  ymdInTimeZone,
   type ScheduleConfig,
 } from "@/lib/reputation/campaign-scheduler";
 import { appendSmsOptOut } from "@/lib/reputation/phone";
@@ -71,7 +72,7 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
     }
 
     const config: ScheduleConfig = {
-      startDate: campaign.start_date ?? now.toISOString().slice(0, 10),
+      startDate: campaign.start_date ?? ymdInTimeZone(now, (campaign.timezone as string) || "America/New_York"),
       dailySendLimit: campaign.daily_send_limit,
       sendDays: campaign.send_days as number[],
       windowStart: campaign.send_window_start,

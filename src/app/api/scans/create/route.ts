@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/db/client";
 import { scheduleScanProcessing } from "@/lib/jobs/schedule-scan";
 import { createScanSchema } from "@/lib/validation/schemas";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
+import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
 import {
   gridMapCredits,
   PlanLimitError,
@@ -36,6 +37,36 @@ export async function POST(request: Request) {
     await reserveUsageOrThrow(auth.organizationId, "map_credits_used", creditsNeeded);
 
     const supabase = createServiceClient();
+
+    const [{ data: business }, { data: primaryKw }, { data: latestScan }] = await Promise.all([
+      supabase
+        .from("businesses")
+        .select("scan_center_lat, scan_center_lng, lat, lng, address_text")
+        .eq("id", businessId)
+        .maybeSingle(),
+      supabase
+        .from("business_keywords")
+        .select("id, keyword")
+        .eq("business_id", businessId)
+        .order("is_primary", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("scan_batches")
+        .select("center_lat, center_lng, center_label, location_id")
+        .eq("business_id", businessId)
+        .in("status", [...USABLE_SCAN_STATUSES])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    const centerLat =
+      latestScan?.center_lat ?? business?.scan_center_lat ?? business?.lat ?? null;
+    const centerLng =
+      latestScan?.center_lng ?? business?.scan_center_lng ?? business?.lng ?? null;
+    const centerLabel = latestScan?.center_label ?? business?.address_text ?? null;
+
     const { data: batch, error } = await supabase
       .from("scan_batches")
       .insert({
@@ -48,10 +79,19 @@ export async function POST(request: Request) {
         os,
         browser,
         provider: "brightdata",
+        location_id: latestScan?.location_id ?? null,
+        center_lat: centerLat,
+        center_lng: centerLng,
+        center_label: centerLabel,
         confidence_summary: {
           ...PARITY_SUMMARY,
           scan_profile: { device, os, browser },
           ...(parityLabel ? { parity_profile: parityLabel } : {}),
+          // Scope baseline Settings scans to the primary keyword — otherwise
+          // processScanBatch fans out to every keyword for the same credit cost.
+          ...(primaryKw?.id
+            ? { keyword_ids: [primaryKw.id], keyword_label: primaryKw.keyword }
+            : {}),
         },
       })
       .select("*")
@@ -69,6 +109,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
     const message = err instanceof Error ? err.message : "Scan create failed";
-    return NextResponse.json({ error: message }, { status: 403 });
+    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

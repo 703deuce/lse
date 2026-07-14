@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, Fragment } from "react";
+import { useEffect, useMemo, useState, Fragment } from "react";
 import {
   Target,
   Flame,
@@ -87,6 +87,19 @@ export function GrowthAuditActionPlanTab({
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [bucketFilter, setBucketFilter] = useState("all");
   const [selectedTask, setSelectedTask] = useState<GrowthTask | null>(growthPlan.tasks[0] ?? null);
+
+  useEffect(() => {
+    setSelectedTask((prev) => {
+      if (!growthPlan.tasks.length) return null;
+      if (prev) {
+        const match = growthPlan.tasks.find(
+          (t) => t.title === prev.title && t.sourceSection === prev.sourceSection
+        );
+        if (match) return match;
+      }
+      return growthPlan.tasks[0] ?? null;
+    });
+  }, [growthPlan.tasks]);
 
   const filtered = useMemo(() => {
     return growthPlan.tasks.filter((t) => {

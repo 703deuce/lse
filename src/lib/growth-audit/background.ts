@@ -79,10 +79,19 @@ export async function runExtendedModulesInBackground(params: {
 
     await Promise.allSettled(tasks);
 
+    const moduleStatuses = [
+      extended.citations?.status,
+      extended.reputation?.status,
+      extended.backlinkGap?.status,
+      extended.keywords?.status,
+    ].filter(Boolean) as string[];
+    const allFailed = moduleStatuses.length > 0 && moduleStatuses.every((s) => s === "failed");
+
     await supabase
       .from("growth_audit_runs")
       .update({
-        status: "complete",
+        status: allFailed ? "failed" : "complete",
+        error_message: allFailed ? "All extended modules failed" : null,
         extended_json: extended,
         progress_stage: null,
         finished_at: new Date().toISOString(),

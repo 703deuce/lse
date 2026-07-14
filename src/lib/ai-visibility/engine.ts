@@ -459,11 +459,17 @@ export async function activatePrompt(params: {
     );
   }
 
-  await supabase
+  const { data: updated, error } = await supabase
     .from("ai_visibility_prompts")
     .update({ status: "active", updated_at: new Date().toISOString() })
     .eq("id", params.promptId)
-    .eq("business_id", params.businessId);
+    .eq("business_id", params.businessId)
+    .eq("organization_id", params.organizationId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!updated) throw new Error("Prompt not found or access denied");
 
   return loadAiVisibilityData(params.businessId);
 }
@@ -471,23 +477,35 @@ export async function activatePrompt(params: {
 export async function archivePrompt(params: {
   businessId: string;
   promptId: string;
+  organizationId?: string;
 }) {
   const supabase = createServiceClient();
-  const { data: prompt } = await supabase
+  let promptQuery = supabase
     .from("ai_visibility_prompts")
     .select("is_primary")
     .eq("id", params.promptId)
-    .single();
+    .eq("business_id", params.businessId);
+  if (params.organizationId) {
+    promptQuery = promptQuery.eq("organization_id", params.organizationId);
+  }
+  const { data: prompt } = await promptQuery.maybeSingle();
 
-  if (prompt?.is_primary) {
+  if (!prompt) throw new Error("Prompt not found or access denied");
+  if (prompt.is_primary) {
     throw new Error("Cannot archive the primary prompt. Set another prompt as primary first.");
   }
 
-  await supabase
+  let archiveQuery = supabase
     .from("ai_visibility_prompts")
     .update({ status: "archived", updated_at: new Date().toISOString() })
     .eq("id", params.promptId)
     .eq("business_id", params.businessId);
+  if (params.organizationId) {
+    archiveQuery = archiveQuery.eq("organization_id", params.organizationId);
+  }
+  const { data: archived, error } = await archiveQuery.select("id").maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!archived) throw new Error("Prompt not found or access denied");
 
   return loadAiVisibilityData(params.businessId);
 }

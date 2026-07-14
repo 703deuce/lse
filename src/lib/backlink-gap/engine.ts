@@ -980,16 +980,17 @@ export async function createBacklinkGapTasks(params: {
 export async function updateOpportunityStatus(
   opportunityId: string,
   status: "open" | "ignored" | "completed" | "spam",
-  businessId: string
+  businessId: string,
+  organizationId?: string
 ) {
   const supabase = createServiceClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("backlink_gap_opportunities")
     .update({ status })
     .eq("id", opportunityId)
-    .eq("business_id", businessId)
-    .select("id")
-    .maybeSingle();
+    .eq("business_id", businessId);
+  if (organizationId) query = query.eq("organization_id", organizationId);
+  const { data, error } = await query.select("id").maybeSingle();
 
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Opportunity not found or access denied");

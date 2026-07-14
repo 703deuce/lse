@@ -390,7 +390,8 @@ export async function loadReviewsPageData(businessId: string): Promise<ReviewsPa
       newReviews90dDelta,
       reviewGap,
       responseRate,
-      responseRateDelta: responseRate - priorResponseRate,
+      responseRateDelta:
+        targetPrior90.length === 0 ? null : responseRate - priorResponseRate,
       unanswered90d: unanswered.length,
       avgDaysWaiting,
       urgentCount,

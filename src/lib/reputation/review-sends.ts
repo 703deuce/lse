@@ -686,17 +686,7 @@ export async function handleBrevoInboundEmail(item: BrevoInboundItem) {
     match = data;
   }
 
-  if (!match && item.fromEmail) {
-    const { data: recentSends } = await supabase
-      .from("review_request_sends")
-      .select("id, organization_id, business_id, link_id, recipient_email, contact_id, created_at")
-      .eq("channel", "email")
-      .ilike("recipient_email", item.fromEmail)
-      .order("created_at", { ascending: false })
-      .limit(1);
-    match = recentSends?.[0] ?? null;
-  }
-
+  // Fail closed without a plus-addressed sendId — global email fallback can cross tenants.
   if (!match) {
     return { matched: false as const };
   }

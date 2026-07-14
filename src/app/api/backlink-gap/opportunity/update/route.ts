@@ -15,8 +15,8 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "opportunityId, businessId, and status required" }, { status: 400 });
     }
 
-    await requireBusinessAccess(businessId);
-    await updateOpportunityStatus(opportunityId, status, businessId);
+    const auth = await requireBusinessAccess(businessId);
+    await updateOpportunityStatus(opportunityId, status, businessId, auth.organizationId);
     return NextResponse.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to update opportunity";
