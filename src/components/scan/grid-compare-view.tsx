@@ -8,12 +8,10 @@ import {
   Download,
   Link2,
   Loader2,
-  Lock,
   Plus,
   Share2,
   Shield,
   Target,
-  TrendingDown,
   TrendingUp,
 } from "lucide-react";
 import { useCompareActive } from "@/components/dashboard/dashboard-context";
@@ -32,7 +30,7 @@ import {
   compareSelectClass,
   compareFieldLabel,
 } from "@/components/scan/grid-compare-ui";
-import { GridMetricCard } from "@/components/ui/metric-card";
+import { GridMetricCard, KpiRow } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 
 const ScanMap = dynamic(
@@ -477,10 +475,9 @@ export function GridCompareView({
 
           {summary && !loading && data && (
             <>
-              {/* KPI row */}
-              <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
+              {/* KPI row — keep deltas readable; drop redundant Top-3 % when SoLV is shown */}
+              <KpiRow cols={4} className="mb-3">
                 <GridMetricCard
-                  compact
                   label="Avg Rank Δ"
                   value={
                     isCompetitorMode
@@ -493,7 +490,7 @@ export function GridCompareView({
                     isCompetitorMode
                       ? "Your average"
                       : summary.avgRankDelta != null
-                        ? `↑ ${Math.abs(summary.avgRankDelta)} vs baseline`
+                        ? `${summary.avgRankDelta > 0 ? "↑" : "↓"} ${Math.abs(summary.avgRankDelta)} vs baseline`
                         : undefined
                   }
                   icon={BarChart3}
@@ -506,8 +503,8 @@ export function GridCompareView({
                   }
                 />
                 <GridMetricCard
-                  compact
-                  label="SOV Δ"
+                  variant="primary"
+                  label="SoLV Δ"
                   value={
                     isCompetitorMode
                       ? `${summary.solvA}%`
@@ -516,7 +513,7 @@ export function GridCompareView({
                   sub={
                     isCompetitorMode
                       ? "Your SoLV"
-                      : `↑ ${Math.abs(summary.solvDelta)}% vs baseline`
+                      : `${summary.solvDelta >= 0 ? "↑" : "↓"} ${Math.abs(summary.solvDelta)}% vs baseline`
                   }
                   icon={Target}
                   iconWrapClassName="bg-emerald-50"
@@ -524,62 +521,23 @@ export function GridCompareView({
                   trendPositive={!isCompetitorMode ? summary.solvDelta >= 0 : undefined}
                 />
                 <GridMetricCard
-                  compact
-                  label="Top 3 Δ"
-                  value={
-                    isCompetitorMode
-                      ? summary.top3CellsA
-                      : `${summary.top3Delta >= 0 ? "+" : ""}${summary.top3Delta}`
-                  }
-                  sub={
-                    isCompetitorMode
-                      ? "Your top 3 cells"
-                      : `↑ ${summary.top3Delta} vs baseline`
-                  }
-                  icon={TrendingUp}
-                  iconWrapClassName="bg-blue-50"
-                  iconClassName="text-blue-600"
-                  trendPositive={!isCompetitorMode ? summary.top3Delta >= 0 : undefined}
-                />
-                <GridMetricCard
-                  compact
-                  label="Improved cells"
+                  label="Improved"
                   value={summary.improvedCells}
-                  sub={`↑ ${summary.improvedCells} cells`}
+                  sub={`${summary.declinedCells} declined · ${summary.unchangedCells} same`}
                   icon={TrendingUp}
                   iconWrapClassName="bg-emerald-50"
                   iconClassName="text-emerald-600"
                   trendPositive
                 />
                 <GridMetricCard
-                  compact
-                  label="Declined cells"
-                  value={summary.declinedCells}
-                  sub={`↓ ${summary.declinedCells} cells`}
-                  icon={TrendingDown}
-                  iconWrapClassName="bg-red-50"
-                  iconClassName="text-red-600"
-                  trendPositive={false}
-                />
-                <GridMetricCard
-                  compact
-                  label="Unchanged cells"
-                  value={summary.unchangedCells}
-                  sub={`— ${summary.unchangedCells} cells`}
-                  icon={Lock}
-                  iconWrapClassName="bg-zinc-100"
-                  iconClassName="text-zinc-500"
-                />
-                <GridMetricCard
-                  compact
-                  label="Data coverage"
+                  label="Coverage"
                   value={`${dataCoverage}%`}
-                  sub={`${matchedCells - (summary.missingCells ?? 0)} / ${matchedCells} cells matched`}
+                  sub={`${matchedCells - (summary.missingCells ?? 0)} / ${matchedCells} matched`}
                   icon={Shield}
                   iconWrapClassName="bg-emerald-50"
                   iconClassName="text-emerald-600"
                 />
-              </div>
+              </KpiRow>
 
               <div className="space-y-3">
                 <div className="grid gap-3 xl:grid-cols-12">

@@ -7,9 +7,6 @@ import {
   Crosshair,
   Eye,
   GitCompare,
-  Grid3x3,
-  Layers,
-  ListOrdered,
   Loader2,
   MapPinned,
   Target,
@@ -17,7 +14,7 @@ import {
   Zap,
 } from "lucide-react";
 import { createBrowserClient } from "@/lib/db/client";
-import { GridMetricCard, StatusBadge } from "@/components/ui/metric-card";
+import { GridMetricCard, GridTopCellsGroup, KpiRow, StatusBadge } from "@/components/ui/metric-card";
 import { gridRankHeaderBtn, gridRankPageBg, gridRankPrimaryBtn } from "@/components/scan/grid-rank-ui";
 import { computeScanTrend, buildGridTopCompetitors, type ScanAggregateMetrics } from "@/lib/maps/grid";
 import { ScanSetupForm, defaultScanSetupValues } from "@/components/scan/scan-setup-form";
@@ -820,85 +817,63 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
             )}
 
             <div
-              className={`mb-3 grid grid-cols-2 gap-2 transition-opacity duration-300 sm:grid-cols-3 lg:grid-cols-7 ${
+              className={`mb-3 space-y-2 transition-opacity duration-300 ${
                 timelineFetching ? "opacity-70" : "opacity-100"
               }`}
             >
-              <GridMetricCard
-                compact
-                variant="primary"
-                label="SoLV (Top-3 Pack)"
-                value={`${solv}%`}
-                sub="Strict — map pack only"
-                icon={Target}
-                iconWrapClassName="bg-emerald-50"
-                iconClassName="text-emerald-600"
-              />
-              <GridMetricCard
-                compact
-                label="Weighted SoLV"
-                value={`${weightedSolv}%`}
-                sub="Partial credit 4–20"
-                icon={BarChart3}
-                iconWrapClassName="bg-emerald-50"
-                iconClassName="text-emerald-600"
-              />
-              <GridMetricCard
-                compact
-                label="Average Rank"
-                value={displayMetrics.averageRank ?? "—"}
-                sub={
-                  trend.avgRankDelta != null
-                    ? `↑ ${Math.abs(trend.avgRankDelta)} vs last`
-                    : undefined
-                }
-                trendPositive={trend.avgRankDelta != null ? trend.avgRankDelta > 0 : undefined}
-                icon={TrendingDown}
-                iconWrapClassName="bg-violet-50"
-                iconClassName="text-violet-600"
-              />
-              <GridMetricCard
-                compact
-                label="Top 3 Cells"
-                value={`${displayMetrics.top3Cells ?? 0} of ${displayMetrics.totalCells || totalGridCells}`}
-                icon={Grid3x3}
-                iconWrapClassName="bg-sky-50"
-                iconClassName="text-sky-600"
-              />
-              <GridMetricCard
-                compact
-                label="Top 10"
-                value={displayMetrics.top10Cells ?? 0}
-                sub={
-                  trend.top10Delta != null
-                    ? `${trend.top10Delta >= 0 ? "+" : ""}${trend.top10Delta} vs last`
-                    : "cells"
-                }
-                icon={ListOrdered}
-                iconWrapClassName="bg-sky-50"
-                iconClassName="text-sky-500"
-              />
-              <GridMetricCard
-                compact
-                label="Top 20"
-                value={displayMetrics.top20Cells ?? 0}
-                sub="cells"
-                icon={Layers}
-                iconWrapClassName="bg-blue-50"
-                iconClassName="text-blue-600"
-              />
-              <GridMetricCard
-                compact
-                label="Visibility"
-                value={`${displayMetrics.visibilityScore ?? 0}%`}
-                sub={
-                  trend.visibilityDelta != null
-                    ? `${trend.visibilityDelta >= 0 ? "+" : ""}${trend.visibilityDelta}% vs last`
-                    : undefined
-                }
-                icon={Eye}
-                iconWrapClassName="bg-emerald-50"
-                iconClassName="text-emerald-600"
+              <KpiRow cols={4}>
+                <GridMetricCard
+                  variant="primary"
+                  label="SoLV"
+                  value={`${solv}%`}
+                  sub="Top-3 map pack"
+                  icon={Target}
+                  iconWrapClassName="bg-emerald-50"
+                  iconClassName="text-emerald-600"
+                />
+                <GridMetricCard
+                  label="Avg Rank"
+                  value={displayMetrics.averageRank ?? "—"}
+                  sub={
+                    trend.avgRankDelta != null
+                      ? `${trend.avgRankDelta > 0 ? "↑" : "↓"} ${Math.abs(trend.avgRankDelta)} vs last`
+                      : undefined
+                  }
+                  trendPositive={trend.avgRankDelta != null ? trend.avgRankDelta > 0 : undefined}
+                  icon={TrendingDown}
+                  iconWrapClassName="bg-violet-50"
+                  iconClassName="text-violet-600"
+                />
+                <GridMetricCard
+                  label="Visibility"
+                  value={`${displayMetrics.visibilityScore ?? 0}%`}
+                  sub={
+                    trend.visibilityDelta != null
+                      ? `${trend.visibilityDelta >= 0 ? "+" : ""}${trend.visibilityDelta}% vs last`
+                      : "Top-10 share"
+                  }
+                  trendPositive={
+                    trend.visibilityDelta != null ? trend.visibilityDelta >= 0 : undefined
+                  }
+                  icon={Eye}
+                  iconWrapClassName="bg-emerald-50"
+                  iconClassName="text-emerald-600"
+                />
+                <GridMetricCard
+                  label="Weighted SoLV"
+                  value={`${weightedSolv}%`}
+                  sub="Partial credit 4–20"
+                  icon={BarChart3}
+                  iconWrapClassName="bg-emerald-50"
+                  iconClassName="text-emerald-600"
+                />
+              </KpiRow>
+              <GridTopCellsGroup
+                top3={displayMetrics.top3Cells ?? 0}
+                top10={displayMetrics.top10Cells ?? 0}
+                top20={displayMetrics.top20Cells ?? 0}
+                total={displayMetrics.totalCells || totalGridCells}
+                top10Delta={trend.top10Delta}
               />
             </div>
 
