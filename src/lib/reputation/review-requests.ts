@@ -350,12 +350,25 @@ export async function logReviewRequestEvent(params: {
   notes?: string | null;
 }) {
   const supabase = createServiceClient();
+
+  let linkId = params.linkId ?? null;
+  if (linkId) {
+    const { data: link } = await supabase
+      .from("review_request_links")
+      .select("id")
+      .eq("id", linkId)
+      .eq("business_id", params.businessId)
+      .eq("organization_id", params.organizationId)
+      .maybeSingle();
+    if (!link) throw new Error("Review link not found for this business");
+  }
+
   const { data, error } = await supabase
     .from("review_request_events")
     .insert({
       organization_id: params.organizationId,
       business_id: params.businessId,
-      link_id: params.linkId ?? null,
+      link_id: linkId,
       event_type: params.eventType,
       channel: params.channel ?? null,
       customer_name: params.customerName ?? null,

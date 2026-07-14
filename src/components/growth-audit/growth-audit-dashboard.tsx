@@ -137,7 +137,15 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
   }, [load]);
 
   useEffect(() => {
-    if (runStatus !== "extended_running" && runStatus !== "running") return;
+    // core_ready means extended modules were kicked off in the background —
+    // keep polling until complete/failed so the UI does not look stuck.
+    if (
+      runStatus !== "extended_running" &&
+      runStatus !== "running" &&
+      runStatus !== "core_ready"
+    ) {
+      return;
+    }
     const id = setInterval(async () => {
       try {
         const res = await fetch(`/api/growth-audit/${businessId}/status`);
@@ -147,7 +155,7 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
           setRunStatus(json.status);
           setExtended(json.extended ?? {});
           setProgressStage(json.progressStage);
-          if (json.status === "complete" || json.status === "core_ready") {
+          if (json.status === "complete" || json.status === "failed") {
             void load();
           }
         }
@@ -171,7 +179,8 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
       if (!res.ok) throw new Error(json.error ?? "Audit failed");
       setSections(json.sections);
       setGrowthScore(json.growthScore);
-      setRunStatus(json.status);
+      // Poll for background extended modules even though sync response is core_ready.
+      setRunStatus(json.status === "core_ready" ? "extended_running" : json.status);
       setStartedAt(new Date().toISOString());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Audit failed");

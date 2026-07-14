@@ -779,7 +779,10 @@ export async function queryLocalTrustOpportunities(params: LocalTrustOpportunity
     query = query.eq("run_id", params.runId);
   } else if (params.allMarkets) {
     const runIds = await getLatestRunIdsPerMarket(params.businessId);
-    if (runIds.length) query = query.in("run_id", runIds);
+    if (!runIds.length) {
+      return { items: [], total: 0, page: 1, pageSize, runId: null, marketTotal: 0 };
+    }
+    query = query.in("run_id", runIds);
   } else if (params.marketCity && params.marketState) {
     const runId = await getLatestLocalTrustRunId(params.businessId, {
       city: params.marketCity,

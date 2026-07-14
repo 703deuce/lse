@@ -9,7 +9,8 @@ import {
 } from "@/lib/reputation/campaigns";
 import type { CsvMapTarget } from "@/lib/reputation/bulk-csv";
 import type { ValidatedRecipient } from "@/lib/reputation/bulk-validate";
-import { PlanLimitError, reserveUsageOrThrow } from "@/lib/plans";
+import { PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
+import { ymdInTimeZone } from "@/lib/reputation/campaign-scheduler";
 
 export async function GET(request: Request) {
   try {
@@ -83,6 +84,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "name, recipients, and mapping required" }, { status: 400 });
     }
 
+    const tz = timezone ?? "America/New_York";
     const readyCount = recipients.filter((r) => r.status === "ready").length;
     if (readyCount > 0) {
       await reserveUsageOrThrow(auth.organizationId, "bulk_review_requests_used", readyCount);
@@ -98,9 +100,9 @@ export async function POST(request: Request) {
       sendDays: sendDays ?? [1, 2, 3, 4, 5],
       sendWindowStart: sendWindowStart ?? "10:00",
       sendWindowEnd: sendWindowEnd ?? "18:00",
-      timezone: timezone ?? "America/New_York",
+      timezone: tz,
       duplicateProtectionDays: duplicateProtectionDays ?? 90,
-      startDate: startDate ?? new Date().toISOString().slice(0, 10),
+      startDate: startDate ?? ymdInTimeZone(new Date(), tz),
       consentConfirmed: consentConfirmed ?? false,
       filename,
       mapping,
@@ -108,8 +110,17 @@ export async function POST(request: Request) {
       status: status ?? "active",
     };
 
-    const result = await createReviewCampaign(input);
-    return NextResponse.json(result);
+    try {
+      const result = await createReviewCampaign(input);
+      return NextResponse.json(result);
+    } catch (createErr) {
+      if (readyCount > 0) {
+        await releaseUsage(auth.organizationId, "bulk_review_requests_used", readyCount).catch(
+          () => undefined
+        );
+      }
+      throw createErr;
+    }
   } catch (err) {
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });

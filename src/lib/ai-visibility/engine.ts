@@ -232,7 +232,9 @@ export async function loadAiVisibilityData(businessId: string, selectedRunId?: s
 
   const prompts = promptsRes.data ?? [];
   const allRuns = allRunsRes.data ?? [];
-  const latestRun = allRuns[0] ?? null;
+  const latestComplete = allRuns.find((r) => r.status === "complete") ?? null;
+  // Prefer a complete run for default view so failed/running blanks don't wipe engine chips.
+  const latestRun = latestComplete ?? allRuns[0] ?? null;
   const completeRuns = allRuns.filter((r) => r.status === "complete");
   const recentRuns = completeRuns.slice(0, 50);
 
