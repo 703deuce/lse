@@ -9,7 +9,7 @@ import {
 } from "@/lib/reputation/campaigns";
 import type { CsvMapTarget } from "@/lib/reputation/bulk-csv";
 import type { ValidatedRecipient } from "@/lib/reputation/bulk-validate";
-import { assertWithinLimit, incrementUsage, PlanLimitError } from "@/lib/plans";
+import { PlanLimitError, reserveUsageOrThrow } from "@/lib/plans";
 
 export async function GET(request: Request) {
   try {
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "name, recipients, and mapping required" }, { status: 400 });
     }
 
-    await assertWithinLimit(auth.organizationId, "bulk_review_requests_month", recipients.length);
+    await reserveUsageOrThrow(auth.organizationId, "bulk_review_requests_used", recipients.length);
 
     const input: CreateCampaignInput = {
       organizationId: auth.organizationId,
@@ -106,7 +106,6 @@ export async function POST(request: Request) {
     };
 
     const result = await createReviewCampaign(input);
-    await incrementUsage(auth.organizationId, "bulk_review_requests_used", recipients.length);
     return NextResponse.json(result);
   } catch (err) {
     if (err instanceof PlanLimitError) {

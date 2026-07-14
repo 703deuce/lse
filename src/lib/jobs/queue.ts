@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/db/client";
 import { processCampaignMessages } from "@/lib/reputation/campaign-processor";
 import { processScanBatch } from "@/lib/jobs/process-scan";
 import { reclaimStaleInFlightScans } from "@/lib/jobs/schedule-scan";
+import { maybeRunDataRetentionCleanup } from "@/lib/jobs/retention";
 import { logger } from "@/lib/observability/logger";
 
 const JOB_RUNNING_STALE_MS = Number(process.env.JOB_RUNNING_STALE_MS ?? 20 * 60 * 1000);
@@ -49,17 +50,17 @@ export async function processPendingJobs(limit = 5): Promise<{
   campaignSent: number;
   scansReclaimed: number;
   jobsReclaimed: number;
+  retention: Awaited<ReturnType<typeof maybeRunDataRetentionCleanup>>;
 }> {
   const supabase = createServiceClient();
 
+  const retention = await maybeRunDataRetentionCleanup();
   const jobsReclaimed = await reclaimStaleRunningJobs(supabase);
-
-  // Resume grids whose workers died mid-flight (lease expired).
   const scansReclaimed = await reclaimStaleInFlightScans(5);
 
   const { data: jobs } = await supabase
     .from("job_queue")
-    .select("*")
+    .select("id, job_type, payload, attempts, max_attempts, status, scheduled_at")
     .eq("status", "pending")
     .lte("scheduled_at", new Date().toISOString())
     .order("scheduled_at", { ascending: true })
@@ -67,12 +68,11 @@ export async function processPendingJobs(limit = 5): Promise<{
 
   if (!jobs?.length) {
     const campaignSent = await processCampaignMessages(20);
-    return { jobsProcessed: 0, campaignSent, scansReclaimed, jobsReclaimed };
+    return { jobsProcessed: 0, campaignSent, scansReclaimed, jobsReclaimed, retention };
   }
 
   let processed = 0;
   for (const job of jobs) {
-    // Conditional claim — only one worker may take a pending job.
     const { data: claimed } = await supabase
       .from("job_queue")
       .update({
@@ -145,7 +145,6 @@ export async function processPendingJobs(limit = 5): Promise<{
 
       const payload = claimed.payload as { scanBatchId?: string };
       if (payload.scanBatchId && failed) {
-        // Only terminal-fail the batch when job retries are exhausted.
         await supabase
           .from("scan_batches")
           .update({
@@ -158,7 +157,6 @@ export async function processPendingJobs(limit = 5): Promise<{
           .eq("id", payload.scanBatchId)
           .in("status", ["queued", "dispatching", "provider_running", "normalizing"]);
       }
-      // Intermediate failures: leave batch in-flight; lease reclaim / resume will pick it up.
       logger.error("job_queue_processing_failed", {
         jobId: claimed.id,
         jobType: claimed.job_type,
@@ -171,5 +169,5 @@ export async function processPendingJobs(limit = 5): Promise<{
 
   const campaignSent = await processCampaignMessages(20);
 
-  return { jobsProcessed: processed, campaignSent, scansReclaimed, jobsReclaimed };
+  return { jobsProcessed: processed, campaignSent, scansReclaimed, jobsReclaimed, retention };
 }

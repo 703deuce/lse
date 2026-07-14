@@ -24,7 +24,7 @@ const SAMPLE_BACKLINK_LIMIT = 25;
 const INSERT_CHUNK_SIZE = 100;
 
 const OPPORTUNITY_LIST_FIELDS =
-  "id, referring_domain, source_url, source_title, source_type, domain_rank, authority_score, competitor_count, linked_competitors, target_has_link, anchor_text, dofollow, first_seen, last_seen, opportunity_score, priority, suggested_action, reason, status, raw_json";
+  "id, referring_domain, source_url, source_title, source_type, domain_rank, authority_score, competitor_count, linked_competitors, target_has_link, anchor_text, dofollow, first_seen, last_seen, opportunity_score, priority, suggested_action, reason, status, topical_fit";
 
 async function insertInChunks(
   supabase: ReturnType<typeof createServiceClient>,
@@ -507,6 +507,7 @@ export async function runBacklinkGap(params: {
         suggested_action: o.suggested_action,
         reason: o.reason,
         status: o.status,
+        topical_fit: topicalFit,
         raw_json: { ...o.meta.raw, topical_fit: topicalFit, dfs_rank: o.domain_rank },
       };
     });
@@ -678,9 +679,9 @@ export async function queryBacklinkGapOpportunities(params: OpportunityQueryPara
   if (params.linkFilter === "nofollow") query = query.eq("dofollow", false);
 
   if (params.topicalFilter === "topical") {
-    query = query.eq("raw_json->>topical_fit", "topical");
+    query = query.eq("topical_fit", "topical");
   } else if (params.topicalFilter === "random") {
-    query = query.eq("raw_json->>topical_fit", "random");
+    query = query.eq("topical_fit", "random");
   }
 
   if (params.priorityFilter && params.priorityFilter !== "all") {
@@ -760,7 +761,7 @@ export async function getBacklinkGapAnalytics(businessId: string) {
 
   const { data: openRows } = await supabase
     .from("backlink_gap_opportunities")
-    .select("competitor_count, dofollow, authority_score, source_type, priority, raw_json, status")
+    .select("competitor_count, dofollow, authority_score, source_type, priority, topical_fit, status")
     .eq("run_id", runId)
     .eq("status", "open");
 
@@ -805,7 +806,7 @@ export async function getBacklinkGapAnalytics(businessId: string) {
     else if (p === "medium") priorities.medium++;
     else priorities.low++;
 
-    const topical = (row.raw_json as { topical_fit?: string })?.topical_fit;
+    const topical = (row as { topical_fit?: string | null }).topical_fit;
     if (topical === "topical") relevance.high++;
     else if (topical === "random") relevance.low++;
     else relevance.medium++;
