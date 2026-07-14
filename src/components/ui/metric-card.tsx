@@ -14,7 +14,7 @@ export const kpiLabelClass =
 export const kpiValueClass = "mt-0.5 text-base font-bold tabular-nums leading-none text-zinc-900";
 
 export const kpiValuePrimaryClass =
-  "mt-0.5 text-lg font-bold tabular-nums leading-none text-zinc-900";
+  "mt-0.5 text-base font-bold tabular-nums leading-none text-zinc-900";
 
 export const kpiSubClass = "mt-0.5 text-[11px] leading-snug text-zinc-500";
 
@@ -135,7 +135,7 @@ export function GridTopCellsGroup({
   return (
     <div
       className={cn(
-        "flex divide-x divide-zinc-100 rounded-lg border border-zinc-200/80 bg-white px-1 py-1.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
+        "flex divide-x divide-zinc-100 rounded-lg border border-zinc-200/80 bg-white px-1 py-1 shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
         className
       )}
     >
