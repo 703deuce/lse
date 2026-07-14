@@ -4,7 +4,8 @@ import { handleBrevoInboundEmail } from "@/lib/reputation/review-sends";
 
 function verifyWebhookToken(request: Request): boolean {
   const secret = process.env.BREVO_INBOUND_WEBHOOK_SECRET?.trim();
-  if (!secret) return true;
+  // Fail closed in production when the secret is missing.
+  if (!secret) return process.env.NODE_ENV !== "production";
   const url = new URL(request.url);
   return url.searchParams.get("token") === secret;
 }
