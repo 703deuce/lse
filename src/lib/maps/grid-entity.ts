@@ -256,15 +256,17 @@ export function buildEntityGridCells(
   const useTargetRank = entity.isTarget;
 
   const scanActive = options?.scanActive !== false;
-  const failedPointIds = options?.failedPointIds;
+  // failedPointIds is intentionally unused for pin styling — soft-ready can leave
+  // stale ids after a retry recovers the cell, which previously painted a permanent ✕.
+  void options?.failedPointIds;
 
   return points.map((p) => {
     const { row, col } = parseGridLabel(p.grid_label);
     const result = resultByPoint.get(p.id);
     const hasResult = result != null;
-    // While scanning/retrying: never paint ✕ — keep pending until a result lands.
-    // After settle: mark confirmed failures (no saved result) so they don't look "stuck".
-    const failed = !hasResult && !scanActive && !!failedPointIds?.has(p.id);
+    // Never paint ✕ on the grid. Mid-scan gaps stay pending; rare settled gaps
+    // use the same "not found / 20+" treatment as a rank miss — cells retry and recover.
+    const failed = false;
     let rank: number | null = null;
     let matchReason: string | null = null;
     let notInResults = false;
@@ -281,6 +283,8 @@ export function buildEntityGridCells(
         matchReason = match.matchReason;
         notInResults = !match.found || rank == null;
       }
+    } else if (!scanActive) {
+      notInResults = true;
     }
 
     return {
@@ -291,9 +295,9 @@ export function buildEntityGridCells(
       row,
       col,
       rank,
-      pending: !hasResult && !failed && scanActive,
+      pending: !hasResult && scanActive,
       failed,
-      notInResults: hasResult && notInResults,
+      notInResults,
       matchReason,
     };
   });

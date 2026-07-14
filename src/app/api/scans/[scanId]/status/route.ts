@@ -7,6 +7,7 @@ import { isMapRenderable } from "@/lib/scans/status";
 import { dedupeScanResults } from "@/lib/maps/cell-result-integrity";
 import { SCAN_RESULT_GRID_COLUMNS } from "@/lib/maps/scan-result-columns";
 import type { ScanResultRow } from "@/lib/db/types";
+import { mergeScanConfidenceSummary } from "@/lib/jobs/merge-confidence-summary";
 
 function isInFlightLeaseStale(batch: {
   status: string;
@@ -58,6 +59,8 @@ export async function GET(
     const conf = (batch.confidence_summary ?? {}) as {
       keyword_ids?: string[];
       keyword_label?: string;
+      failed_point_ids?: string[];
+      failed_cells?: number;
     };
     const scanKeywordId = Array.isArray(conf.keyword_ids) ? conf.keyword_ids[0] : undefined;
 
@@ -88,6 +91,35 @@ export async function GET(
       }
       const { data } = await query;
       results = dedupeScanResults((data ?? []) as unknown as ScanResultRow[]);
+    }
+
+    // Heal soft-ready race: recovered cells can still be listed in failed_point_ids.
+    const failedIds = Array.isArray(conf.failed_point_ids) ? conf.failed_point_ids : [];
+    if (failedIds.length > 0 && results.length > 0) {
+      const withResults = new Set(
+        (results as ScanResultRow[])
+          .map((r) => r.scan_point_id)
+          .filter((id): id is string => typeof id === "string" && id.length > 0)
+      );
+      const pruned = failedIds.filter((id) => id && !withResults.has(id));
+      if (pruned.length !== failedIds.length) {
+        conf.failed_point_ids = pruned;
+        conf.failed_cells = pruned.length;
+        batch.confidence_summary = conf;
+        batch.cells_failed = pruned.length;
+        void mergeScanConfidenceSummary(supabase, scanId, {
+          failed_point_ids: pruned,
+          failed_cells: pruned.length,
+        }).catch(() => undefined);
+        void supabase
+          .from("scan_batches")
+          .update({ cells_failed: pruned.length })
+          .eq("id", scanId)
+          .then(
+            () => undefined,
+            () => undefined
+          );
+      }
     }
 
     const { data: priorBatch } = await supabase

@@ -254,6 +254,9 @@ export async function processScanBatch(scanBatchId: string, organizationId?: str
       await finalizeRankReady(scanBatchId, organizationId, failedCells, totalCells);
     } else {
       await rankReadyPromise;
+      // Soft-ready finalized early — sync failed ids to what actually saved after retries.
+      const { reconcileScanCellFailures } = await import("@/lib/jobs/reconcile-scan-failures");
+      await reconcileScanCellFailures(scanBatchId, failedCells, totalCells);
     }
 
     await clearScanLease(scanBatchId, leaseOwner);

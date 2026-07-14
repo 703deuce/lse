@@ -147,6 +147,9 @@ export async function finalizeRankReady(
   }
 
   // Merge confidence keys — do not replace the whole document (preserves progress / early flags).
+  // Do NOT write failed_point_ids here. Soft-ready races with trailing retries; a mid-flight
+  // failed id can be merged after the cell already recovered and stick as a permanent ✕ on the map.
+  // Progress writers + reconcileScanCellFailures own the final failed-point list.
   const confidencePatch: Record<string, unknown> = {
     provider: conf.provider ?? "brightdata",
     method: conf.method ?? batch.scan_type,
@@ -156,19 +159,6 @@ export async function finalizeRankReady(
     sparse_point_ids: sparsePointIds,
     sparse_cells: sparsePointIds.length,
   };
-  // Only keep failed_point_ids that still have no saved result — soft-ready can
-  // race with trailing retries that already recovered cells.
-  const resultPointIds = new Set(
-    (results ?? []).map((r) => r.scan_point_id as string).filter(Boolean)
-  );
-  const rawFailedIds = Array.isArray(conf.failed_point_ids)
-    ? (conf.failed_point_ids as string[])
-    : [];
-  const stillFailedIds = rawFailedIds.filter((id) => id && !resultPointIds.has(id));
-  confidencePatch.failed_point_ids = stillFailedIds;
-  if (stillFailedIds.length !== actualFailed) {
-    confidencePatch.failed_cells = stillFailedIds.length;
-  }
   if (hasEmptyProviderData) {
     confidencePatch.provider_error =
       "Bright Data returned no map results — check BRIGHTDATA_API_KEY, BRIGHTDATA_ZONE (serp_api1), and account credits";
