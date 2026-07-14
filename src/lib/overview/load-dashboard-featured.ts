@@ -12,6 +12,7 @@ import { loadLatestMomentumRun } from "@/lib/reviews/momentum-engine";
 import { buildMarketInsightsFromEntityRows } from "@/lib/reviews/market-insights";
 import { hasOwnerResponse } from "@/lib/reviews/normalize";
 import {
+  REVIEW_LIST_COLUMNS,
   calcResponseRate,
   loadStoredReviews,
   reviewsInWindow,
@@ -68,7 +69,7 @@ async function loadLatestDashboardReviews(
   if (byId.size < limit) {
     const { data: extra } = await supabase
       .from("business_reviews")
-      .select("*")
+      .select(REVIEW_LIST_COLUMNS)
       .eq("business_id", businessId)
       .not("review_text", "is", null)
       .order("created_at", { ascending: false })
