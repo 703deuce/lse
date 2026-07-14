@@ -6,6 +6,7 @@ import { generateActionPlan } from "@/lib/providers/deepseek";
 import { actionPlanOutputSchema } from "@/lib/validation/schemas";
 import { probeWebsite } from "@/lib/rules/website-probe";
 import { precomputeScanWorkspace } from "@/lib/maps/precompute-workspace";
+import { invalidateWorkspaceCache } from "@/lib/maps/workspace-cache";
 import type { EnrichedProfile } from "@/lib/jobs/enrich-competitors";
 import { SCAN_RESULT_COMPETITOR_COLUMNS } from "@/lib/maps/scan-result-columns";
 
@@ -234,6 +235,7 @@ export async function runScanEnrichment(
       if (items.length) await supabase.from("action_items").insert(items);
     }
 
+    await invalidateWorkspaceCache(supabase, scanBatchId);
     void precomputeScanWorkspace(scanBatchId).catch((err) => {
       console.error("[precomputeScanWorkspace]", scanBatchId, err);
     });

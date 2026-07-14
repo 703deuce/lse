@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/db/client";
 import { computeAggregateMetrics } from "@/lib/maps/grid";
 import { invalidateScanGridCache } from "@/lib/maps/scan-queries";
+import { invalidateWorkspaceCache } from "@/lib/maps/workspace-cache";
 import { validateStoredCellResult } from "@/lib/maps/cell-result-integrity";
 import { mapsDepth } from "@/lib/jobs/run-grid-cells";
 import { SCAN_RESULT_COMPETITOR_COLUMNS } from "@/lib/maps/scan-result-columns";
@@ -167,6 +168,7 @@ export async function finalizeRankReady(
   await mergeScanConfidenceSummary(supabase, scanBatchId, confidencePatch);
 
   invalidateScanGridCache(scanBatchId);
+  await invalidateWorkspaceCache(supabase, scanBatchId);
 
   if (gridScanAutoEnrichment()) {
     const { runScanEnrichment } = await import("@/lib/jobs/run-scan-enrichment");

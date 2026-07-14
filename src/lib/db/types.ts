@@ -463,8 +463,10 @@ export interface ReportRow {
   scan_batch_id: string | null;
   storage_path: string | null;
   share_token: string | null;
+  share_expires_at: string | null;
   generated_at: string;
   metadata_json: Json;
+  html_content?: string | null;
 }
 
 export interface ReportInsert {
@@ -472,7 +474,9 @@ export interface ReportInsert {
   scan_batch_id?: string | null;
   storage_path?: string | null;
   share_token?: string | null;
+  share_expires_at?: string | null;
   metadata_json?: Json;
+  html_content?: string | null;
 }
 
 export interface IntegrationGoogleRow {

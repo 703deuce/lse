@@ -96,3 +96,11 @@ export async function setWorkspaceCacheBatch(
     { onConflict: "scan_batch_id,cache_type,cache_key" }
   );
 }
+
+/** Drop all workspace cache rows for a scan (call before re-enrich / after finalize). */
+export async function invalidateWorkspaceCache(
+  supabase: ServiceClient,
+  scanBatchId: string
+): Promise<void> {
+  await supabase.from("scan_workspace_cache").delete().eq("scan_batch_id", scanBatchId);
+}
