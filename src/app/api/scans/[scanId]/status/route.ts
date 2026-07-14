@@ -2,10 +2,27 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/db/client";
 import { requireScanAccess } from "@/lib/auth/api-auth";
 import { kickQueuedScanIfNeeded } from "@/lib/jobs/schedule-scan";
+import { scanLeaseTtlMs } from "@/lib/jobs/scan-lease";
 import { isMapRenderable } from "@/lib/scans/status";
 import { dedupeScanResults } from "@/lib/maps/cell-result-integrity";
 import { SCAN_RESULT_GRID_COLUMNS } from "@/lib/maps/scan-result-columns";
 import type { ScanResultRow } from "@/lib/db/types";
+
+function isInFlightLeaseStale(batch: {
+  status: string;
+  lease_expires_at?: string | null;
+  started_at?: string | null;
+  updated_at?: string | null;
+}): boolean {
+  if (batch.status !== "dispatching" && batch.status !== "provider_running") return false;
+  const now = Date.now();
+  if (batch.lease_expires_at) {
+    return new Date(batch.lease_expires_at).getTime() < now;
+  }
+  const anchor = batch.started_at ?? batch.updated_at;
+  if (!anchor) return true;
+  return new Date(anchor).getTime() < now - scanLeaseTtlMs();
+}
 
 export async function GET(
   request: Request,
@@ -44,8 +61,10 @@ export async function GET(
       allKeywords?.find((k) => k.is_primary) ??
       allKeywords?.[0];
 
-    // Recover scans stuck in queued (e.g. if background worker didn't start)
-    kickQueuedScanIfNeeded(scanId, batch.status, access.organizationId);
+    // Recover queued scans, or reclaim+resume when the in-flight lease is stale.
+    if (batch.status === "queued" || isInFlightLeaseStale(batch)) {
+      kickQueuedScanIfNeeded(scanId, batch.status, access.organizationId);
+    }
 
     const { data: points } = await supabase.from("scan_points").select("*").eq("scan_batch_id", scanId);
     const pointIds = (points ?? []).map((p) => p.id);
