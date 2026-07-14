@@ -79,26 +79,49 @@ export function hasTrailingCellsSettling(batch: {
 
 /**
  * Rank map should appear only when the grid is fully settled — every point has a
- * saved result (or the batch truly ended) and counters are complete. Partial /
- * soft-ready maps caused fake X/20+/gray bubbles while retries were still finishing.
+ * saved result. Partial / soft-ready maps caused fake X/20+/gray bubbles while
+ * retries were still finishing.
  */
-export function isScanMapReady(batch: {
-  status?: string | null;
-  cells_completed?: number | null;
-  cells_total?: number | null;
-  cells_failed?: number | null;
-  confidence_summary?: Record<string, unknown> | null;
-}, loadedResults: number, totalPoints: number): boolean {
+export function isScanMapReady(
+  batch: {
+    status?: string | null;
+    cells_completed?: number | null;
+    cells_total?: number | null;
+    cells_failed?: number | null;
+    confidence_summary?: Record<string, unknown> | null;
+  },
+  loadedResults: number,
+  totalPoints: number
+): boolean {
   const status = batch.status ?? null;
   if (!status || status === "failed" || status === "queued") return false;
+  if (totalPoints <= 0) return false;
+
+  // Primary signal: status is past cell-fetch + we have a result row per point.
+  // Do not require cells_completed to match — that counter can lag the saved rows
+  // (or finalize can mark rank_ready a tick before the last status read sees all results).
+  if (isMapRenderable(status) && loadedResults >= totalPoints) return true;
+
   if (areCellsInFlight(status)) return false;
   if (hasTrailingCellsSettling(batch)) return false;
-  if (totalPoints <= 0) return false;
+
   const { completed, total } = cellCounters(batch);
-  const expected = total > 0 ? total : totalPoints;
-  if (completed < expected) return false;
-  // Prefer a full result set; never reveal mid-retry with missing bubbles.
-  return loadedResults >= expected;
+  const expected = total > 0 ? Math.max(total, totalPoints) : totalPoints;
+  return completed >= expected && loadedResults >= totalPoints;
+}
+
+/** Keep the client poller alive until the waiting UI can flip to the finished map. */
+export function shouldPollForMapReveal(
+  status: string | null | undefined,
+  loadedResults: number,
+  totalPoints: number
+): boolean {
+  if (!status || status === "failed") return false;
+  if (totalPoints <= 0) return false;
+  if (areCellsInFlight(status)) return true;
+  // rank_ready with a short result set — keep fetching until rows catch up.
+  if (loadedResults < totalPoints) return true;
+  return false;
 }
 
 export function shouldPollScan(

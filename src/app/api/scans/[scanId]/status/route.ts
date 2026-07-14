@@ -64,9 +64,11 @@ export async function GET(
     };
     const scanKeywordId = Array.isArray(conf.keyword_ids) ? conf.keyword_ids[0] : undefined;
 
+    // Prefer the keyword this scan was run with — a mismatched ?keywordId can
+    // filter out every result and leave the wait UI stuck after the batch finishes.
     const activeKeyword =
-      (keywordId ? allKeywords?.find((k) => k.id === keywordId) : null) ??
       (scanKeywordId ? allKeywords?.find((k) => k.id === scanKeywordId) : null) ??
+      (keywordId ? allKeywords?.find((k) => k.id === keywordId) : null) ??
       allKeywords?.find((k) => k.is_primary) ??
       allKeywords?.[0];
 
@@ -91,6 +93,14 @@ export async function GET(
       }
       const { data } = await query;
       results = dedupeScanResults((data ?? []) as unknown as ScanResultRow[]);
+      // Fallback: if keyword filter returns nothing but rows exist for this grid, show them.
+      if (!results.length) {
+        const { data: unfiltered } = await supabase
+          .from("scan_results")
+          .select(SCAN_RESULT_GRID_COLUMNS)
+          .in("scan_point_id", pointIds);
+        results = dedupeScanResults((unfiltered ?? []) as unknown as ScanResultRow[]);
+      }
     }
 
     // Heal soft-ready race: recovered cells can still be listed in failed_point_ids.
