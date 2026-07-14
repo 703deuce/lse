@@ -85,14 +85,15 @@ export function cellPinIcon(
   } = {}
 ): google.maps.Icon {
   const pinSize = opts.pinSize ?? 36;
+  // Provider retries are invisible to users — never paint ✕. Treat "failed" as pending.
+  const waiting = !!opts.pending || !!opts.failed;
   // Prefer ASCII for data-URL markers — some browsers drop fancy glyphs in SVG icons
-  const label = opts.failed ? "X" : opts.pending ? "..." : opts.notInResults ? "20+" : rankLabel(rank);
+  const label = waiting ? "..." : opts.notInResults ? "20+" : rankLabel(rank);
   const style = rankPinStyle(rank, colorMode, {
-    pending: opts.pending,
-    notInResults: opts.notInResults,
-    failed: opts.failed,
+    pending: waiting,
+    notInResults: !waiting && opts.notInResults,
   });
-  const fontSize = opts.failed ? 14 : label.length > 2 ? 10 : 12;
+  const fontSize = label.length > 2 ? 10 : 12;
   const opacity = opts.faded ? 0.35 : 1;
 
   let deltaHtml = "";
