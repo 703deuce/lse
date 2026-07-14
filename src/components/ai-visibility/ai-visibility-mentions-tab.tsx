@@ -103,11 +103,11 @@ export function AiVisibilityMentionsTab({
   const velocityPct = targetRow ? Math.min(targetRow.sharePct, 99) : null;
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="space-y-3">
+      <div className="grid items-start gap-2 sm:grid-cols-2 lg:grid-cols-5">
         <AiKpiCard label="Top Competitors" value="" hideValue icon={Sparkles}>
-          <ol className="mt-1 space-y-1.5">
-            {topCompetitors.slice(0, 5).map((c, i) => (
+          <ol className="mt-1 space-y-1">
+            {topCompetitors.slice(0, 3).map((c, i) => (
               <li key={c.key} className="flex items-center gap-2 text-[11px] text-text">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface-subtle text-[10px] font-bold text-text-muted">
                   {i + 1}
@@ -243,8 +243,8 @@ export function AiVisibilityMentionsTab({
                 const StatusIcon = st.Icon;
                 return (
                   <tr key={row.key} className={row.isTarget ? "bg-emerald-50/30" : "hover:bg-surface-subtle/50"}>
-                    <td className="px-3 py-2 text-text-muted">{(page - 1) * pageSize + i + 1}</td>
-                    <td className="px-3 py-2 font-medium">
+                    <td className="px-3 py-1.5 text-text-muted">{(page - 1) * pageSize + i + 1}</td>
+                    <td className="px-3 py-1.5 font-medium">
                       {row.name}
                       {row.isTarget && (
                         <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
@@ -252,7 +252,7 @@ export function AiVisibilityMentionsTab({
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-1.5">
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-14 overflow-hidden rounded-full bg-surface-subtle">
                           <div className="h-full bg-emerald-500" style={{ width: `${row.sharePct}%` }} />
@@ -262,25 +262,25 @@ export function AiVisibilityMentionsTab({
                         </span>
                       </div>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-1.5">
                       <TrendSparkline seed={i} />
                     </td>
-                    <td className={cn("px-3 py-2 tabular-nums font-medium", posColor(row.avgPosition))}>
+                    <td className={cn("px-3 py-1.5 tabular-nums font-medium", posColor(row.avgPosition))}>
                       {row.avgPosition ?? "—"}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-1.5">
                       <EngineIconRow engines={row.engines} />
                     </td>
-                    <td className="px-3 py-2 text-xs text-text-muted">
+                    <td className="px-3 py-1.5 text-xs text-text-muted">
                       {row.lastSeen ? new Date(row.lastSeen).toLocaleDateString() : showCombined ? `${recentRunCount} runs` : "—"}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-1.5">
                       <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium", st.className)}>
                         <StatusIcon className="h-3 w-3" />
                         {st.label}
                       </span>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-1.5">
                       <button type="button" className="rounded p-1 text-text-muted hover:bg-surface-subtle">
                         <MoreHorizontal className="h-4 w-4" />
                       </button>

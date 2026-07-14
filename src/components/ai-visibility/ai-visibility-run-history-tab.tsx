@@ -59,14 +59,14 @@ export function AiVisibilityRunHistoryTab({
   }
 
   return (
-    <div className="grid gap-2 lg:grid-cols-[1fr_280px]">
-      <div className="space-y-4">
+    <div className="grid items-start gap-2 lg:grid-cols-[1fr_280px]">
+      <div className="space-y-3">
         <AiPanel title="Visibility score over time" subtitle="Line chart shows your visibility score across all runs in the selected time range." action={
           <select className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-[10px] font-medium text-zinc-600 shadow-sm" defaultValue="all">
             <option value="all">All engines</option>
           </select>
         }>
-          <div className="h-44">
+          <div className="h-32">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                 <XAxis dataKey="date" tick={{ fontSize: 9 }} interval="preserveStartEnd" />
@@ -105,8 +105,8 @@ export function AiVisibilityRunHistoryTab({
                     : [];
                   return (
                     <tr key={r.id} className="hover:bg-surface-subtle/50">
-                      <td className="px-3 py-2 font-medium">{new Date(r.created_at).toLocaleString()}</td>
-                      <td className="px-3 py-2 text-center">
+                      <td className="px-3 py-1.5 font-medium">{new Date(r.created_at).toLocaleString()}</td>
+                      <td className="px-3 py-1.5 text-center">
                         <span className="font-semibold tabular-nums">{r.visibility_score ?? "—"}%</span>
                         {delta != null && delta !== 0 && (
                           <span className={cn("ml-1 text-xs", delta > 0 ? "text-primary" : "text-red-600")}>
@@ -114,15 +114,15 @@ export function AiVisibilityRunHistoryTab({
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-center">
+                      <td className="px-3 py-1.5 text-center">
                         <StatusPill yes={!!r.target_mentioned} />
                       </td>
-                      <td className="px-3 py-2 text-center tabular-nums">{trend?.companyCount ?? r.companyCount}</td>
-                      <td className="px-3 py-2 text-center tabular-nums">{r.sources_count}</td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-1.5 text-center tabular-nums">{trend?.companyCount ?? r.companyCount}</td>
+                      <td className="px-3 py-1.5 text-center tabular-nums">{r.sources_count}</td>
+                      <td className="px-3 py-1.5">
                         <EngineIconRow engines={runEngines} />
                       </td>
-                      <td className="px-3 py-2 text-right">
+                      <td className="px-3 py-1.5 text-right">
                         <button
                           type="button"
                           onClick={() => onSelectRun(r.id)}
@@ -145,8 +145,8 @@ export function AiVisibilityRunHistoryTab({
       </div>
 
       {insights && (
-        <AiPanel title="Run insights">
-          <div className="space-y-3">
+        <AiPanel title="Run insights" className="h-fit">
+          <div className="space-y-2.5">
             <InsightRow
               icon={Trophy}
               iconClass="text-primary"

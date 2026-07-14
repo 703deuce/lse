@@ -65,8 +65,8 @@ export function AiVisibilitySearchLandscapeTab({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="space-y-3">
+      <div className="grid items-start gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <TintedKpiCard
           label="AI & Google Overlap"
           value={`${inBoth} companies`}
@@ -141,8 +141,8 @@ export function AiVisibilitySearchLandscapeTab({
                 const score = m.inMapPack && m.inOrganic ? 91 : m.inMapPack ? 75 : m.inOrganic ? 60 : 40;
                 return (
                   <tr key={m.normalizedName} className="hover:bg-surface-subtle/50">
-                    <td className="px-3 py-2 text-text-muted">{i + 1}</td>
-                    <td className="px-3 py-2 font-medium text-zinc-900">
+                    <td className="px-3 py-1.5 text-text-muted">{i + 1}</td>
+                    <td className="px-3 py-1.5 font-medium text-zinc-900">
                       {m.name}
                       {m.isTargetBrand || isTarget(m.name) ? (
                         <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
@@ -150,8 +150,8 @@ export function AiVisibilitySearchLandscapeTab({
                         </span>
                       ) : null}
                     </td>
-                    <td className="px-3 py-2 text-center tabular-nums">{m.aiEngineCount}/5</td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-1.5 text-center tabular-nums">{m.aiEngineCount}/5</td>
+                    <td className="px-3 py-1.5">
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-subtle">
                           <div className="h-full bg-emerald-500" style={{ width: `${sharePct}%` }} />
@@ -159,29 +159,29 @@ export function AiVisibilitySearchLandscapeTab({
                         <span className="text-xs tabular-nums text-text-muted">{sharePct}%</span>
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-3 py-1.5 text-center">
                       {m.mapPackPosition ? (
                         <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-semibold text-emerald-800">#{m.mapPackPosition}</span>
                       ) : (
                         "—"
                       )}
                     </td>
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-3 py-1.5 text-center">
                       {m.organicPosition ? (
                         <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-semibold text-blue-800">#{m.organicPosition}</span>
                       ) : (
                         "—"
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-1.5">
                       <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", placementClass[m.placement])}>
                         {placementLabel[m.placement]}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-3 py-1.5 text-center">
                       <VisibilityScoreRing score={score} />
                     </td>
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-3 py-1.5 text-center">
                       <MiniSparkline seed={i} />
                     </td>
                   </tr>
@@ -198,9 +198,9 @@ export function AiVisibilitySearchLandscapeTab({
         </div>
       </AiPanel>
 
-      <div className="grid gap-2 lg:grid-cols-3">
+      <div className="grid items-start gap-2 lg:grid-cols-3">
         <AiPanel title="Google Map Pack (Top 3)" action={<Info className="h-3.5 w-3.5 text-zinc-300" />}>
-          <ol className="space-y-2">
+          <ol className="space-y-1.5">
             {mapPack.slice(0, 3).map((m) => (
               <li key={m.position} className="flex gap-2 text-[13px]">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-800">
@@ -225,7 +225,7 @@ export function AiVisibilitySearchLandscapeTab({
         </AiPanel>
 
         <AiPanel title="Google Organic Results (Top 10)" action={<Info className="h-3.5 w-3.5 text-zinc-300" />}>
-          <ol className="space-y-2">
+          <ol className="space-y-1.5">
             {organicSerp.slice(0, 5).map((o) => (
               <li key={o.position} className="text-[13px]">
                 <p className="font-medium text-text">
@@ -245,7 +245,7 @@ export function AiVisibilitySearchLandscapeTab({
         </AiPanel>
 
         <AiPanel title="Landscape Insights" action={<Info className="h-3.5 w-3.5 text-zinc-300" />}>
-          <ul className="space-y-3 text-xs text-text-muted">
+          <ul className="space-y-2 text-xs text-text-muted">
             <li className="flex gap-2">
               <span className="text-primary">✓</span>
               <div>
@@ -268,7 +268,7 @@ export function AiVisibilitySearchLandscapeTab({
               </div>
             </li>
           </ul>
-          <button type="button" className="mt-4 w-full rounded-md border border-border py-2 text-xs font-medium text-text hover:bg-surface-subtle">
+          <button type="button" className="mt-2.5 w-full rounded-md border border-border py-1.5 text-xs font-medium text-text hover:bg-surface-subtle">
             View all insights →
           </button>
         </AiPanel>
