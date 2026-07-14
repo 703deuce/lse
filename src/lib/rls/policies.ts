@@ -1,19 +1,18 @@
 /**
- * RLS policy reference — tighten when Firebase auth lands.
- * Pattern: organization_id on business tables + membership check on auth.uid().
+ * RLS policy reference — member-scoped SELECT via is_business_member /
+ * is_organization_member (migration 035). Service role bypasses RLS;
+ * authenticated clients only see rows for orgs they belong to.
  *
- * Example (future):
- * CREATE POLICY "org_members_read_businesses" ON businesses FOR SELECT
- * USING (organization_id IN (
- *   SELECT organization_id FROM organization_members WHERE user_id = auth.uid()
- * ));
+ * Writes go through service-role API routes / workers, not open client policies.
  */
 
 export const RLS_NOTES = {
-  currentMode: "service_role_bypass",
+  currentMode: "member_scoped_select",
+  helpers: ["is_organization_member(org_uuid)", "is_business_member(business_uuid)"],
   tablesWithRls: [
     "organizations",
     "organization_members",
+    "organization_usage_monthly",
     "businesses",
     "business_keywords",
     "scan_batches",
@@ -26,10 +25,61 @@ export const RLS_NOTES = {
     "provider_runs",
     "reports",
     "integrations_google",
-    "competitors",
-    "job_queue",
     "profiles",
-    "scan_provider_tasks",
     "scheduled_scans",
+    "module_audits",
+    "backlink_gap_runs",
+    "backlink_gap_opportunities",
+    "backlink_gap_tasks",
+    "tracked_keywords",
+    "keyword_rank_checks",
+    "keyword_suggestions",
+    "growth_audit_runs",
+    "local_trust_runs",
+    "local_trust_opportunities",
+    "local_trust_tasks",
+    "local_trust_candidates",
+    "ai_visibility_prompts",
+    "ai_visibility_runs",
+    "ai_visibility_engine_results",
+    "rank_locations",
+    "single_point_rank_checks",
+    "business_reviews",
+    "review_momentum_runs",
+    "review_momentum_entities",
+    "review_momentum_tasks",
+    "reputation_audits",
+    "review_records",
+    "reputation_competitors",
+    "review_keyword_gaps",
+    "review_response_drafts",
+    "reputation_tasks",
+    "review_request_links",
+    "review_request_templates",
+    "review_request_events",
+    "review_request_contacts",
+    "review_request_sends",
+    "review_request_campaigns",
+    "review_request_uploads",
+    "review_request_recipients",
+    "review_request_messages",
+    "review_request_clicks",
+    "review_request_suppression",
+    "citation_sources",
+    "citation_audits",
+    "citation_listings",
+    "citation_missing",
+    "citation_competitor_presence",
+    "citation_tasks",
+    "review_sync_state",
+    "competitor_snapshots",
+    "maps_difficulty_runs",
+  ],
+  serviceRoleOnly: [
+    "job_queue",
+    "competitors",
+    "scan_provider_tasks",
+    "scan_workspace_cache",
+    "scan_cell_telemetry",
   ],
 } as const;

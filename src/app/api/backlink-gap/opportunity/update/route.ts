@@ -16,10 +16,12 @@ export async function PATCH(request: Request) {
     }
 
     await requireBusinessAccess(businessId);
-    await updateOpportunityStatus(opportunityId, status);
+    await updateOpportunityStatus(opportunityId, status, businessId);
     return NextResponse.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to update opportunity";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const statusCode =
+      message.includes("access denied") || message.includes("not found") ? 403 : 500;
+    return NextResponse.json({ error: message }, { status: statusCode });
   }
 }

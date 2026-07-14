@@ -13,6 +13,7 @@ export async function generateReport(params: {
     .from("reports")
     .select("*")
     .eq("scan_batch_id", params.scanBatchId)
+    .eq("business_id", params.businessId)
     .not("html_content", "is", null)
     .order("generated_at", { ascending: false })
     .limit(1)
@@ -29,6 +30,9 @@ export async function generateReport(params: {
   const { data: business } = await supabase.from("businesses").select("*").eq("id", params.businessId).single();
   const { data: batch } = await supabase.from("scan_batches").select("*").eq("id", params.scanBatchId).single();
   if (!business || !batch) throw new Error("Business or scan not found");
+  if (batch.business_id !== params.businessId) {
+    throw new Error("Scan does not belong to business");
+  }
 
   const { data: keywords } = await supabase
     .from("business_keywords")
