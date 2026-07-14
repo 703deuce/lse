@@ -70,11 +70,10 @@ function gridFitZoom(lat: number, radiusMeters: number, mapPx: number): number {
 }
 
 function cellPopupText(cell: GridCell): string {
-  if (cell.failed) return `${cell.label}: Scan failed for this location`;
-  if (cell.pending) return `${cell.label}: Scanning…`;
+  if (cell.pending) return `${cell.label}: Waiting for result…`;
   if (cell.notInResults) return `${cell.label}: Not in local pack (rank 20+)`;
   if (cell.rank != null) return `${cell.label}: Rank #${cell.rank}`;
-  return `${cell.label}: Not in top results`;
+  return `${cell.label}: Waiting for result…`;
 }
 
 export function ScanMap({

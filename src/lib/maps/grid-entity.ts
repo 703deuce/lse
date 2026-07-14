@@ -255,17 +255,16 @@ export function buildEntityGridCells(
   const resultByPoint = new Map(deduped.map((r) => [r.scan_point_id, r]));
   const useTargetRank = entity.isTarget;
 
-  const scanActive = options?.scanActive !== false;
-  // failedPointIds is intentionally unused for pin styling — soft-ready can leave
-  // stale ids after a retry recovers the cell, which previously painted a permanent ✕.
+  // scanActive / failedPointIds are ignored for pin state. A missing saved row is
+  // always "still waiting" — never ✕ and never a fake 20+. 20+ is reserved for a
+  // real saved SERP where the business was not in the pack.
+  void options?.scanActive;
   void options?.failedPointIds;
 
   return points.map((p) => {
     const { row, col } = parseGridLabel(p.grid_label);
     const result = resultByPoint.get(p.id);
     const hasResult = result != null;
-    // Never paint ✕ on the grid. Mid-scan gaps stay pending; rare settled gaps
-    // use the same "not found / 20+" treatment as a rank miss — cells retry and recover.
     const failed = false;
     let rank: number | null = null;
     let matchReason: string | null = null;
@@ -275,6 +274,7 @@ export function buildEntityGridCells(
       if (useTargetRank) {
         rank = (result?.target_rank as number | null) ?? null;
         matchReason = (result?.confidence as string | null) ?? null;
+        // Only true "20+": we have a result row and target_rank is null.
         notInResults = rank == null;
       } else {
         const competitors = (result?.top_competitors_json ?? []) as StoredCompetitor[];
@@ -283,8 +283,6 @@ export function buildEntityGridCells(
         matchReason = match.matchReason;
         notInResults = !match.found || rank == null;
       }
-    } else if (!scanActive) {
-      notInResults = true;
     }
 
     return {
@@ -295,7 +293,8 @@ export function buildEntityGridCells(
       row,
       col,
       rank,
-      pending: !hasResult && scanActive,
+      // No saved cell yet → pending (...). Never invent 20+/✕ for a fetch/retry gap.
+      pending: !hasResult,
       failed,
       notInResults,
       matchReason,
