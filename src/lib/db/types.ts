@@ -213,6 +213,7 @@ export interface ScanBatchRow {
   confidence_summary: Json;
   aggregate_metrics: Json;
   error_message: string | null;
+  early_enrichment_started?: boolean;
   created_at: string;
   updated_at: string;
 }

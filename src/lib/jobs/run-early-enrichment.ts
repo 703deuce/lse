@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/db/client";
 import { aggregateCompetitors } from "@/lib/maps/grid";
 import { enrichTargetBusiness, enrichCompetitor } from "@/lib/jobs/enrich-competitors";
 import { SCAN_RESULT_COMPETITOR_COLUMNS } from "@/lib/maps/scan-result-columns";
+import { mergeScanConfidenceSummary } from "@/lib/jobs/merge-confidence-summary";
 
 /** Start lightweight enrichment once enough rank cells exist — does not block the scan. */
 export const EARLY_ENRICHMENT_MIN_CELLS = 17;
@@ -13,6 +14,9 @@ const inFlight = new Set<string>();
 /**
  * Phase 2 (early) — enrich target + emerging top competitors after ~15–20 cells.
  * Rank scan keeps priority; this runs on a low-concurrency background queue.
+ *
+ * Claims via early_enrichment_started column (migration 032) so parallel workers
+ * cannot double-start, and merges JSON flag without wiping progress keys.
  */
 export async function maybeStartEarlyEnrichment(
   scanBatchId: string,
@@ -23,29 +27,40 @@ export async function maybeStartEarlyEnrichment(
   const supabase = createServiceClient();
   const { data: batch } = await supabase
     .from("scan_batches")
-    .select("id, business_id, status, cells_completed, confidence_summary")
+    .select("id, business_id, status, cells_completed, early_enrichment_started")
     .eq("id", scanBatchId)
-    .single();
+    .maybeSingle();
 
   if (!batch) return;
   if (batch.status === "failed" || batch.status === "ready" || batch.status === "partial") return;
-
-  const conf = (batch.confidence_summary ?? {}) as Record<string, unknown>;
-  if (conf.early_enrichment_started) return;
-
-  if (conf.early_enrichment_started) return;
+  if (batch.early_enrichment_started) return;
 
   const completed = Number(batch.cells_completed ?? 0);
   if (completed < EARLY_ENRICHMENT_MIN_CELLS) return;
 
   inFlight.add(scanBatchId);
 
-  await supabase
+  const { data: claimed } = await supabase
     .from("scan_batches")
-    .update({
-      confidence_summary: { ...conf, early_enrichment_started: true },
-    })
-    .eq("id", scanBatchId);
+    .update({ early_enrichment_started: true })
+    .eq("id", scanBatchId)
+    .eq("early_enrichment_started", false)
+    .select("id")
+    .maybeSingle();
+
+  if (!claimed) {
+    inFlight.delete(scanBatchId);
+    return;
+  }
+
+  // Keep JSON flag in sync for older readers without overwriting sibling keys.
+  try {
+    await mergeScanConfidenceSummary(supabase, scanBatchId, {
+      early_enrichment_started: true,
+    });
+  } catch (err) {
+    console.warn("[maybeStartEarlyEnrichment] confidence merge skipped", scanBatchId, err);
+  }
 
   void runEarlyEnrichment(scanBatchId, organizationId)
     .catch((err) => console.error("[runEarlyEnrichment]", scanBatchId, err))
@@ -55,7 +70,11 @@ export async function maybeStartEarlyEnrichment(
 async function runEarlyEnrichment(scanBatchId: string, organizationId?: string): Promise<void> {
   const supabase = createServiceClient();
 
-  const { data: batch } = await supabase.from("scan_batches").select("*").eq("id", scanBatchId).single();
+  const { data: batch } = await supabase
+    .from("scan_batches")
+    .select("id, business_id")
+    .eq("id", scanBatchId)
+    .maybeSingle();
   if (!batch) return;
 
   const { data: business } = await supabase.from("businesses").select("*").eq("id", batch.business_id).single();

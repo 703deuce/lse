@@ -4,6 +4,7 @@ import { invalidateScanGridCache } from "@/lib/maps/scan-queries";
 import { validateStoredCellResult } from "@/lib/maps/cell-result-integrity";
 import { mapsDepth } from "@/lib/jobs/run-grid-cells";
 import { SCAN_RESULT_COMPETITOR_COLUMNS } from "@/lib/maps/scan-result-columns";
+import { mergeScanConfidenceSummary } from "@/lib/jobs/merge-confidence-summary";
 
 function gridScanAutoEnrichment(): boolean {
   return process.env.GRID_SCAN_AUTO_ENRICHMENT === "true";
@@ -14,7 +15,8 @@ function gridScanAutoEnrichment(): boolean {
  * Enrichment is opt-in only (GRID_SCAN_AUTO_ENRICHMENT=true); grid scans do not run it by default.
  *
  * Uses a conditional status claim so soft-ready + end-of-scan (or duplicate soft-ready)
- * cannot run finalize twice.
+ * cannot run finalize twice. Confidence keys are merged (not replaced) so progress
+ * / early-enrichment flags survive.
  */
 export async function finalizeRankReady(
   scanBatchId: string,
@@ -88,8 +90,7 @@ export async function finalizeRankReady(
     .eq("id", scanBatchId)
     .eq("status", "normalizing")
     .maybeSingle();
-  const conf = ((latest?.confidence_summary ?? batch.confidence_summary ?? {}) as Record<string, unknown>);
-  const failedPointIds = Array.isArray(conf.failed_point_ids) ? conf.failed_point_ids : [];
+  const conf = (latest?.confidence_summary ?? batch.confidence_summary ?? {}) as Record<string, unknown>;
 
   if (actualFailed >= totalCells || (totalCells > 0 && actualFailed > totalCells * 0.5 && actualCompleted === 0)) {
     const { data: failedRow } = await supabase
@@ -126,20 +127,6 @@ export async function finalizeRankReady(
       cells_completed: cellsCompleted,
       cells_failed: actualFailed,
       rank_ready_at: rankReadyAt,
-      confidence_summary: {
-        ...conf,
-        provider: conf.provider ?? "brightdata",
-        method: conf.method ?? batch.scan_type,
-        completed_cells: cellsCompleted,
-        total_cells: totalCells,
-        failed_cells: actualFailed,
-        failed_point_ids: failedPointIds,
-        sparse_point_ids: sparsePointIds,
-        sparse_cells: sparsePointIds.length,
-        provider_error: hasEmptyProviderData
-          ? "Bright Data returned no map results — check BRIGHTDATA_API_KEY, BRIGHTDATA_ZONE (serp_api1), and account credits"
-          : conf.provider_error,
-      },
       error_message: hasEmptyProviderData
         ? "Bright Data returned empty results for all cells"
         : sparsePointIds.length > 0
@@ -157,6 +144,27 @@ export async function finalizeRankReady(
     console.log("[finalizeRankReady] rank_ready write skipped — status moved", scanBatchId);
     return;
   }
+
+  // Merge confidence keys — do not replace the whole document (preserves progress / early flags).
+  const confidencePatch: Record<string, unknown> = {
+    provider: conf.provider ?? "brightdata",
+    method: conf.method ?? batch.scan_type,
+    completed_cells: cellsCompleted,
+    total_cells: totalCells,
+    failed_cells: actualFailed,
+    sparse_point_ids: sparsePointIds,
+    sparse_cells: sparsePointIds.length,
+  };
+  if (Array.isArray(conf.failed_point_ids)) {
+    confidencePatch.failed_point_ids = conf.failed_point_ids;
+  }
+  if (hasEmptyProviderData) {
+    confidencePatch.provider_error =
+      "Bright Data returned no map results — check BRIGHTDATA_API_KEY, BRIGHTDATA_ZONE (serp_api1), and account credits";
+  } else if (conf.provider_error) {
+    confidencePatch.provider_error = conf.provider_error;
+  }
+  await mergeScanConfidenceSummary(supabase, scanBatchId, confidencePatch);
 
   invalidateScanGridCache(scanBatchId);
 
