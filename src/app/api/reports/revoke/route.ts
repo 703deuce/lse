@@ -33,6 +33,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, reportId: data.id });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Revoke failed";
-    return NextResponse.json({ error: message }, { status: 403 });
+    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

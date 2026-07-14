@@ -81,8 +81,20 @@ export async function POST(request: Request) {
         if (!expansionError) {
           const competitors = competitorsFromKdResult(result.score.top3Summary);
           if (competitors.length === 0) {
+            const id = await saveRun({
+              organizationId: auth.organizationId ?? null,
+              address,
+              businessBaseAddress: businessBaseAddress ?? null,
+              result,
+              expansionReach: undefined,
+            });
             return NextResponse.json(
-              { error: "Not enough Maps results were found to calculate Expansion Reach." },
+              {
+                ...result,
+                expansionError: "Not enough Maps results were found to calculate Expansion Reach.",
+                id,
+                error: "Not enough Maps results were found to calculate Expansion Reach.",
+              },
               { status: 400 }
             );
           }

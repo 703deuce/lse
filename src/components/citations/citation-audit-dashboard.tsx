@@ -75,8 +75,8 @@ export function CitationAuditDashboard({ businessId }: { businessId: string }) {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { quiet?: boolean }) => {
+    if (!opts?.quiet) setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/citations/${businessId}`);
@@ -84,15 +84,21 @@ export function CitationAuditDashboard({ businessId }: { businessId: string }) {
       if (!res.ok) throw new Error(json.error ?? "Failed to load");
       setData(json);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Load failed");
+      if (!opts?.quiet) setError(e instanceof Error ? e.message : "Load failed");
     } finally {
-      setLoading(false);
+      if (!opts?.quiet) setLoading(false);
     }
   }, [businessId]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
+
+  useEffect(() => {
+    if (data?.audit?.status !== "running") return;
+    const id = setInterval(() => void load({ quiet: true }), 4000);
+    return () => clearInterval(id);
+  }, [data?.audit?.status, load]);
 
   async function runAudit() {
     setRunning(true);

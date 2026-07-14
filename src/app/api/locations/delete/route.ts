@@ -30,19 +30,24 @@ export async function DELETE(request: Request) {
     await requireBusinessAccess(businessId);
     const supabase = createServiceClient();
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("rank_locations")
       .delete()
       .eq("id", locationId)
-      .eq("business_id", businessId);
+      .eq("business_id", businessId)
+      .select("id");
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    if (!data?.length) {
+      return NextResponse.json({ error: "Location not found" }, { status: 404 });
     }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Delete location failed";
-    return NextResponse.json({ error: message }, { status: 403 });
+    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

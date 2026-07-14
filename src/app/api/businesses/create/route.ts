@@ -50,7 +50,7 @@ export async function POST(request: Request) {
 
     if (data.keyword) {
       const fromAddress = parseUsAddressCityState(data.address_text);
-      await supabase.from("business_keywords").insert({
+      const { error: keywordError } = await supabase.from("business_keywords").insert({
         business_id: business.id,
         keyword: data.keyword.trim(),
         is_primary: true,
@@ -58,6 +58,12 @@ export async function POST(request: Request) {
         state: data.state ?? fromAddress.state,
         country: data.country ?? "US",
       });
+      if (keywordError) {
+        return NextResponse.json(
+          { error: `Business created but primary keyword failed: ${keywordError.message}` },
+          { status: 500 }
+        );
+      }
     }
 
     return NextResponse.json({ business });

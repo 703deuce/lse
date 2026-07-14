@@ -5,6 +5,7 @@ import { parseUsAddressCityState } from "@/lib/geo/us-address";
 import {
   fetchKeywordVolumes,
   resolveCityStateMarket,
+  resolveGoogleAdsLocation,
   parseCityStateLabel,
   formatGoogleAdsLocationLabel,
   formatMarketDisplay,
@@ -451,7 +452,7 @@ export async function refreshKeywordVolumes(params: { businessId: string; organi
 
   let query = supabase
     .from("tracked_keywords")
-    .select("id, keyword, google_ads_location_code")
+    .select("id, keyword, google_ads_location_code, location_name")
     .eq("business_id", params.businessId)
     .eq("active", true);
   if (params.keywordIds?.length) query = query.in("id", params.keywordIds);
@@ -460,28 +461,49 @@ export async function refreshKeywordVolumes(params: { businessId: string; organi
   if (error) throw new Error(error.message);
   if (!keywords?.length) return { updated: 0 };
 
-  const volumes = await fetchKeywordVolumes({
-    keywords: keywords.map((k) => k.keyword),
-    location: businessMarket,
-    organizationId: params.organizationId,
-  });
-
-  const volumeMap = new Map(volumes.map((v) => [v.keyword.toLowerCase(), v.search_volume]));
+  // Group by stored market so per-keyword locations are not overwritten with the business default.
+  const groups = new Map<number, { market: GoogleAdsMarket; keywords: typeof keywords }>();
+  for (const kw of keywords) {
+    let market = businessMarket;
+    if (kw.google_ads_location_code != null) {
+      try {
+        market = await resolveGoogleAdsLocation({
+          locationCode: kw.google_ads_location_code,
+          organizationId: params.organizationId,
+        });
+      } catch {
+        market = businessMarket;
+      }
+    }
+    const key = market.location_code;
+    const group = groups.get(key);
+    if (group) group.keywords.push(kw);
+    else groups.set(key, { market, keywords: [kw] });
+  }
 
   let updated = 0;
-  for (const kw of keywords) {
-    const vol = volumeMap.get(kw.keyword.toLowerCase()) ?? null;
-    const { error: upErr } = await supabase
-      .from("tracked_keywords")
-      .update({
-        search_volume: vol,
-        search_volume_source: "google_ads",
-        location_name: formatGoogleAdsLocationLabel(businessMarket),
-        google_ads_location_code: businessMarket.location_code,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", kw.id);
-    if (!upErr) updated++;
+  for (const { market, keywords: groupKeywords } of groups.values()) {
+    const volumes = await fetchKeywordVolumes({
+      keywords: groupKeywords.map((k) => k.keyword),
+      location: market,
+      organizationId: params.organizationId,
+    });
+    const volumeMap = new Map(volumes.map((v) => [v.keyword.toLowerCase(), v.search_volume]));
+
+    for (const kw of groupKeywords) {
+      const vol = volumeMap.get(kw.keyword.toLowerCase()) ?? null;
+      const { error: upErr } = await supabase
+        .from("tracked_keywords")
+        .update({
+          search_volume: vol,
+          search_volume_source: "google_ads",
+          location_name: formatGoogleAdsLocationLabel(market),
+          google_ads_location_code: market.location_code,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", kw.id);
+      if (!upErr) updated++;
+    }
   }
 
   return { updated };
@@ -579,5 +601,13 @@ export async function dismissSuggestion(suggestionId: string, businessId: string
 
 export async function deactivateKeyword(keywordId: string, businessId: string) {
   const supabase = createServiceClient();
-  await supabase.from("tracked_keywords").update({ active: false, updated_at: new Date().toISOString() }).eq("id", keywordId).eq("business_id", businessId);
+  const { data, error } = await supabase
+    .from("tracked_keywords")
+    .update({ active: false, updated_at: new Date().toISOString() })
+    .eq("id", keywordId)
+    .eq("business_id", businessId)
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Keyword not found");
 }

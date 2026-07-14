@@ -4,6 +4,12 @@ import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { scheduleScanProcessing } from "@/lib/jobs/schedule-scan";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
+import {
+  gridMapCredits,
+  PlanLimitError,
+  releaseUsage,
+  reserveUsageOrThrow,
+} from "@/lib/plans";
 
 const schema = z.object({
   businessId: z.string().uuid(),
@@ -47,7 +53,6 @@ export async function POST(request: Request) {
       keyword,
       gridSize,
       radiusMeters,
-      scanType,
       device,
       os,
       browser,
@@ -86,46 +91,59 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Keyword not found for business" }, { status: 404 });
     }
 
-    const { data: batch, error } = await supabase
-      .from("scan_batches")
-      .insert({
-        business_id: businessId,
-        status: "queued",
-        scan_type: "quick",
-        grid_size: gridSize,
-        radius_meters: radiusMeters,
-        device,
-        os,
-        browser,
-        provider: "brightdata",
-        location_id: locationId ?? null,
-        center_lat: centerLat ?? null,
-        center_lng: centerLng ?? null,
-        center_label: centerLabel?.trim() || null,
-        moved_from_scan_id: movedFromScanId ?? null,
-        confidence_summary: {
-          ...PARITY_SUMMARY,
-          scan_profile: { device, os, browser },
-          keyword_ids: [resolvedKeywordId],
-          keyword_label: String(kwRow.keyword).trim(),
-          method: "live_parallel",
-        },
-      })
-      .select("*")
-      .single();
+    const creditsNeeded = gridMapCredits(gridSize);
+    await reserveUsageOrThrow(auth.organizationId, "map_credits_used", creditsNeeded);
 
-    if (error || !batch) {
-      return NextResponse.json({ error: error?.message ?? "Failed to create scan" }, { status: 500 });
+    try {
+      const { data: batch, error } = await supabase
+        .from("scan_batches")
+        .insert({
+          business_id: businessId,
+          status: "queued",
+          scan_type: "quick",
+          grid_size: gridSize,
+          radius_meters: radiusMeters,
+          device,
+          os,
+          browser,
+          provider: "brightdata",
+          location_id: locationId ?? null,
+          center_lat: centerLat ?? null,
+          center_lng: centerLng ?? null,
+          center_label: centerLabel?.trim() || null,
+          moved_from_scan_id: movedFromScanId ?? null,
+          confidence_summary: {
+            ...PARITY_SUMMARY,
+            scan_profile: { device, os, browser },
+            keyword_ids: [resolvedKeywordId],
+            keyword_label: String(kwRow.keyword).trim(),
+            method: "live_parallel",
+          },
+        })
+        .select("*")
+        .single();
+
+      if (error || !batch) {
+        await releaseUsage(auth.organizationId, "map_credits_used", creditsNeeded).catch(() => {});
+        return NextResponse.json({ error: error?.message ?? "Failed to create scan" }, { status: 500 });
+      }
+
+      scheduleScanProcessing(batch.id, auth.organizationId);
+
+      return NextResponse.json({
+        scan: batch,
+        keyword: { id: kwRow.id, keyword: String(kwRow.keyword).trim() },
+      });
+    } catch (inner) {
+      await releaseUsage(auth.organizationId, "map_credits_used", creditsNeeded).catch(() => {});
+      throw inner;
     }
-
-    scheduleScanProcessing(batch.id, auth.organizationId);
-
-    return NextResponse.json({
-      scan: batch,
-      keyword: { id: kwRow.id, keyword: String(kwRow.keyword).trim() },
-    });
   } catch (err) {
+    if (err instanceof PlanLimitError) {
+      return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
+    }
     const message = err instanceof Error ? err.message : "Run scan failed";
-    return NextResponse.json({ error: message }, { status: 403 });
+    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

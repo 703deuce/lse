@@ -11,27 +11,12 @@ export async function generateReport(params: {
 
   const { data: existingReport } = await supabase
     .from("reports")
-    .select("*")
+    .select("id, share_token, share_expires_at")
     .eq("scan_batch_id", params.scanBatchId)
     .eq("business_id", params.businessId)
-    .not("html_content", "is", null)
     .order("generated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-
-  if (existingReport?.html_content && existingReport.share_token) {
-    const expiresAt = existingReport.share_expires_at
-      ? new Date(existingReport.share_expires_at as string).getTime()
-      : null;
-    const expired = expiresAt !== null && Number.isFinite(expiresAt) && expiresAt <= Date.now();
-    if (!expired) {
-      return {
-        reportId: existingReport.id,
-        shareToken: existingReport.share_token,
-        html: existingReport.html_content,
-      };
-    }
-  }
 
   const { data: business } = await supabase.from("businesses").select("*").eq("id", params.businessId).single();
   const { data: batch } = await supabase.from("scan_batches").select("*").eq("id", params.scanBatchId).single();
@@ -85,9 +70,20 @@ export async function generateReport(params: {
 
   const metrics = (batch.aggregate_metrics ?? {}) as Record<string, number | null>;
   const confidence = (batch.confidence_summary ?? {}) as Record<string, unknown>;
-  const shareToken = randomBytes(16).toString("hex");
   const generatedAt = new Date().toLocaleString();
   const shareExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Reuse an active share token so existing links keep working; mint a new one
+  // when the prior token was revoked or expired.
+  const existingExpiresAt = existingReport?.share_expires_at
+    ? new Date(existingReport.share_expires_at as string).getTime()
+    : null;
+  const existingExpired =
+    existingExpiresAt !== null && Number.isFinite(existingExpiresAt) && existingExpiresAt <= Date.now();
+  const shareToken =
+    existingReport?.share_token && !existingExpired
+      ? (existingReport.share_token as string)
+      : randomBytes(16).toString("hex");
 
   const html = `<!DOCTYPE html>
 <html>
@@ -143,7 +139,32 @@ export async function generateReport(params: {
 </body>
 </html>`;
 
-  const { data: report } = await supabase
+  const metadata = {
+    generatedAt,
+    keyword: keywords?.keyword,
+    checkUrl,
+    provider: "dataforseo",
+  };
+
+  if (existingReport?.id) {
+    const { data: report, error } = await supabase
+      .from("reports")
+      .update({
+        share_token: shareToken,
+        share_expires_at: shareExpiresAt,
+        html_content: html,
+        metadata_json: metadata,
+        generated_at: new Date().toISOString(),
+      })
+      .eq("id", existingReport.id)
+      .eq("business_id", params.businessId)
+      .select("id")
+      .single();
+    if (error || !report) throw new Error(error?.message ?? "Failed to update report");
+    return { reportId: report.id, shareToken, html };
+  }
+
+  const { data: report, error } = await supabase
     .from("reports")
     .insert({
       business_id: params.businessId,
@@ -151,17 +172,13 @@ export async function generateReport(params: {
       share_token: shareToken,
       share_expires_at: shareExpiresAt,
       html_content: html,
-      metadata_json: {
-        generatedAt,
-        keyword: keywords?.keyword,
-        checkUrl,
-        provider: "dataforseo",
-      },
+      metadata_json: metadata,
     })
     .select("id")
     .single();
 
-  return { reportId: report?.id ?? "", shareToken, html };
+  if (error || !report) throw new Error(error?.message ?? "Failed to create report");
+  return { reportId: report.id, shareToken, html };
 }
 
 function escapeHtml(s: string): string {

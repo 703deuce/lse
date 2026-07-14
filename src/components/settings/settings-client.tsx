@@ -31,6 +31,12 @@ export function SettingsClient({
   const [weeklyEnabled, setWeeklyEnabled] = useState(initialWeeklyEnabled);
   const [weeklySaving, setWeeklySaving] = useState(false);
   const [weeklyError, setWeeklyError] = useState<string | null>(null);
+  const [scanDefaults, setScanDefaults] = useState(() =>
+    defaultScanSetupValues(
+      business.scan_center_lat ?? business.lat ?? 40.7128,
+      business.scan_center_lng ?? business.lng ?? -74.006
+    )
+  );
 
   useEffect(() => {
     let active = true;
@@ -39,7 +45,14 @@ export function SettingsClient({
         const res = await fetch(`/api/schedule?businessId=${businessId}`);
         const json = await res.json();
         if (!active) return;
-        if (res.ok) setWeeklyEnabled(Boolean(json.enabled));
+        if (res.ok) {
+          setWeeklyEnabled(Boolean(json.enabled));
+          setScanDefaults((prev) => ({
+            ...prev,
+            ...(typeof json.gridSize === "number" ? { gridSize: json.gridSize } : {}),
+            ...(typeof json.radiusMeters === "number" ? { radiusMeters: json.radiusMeters } : {}),
+          }));
+        }
       } catch {
         /* ignore hydrate failures — keep initial */
       }
@@ -57,11 +70,23 @@ export function SettingsClient({
       const res = await fetch("/api/schedule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId, enabled: next }),
+        body: JSON.stringify({
+          businessId,
+          enabled: next,
+          gridSize: scanDefaults.gridSize,
+          radiusMeters: scanDefaults.radiusMeters,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to update schedule");
       setWeeklyEnabled(Boolean(json.enabled));
+      if (typeof json.gridSize === "number" || typeof json.radiusMeters === "number") {
+        setScanDefaults((prev) => ({
+          ...prev,
+          ...(typeof json.gridSize === "number" ? { gridSize: json.gridSize } : {}),
+          ...(typeof json.radiusMeters === "number" ? { radiusMeters: json.radiusMeters } : {}),
+        }));
+      }
     } catch (err) {
       setWeeklyError(err instanceof Error ? err.message : "Failed to update schedule");
     } finally {
@@ -113,8 +138,13 @@ export function SettingsClient({
         <h2 className="font-semibold">Baseline scan setup</h2>
         <ScanSetupForm
           businessId={businessId}
-          defaults={defaultScanSetupValues(center[0], center[1])}
+          defaults={{
+            ...scanDefaults,
+            scanCenterLat: center[0],
+            scanCenterLng: center[1],
+          }}
           scanCenter={center}
+          onDefaultsChange={(next) => setScanDefaults((prev) => ({ ...prev, ...next }))}
         />
       </section>
 

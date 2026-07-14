@@ -792,7 +792,7 @@ export async function addManualPrompt(params: {
     status = "active";
   }
 
-  await supabase.from("ai_visibility_prompts").insert({
+  const { error } = await supabase.from("ai_visibility_prompts").insert({
     organization_id: params.organizationId,
     business_id: params.businessId,
     prompt_text: params.promptText.trim(),
@@ -803,6 +803,7 @@ export async function addManualPrompt(params: {
     reason: "Manually added prompt",
     engines: DEFAULT_ENGINES,
   });
+  if (error) throw new Error(error.message);
 
   return loadAiVisibilityData(params.businessId);
 }

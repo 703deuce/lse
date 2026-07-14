@@ -8,6 +8,7 @@ import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
 import {
   gridMapCredits,
   PlanLimitError,
+  releaseUsage,
   reserveUsageOrThrow,
 } from "@/lib/plans";
 
@@ -38,72 +39,78 @@ export async function POST(request: Request) {
 
     const supabase = createServiceClient();
 
-    const [{ data: business }, { data: primaryKw }, { data: latestScan }] = await Promise.all([
-      supabase
-        .from("businesses")
-        .select("scan_center_lat, scan_center_lng, lat, lng, address_text")
-        .eq("id", businessId)
-        .maybeSingle(),
-      supabase
-        .from("business_keywords")
-        .select("id, keyword")
-        .eq("business_id", businessId)
-        .order("is_primary", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
+    try {
+      const [{ data: business }, { data: primaryKw }, { data: latestScan }] = await Promise.all([
+        supabase
+          .from("businesses")
+          .select("scan_center_lat, scan_center_lng, lat, lng, address_text")
+          .eq("id", businessId)
+          .maybeSingle(),
+        supabase
+          .from("business_keywords")
+          .select("id, keyword")
+          .eq("business_id", businessId)
+          .order("is_primary", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("scan_batches")
+          .select("center_lat, center_lng, center_label, location_id")
+          .eq("business_id", businessId)
+          .in("status", [...USABLE_SCAN_STATUSES])
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      const centerLat =
+        latestScan?.center_lat ?? business?.scan_center_lat ?? business?.lat ?? null;
+      const centerLng =
+        latestScan?.center_lng ?? business?.scan_center_lng ?? business?.lng ?? null;
+      const centerLabel = latestScan?.center_label ?? business?.address_text ?? null;
+
+      const { data: batch, error } = await supabase
         .from("scan_batches")
-        .select("center_lat, center_lng, center_label, location_id")
-        .eq("business_id", businessId)
-        .in("status", [...USABLE_SCAN_STATUSES])
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
+        .insert({
+          business_id: businessId,
+          status: "queued",
+          scan_type: "quick",
+          grid_size: gridSize,
+          radius_meters: radiusMeters,
+          device,
+          os,
+          browser,
+          provider: "brightdata",
+          location_id: latestScan?.location_id ?? null,
+          center_lat: centerLat,
+          center_lng: centerLng,
+          center_label: centerLabel,
+          confidence_summary: {
+            ...PARITY_SUMMARY,
+            scan_profile: { device, os, browser },
+            ...(parityLabel ? { parity_profile: parityLabel } : {}),
+            // Scope baseline Settings scans to the primary keyword — otherwise
+            // processScanBatch fans out to every keyword for the same credit cost.
+            ...(primaryKw?.id
+              ? { keyword_ids: [primaryKw.id], keyword_label: primaryKw.keyword }
+              : {}),
+          },
+        })
+        .select("*")
+        .single();
 
-    const centerLat =
-      latestScan?.center_lat ?? business?.scan_center_lat ?? business?.lat ?? null;
-    const centerLng =
-      latestScan?.center_lng ?? business?.scan_center_lng ?? business?.lng ?? null;
-    const centerLabel = latestScan?.center_label ?? business?.address_text ?? null;
+      if (error || !batch) {
+        await releaseUsage(auth.organizationId, "map_credits_used", creditsNeeded).catch(() => {});
+        return NextResponse.json({ error: error?.message ?? "Failed to create scan" }, { status: 500 });
+      }
 
-    const { data: batch, error } = await supabase
-      .from("scan_batches")
-      .insert({
-        business_id: businessId,
-        status: "queued",
-        scan_type: "quick",
-        grid_size: gridSize,
-        radius_meters: radiusMeters,
-        device,
-        os,
-        browser,
-        provider: "brightdata",
-        location_id: latestScan?.location_id ?? null,
-        center_lat: centerLat,
-        center_lng: centerLng,
-        center_label: centerLabel,
-        confidence_summary: {
-          ...PARITY_SUMMARY,
-          scan_profile: { device, os, browser },
-          ...(parityLabel ? { parity_profile: parityLabel } : {}),
-          // Scope baseline Settings scans to the primary keyword — otherwise
-          // processScanBatch fans out to every keyword for the same credit cost.
-          ...(primaryKw?.id
-            ? { keyword_ids: [primaryKw.id], keyword_label: primaryKw.keyword }
-            : {}),
-        },
-      })
-      .select("*")
-      .single();
+      scheduleScanProcessing(batch.id, auth.organizationId);
 
-    if (error || !batch) {
-      return NextResponse.json({ error: error?.message ?? "Failed to create scan" }, { status: 500 });
+      return NextResponse.json({ scan: batch });
+    } catch (inner) {
+      await releaseUsage(auth.organizationId, "map_credits_used", creditsNeeded).catch(() => {});
+      throw inner;
     }
-
-    scheduleScanProcessing(batch.id, auth.organizationId);
-
-    return NextResponse.json({ scan: batch });
   } catch (err) {
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });

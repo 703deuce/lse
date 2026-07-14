@@ -86,8 +86,8 @@ export function ReputationAuditDashboard({ businessId }: { businessId: string })
     [businessId, router, searchParams]
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { quiet?: boolean }) => {
+    if (!opts?.quiet) setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/reputation/${businessId}`);
@@ -95,15 +95,22 @@ export function ReputationAuditDashboard({ businessId }: { businessId: string })
       if (!res.ok) throw new Error(json.error ?? "Failed to load");
       setData(json);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Load failed");
+      if (!opts?.quiet) setError(e instanceof Error ? e.message : "Load failed");
     } finally {
-      setLoading(false);
+      if (!opts?.quiet) setLoading(false);
     }
   }, [businessId]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const status = data?.audit?.status;
+    if (status !== "running") return;
+    const id = setInterval(() => void load({ quiet: true }), 4000);
+    return () => clearInterval(id);
+  }, [data?.audit?.status, load]);
 
   async function runAudit() {
     setRunning(true);

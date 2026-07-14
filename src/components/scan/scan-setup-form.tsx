@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Play } from "lucide-react";
 import { updateBusinessSettings } from "@/lib/actions/mutations";
@@ -21,6 +21,7 @@ export function ScanSetupForm({
   scanCenter,
   compact = false,
   footerBar = false,
+  onDefaultsChange,
 }: {
   businessId: string;
   defaults: {
@@ -32,16 +33,37 @@ export function ScanSetupForm({
   scanCenter?: [number, number];
   compact?: boolean;
   footerBar?: boolean;
+  onDefaultsChange?: (next: { gridSize: number; radiusMeters: number }) => void;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(defaults);
+
+  useEffect(() => {
+    setForm((prev) => ({
+      ...prev,
+      gridSize: defaults.gridSize,
+      radiusMeters: defaults.radiusMeters,
+      scanCenterLat: defaults.scanCenterLat,
+      scanCenterLng: defaults.scanCenterLng,
+    }));
+  }, [defaults.gridSize, defaults.radiusMeters, defaults.scanCenterLat, defaults.scanCenterLng]);
 
   const preview = gridScanMeta(form.gridSize, form.radiusMeters);
   const radiusMiles = metersToMiles(form.radiusMeters);
   const closestPreset = RADIUS_MILE_PRESETS.reduce((best, p) =>
     Math.abs(p.miles - radiusMiles) < Math.abs(best.miles - radiusMiles) ? p : best
   );
+
+  function updateForm(patch: Partial<typeof form>) {
+    setForm((prev) => {
+      const next = { ...prev, ...patch };
+      if (patch.gridSize != null || patch.radiusMeters != null) {
+        onDefaultsChange?.({ gridSize: next.gridSize, radiusMeters: next.radiusMeters });
+      }
+      return next;
+    });
+  }
 
   async function saveSettings() {
     const lat = scanCenter?.[0] ?? form.scanCenterLat;
@@ -93,7 +115,7 @@ export function ScanSetupForm({
           <select
             className={selectClass}
             value={form.gridSize}
-            onChange={(e) => setForm({ ...form, gridSize: Number(e.target.value) })}
+            onChange={(e) => updateForm({ gridSize: Number(e.target.value) })}
           >
             {GRID_SIZE_OPTIONS.map((n) => (
               <option key={n} value={n}>
@@ -107,9 +129,7 @@ export function ScanSetupForm({
           <select
             className={selectClass}
             value={closestPreset.miles}
-            onChange={(e) =>
-              setForm({ ...form, radiusMeters: milesToMeters(Number(e.target.value)) })
-            }
+            onChange={(e) => updateForm({ radiusMeters: milesToMeters(Number(e.target.value)) })}
           >
             {RADIUS_MILE_PRESETS.map((p) => (
               <option key={p.miles} value={p.miles}>

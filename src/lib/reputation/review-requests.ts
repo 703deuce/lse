@@ -452,6 +452,7 @@ export async function updateReviewLinkSettings(params: {
   shortSlug?: string;
   posterConfig?: PosterConfig;
 }) {
+  await getBusiness(params.businessId, params.organizationId);
   const supabase = createServiceClient();
   const { data: link } = await supabase
     .from("review_request_links")
@@ -474,9 +475,11 @@ export async function updateReviewLinkSettings(params: {
     .from("review_request_links")
     .update(updates)
     .eq("id", link.id)
+    .eq("business_id", params.businessId)
     .select("*")
     .single();
 
   if (error) throw new Error(error.message);
+  if (!data) throw new Error("Failed to update review link");
   return data;
 }

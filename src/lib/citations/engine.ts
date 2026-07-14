@@ -487,6 +487,7 @@ export async function createCitationTasksFromAudit(auditId: string, businessId: 
     evidence_json: { evidence: t.evidence, summary: audit?.ai_summary },
   }));
 
-  const { data: inserted } = await supabase.from("citation_tasks").insert(rows).select("id");
+  const { data: inserted, error: insertError } = await supabase.from("citation_tasks").insert(rows).select("id");
+  if (insertError) throw new Error(insertError.message);
   return inserted ?? [];
 }

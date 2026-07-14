@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { sendReviewRequestEmail } from "@/lib/reputation/review-sends";
-import { PlanLimitError, reserveUsageOrThrow } from "@/lib/plans";
+import { PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
 
 export async function POST(request: Request) {
+  let reserved = false;
+  let organizationId: string | undefined;
   try {
     const body = (await request.json()) as {
       businessId?: string;
@@ -22,7 +24,9 @@ export async function POST(request: Request) {
     }
 
     const auth = await requireBusinessAccess(body.businessId);
+    organizationId = auth.organizationId;
     await reserveUsageOrThrow(auth.organizationId, "review_emails_sent", 1);
+    reserved = true;
     const result = await sendReviewRequestEmail({
       businessId: body.businessId,
       organizationId: auth.organizationId,
@@ -34,11 +38,16 @@ export async function POST(request: Request) {
     });
 
     if (!result.ok) {
+      await releaseUsage(auth.organizationId, "review_emails_sent", 1).catch(() => {});
+      reserved = false;
       return NextResponse.json({ error: result.error, sendId: result.sendId }, { status: 502 });
     }
 
     return NextResponse.json({ ok: true, sendId: result.sendId, messageId: result.messageId });
   } catch (err) {
+    if (reserved && organizationId) {
+      await releaseUsage(organizationId, "review_emails_sent", 1).catch(() => {});
+    }
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
@@ -46,7 +55,9 @@ export async function POST(request: Request) {
     const status =
       message.includes("Review link missing") ||
       message.includes("email") ||
-      message.includes("opted out")
+      message.includes("opted out") ||
+      message.includes("access denied") ||
+      message.includes("not found")
         ? 400
         : 500;
     return NextResponse.json({ error: message }, { status });

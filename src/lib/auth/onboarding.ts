@@ -26,17 +26,22 @@ async function uniqueSlug(base: string): Promise<string> {
   }
 }
 
-export async function ensureUserOrganization(user: User): Promise<string> {
+async function findMembershipOrgId(userId: string): Promise<string | null> {
   const { data: membership } = await supabaseAdmin
     .from("organization_members")
     .select("organization_id")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
+  return membership?.organization_id ?? null;
+}
 
-  if (membership?.organization_id) {
+export async function ensureUserOrganization(user: User): Promise<string> {
+  const existing = await findMembershipOrgId(user.id);
+  if (existing) {
     await upsertProfile(user);
-    return membership.organization_id;
+    return existing;
   }
 
   const displayName =
@@ -44,33 +49,56 @@ export async function ensureUserOrganization(user: User): Promise<string> {
     user.email?.split("@")[0] ??
     "My Workspace";
 
-  const slug = await uniqueSlug(slugify(displayName));
+  // Retry once on race: concurrent signup can create the first membership between
+  // the check above and this insert.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const raced = await findMembershipOrgId(user.id);
+    if (raced) {
+      await upsertProfile(user);
+      return raced;
+    }
 
-  const { data: org, error: orgError } = await supabaseAdmin
-    .from("organizations")
-    .insert({
-      name: displayName,
-      slug,
-      plan: "starter",
-      created_by: user.id,
-      status: "active",
-      billing_status: "manual",
-    })
-    .select("id")
-    .single();
+    const slug = await uniqueSlug(slugify(displayName));
+    const { data: org, error: orgError } = await supabaseAdmin
+      .from("organizations")
+      .insert({
+        name: displayName,
+        slug,
+        plan: "starter",
+        created_by: user.id,
+        status: "active",
+        billing_status: "manual",
+      })
+      .select("id")
+      .single();
 
-  if (orgError || !org) {
-    throw new Error(`Failed to create organization: ${orgError?.message}`);
+    if (orgError || !org) {
+      // Unique slug collision or concurrent create — retry lookup.
+      if (attempt === 0) continue;
+      throw new Error(`Failed to create organization: ${orgError?.message}`);
+    }
+
+    const { error: memberError } = await supabaseAdmin.from("organization_members").insert({
+      organization_id: org.id,
+      user_id: user.id,
+      role: "owner",
+    });
+
+    if (memberError) {
+      const afterRace = await findMembershipOrgId(user.id);
+      if (afterRace) {
+        await upsertProfile(user);
+        return afterRace;
+      }
+      if (attempt === 0) continue;
+      throw new Error(`Failed to create organization membership: ${memberError.message}`);
+    }
+
+    await upsertProfile(user);
+    return org.id;
   }
 
-  await supabaseAdmin.from("organization_members").insert({
-    organization_id: org.id,
-    user_id: user.id,
-    role: "owner",
-  });
-
-  await upsertProfile(user);
-  return org.id;
+  throw new Error("Failed to create organization after retry");
 }
 
 async function upsertProfile(user: User): Promise<void> {
@@ -90,12 +118,5 @@ async function upsertProfile(user: User): Promise<void> {
 }
 
 export async function getOrganizationIdForUser(userId: string): Promise<string | null> {
-  const { data: membership } = await supabaseAdmin
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", userId)
-    .limit(1)
-    .maybeSingle();
-
-  return membership?.organization_id ?? null;
+  return findMembershipOrgId(userId);
 }

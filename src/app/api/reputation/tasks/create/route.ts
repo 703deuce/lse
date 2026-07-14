@@ -44,7 +44,10 @@ export async function POST(request: Request) {
       evidence_json: { evidence: t.evidence },
     }));
 
-    const { data: inserted } = await supabase.from("reputation_tasks").insert(rows).select("id");
+    const { data: inserted, error: insertError } = await supabase.from("reputation_tasks").insert(rows).select("id");
+    if (insertError) {
+      return NextResponse.json({ error: insertError.message }, { status: 500 });
+    }
     return NextResponse.json({ created: inserted?.length ?? 0, tasks: inserted });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to create tasks";

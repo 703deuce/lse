@@ -19,11 +19,18 @@ export function TaskList({
     const current = statuses[id] ?? "open";
     const next = current === "done" ? "open" : "done";
     setStatuses((s) => ({ ...s, [id]: next }));
-    await fetch("/api/tasks", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ itemId: id, status: next }),
-    });
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: id, status: next }),
+      });
+      if (!res.ok) {
+        setStatuses((s) => ({ ...s, [id]: current }));
+      }
+    } catch {
+      setStatuses((s) => ({ ...s, [id]: current }));
+    }
   }
 
   if (!items.length) return null;

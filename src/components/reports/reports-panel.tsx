@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, FileDown, Link2 } from "lucide-react";
-import { ContentCard, EmptyState, ModuleHeader, ModulePage, btnPrimary } from "@/components/ui/design-system";
+import { Loader2, FileDown, Link2, Ban } from "lucide-react";
+import { ContentCard, EmptyState, ModuleHeader, ModulePage, btnPrimary, btnSecondary } from "@/components/ui/design-system";
 
 export function ReportsPanel({
   businessId,
@@ -12,11 +12,15 @@ export function ReportsPanel({
   latestScanId?: string | null;
 }) {
   const [loading, setLoading] = useState(false);
+  const [revoking, setRevoking] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [reportId, setReportId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function exportReport() {
     if (!latestScanId) return;
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/reports/export", {
         method: "POST",
@@ -26,10 +30,32 @@ export function ReportsPanel({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setShareUrl(data.shareUrl);
+      setReportId(data.reportId ?? null);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Export failed");
+      setError(err instanceof Error ? err.message : "Export failed");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function revokeShare() {
+    if (!reportId) return;
+    setRevoking(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/reports/revoke", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId, reportId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Revoke failed");
+      setShareUrl(null);
+      setReportId(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Revoke failed");
+    } finally {
+      setRevoking(false);
     }
   }
 
@@ -57,15 +83,28 @@ export function ReportsPanel({
                 Generates a shareable PDF from your latest grid scan — rankings, coverage, and
                 competitor comparison.
               </p>
-              <button
-                type="button"
-                onClick={exportReport}
-                disabled={loading}
-                className={`mt-3 h-9 px-3 text-[13px] ${btnPrimary}`}
-              >
-                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
-                Export PDF report
-              </button>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={exportReport}
+                  disabled={loading}
+                  className={`h-9 px-3 text-[13px] ${btnPrimary}`}
+                >
+                  {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
+                  Export PDF report
+                </button>
+                {reportId && shareUrl ? (
+                  <button
+                    type="button"
+                    onClick={() => void revokeShare()}
+                    disabled={revoking}
+                    className={`h-9 px-3 text-[13px] ${btnSecondary}`}
+                  >
+                    {revoking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />}
+                    Revoke share link
+                  </button>
+                ) : null}
+              </div>
               {shareUrl && (
                 <p className="mt-2.5 flex items-center gap-1.5 text-[12px] text-zinc-600">
                   <Link2 className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
@@ -79,6 +118,7 @@ export function ReportsPanel({
                   </a>
                 </p>
               )}
+              {error && <p className="mt-2 text-[12px] text-red-600">{error}</p>}
             </div>
           </div>
         </ContentCard>
