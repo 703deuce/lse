@@ -128,6 +128,9 @@ export async function finalizeRankReady(
       cells_completed: cellsCompleted,
       cells_failed: actualFailed,
       rank_ready_at: rankReadyAt,
+      // Explicit "grid is done" timestamp for the client wait UI (reload already works;
+      // this is what live polling must observe to reveal the map).
+      finished_at: rankReadyAt,
       error_message: hasEmptyProviderData
         ? "Bright Data returned empty results for all cells"
         : sparsePointIds.length > 0
