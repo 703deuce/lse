@@ -28,14 +28,26 @@ export async function processPendingJobs(limit = 5): Promise<{ jobsProcessed: nu
 
   let processed = 0;
   for (const job of jobs) {
-    await supabase
+    // Conditional claim — only one worker may take a pending job.
+    const { data: claimed } = await supabase
       .from("job_queue")
-      .update({ status: "running", started_at: new Date().toISOString(), attempts: job.attempts + 1 })
-      .eq("id", job.id);
+      .update({
+        status: "running",
+        started_at: new Date().toISOString(),
+        attempts: (job.attempts ?? 0) + 1,
+      })
+      .eq("id", job.id)
+      .eq("status", "pending")
+      .select("id, job_type, payload, attempts, max_attempts")
+      .maybeSingle();
+
+    if (!claimed) {
+      continue;
+    }
 
     try {
-      if (job.job_type === "process_scan") {
-        const payload = job.payload as { scanBatchId?: string; businessId?: string };
+      if (claimed.job_type === "process_scan") {
+        const payload = claimed.payload as { scanBatchId?: string; businessId?: string };
         if (payload.scanBatchId) {
           let orgId: string | undefined;
           if (payload.businessId) {
@@ -68,11 +80,13 @@ export async function processPendingJobs(limit = 5): Promise<{ jobsProcessed: nu
       await supabase
         .from("job_queue")
         .update({ status: "completed", finished_at: new Date().toISOString() })
-        .eq("id", job.id);
+        .eq("id", claimed.id);
       processed++;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
-      const failed = job.attempts + 1 >= job.max_attempts;
+      const attempts = claimed.attempts ?? (job.attempts ?? 0) + 1;
+      const maxAttempts = claimed.max_attempts ?? job.max_attempts ?? 3;
+      const failed = attempts >= maxAttempts;
       await supabase
         .from("job_queue")
         .update({
@@ -80,14 +94,15 @@ export async function processPendingJobs(limit = 5): Promise<{ jobsProcessed: nu
           error_message: message,
           finished_at: failed ? new Date().toISOString() : null,
         })
-        .eq("id", job.id);
+        .eq("id", claimed.id);
 
-      const payload = job.payload as { scanBatchId?: string };
+      const payload = claimed.payload as { scanBatchId?: string };
       if (payload.scanBatchId) {
         await supabase
           .from("scan_batches")
           .update({ status: "failed", error_message: message })
-          .eq("id", payload.scanBatchId);
+          .eq("id", payload.scanBatchId)
+          .in("status", ["queued", "dispatching", "provider_running", "normalizing"]);
       }
     }
   }

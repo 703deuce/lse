@@ -182,6 +182,84 @@ async function saveCellProgress(
     .eq("id", scanBatchId);
 }
 
+/** Serialize progress writes per scan so parallel cells cannot clobber confidence_summary. */
+const progressChains = new Map<string, Promise<void>>();
+
+function enqueueProgressWrite(scanBatchId: string, write: () => Promise<void>): Promise<void> {
+  const prev = progressChains.get(scanBatchId) ?? Promise.resolve();
+  const next = prev.then(write, write).finally(() => {
+    if (progressChains.get(scanBatchId) === next) {
+      progressChains.delete(scanBatchId);
+    }
+  });
+  progressChains.set(scanBatchId, next);
+  return next;
+}
+
+const PROGRESS_FLUSH_MS = Number(process.env.SCAN_PROGRESS_FLUSH_MS ?? 750);
+
+type ProgressThrottleState = {
+  lastFlushAt: number;
+  pending: {
+    completed: number;
+    total: number;
+    failed: number;
+    extra?: Record<string, unknown>;
+  } | null;
+  flushTimer: ReturnType<typeof setTimeout> | null;
+};
+
+const progressThrottleByScan = new Map<string, ProgressThrottleState>();
+
+async function flushPendingProgress(scanBatchId: string, force = false): Promise<void> {
+  const state = progressThrottleByScan.get(scanBatchId);
+  if (!state?.pending) return;
+  const due = force || Date.now() - state.lastFlushAt >= PROGRESS_FLUSH_MS;
+  if (!due) return;
+  const payload = state.pending;
+  state.pending = null;
+  state.lastFlushAt = Date.now();
+  if (state.flushTimer) {
+    clearTimeout(state.flushTimer);
+    state.flushTimer = null;
+  }
+  await enqueueProgressWrite(scanBatchId, () =>
+    saveCellProgress(scanBatchId, payload.completed, payload.total, payload.failed, payload.extra)
+  );
+}
+
+async function scheduleCellProgress(
+  scanBatchId: string,
+  completed: number,
+  total: number,
+  failed: number,
+  extra?: Record<string, unknown>,
+  options?: { force?: boolean }
+): Promise<void> {
+  let state = progressThrottleByScan.get(scanBatchId);
+  if (!state) {
+    state = { lastFlushAt: 0, pending: null, flushTimer: null };
+    progressThrottleByScan.set(scanBatchId, state);
+  }
+  state.pending = { completed, total, failed, extra };
+  if (options?.force) {
+    await flushPendingProgress(scanBatchId, true);
+    return;
+  }
+  const elapsed = Date.now() - state.lastFlushAt;
+  if (elapsed >= PROGRESS_FLUSH_MS) {
+    await flushPendingProgress(scanBatchId, true);
+    return;
+  }
+  if (!state.flushTimer) {
+    state.flushTimer = setTimeout(() => {
+      void flushPendingProgress(scanBatchId, true).catch((err) => {
+        console.warn("[Scan] throttled progress flush failed", scanBatchId, err);
+      });
+    }, Math.max(50, PROGRESS_FLUSH_MS - elapsed));
+  }
+}
+
 async function runOneCell(
   job: GridCellJob,
   depth: number,
@@ -259,12 +337,7 @@ async function runOneCell(
       }
 
       const dbStart = performance.now();
-      await supabase
-        .from("scan_results")
-        .delete()
-        .eq("scan_point_id", job.point.id)
-        .eq("keyword_id", job.keyword.id);
-      const { error: insertError } = await supabase.from("scan_results").insert({
+      const resultPayload = {
         scan_point_id: job.point.id,
         keyword_id: job.keyword.id,
         target_rank: match.rank,
@@ -274,8 +347,13 @@ async function runOneCell(
         confidence: match.matchReason,
         top_competitors_json: extractTopCompetitors(items),
         provider_request_json: live.request as unknown as Record<string, unknown>,
+      };
+      // Unique (scan_point_id, keyword_id) makes retries idempotent — no delete+insert race.
+      const { error: upsertError } = await supabase.from("scan_results").upsert(resultPayload, {
+        onConflict: "scan_point_id,keyword_id",
+        ignoreDuplicates: false,
       });
-      if (insertError) throw new Error(insertError.message);
+      if (upsertError) throw new Error(upsertError.message);
       dbSaveSec = elapsedSec(dbStart);
       invalidateScanGridCache(job.scanBatchId);
 
@@ -441,7 +519,7 @@ async function runJobsWithConcurrency(
 
         const progressStart = performance.now();
         if (updateProgress) {
-          await saveCellProgress(
+          await scheduleCellProgress(
             params.scanBatchId,
             Math.min(completedOffset + completed, params.totalCells),
             params.totalCells,
@@ -462,6 +540,17 @@ async function runJobsWithConcurrency(
       })
     )
   );
+
+  if (updateProgress) {
+    await scheduleCellProgress(
+      params.scanBatchId,
+      Math.min(completedOffset + completed, params.totalCells),
+      params.totalCells,
+      failedCells,
+      { pass: params.passLabel, failed_point_ids: [...new Set(failedPointIds)] },
+      { force: true }
+    );
+  }
 
   return { results, failedCells, timings };
 }
@@ -585,13 +674,20 @@ async function runIntegrityPass(params: {
     ? (conf.failed_point_ids as string[])
     : [];
 
-  await saveCellProgress(params.scanBatchId, params.totalCells, params.totalCells, prevFailed + stillIncompleteIds.length, {
+  await scheduleCellProgress(
+    params.scanBatchId,
+    params.totalCells,
+    params.totalCells,
+    prevFailed + stillIncompleteIds.length,
+    {
     pass: "integrity",
     failed_point_ids: [...new Set([...prevFailedIds, ...stillIncompleteIds])],
     sparse_point_ids: stillIncompleteIds,
     integrity_retries: incompleteJobs.length,
     integrity_recovered: incompleteJobs.length - stillIncompleteIds.length,
-  });
+    },
+    { force: true }
+  );
   invalidateScanGridCache(params.scanBatchId);
   console.log(
     `[Scan] Integrity retry recovered ${incompleteJobs.length - stillIncompleteIds.length}/${incompleteJobs.length} cells; ${stillIncompleteIds.length} still sparse`
@@ -742,11 +838,18 @@ export async function runGridCellsLive(params: {
   failedCells += integrity.failedCells;
 
   const successCells = Math.max(0, totalCells - failedCells);
-  await saveCellProgress(params.scanBatchId, totalCells, totalCells, failedCells, {
-    pass: "complete",
-    method: "live_parallel",
-    failed_point_ids: failedCells > 0 ? remainingJobs.map((j) => j.point.id) : [],
-  });
+  await scheduleCellProgress(
+    params.scanBatchId,
+    totalCells,
+    totalCells,
+    failedCells,
+    {
+      pass: "complete",
+      method: "live_parallel",
+      failed_point_ids: failedCells > 0 ? remainingJobs.map((j) => j.point.id) : [],
+    },
+    { force: true }
+  );
 
   if (!rankReadyFired && params.onSoftReady) {
     await onSoftReady();
