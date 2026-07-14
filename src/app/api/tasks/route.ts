@@ -1,15 +1,21 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/context";
+import { getActionItemOrganizationId } from "@/lib/actions/action-item-access";
 import { createServiceClient } from "@/lib/db/client";
 import { updateTaskSchema } from "@/lib/validation/schemas";
 
 export async function PATCH(request: Request) {
   try {
-    await requireAuth();
+    const auth = await requireAuth();
     const body = await request.json();
     const parsed = updateTaskSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+    }
+
+    const orgId = await getActionItemOrganizationId(parsed.data.itemId);
+    if (!orgId || orgId !== auth.organizationId) {
+      return NextResponse.json({ error: "Task not found or access denied" }, { status: 404 });
     }
 
     const supabase = createServiceClient();
