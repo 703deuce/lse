@@ -5,10 +5,9 @@ import { scheduleScanProcessing } from "@/lib/jobs/schedule-scan";
 import { createScanSchema } from "@/lib/validation/schemas";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
 import {
-  assertWithinLimit,
   gridMapCredits,
-  incrementUsage,
   PlanLimitError,
+  reserveUsageOrThrow,
 } from "@/lib/plans";
 
 const PARITY_SUMMARY = {
@@ -34,7 +33,7 @@ export async function POST(request: Request) {
     const auth = await requireBusinessAccess(businessId);
 
     const creditsNeeded = gridMapCredits(gridSize);
-    await assertWithinLimit(auth.organizationId, "map_credits_month", creditsNeeded);
+    await reserveUsageOrThrow(auth.organizationId, "map_credits_used", creditsNeeded);
 
     const supabase = createServiceClient();
     const { data: batch, error } = await supabase
@@ -63,7 +62,6 @@ export async function POST(request: Request) {
     }
 
     scheduleScanProcessing(batch.id, auth.organizationId);
-    await incrementUsage(auth.organizationId, "map_credits_used", creditsNeeded);
 
     return NextResponse.json({ scan: batch });
   } catch (err) {

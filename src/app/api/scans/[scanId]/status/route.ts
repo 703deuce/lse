@@ -35,7 +35,13 @@ export async function GET(
     const access = await requireScanAccess(scanId);
     const supabase = createServiceClient();
 
-    const { data: batch } = await supabase.from("scan_batches").select("*").eq("id", scanId).single();
+    const { data: batch } = await supabase
+      .from("scan_batches")
+      .select(
+        "id, business_id, status, scan_type, grid_size, radius_meters, device, os, provider, started_at, finished_at, confidence_summary, aggregate_metrics, error_message, created_at, updated_at, cells_completed, cells_total, cells_failed, lease_expires_at, lease_owner, enrichment_status"
+      )
+      .eq("id", scanId)
+      .single();
     if (!batch) return NextResponse.json({ error: "Scan not found" }, { status: 404 });
 
     const { data: business } = await supabase
@@ -46,7 +52,7 @@ export async function GET(
 
     const { data: allKeywords } = await supabase
       .from("business_keywords")
-      .select("*")
+      .select("id, business_id, keyword, is_primary, city, state")
       .eq("business_id", batch.business_id);
 
     const conf = (batch.confidence_summary ?? {}) as {
@@ -66,7 +72,10 @@ export async function GET(
       kickQueuedScanIfNeeded(scanId, batch.status, access.organizationId);
     }
 
-    const { data: points } = await supabase.from("scan_points").select("*").eq("scan_batch_id", scanId);
+    const { data: points } = await supabase
+      .from("scan_points")
+      .select("id, scan_batch_id, grid_label, lat, lng, distance_from_center_m")
+      .eq("scan_batch_id", scanId);
     const pointIds = (points ?? []).map((p) => p.id);
     let results: unknown[] = [];
     if (pointIds.length) {

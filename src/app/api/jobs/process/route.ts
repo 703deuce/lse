@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { processPendingJobs } from "@/lib/jobs/queue";
+import { getRequestId } from "@/lib/observability/request-id";
+import { logger } from "@/lib/observability/logger";
 
 const CRON_SECRET = process.env.CRON_SECRET?.trim();
 
 function authorize(request: Request): NextResponse | null {
-  // Fail closed in production: unset secret must not open the worker.
   if (process.env.NODE_ENV === "production") {
     if (!CRON_SECRET) {
       return NextResponse.json(
@@ -19,7 +20,6 @@ function authorize(request: Request): NextResponse | null {
     return null;
   }
 
-  // Non-production: if a secret is set, still enforce it (local cron testing).
   if (CRON_SECRET) {
     const authHeader = request.headers.get("authorization");
     if (authHeader !== `Bearer ${CRON_SECRET}`) {
@@ -32,8 +32,17 @@ function authorize(request: Request): NextResponse | null {
 export async function POST(request: Request) {
   const denied = authorize(request);
   if (denied) return denied;
+  const requestId = getRequestId(request);
   const result = await processPendingJobs(10);
-  return NextResponse.json(result);
+  logger.info("jobs_process_complete", {
+    requestId,
+    jobsProcessed: result.jobsProcessed,
+    campaignSent: result.campaignSent,
+    scansReclaimed: result.scansReclaimed,
+    jobsReclaimed: result.jobsReclaimed,
+    retention: result.retention ?? undefined,
+  });
+  return NextResponse.json({ requestId, ...result });
 }
 
 export async function GET(request: Request) {

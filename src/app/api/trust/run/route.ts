@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { runLocalTrustFinder } from "@/lib/local-trust/engine";
-import { assertWithinLimit, incrementUsage, PlanLimitError } from "@/lib/plans";
+import { PlanLimitError, reserveUsageOrThrow } from "@/lib/plans";
 
 export async function POST(request: Request) {
   try {
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     }
 
     const auth = await requireBusinessAccess(businessId);
-    await assertWithinLimit(auth.organizationId, "local_trust_scans_month", 1);
+    await reserveUsageOrThrow(auth.organizationId, "local_trust_scans_used", 1);
     const result = await runLocalTrustFinder({
       businessId,
       organizationId: auth.organizationId,
@@ -29,7 +29,6 @@ export async function POST(request: Request) {
       rescan,
     });
 
-    await incrementUsage(auth.organizationId, "local_trust_scans_used", 1);
     return NextResponse.json(result);
   } catch (err) {
     if (err instanceof PlanLimitError) {

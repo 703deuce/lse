@@ -67,6 +67,11 @@ export const exportReportSchema = z.object({
   scanBatchId: z.string().uuid(),
 });
 
+export const revokeReportSchema = z.object({
+  businessId: z.string().uuid(),
+  reportId: z.string().uuid(),
+});
+
 export const visionAnalyzeSchema = z.object({
   imageBase64: z.string().min(100),
   prompt: z.string().min(5),

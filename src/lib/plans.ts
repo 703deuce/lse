@@ -170,6 +170,17 @@ export type UsageKey =
   | "bulk_review_requests_used"
   | "ai_visibility_runs_used";
 
+const USAGE_TO_LIMIT: Record<UsageKey, keyof PlanLimits> = {
+  map_credits_used: "map_credits_month",
+  growth_audits_used: "growth_audits_month",
+  local_trust_scans_used: "local_trust_scans_month",
+  backlink_gap_runs_used: "backlink_gap_runs_month",
+  review_emails_sent: "email_review_requests_month",
+  review_sms_sent: "sms_month",
+  bulk_review_requests_used: "bulk_review_requests_month",
+  ai_visibility_runs_used: "ai_visibility_runs_month",
+};
+
 export type UsageSnapshot = {
   periodStart: string;
   periodEnd: string;
@@ -287,38 +298,64 @@ export async function incrementUsage(
   usageKey: UsageKey,
   amount = 1
 ): Promise<void> {
+  await reserveUsage(organizationId, usageKey, amount, { enforceLimit: false });
+}
+
+/**
+ * Atomically add usage. When enforceLimit is true (default for reserveUsageOrThrow),
+ * the SQL UPDATE fails closed if the plan cap would be exceeded.
+ */
+export async function reserveUsage(
+  organizationId: string,
+  usageKey: UsageKey,
+  amount = 1,
+  options?: { enforceLimit?: boolean; limitOverride?: number }
+): Promise<number> {
   const supabase = createServiceClient();
   const { periodStart, periodEnd } = getCurrentPeriod();
+  const enforceLimit = options?.enforceLimit !== false;
 
-  const { data: existing, error: fetchError } = await supabase
-    .from("organization_usage_monthly")
-    .select("id, map_credits_used, growth_audits_used, local_trust_scans_used, backlink_gap_runs_used, review_emails_sent, review_sms_sent, bulk_review_requests_used, ai_visibility_runs_used")
-    .eq("organization_id", organizationId)
-    .eq("period_start", periodStart)
-    .maybeSingle();
-
-  if (fetchError) {
-    throw new Error(fetchError.message);
+  let limit: number | null = null;
+  if (enforceLimit) {
+    if (typeof options?.limitOverride === "number") {
+      limit = options.limitOverride;
+    } else {
+      const plan = await getOrganizationPlan(organizationId);
+      const limitKey = USAGE_TO_LIMIT[usageKey];
+      limit = plan.limits[limitKey];
+    }
   }
 
-  if (existing && "id" in existing) {
-    const current = (existing as Record<UsageKey, number>)[usageKey] ?? 0;
-    await supabase
-      .from("organization_usage_monthly")
-      .update({
-        [usageKey]: current + amount,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existing.id as string);
-    return;
-  }
-
-  await supabase.from("organization_usage_monthly").insert({
-    organization_id: organizationId,
-    period_start: periodStart,
-    period_end: periodEnd,
-    [usageKey]: amount,
+  const { data, error } = await supabase.rpc("increment_org_usage", {
+    p_organization_id: organizationId,
+    p_period_start: periodStart,
+    p_period_end: periodEnd,
+    p_usage_key: usageKey,
+    p_amount: amount,
+    p_limit: enforceLimit ? limit : null,
   });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const usedAfter = typeof data === "number" ? data : Number(data);
+  if (!Number.isFinite(usedAfter) || usedAfter < 0) {
+    throw new PlanLimitError(
+      `Plan limit reached for ${usageKey.replace(/_/g, " ")}. This action needs ${amount} more.`,
+      USAGE_TO_LIMIT[usageKey]
+    );
+  }
+  return usedAfter;
+}
+
+/** Assert plan room and increment in one atomic RPC (preferred over assert+increment). */
+export async function reserveUsageOrThrow(
+  organizationId: string,
+  usageKey: UsageKey,
+  amount = 1
+): Promise<number> {
+  return reserveUsage(organizationId, usageKey, amount, { enforceLimit: true });
 }
 
 export async function resetOrganizationUsage(organizationId: string): Promise<void> {

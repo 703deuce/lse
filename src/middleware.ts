@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { getDevDefaultAppPath, isDevBypassEnabled } from "@/lib/auth/dev";
+import { REQUEST_ID_HEADER, resolveRequestId } from "@/lib/observability/request-id";
 
 const PUBLIC_PREFIXES = [
   "/sign-in",
@@ -24,16 +25,29 @@ function isProtectedPath(pathname: string): boolean {
   );
 }
 
+function nextWithRequestId(request: NextRequest, requestId: string): NextResponse {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(REQUEST_ID_HEADER, requestId);
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
+  response.headers.set(REQUEST_ID_HEADER, requestId);
+  return response;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const requestId = resolveRequestId(request.headers.get(REQUEST_ID_HEADER));
 
   // Dev preview routes are never public in production.
   if (pathname.startsWith("/dev/") && process.env.NODE_ENV === "production") {
-    return new NextResponse(null, { status: 404 });
+    const denied = new NextResponse(null, { status: 404 });
+    denied.headers.set(REQUEST_ID_HEADER, requestId);
+    return denied;
   }
 
   if (isPublicPath(pathname) || pathname.startsWith("/api/")) {
-    return NextResponse.next();
+    return nextWithRequestId(request, requestId);
   }
 
   const devBypass = isDevBypassEnabled();
@@ -41,15 +55,17 @@ export async function middleware(request: NextRequest) {
   if (devBypass) {
     if (pathname === "/" || pathname === "/sign-in" || pathname === "/sign-up") {
       const target = new URL(getDevDefaultAppPath(), request.url);
-      return NextResponse.redirect(target);
+      const redirect = NextResponse.redirect(target);
+      redirect.headers.set(REQUEST_ID_HEADER, requestId);
+      return redirect;
     }
   }
 
   if (devBypass || !isProtectedPath(pathname)) {
-    return NextResponse.next();
+    return nextWithRequestId(request, requestId);
   }
 
-  let response = NextResponse.next({ request });
+  let response = nextWithRequestId(request, requestId);
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -63,7 +79,7 @@ export async function middleware(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value);
           });
-          response = NextResponse.next({ request });
+          response = nextWithRequestId(request, requestId);
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options);
           });
@@ -79,11 +95,15 @@ export async function middleware(request: NextRequest) {
   if (!user && isProtectedPath(pathname)) {
     const signInUrl = new URL("/sign-in", request.url);
     signInUrl.searchParams.set("next", pathname);
-    return NextResponse.redirect(signInUrl);
+    const redirect = NextResponse.redirect(signInUrl);
+    redirect.headers.set(REQUEST_ID_HEADER, requestId);
+    return redirect;
   }
 
   if (user && (pathname === "/sign-in" || pathname === "/sign-up")) {
-    return NextResponse.redirect(new URL("/businesses", request.url));
+    const redirect = NextResponse.redirect(new URL("/businesses", request.url));
+    redirect.headers.set(REQUEST_ID_HEADER, requestId);
+    return redirect;
   }
 
   return response;

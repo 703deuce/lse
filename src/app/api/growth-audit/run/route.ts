@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { runGrowthAudit } from "@/lib/growth-audit/engine";
-import { assertWithinLimit, incrementUsage, PlanLimitError } from "@/lib/plans";
+import { PlanLimitError, reserveUsageOrThrow } from "@/lib/plans";
 
 export async function POST(request: Request) {
   try {
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     }
 
     const auth = await requireBusinessAccess(businessId);
-    await assertWithinLimit(auth.organizationId, "growth_audits_month", 1);
+    await reserveUsageOrThrow(auth.organizationId, "growth_audits_used", 1);
     const result = await runGrowthAudit({
       businessId,
       organizationId: auth.organizationId,
@@ -25,7 +25,6 @@ export async function POST(request: Request) {
       skipBackground,
     });
 
-    await incrementUsage(auth.organizationId, "growth_audits_used", 1);
     return NextResponse.json(result);
   } catch (err) {
     if (err instanceof PlanLimitError) {

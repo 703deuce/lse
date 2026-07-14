@@ -748,7 +748,7 @@ function displayGroupForRow(row: {
   title: string;
   url: string;
   domain: string | null;
-  raw_json: Record<string, unknown> | null;
+  raw_json?: Record<string, unknown> | null;
 }): string {
   const raw = row.raw_json;
   if (raw && typeof raw.displayGroup === "string") return raw.displayGroup;
@@ -760,14 +760,20 @@ function displayGroupForRow(row: {
   });
 }
 
+const LOCAL_TRUST_LIST_FIELDS =
+  "id, run_id, organization_id, business_id, title, url, domain, opportunity_type, city_match, county_match, topical_match, competitor_present, authority_score, relevance_score, difficulty, priority, suggested_action, evidence_snippet, status, market_city, market_state, market_county, canonical_url, created_at";
+
 export async function queryLocalTrustOpportunities(params: LocalTrustOpportunityQuery) {
   const supabase = createServiceClient();
   const page = Math.max(1, params.page ?? 1);
   const pageSize = params.aggregate
-    ? Math.min(10000, Math.max(1, params.pageSize ?? 10000))
+    ? Math.min(2000, Math.max(1, params.pageSize ?? 2000))
     : Math.min(100, Math.max(1, params.pageSize ?? 10));
 
-  let query = supabase.from("local_trust_opportunities").select("*", { count: "exact" }).eq("business_id", params.businessId);
+  let query = supabase
+    .from("local_trust_opportunities")
+    .select(LOCAL_TRUST_LIST_FIELDS, { count: "exact" })
+    .eq("business_id", params.businessId);
 
   if (params.runId) {
     query = query.eq("run_id", params.runId);
@@ -854,7 +860,7 @@ export async function getLocalTrustTypeCounts(
   const result = await queryLocalTrustOpportunities({
     businessId,
     page: 1,
-    pageSize: 10000,
+    pageSize: 2000,
     status: "open",
     marketCity: allMarkets ? null : market?.city,
     marketState: allMarkets ? null : market?.state,
