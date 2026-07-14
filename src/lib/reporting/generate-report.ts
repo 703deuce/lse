@@ -20,11 +20,17 @@ export async function generateReport(params: {
     .maybeSingle();
 
   if (existingReport?.html_content && existingReport.share_token) {
-    return {
-      reportId: existingReport.id,
-      shareToken: existingReport.share_token,
-      html: existingReport.html_content,
-    };
+    const expiresAt = existingReport.share_expires_at
+      ? new Date(existingReport.share_expires_at as string).getTime()
+      : null;
+    const expired = expiresAt !== null && Number.isFinite(expiresAt) && expiresAt <= Date.now();
+    if (!expired) {
+      return {
+        reportId: existingReport.id,
+        shareToken: existingReport.share_token,
+        html: existingReport.html_content,
+      };
+    }
   }
 
   const { data: business } = await supabase.from("businesses").select("*").eq("id", params.businessId).single();
@@ -81,6 +87,7 @@ export async function generateReport(params: {
   const confidence = (batch.confidence_summary ?? {}) as Record<string, unknown>;
   const shareToken = randomBytes(16).toString("hex");
   const generatedAt = new Date().toLocaleString();
+  const shareExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
 
   const html = `<!DOCTYPE html>
 <html>
@@ -142,6 +149,7 @@ export async function generateReport(params: {
       business_id: params.businessId,
       scan_batch_id: params.scanBatchId,
       share_token: shareToken,
+      share_expires_at: shareExpiresAt,
       html_content: html,
       metadata_json: {
         generatedAt,

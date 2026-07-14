@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "crypto";
 import { normalizePhoneE164 } from "@/lib/reputation/phone";
 import { fetchWithTimeout, providerTimeoutMs } from "@/lib/providers/fetch-with-timeout";
 
@@ -9,6 +10,50 @@ export type TwilioSendParams = {
 export type TwilioSendResult =
   | { ok: true; messageSid: string; usedTrialTemplate?: boolean }
   | { ok: false; error: string };
+
+/**
+ * Account Auth Token used to sign inbound webhooks (console "Auth Token").
+ * Separate from TWILIO_AUTH_TOKEN which is the API Key secret (SK...).
+ */
+export function getTwilioWebhookAuthToken(): string | undefined {
+  return (
+    process.env.TWILIO_ACCOUNT_AUTH_TOKEN?.trim() ||
+    process.env.TWILIO_WEBHOOK_AUTH_TOKEN?.trim() ||
+    undefined
+  );
+}
+
+/**
+ * Validate X-Twilio-Signature (HMAC-SHA1 of URL + sorted POST body params).
+ * @see https://www.twilio.com/docs/usage/security#validating-requests
+ */
+export function verifyTwilioRequestSignature(params: {
+  authToken: string;
+  signature: string | null | undefined;
+  url: string;
+  formParams: Record<string, string>;
+}): boolean {
+  if (!params.signature) return false;
+
+  const data =
+    params.url +
+    Object.keys(params.formParams)
+      .sort()
+      .map((key) => key + params.formParams[key])
+      .join("");
+
+  const expected = createHmac("sha1", params.authToken)
+    .update(Buffer.from(data, "utf-8"))
+    .digest("base64");
+
+  try {
+    const a = Buffer.from(expected);
+    const b = Buffer.from(params.signature);
+    return a.length === b.length && timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Twilio auth: API key SID (SK...) + secret, with Account SID (AC...) in the URL.
