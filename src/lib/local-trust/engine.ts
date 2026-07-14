@@ -928,6 +928,15 @@ export async function loadLatestLocalTrustRun(
 
 export async function createLocalTrustTasksFromRun(runId: string, businessId: string, organizationId: string) {
   const supabase = createServiceClient();
+  const { data: run } = await supabase
+    .from("local_trust_runs")
+    .select("id")
+    .eq("id", runId)
+    .eq("business_id", businessId)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  if (!run) throw new Error("Local Trust run not found for this business");
+
   const { data: existing } = await supabase.from("local_trust_tasks").select("id").eq("run_id", runId);
   if (existing?.length) return existing.length;
 
@@ -935,6 +944,7 @@ export async function createLocalTrustTasksFromRun(runId: string, businessId: st
     .from("local_trust_opportunities")
     .select("*")
     .eq("run_id", runId)
+    .eq("business_id", businessId)
     .in("priority", ["high", "medium"])
     .limit(10);
 

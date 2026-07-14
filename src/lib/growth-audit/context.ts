@@ -4,6 +4,7 @@ import { crawlSitePages } from "@/lib/audit/website-crawler";
 import { parseUsAddressCityState } from "@/lib/geo/us-address";
 import { loadServiceAreas } from "@/lib/growth-audit/local-areas";
 import { loadBacklinkGapSummaryForAudit } from "@/lib/growth-audit/backlink-summary";
+import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
 import type { GbpProfile, LoadedCompetitor, ParsedPage } from "@/lib/audit/types";
 import type { BacklinkGapSummary } from "@/lib/growth-audit/backlink-summary";
 import type { ServiceArea } from "@/lib/growth-audit/local-areas";
@@ -74,7 +75,7 @@ export async function loadGrowthAuditContext(
     .from("scan_batches")
     .select("id, aggregate_metrics, status")
     .eq("business_id", businessId)
-    .in("status", ["ready", "partial", "enriching"])
+    .in("status", [...USABLE_SCAN_STATUSES, "enriching"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

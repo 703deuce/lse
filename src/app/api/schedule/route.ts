@@ -41,6 +41,8 @@ export async function POST(request: Request) {
       .from("scheduled_scans")
       .select("*")
       .eq("business_id", businessId)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (existing) {

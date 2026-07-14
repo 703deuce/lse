@@ -147,14 +147,27 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
         .maybeSingle();
 
       if (recipient?.phone || recipient?.email) {
-        let supQuery = supabase
-          .from("review_request_suppression")
-          .select("id")
-          .eq("business_id", campaign.business_id);
-        if (recipient.phone) supQuery = supQuery.eq("phone", recipient.phone);
-        else if (recipient.email) supQuery = supQuery.eq("email", recipient.email.toLowerCase());
-        const { data: suppressed } = await supQuery.limit(1);
-        if (suppressed?.length) {
+        const channel = String(claimed.channel ?? "");
+        let suppressed = false;
+        if ((channel === "sms" || channel === "both" || !channel) && recipient.phone) {
+          const { data } = await supabase
+            .from("review_request_suppression")
+            .select("id")
+            .eq("business_id", campaign.business_id)
+            .eq("phone", recipient.phone)
+            .limit(1);
+          suppressed = Boolean(data?.length);
+        }
+        if (!suppressed && (channel === "email" || channel === "both" || !channel) && recipient.email) {
+          const { data } = await supabase
+            .from("review_request_suppression")
+            .select("id")
+            .eq("business_id", campaign.business_id)
+            .eq("email", recipient.email.toLowerCase())
+            .limit(1);
+          suppressed = Boolean(data?.length);
+        }
+        if (suppressed) {
           await supabase
             .from("review_request_messages")
             .update({ status: "opted_out", updated_at: claimTs })

@@ -1,5 +1,7 @@
 import { createServiceClient } from "@/lib/db/client";
 import { buildReviewMomentumCompetitorPool } from "@/lib/maps/grid";
+import { assertScanBelongsToBusiness } from "@/lib/db/queries";
+import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
 import { enrichTargetBusiness } from "@/lib/jobs/enrich-competitors";
 import { fetchReviewsForEntity } from "@/lib/reviews/fetch-reviews";
 import type { NormalizedReview } from "@/lib/reviews/normalize";
@@ -148,12 +150,14 @@ export async function runReviewMomentum(params: {
   if (!business) throw new Error("Business not found");
 
   let scanBatchId = params.scanBatchId;
-  if (!scanBatchId) {
+  if (scanBatchId) {
+    await assertScanBelongsToBusiness(scanBatchId, params.businessId);
+  } else {
     const { data: latest } = await supabase
       .from("scan_batches")
       .select("id")
       .eq("business_id", params.businessId)
-      .in("status", ["ready", "partial"])
+      .in("status", [...USABLE_SCAN_STATUSES])
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -576,13 +580,22 @@ export async function runReviewMomentum(params: {
 
 export async function loadLatestMomentumRun(businessId: string) {
   const supabase = createServiceClient();
-  const { data: runs } = await supabase
+  const { data: usableRuns } = await supabase
+    .from("review_momentum_runs")
+    .select("*")
+    .eq("business_id", businessId)
+    .in("status", ["ready", "partial"])
+    .order("created_at", { ascending: false })
+    .limit(2);
+
+  const { data: absoluteLatest } = await supabase
     .from("review_momentum_runs")
     .select("*")
     .eq("business_id", businessId)
     .order("created_at", { ascending: false })
     .limit(2);
 
+  const runs = usableRuns?.length ? usableRuns : absoluteLatest;
   const run = runs?.[0] ?? null;
   if (!run) return null;
 

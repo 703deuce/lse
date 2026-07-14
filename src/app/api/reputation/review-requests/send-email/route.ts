@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { sendReviewRequestEmail } from "@/lib/reputation/review-sends";
+import { PlanLimitError, reserveUsageOrThrow } from "@/lib/plans";
 
 export async function POST(request: Request) {
   try {
@@ -21,6 +22,7 @@ export async function POST(request: Request) {
     }
 
     const auth = await requireBusinessAccess(body.businessId);
+    await reserveUsageOrThrow(auth.organizationId, "review_emails_sent", 1);
     const result = await sendReviewRequestEmail({
       businessId: body.businessId,
       organizationId: auth.organizationId,
@@ -37,8 +39,16 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, sendId: result.sendId, messageId: result.messageId });
   } catch (err) {
+    if (err instanceof PlanLimitError) {
+      return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
+    }
     const message = err instanceof Error ? err.message : "Email send failed";
-    const status = message.includes("Review link missing") ? 400 : 500;
+    const status =
+      message.includes("Review link missing") ||
+      message.includes("email") ||
+      message.includes("opted out")
+        ? 400
+        : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }

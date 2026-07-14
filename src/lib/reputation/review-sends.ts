@@ -11,6 +11,32 @@ import { sendTwilioSms } from "@/lib/reputation/twilio";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
+async function assertNotSuppressed(params: {
+  businessId: string;
+  phone?: string | null;
+  email?: string | null;
+}): Promise<void> {
+  const supabase = createServiceClient();
+  if (params.phone) {
+    const { data } = await supabase
+      .from("review_request_suppression")
+      .select("id")
+      .eq("business_id", params.businessId)
+      .eq("phone", params.phone)
+      .limit(1);
+    if (data?.length) throw new Error("This contact has opted out of review requests");
+  }
+  if (params.email) {
+    const { data } = await supabase
+      .from("review_request_suppression")
+      .select("id")
+      .eq("business_id", params.businessId)
+      .eq("email", params.email.toLowerCase())
+      .limit(1);
+    if (data?.length) throw new Error("This contact has opted out of review requests");
+  }
+}
+
 export type SendReviewEmailInput = {
   businessId: string;
   organizationId: string;
@@ -244,6 +270,8 @@ export async function sendReviewRequestEmail(input: SendReviewEmailInput) {
   const email = input.customerEmail?.trim();
   if (!email) throw new Error("Customer email is required");
 
+  await assertNotSuppressed({ businessId: input.businessId, email });
+
   const link = await loadActiveLink(supabase, input.businessId);
   if (!link) throw new Error("Review link missing. Generate review link first.");
 
@@ -355,6 +383,8 @@ export async function sendReviewRequestSms(input: SendReviewSmsInput) {
 
   const normalized = normalizePhoneE164(phone);
   if (!normalized) throw new Error("Invalid phone number format");
+
+  await assertNotSuppressed({ businessId: input.businessId, phone: normalized });
 
   const link = await loadActiveLink(supabase, input.businessId);
   if (!link) throw new Error("Review link missing. Generate review link first.");

@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/db/client";
 import { SCAN_RESULT_GRID_COLUMNS } from "@/lib/maps/scan-result-columns";
+import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
 import type {
   BusinessRow,
   ScanBatchRow,
@@ -29,11 +30,23 @@ export async function getLatestScan(businessId: string) {
     .from("scan_batches")
     .select("*")
     .eq("business_id", businessId)
-    .in("status", ["ready", "partial", "rank_ready"])
+    .in("status", [...USABLE_SCAN_STATUSES])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   return data as ScanBatchRow | null;
+}
+
+/** Throws if the scan does not belong to the given business (service-role IDOR guard). */
+export async function assertScanBelongsToBusiness(scanId: string, businessId: string): Promise<void> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("scan_batches")
+    .select("id")
+    .eq("id", scanId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (!data) throw new Error("Scan not found for this business");
 }
 
 export async function getBusinessKeywords(businessId: string) {

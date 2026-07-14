@@ -83,7 +83,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "name, recipients, and mapping required" }, { status: 400 });
     }
 
-    await reserveUsageOrThrow(auth.organizationId, "bulk_review_requests_used", recipients.length);
+    const readyCount = recipients.filter((r) => r.status === "ready").length;
+    if (readyCount > 0) {
+      await reserveUsageOrThrow(auth.organizationId, "bulk_review_requests_used", readyCount);
+    }
 
     const input: CreateCampaignInput = {
       organizationId: auth.organizationId,

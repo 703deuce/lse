@@ -58,7 +58,10 @@ function ExtendedModulesBanner({
             href={m.href}
             className={cn(
               "rounded-md px-2 py-0.5 text-[11px] font-medium",
-              m.data?.status === "complete" || m.data?.status === "empty"
+              m.data?.status === "complete" ||
+                m.data?.status === "empty" ||
+                m.data?.status === "ready" ||
+                m.data?.status === "partial"
                 ? "bg-emerald-100 text-emerald-800"
                 : m.data?.status === "failed"
                   ? "bg-red-100 text-red-800"

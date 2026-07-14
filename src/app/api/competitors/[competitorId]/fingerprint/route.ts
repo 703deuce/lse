@@ -37,6 +37,19 @@ export async function GET(
 
     await requireBusinessAccess(businessId);
     const supabase = createServiceClient();
+
+    if (scanId) {
+      const { data: owned } = await supabase
+        .from("scan_batches")
+        .select("id")
+        .eq("id", scanId)
+        .eq("business_id", businessId)
+        .maybeSingle();
+      if (!owned) {
+        return NextResponse.json({ error: "Scan not found for this business" }, { status: 404 });
+      }
+    }
+
     const competitorIdResolved = competitorId === "temp" ? null : competitorId;
 
     let cacheEntityKey = entityKey;

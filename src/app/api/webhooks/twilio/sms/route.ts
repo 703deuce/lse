@@ -70,6 +70,7 @@ export async function POST(request: Request) {
         const phone = normalizePhoneE164(from);
         if (phone) {
           const supabase = createServiceClient();
+          // One-off sends
           const { data: recentSend } = await supabase
             .from("review_request_sends")
             .select("business_id, organization_id")
@@ -84,6 +85,27 @@ export async function POST(request: Request) {
               phone,
               reason: "sms_stop",
             });
+          }
+
+          // Campaign recipients (STOP often hits campaign SMS, not one-off sends)
+          const { data: campaignRecipients } = await supabase
+            .from("review_request_recipients")
+            .select("id, business_id, organization_id, campaign_id")
+            .eq("phone", phone)
+            .order("created_at", { ascending: false })
+            .limit(5);
+          for (const recip of campaignRecipients ?? []) {
+            await addSuppression({
+              organizationId: recip.organization_id,
+              businessId: recip.business_id,
+              phone,
+              reason: "sms_stop",
+            });
+            await supabase
+              .from("review_request_messages")
+              .update({ status: "opted_out", updated_at: new Date().toISOString() })
+              .eq("recipient_id", recip.id)
+              .in("status", ["queued", "sending"]);
           }
         }
       }
