@@ -64,8 +64,15 @@ export function AiVisibilityDashboardTab({
   const coverageEngines = ALL_ENGINES.map((engine) => {
     const er = engineResults.find((r) => r.engine === engine);
     const mentioned = er?.target_mentioned ? 1 : 0;
-    return { engine, mentioned, total: 1 };
+    return {
+      engine,
+      mentioned,
+      total: 1,
+      status: er?.status ?? null,
+      errorMessage: er?.error_message ?? null,
+    };
   });
+  const failedEngines = engineResults.filter((e) => e.status === "failed");
 
   const matrixCounts = ALL_ENGINES.map((engine) => {
     const er = engineResults.find((r) => r.engine === engine);
@@ -136,8 +143,15 @@ export function AiVisibilityDashboardTab({
           bodyClassName="space-y-2 pt-2"
         >
           {engineResults.length ? (
-            coverageEngines.map(({ engine, mentioned, total }) => (
-              <EngineCoverageRow key={engine} engine={engine} mentioned={mentioned} total={total} />
+            coverageEngines.map(({ engine, mentioned, total, status, errorMessage }) => (
+              <EngineCoverageRow
+                key={engine}
+                engine={engine}
+                mentioned={mentioned}
+                total={total}
+                status={status}
+                errorMessage={errorMessage}
+              />
             ))
           ) : (
             <p className="text-xs text-text-muted">Select a specific run to see per-engine coverage.</p>
@@ -232,8 +246,21 @@ export function AiVisibilityDashboardTab({
           </AiPanel>
 
           <AiPanel title="Opportunities & Gaps" action={<Info className="h-3.5 w-3.5 text-zinc-300" />} bodyClassName="space-y-2.5 pt-2">
+            {failedEngines.slice(0, 2).map((e) => (
+              <div key={`fail-${e.id}`} className="flex gap-2">
+                <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <div>
+                  <p className="text-xs font-semibold text-text">
+                    {ENGINE_LABELS[e.engine as AiEngine]} check failed
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-text-muted">
+                    {e.error_message ?? "Provider error — re-run after verifying API keys/credits."}
+                  </p>
+                </div>
+              </div>
+            ))}
             {engineResults
-              .filter((e) => !e.target_mentioned)
+              .filter((e) => e.status !== "failed" && !e.target_mentioned)
               .slice(0, 1)
               .map((e) => (
                 <div key={e.id} className="flex gap-2">

@@ -492,12 +492,17 @@ export function EngineCoverageRow({
   engine,
   mentioned,
   total = 5,
+  status,
+  errorMessage,
 }: {
   engine: AiEngine;
   mentioned: number;
   total?: number;
+  status?: string | null;
+  errorMessage?: string | null;
 }) {
-  const pct = Math.round((mentioned / total) * 100);
+  const failed = status === "failed";
+  const pct = failed ? 0 : Math.round((mentioned / total) * 100);
   return (
     <div className="flex items-center gap-3">
       <span
@@ -511,13 +516,21 @@ export function EngineCoverageRow({
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-center justify-between text-xs">
           <span className="font-medium text-text">{ENGINE_LABELS[engine]}</span>
-          <span className="tabular-nums text-text-muted">
-            {mentioned}/{total} ({pct}%)
+          <span className={cn("tabular-nums", failed ? "text-amber-700" : "text-text-muted")}>
+            {failed ? "Failed" : `${mentioned}/${total} (${pct}%)`}
           </span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100">
-          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
+          <div
+            className={cn("h-full rounded-full", failed ? "bg-amber-400" : "bg-emerald-500")}
+            style={{ width: failed ? "100%" : `${pct}%` }}
+          />
         </div>
+        {failed && errorMessage ? (
+          <p className="mt-1 truncate text-[10px] text-amber-700" title={errorMessage}>
+            {errorMessage}
+          </p>
+        ) : null}
       </div>
     </div>
   );

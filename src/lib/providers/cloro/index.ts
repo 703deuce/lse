@@ -3,7 +3,9 @@ import type { AiEngine } from "@/lib/ai-visibility/types";
 
 const CHATGPT_URL = "https://api.cloro.dev/v1/monitor/chatgpt";
 const PERPLEXITY_URL = "https://api.cloro.dev/v1/monitor/perplexity";
-const TIMEOUT_MS = 180_000;
+/** Perplexity is usually fast; ChatGPT sync can take several minutes per Cloro docs. */
+const PERPLEXITY_TIMEOUT_MS = 180_000;
+const CHATGPT_TIMEOUT_MS = 300_000;
 
 export type CloroSource = {
   position?: number;
@@ -86,11 +88,12 @@ async function postCloroMonitor<T>(
   url: string,
   body: Record<string, unknown>,
   label: string,
-  organizationId?: string
+  organizationId?: string,
+  timeoutMs = PERPLEXITY_TIMEOUT_MS
 ): Promise<CloroMonitorResponse<T>> {
   const apiKey = getCloroApiKey();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const endpoint = url.replace("https://api.cloro.dev/v1/monitor/", "");
   const start = Date.now();
 
@@ -108,7 +111,7 @@ async function postCloroMonitor<T>(
     });
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
-      throw new Error(`${label} timed out after ${TIMEOUT_MS / 1000}s`);
+      throw new Error(`${label} timed out after ${Math.round(timeoutMs / 1000)}s`);
     }
     throw err;
   } finally {
@@ -154,15 +157,18 @@ export async function scrapeCloroChatGpt(params: {
   country?: string;
   organizationId?: string;
 }): Promise<CloroMonitorResult> {
+  // Keep include minimal: markdown is enough for mention extraction.
+  // searchQueries adds +2 credits and is optional for visibility scoring.
   const response = await postCloroMonitor<CloroChatGptResult>(
     CHATGPT_URL,
     {
       prompt: params.prompt,
       country: params.country ?? "US",
-      include: { markdown: true, searchQueries: true },
+      include: { markdown: true },
     },
     "ChatGPT",
-    params.organizationId
+    params.organizationId,
+    CHATGPT_TIMEOUT_MS
   );
   const result = response.result!;
   const prose = proseFromResult(result);
