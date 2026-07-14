@@ -1,11 +1,34 @@
 const METERS_PER_MILE = 1609.344;
 
 export const GRID_SIZE_OPTIONS = [3, 5, 7, 9, 11] as const;
+
+/** Local Falcon–style radius range (miles). */
+export const MIN_RADIUS_MILES = 0.1;
+export const MAX_RADIUS_MILES = 100;
+
+/** API bounds in meters (0.1 mi → 100 mi). */
+export const MIN_RADIUS_METERS = Math.round(MIN_RADIUS_MILES * METERS_PER_MILE);
+export const MAX_RADIUS_METERS = Math.round(MAX_RADIUS_MILES * METERS_PER_MILE);
+
+/**
+ * Full selectable spreads: 0.1, 0.2, …, 100.0 (same granularity as Local Falcon).
+ * Prefer this over the short preset list for setup / run controls.
+ */
+export const RADIUS_MILE_OPTIONS: readonly number[] = Array.from(
+  { length: Math.round(MAX_RADIUS_MILES / MIN_RADIUS_MILES) },
+  (_, i) => Math.round((i + 1) * 10) / 10
+);
+
+/** Quick picks — kept for labels / older UIs. */
 export const RADIUS_MILE_PRESETS = [
+  { label: "0.5 miles (hyper-local)", miles: 0.5 },
   { label: "1 mile (dense urban)", miles: 1 },
   { label: "2 miles (urban)", miles: 2 },
   { label: "5 miles (suburban — recommended)", miles: 5 },
   { label: "10 miles (rural / wide area)", miles: 10 },
+  { label: "25 miles (wide metro)", miles: 25 },
+  { label: "50 miles (regional)", miles: 50 },
+  { label: "100 miles (max)", miles: 100 },
 ] as const;
 
 export const DEFAULT_GRID_SIZE = 7;
@@ -17,6 +40,38 @@ export function milesToMeters(miles: number): number {
 
 export function metersToMiles(meters: number): number {
   return Math.round((meters / METERS_PER_MILE) * 100) / 100;
+}
+
+/** Snap to one decimal place (0.1 mi steps). */
+export function roundRadiusMiles(miles: number): number {
+  return Math.round(miles * 10) / 10;
+}
+
+export function clampRadiusMiles(miles: number): number {
+  if (!Number.isFinite(miles)) return metersToMiles(DEFAULT_RADIUS_METERS);
+  return Math.min(MAX_RADIUS_MILES, Math.max(MIN_RADIUS_MILES, roundRadiusMiles(miles)));
+}
+
+export function formatRadiusMiles(miles: number): string {
+  const m = roundRadiusMiles(miles);
+  if (m < 1) return `${m.toFixed(1)} mi`;
+  if (Number.isInteger(m)) return `${m} mi`;
+  return `${m.toFixed(1)} mi`;
+}
+
+/** Nearest Falcon-style option for a meter value (for controlled selects). */
+export function nearestRadiusMileOption(meters: number): number {
+  const miles = clampRadiusMiles(metersToMiles(meters));
+  let best = RADIUS_MILE_OPTIONS[0] ?? 0.1;
+  let bestDist = Math.abs(best - miles);
+  for (const opt of RADIUS_MILE_OPTIONS) {
+    const d = Math.abs(opt - miles);
+    if (d < bestDist) {
+      best = opt;
+      bestDist = d;
+    }
+  }
+  return best;
 }
 
 export function gridScanMeta(gridSize: number, radiusMeters: number) {

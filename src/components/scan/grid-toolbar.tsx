@@ -8,16 +8,11 @@ import {
   useState,
 } from "react";
 import { Loader2, Play, Plus } from "lucide-react";
-import { rankLabel } from "@/lib/maps/grid-metrics";
-import {
-  GRID_SIZE_OPTIONS,
-  RADIUS_MILE_PRESETS,
-  milesToMeters,
-  metersToMiles,
-} from "@/lib/maps/grid-metrics";
+import { rankLabel, GRID_SIZE_OPTIONS } from "@/lib/maps/grid-metrics";
 import type { KeywordScanSummary, LocationScanSummary } from "@/lib/maps/scan-queries";
 import { LocationSwitcher } from "@/components/scan/location-switcher";
 import { DEFAULT_SCAN_PROFILE } from "@/lib/maps/scan-profiles";
+import { RadiusMilesField } from "@/components/scan/radius-miles-field";
 import {
   gridRankCardClass,
   gridRankFieldLabel,
@@ -108,11 +103,6 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
   }, [loadKeywords]);
 
   const selected = keywords.find((k) => k.id === runKeywordId) ?? keywords[0];
-  const radiusMiles = Math.round(metersToMiles(runRadiusMeters) * 10) / 10;
-  const closestRadiusMiles =
-    RADIUS_MILE_PRESETS.reduce((best, p) =>
-      Math.abs(p.miles - radiusMiles) < Math.abs(best.miles - radiusMiles) ? p : best
-    ).miles;
 
   function viewLatestScan(keywordId: string) {
     const kw = keywords.find((k) => k.id === keywordId);
@@ -289,20 +279,14 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
               ))}
             </select>
           </div>
-          <div>
-            <label className={fieldLabel}>Radius</label>
-            <select
-              value={closestRadiusMiles}
-              onChange={(e) => setRunRadiusMeters(milesToMeters(Number(e.target.value)))}
-              className={cn(fieldSelect, "mt-0.5")}
-            >
-              {RADIUS_MILE_PRESETS.map((p) => (
-                <option key={p.miles} value={p.miles}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <RadiusMilesField
+            valueMeters={runRadiusMeters}
+            onChangeMeters={setRunRadiusMeters}
+            labelClassName={fieldLabel}
+            selectClassName={cn(fieldSelect, "mt-0.5")}
+            inputClassName={cn(fieldSelect, "mt-0.5")}
+            hint={null}
+          />
         </div>
 
         <div className="flex shrink-0 flex-col gap-2 self-end">
