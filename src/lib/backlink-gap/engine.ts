@@ -87,6 +87,7 @@ export type BacklinkGapResult = {
   missingOpportunityCount: number;
   highPriorityCount: number;
   warnings: string[];
+  fromCache?: boolean;
 };
 
 async function updateProgress(runId: string, stage: string) {
@@ -196,6 +197,7 @@ export async function runBacklinkGap(params: {
         missingOpportunityCount: (loaded?.run.missing_opportunity_count as number) ?? 0,
         highPriorityCount: (loaded?.run.high_priority_count as number) ?? 0,
         warnings: ["Returned recent run from last 24 hours"],
+        fromCache: true,
       };
     }
   }

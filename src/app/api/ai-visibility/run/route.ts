@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { runAiVisibilityCheck } from "@/lib/ai-visibility/engine";
-import { hasFeature, PlanLimitError, reserveUsageOrThrow } from "@/lib/plans";
+import { hasFeature, PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
 
 export async function POST(request: Request) {
+  let reserved = false;
+  let organizationId: string | undefined;
   try {
     const body = await request.json();
     const { businessId, maxPrompts, promptIds } = body as {
@@ -20,7 +22,9 @@ export async function POST(request: Request) {
     if (!(await hasFeature(auth.organizationId, "ai_visibility"))) {
       return NextResponse.json({ error: "AI Visibility is not included in your plan." }, { status: 403 });
     }
+    organizationId = auth.organizationId;
     await reserveUsageOrThrow(auth.organizationId, "ai_visibility_runs_used", 1);
+    reserved = true;
     const result = await runAiVisibilityCheck({
       businessId,
       organizationId: auth.organizationId,
@@ -30,6 +34,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (err) {
+    if (reserved && organizationId) {
+      await releaseUsage(organizationId, "ai_visibility_runs_used", 1).catch(() => {});
+    }
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }

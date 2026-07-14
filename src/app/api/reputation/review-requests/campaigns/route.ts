@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { createServiceClient } from "@/lib/db/client";
 import {
   createReviewCampaign,
   duplicateCampaign,
@@ -76,8 +77,38 @@ export async function POST(request: Request) {
     const auth = await requireBusinessAccess(businessId);
 
     if (duplicateFrom) {
-      const result = await duplicateCampaign(duplicateFrom, businessId, auth.organizationId);
-      return NextResponse.json(result);
+      // Peek ready recipient count before cloning so we meter the same as create.
+      const supabase = createServiceClient();
+      const { data: sourceCampaign } = await supabase
+        .from("review_request_campaigns")
+        .select("id")
+        .eq("id", duplicateFrom)
+        .eq("business_id", businessId)
+        .maybeSingle();
+      if (!sourceCampaign) {
+        return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+      }
+      const { data: peekRecs } = await supabase
+        .from("review_request_recipients")
+        .select("status")
+        .eq("campaign_id", duplicateFrom)
+        .eq("business_id", businessId);
+      const readyCount = (peekRecs ?? []).filter((r) => r.status === "ready").length;
+
+      if (readyCount > 0) {
+        await reserveUsageOrThrow(auth.organizationId, "bulk_review_requests_used", readyCount);
+      }
+      try {
+        const result = await duplicateCampaign(duplicateFrom, businessId, auth.organizationId);
+        return NextResponse.json(result);
+      } catch (dupErr) {
+        if (readyCount > 0) {
+          await releaseUsage(auth.organizationId, "bulk_review_requests_used", readyCount).catch(
+            () => undefined
+          );
+        }
+        throw dupErr;
+      }
     }
 
     if (!name || !recipients || !mapping) {

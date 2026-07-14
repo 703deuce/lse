@@ -77,12 +77,22 @@ export async function processScanBatch(scanBatchId: string, organizationId?: str
       (batch.center_lat as number | null) ??
       business.scan_center_lat ??
       business.lat ??
-      0;
+      null;
     const centerLng =
       (batch.center_lng as number | null) ??
       business.scan_center_lng ??
       business.lng ??
-      0;
+      null;
+
+    if (
+      centerLat == null ||
+      centerLng == null ||
+      !Number.isFinite(Number(centerLat)) ||
+      !Number.isFinite(Number(centerLng)) ||
+      (Number(centerLat) === 0 && Number(centerLng) === 0)
+    ) {
+      throw new Error("Scan center is missing. Set a scan center on the business before running a grid.");
+    }
 
     if (business.lat && business.lng) {
       try {

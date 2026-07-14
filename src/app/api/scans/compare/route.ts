@@ -71,6 +71,7 @@ export async function GET(request: Request) {
     return NextResponse.json(payload);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Compare failed";
-    return NextResponse.json({ error: message }, { status: 403 });
+    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

@@ -23,6 +23,13 @@ const PARITY_SUMMARY = {
   grid_depth: LOCAL_FALCON_PARITY.gridDepth,
 };
 
+function isUsableCenter(lat: number | null | undefined, lng: number | null | undefined): boolean {
+  if (lat == null || lng == null) return false;
+  if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return false;
+  if (Number(lat) === 0 && Number(lng) === 0) return false;
+  return true;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -33,14 +40,10 @@ export async function POST(request: Request) {
 
     const { businessId, gridSize, radiusMeters, device, os, browser, parityLabel } = parsed.data;
     const auth = await requireBusinessAccess(businessId);
-
-    const creditsNeeded = gridMapCredits(gridSize);
-    await reserveUsageOrThrow(auth.organizationId, "map_credits_used", creditsNeeded);
-
     const supabase = createServiceClient();
 
-    try {
-      const [{ data: business }, { data: primaryKw }, { data: latestScan }] = await Promise.all([
+    const [{ data: business }, { data: primaryKw }, { data: latestScan }, { count: keywordCount }] =
+      await Promise.all([
         supabase
           .from("businesses")
           .select("scan_center_lat, scan_center_lng, lat, lng, address_text")
@@ -61,14 +64,35 @@ export async function POST(request: Request) {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
+        supabase
+          .from("business_keywords")
+          .select("id", { count: "exact", head: true })
+          .eq("business_id", businessId),
       ]);
 
-      const centerLat =
-        latestScan?.center_lat ?? business?.scan_center_lat ?? business?.lat ?? null;
-      const centerLng =
-        latestScan?.center_lng ?? business?.scan_center_lng ?? business?.lng ?? null;
-      const centerLabel = latestScan?.center_label ?? business?.address_text ?? null;
+    const centerLat =
+      latestScan?.center_lat ?? business?.scan_center_lat ?? business?.lat ?? null;
+    const centerLng =
+      latestScan?.center_lng ?? business?.scan_center_lng ?? business?.lng ?? null;
+    const centerLabel = latestScan?.center_label ?? business?.address_text ?? null;
 
+    if (!isUsableCenter(centerLat, centerLng)) {
+      return NextResponse.json(
+        { error: "Set a scan center before running a grid scan." },
+        { status: 400 }
+      );
+    }
+    if (!keywordCount) {
+      return NextResponse.json(
+        { error: "Add at least one keyword before running a grid scan." },
+        { status: 400 }
+      );
+    }
+
+    const creditsNeeded = gridMapCredits(gridSize);
+    await reserveUsageOrThrow(auth.organizationId, "map_credits_used", creditsNeeded);
+
+    try {
       const { data: batch, error } = await supabase
         .from("scan_batches")
         .insert({

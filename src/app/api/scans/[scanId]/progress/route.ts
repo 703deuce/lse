@@ -39,6 +39,7 @@ export async function GET(
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Progress fetch failed";
-    return NextResponse.json({ error: message }, { status: 403 });
+    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

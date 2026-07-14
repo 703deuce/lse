@@ -160,7 +160,7 @@ export async function runGrowthAudit(params: {
 
     const sections: GrowthAuditSections = { overview, ...partialForOverview };
 
-    await supabase
+    const { error: updateError } = await supabase
       .from("growth_audit_runs")
       .update({
         status: "core_ready",
@@ -170,6 +170,8 @@ export async function runGrowthAudit(params: {
         progress_stage: params.skipBackground ? null : "Starting extended modules",
       })
       .eq("id", runId);
+
+    if (updateError) throw new Error(updateError.message);
 
     if (!params.skipBackground) {
       void runExtendedModulesInBackground({

@@ -58,6 +58,7 @@ export async function GET(
     return NextResponse.json(why);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Why analysis failed";
-    return NextResponse.json({ error: message }, { status: 403 });
+    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

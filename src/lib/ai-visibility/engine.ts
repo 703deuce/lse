@@ -521,7 +521,7 @@ export async function runAiVisibilityCheck(params: {
   const limits = getPlanLimits(ctx.plan);
   const maxPrompts = Math.min(params.maxPrompts ?? 1, limits.activePrompts);
   const businessName = ctx.business.name as string;
-  const businessDomain = (ctx.business.website as string | null) ?? null;
+  const businessDomain = (ctx.business.website_url as string | null) ?? null;
 
   let promptQuery = supabase
     .from("ai_visibility_prompts")
@@ -631,11 +631,16 @@ export async function runAiVisibilityCheck(params: {
       }));
 
       if (rows.length) {
+        const saveErrors: string[] = [];
         for (const row of rows) {
           const { error: insertErr } = await supabase.from("ai_visibility_engine_results").insert(row);
           if (insertErr) {
             console.error(`[ai-visibility] ${row.engine} result save failed:`, insertErr.message);
+            saveErrors.push(`${row.engine}: ${insertErr.message}`);
           }
+        }
+        if (saveErrors.length === rows.length) {
+          throw new Error(`Failed to save AI engine results (${saveErrors.join("; ")})`);
         }
       }
     }
@@ -723,7 +728,7 @@ export async function runAiVisibilityCheck(params: {
       });
     }
 
-    await supabase
+    const { error: completeError } = await supabase
       .from("ai_visibility_runs")
       .update({
         status: "complete",
@@ -744,6 +749,8 @@ export async function runAiVisibilityCheck(params: {
         finished_at: new Date().toISOString(),
       })
       .eq("id", runId);
+
+    if (completeError) throw new Error(completeError.message);
 
     return {
       runId,

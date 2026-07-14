@@ -35,6 +35,7 @@ export async function GET(
     return NextResponse.json({ scans: items });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to list scans";
-    return NextResponse.json({ error: message }, { status: 403 });
+    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

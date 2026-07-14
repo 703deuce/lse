@@ -91,6 +91,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Keyword not found for business" }, { status: 404 });
     }
 
+    const { data: business } = await supabase
+      .from("businesses")
+      .select("scan_center_lat, scan_center_lng, lat, lng, address_text")
+      .eq("id", businessId)
+      .maybeSingle();
+
+    const resolvedCenterLat = centerLat ?? business?.scan_center_lat ?? business?.lat ?? null;
+    const resolvedCenterLng = centerLng ?? business?.scan_center_lng ?? business?.lng ?? null;
+    const resolvedCenterLabel =
+      centerLabel?.trim() || business?.address_text || null;
+
+    if (
+      resolvedCenterLat == null ||
+      resolvedCenterLng == null ||
+      !Number.isFinite(Number(resolvedCenterLat)) ||
+      !Number.isFinite(Number(resolvedCenterLng)) ||
+      (Number(resolvedCenterLat) === 0 && Number(resolvedCenterLng) === 0)
+    ) {
+      return NextResponse.json(
+        { error: "Set a scan center before running a grid scan." },
+        { status: 400 }
+      );
+    }
+
     const creditsNeeded = gridMapCredits(gridSize);
     await reserveUsageOrThrow(auth.organizationId, "map_credits_used", creditsNeeded);
 
@@ -108,9 +132,9 @@ export async function POST(request: Request) {
           browser,
           provider: "brightdata",
           location_id: locationId ?? null,
-          center_lat: centerLat ?? null,
-          center_lng: centerLng ?? null,
-          center_label: centerLabel?.trim() || null,
+          center_lat: resolvedCenterLat,
+          center_lng: resolvedCenterLng,
+          center_label: resolvedCenterLabel,
           moved_from_scan_id: movedFromScanId ?? null,
           confidence_summary: {
             ...PARITY_SUMMARY,

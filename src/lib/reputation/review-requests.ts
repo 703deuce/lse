@@ -154,7 +154,8 @@ async function seedDefaultTemplates(params: {
     },
   ];
 
-  await supabase.from("review_request_templates").insert(rows);
+  const { error } = await supabase.from("review_request_templates").insert(rows);
+  if (error) throw new Error(`Failed to seed review templates: ${error.message}`);
 }
 
 export async function createOrRefreshReviewLink(params: {

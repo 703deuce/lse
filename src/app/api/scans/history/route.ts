@@ -32,6 +32,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ scans });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load scan history";
-    return NextResponse.json({ error: message }, { status: 403 });
+    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

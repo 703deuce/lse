@@ -592,11 +592,15 @@ export async function suggestKeywords(params: { businessId: string; organization
 
 export async function dismissSuggestion(suggestionId: string, businessId: string) {
   const supabase = createServiceClient();
-  await supabase
+  const { data, error } = await supabase
     .from("keyword_suggestions")
     .update({ status: "dismissed" })
     .eq("id", suggestionId)
-    .eq("business_id", businessId);
+    .eq("business_id", businessId)
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Suggestion not found");
 }
 
 export async function deactivateKeyword(keywordId: string, businessId: string) {
