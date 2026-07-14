@@ -10,9 +10,31 @@ import {
 import { appendSmsOptOut } from "@/lib/reputation/phone";
 import { sendTwilioSms } from "@/lib/reputation/twilio";
 
+/** Requeue messages stuck in sending if a worker died mid-flight. */
+const SENDING_STALE_MS = Number(process.env.CAMPAIGN_SENDING_STALE_MS ?? 15 * 60 * 1000);
+
+async function reclaimStaleSending(
+  supabase: ReturnType<typeof createServiceClient>,
+  now: Date
+): Promise<void> {
+  const staleBefore = new Date(now.getTime() - SENDING_STALE_MS).toISOString();
+  await supabase
+    .from("review_request_messages")
+    .update({ status: "queued", updated_at: now.toISOString() })
+    .eq("status", "sending")
+    .lt("updated_at", staleBefore);
+}
+
+/**
+ * Process queued campaign messages.
+ * Each message is claim-locked queued → sending before Twilio/Brevo, so parallel
+ * pollers cannot double-send the same row.
+ */
 export async function processCampaignMessages(limit = 20): Promise<number> {
   const supabase = createServiceClient();
   const now = new Date();
+
+  await reclaimStaleSending(supabase, now);
 
   const { data: campaigns } = await supabase
     .from("review_request_campaigns")
@@ -27,10 +49,12 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
     if (campaign.status === "scheduled" && campaign.start_date) {
       const start = new Date(`${campaign.start_date}T00:00:00Z`);
       if (start > now) continue;
+      // Conditional activate — only one worker flips scheduled → active.
       await supabase
         .from("review_request_campaigns")
         .update({ status: "active", started_at: now.toISOString() })
-        .eq("id", campaign.id);
+        .eq("id", campaign.id)
+        .eq("status", "scheduled");
     }
 
     const config: ScheduleConfig = {
@@ -51,11 +75,19 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
       .in("status", ["sent", "delivered", "clicked"])
       .not("sent_at", "is", null);
 
-    const sentToday = countSentTodayInTz(
-      (sentTodayRows ?? []).map((r) => r.sent_at as string),
-      campaign.timezone,
-      now
-    );
+    // Count in-flight claims against the daily cap too (no sent_at yet).
+    const { count: sendingCount } = await supabase
+      .from("review_request_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("campaign_id", campaign.id)
+      .eq("status", "sending");
+
+    const sentToday =
+      countSentTodayInTz(
+        (sentTodayRows ?? []).map((r) => r.sent_at as string),
+        campaign.timezone,
+        now
+      ) + (sendingCount ?? 0);
     const remaining = campaignImmediateSendEnabled()
       ? limit
       : Math.max(0, campaign.daily_send_limit - sentToday);
@@ -80,12 +112,13 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
         .from("review_request_messages")
         .select("id", { count: "exact", head: true })
         .eq("campaign_id", campaign.id)
-        .eq("status", "queued");
+        .in("status", ["queued", "sending"]);
       if (count === 0) {
         await supabase
           .from("review_request_campaigns")
           .update({ status: "completed", completed_at: now.toISOString() })
-          .eq("id", campaign.id);
+          .eq("id", campaign.id)
+          .in("status", ["active", "scheduled"]);
       }
       continue;
     }
@@ -95,10 +128,22 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
     for (const msg of queued) {
       if (processed >= limit) break;
 
+      // Atomic claim — only one worker may take a queued message.
+      const claimTs = new Date().toISOString();
+      const { data: claimed } = await supabase
+        .from("review_request_messages")
+        .update({ status: "sending", updated_at: claimTs })
+        .eq("id", msg.id)
+        .eq("status", "queued")
+        .select("*")
+        .maybeSingle();
+
+      if (!claimed) continue;
+
       const { data: recipient } = await supabase
         .from("review_request_recipients")
         .select("phone, email, first_name, full_name")
-        .eq("id", msg.recipient_id)
+        .eq("id", claimed.recipient_id)
         .maybeSingle();
 
       if (recipient?.phone || recipient?.email) {
@@ -112,8 +157,9 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
         if (suppressed?.length) {
           await supabase
             .from("review_request_messages")
-            .update({ status: "opted_out", updated_at: now.toISOString() })
-            .eq("id", msg.id);
+            .update({ status: "opted_out", updated_at: claimTs })
+            .eq("id", claimed.id)
+            .eq("status", "sending");
           continue;
         }
       }
@@ -123,20 +169,20 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
       let failReason: string | null = null;
 
       try {
-        if (msg.channel === "sms" && recipient?.phone) {
-          let body = String(msg.message_body ?? "");
+        if (claimed.channel === "sms" && recipient?.phone) {
+          let body = String(claimed.message_body ?? "");
           body = appendSmsOptOut(body);
           const result = await sendTwilioSms({ toPhone: recipient.phone, body });
           ok = result.ok;
           if (result.ok) providerId = result.messageSid;
           else failReason = result.error;
-        } else if (msg.channel === "email" && recipient?.email) {
+        } else if (claimed.channel === "email" && recipient?.email) {
           const result = await sendBrevoEmail({
             toEmail: recipient.email,
             toName: recipient.full_name ?? recipient.first_name ?? undefined,
             fromName: business?.name,
-            subject: String(msg.subject ?? `Feedback for ${business?.name ?? "us"}`),
-            textBody: String(msg.message_body ?? ""),
+            subject: String(claimed.subject ?? `Feedback for ${business?.name ?? "us"}`),
+            textBody: String(claimed.message_body ?? ""),
           });
           ok = result.ok;
           if (result.ok) providerId = result.messageId;
@@ -148,7 +194,7 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
         failReason = e instanceof Error ? e.message : "Send failed";
       }
 
-      const ts = now.toISOString();
+      const ts = new Date().toISOString();
       if (ok) {
         await supabase
           .from("review_request_messages")
@@ -158,7 +204,8 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
             provider_message_id: providerId,
             updated_at: ts,
           })
-          .eq("id", msg.id);
+          .eq("id", claimed.id)
+          .eq("status", "sending");
         processed++;
       } else {
         await supabase
@@ -169,7 +216,8 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
             failed_reason: failReason,
             updated_at: ts,
           })
-          .eq("id", msg.id);
+          .eq("id", claimed.id)
+          .eq("status", "sending");
       }
     }
   }

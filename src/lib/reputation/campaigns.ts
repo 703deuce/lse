@@ -309,7 +309,7 @@ export async function listCampaigns(businessId: string) {
       ...c,
       recipients_total: recs.length,
       recipients_ready: recs.filter((r) => r.status === "ready").length,
-      queued: msgs.filter((m) => m.status === "queued").length,
+      queued: msgs.filter((m) => m.status === "queued" || m.status === "sending").length,
       sent: msgs.filter((m) => m.status === "sent" || m.status === "delivered" || m.status === "clicked").length,
       failed: msgs.filter((m) => m.status === "failed").length,
       clicked: msgs.filter((m) => m.status === "clicked").length,
