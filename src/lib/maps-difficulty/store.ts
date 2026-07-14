@@ -70,12 +70,13 @@ export async function saveRun(params: {
 /** Update an existing run with Expansion Reach (when recalculated without re-running KD). */
 export async function updateRunExpansion(params: {
   runId: string;
+  organizationId: string;
   businessBaseAddress: string;
   expansionReach: ExpansionReachResult;
-}): Promise<void> {
+}): Promise<boolean> {
   try {
     const supabase = createServiceClient();
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("maps_difficulty_runs")
       .update({
         business_base_address: params.businessBaseAddress,
@@ -83,10 +84,18 @@ export async function updateRunExpansion(params: {
         expansion_label: params.expansionReach.expansionDifficultyLabel,
         expansion_json: params.expansionReach,
       })
-      .eq("id", params.runId);
-    if (error) console.error("[maps-difficulty] updateRunExpansion failed:", error.message);
+      .eq("id", params.runId)
+      .eq("organization_id", params.organizationId)
+      .select("id")
+      .maybeSingle();
+    if (error) {
+      console.error("[maps-difficulty] updateRunExpansion failed:", error.message);
+      return false;
+    }
+    return Boolean(data?.id);
   } catch (err) {
     console.error("[maps-difficulty] updateRunExpansion error:", err instanceof Error ? err.message : String(err));
+    return false;
   }
 }
 

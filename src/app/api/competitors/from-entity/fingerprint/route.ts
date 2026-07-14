@@ -24,6 +24,18 @@ export async function POST(request: Request) {
     await requireBusinessAccess(body.businessId);
     const supabase = createServiceClient();
 
+    if (body.scanId) {
+      const { data: owned } = await supabase
+        .from("scan_batches")
+        .select("id")
+        .eq("id", body.scanId)
+        .eq("business_id", body.businessId)
+        .maybeSingle();
+      if (!owned) {
+        return NextResponse.json({ error: "Scan not found for this business" }, { status: 404 });
+      }
+    }
+
     let entity = entityFromKey(body.entityKey, body.entityKey);
     let raw = body.rawResult;
     if (raw) entity = entityFromRawResult(raw);

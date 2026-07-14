@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { sendReviewRequestSms } from "@/lib/reputation/review-sends";
+import { PlanLimitError, reserveUsageOrThrow } from "@/lib/plans";
 
 export async function POST(request: Request) {
   try {
@@ -21,6 +22,7 @@ export async function POST(request: Request) {
     }
 
     const auth = await requireBusinessAccess(body.businessId);
+    await reserveUsageOrThrow(auth.organizationId, "review_sms_sent", 1);
     const result = await sendReviewRequestSms({
       businessId: body.businessId,
       organizationId: auth.organizationId,
@@ -42,8 +44,16 @@ export async function POST(request: Request) {
       usedTrialTemplate: result.usedTrialTemplate ?? false,
     });
   } catch (err) {
+    if (err instanceof PlanLimitError) {
+      return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
+    }
     const message = err instanceof Error ? err.message : "SMS send failed";
-    const status = message.includes("Review link missing") || message.includes("phone") ? 400 : 500;
+    const status =
+      message.includes("Review link missing") ||
+      message.includes("phone") ||
+      message.includes("opted out")
+        ? 400
+        : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }

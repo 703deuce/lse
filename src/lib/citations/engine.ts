@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/db/client";
 import { buildGridTopCompetitors } from "@/lib/maps/grid";
 import { SCAN_RESULT_COMPETITOR_COLUMNS } from "@/lib/maps/scan-result-columns";
+import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
 import {
   buildDiscoveryQueries,
   buildSiteQueries,
@@ -256,8 +257,8 @@ export async function runCitationAudit(params: {
       .from("scan_batches")
       .select("id")
       .eq("business_id", params.businessId)
-      .eq("status", "ready")
-      .order("finished_at", { ascending: false })
+      .in("status", [...USABLE_SCAN_STATUSES])
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -416,13 +417,25 @@ export async function runCitationAudit(params: {
 
 export async function loadLatestCitationAudit(businessId: string) {
   const supabase = createServiceClient();
-  const { data: audit } = await supabase
+  const { data: usable } = await supabase
     .from("citation_audits")
     .select("*")
     .eq("business_id", businessId)
+    .in("status", ["ready", "partial"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  const audit =
+    usable ??
+    (
+      await supabase
+        .from("citation_audits")
+        .select("*")
+        .eq("business_id", businessId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    ).data;
 
   if (!audit) return null;
 

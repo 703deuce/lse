@@ -8,6 +8,15 @@ export const MAP_RENDERABLE_STATUSES = new Set([
   "partial",
 ]);
 
+/**
+ * Terminal (or near-terminal) scans usable as competitor/metrics sources.
+ * Most grids finalize at `rank_ready` when enrichment is opt-in — queries that
+ * only accept `ready` silently miss the default complete state.
+ */
+export const USABLE_SCAN_STATUSES = ["ready", "partial", "rank_ready"] as const;
+
+export type UsableScanStatus = (typeof USABLE_SCAN_STATUSES)[number];
+
 /** Poll while rank cells or post-rank pipeline are in flight. */
 export const SCAN_POLL_STATUSES = new Set([
   "queued",

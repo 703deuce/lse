@@ -2,6 +2,8 @@ import pLimit from "p-limit";
 import { createServiceClient } from "@/lib/db/client";
 import { buildGridTopCompetitors } from "@/lib/maps/grid";
 import { SCAN_RESULT_COMPETITOR_COLUMNS } from "@/lib/maps/scan-result-columns";
+import { assertScanBelongsToBusiness } from "@/lib/db/queries";
+import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
 import { myBusinessInfo } from "@/lib/providers/dataforseo";
 import { domainFromUrl } from "@/lib/providers/dataforseo/match-target";
 import {
@@ -177,7 +179,7 @@ export async function runBacklinkGap(params: {
       .from("backlink_gap_runs")
       .select("id, status, created_at")
       .eq("business_id", params.businessId)
-      .eq("status", "ready")
+      .in("status", ["ready", "partial"])
       .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
       .order("created_at", { ascending: false })
       .limit(1)
@@ -186,7 +188,7 @@ export async function runBacklinkGap(params: {
       const loaded = await loadLatestBacklinkGapRun(params.businessId);
       return {
         runId: recent.id,
-        status: "ready",
+        status: (recent.status as "ready" | "partial") ?? "ready",
         summary: (loaded?.run.ai_summary as string) ?? null,
         targetDomain,
         targetRefDomainCount: (loaded?.run.target_ref_domain_count as number) ?? 0,
@@ -204,13 +206,15 @@ export async function runBacklinkGap(params: {
   const state = primaryKw?.state ?? null;
 
   let scanBatchId = params.scanBatchId ?? null;
-  if (!scanBatchId) {
+  if (scanBatchId) {
+    await assertScanBelongsToBusiness(scanBatchId, params.businessId);
+  } else {
     const { data: latestScan } = await supabase
       .from("scan_batches")
       .select("id")
       .eq("business_id", params.businessId)
-      .eq("status", "ready")
-      .order("finished_at", { ascending: false })
+      .in("status", [...USABLE_SCAN_STATUSES])
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     scanBatchId = latestScan?.id ?? null;

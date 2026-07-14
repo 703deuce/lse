@@ -8,6 +8,7 @@ import { runCompetitorGapAudit } from "@/lib/audit/competitor-gap";
 import { buildActionPlanFromAudits } from "@/lib/audit/action-plan-engine";
 import { enrichTargetBusiness } from "@/lib/jobs/enrich-competitors";
 import { normalizePlaceTopics, normalizeStringList } from "@/lib/audit/json-fields";
+import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
 
 export async function loadGbpProfile(businessId: string): Promise<GbpProfile | null> {
   const db = createServiceClient();
@@ -85,6 +86,7 @@ export async function loadCompetitorsForBusiness(businessId: string): Promise<Lo
     .from("scan_batches")
     .select("id")
     .eq("business_id", businessId)
+    .in("status", [...USABLE_SCAN_STATUSES])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { loadGbpProfile, loadCompetitorsForBusiness } from "@/lib/audit/run-audit";
+import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
 
 export async function GET(
   _request: Request,
@@ -25,6 +26,7 @@ export async function GET(
       .from("scan_batches")
       .select("id, status, aggregate_metrics, grid_size, radius_meters")
       .eq("business_id", businessId)
+      .in("status", [...USABLE_SCAN_STATUSES])
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();

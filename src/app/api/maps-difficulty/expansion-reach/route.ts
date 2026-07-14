@@ -77,11 +77,15 @@ export async function POST(request: Request) {
     });
 
     if (body.runId) {
-      await updateRunExpansion({
+      const updated = await updateRunExpansion({
         runId: body.runId,
+        organizationId: auth.organizationId,
         businessBaseAddress: businessBaseAddress ?? baseLabel,
         expansionReach,
       });
+      if (!updated) {
+        return NextResponse.json({ error: "Run not found" }, { status: 404 });
+      }
     }
 
     return NextResponse.json({ expansionReach, kdResult: kd });

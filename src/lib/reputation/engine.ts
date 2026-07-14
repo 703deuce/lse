@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/db/client";
 import { buildReviewMomentumCompetitorPool } from "@/lib/maps/grid";
+import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
 import { enrichTargetBusiness } from "@/lib/jobs/enrich-competitors";
 import { fetchReviewsForEntity } from "@/lib/reviews/fetch-reviews";
 import { classifyReviewAge } from "@/lib/reviews/date-buckets";
@@ -102,8 +103,8 @@ export async function runReputationAudit(params: {
     .from("scan_batches")
     .select("id")
     .eq("business_id", params.businessId)
-    .in("status", ["ready", "partial"])
-    .order("finished_at", { ascending: false })
+    .in("status", [...USABLE_SCAN_STATUSES])
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -428,13 +429,25 @@ export async function runReputationAudit(params: {
 
 export async function loadLatestReputationAudit(businessId: string) {
   const supabase = createServiceClient();
-  const { data: audit } = await supabase
+  const { data: usable } = await supabase
     .from("reputation_audits")
     .select("*")
     .eq("business_id", businessId)
+    .in("status", ["ready", "partial"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  const audit =
+    usable ??
+    (
+      await supabase
+        .from("reputation_audits")
+        .select("*")
+        .eq("business_id", businessId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    ).data;
 
   if (!audit) return null;
 

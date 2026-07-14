@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { requireAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
+import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
 import Link from "next/link";
 
 export default async function AgencyReportsPage() {
@@ -18,7 +19,7 @@ export default async function AgencyReportsPage() {
       .from("scan_batches")
       .select("id")
       .eq("business_id", b.id)
-      .eq("status", "ready")
+      .in("status", [...USABLE_SCAN_STATUSES])
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();

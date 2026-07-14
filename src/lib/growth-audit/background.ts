@@ -42,7 +42,7 @@ export async function runExtendedModulesInBackground(params: {
         organizationId: params.organizationId,
       })
         .then((r) => {
-          extended.reputation = { auditId: r.auditId, status: r.status, score: r.score };
+          extended.reputation = { auditId: r.auditId, status: "complete", score: r.score };
         })
         .catch(() => {
           extended.reputation = { auditId: "", status: "failed" };
