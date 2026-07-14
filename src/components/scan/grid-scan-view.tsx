@@ -227,19 +227,32 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
     }
   }
 
-  const pollStatus = useCallback(async () => {
+  const pollStatus = useCallback(async (signal?: AbortSignal) => {
     const params = keywordId ? `?keywordId=${keywordId}` : "";
-    const res = await fetch(`/api/scans/${activeScanId}/status${params}`);
+    const res = await fetch(`/api/scans/${activeScanId}/status${params}`, { signal });
     return res.json();
   }, [activeScanId, keywordId]);
 
   useEffect(() => {
     let active = true;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let inFlight = false;
+    const abort = new AbortController();
     const supabase = createBrowserClient();
 
+    function scheduleNext(ms: number) {
+      if (!active) return;
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        void poll();
+      }, ms);
+    }
+
     async function poll() {
+      if (!active || inFlight) return;
+      inFlight = true;
       try {
-        const json = (await pollStatus()) as ScanViewData;
+        const json = (await pollStatus(abort.signal)) as ScanViewData;
         if (!active) return;
         scanDataCache.set(scanCacheKey(activeScanId, keywordId), json);
         setData(json);
@@ -267,46 +280,65 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
           }) ||
           awaitingResults
         ) {
-          const inFlight = areCellsInFlight(status);
-          setTimeout(poll, inFlight ? 1500 : 3000);
+          const cellsInFlight = areCellsInFlight(status);
+          scheduleNext(cellsInFlight ? 1500 : 3000);
         }
-      } catch {
-        if (active) setTimeout(poll, 3000);
+      } catch (err) {
+        if (!active) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        scheduleNext(3000);
+      } finally {
+        inFlight = false;
       }
     }
-    poll();
+
+    void poll();
 
     const channel = supabase
       .channel(`scan-${activeScanId}`)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "scan_batches", filter: `id=eq.${activeScanId}` },
-        () => poll()
+        () => {
+          // Coalesce with timer poll — skip if a request is already in flight.
+          if (!inFlight) void poll();
+        }
       )
       .subscribe();
 
     return () => {
       active = false;
+      if (timeoutId) clearTimeout(timeoutId);
+      abort.abort();
       supabase.removeChannel(channel);
     };
   }, [activeScanId, pollStatus, keywordId]);
 
   useEffect(() => {
+    const abort = new AbortController();
     async function loadEntities() {
       const params = keywordId ? `?keywordId=${keywordId}` : "";
-      const res = await fetch(`/api/scans/${activeScanId}/competitors${params}`);
-      if (!res.ok) return;
-      const json = await res.json();
-      setEntities(
-        (json.entities ?? []).map((e: EntityOption) => ({
-          key: e.key,
-          label: e.label,
-          isTarget: e.isTarget,
-        }))
-      );
+      try {
+        const res = await fetch(`/api/scans/${activeScanId}/competitors${params}`, {
+          signal: abort.signal,
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        setEntities(
+          (json.entities ?? []).map((e: EntityOption) => ({
+            key: e.key,
+            label: e.label,
+            isTarget: e.isTarget,
+          }))
+        );
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+      }
     }
     void loadEntities();
-  }, [activeScanId, keywordId, data?.results?.length]);
+    return () => abort.abort();
+    // Intentionally omit results.length — refetch on scan/keyword change only.
+  }, [activeScanId, keywordId]);
 
   useEffect(() => {
     async function loadSpotChecks() {

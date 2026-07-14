@@ -7,6 +7,11 @@ import {
   SEARCH_THIS_AREA_FALLBACK,
   isNoSearchResultsError,
 } from "@/lib/maps/local-falcon-parity";
+import {
+  estimateProviderCost,
+  fetchWithTimeout,
+  providerTimeoutMs,
+} from "@/lib/providers/fetch-with-timeout";
 
 export function mapsDepthDefault(): number {
   const env = Number(process.env.DATAFORSEO_MAPS_DEPTH ?? LOCAL_FALCON_PARITY.gridDepth);
@@ -139,14 +144,22 @@ async function dataForSeoRequest<T>(
 ): Promise<T> {
   const start = Date.now();
   const url = `https://api.dataforseo.com/v3/${endpoint}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: authHeader(),
-      "Content-Type": "application/json",
+  const res = await fetchWithTimeout(
+    url,
+    {
+      method: "POST",
+      headers: {
+        Authorization: authHeader(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(Array.isArray(body) ? body : [body]),
     },
-    body: JSON.stringify(Array.isArray(body) ? body : [body]),
-  });
+    {
+      provider: "dataforseo",
+      timeoutMs: providerTimeoutMs("dataforseo", 90_000),
+      label: endpoint,
+    }
+  );
   const latencyMs = Date.now() - start;
   const data = await res.json();
   logDataForSeoResponse(endpoint, res.status, data, latencyMs);
@@ -158,6 +171,7 @@ async function dataForSeoRequest<T>(
     response: data,
     statusCode: res.status,
     latencyMs,
+    costEstimate: estimateProviderCost("dataforseo"),
   });
   if (!res.ok) {
     const msg = `DataForSEO HTTP ${res.status}: ${JSON.stringify(data)}`;
@@ -492,10 +506,18 @@ async function dataForSeoGet<T>(
 ): Promise<T> {
   const start = Date.now();
   const url = `https://api.dataforseo.com/v3/${endpoint}`;
-  const res = await fetch(url, {
-    method: "GET",
-    headers: { Authorization: authHeader() },
-  });
+  const res = await fetchWithTimeout(
+    url,
+    {
+      method: "GET",
+      headers: { Authorization: authHeader() },
+    },
+    {
+      provider: "dataforseo",
+      timeoutMs: providerTimeoutMs("dataforseo", 90_000),
+      label: endpoint,
+    }
+  );
   const latencyMs = Date.now() - start;
   const data = await res.json();
   logDataForSeoResponse(endpoint, res.status, data, latencyMs, options);
@@ -507,6 +529,7 @@ async function dataForSeoGet<T>(
     response: data,
     statusCode: res.status,
     latencyMs,
+    costEstimate: estimateProviderCost("dataforseo"),
   });
   if (!res.ok) throw new Error(`DataForSEO HTTP ${res.status}`);
   return data as T;

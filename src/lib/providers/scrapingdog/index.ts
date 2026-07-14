@@ -1,4 +1,9 @@
 import { logProviderRun } from "@/lib/providers/dataforseo";
+import {
+  estimateProviderCost,
+  fetchWithTimeout,
+  providerTimeoutMs,
+} from "@/lib/providers/fetch-with-timeout";
 import { parseISO, isValid, startOfDay, subDays } from "date-fns";
 
 function getApiKey(): string {
@@ -95,7 +100,15 @@ async function scrapingDogGet<T>(
     url.searchParams.set(k, v);
   }
 
-  const res = await fetch(url.toString());
+  const res = await fetchWithTimeout(
+    url.toString(),
+    undefined,
+    {
+      provider: "scrapingdog",
+      timeoutMs: providerTimeoutMs("scrapingdog", 45_000),
+      label: path,
+    }
+  );
   const latencyMs = Date.now() - start;
   const text = await res.text();
   let data: unknown;
@@ -113,6 +126,7 @@ async function scrapingDogGet<T>(
     response: data,
     statusCode: res.status,
     latencyMs,
+    costEstimate: estimateProviderCost("scrapingdog"),
   });
 
   if (!res.ok) {

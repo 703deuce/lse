@@ -1,4 +1,5 @@
 import { normalizePhoneE164 } from "@/lib/reputation/phone";
+import { fetchWithTimeout, providerTimeoutMs } from "@/lib/providers/fetch-with-timeout";
 
 export type TwilioSendParams = {
   toPhone: string;
@@ -42,7 +43,7 @@ export async function sendTwilioSms(params: TwilioSendParams): Promise<TwilioSen
   });
 
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
       {
         method: "POST",
@@ -51,7 +52,8 @@ export async function sendTwilioSms(params: TwilioSendParams): Promise<TwilioSen
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: body.toString(),
-      }
+      },
+      { provider: "twilio", timeoutMs: providerTimeoutMs("twilio", 20_000), label: "sendSms" }
     );
 
     const json = (await res.json().catch(() => ({}))) as {
