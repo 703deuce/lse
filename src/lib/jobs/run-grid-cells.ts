@@ -714,7 +714,10 @@ export async function runGridCellsLive(params: {
   os: string;
   browser: string;
   organizationId?: string;
+  /** When true, skip cells that already have complete saved results. */
+  resume?: boolean;
   onSoftReady?: () => Promise<void>;
+  onLeaseHeartbeat?: () => Promise<void>;
 }): Promise<{ failedCells: number; totalCells: number; successCells: number }> {
   const depth = mapsDepth();
   const timeoutMs = mapsGridCellTimeoutMs();
@@ -722,19 +725,53 @@ export async function runGridCellsLive(params: {
   const retryDelayMs = mapsGridRetryDelayMs();
   const batchSize = mapsCellBatchSize();
 
-  const jobs = buildGridCellJobs(params);
-  const totalCells = jobs.length;
+  const allJobs = buildGridCellJobs(params);
+  const totalCells = allJobs.length;
+
+  let jobs = allJobs;
+  let alreadyComplete = 0;
+
+  if (params.resume && allJobs.length > 0) {
+    const supabaseResume = createServiceClient();
+    const pointIds = [...new Set(allJobs.map((j) => j.point.id))];
+    const { data: savedResults } = await supabaseResume
+      .from("scan_results")
+      .select("scan_point_id, keyword_id, target_found, top_competitors_json")
+      .in("scan_point_id", pointIds);
+
+    const completeKeys = new Set(
+      (savedResults ?? [])
+        .filter((r) => validateStoredCellResult(r, depth).complete)
+        .map((r) => `${r.scan_point_id}:${r.keyword_id}`)
+    );
+    jobs = allJobs.filter((j) => !completeKeys.has(`${j.point.id}:${j.keyword.id}`));
+    alreadyComplete = allJobs.length - jobs.length;
+    console.log("[Scan] Resume skip complete cells:", {
+      scanBatchId: params.scanBatchId,
+      totalCells,
+      alreadyComplete,
+      remaining: jobs.length,
+    });
+  }
+
   const primaryChunks = chunkJobs(jobs, batchSize);
 
   const supabase = createServiceClient();
   await supabase
     .from("scan_batches")
-    .update({ cells_total: totalCells, cells_completed: 0, cells_failed: 0 })
+    .update({
+      cells_total: totalCells,
+      cells_completed: alreadyComplete,
+      cells_failed: 0,
+    })
     .eq("id", params.scanBatchId);
 
   console.log("[Scan] Live parallel grid (Bright Data):", {
     scanBatchId: params.scanBatchId,
+    resume: !!params.resume,
     totalCells,
+    pendingCells: jobs.length,
+    alreadyComplete,
     batchSize,
     primaryBatches: primaryChunks.length,
     timeoutMs,
@@ -744,7 +781,7 @@ export async function runGridCellsLive(params: {
     device: params.device,
     os: params.os,
     browser: params.browser,
-    uniqueCoordinates: new Set(jobs.map((j) => `${j.point.lat},${j.point.lng}`)).size,
+    uniqueCoordinates: new Set(allJobs.map((j) => `${j.point.lat},${j.point.lng}`)).size,
   });
 
   const allTimings: CellPhaseTimings[] = [];
@@ -763,12 +800,49 @@ export async function runGridCellsLive(params: {
   };
 
   const onCellSettled = async (success: boolean) => {
+    if (params.onLeaseHeartbeat) {
+      await params.onLeaseHeartbeat().catch(() => undefined);
+    }
     if (success) {
       await refreshScanAggregateMetrics(params.scanBatchId);
     }
   };
 
-  let completedOffset = 0;
+  // Already past soft-ready threshold from prior progress — promote immediately.
+  if (alreadyComplete >= softMin && params.onSoftReady) {
+    await onSoftReady();
+  }
+
+  if (jobs.length === 0) {
+    const integrity = await runIntegrityPass({
+      scanBatchId: params.scanBatchId,
+      jobs: allJobs,
+      depth,
+      timeoutMs,
+      maxAttempts: 1,
+      concurrency: mapsGridConcurrency(totalCells),
+      totalCells,
+      organizationId: params.organizationId,
+      onCellSettled,
+    });
+    const failedCells = integrity.failedCells;
+    const successCells = Math.max(0, totalCells - failedCells);
+    await scheduleCellProgress(
+      params.scanBatchId,
+      totalCells,
+      totalCells,
+      failedCells,
+      { pass: "complete", method: "live_parallel_resume_noop", failed_point_ids: [] },
+      { force: true }
+    );
+    if (!rankReadyPromise && params.onSoftReady) {
+      await onSoftReady();
+    }
+    await refreshScanAggregateMetrics(params.scanBatchId);
+    return { failedCells, totalCells, successCells };
+  }
+
+  let completedOffset = alreadyComplete;
   const failedFromPrimary: GridCellJob[] = [];
 
   for (let batchIndex = 0; batchIndex < primaryChunks.length; batchIndex++) {
@@ -832,7 +906,7 @@ export async function runGridCellsLive(params: {
   const integrityConcurrency = mapsGridConcurrency(totalCells);
   const integrity = await runIntegrityPass({
     scanBatchId: params.scanBatchId,
-    jobs,
+    jobs: allJobs,
     depth,
     timeoutMs,
     maxAttempts: 1,
@@ -852,7 +926,7 @@ export async function runGridCellsLive(params: {
     failedCells,
     {
       pass: "complete",
-      method: "live_parallel",
+      method: params.resume ? "live_parallel_resume" : "live_parallel",
       failed_point_ids: failedCells > 0 ? remainingJobs.map((j) => j.point.id) : [],
     },
     { force: true }

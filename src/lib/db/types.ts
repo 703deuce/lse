@@ -214,6 +214,9 @@ export interface ScanBatchRow {
   aggregate_metrics: Json;
   error_message: string | null;
   early_enrichment_started?: boolean;
+  lease_owner?: string | null;
+  lease_expires_at?: string | null;
+  heartbeat_at?: string | null;
   created_at: string;
   updated_at: string;
 }

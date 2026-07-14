@@ -14,7 +14,7 @@ This audit follows the requested priority order. Findings are ranked **CRITICAL 
 |------|--------|
 | App-layer business access (`requireBusinessAccess`) | Mostly present on APIs |
 | RLS as tenancy backstop | **Not production-ready** — widespread `USING (true)` |
-| Mid-scan crash recovery (49-cell) | **No resume** — stuck in `provider_running` |
+| Mid-scan crash recovery (49-cell) | **Lease reclaim + resume missing cells** (`034`) |
 | Cell upsert + soft-ready finalize claims | Solid foundation |
 | External timeouts / circuit breakers | Incomplete |
 | Billing / usage atomics | Race-prone; SMS/email caps unused |
@@ -25,11 +25,11 @@ This audit follows the requested priority order. Findings are ranked **CRITICAL 
 **Answer to “What happens if the server dies halfway through a 49-cell scan?”**
 
 - Completed cells remain (per-cell upsert + unique index, migration `030`).
-- Batch stays `dispatching` / `provider_running`.
-- `kickQueuedScanIfNeeded` only restarts **`queued`** batches (`src/lib/jobs/schedule-scan.ts`) — it does **not** reclaim in-flight work.
-- Soft-ready / finalize never run → map may never become `rank_ready`.
-- Credits were already charged at create time for the full grid.
-- No lease/heartbeat — restart alone does not finish the scan.
+- Batch stays `dispatching` / `provider_running` until the **lease expires**.
+- Status polls and `/api/jobs/process` reclaim stale leases and **resume missing cells only** (migration `034` + `processScanBatch` resume path).
+- Soft-ready / finalize run after remaining cells settle → map can reach `rank_ready`.
+- Credits were already charged at create time for the full grid (billing settle still tracked separately).
+- Heartbeats extend `lease_expires_at` while a living worker owns the scan.
 
 ---
 
@@ -95,7 +95,7 @@ This audit follows the requested priority order. Findings are ranked **CRITICAL 
 
 | ID | Finding | Evidence |
 |----|---------|----------|
-| J1 | No stuck recovery / heartbeat for `provider_running` scans | `kickQueuedScanIfNeeded` only `queued`; no lease columns |
+| J1 | ~~No stuck recovery / heartbeat for `provider_running` scans~~ **Mitigated (034):** lease + heartbeat + resume missing cells | `scan-lease.ts`, `process-scan.ts`, `schedule-scan.ts` |
 | J2 | `job_queue` retry can mark scan `failed` while requeueing the job; `processScanBatch` only claims `queued` → retry is a no-op | `src/lib/jobs/queue.ts`, `process-scan.ts` |
 
 ### HIGH

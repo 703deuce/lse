@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/db/client";
 import { processCampaignMessages } from "@/lib/reputation/campaign-processor";
 import { processScanBatch } from "@/lib/jobs/process-scan";
+import { reclaimStaleInFlightScans } from "@/lib/jobs/schedule-scan";
 
 export async function enqueueScanJob(scanBatchId: string, businessId?: string): Promise<void> {
   const supabase = createServiceClient();
@@ -11,8 +12,22 @@ export async function enqueueScanJob(scanBatchId: string, businessId?: string): 
   });
 }
 
-export async function processPendingJobs(limit = 5): Promise<{ jobsProcessed: number; campaignSent: number }> {
+function retryDelayMs(attempt: number): number {
+  const base = Math.min(60_000, 1000 * 2 ** Math.max(0, attempt - 1));
+  const jitter = Math.floor(Math.random() * 1000);
+  return base + jitter;
+}
+
+export async function processPendingJobs(limit = 5): Promise<{
+  jobsProcessed: number;
+  campaignSent: number;
+  scansReclaimed: number;
+}> {
   const supabase = createServiceClient();
+
+  // Resume grids whose workers died mid-flight (lease expired).
+  const scansReclaimed = await reclaimStaleInFlightScans(5);
+
   const { data: jobs } = await supabase
     .from("job_queue")
     .select("*")
@@ -23,7 +38,7 @@ export async function processPendingJobs(limit = 5): Promise<{ jobsProcessed: nu
 
   if (!jobs?.length) {
     const campaignSent = await processCampaignMessages(20);
-    return { jobsProcessed: 0, campaignSent };
+    return { jobsProcessed: 0, campaignSent, scansReclaimed };
   }
 
   let processed = 0;
@@ -87,27 +102,38 @@ export async function processPendingJobs(limit = 5): Promise<{ jobsProcessed: nu
       const attempts = claimed.attempts ?? (job.attempts ?? 0) + 1;
       const maxAttempts = claimed.max_attempts ?? job.max_attempts ?? 3;
       const failed = attempts >= maxAttempts;
+      const delay = retryDelayMs(attempts);
+
       await supabase
         .from("job_queue")
         .update({
           status: failed ? "failed" : "pending",
           error_message: message,
           finished_at: failed ? new Date().toISOString() : null,
+          scheduled_at: failed ? undefined : new Date(Date.now() + delay).toISOString(),
         })
         .eq("id", claimed.id);
 
       const payload = claimed.payload as { scanBatchId?: string };
-      if (payload.scanBatchId) {
+      if (payload.scanBatchId && failed) {
+        // Only terminal-fail the batch when job retries are exhausted.
         await supabase
           .from("scan_batches")
-          .update({ status: "failed", error_message: message })
+          .update({
+            status: "failed",
+            error_message: message,
+            finished_at: new Date().toISOString(),
+            lease_owner: null,
+            lease_expires_at: null,
+          })
           .eq("id", payload.scanBatchId)
           .in("status", ["queued", "dispatching", "provider_running", "normalizing"]);
       }
+      // Intermediate failures: leave batch in-flight; lease reclaim / resume will pick it up.
     }
   }
 
   const campaignSent = await processCampaignMessages(20);
 
-  return { jobsProcessed: processed, campaignSent };
+  return { jobsProcessed: processed, campaignSent, scansReclaimed };
 }
