@@ -77,6 +77,30 @@ export function hasTrailingCellsSettling(batch: {
   return total > 0 && completed < total;
 }
 
+/**
+ * Rank map should appear only when the grid is fully settled — every point has a
+ * saved result (or the batch truly ended) and counters are complete. Partial /
+ * soft-ready maps caused fake X/20+/gray bubbles while retries were still finishing.
+ */
+export function isScanMapReady(batch: {
+  status?: string | null;
+  cells_completed?: number | null;
+  cells_total?: number | null;
+  cells_failed?: number | null;
+  confidence_summary?: Record<string, unknown> | null;
+}, loadedResults: number, totalPoints: number): boolean {
+  const status = batch.status ?? null;
+  if (!status || status === "failed" || status === "queued") return false;
+  if (areCellsInFlight(status)) return false;
+  if (hasTrailingCellsSettling(batch)) return false;
+  if (totalPoints <= 0) return false;
+  const { completed, total } = cellCounters(batch);
+  const expected = total > 0 ? total : totalPoints;
+  if (completed < expected) return false;
+  // Prefer a full result set; never reveal mid-retry with missing bubbles.
+  return loadedResults >= expected;
+}
+
 export function shouldPollScan(
   status: string | null | undefined,
   batch?: {
@@ -137,36 +161,24 @@ export function scanProgressMessage(batch: {
   const conf = (batch.confidence_summary ?? {}) as Record<string, unknown>;
   const completed = Number(batch.cells_completed ?? conf.completed_cells ?? 0);
   const total = Number(batch.cells_total ?? conf.total_cells ?? 0);
-  const failed = Number(batch.cells_failed ?? conf.failed_cells ?? 0);
 
   if (areCellsInFlight(batch.status ?? null)) {
-    const trailing = total > 0 ? Math.max(0, total - completed) : 0;
-    const trailingNote =
-      trailing > 0 && trailing <= 3
-        ? ` · Finishing last ${trailing} edge point${trailing === 1 ? "" : "s"} (often slower)`
-        : " · Showing results as they arrive.";
     return total > 0
-      ? `${completed} / ${total} locations analyzed${trailingNote}`
+      ? `Scanning ${completed} / ${total} locations…`
       : "Scanning locations…";
   }
 
   const pending = total > 0 && completed < total ? total - completed : 0;
   if (pending > 0 && isMapRenderable(batch.status ?? null)) {
-    const trailingNote =
-      pending <= 3
-        ? ` · Finishing last ${pending} edge point${pending === 1 ? "" : "s"} (often slower)`
-        : ` · ${pending} still scanning…`;
-    return `${completed} / ${total} locations analyzed${trailingNote}`;
+    return `Finishing scan… ${completed} / ${total} locations ready`;
   }
 
   if (batch.status === "rank_ready" && batch.enrichment_status === "skipped") {
-    const failNote = failed > 0 ? ` (${failed} point${failed === 1 ? "" : "s"} failed)` : "";
-    return `Rank scan complete${failNote}.`;
+    return "Rank scan complete.";
   }
 
   if (batch.status === "rank_ready" || isEnrichmentRunning(batch)) {
-    const failNote = failed > 0 ? ` (${failed} point${failed === 1 ? "" : "s"} failed)` : "";
-    return `Rank scan complete${failNote}. Enriching competitor details…`;
+    return "Rank scan complete. Enriching competitor details…";
   }
 
   if (batch.enrichment_status === "failed") {

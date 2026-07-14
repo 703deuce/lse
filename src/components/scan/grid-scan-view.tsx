@@ -37,6 +37,7 @@ import {
   hasCellsPending,
   hasTrailingCellsSettling,
   isEnrichmentRunning,
+  isScanMapReady,
   scanProgressMessage,
   shouldPollScan,
 } from "@/lib/scans/status";
@@ -445,6 +446,24 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
     cellsStillLoading ||
     trailingSettling ||
     (cellsPending && batchStatus !== "failed");
+
+  // Hold the rank map until every cell has finished (incl. retries). No partial maps.
+  const mapReady = isScanMapReady(
+    {
+      status: batchStatus,
+      cells_completed: batch?.cells_completed as number | null | undefined,
+      cells_total: batch?.cells_total as number | null | undefined,
+      cells_failed: batch?.cells_failed as number | null | undefined,
+      confidence_summary: (batch?.confidence_summary ?? null) as Record<string, unknown> | null,
+    },
+    loadedCells,
+    totalGridCells
+  );
+  const waitingForMap =
+    !!batch &&
+    batchStatus !== "failed" &&
+    !mapReady &&
+    (scanActive || (totalGridCells > 0 && loadedCells < totalGridCells));
 
   const progressMessage = scanProgressMessage({
     status: batchStatus,
@@ -887,263 +906,255 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
               />
             )}
 
-            <div
-              className={`mb-3 space-y-2 transition-opacity duration-300 ${
-                timelineFetching ? "opacity-70" : "opacity-100"
-              }`}
-            >
-              <KpiRow cols={4}>
-                <GridMetricCard
-                  variant="primary"
-                  label="SoLV"
-                  value={`${solv}%`}
-                  sub="Top-3 map pack"
-                  icon={Target}
-                  iconWrapClassName="bg-emerald-50"
-                  iconClassName="text-emerald-600"
-                />
-                <GridMetricCard
-                  label="Avg Rank"
-                  value={displayMetrics.averageRank ?? "—"}
-                  sub={
-                    trend.avgRankDelta != null
-                      ? `${trend.avgRankDelta > 0 ? "↑" : "↓"} ${Math.abs(trend.avgRankDelta)} vs last`
-                      : undefined
-                  }
-                  trendPositive={trend.avgRankDelta != null ? trend.avgRankDelta > 0 : undefined}
-                  icon={TrendingDown}
-                  iconWrapClassName="bg-violet-50"
-                  iconClassName="text-violet-600"
-                />
-                <GridMetricCard
-                  label="Visibility"
-                  value={`${displayMetrics.visibilityScore ?? 0}%`}
-                  sub={
-                    trend.visibilityDelta != null
-                      ? `${trend.visibilityDelta >= 0 ? "+" : ""}${trend.visibilityDelta}% vs last`
-                      : "Top-10 share"
-                  }
-                  trendPositive={
-                    trend.visibilityDelta != null ? trend.visibilityDelta >= 0 : undefined
-                  }
-                  icon={Eye}
-                  iconWrapClassName="bg-emerald-50"
-                  iconClassName="text-emerald-600"
-                />
-                <GridMetricCard
-                  label="Weighted SoLV"
-                  value={`${weightedSolv}%`}
-                  sub="Partial credit 4–20"
-                  icon={BarChart3}
-                  iconWrapClassName="bg-emerald-50"
-                  iconClassName="text-emerald-600"
-                />
-              </KpiRow>
-              <GridTopCellsGroup
-                top3={displayMetrics.top3Cells ?? 0}
-                top10={displayMetrics.top10Cells ?? 0}
-                top20={displayMetrics.top20Cells ?? 0}
-                total={displayMetrics.totalCells || totalGridCells}
-                top10Delta={trend.top10Delta}
-              />
-            </div>
-
-            {entities.length > 0 && (
-              <CompetitorGridToggle
-                entities={entities}
-                selectedKey={entityKey}
-                onSelect={setEntityKey}
-                viewingLabel={viewingEntity?.label}
-                className="mb-2"
-              />
-            )}
-
-            {(scanActive || (progressCompleted > 0 && progressCompleted < progressTotal)) && (
-              <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50/80 px-3.5 py-2 dark:border-emerald-900 dark:bg-emerald-950/40">
-                <p className="text-xs font-medium text-emerald-900 dark:text-emerald-100">
-                  {cellsInFlight || cellsStillLoading
-                    ? "Analyzing locations"
-                    : cellsPending
-                      ? "Map ready"
-                      : "Scan progress"}
+            {waitingForMap ? (
+              <div className="mb-3 flex min-h-[min(62vh,560px)] flex-col items-center justify-center rounded-xl border border-zinc-200 bg-gradient-to-b from-emerald-50/80 to-white px-6 py-12 text-center shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                <Loader2 className="h-9 w-9 animate-spin text-emerald-600" />
+                <h2 className="mt-4 text-[18px] font-semibold text-zinc-900">Scan running</h2>
+                <p className="mt-1.5 max-w-md text-[13px] leading-relaxed text-zinc-600">
+                  We’re checking every grid point now. The rank map will appear when the full scan
+                  finishes — including any automatic retries.
                 </p>
-                <p className="mt-0.5 text-xs text-emerald-800 dark:text-emerald-200">
-                  {cellsInFlight || cellsStillLoading ? (
+                <p className="mt-4 text-[14px] font-medium text-zinc-800">
+                  {progressTotal > 0 ? (
                     <>
-                      <Loader2 className="mr-1 inline h-4 w-4 animate-spin text-emerald-600" />
-                      <strong>{progressCompleted}</strong> / <strong>{progressTotal}</strong> locations
-                      analyzed
-                      <span className="text-emerald-700 dark:text-emerald-300">
-                        {" "}
-                        · Showing results as they arrive.
-                      </span>
+                      {progressCompleted} / {progressTotal} locations
                     </>
                   ) : (
-                    <>
-                      <strong>{progressCompleted}</strong> / <strong>{progressTotal}</strong> locations
-                      analyzed
-                      {progressTotal - progressCompleted > 0
-                        ? ` · ${progressTotal - progressCompleted} still scanning…`
-                        : ""}
-                    </>
+                    "Starting…"
                   )}
                 </p>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-emerald-200 dark:bg-emerald-900">
+                <div className="mt-3 h-2 w-full max-w-sm overflow-hidden rounded-full bg-emerald-100">
                   <div
                     className="h-full rounded-full bg-emerald-600 transition-all duration-500"
                     style={{
-                      width: `${progressTotal > 0 ? Math.round((progressCompleted / progressTotal) * 100) : 0}%`,
+                      width: `${progressTotal > 0 ? Math.round((progressCompleted / progressTotal) * 100) : 8}%`,
                     }}
                   />
                 </div>
-              </div>
-            )}
-
-            {!scanActive && (enrichmentRunning || batchStatus === "rank_ready") && progressMessage && (
-              <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50/80 px-3.5 py-2 dark:border-amber-900 dark:bg-amber-950/40">
-                <p className="text-xs text-amber-900 dark:text-amber-100">{progressMessage}</p>
-              </div>
-            )}
-
-            {cells.length > 0 && (
-              <div className="mb-3">
-                <ScanTimelineSlider
-                  businessId={businessId}
-                  currentScanId={activeScanId}
-                  keywordId={keywordId}
-                  locationId={locationId}
-                  gridSize={gridSize}
-                  radiusMeters={radiusMeters}
-                  mode={timelineMode}
-                  competitorKey={timelineCompetitorKey}
-                  competitorOptions={competitorTimelineOptions}
-                  keywordOptions={keywordOptions}
-                  onModeChange={setTimelineMode}
-                  onCompetitorChange={setTimelineCompetitorKey}
-                  onKeywordChange={(kwId) => switchScan(activeScanId, kwId)}
-                  onScanSelect={(id) => switchScan(id)}
-                  onPrefetchScan={prefetchScanData}
-                  className="mb-2"
-                />
-                <div
-                  className={`flex min-h-[min(62vh,560px)] overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-opacity duration-300 ${
-                    timelineFetching ? "opacity-75" : "opacity-100"
-                  }`}
-                >
-                  <div className="relative min-w-0 flex-1">
-                    <div className="absolute right-3 top-3 z-[500] flex rounded-md border border-zinc-200 bg-white p-0.5 text-[11px] shadow-sm">
-                      <button
-                        type="button"
-                        onClick={() => setShowRadiusRings(false)}
-                        className={`rounded px-2.5 py-1 font-semibold ${
-                          !showRadiusRings
-                            ? "bg-[#137752] text-white"
-                            : "text-zinc-600 hover:bg-zinc-50"
-                        }`}
-                      >
-                        Grid
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowRadiusRings(true)}
-                        className={`rounded px-2.5 py-1 font-semibold ${
-                          showRadiusRings
-                            ? "bg-[#137752] text-white"
-                            : "text-zinc-600 hover:bg-zinc-50"
-                        }`}
-                      >
-                        Rings
-                      </button>
-                    </div>
-                    <div className="absolute bottom-12 right-3 z-[500]">
-                      <span className="inline-flex items-center rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 shadow-sm">
-                        Map ▾
-                      </span>
-                    </div>
-                    <ScanMap
-                      key={`${colorMode}-${entityKey}-${mapMode}`}
-                      officeCenter={[officeLat, officeLng]}
-                      cells={cells}
-                      businessName={entityKey === "you" ? business?.name : viewingEntity?.label}
-                      colorMode={colorMode}
-                      onCellClick={mapMode === "default" ? handleCellClick : undefined}
-                      interactionMode={mapMode}
-                      previewCenter={moveGridActive ? effectivePreviewCenter : undefined}
-                      previewCells={moveGridActive ? previewCells : undefined}
-                      onPreviewCenterChange={
-                        moveGridActive
-                          ? (lat, lng) => setPreviewCenter([lat, lng])
-                          : undefined
-                      }
-                      onMapClick={handleMapClick}
-                      cellsFaded={moveGridActive}
-                      spotChecks={spotChecks}
-                      onSpotCheckClick={setActiveSpotCheckId}
-                      showRadiusRings={showRadiusRings}
-                      radiusCenter={[officeLat, officeLng]}
-                      radiusRingMiles={scanMeta.ringDistancesMiles}
-                      gridSize={gridSize}
-                      radiusMeters={radiusMeters}
-                    />
-                    <div className="border-t border-zinc-100 bg-white px-3.5 py-2">
-                      <GridRankLegend
-                        mode={colorMode}
-                        onModeChange={handleColorModeChange}
-                        showModeToggle={false}
-                      />
-                      <div className="mt-1 text-center">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleColorModeChange(colorMode === "falcon" ? "strict" : "falcon")
-                          }
-                          className="text-[10px] text-zinc-400 hover:text-zinc-600"
-                        >
-                          Color scale: {colorMode === "falcon" ? "Local Falcon" : "Strict"}
-                        </button>
-                      </div>
-                    </div>
-                    {showRadiusRings && (
-                      <div className="border-t border-zinc-100 px-4 py-2">
-                        <RankByDistanceCard buckets={rankByDistance} />
-                      </div>
-                    )}
-                  </div>
-                  <CellInspectorDrawer
-                    variant="panel"
-                    scanId={activeScanId}
-                    cellId={inspectorCellId}
-                    keywordId={keywordId}
-                    businessId={businessId}
-                    selectedEntityKey={entityKey}
-                    pointLabel={inspectorPointLabel}
-                    canNavigatePrev={inspectorIndex > 0}
-                    canNavigateNext={inspectorIndex >= 0 && inspectorIndex < inspectorCellIds.length - 1}
-                    onNavigatePrev={() => {
-                      if (inspectorIndex > 0) {
-                        setInspectorCellId(inspectorCellIds[inspectorIndex - 1] ?? null);
-                      }
-                    }}
-                    onNavigateNext={() => {
-                      if (inspectorIndex < inspectorCellIds.length - 1) {
-                        setInspectorCellId(inspectorCellIds[inspectorIndex + 1] ?? null);
-                      }
-                    }}
-                    onClose={() => setInspectorCellId(null)}
-                    onCompareCell={() => {
-                      setInspectorCellId(null);
-                      setCompareOpen(true);
-                    }}
-                  />
-                </div>
-                <p className="mt-2 text-center text-xs text-zinc-500">
-                  ~{scanMeta.spacingMiles} miles between map pins
-                  {!scanActive && notInPackCells > 0
-                    ? ` · ${notInPackCells} cells outside local pack`
-                    : ""}
-                  {scanActive ? " · Click any bubble to inspect" : " · Click a bubble to open Cell Inspector"}
+                <p className="mt-3 text-[12px] text-zinc-500">
+                  {progressMessage || "This usually takes under a minute."}
                 </p>
               </div>
+            ) : (
+              <>
+                <div
+                  className={`mb-3 space-y-2 transition-opacity duration-300 ${
+                    timelineFetching ? "opacity-70" : "opacity-100"
+                  }`}
+                >
+                  <KpiRow cols={4}>
+                    <GridMetricCard
+                      variant="primary"
+                      label="SoLV"
+                      value={`${solv}%`}
+                      sub="Top-3 map pack"
+                      icon={Target}
+                      iconWrapClassName="bg-emerald-50"
+                      iconClassName="text-emerald-600"
+                    />
+                    <GridMetricCard
+                      label="Avg Rank"
+                      value={displayMetrics.averageRank ?? "—"}
+                      sub={
+                        trend.avgRankDelta != null
+                          ? `${trend.avgRankDelta > 0 ? "↑" : "↓"} ${Math.abs(trend.avgRankDelta)} vs last`
+                          : undefined
+                      }
+                      trendPositive={trend.avgRankDelta != null ? trend.avgRankDelta > 0 : undefined}
+                      icon={TrendingDown}
+                      iconWrapClassName="bg-violet-50"
+                      iconClassName="text-violet-600"
+                    />
+                    <GridMetricCard
+                      label="Visibility"
+                      value={`${displayMetrics.visibilityScore ?? 0}%`}
+                      sub={
+                        trend.visibilityDelta != null
+                          ? `${trend.visibilityDelta >= 0 ? "+" : ""}${trend.visibilityDelta}% vs last`
+                          : "Top-10 share"
+                      }
+                      trendPositive={
+                        trend.visibilityDelta != null ? trend.visibilityDelta >= 0 : undefined
+                      }
+                      icon={Eye}
+                      iconWrapClassName="bg-emerald-50"
+                      iconClassName="text-emerald-600"
+                    />
+                    <GridMetricCard
+                      label="Weighted SoLV"
+                      value={`${weightedSolv}%`}
+                      sub="Partial credit 4–20"
+                      icon={BarChart3}
+                      iconWrapClassName="bg-emerald-50"
+                      iconClassName="text-emerald-600"
+                    />
+                  </KpiRow>
+                  <GridTopCellsGroup
+                    top3={displayMetrics.top3Cells ?? 0}
+                    top10={displayMetrics.top10Cells ?? 0}
+                    top20={displayMetrics.top20Cells ?? 0}
+                    total={displayMetrics.totalCells || totalGridCells}
+                    top10Delta={trend.top10Delta}
+                  />
+                </div>
+
+                {entities.length > 0 && (
+                  <CompetitorGridToggle
+                    entities={entities}
+                    selectedKey={entityKey}
+                    onSelect={setEntityKey}
+                    viewingLabel={viewingEntity?.label}
+                    className="mb-2"
+                  />
+                )}
+
+                {enrichmentRunning && progressMessage && (
+                  <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50/80 px-3.5 py-2 dark:border-amber-900 dark:bg-amber-950/40">
+                    <p className="text-xs text-amber-900 dark:text-amber-100">{progressMessage}</p>
+                  </div>
+                )}
+
+                {cells.length > 0 && mapReady && (
+                  <div className="mb-3">
+                    <ScanTimelineSlider
+                      businessId={businessId}
+                      currentScanId={activeScanId}
+                      keywordId={keywordId}
+                      locationId={locationId}
+                      gridSize={gridSize}
+                      radiusMeters={radiusMeters}
+                      mode={timelineMode}
+                      competitorKey={timelineCompetitorKey}
+                      competitorOptions={competitorTimelineOptions}
+                      keywordOptions={keywordOptions}
+                      onModeChange={setTimelineMode}
+                      onCompetitorChange={setTimelineCompetitorKey}
+                      onKeywordChange={(kwId) => switchScan(activeScanId, kwId)}
+                      onScanSelect={(id) => switchScan(id)}
+                      onPrefetchScan={prefetchScanData}
+                      className="mb-2"
+                    />
+                    <div
+                      className={`flex min-h-[min(62vh,560px)] overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-opacity duration-300 ${
+                        timelineFetching ? "opacity-75" : "opacity-100"
+                      }`}
+                    >
+                      <div className="relative min-w-0 flex-1">
+                        <div className="absolute right-3 top-3 z-[500] flex rounded-md border border-zinc-200 bg-white p-0.5 text-[11px] shadow-sm">
+                          <button
+                            type="button"
+                            onClick={() => setShowRadiusRings(false)}
+                            className={`rounded px-2.5 py-1 font-semibold ${
+                              !showRadiusRings
+                                ? "bg-[#137752] text-white"
+                                : "text-zinc-600 hover:bg-zinc-50"
+                            }`}
+                          >
+                            Grid
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowRadiusRings(true)}
+                            className={`rounded px-2.5 py-1 font-semibold ${
+                              showRadiusRings
+                                ? "bg-[#137752] text-white"
+                                : "text-zinc-600 hover:bg-zinc-50"
+                            }`}
+                          >
+                            Rings
+                          </button>
+                        </div>
+                        <div className="absolute bottom-12 right-3 z-[500]">
+                          <span className="inline-flex items-center rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 shadow-sm">
+                            Map ▾
+                          </span>
+                        </div>
+                        <ScanMap
+                          key={`${colorMode}-${entityKey}-${mapMode}`}
+                          officeCenter={[officeLat, officeLng]}
+                          cells={cells}
+                          businessName={entityKey === "you" ? business?.name : viewingEntity?.label}
+                          colorMode={colorMode}
+                          onCellClick={mapMode === "default" ? handleCellClick : undefined}
+                          interactionMode={mapMode}
+                          previewCenter={moveGridActive ? effectivePreviewCenter : undefined}
+                          previewCells={moveGridActive ? previewCells : undefined}
+                          onPreviewCenterChange={
+                            moveGridActive
+                              ? (lat, lng) => setPreviewCenter([lat, lng])
+                              : undefined
+                          }
+                          onMapClick={handleMapClick}
+                          cellsFaded={moveGridActive}
+                          spotChecks={spotChecks}
+                          onSpotCheckClick={setActiveSpotCheckId}
+                          showRadiusRings={showRadiusRings}
+                          radiusCenter={[officeLat, officeLng]}
+                          radiusRingMiles={scanMeta.ringDistancesMiles}
+                          gridSize={gridSize}
+                          radiusMeters={radiusMeters}
+                        />
+                        <div className="border-t border-zinc-100 bg-white px-3.5 py-2">
+                          <GridRankLegend
+                            mode={colorMode}
+                            onModeChange={handleColorModeChange}
+                            showModeToggle={false}
+                          />
+                          <div className="mt-1 text-center">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleColorModeChange(colorMode === "falcon" ? "strict" : "falcon")
+                              }
+                              className="text-[10px] text-zinc-400 hover:text-zinc-600"
+                            >
+                              Color scale: {colorMode === "falcon" ? "Local Falcon" : "Strict"}
+                            </button>
+                          </div>
+                        </div>
+                        {showRadiusRings && (
+                          <div className="border-t border-zinc-100 px-4 py-2">
+                            <RankByDistanceCard buckets={rankByDistance} />
+                          </div>
+                        )}
+                      </div>
+                      <CellInspectorDrawer
+                        variant="panel"
+                        scanId={activeScanId}
+                        cellId={inspectorCellId}
+                        keywordId={keywordId}
+                        businessId={businessId}
+                        selectedEntityKey={entityKey}
+                        pointLabel={inspectorPointLabel}
+                        canNavigatePrev={inspectorIndex > 0}
+                        canNavigateNext={
+                          inspectorIndex >= 0 && inspectorIndex < inspectorCellIds.length - 1
+                        }
+                        onNavigatePrev={() => {
+                          if (inspectorIndex > 0) {
+                            setInspectorCellId(inspectorCellIds[inspectorIndex - 1] ?? null);
+                          }
+                        }}
+                        onNavigateNext={() => {
+                          if (inspectorIndex < inspectorCellIds.length - 1) {
+                            setInspectorCellId(inspectorCellIds[inspectorIndex + 1] ?? null);
+                          }
+                        }}
+                        onClose={() => setInspectorCellId(null)}
+                        onCompareCell={() => {
+                          setInspectorCellId(null);
+                          setCompareOpen(true);
+                        }}
+                      />
+                    </div>
+                    <p className="mt-2 text-center text-xs text-zinc-500">
+                      ~{scanMeta.spacingMiles} miles between map pins
+                      {notInPackCells > 0 ? ` · ${notInPackCells} cells outside local pack` : ""}
+                      {" · Click a bubble to open Cell Inspector"}
+                    </p>
+                  </div>
+                )}
+              </>
             )}
 
             {loadedCells === 0 && !scanActive && (
