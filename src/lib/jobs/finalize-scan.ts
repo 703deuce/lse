@@ -132,9 +132,7 @@ export async function finalizeRankReady(
         ? "Bright Data returned empty results for all cells"
         : sparsePointIds.length > 0
           ? `${sparsePointIds.length} cell${sparsePointIds.length === 1 ? "" : "s"} returned sparse Maps data (rank may show without competitors).`
-          : failedCells > 0
-            ? `${failedCells} of ${totalCells} points failed. Rank map is still usable.`
-            : null,
+          : null,
     })
     .eq("id", scanBatchId)
     .eq("status", "normalizing")

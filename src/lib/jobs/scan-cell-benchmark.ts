@@ -64,10 +64,14 @@ export function mapsConcurrencyForCellCount(totalCells: number): number {
   return 10;
 }
 
-/** Min successful cells before soft rank_ready (map usable while slow edge cells finish). */
+/**
+ * Min successful cells before soft rank_ready.
+ * Default trailing=0: wait until every cell settles (incl. retries) before rank_ready.
+ * Set GRID_SOFT_READY_TRAILING (e.g. 3) only if you want an early map again.
+ */
 export function softReadyMinSuccess(totalCells: number): number {
-  const trailing = Number(process.env.GRID_SOFT_READY_TRAILING ?? 3);
-  const maxTrailing = Number.isFinite(trailing) && trailing >= 0 ? Math.min(trailing, 10) : 3;
-  if (totalCells <= maxTrailing + 1) return totalCells;
+  const trailing = Number(process.env.GRID_SOFT_READY_TRAILING ?? 0);
+  const maxTrailing = Number.isFinite(trailing) && trailing >= 0 ? Math.min(trailing, 10) : 0;
+  if (maxTrailing === 0 || totalCells <= maxTrailing + 1) return totalCells;
   return totalCells - maxTrailing;
 }
