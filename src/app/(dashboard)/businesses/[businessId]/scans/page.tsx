@@ -90,6 +90,7 @@ export default async function ScansPage({
           defaultCenterLng={
             (business.scan_center_lng as number | null) ?? (business.lng as number) ?? 0
           }
+          defaultAddress={(business.address_text as string | null) ?? null}
           businessName={business.name as string}
         />
       </div>

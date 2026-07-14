@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Grid3X3, Info, Loader2, Play, Plus } from "lucide-react";
+import { Grid3X3, Info, Loader2, Play, Plus, RotateCcw, Search } from "lucide-react";
 import { GridPreviewCanvas } from "@/components/scan/grid-preview-canvas";
 import {
   dashboardCard,
@@ -48,7 +48,7 @@ function formatRadius(meters: number): string {
 
 /**
  * BrightLocal-style Local Search Grid setup:
- * left config panel + right preview with clickable bubbles.
+ * left config panel + right live map preview with clickable bubbles.
  * Scan does NOT start until the user clicks Run Scan.
  */
 export function ScanSetupStudio({
@@ -57,6 +57,7 @@ export function ScanSetupStudio({
   keywords,
   defaultCenterLat,
   defaultCenterLng,
+  defaultAddress,
   businessName,
 }: {
   businessId: string;
@@ -64,10 +65,12 @@ export function ScanSetupStudio({
   keywords: KeywordOption[];
   defaultCenterLat: number;
   defaultCenterLng: number;
+  defaultAddress?: string | null;
   businessName?: string;
 }) {
   const router = useRouter();
-  const [openSection, setOpenSection] = useState<"location" | "keywords" | "general">("general");
+  const accountAddress = (defaultAddress ?? "").trim();
+  const [openSection, setOpenSection] = useState<"location" | "keywords" | "general">("location");
   const [keywordFilter, setKeywordFilter] = useState<string>("all");
   const [selectedKeywordId, setSelectedKeywordId] = useState(
     keywords.find((k) => k.is_primary)?.id ?? keywords[0]?.id ?? ""
@@ -76,6 +79,10 @@ export function ScanSetupStudio({
   const [radiusMeters, setRadiusMeters] = useState(DEFAULT_RADIUS_METERS);
   const [centerLat, setCenterLat] = useState(defaultCenterLat);
   const [centerLng, setCenterLng] = useState(defaultCenterLng);
+  const [locationLabel, setLocationLabel] = useState(accountAddress || "Account location");
+  const [locationQuery, setLocationQuery] = useState(accountAddress);
+  const [usingAccountLocation, setUsingAccountLocation] = useState(true);
+  const [geocoding, setGeocoding] = useState(false);
   const [excludedLabels, setExcludedLabels] = useState<Set<string>>(() => new Set());
   const [newKeyword, setNewKeyword] = useState("");
   const [showAddKeyword, setShowAddKeyword] = useState(false);
@@ -90,7 +97,10 @@ export function ScanSetupStudio({
   useEffect(() => {
     setCenterLat(defaultCenterLat);
     setCenterLng(defaultCenterLng);
-  }, [defaultCenterLat, defaultCenterLng]);
+    setLocationLabel(accountAddress || "Account location");
+    setLocationQuery(accountAddress);
+    setUsingAccountLocation(true);
+  }, [defaultCenterLat, defaultCenterLng, accountAddress]);
 
   const radiusMiles = Math.round(metersToMiles(radiusMeters) * 10) / 10;
   const closestRadiusMiles = RADIUS_MILE_PRESETS.reduce((best, p) =>
@@ -111,10 +121,58 @@ export function ScanSetupStudio({
       const next = new Set(prev);
       if (next.has(label)) next.delete(label);
       else next.add(label);
-      // Never allow excluding every point
       if (next.size >= totalPoints) return prev;
       return next;
     });
+  }
+
+  function resetToAccountLocation() {
+    setCenterLat(defaultCenterLat);
+    setCenterLng(defaultCenterLng);
+    setLocationLabel(accountAddress || "Account location");
+    setLocationQuery(accountAddress);
+    setUsingAccountLocation(true);
+    setError(null);
+  }
+
+  async function applyLocationFromAddress() {
+    const q = locationQuery.trim();
+    if (!q) {
+      setError("Enter an address, or a city and state.");
+      return;
+    }
+    // Same text as account default → restore without re-geocoding
+    if (accountAddress && q.toLowerCase() === accountAddress.toLowerCase()) {
+      resetToAccountLocation();
+      return;
+    }
+    setGeocoding(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/scans/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: q }),
+      });
+      const json = (await res.json()) as {
+        error?: string;
+        lat?: number;
+        lng?: number;
+        label?: string;
+        displayName?: string;
+      };
+      if (!res.ok) throw new Error(json.error ?? "Could not find that location");
+      if (json.lat == null || json.lng == null) throw new Error("Could not find that location");
+      setCenterLat(json.lat);
+      setCenterLng(json.lng);
+      setLocationLabel(json.displayName ?? json.label ?? q);
+      setUsingAccountLocation(false);
+      setOpenSection("general");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not find that location");
+    } finally {
+      setGeocoding(false);
+    }
   }
 
   async function runScan(keywordId: string) {
@@ -139,6 +197,7 @@ export function ScanSetupStudio({
           browser: DEFAULT_SCAN_PROFILE.browser,
           centerLat,
           centerLng,
+          centerLabel: locationLabel,
           excludedLabels: [...excludedLabels],
         }),
       });
@@ -153,7 +212,7 @@ export function ScanSetupStudio({
     }
   }
 
-  async function addKeyword(andSelect: boolean) {
+  async function addKeyword() {
     const trimmed = newKeyword.trim();
     if (!trimmed) return;
     setRunning(true);
@@ -170,8 +229,7 @@ export function ScanSetupStudio({
       setShowAddKeyword(false);
       if (json.keyword?.id) {
         setSelectedKeywordId(json.keyword.id);
-        if (!andSelect) router.refresh();
-        else router.refresh();
+        router.refresh();
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Add failed");
@@ -222,29 +280,65 @@ export function ScanSetupStudio({
           </div>
 
           <Section id="location" title="Location and business details">
+            <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-2.5 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                Active scan center
+              </p>
+              <p className="mt-0.5 text-[13px] font-medium leading-snug text-zinc-900">
+                {locationLabel}
+              </p>
+              <p className="mt-0.5 text-[11px] text-zinc-500">
+                {usingAccountLocation
+                  ? "Using your account address (default)"
+                  : "Custom location for this scan only"}
+              </p>
+            </div>
+
             <label className={fieldLabel}>
-              Center latitude
+              Address or city &amp; state
               <input
-                type="number"
-                step="0.0001"
-                value={centerLat}
-                onChange={(e) => setCenterLat(Number(e.target.value))}
+                type="text"
+                value={locationQuery}
+                onChange={(e) => setLocationQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void applyLocationFromAddress();
+                  }
+                }}
+                placeholder='e.g. "Woodbridge, VA" or full street address'
                 className={fieldSelect}
               />
             </label>
-            <label className={fieldLabel}>
-              Center longitude
-              <input
-                type="number"
-                step="0.0001"
-                value={centerLng}
-                onChange={(e) => setCenterLng(Number(e.target.value))}
-                className={fieldSelect}
-              />
-            </label>
-            <p className="text-[11px] text-zinc-500">
-              Defaults to your saved scan center. Fine-tune here or change it later with Move Grid.
+            <p className="text-[11px] leading-relaxed text-zinc-500">
+              Type an address or city and state — we set the map pin automatically. You do not need
+              latitude or longitude.
             </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={geocoding || !locationQuery.trim()}
+                onClick={() => void applyLocationFromAddress()}
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-zinc-900 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+              >
+                {geocoding ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Search className="h-3.5 w-3.5" />
+                )}
+                Update map
+              </button>
+              {!usingAccountLocation && (
+                <button
+                  type="button"
+                  onClick={resetToAccountLocation}
+                  className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Account default
+                </button>
+              )}
+            </div>
           </Section>
 
           <Section id="keywords" title="Keywords">
@@ -282,7 +376,7 @@ export function ScanSetupStudio({
                 <button
                   type="button"
                   disabled={running || !newKeyword.trim()}
-                  onClick={() => void addKeyword(true)}
+                  onClick={() => void addKeyword()}
                   className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-[12px] font-medium disabled:opacity-50"
                 >
                   Save keyword
@@ -324,8 +418,8 @@ export function ScanSetupStudio({
               <p className="flex gap-1.5">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 <span>
-                  Reduce credit usage by clicking bubbles on the preview to exclude empty or irrelevant
-                  locations before you run.
+                  Click bubbles on the map to exclude empty areas before you run — that also lowers
+                  credit usage.
                 </span>
               </p>
             </div>
@@ -341,7 +435,7 @@ export function ScanSetupStudio({
             {error && <p className="text-[12px] text-red-600">{error}</p>}
             <button
               type="button"
-              disabled={running || !selectedKeywordId || includedCount < 1}
+              disabled={running || geocoding || !selectedKeywordId || includedCount < 1}
               onClick={() => void runScan(selectedKeywordId)}
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#137752] px-3.5 py-2.5 text-[13px] font-semibold text-white hover:bg-[#0f6244] disabled:opacity-50"
             >
@@ -354,7 +448,7 @@ export function ScanSetupStudio({
           </div>
         </aside>
 
-        {/* Right preview */}
+        {/* Right preview — live map */}
         <div className="bg-zinc-50/80 p-3 sm:p-4">
           <GridPreviewCanvas
             centerLat={centerLat}
@@ -363,6 +457,7 @@ export function ScanSetupStudio({
             radiusMeters={radiusMeters}
             excludedLabels={excludedLabels}
             onToggleLabel={toggleLabel}
+            locationLabel={locationLabel}
           />
           {excludedLabels.size > 0 && (
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[12px] text-zinc-600">
@@ -438,7 +533,7 @@ export function ScanSetupStudio({
         {!filteredScans.length && (
           <EmptyState
             title="No scans yet"
-            description="Configure the grid on the left, exclude any unused bubbles, then run your first scan."
+            description="Set your location and grid on the left, exclude unused bubbles on the map, then run your first scan."
           />
         )}
       </div>
