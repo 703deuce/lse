@@ -142,6 +142,8 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
   const [data, setData] = useState<ScanViewData | null>(
     () => scanDataCache.get(scanCacheKey(scanId, null)) ?? null
   );
+  /** Progress bar must never go backwards (retry passes used to rewind the counter). */
+  const [peakProgress, setPeakProgress] = useState(0);
 
   useEffect(() => {
     try {
@@ -154,6 +156,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
 
   useEffect(() => {
     setActiveScanId(scanId);
+    setPeakProgress(0);
     if (typeof window !== "undefined") {
       const kw = new URLSearchParams(window.location.search).get("keywordId");
       if (kw) setKeywordId(kw);
@@ -264,6 +267,13 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
         scanDataCache.set(scanCacheKey(activeScanId, keywordId), json);
         setData(json);
         setTimelineFetching(false);
+        const conf = (json.batch?.confidence_summary ?? {}) as Record<string, unknown>;
+        const settled = Math.max(
+          json.results?.length ?? 0,
+          Number(json.batch?.cells_completed ?? 0),
+          Number(conf.completed_cells ?? 0)
+        );
+        setPeakProgress((prev) => Math.max(prev, settled));
         // Do not setKeywordId from poll results — remounting this effect (keywordId dep)
         // can abort the poll that would have revealed the finished map.
         const status = json.batch?.status as string;
@@ -555,11 +565,20 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
     business?.lng ??
     gridCenterLng;
   const checkUrl = (data?.results?.[0]?.check_url as string) ?? null;
-  const progressCompleted =
-    cellsInFlight || cellsStillLoading
-      ? Math.max(loadedCellsCount, batchCellsCompleted)
-      : Number(confidence.completed_cells ?? loadedCellsCount);
-  const progressTotal = Number(confidence.total_cells ?? totalGridCells);
+  const rawProgressCompleted = Math.max(
+    loadedCellsCount,
+    batchCellsCompleted,
+    Number(confidence.completed_cells ?? 0)
+  );
+  const progressTotal = Math.max(
+    Number(confidence.total_cells ?? 0),
+    Number(batch?.cells_total ?? 0),
+    totalGridCells
+  );
+  const progressCompleted = Math.min(
+    Math.max(peakProgress, rawProgressCompleted),
+    progressTotal > 0 ? progressTotal : Number.POSITIVE_INFINITY
+  );
   const allRanks = cells.map((c) => (c.notInResults ? null : c.rank));
   const weightedSolv = computeWeightedSolv(allRanks);
   const gridSize = Number(batch?.grid_size ?? 5);

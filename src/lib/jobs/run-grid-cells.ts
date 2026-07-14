@@ -155,12 +155,32 @@ async function saveCellProgress(
     ? (extra.failed_point_ids as string[])
     : [];
 
+  // Never let a retry/integrity pass rewind the public counter — that made the
+  // wait UI jump to 49 then drop back to ~47 while late flushes landed.
+  const { data: existing } = await supabase
+    .from("scan_batches")
+    .select("cells_completed, cells_total, confidence_summary")
+    .eq("id", scanBatchId)
+    .maybeSingle();
+  const conf = (existing?.confidence_summary ?? {}) as Record<string, unknown>;
+  const prevCompleted = Math.max(
+    Number(existing?.cells_completed ?? 0),
+    Number(conf.completed_cells ?? 0)
+  );
+  const prevTotal = Math.max(
+    Number(existing?.cells_total ?? 0),
+    Number(conf.total_cells ?? 0),
+    total
+  );
+  const safeCompleted = Math.max(prevCompleted, completed);
+  const safeTotal = Math.max(prevTotal, total);
+
   const { failed_point_ids: _ignored, ...restExtra } = extra ?? {};
   const patch: Record<string, unknown> = {
     provider: "brightdata",
     method: "live_parallel",
-    completed_cells: completed,
-    total_cells: total,
+    completed_cells: safeCompleted,
+    total_cells: safeTotal,
     failed_cells: failed,
     failed_point_ids: failedPointIds,
     ...restExtra,
@@ -170,8 +190,8 @@ async function saveCellProgress(
   await supabase
     .from("scan_batches")
     .update({
-      cells_total: total,
-      cells_completed: completed,
+      cells_total: safeTotal,
+      cells_completed: safeCompleted,
       cells_failed: failed,
     })
     .eq("id", scanBatchId);
@@ -238,7 +258,14 @@ async function scheduleCellProgress(
     state = { lastFlushAt: 0, pending: null, flushTimer: null };
     progressThrottleByScan.set(scanBatchId, state);
   }
-  state.pending = { completed, total, failed, extra };
+  // Coalesce with max(completed) so a later flush of an older pass cannot shrink progress.
+  const prev = state.pending;
+  state.pending = {
+    completed: Math.max(prev?.completed ?? 0, completed),
+    total: Math.max(prev?.total ?? 0, total),
+    failed,
+    extra: extra ?? prev?.extra,
+  };
   if (options?.force) {
     await flushPendingProgress(scanBatchId, true);
     return;
@@ -645,6 +672,7 @@ async function runIntegrityPass(params: {
     concurrency: params.concurrency,
     totalCells: params.totalCells,
     passLabel: "integrity",
+    completedOffset: Math.max(0, params.totalCells - incompleteJobs.length),
     updateProgress: true,
     onCellSettled: params.onCellSettled,
     organizationId: params.organizationId,
@@ -877,6 +905,7 @@ export async function runGridCellsLive(params: {
     console.log(
       `[Scan] Retry round ${round - 1}/${maxRounds - 1}: ${remainingJobs.length} failed cells`
     );
+    const retryOffset = Math.max(0, totalCells - remainingJobs.length);
     const pass = await runJobsWithConcurrency(remainingJobs, {
       scanBatchId: params.scanBatchId,
       depth,
@@ -885,6 +914,7 @@ export async function runGridCellsLive(params: {
       concurrency: mapsGridConcurrency(remainingJobs.length),
       totalCells,
       passLabel,
+      completedOffset: retryOffset,
       updateProgress: true,
       onCellSettled,
       organizationId: params.organizationId,
