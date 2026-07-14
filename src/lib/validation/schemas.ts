@@ -36,6 +36,9 @@ export const createScanSchema = z.object({
   os: z.enum(["android", "ios", "windows", "macos"]).default("android"),
   browser: z.enum(["chrome", "firefox"]).default("chrome"),
   parityLabel: z.string().optional(),
+  centerLat: z.number().min(-90).max(90).optional(),
+  centerLng: z.number().min(-180).max(180).optional(),
+  centerLabel: z.string().max(240).optional(),
 });
 
 export const actionPlanOutputSchema = z.object({

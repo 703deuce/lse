@@ -245,7 +245,11 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
             />
           )}
           {tab === "growth-plan" && (
-            <GrowthAuditActionPlanTab sections={sections} onGoToOverview={() => goToTab("overview")} />
+            <GrowthAuditActionPlanTab
+              businessId={businessId}
+              sections={sections}
+              onGoToOverview={() => goToTab("overview")}
+            />
           )}
         </>
       )}

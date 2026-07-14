@@ -93,6 +93,25 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
     }
   }
 
+  async function archiveSelectedPrompt(promptId: string) {
+    setBusy(promptId);
+    try {
+      const res = await fetch("/api/ai-visibility/prompts/archive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId, promptId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Archive failed");
+      await load();
+      setSelected(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Archive failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function addPrompt(activate: boolean) {
     if (!draft.trim()) return;
     setBusy("add");
@@ -174,12 +193,11 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
           { id: "active", label: `Active (${activeCount})` },
           { id: "suggested", label: `Drafts (${suggestedCount})` },
           { id: "archived", label: `Archived (${archivedCount})` },
-          { id: "groups", label: "Prompt Groups" },
         ].map((t) => (
           <button
             key={t.id}
             type="button"
-            onClick={() => t.id !== "groups" && setStatusFilter(t.id)}
+            onClick={() => setStatusFilter(t.id)}
             className={cn(
               "border-b-2 pb-2 font-medium",
               statusFilter === t.id ? "border-primary text-emerald-700" : "border-transparent text-text-muted"
@@ -326,9 +344,17 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                 </span>
               </div>
               <div className="flex gap-1">
-                <button type="button" className="rounded p-1 text-text-muted hover:bg-surface-subtle">
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                {selected.status !== "archived" && (
+                  <button
+                    type="button"
+                    title="Archive prompt"
+                    disabled={busy === selected.id}
+                    onClick={() => void archiveSelectedPrompt(selected.id)}
+                    className="rounded p-1 text-text-muted hover:bg-surface-subtle disabled:opacity-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
                 <button type="button" onClick={() => setSelected(null)} className="rounded p-1 text-text-muted hover:bg-surface-subtle">
                   <X className="h-4 w-4" />
                 </button>
@@ -430,10 +456,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
             </div>
             <div className="flex gap-2 border-t border-border p-3.5">
               <button type="button" onClick={() => setSelected(null)} className="flex-1 rounded-md border border-border py-2 text-[13px] font-medium text-text hover:bg-surface-subtle">
-                Cancel
-              </button>
-              <button type="button" className="flex-1 rounded-md border border-border py-2 text-[13px] font-medium text-text hover:bg-surface-subtle">
-                Save as Draft
+                Close
               </button>
               {selected.status === "suggested" && (
                 <button
@@ -442,12 +465,17 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                   onClick={() => void activatePrompt(selected.id)}
                   className="flex-1 rounded-md bg-[#16A34A] py-2 text-[13px] font-semibold text-white hover:bg-[#15803D] disabled:opacity-50"
                 >
-                  {busy === selected.id ? "Saving…" : "Save & Set Active"}
+                  {busy === selected.id ? "Saving…" : "Set Active"}
                 </button>
               )}
               {selected.status === "active" && (
-                <button type="button" className="flex-1 rounded-md bg-[#16A34A] py-2 text-[13px] font-semibold text-white hover:bg-[#15803D]">
-                  Save & Set Active
+                <button
+                  type="button"
+                  disabled={busy === selected.id}
+                  onClick={() => void archiveSelectedPrompt(selected.id)}
+                  className="flex-1 rounded-md border border-border py-2 text-[13px] font-medium text-text hover:bg-surface-subtle disabled:opacity-50"
+                >
+                  {busy === selected.id ? "Archiving…" : "Archive"}
                 </button>
               )}
             </div>

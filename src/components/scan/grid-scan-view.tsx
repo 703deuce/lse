@@ -136,6 +136,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
   const [activeSpotCheckId, setActiveSpotCheckId] = useState<string | null>(null);
   const [singlePointRunning, setSinglePointRunning] = useState(false);
   const [timelineFetching, setTimelineFetching] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [data, setData] = useState<ScanViewData | null>(
     () => scanDataCache.get(scanCacheKey(scanId, null)) ?? null
   );
@@ -635,6 +636,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
   async function runMoveGridScan() {
     if (!keywordId || !previewCenter) return;
     setMoveScanRunning(true);
+    setActionError(null);
     try {
       const res = await fetch("/api/scans/run-for-keyword", {
         method: "POST",
@@ -658,8 +660,8 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
       if (!res.ok) throw new Error(json.error ?? "Scan failed");
       setMoveGridActive(false);
       switchScan(json.scan.id as string);
-    } catch {
-      /* toolbar shows errors on normal run */
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Move-grid scan failed");
     } finally {
       setMoveScanRunning(false);
     }
@@ -668,6 +670,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
   async function runSinglePointCheck(kwId: string, keyword: string, label: string) {
     if (!pendingClick) return;
     setSinglePointRunning(true);
+    setActionError(null);
     try {
       const res = await fetch("/api/single-point-rank/check", {
         method: "POST",
@@ -710,6 +713,8 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
       ]);
       setActiveSpotCheckId(c.id);
       setPendingClick(null);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Spot check failed");
     } finally {
       setSinglePointRunning(false);
     }
@@ -747,6 +752,18 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
 
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", gridRankPageBg)}>
+      {actionError && (
+        <div className="border-b border-red-200 bg-red-50 px-4 py-2 text-[13px] text-red-700">
+          {actionError}
+          <button
+            type="button"
+            className="ml-3 text-[12px] font-medium underline"
+            onClick={() => setActionError(null)}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       <div className="border-b border-zinc-200 bg-white px-4 py-2">
             <div className="flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex flex-wrap items-center gap-2.5">

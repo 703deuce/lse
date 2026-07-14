@@ -144,7 +144,11 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
         <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,18rem)] xl:items-start">
           <ReviewsYourTab data={data} />
           <aside>
-            <SuggestedReplyTasksSidebar data={data} businessId={businessId} />
+            <SuggestedReplyTasksSidebar
+              data={data}
+              businessId={businessId}
+              onTabChange={handleTabChange}
+            />
           </aside>
         </div>
       )}

@@ -80,7 +80,7 @@ export function ReportsPanel({
             <div className="min-w-0 flex-1">
               <h2 className="text-[13px] font-semibold text-zinc-900">Visibility report</h2>
               <p className="mt-0.5 text-[12px] leading-snug text-zinc-500">
-                Generates a shareable PDF from your latest grid scan — rankings, coverage, and
+                Generates a shareable report from your latest grid scan — rankings, coverage, and
                 competitor comparison.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -91,7 +91,7 @@ export function ReportsPanel({
                   className={`h-9 px-3 text-[13px] ${btnPrimary}`}
                 >
                   {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
-                  Export PDF report
+                  Create shareable report
                 </button>
                 {reportId && shareUrl ? (
                   <button

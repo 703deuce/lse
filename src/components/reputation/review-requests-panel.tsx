@@ -596,8 +596,11 @@ export function ReviewRequestsPanel({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ businessId }),
               });
-              if (!res.ok) throw new Error("Generation failed");
+              const json = await res.json().catch(() => ({}));
+              if (!res.ok) throw new Error(json.error ?? "Generation failed");
               await load();
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Failed to generate templates");
             } finally {
               setGenerating(false);
             }
@@ -868,24 +871,18 @@ function MessagesSection({
               <button
                 type="button"
                 onClick={() => void onCopy(copyBody, templateChannel)}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-[13px] font-medium text-white hover:bg-emerald-700"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-[13px] font-medium text-white hover:bg-emerald-700"
               >
-                <Check className="h-4 w-4" />
-                Save Template
-              </button>
-              <button type="button" className="rounded-lg border border-zinc-200 px-3.5 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
-                Duplicate
-              </button>
-              <button type="button" className="rounded-lg border border-zinc-200 px-3.5 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
-                Reset to Default
+                <Copy className="h-3.5 w-3.5" />
+                {copied === templateChannel ? "Copied" : "Copy Template"}
               </button>
               <button
                 type="button"
-                onClick={() => void onCopy(copyBody, templateChannel)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3.5 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                onClick={() => void onGenerate()}
+                disabled={generating}
+                className="rounded-lg border border-zinc-200 px-3.5 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
               >
-                <Copy className="h-3.5 w-3.5" />
-                Copy Template
+                {generating ? "Generating…" : "Regenerate with AI"}
               </button>
             </div>
           </>

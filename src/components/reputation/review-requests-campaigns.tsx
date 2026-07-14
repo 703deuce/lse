@@ -45,6 +45,7 @@ export function ReviewRequestsCampaignsTable({ businessId }: { businessId: strin
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -63,21 +64,33 @@ export function ReviewRequestsCampaignsTable({ businessId }: { businessId: strin
 
   async function action(campaignId: string, act: string) {
     setMenuId(null);
-    await fetch(`/api/reputation/review-requests/campaigns/${campaignId}`, {
+    setError(null);
+    const res = await fetch(`/api/reputation/review-requests/campaigns/${campaignId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ businessId, action: act }),
     });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(typeof json.error === "string" ? json.error : `Failed to ${act} campaign`);
+      return;
+    }
     await load();
   }
 
   async function duplicate(campaignId: string) {
     setMenuId(null);
-    await fetch("/api/reputation/review-requests/campaigns", {
+    setError(null);
+    const res = await fetch("/api/reputation/review-requests/campaigns", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ businessId, duplicateFrom: campaignId }),
     });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(typeof json.error === "string" ? json.error : "Failed to duplicate campaign");
+      return;
+    }
     await load();
   }
 
@@ -99,6 +112,9 @@ export function ReviewRequestsCampaignsTable({ businessId }: { businessId: strin
 
   return (
     <div className={cn(dashboardCard, "overflow-hidden")}>
+      {error && (
+        <div className="border-b border-red-100 bg-red-50 px-3.5 py-2 text-[12px] text-red-700">{error}</div>
+      )}
       <div className="border-b border-zinc-100 px-3.5 py-2.5">
         <h3 className={dashboardCardTitle}>Bulk campaigns</h3>
         <p className={dashboardMicro}>Paced CSV campaigns — clicks tracked, not review attribution.</p>

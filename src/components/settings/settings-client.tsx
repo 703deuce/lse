@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { updateBusinessSettings } from "@/lib/actions/mutations";
 import { PageHeader } from "@/components/ui/page-header";
 import { SetupMap } from "@/components/maps/setup-map";
 import { ScanSetupForm, defaultScanSetupValues } from "@/components/scan/scan-setup-form";
@@ -31,6 +32,9 @@ export function SettingsClient({
   const [weeklyEnabled, setWeeklyEnabled] = useState(initialWeeklyEnabled);
   const [weeklySaving, setWeeklySaving] = useState(false);
   const [weeklyError, setWeeklyError] = useState<string | null>(null);
+  const [centerSaving, setCenterSaving] = useState(false);
+  const [centerSaved, setCenterSaved] = useState(false);
+  const [centerError, setCenterError] = useState<string | null>(null);
   const [scanDefaults, setScanDefaults] = useState(() =>
     defaultScanSetupValues(
       business.scan_center_lat ?? business.lat ?? 40.7128,
@@ -61,6 +65,24 @@ export function SettingsClient({
       active = false;
     };
   }, [businessId]);
+
+  async function saveCenter(next: [number, number] = center) {
+    setCenterSaving(true);
+    setCenterError(null);
+    setCenterSaved(false);
+    try {
+      await updateBusinessSettings(businessId, {
+        scan_center_lat: next[0],
+        scan_center_lng: next[1],
+      });
+      setCenterSaved(true);
+      setTimeout(() => setCenterSaved(false), 2000);
+    } catch (err) {
+      setCenterError(err instanceof Error ? err.message : "Failed to save scan center");
+    } finally {
+      setCenterSaving(false);
+    }
+  }
 
   async function toggleWeekly() {
     const next = !weeklyEnabled;
@@ -129,7 +151,25 @@ export function SettingsClient({
           <h2 className="font-semibold">Scan center</h2>
           <p className="mt-1 text-sm text-zinc-500">Click map to move center for service-area audits</p>
           <div className="mt-4">
-            <SetupMap center={center} onCenterChange={(lat, lng) => setCenter([lat, lng])} />
+            <SetupMap
+              center={center}
+              onCenterChange={(lat, lng) => {
+                setCenter([lat, lng]);
+                setCenterSaved(false);
+              }}
+            />
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void saveCenter()}
+              disabled={centerSaving}
+              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm transition hover:bg-zinc-50 disabled:opacity-60"
+            >
+              {centerSaving ? "Saving…" : "Save scan center"}
+            </button>
+            {centerSaved && <p className="text-sm text-emerald-600">Saved</p>}
+            {centerError && <p className="text-sm text-red-600">{centerError}</p>}
           </div>
         </section>
       </div>

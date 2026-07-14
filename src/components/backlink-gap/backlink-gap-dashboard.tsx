@@ -296,11 +296,16 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
           updating={updating}
           onClose={() => setSelected(null)}
           onCreateTask={async () => {
-            await fetch("/api/backlink-gap/tasks/create", {
+            const res = await fetch("/api/backlink-gap/tasks/create", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ businessId, opportunityIds: [selected.id] }),
             });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              setError(typeof json.error === "string" ? json.error : "Failed to create task");
+              return;
+            }
             await load();
           }}
           onIgnore={() => updateOpportunityStatus(selected.id, "ignored")}

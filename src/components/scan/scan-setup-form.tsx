@@ -77,6 +77,8 @@ export function ScanSetupForm({
   async function runScan() {
     setLoading(true);
     try {
+      const lat = scanCenter?.[0] ?? form.scanCenterLat;
+      const lng = scanCenter?.[1] ?? form.scanCenterLng;
       await saveSettings();
       const res = await fetch("/api/scans/create", {
         method: "POST",
@@ -88,6 +90,8 @@ export function ScanSetupForm({
           device: DEFAULT_SCAN_PROFILE.device,
           os: DEFAULT_SCAN_PROFILE.os,
           browser: DEFAULT_SCAN_PROFILE.browser,
+          centerLat: lat,
+          centerLng: lng,
         }),
       });
       const data = await res.json();

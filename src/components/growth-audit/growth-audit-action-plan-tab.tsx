@@ -27,7 +27,6 @@ import {
   PriorityTag,
   SummaryStatCard,
 } from "@/components/growth-audit/growth-audit-ui";
-import { Sparkline } from "@/components/overview/overview-charts";
 import { cn } from "@/lib/utils";
 import type { GrowthAuditSections, GrowthTask } from "@/lib/growth-audit/types";
 
@@ -79,14 +78,51 @@ function groupTasks(tasks: GrowthTask[]) {
 export function GrowthAuditActionPlanTab({
   sections,
   onGoToOverview,
+  businessId,
 }: {
   sections: GrowthAuditSections;
   onGoToOverview?: () => void;
+  businessId?: string;
 }) {
   const { growthPlan, gbp, website } = sections;
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [bucketFilter, setBucketFilter] = useState("all");
   const [selectedTask, setSelectedTask] = useState<GrowthTask | null>(growthPlan.tasks[0] ?? null);
+  const storageKey = businessId ? `growth-plan-done:${businessId}` : null;
+  const [doneKeys, setDoneKeys] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    if (!storageKey || typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as string[];
+      if (Array.isArray(parsed)) setDoneKeys(new Set(parsed));
+    } catch {
+      /* ignore corrupt storage */
+    }
+  }, [storageKey]);
+
+  function taskKey(task: GrowthTask) {
+    return `${task.sourceSection}::${task.title}`;
+  }
+
+  function toggleDone(task: GrowthTask) {
+    const key = taskKey(task);
+    setDoneKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      if (storageKey) {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify([...next]));
+        } catch {
+          /* ignore */
+        }
+      }
+      return next;
+    });
+  }
 
   useEffect(() => {
     setSelectedTask((prev) => {
@@ -239,10 +275,17 @@ export function GrowthAuditActionPlanTab({
                             </td>
                             <td className="whitespace-nowrap px-3.5 py-2 text-[11px] text-zinc-600">{task.timeEstimate}</td>
                             <td className="px-3.5 py-2">
-                              <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500">
-                                <span className="h-3.5 w-3.5 rounded-full border-2 border-zinc-300" />
-                                Not Started
-                              </span>
+                              {doneKeys.has(taskKey(task)) ? (
+                                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-700">
+                                  <span className="h-3.5 w-3.5 rounded-full border-2 border-emerald-500 bg-emerald-500" />
+                                  Done
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500">
+                                  <span className="h-3.5 w-3.5 rounded-full border-2 border-zinc-300" />
+                                  Not Started
+                                </span>
+                              )}
                             </td>
                           </tr>
                         );
@@ -268,9 +311,14 @@ export function GrowthAuditActionPlanTab({
             <p className="mt-2 text-[13px] text-zinc-600">{topTask.description}</p>
             <button
               type="button"
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-emerald-700"
+              onClick={() => toggleDone(topTask)}
+              className={`mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-[13px] font-semibold text-white ${
+                doneKeys.has(taskKey(topTask))
+                  ? "bg-zinc-700 hover:bg-zinc-800"
+                  : "bg-emerald-600 hover:bg-emerald-700"
+              }`}
             >
-              Start Now
+              {doneKeys.has(taskKey(topTask)) ? "Mark as not started" : "Mark as done"}
               <ChevronRight className="h-4 w-4" />
             </button>
             <div className="mt-3 grid grid-cols-3 gap-2 text-center">
@@ -291,33 +339,9 @@ export function GrowthAuditActionPlanTab({
               <p className="text-[11px] font-semibold text-emerald-900">Why this first?</p>
               <p className="mt-1 text-[11px] leading-relaxed text-emerald-800">{topTask.why}</p>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <div className="rounded-lg border border-zinc-100 bg-white p-3">
-                <p className="text-[10px] font-medium text-zinc-500">Position Lift</p>
-                <p className="text-[12px] font-bold text-emerald-700">+12</p>
-                <Sparkline data={[2, 5, 8, 12]} color="#059669" width={80} height={24} />
-              </div>
-              <div className="rounded-lg border border-zinc-100 bg-white p-3">
-                <p className="text-[10px] font-medium text-zinc-500">More Clicks</p>
-                <p className="text-[12px] font-bold text-emerald-700">+18%</p>
-                <Sparkline data={[4, 8, 12, 18]} color="#059669" width={80} height={24} />
-              </div>
-            </div>
             <div className="mt-3">
-              <p className="text-[11px] font-semibold text-zinc-900">Success Checklist</p>
-              <ul className="mt-2 space-y-2">
-                {[
-                  "Add regular business hours",
-                  "Set special hours for holidays",
-                  "Verify hours on website",
-                  "Confirm hours display on Maps",
-                ].map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-[11px] text-zinc-600">
-                    <span className="h-3.5 w-3.5 rounded border border-zinc-300" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
+              <p className="text-[11px] font-semibold text-zinc-900">How to complete</p>
+              <p className="mt-2 text-[11px] leading-relaxed text-zinc-600">{topTask.description}</p>
             </div>
             <div className="mt-3 border-t border-zinc-100 pt-3">
               <p className="text-[11px] font-semibold text-zinc-900">Related Insights</p>

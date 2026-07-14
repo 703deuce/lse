@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: parsed.error.message }, { status: 400 });
     }
 
-    const { businessId, gridSize, radiusMeters, device, os, browser, parityLabel } = parsed.data;
+    const { businessId, gridSize, radiusMeters, device, os, browser, parityLabel, centerLat: bodyLat, centerLng: bodyLng, centerLabel: bodyLabel } = parsed.data;
     const auth = await requireBusinessAccess(businessId);
     const supabase = createServiceClient();
 
@@ -70,11 +70,25 @@ export async function POST(request: Request) {
           .eq("business_id", businessId),
       ]);
 
+    // Prefer explicit request center (Settings map), then saved business baseline,
+    // then last scan — so dragging the Settings pin actually takes effect.
     const centerLat =
-      latestScan?.center_lat ?? business?.scan_center_lat ?? business?.lat ?? null;
+      bodyLat ??
+      business?.scan_center_lat ??
+      latestScan?.center_lat ??
+      business?.lat ??
+      null;
     const centerLng =
-      latestScan?.center_lng ?? business?.scan_center_lng ?? business?.lng ?? null;
-    const centerLabel = latestScan?.center_label ?? business?.address_text ?? null;
+      bodyLng ??
+      business?.scan_center_lng ??
+      latestScan?.center_lng ??
+      business?.lng ??
+      null;
+    const centerLabel =
+      bodyLabel?.trim() ||
+      business?.address_text ||
+      latestScan?.center_label ||
+      null;
 
     if (!isUsableCenter(centerLat, centerLng)) {
       return NextResponse.json(

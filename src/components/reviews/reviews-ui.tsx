@@ -448,14 +448,26 @@ export function SuggestedActionsSidebar({
           );
         })}
       </div>
-      <button type="button" className={cn("mt-3", dashboardAccentLink)}>
-        View all insights & actions →
+      <button
+        type="button"
+        onClick={() => onTabChange?.("unanswered")}
+        className={cn("mt-3", dashboardAccentLink)}
+      >
+        View unanswered reviews →
       </button>
     </RvCard>
   );
 }
 
-export function SuggestedReplyTasksSidebar({ data, businessId }: { data: ReviewsPageData; businessId: string }) {
+export function SuggestedReplyTasksSidebar({
+  data,
+  businessId,
+  onTabChange,
+}: {
+  data: ReviewsPageData;
+  businessId: string;
+  onTabChange?: (tab: ReviewsTabId) => void;
+}) {
   const themes = data.sentiment.yours.themes.slice(0, 3);
   return (
     <RvCard className="sticky top-6">
@@ -470,7 +482,13 @@ export function SuggestedReplyTasksSidebar({ data, businessId }: { data: Reviews
               <MessageSquare className="mt-0.5 h-3.5 w-3.5 text-emerald-600" />
               <div>
                 <p className="font-medium text-zinc-900">{data.unanswered.length} reviews need a response</p>
-                <button type="button" className="mt-0.5 text-[11px] font-medium text-emerald-600">View tasks →</button>
+                <button
+                  type="button"
+                  onClick={() => onTabChange?.("unanswered")}
+                  className="mt-0.5 text-[11px] font-medium text-emerald-600"
+                >
+                  View unanswered →
+                </button>
               </div>
             </div>
           </div>
@@ -500,7 +518,13 @@ export function SuggestedReplyTasksSidebar({ data, businessId }: { data: Reviews
                   </li>
                 ))}
               </ul>
-              <button type="button" className="mt-1.5 text-[11px] font-medium text-emerald-600">View all themes →</button>
+              <button
+                type="button"
+                onClick={() => onTabChange?.("sentiment")}
+                className="mt-1.5 text-[11px] font-medium text-emerald-600"
+              >
+                View sentiment →
+              </button>
             </div>
           </div>
         </div>
@@ -707,7 +731,10 @@ export function ReviewsTable({
                   {!row.replied && (
                     <button
                       type="button"
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewReview?.(row);
+                      }}
                       className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100"
                       title="Reply"
                     >
