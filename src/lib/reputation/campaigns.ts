@@ -5,6 +5,7 @@ import type { ValidatedRecipient } from "@/lib/reputation/bulk-validate";
 import {
   buildMessageSchedule,
   estimateBusinessDays,
+  ymdInTimeZone,
   type ScheduleConfig,
 } from "@/lib/reputation/campaign-scheduler";
 import { renderTemplate } from "@/lib/reputation/template-vars";
@@ -388,7 +389,7 @@ export async function duplicateCampaign(campaignId: string, businessId: string, 
     sendWindowEnd: orig.send_window_end,
     timezone: orig.timezone,
     duplicateProtectionDays: orig.duplicate_protection_days,
-    startDate: new Date().toISOString().slice(0, 10),
+    startDate: ymdInTimeZone(new Date(), (orig.timezone as string) || "America/New_York"),
     consentConfirmed: orig.consent_confirmed,
     filename: upload?.filename ?? undefined,
     mapping: (upload?.mapping_json ?? {}) as Record<string, CsvMapTarget>,

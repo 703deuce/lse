@@ -4,6 +4,7 @@ import { sendBrevoEmail } from "@/lib/reputation/brevo";
 import {
   campaignImmediateSendEnabled,
   countSentTodayInTz,
+  isOnOrAfterStartDate,
   isWithinSendWindow,
   type ScheduleConfig,
 } from "@/lib/reputation/campaign-scheduler";
@@ -18,11 +19,23 @@ async function reclaimStaleSending(
   now: Date
 ): Promise<void> {
   const staleBefore = new Date(now.getTime() - SENDING_STALE_MS).toISOString();
+
+  // Provider succeeded but DB never flipped to sent — mark sent instead of requeueing
+  // (avoids double-send).
+  await supabase
+    .from("review_request_messages")
+    .update({ status: "sent", sent_at: now.toISOString(), updated_at: now.toISOString() })
+    .eq("status", "sending")
+    .lt("updated_at", staleBefore)
+    .not("provider_message_id", "is", null);
+
+  // Truly abandoned mid-flight with no provider confirmation — safe to retry.
   await supabase
     .from("review_request_messages")
     .update({ status: "queued", updated_at: now.toISOString() })
     .eq("status", "sending")
-    .lt("updated_at", staleBefore);
+    .lt("updated_at", staleBefore)
+    .is("provider_message_id", null);
 }
 
 /**
@@ -47,8 +60,8 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
 
   for (const campaign of campaigns) {
     if (campaign.status === "scheduled" && campaign.start_date) {
-      const start = new Date(`${campaign.start_date}T00:00:00Z`);
-      if (start > now) continue;
+      const tz = (campaign.timezone as string) || "America/New_York";
+      if (!isOnOrAfterStartDate(now, String(campaign.start_date), tz)) continue;
       // Conditional activate — only one worker flips scheduled → active.
       await supabase
         .from("review_request_campaigns")
@@ -205,6 +218,15 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
         }
       } catch (e) {
         failReason = e instanceof Error ? e.message : "Send failed";
+      }
+
+      // Persist provider id immediately so a crash before status=sent cannot reclaim→resend.
+      if (ok && providerId) {
+        await supabase
+          .from("review_request_messages")
+          .update({ provider_message_id: providerId, updated_at: new Date().toISOString() })
+          .eq("id", claimed.id)
+          .eq("status", "sending");
       }
 
       const ts = new Date().toISOString();

@@ -15,18 +15,26 @@ export async function POST(
     const { data: existing } = await supabase.from("scan_batches").select("*").eq("id", scanId).single();
     if (!existing) return NextResponse.json({ error: "Scan not found" }, { status: 404 });
 
+    // Preserve center, location, keyword scope, and device profile — otherwise
+    // processScanBatch falls back to business center + all keywords.
     const { data: batch, error } = await supabase
       .from("scan_batches")
       .insert({
         business_id: existing.business_id,
         status: "queued",
-        scan_type: "quick",
+        scan_type: existing.scan_type ?? "quick",
         grid_size: existing.grid_size,
         radius_meters: existing.radius_meters,
         device: existing.device,
         os: existing.os,
         browser: (existing as { browser?: string }).browser ?? "chrome",
         provider: existing.provider,
+        location_id: existing.location_id ?? null,
+        center_lat: existing.center_lat ?? null,
+        center_lng: existing.center_lng ?? null,
+        center_label: existing.center_label ?? null,
+        moved_from_scan_id: existing.id,
+        confidence_summary: existing.confidence_summary ?? {},
       })
       .select("*")
       .single();

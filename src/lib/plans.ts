@@ -358,6 +358,48 @@ export async function reserveUsageOrThrow(
   return reserveUsage(organizationId, usageKey, amount, { enforceLimit: true });
 }
 
+/**
+ * Best-effort refund after a failed action that already reserved usage.
+ * The increment RPC only accepts p_amount >= 1, so we decrement directly.
+ */
+export async function releaseUsage(
+  organizationId: string,
+  usageKey: UsageKey,
+  amount = 1
+): Promise<void> {
+  if (amount < 1) return;
+  const supabase = createServiceClient();
+  const { periodStart } = getCurrentPeriod();
+  const col = usageKey;
+  const allowed: UsageKey[] = [
+    "map_credits_used",
+    "growth_audits_used",
+    "local_trust_scans_used",
+    "backlink_gap_runs_used",
+    "review_emails_sent",
+    "review_sms_sent",
+    "bulk_review_requests_used",
+    "ai_visibility_runs_used",
+  ];
+  if (!allowed.includes(col)) return;
+
+  const { data } = await supabase
+    .from("organization_usage_monthly")
+    .select(col)
+    .eq("organization_id", organizationId)
+    .eq("period_start", periodStart)
+    .maybeSingle();
+
+  if (!data) return;
+  const current = Number((data as Record<string, unknown>)[col] ?? 0);
+  const next = Math.max(0, current - amount);
+  await supabase
+    .from("organization_usage_monthly")
+    .update({ [col]: next, updated_at: new Date().toISOString() })
+    .eq("organization_id", organizationId)
+    .eq("period_start", periodStart);
+}
+
 export async function resetOrganizationUsage(organizationId: string): Promise<void> {
   const supabase = createServiceClient();
   const { periodStart } = getCurrentPeriod();

@@ -39,14 +39,28 @@ function getLocalParts(date: Date, timeZone: string) {
   const parts = fmt.formatToParts(date);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "0";
   const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  // Chrome can emit hour "24" at local midnight with hour12:false.
+  let hour = Number(get("hour"));
+  if (hour === 24) hour = 0;
   return {
     year: Number(get("year")),
     month: Number(get("month")),
     day: Number(get("day")),
     weekday: weekdayMap[get("weekday")] ?? 0,
-    hour: Number(get("hour")),
+    hour,
     minute: Number(get("minute")),
   };
+}
+
+/** Calendar YYYY-MM-DD in a timezone (not UTC). */
+export function ymdInTimeZone(date: Date, timeZone: string): string {
+  const local = getLocalParts(date, timeZone);
+  return `${local.year}-${String(local.month).padStart(2, "0")}-${String(local.day).padStart(2, "0")}`;
+}
+
+/** True when local calendar date in timezone is on/after startDate (YYYY-MM-DD). */
+export function isOnOrAfterStartDate(now: Date, startDate: string, timeZone: string): boolean {
+  return ymdInTimeZone(now, timeZone) >= startDate;
 }
 
 function toUtcFromLocal(
