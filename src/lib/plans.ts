@@ -49,7 +49,7 @@ export const PLAN_DEFINITIONS: Record<PlanId, PlanDefinition> = {
       local_trust_scans_month: 2,
       backlink_gap_runs_month: 2,
       growth_audits_month: 5,
-      ai_visibility_runs_month: 0,
+      ai_visibility_runs_month: 5,
       users_seats: 1,
     },
     features: {
@@ -60,7 +60,7 @@ export const PLAN_DEFINITIONS: Record<PlanId, PlanDefinition> = {
       backlink_gap: true,
       growth_audit: true,
       review_momentum: true,
-      ai_visibility: false,
+      ai_visibility: true,
       maps_keyword_difficulty_internal_only: false,
     },
   },
