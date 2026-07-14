@@ -81,7 +81,7 @@ export function ScanSetupForm({
 
   const selectClass = footerBar
     ? "mt-1 w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm text-text"
-    : "mt-1 w-full rounded-lg border border-border px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900";
+    : "mt-1 w-full rounded-lg border border-border px-3.5 py-2 dark:border-zinc-700 dark:bg-zinc-900";
 
   return (
     <div className={compact ? "space-y-2" : "mt-6 space-y-4"}>

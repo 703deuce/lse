@@ -272,7 +272,7 @@ export function ReviewRequestsBulkWizard({
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-[13px] text-red-800">{error}</div>
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] text-red-800">{error}</div>
       )}
 
       {step === 0 && (
@@ -320,28 +320,28 @@ export function ReviewRequestsBulkWizard({
         <div className="space-y-4">
           <p className="text-[13px] text-zinc-600">Map your CSV columns. We auto-detected mappings — confirm before continuing.</p>
           {mappingError && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-900">{mappingError}</div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2 text-[13px] text-amber-900">{mappingError}</div>
           )}
           <div className={cn(dashboardCard, "overflow-hidden")}>
             <table className="min-w-full text-[12px]">
               <thead className="bg-zinc-50 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                 <tr>
-                  <th className="px-3 py-2">CSV Column</th>
-                  <th className="px-3 py-2">Sample Value</th>
-                  <th className="px-3 py-2">Map To</th>
+                  <th className="px-3.5 py-2">CSV Column</th>
+                  <th className="px-3.5 py-2">Sample Value</th>
+                  <th className="px-3.5 py-2">Map To</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 {headers.map((header) => (
                   <tr key={header}>
-                    <td className="px-3 py-2 font-medium">{header}</td>
-                    <td className="px-3 py-2 text-zinc-500">
+                    <td className="px-3.5 py-2 font-medium">{header}</td>
+                    <td className="px-3.5 py-2 text-zinc-500">
                       {sampleRows.map((r, i) => {
                         const idx = headers.indexOf(header);
                         return <div key={i}>{r[idx] || "—"}</div>;
                       })}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3.5 py-2">
                       <select
                         className={rrInputClass}
                         value={mappings[header] ?? "ignore"}
@@ -392,7 +392,7 @@ export function ReviewRequestsBulkWizard({
               <Download className="h-4 w-4" /> Download skipped rows
             </button>
             {summary.recently_contacted > 0 && (
-              <label className="flex w-full items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-900">
+              <label className="flex w-full items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2 text-[13px] text-amber-900">
                 <input
                   type="checkbox"
                   checked={bypassRecentContact}
@@ -483,7 +483,7 @@ export function ReviewRequestsBulkWizard({
           </div>
 
           {dailyLimit > 20 && (
-            <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] text-amber-900">
+            <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[13px] text-amber-900">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               Higher send volume may create review spikes and increase unsubscribe/complaint risk.
             </div>

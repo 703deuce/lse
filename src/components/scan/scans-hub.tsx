@@ -159,7 +159,7 @@ export function ScansHub({
 
   return (
     <div className="space-y-4">
-      <section className={cn(dashboardCard, "p-3")}>
+      <section className={cn(dashboardCard, "p-3.5")}>
         <h2 className={dashboardCardTitle}>Run a new grid scan</h2>
         <p className={cn("mt-0.5", dashboardMicro)}>
           Pick a keyword, grid size, and radius — then start scanning.
@@ -213,7 +213,7 @@ export function ScansHub({
               type="button"
               disabled={running || !selectedKeywordId}
               onClick={() => void runScan(selectedKeywordId)}
-              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-[#137752] px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-[#0f6244] disabled:opacity-50"
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-[#137752] px-3.5 py-2 text-[12px] font-semibold text-white hover:bg-[#0f6244] disabled:opacity-50"
             >
               {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
               Run scan

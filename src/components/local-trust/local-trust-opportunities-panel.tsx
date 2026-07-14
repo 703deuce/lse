@@ -69,19 +69,19 @@ function OpportunityTable({ rows, showMarketBadge }: { rows: OppRow[]; showMarke
       <table className="min-w-full text-[12px]">
         <thead className="border-b border-zinc-100 bg-zinc-50/80 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
           <tr>
-            <th className="px-3 py-2">Opportunity</th>
-            <th className="px-3 py-2">Type</th>
-            <th className="px-3 py-2">Local Match</th>
-            <th className="px-3 py-2">
+            <th className="px-3.5 py-2">Opportunity</th>
+            <th className="px-3.5 py-2">Type</th>
+            <th className="px-3.5 py-2">Local Match</th>
+            <th className="px-3.5 py-2">
               <span className="inline-flex items-center gap-1">
                 Score
                 <Info className="h-3 w-3 text-zinc-400" />
               </span>
             </th>
-            <th className="px-3 py-2">Difficulty</th>
-            <th className="px-3 py-2">Priority</th>
-            <th className="px-3 py-2">Suggested Action</th>
-            <th className="w-10 px-3 py-2" />
+            <th className="px-3.5 py-2">Difficulty</th>
+            <th className="px-3.5 py-2">Priority</th>
+            <th className="px-3.5 py-2">Suggested Action</th>
+            <th className="w-10 px-3.5 py-2" />
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-100">
@@ -92,7 +92,7 @@ function OpportunityTable({ rows, showMarketBadge }: { rows: OppRow[]; showMarke
             const score = Number(row.relevance_score ?? 0);
             return (
               <tr key={String(row.id ?? row.url)} className="align-top hover:bg-zinc-50/80">
-                <td className="px-3 py-2">
+                <td className="px-3.5 py-2">
                   <div className="flex items-start gap-1.5">
                     <a
                       href={String(row.url)}
@@ -111,19 +111,19 @@ function OpportunityTable({ rows, showMarketBadge }: { rows: OppRow[]; showMarke
                     </span>
                   ) : null}
                 </td>
-                <td className="px-3 py-2 text-[11px] text-zinc-600">
+                <td className="px-3.5 py-2 text-[11px] text-zinc-600">
                   {typeLabel(
                     String(raw?.displayGroup ?? row.opportunity_type)
                   )}
                 </td>
-                <td className="px-3 py-2">{localMatchDisplay(!!row.city_match, !!row.county_match)}</td>
-                <td className="px-3 py-2">
+                <td className="px-3.5 py-2">{localMatchDisplay(!!row.city_match, !!row.county_match)}</td>
+                <td className="px-3.5 py-2">
                   <ScoreDiamond score={score} />
                 </td>
-                <td className="px-3 py-2">{trustDifficultyBadge(String(row.difficulty))}</td>
-                <td className="px-3 py-2">{trustPriorityBadge(String(row.priority))}</td>
-                <td className="max-w-xs px-3 py-2 text-[11px] leading-snug text-zinc-600">{actionText}</td>
-                <td className="px-3 py-2">
+                <td className="px-3.5 py-2">{trustDifficultyBadge(String(row.difficulty))}</td>
+                <td className="px-3.5 py-2">{trustPriorityBadge(String(row.priority))}</td>
+                <td className="max-w-xs px-3.5 py-2 text-[11px] leading-snug text-zinc-600">{actionText}</td>
+                <td className="px-3.5 py-2">
                   <button type="button" className="rounded p-1 text-zinc-400 hover:bg-zinc-100">
                     <MoreHorizontal className="h-4 w-4" />
                   </button>
@@ -155,7 +155,7 @@ function Pagination({
   const to = Math.min(page * pageSize, totalItems);
 
   return (
-    <div className="flex items-center justify-between border-t border-zinc-100 px-3 py-2 text-[11px] text-zinc-500">
+    <div className="flex items-center justify-between border-t border-zinc-100 px-3.5 py-2 text-[11px] text-zinc-500">
       <span>
         Showing {from} to {to} of {totalItems} results
       </span>
@@ -420,21 +420,21 @@ export function LocalTrustOpportunitiesPanel({
       </TrustFilterBar>
 
       <div className="grid gap-2 sm:grid-cols-3">
-        <div className="flex items-center gap-2 rounded-lg border border-zinc-200/70 bg-white px-3 py-2.5 shadow-sm">
+        <div className="flex items-center gap-2 rounded-lg border border-zinc-200/70 bg-white px-3.5 py-2.5 shadow-sm">
           <Sparkles className="h-4 w-4 text-blue-500" />
           <div>
             <p className="text-[13px] font-semibold text-zinc-900">{oppTotal} opportunities</p>
             <p className="text-[11px] text-zinc-500">Across {categoryCount} categories</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2.5">
           <Zap className="h-4 w-4 text-emerald-600" />
           <div>
             <p className="text-[13px] font-semibold text-emerald-900">{easyWins} Easy wins</p>
             <p className="text-[11px] text-emerald-700">Low effort, high impact</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5">
+        <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3.5 py-2.5">
           <Link2 className="h-4 w-4 text-blue-600" />
           <div>
             <p className="text-[13px] font-semibold text-blue-900">{highImpact} High-impact actions</p>
@@ -445,7 +445,7 @@ export function LocalTrustOpportunitiesPanel({
 
       {typeFilter !== "all" ? (
         <div className={cn(dashboardCard, "overflow-hidden")}>
-          <div className="border-b border-zinc-100 px-3 py-2">
+          <div className="border-b border-zinc-100 px-3.5 py-2">
             <h3 className="text-[13px] font-semibold text-zinc-900">{typeLabel(typeFilter)}</h3>
             <p className="text-[11px] text-zinc-500">{total} opportunities</p>
           </div>
@@ -485,7 +485,7 @@ export function LocalTrustOpportunitiesPanel({
                 <button
                   type="button"
                   onClick={() => setExpanded((e) => ({ ...e, [type]: !isOpen }))}
-                  className="flex w-full items-center gap-2 border-b border-zinc-100 bg-white px-3 py-2.5 text-left hover:bg-zinc-50/80"
+                  className="flex w-full items-center gap-2 border-b border-zinc-100 bg-white px-3.5 py-2.5 text-left hover:bg-zinc-50/80"
                 >
                   {isOpen ? (
                     <ChevronDown className="h-3.5 w-3.5 shrink-0 text-zinc-400" />

@@ -265,7 +265,7 @@ export function OverviewCardShell({
   className?: string;
 }) {
   const classes = cn(
-    "block rounded-xl border border-zinc-200/80 bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition hover:border-emerald-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]",
+    "block rounded-xl border border-zinc-200/80 bg-white p-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition hover:border-emerald-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]",
     className
   );
 

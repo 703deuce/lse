@@ -195,7 +195,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search prompts by name or keyword…"
-          className="min-w-[220px] flex-1 rounded-md border border-border bg-white px-3 py-2 text-[13px] shadow-sm"
+          className="min-w-[220px] flex-1 rounded-md border border-border bg-white px-3.5 py-2 text-[13px] shadow-sm"
         />
         <select className="rounded-md border border-border bg-white px-2.5 py-2 text-xs font-medium text-text shadow-sm" defaultValue="all">
           <option value="all">All Groups</option>
@@ -343,12 +343,12 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                 <input
                   readOnly
                   value={promptTitle(selected.prompt_text)}
-                  className="w-full rounded-md border border-border bg-white px-3 py-2 text-[13px]"
+                  className="w-full rounded-md border border-border bg-white px-3.5 py-2 text-[13px]"
                 />
               </label>
               <label className="block text-[13px]">
                 <span className="mb-1 block text-xs font-medium text-text-muted">Prompt Group</span>
-                <select className="w-full rounded-md border border-border bg-white px-3 py-2 text-[13px]" defaultValue={selected.category ?? "Core Visibility"}>
+                <select className="w-full rounded-md border border-border bg-white px-3.5 py-2 text-[13px]" defaultValue={selected.category ?? "Core Visibility"}>
                   <option>Core Visibility</option>
                   <option>Pricing & Services</option>
                   <option>Service Quality</option>
@@ -364,7 +364,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                   readOnly
                   value={selected.prompt_text}
                   rows={5}
-                  className="w-full rounded-md border border-border bg-surface-subtle px-3 py-2 text-[13px]"
+                  className="w-full rounded-md border border-border bg-surface-subtle px-3.5 py-2 text-[13px]"
                 />
                 <button type="button" className="mt-1 text-[10px] font-medium text-emerald-700">
                   Insert Variable {"{}"}
@@ -372,7 +372,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
               </label>
               <div>
                 <span className="mb-1 block text-xs font-medium text-text-muted">Location Context</span>
-                <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-subtle px-3 py-2 text-[13px]">
+                <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-subtle px-3.5 py-2 text-[13px]">
                   <span>{city && state ? `${city}, ${state}` : "Business location"}</span>
                   <span className="rounded bg-border px-1.5 py-0.5 text-[10px] font-medium text-text-muted">25 mi radius</span>
                 </div>
@@ -421,7 +421,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                   value={selected.reason ?? ""}
                   rows={3}
                   placeholder="Internal notes about this prompt…"
-                  className="w-full rounded-md border border-border bg-surface-subtle px-3 py-2 text-[13px]"
+                  className="w-full rounded-md border border-border bg-surface-subtle px-3.5 py-2 text-[13px]"
                 />
               </label>
               {selected.opportunity_score != null && (

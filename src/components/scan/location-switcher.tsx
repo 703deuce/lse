@@ -163,7 +163,7 @@ export function LocationSwitcher({
             className={
               compact
                 ? "min-w-0 flex-1 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[13px] text-zinc-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
-                : "min-w-[200px] flex-1 rounded-lg border border-border bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                : "min-w-[200px] flex-1 rounded-lg border border-border bg-white px-3.5 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             }
           >
             {locations.map((loc) => (
@@ -206,14 +206,14 @@ export function LocationSwitcher({
                 placeholder="Location name (e.g. Dale City)"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className="w-full rounded-lg border border-border px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                className="w-full rounded-lg border border-border px-3.5 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
               />
               <input
                 type="text"
                 placeholder="Address (optional)"
                 value={form.address}
                 onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-                className="w-full rounded-lg border border-border px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                className="w-full rounded-lg border border-border px-3.5 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
               />
               <div className="grid grid-cols-2 gap-2">
                 <input
@@ -221,14 +221,14 @@ export function LocationSwitcher({
                   placeholder="City"
                   value={form.city}
                   onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-                  className="rounded-lg border border-border px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                  className="rounded-lg border border-border px-3.5 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
                 />
                 <input
                   type="text"
                   placeholder="State"
                   value={form.state}
                   onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))}
-                  className="rounded-lg border border-border px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                  className="rounded-lg border border-border px-3.5 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -238,7 +238,7 @@ export function LocationSwitcher({
                   placeholder="Latitude"
                   value={form.lat}
                   onChange={(e) => setForm((f) => ({ ...f, lat: e.target.value }))}
-                  className="rounded-lg border border-border px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                  className="rounded-lg border border-border px-3.5 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
                 />
                 <input
                   type="number"
@@ -246,7 +246,7 @@ export function LocationSwitcher({
                   placeholder="Longitude"
                   value={form.lng}
                   onChange={(e) => setForm((f) => ({ ...f, lng: e.target.value }))}
-                  className="rounded-lg border border-border px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                  className="rounded-lg border border-border px-3.5 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
                 />
               </div>
             </div>

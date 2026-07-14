@@ -295,17 +295,17 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
           <table className="min-w-full text-[13px]">
             <thead className="bg-zinc-50 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
               <tr>
-                <th className="px-3 py-2">
+                <th className="px-3.5 py-2">
                   <input type="checkbox" className="rounded border-zinc-300" aria-label="Select all" />
                 </th>
-                <th className="px-3 py-2">Task</th>
-                <th className="px-3 py-2">Impact</th>
-                <th className="px-3 py-2">Effort</th>
-                <th className="px-3 py-2">Priority</th>
-                <th className="px-3 py-2">Owner</th>
-                <th className="px-3 py-2">Due Date</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2" />
+                <th className="px-3.5 py-2">Task</th>
+                <th className="px-3.5 py-2">Impact</th>
+                <th className="px-3.5 py-2">Effort</th>
+                <th className="px-3.5 py-2">Priority</th>
+                <th className="px-3.5 py-2">Owner</th>
+                <th className="px-3.5 py-2">Due Date</th>
+                <th className="px-3.5 py-2">Status</th>
+                <th className="px-3.5 py-2" />
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -313,14 +313,14 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
                 const TaskIcon = TASK_ICONS[(page - 1) * pageSize + idx] ?? Globe;
                 return (
                   <tr key={task.id} className="hover:bg-zinc-50">
-                    <td className="px-3 py-2">
+                    <td className="px-3.5 py-2">
                       <input
                         type="checkbox"
                         className="rounded border-zinc-300"
                         aria-label={`Select ${task.title}`}
                       />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3.5 py-2">
                       <div className="flex items-start gap-2">
                         <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
                           <TaskIcon className="h-3 w-3" />
@@ -333,13 +333,13 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
                         </div>
                       </div>
                     </td>
-                    <td className="px-3 py-2">{impactDisplay(String(task.impact ?? "medium"))}</td>
-                    <td className="px-3 py-2">{effortDisplay(String(task.effort ?? "medium"))}</td>
-                    <td className="px-3 py-2">{priorityBadge(String(task.priority ?? "medium"))}</td>
-                    <td className="px-3 py-2">{ownerDisplay((page - 1) * pageSize + idx)}</td>
-                    <td className="px-3 py-2">{dueDateDisplay((page - 1) * pageSize + idx)}</td>
-                    <td className="px-3 py-2">{statusBadge(String(task.status ?? "open"))}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-3.5 py-2">{impactDisplay(String(task.impact ?? "medium"))}</td>
+                    <td className="px-3.5 py-2">{effortDisplay(String(task.effort ?? "medium"))}</td>
+                    <td className="px-3.5 py-2">{priorityBadge(String(task.priority ?? "medium"))}</td>
+                    <td className="px-3.5 py-2">{ownerDisplay((page - 1) * pageSize + idx)}</td>
+                    <td className="px-3.5 py-2">{dueDateDisplay((page - 1) * pageSize + idx)}</td>
+                    <td className="px-3.5 py-2">{statusBadge(String(task.status ?? "open"))}</td>
+                    <td className="px-3.5 py-2">
                       <button type="button" className="rounded p-1 hover:bg-zinc-100" aria-label="More actions">
                         <MoreHorizontal className="h-3.5 w-3.5 text-zinc-400" />
                       </button>

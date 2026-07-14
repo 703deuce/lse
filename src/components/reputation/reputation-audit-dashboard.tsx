@@ -501,7 +501,7 @@ export function ReputationAuditDashboard({ businessId }: { businessId: string })
                   type="button"
                   onClick={() => void generateResponses()}
                   disabled={generatingResponses}
-                  className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-50"
+                  className="rounded-lg bg-primary px-3.5 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-50"
                 >
                   {generatingResponses ? "Generating…" : "Generate Responses"}
                 </button>

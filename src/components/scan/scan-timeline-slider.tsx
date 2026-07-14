@@ -138,7 +138,7 @@ export function ScanTimelineSlider({
   if (!scans.length) {
     return (
       <div
-        className={`rounded-md border border-dashed border-border px-3 py-2 text-xs text-text-muted ${className}`}
+        className={`rounded-md border border-dashed border-border px-3.5 py-2 text-xs text-text-muted ${className}`}
       >
         No scan history yet.
       </div>
@@ -146,7 +146,7 @@ export function ScanTimelineSlider({
   }
 
   return (
-    <div className={`rounded-lg border border-zinc-200 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${className}`}>
+    <div className={`rounded-lg border border-zinc-200 bg-white px-3.5 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${className}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">

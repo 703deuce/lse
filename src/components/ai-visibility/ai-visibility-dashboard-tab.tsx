@@ -160,11 +160,11 @@ export function AiVisibilityDashboardTab({
               <table className="min-w-full text-[13px]">
                 <thead>
                   <tr className="text-left text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-                    <th className="pb-1.5 pr-2">#</th>
-                    <th className="pb-1.5 pr-2">Company</th>
-                    <th className="pb-1.5 pr-2">Engine Share</th>
-                    <th className="pb-1.5 pr-2">Engines</th>
-                    <th className="pb-1.5">Avg Position</th>
+                    <th className="px-3.5 pb-2">#</th>
+                    <th className="px-3.5 pb-2">Company</th>
+                    <th className="px-3.5 pb-2">Engine Share</th>
+                    <th className="px-3.5 pb-2">Engines</th>
+                    <th className="px-3.5 pb-2">Avg Position</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
@@ -175,14 +175,14 @@ export function AiVisibilityDashboardTab({
                     const avgPos = "avgPosition" in row ? (row as MentionLeaderboardRow).avgPosition : null;
                     return (
                       <tr key={row.normalizedName} className={row.isTargetBrand ? "bg-emerald-50/40" : ""}>
-                        <td className="py-1.5 pr-2 text-text-muted">{i + 1}</td>
-                        <td className="py-1.5 pr-2 font-medium">
+                        <td className="px-3.5 py-2 text-text-muted">{i + 1}</td>
+                        <td className="px-3.5 py-2 font-medium">
                           {row.displayName}
                           {row.isTargetBrand && (
                             <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">You</span>
                           )}
                         </td>
-                        <td className="py-1.5 pr-2">
+                        <td className="px-3.5 py-2">
                           <div className="flex items-center gap-2">
                             <div className="h-1.5 w-14 overflow-hidden rounded-full bg-surface-subtle">
                               <div className="h-full bg-emerald-500" style={{ width: `${sharePct}%` }} />
@@ -192,10 +192,10 @@ export function AiVisibilityDashboardTab({
                             </span>
                           </div>
                         </td>
-                        <td className="py-1.5 pr-2">
+                        <td className="px-3.5 py-2">
                           <EngineIconRow engines={engines} />
                         </td>
-                        <td className="py-1.5 tabular-nums text-text">{avgPos ?? "—"}</td>
+                        <td className="px-3.5 py-2 tabular-nums text-text">{avgPos ?? "—"}</td>
                       </tr>
                     );
                   })}

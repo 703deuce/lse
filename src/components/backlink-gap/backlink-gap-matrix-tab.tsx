@@ -239,12 +239,12 @@ export function BacklinkGapMatrixTab({
             <table className="min-w-full text-[13px]">
               <thead className="bg-zinc-50 text-left">
                 <tr>
-                  <th className={cn(dashboardSectionLabel, "w-10 px-3 py-2")}>
+                  <th className={cn(dashboardSectionLabel, "w-10 px-3.5 py-2")}>
                     <input type="checkbox" className="rounded border-zinc-300" aria-label="Select all" />
                   </th>
-                  <th className={cn(dashboardSectionLabel, "px-3 py-2")}>Linking Domain (DA)</th>
-                  <th className={cn(dashboardSectionLabel, "px-3 py-2")}>Link Power</th>
-                  <th className={cn(dashboardSectionLabel, "px-3 py-2 text-center")}>
+                  <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>Linking Domain (DA)</th>
+                  <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>Link Power</th>
+                  <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-center")}>
                     <div>You</div>
                     {targetDomain && (
                       <div className="mt-0.5 text-[10px] font-normal normal-case text-zinc-400">
@@ -253,11 +253,11 @@ export function BacklinkGapMatrixTab({
                     )}
                   </th>
                   {competitors.map((c) => (
-                    <th key={c.name} className={cn(dashboardSectionLabel, "px-3 py-2 text-center")}>
+                    <th key={c.name} className={cn(dashboardSectionLabel, "px-3.5 py-2 text-center")}>
                       {c.domain?.replace(/^www\./, "") ?? c.name.split(" ")[0]}
                     </th>
                   ))}
-                  <th className={cn(dashboardSectionLabel, "px-3 py-2 text-center")}>Domains Linking</th>
+                  <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-center")}>Domains Linking</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -267,24 +267,24 @@ export function BacklinkGapMatrixTab({
                   const linked = Number(row.competitor_count ?? 0);
                   return (
                     <tr key={String(row.domain)} className="hover:bg-zinc-50">
-                      <td className="px-3 py-2">
+                      <td className="px-3.5 py-2">
                         <input type="checkbox" className="rounded border-zinc-300" aria-label={`Select ${row.domain}`} />
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3.5 py-2">
                         <p className="font-medium text-sky-700">{String(row.domain)}</p>
                         <p className={dashboardMicro}>
                           DA {row.domain_rank != null ? Math.round(Number(row.domain_rank)) : "—"} ·{" "}
                           {String(row.source_type ?? "Unknown")}
                         </p>
                       </td>
-                      <td className="px-3 py-2">{powerBarsVertical(power)}</td>
-                      <td className="px-3 py-2 text-center">{boolCell(!!row.you)}</td>
+                      <td className="px-3.5 py-2">{powerBarsVertical(power)}</td>
+                      <td className="px-3.5 py-2 text-center">{boolCell(!!row.you)}</td>
                       {competitors.map((c) => (
-                        <td key={c.name} className="px-3 py-2 text-center">
+                        <td key={c.name} className="px-3.5 py-2 text-center">
                           {boolCell(!!row[c.name])}
                         </td>
                       ))}
-                      <td className="px-3 py-2 text-center text-[12px] font-medium text-zinc-600">
+                      <td className="px-3.5 py-2 text-center text-[12px] font-medium text-zinc-600">
                         {linked}/{competitors.length}
                       </td>
                     </tr>

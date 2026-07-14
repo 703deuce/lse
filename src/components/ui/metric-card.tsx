@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 /** Canonical KPI surface — used by GridMetricCard and module-specific KPI variants. */
 export const kpiCardSurface =
-  "rounded-lg border border-zinc-200/80 bg-white px-2.5 py-1 shadow-[0_1px_3px_rgba(0,0,0,0.04)]";
+  "rounded-lg border border-zinc-200/80 bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]";
 
 export const kpiLabelClass =
   "text-[10px] font-medium uppercase tracking-wide text-zinc-500";
@@ -52,7 +52,7 @@ interface MetricCardProps {
 
 export function MetricCard({ label, value, sub, className }: MetricCardProps) {
   return (
-    <div className={cn(cardClass, "p-3", className)}>
+    <div className={cn(cardClass, "p-3.5", className)}>
       <p className={cardLabelClass}>{label}</p>
       <div className="mt-1">
         <StatValue value={value} />
@@ -135,7 +135,7 @@ export function GridTopCellsGroup({
   return (
     <div
       className={cn(
-        "flex divide-x divide-zinc-100 rounded-lg border border-zinc-200/80 bg-white px-1 py-1 shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
+        "flex divide-x divide-zinc-100 rounded-lg border border-zinc-200/80 bg-white px-1.5 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
         className
       )}
     >
@@ -151,7 +151,7 @@ export function GridTopCellsGroup({
         },
         { label: "Top 20", value: top20, sub: "cells" },
       ].map((item) => (
-        <div key={item.label} className="flex-1 px-2 text-center">
+        <div key={item.label} className="flex-1 px-3.5 text-center">
           <p className={cardLabelClass}>{item.label}</p>
           <p className="mt-0.5 text-base font-bold tabular-nums leading-none text-zinc-900">{item.value}</p>
           {item.sub && (

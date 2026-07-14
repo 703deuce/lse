@@ -166,14 +166,14 @@ export function GrowthAuditActionPlanTab({
             <table className="w-full min-w-[900px] text-[12px]">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50/80 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-                  <th className="w-8 px-3 py-2" />
-                  <th className="px-3 py-2">Priority</th>
-                  <th className="px-3 py-2">Task</th>
-                  <th className="px-3 py-2">Why it matters</th>
-                  <th className="px-3 py-2">Impact</th>
-                  <th className="px-3 py-2">Difficulty</th>
-                  <th className="px-3 py-2">Est. Time</th>
-                  <th className="px-3 py-2">Status</th>
+                  <th className="w-8 px-3.5 py-2" />
+                  <th className="px-3.5 py-2">Priority</th>
+                  <th className="px-3.5 py-2">Task</th>
+                  <th className="px-3.5 py-2">Why it matters</th>
+                  <th className="px-3.5 py-2">Impact</th>
+                  <th className="px-3.5 py-2">Difficulty</th>
+                  <th className="px-3.5 py-2">Est. Time</th>
+                  <th className="px-3.5 py-2">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -182,7 +182,7 @@ export function GrowthAuditActionPlanTab({
                   return (
                     <Fragment key={group.label}>
                       <tr className="bg-zinc-50/60">
-                        <td colSpan={8} className="px-3 py-2">
+                        <td colSpan={8} className="px-3.5 py-2">
                           <div className="flex items-center gap-2">
                             <GroupIcon className="h-3.5 w-3.5 text-emerald-600" />
                             <span className="text-[11px] font-semibold text-zinc-700">
@@ -203,13 +203,13 @@ export function GrowthAuditActionPlanTab({
                               active && "bg-emerald-50/40"
                             )}
                           >
-                            <td className="px-3 py-2">
+                            <td className="px-3.5 py-2">
                               <GripVertical className="h-4 w-4 text-zinc-300" />
                             </td>
-                            <td className="px-3 py-2">
+                            <td className="px-3.5 py-2">
                               <PriorityTag priority={task.priority} />
                             </td>
-                            <td className="px-3 py-2">
+                            <td className="px-3.5 py-2">
                               <div className="flex items-center gap-2">
                                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-zinc-50 text-zinc-500">
                                   <Icon className="h-3.5 w-3.5" />
@@ -217,15 +217,15 @@ export function GrowthAuditActionPlanTab({
                                 <span className="font-medium text-zinc-900">{task.title}</span>
                               </div>
                             </td>
-                            <td className="max-w-[200px] px-3 py-2 text-[11px] text-zinc-500">{task.why}</td>
-                            <td className="px-3 py-2">
+                            <td className="max-w-[200px] px-3.5 py-2 text-[11px] text-zinc-500">{task.why}</td>
+                            <td className="px-3.5 py-2">
                               <ImpactStars count={task.impactStars} />
                             </td>
-                            <td className="px-3 py-2">
+                            <td className="px-3.5 py-2">
                               <DifficultyTag difficulty={task.difficulty} />
                             </td>
-                            <td className="whitespace-nowrap px-3 py-2 text-[11px] text-zinc-600">{task.timeEstimate}</td>
-                            <td className="px-3 py-2">
+                            <td className="whitespace-nowrap px-3.5 py-2 text-[11px] text-zinc-600">{task.timeEstimate}</td>
+                            <td className="px-3.5 py-2">
                               <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500">
                                 <span className="h-3.5 w-3.5 rounded-full border-2 border-zinc-300" />
                                 Not Started
@@ -255,7 +255,7 @@ export function GrowthAuditActionPlanTab({
             <p className="mt-2 text-[13px] text-zinc-600">{topTask.description}</p>
             <button
               type="button"
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-[13px] font-semibold text-white hover:bg-emerald-700"
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-emerald-700"
             >
               Start Now
               <ChevronRight className="h-4 w-4" />

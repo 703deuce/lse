@@ -317,7 +317,7 @@ export function TrustTabs({
 
 export const trustFilterBarClass = cn(
   dashboardCard,
-  "flex flex-wrap items-end gap-2 p-3"
+  "flex flex-wrap items-end gap-2 p-3.5"
 );
 
 export function TrustFilterBar({ children }: { children: ReactNode }) {
@@ -490,7 +490,7 @@ export function TrustPanelCard({
         </div>
         {action}
       </div>
-      <div className="p-3">{children}</div>
+      <div className="p-3.5">{children}</div>
     </div>
   );
 }

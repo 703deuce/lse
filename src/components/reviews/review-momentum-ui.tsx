@@ -109,7 +109,7 @@ export function MomentumSectionTitle({
 }
 
 export function MomentumPanel({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn(dashboardCard, "p-3", className)}>{children}</div>;
+  return <div className={cn(dashboardCard, "p-3.5", className)}>{children}</div>;
 }
 
 export function MomentumTableShell({ children }: { children: ReactNode }) {
@@ -124,5 +124,5 @@ export function MomentumTableShell({ children }: { children: ReactNode }) {
 }
 
 export function momentumTableHeadClass() {
-  return cn(dashboardSectionLabel, "px-2.5 py-2 text-left font-semibold");
+  return cn(dashboardSectionLabel, "px-3.5 py-2 text-left font-semibold");
 }

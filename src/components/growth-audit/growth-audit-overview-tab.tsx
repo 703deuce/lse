@@ -200,7 +200,7 @@ export function GrowthAuditOverviewTab({
             const meta = SNAPSHOT_META[item.label];
             const Icon = meta.icon;
             return (
-              <GaCard key={item.label} className="!p-2.5">
+              <GaCard key={item.label} className="!p-3.5">
                 <div className="flex items-center gap-2">
                   <span className={cn("flex h-7 w-7 items-center justify-center rounded-md", meta.color)}>
                     <Icon className="h-3.5 w-3.5" />

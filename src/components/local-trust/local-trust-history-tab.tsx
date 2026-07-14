@@ -59,23 +59,23 @@ export function LocalTrustHistoryTab({
           <table className="min-w-full text-[12px]">
             <thead className="bg-zinc-50 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
               <tr>
-                <th className="px-3 py-2">Market</th>
-                <th className="px-3 py-2 text-right">Accepted</th>
-                <th className="px-3 py-2 text-right">Rejected</th>
-                <th className="px-3 py-2">Last scanned</th>
-                <th className="px-3 py-2">Actions</th>
+                <th className="px-3.5 py-2">Market</th>
+                <th className="px-3.5 py-2 text-right">Accepted</th>
+                <th className="px-3.5 py-2 text-right">Rejected</th>
+                <th className="px-3.5 py-2">Last scanned</th>
+                <th className="px-3.5 py-2">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {markets.map((m) => (
                 <tr key={`${m.city}-${m.state}`} className="hover:bg-zinc-50/80">
-                  <td className="px-3 py-2 font-medium text-zinc-900">
+                  <td className="px-3.5 py-2 font-medium text-zinc-900">
                     {m.city}, {m.state}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-emerald-700">{m.acceptedCount}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-zinc-500">{m.rejectedCount}</td>
-                  <td className="px-3 py-2 text-zinc-500">{formatDate(m.latestRunAt)}</td>
-                  <td className="px-3 py-2">
+                  <td className="px-3.5 py-2 text-right tabular-nums text-emerald-700">{m.acceptedCount}</td>
+                  <td className="px-3.5 py-2 text-right tabular-nums text-zinc-500">{m.rejectedCount}</td>
+                  <td className="px-3.5 py-2 text-zinc-500">{formatDate(m.latestRunAt)}</td>
+                  <td className="px-3.5 py-2">
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
@@ -126,7 +126,7 @@ export function LocalTrustHistoryTab({
               .map((r) => {
                 const s = r.rescan_summary_json as Record<string, number>;
                 return (
-                  <div key={r.id} className="rounded-md border border-zinc-100 bg-zinc-50/50 px-3 py-2 text-[13px]">
+                  <div key={r.id} className="rounded-md border border-zinc-100 bg-zinc-50/50 px-3.5 py-2 text-[13px]">
                     <p className="font-medium text-zinc-800">
                       {r.city}, {r.state} — {formatDate(r.finished_at ?? r.created_at)}
                     </p>

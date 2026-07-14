@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 export const dashboardCard =
   "rounded-xl border border-zinc-200/70 bg-white shadow-sm";
 
-export const dashboardCardPad = "p-3";
+export const dashboardCardPad = "p-3.5";
 
 export const dashboardSectionLabel =
   "text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400";

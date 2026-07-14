@@ -83,13 +83,13 @@ export function AiVisibilityRunHistoryTab({
             <table className="min-w-full text-[13px]">
               <thead className="border-b border-border bg-surface-subtle/80">
                 <tr>
-                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Date & Time</th>
-                  <th className="px-3 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Visibility Score</th>
-                  <th className="px-3 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Mentioned You?</th>
-                  <th className="px-3 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Companies Found</th>
-                  <th className="px-3 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Sources Cited</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Engines Mentioning You</th>
-                  <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase text-text-muted">Action</th>
+                  <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Date & Time</th>
+                  <th className="px-3.5 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Visibility Score</th>
+                  <th className="px-3.5 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Mentioned You?</th>
+                  <th className="px-3.5 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Companies Found</th>
+                  <th className="px-3.5 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Sources Cited</th>
+                  <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Engines Mentioning You</th>
+                  <th className="px-3.5 py-2 text-right text-[10px] font-semibold uppercase text-text-muted">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -105,8 +105,8 @@ export function AiVisibilityRunHistoryTab({
                     : [];
                   return (
                     <tr key={r.id} className="hover:bg-surface-subtle/50">
-                      <td className="px-3 py-1.5 font-medium">{new Date(r.created_at).toLocaleString()}</td>
-                      <td className="px-3 py-1.5 text-center">
+                      <td className="px-3.5 py-2 font-medium">{new Date(r.created_at).toLocaleString()}</td>
+                      <td className="px-3.5 py-2 text-center">
                         <span className="font-semibold tabular-nums">{r.visibility_score ?? "—"}%</span>
                         {delta != null && delta !== 0 && (
                           <span className={cn("ml-1 text-xs", delta > 0 ? "text-primary" : "text-red-600")}>
@@ -114,15 +114,15 @@ export function AiVisibilityRunHistoryTab({
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-1.5 text-center">
+                      <td className="px-3.5 py-2 text-center">
                         <StatusPill yes={!!r.target_mentioned} />
                       </td>
-                      <td className="px-3 py-1.5 text-center tabular-nums">{trend?.companyCount ?? r.companyCount}</td>
-                      <td className="px-3 py-1.5 text-center tabular-nums">{r.sources_count}</td>
-                      <td className="px-3 py-1.5">
+                      <td className="px-3.5 py-2 text-center tabular-nums">{trend?.companyCount ?? r.companyCount}</td>
+                      <td className="px-3.5 py-2 text-center tabular-nums">{r.sources_count}</td>
+                      <td className="px-3.5 py-2">
                         <EngineIconRow engines={runEngines} />
                       </td>
-                      <td className="px-3 py-1.5 text-right">
+                      <td className="px-3.5 py-2 text-right">
                         <button
                           type="button"
                           onClick={() => onSelectRun(r.id)}

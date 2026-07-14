@@ -168,12 +168,12 @@ export function AiVisibilityEvidenceTab({
                 <table className="min-w-full text-[13px]">
                   <thead className="border-b border-border bg-surface-subtle/80">
                     <tr>
-                      <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">#</th>
-                      <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Source</th>
-                      <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Engine</th>
-                      <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Type</th>
-                      <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Authority</th>
-                      <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Context</th>
+                      <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">#</th>
+                      <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Source</th>
+                      <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Engine</th>
+                      <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Type</th>
+                      <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Authority</th>
+                      <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Context</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
@@ -182,8 +182,8 @@ export function AiVisibilityEvidenceTab({
                       const auth = authorityScore(i);
                       return (
                         <tr key={`${s.url}-${i}`} className="hover:bg-surface-subtle/50">
-                          <td className="px-3 py-1.5 text-text-muted">{s.position ?? i + 1}</td>
-                          <td className="max-w-xs px-3 py-1.5">
+                          <td className="px-3.5 py-2 text-text-muted">{s.position ?? i + 1}</td>
+                          <td className="max-w-xs px-3.5 py-2">
                             <p className="font-medium text-text">{s.label ?? s.url ?? "Source"}</p>
                             {s.url && (
                               <a href={s.url} target="_blank" rel="noopener noreferrer" className="mt-0.5 flex items-center gap-1 truncate text-xs text-sky-700 hover:underline">
@@ -192,19 +192,19 @@ export function AiVisibilityEvidenceTab({
                               </a>
                             )}
                           </td>
-                          <td className="px-3 py-1.5">
+                          <td className="px-3.5 py-2">
                             <EngineBadge engine={s.engine} />
                           </td>
-                          <td className="px-3 py-1.5">
+                          <td className="px-3.5 py-2">
                             <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", TYPE_CLASS[type])}>{type}</span>
                           </td>
-                          <td className="px-3 py-1.5">
+                          <td className="px-3.5 py-2">
                             <span className="inline-flex items-center gap-1 tabular-nums text-xs font-medium">
                               {auth}
                               <CheckCircle2 className={cn("h-3.5 w-3.5", auth >= 85 ? "text-emerald-500" : "text-amber-500")} />
                             </span>
                           </td>
-                          <td className="max-w-[140px] px-3 py-1.5">
+                          <td className="max-w-[140px] px-3.5 py-2">
                             <p className="line-clamp-2 text-[11px] text-text-muted">
                               {s.label ? `${s.label.slice(0, 60)}…` : "Referenced in AI response"}
                             </p>
@@ -254,7 +254,7 @@ export function AiVisibilityEvidenceTab({
                     <button
                       type="button"
                       onClick={() => setExpandedEngine(open ? null : engine)}
-                      className="flex w-full items-center justify-between px-3 py-2.5 text-left"
+                      className="flex w-full items-center justify-between px-3.5 py-2.5 text-left"
                     >
                       <span className="text-[13px] font-semibold">{ENGINE_LABELS[engine as AiEngine]}</span>
                       <span className="flex items-center gap-1 text-xs text-text-muted">
@@ -263,7 +263,7 @@ export function AiVisibilityEvidenceTab({
                       </span>
                     </button>
                     {open && (
-                      <ul className="border-t border-border/80 px-3 py-2 text-xs text-text-muted">
+                      <ul className="border-t border-border/80 px-3.5 py-2 text-xs text-text-muted">
                         {rows.map((r, i) => (
                           <li key={i} className="flex gap-1.5 py-0.5">
                             <span className="text-primary">•</span>

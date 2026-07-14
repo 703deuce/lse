@@ -410,18 +410,18 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
                             </div>
                           )}
                         </td>
-                        <td className="px-2.5 py-2">
+                        <td className="px-3.5 py-2">
                           <StarRating rating={e.rating_current} />
                         </td>
-                        <td className="px-2.5 py-2 text-[12px] font-medium tabular-nums text-zinc-900">
+                        <td className="px-3.5 py-2 text-[12px] font-medium tabular-nums text-zinc-900">
                           {e.total_reviews_current}
                         </td>
-                        <td className="px-2.5 py-2 text-[12px] tabular-nums text-zinc-600">
+                        <td className="px-3.5 py-2 text-[12px] tabular-nums text-zinc-600">
                           {velocityAvailable ? e.reviews_7d : "—"}
                         </td>
                         <td
                           className={cn(
-                            "px-2.5 py-2 text-[12px] tabular-nums",
+                            "px-3.5 py-2 text-[12px] tabular-nums",
                             isTarget && velocityAvailable ? "font-semibold text-emerald-700" : "text-zinc-600"
                           )}
                         >
@@ -429,21 +429,21 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
                         </td>
                         <td
                           className={cn(
-                            "px-2.5 py-2 text-[12px] tabular-nums",
+                            "px-3.5 py-2 text-[12px] tabular-nums",
                             isTarget && velocityAvailable ? "font-semibold text-emerald-700" : "text-zinc-600"
                           )}
                         >
                           {velocityAvailable ? e.reviews_90d : "—"}
                         </td>
-                        <td className="px-2.5 py-2 text-[12px] tabular-nums text-zinc-600">
+                        <td className="px-3.5 py-2 text-[12px] tabular-nums text-zinc-600">
                           {velocityAvailable ? formatWeeklyPace(e.avg_reviews_per_week) : "—"}
                         </td>
-                        <td className="px-2.5 py-2 text-[11px] text-zinc-500">
+                        <td className="px-3.5 py-2 text-[11px] text-zinc-500">
                           {velocityAvailable && e.days_since_last_review != null
                             ? `${e.days_since_last_review}d`
                             : "—"}
                         </td>
-                        <td className="px-2.5 py-2">
+                        <td className="px-3.5 py-2">
                           {velocityAvailable ? (
                             <span
                               className={cn(

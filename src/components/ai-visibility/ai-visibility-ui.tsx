@@ -246,7 +246,7 @@ export function AiVisibilityTabFilters({
   primaryPrompt?: string | null;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2.5 shadow-sm">
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface px-3.5 py-2.5 shadow-sm">
       <label className="flex items-center gap-2 text-xs text-text-muted">
         Prompt
         <select className="rounded-md border border-border bg-surface px-2 py-1.5 text-xs font-medium text-text">
@@ -430,7 +430,7 @@ export function AiPanel({
   return (
     <div className={cn(dashboardCard, "overflow-hidden", className)}>
       {(title || action) && (
-        <div className="flex items-start justify-between gap-2 border-b border-zinc-100 px-3 py-1.5">
+        <div className="flex items-start justify-between gap-2 border-b border-zinc-100 px-3.5 py-2.5">
           <div>
             {title && <h3 className={dashboardCardTitle}>{title}</h3>}
             {subtitle && <p className={cn("mt-0.5", dashboardMicro)}>{subtitle}</p>}
@@ -438,7 +438,7 @@ export function AiPanel({
           {action}
         </div>
       )}
-      <div className={cn("p-2.5", bodyClassName)}>{children}</div>
+      <div className={cn("p-3.5", bodyClassName)}>{children}</div>
     </div>
   );
 }
@@ -549,7 +549,7 @@ export function TintedKpiCard({
     amber: "text-amber-600",
   };
   return (
-    <div className={cn("flex h-full flex-col rounded-lg border px-2.5 py-1 shadow-sm", tints[tint])}>
+    <div className={cn("flex h-full flex-col rounded-lg border px-3.5 py-3 shadow-sm", tints[tint])}>
       <div className="flex items-start justify-between gap-1.5">
         <div>
           <p className={kpiLabelClass}>{label}</p>

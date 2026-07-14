@@ -66,7 +66,7 @@ export function OverviewCoreScores({
           const meta = CORE_SCORE_ICONS[score.label];
           const Icon = meta?.icon;
           const card = (
-            <div className={cn(cardClass, "p-3")}>
+            <div className={cn(cardClass, "p-3.5")}>
               <div className="flex items-center gap-2">
                 {Icon && meta && (
                   <span
@@ -127,7 +127,7 @@ export function OverviewAuditSnapshot({
           const Icon = meta.icon;
           const num = item.value ?? 0;
           return (
-            <div key={item.label} className={cn(cardClass, "p-3")}>
+            <div key={item.label} className={cn(cardClass, "p-3.5")}>
               <div className="flex items-center gap-2">
                 <span
                   className={cn(

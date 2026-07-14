@@ -303,7 +303,7 @@ function PaceStat({
   return (
     <div
       className={cn(
-        "rounded-lg border px-2 py-1.5",
+        "rounded-lg border px-3.5 py-2",
         highlight && "border-emerald-100 bg-emerald-50/60",
         difference && "border-sky-100 bg-sky-50/60",
         !highlight && !difference && "border-zinc-100 bg-zinc-50/80"
@@ -453,7 +453,7 @@ export function RecencyAndStreakPanel({
             return (
               <li
                 key={e.name}
-                className="flex items-center justify-between rounded-md bg-zinc-50/80 px-2.5 py-1.5 text-[12px]"
+                className="flex items-center justify-between rounded-md bg-zinc-50/80 px-3.5 py-2 text-[12px]"
               >
                 <span className="font-medium text-zinc-800">
                   {e.entity_type === "target" ? "You" : e.name.slice(0, 28)}
