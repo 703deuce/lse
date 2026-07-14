@@ -9,7 +9,6 @@ const PUBLIC_PREFIXES = [
   "/r/",
   "/reports/share/",
   "/api/webhooks/",
-  "/dev/",
 ];
 
 function isPublicPath(pathname: string): boolean {
@@ -27,6 +26,11 @@ function isProtectedPath(pathname: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Dev preview routes are never public in production.
+  if (pathname.startsWith("/dev/") && process.env.NODE_ENV === "production") {
+    return new NextResponse(null, { status: 404 });
+  }
 
   if (isPublicPath(pathname) || pathname.startsWith("/api/")) {
     return NextResponse.next();
