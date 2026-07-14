@@ -39,6 +39,7 @@ import {
   isEnrichmentRunning,
   isScanMapReady,
   scanProgressMessage,
+  shouldPollForMapReveal,
   shouldPollScan,
 } from "@/lib/scans/status";
 import { RankByDistanceCard } from "@/components/maps/rank-by-distance-card";
@@ -285,13 +286,14 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
             unknown
           > | null,
         };
-        // Also keep polling when the soft-ready map is up but some bubbles are still
-        // missing results (retries land in scan_results without always bumping status).
-        const missingResults =
-          (json.points?.length ?? 0) > 0 &&
-          (json.results?.length ?? 0) < (json.points?.length ?? 0) &&
-          hasTrailingCellsSettling({ status, ...batchPoll });
-        if (shouldPollScan(status, batchPoll) || missingResults) {
+        const pointsLen = json.points?.length ?? 0;
+        const resultsLen = json.results?.length ?? 0;
+        // Critical: rank_ready alone used to stop the poller while results were still
+        // catching up — UI stayed on "Scan running" forever after the batch finished.
+        if (
+          shouldPollScan(status, batchPoll) ||
+          shouldPollForMapReveal(status, resultsLen, pointsLen)
+        ) {
           const cellsInFlight = areCellsInFlight(status);
           scheduleNext(cellsInFlight ? 1500 : 2000);
         }
@@ -463,7 +465,9 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
     !!batch &&
     batchStatus !== "failed" &&
     !mapReady &&
-    (scanActive || (totalGridCells > 0 && loadedCells < totalGridCells));
+    (scanActive ||
+      areCellsInFlight(batchStatus) ||
+      (totalGridCells > 0 && loadedCells < totalGridCells));
 
   const progressMessage = scanProgressMessage({
     status: batchStatus,
