@@ -5,7 +5,7 @@ import { listStaleInFlightScanIds, scanLeaseTtlMs } from "@/lib/jobs/scan-lease"
 import { gridMapCredits, releaseUsage } from "@/lib/plans";
 
 const PRE_PROVIDER_FAIL =
-  /No keywords|No matching keywords|Scan center is missing|Business not found|Failed to create scan points/i;
+  /No keywords|No matching keywords|Scan center is missing|Business not found|Failed to create scan points|No grid points left after exclusions/i;
 
 async function maybeReleasePreProviderCredits(
   scanBatchId: string,

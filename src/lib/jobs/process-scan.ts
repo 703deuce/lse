@@ -66,6 +66,7 @@ export async function processScanBatch(scanBatchId: string, organizationId?: str
 
     const confidence = (batch.confidence_summary ?? {}) as {
       keyword_ids?: string[];
+      excluded_labels?: string[];
     };
     if (confidence.keyword_ids?.length) {
       const allowed = new Set(confidence.keyword_ids);
@@ -131,12 +132,18 @@ export async function processScanBatch(scanBatchId: string, organizationId?: str
     }
 
     if (!insertedPoints) {
+      const excluded = new Set(
+        (confidence.excluded_labels ?? []).map((l) => String(l).trim().toUpperCase())
+      );
+
       const grid = generateGrid({
         centerLat,
         centerLng,
         gridSize: batch.grid_size as number,
         radiusMeters: batch.radius_meters as number,
-      });
+      }).filter((p) => !excluded.has(p.label.toUpperCase()));
+
+      if (!grid.length) throw new Error("No grid points left after exclusions");
 
       await supabase.from("scan_points").delete().eq("scan_batch_id", scanBatchId);
       invalidateScanGridCache(scanBatchId);
