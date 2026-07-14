@@ -181,7 +181,7 @@ export function OverviewMomentumCard({
           </div>
 
           {alertMessage && (
-            <div className="mt-3 flex items-start gap-2 rounded-lg border border-emerald-100 bg-emerald-50/80 px-3 py-2">
+            <div className="mt-3 flex items-start gap-2 rounded-lg border border-emerald-100 bg-emerald-50/80 px-3.5 py-2">
               <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
               <p className="text-xs text-emerald-900">{alertMessage}</p>
             </div>

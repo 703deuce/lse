@@ -279,14 +279,14 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
       {error && <AlertBanner variant="error">{error}</AlertBanner>}
 
       {run?.progress_stage && isRunning && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-900">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2 text-[13px] text-amber-900">
           <Loader2 className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />
           {run.progress_stage}…
         </div>
       )}
 
       {rescanSummary && run?.scan_type === "rescan" && !isRunning && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] text-emerald-900">
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-[13px] text-emerald-900">
           <p className="font-semibold">Scan summary — {run.city}, {run.state}</p>
           <p className="mt-0.5 text-[11px]">
             {Number(rescanSummary.candidatesFound ?? 0)} candidates found ·{" "}
@@ -419,16 +419,16 @@ function TrustRejectedTab({ items }: { items: Array<Record<string, unknown>> }) 
         <table className="min-w-full text-[12px]">
           <thead className="bg-zinc-50 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
             <tr>
-              <th className="px-3 py-2">Candidate</th>
-              <th className="px-3 py-2">Stage</th>
-              <th className="px-3 py-2">Why rejected</th>
-              <th className="px-3 py-2">Scores</th>
+              <th className="px-3.5 py-2">Candidate</th>
+              <th className="px-3.5 py-2">Stage</th>
+              <th className="px-3.5 py-2">Why rejected</th>
+              <th className="px-3.5 py-2">Scores</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {items.map((item) => (
               <tr key={String(item.url)} className="align-top hover:bg-zinc-50/80">
-                <td className="px-3 py-2">
+                <td className="px-3.5 py-2">
                   <a
                     href={String(item.url)}
                     target="_blank"
@@ -439,9 +439,9 @@ function TrustRejectedTab({ items }: { items: Array<Record<string, unknown>> }) 
                   </a>
                   <p className="mt-0.5 text-[11px] text-zinc-400">{String(item.domain ?? "")}</p>
                 </td>
-                <td className="px-3 py-2 text-[11px] text-zinc-500">{stageLabel(String(item.stage ?? ""))}</td>
-                <td className="max-w-md px-3 py-2 text-[11px] leading-snug text-zinc-700">{String(item.reason ?? "—")}</td>
-                <td className="px-3 py-2 text-[11px] tabular-nums text-zinc-500">
+                <td className="px-3.5 py-2 text-[11px] text-zinc-500">{stageLabel(String(item.stage ?? ""))}</td>
+                <td className="max-w-md px-3.5 py-2 text-[11px] leading-snug text-zinc-700">{String(item.reason ?? "—")}</td>
+                <td className="px-3.5 py-2 text-[11px] tabular-nums text-zinc-500">
                   {item.confidence != null || item.localRelevance != null
                     ? `Conf ${item.confidence ?? "—"} · Local ${item.localRelevance ?? "—"}`
                     : "—"}

@@ -232,7 +232,7 @@ export function CellInspectorDrawer({
             type="button"
             onClick={() => setTab(t.id)}
             className={cn(
-              "-mb-px border-b-2 px-3 py-2.5 text-[13px] font-medium transition-colors",
+              "-mb-px border-b-2 px-3.5 py-2.5 text-[13px] font-medium transition-colors",
               tab === t.id
                 ? "border-[#137752] text-[#137752]"
                 : "border-transparent text-zinc-500 hover:text-zinc-800"
@@ -301,7 +301,7 @@ export function CellInspectorDrawer({
             <section>
               <h3 className="text-[13px] font-semibold text-zinc-900">Top results at this point</h3>
               {data.sparseResults && (
-                <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
+                <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3.5 py-2 text-[12px] text-amber-900">
                   {data.sparseReason ??
                     "Maps returned too few listings for this point. Rerun the scan to retry this cell."}
                 </p>
@@ -314,12 +314,12 @@ export function CellInspectorDrawer({
                     <table className="min-w-full text-left text-xs">
                       <thead className="bg-zinc-50 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                         <tr>
-                          <th className="w-8 px-2 py-2">#</th>
-                          <th className="px-2 py-2">Business</th>
-                          <th className="px-2 py-2">Rating</th>
-                          <th className="hidden px-2 py-2 sm:table-cell">Category</th>
-                          <th className="hidden px-2 py-2 md:table-cell">Phone</th>
-                          <th className="px-2 py-2 text-right">Website</th>
+                          <th className="w-8 px-3.5 py-2">#</th>
+                          <th className="px-3.5 py-2">Business</th>
+                          <th className="px-3.5 py-2">Rating</th>
+                          <th className="hidden px-3.5 py-2 sm:table-cell">Category</th>
+                          <th className="hidden px-3.5 py-2 md:table-cell">Phone</th>
+                          <th className="px-3.5 py-2 text-right">Website</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-100">
@@ -334,10 +334,10 @@ export function CellInspectorDrawer({
                               key={`${r.place_id ?? r.cid ?? r.name ?? i}`}
                               className={cn(isTarget && "border-l-2 border-[#137752] bg-emerald-50/40")}
                             >
-                              <td className="px-2 py-2.5 align-top font-semibold tabular-nums text-zinc-600">
+                              <td className="px-3.5 py-2.5 align-top font-semibold tabular-nums text-zinc-600">
                                 {r.rank ?? i + 1}
                               </td>
-                              <td className="max-w-[140px] px-2 py-2.5 align-top">
+                              <td className="max-w-[140px] px-3.5 py-2.5 align-top">
                                 <p className="text-[13px] font-semibold text-zinc-900">{r.name ?? "—"}</p>
                                 {r.address && (
                                   <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-zinc-500">
@@ -345,13 +345,13 @@ export function CellInspectorDrawer({
                                   </p>
                                 )}
                               </td>
-                              <td className="whitespace-nowrap px-2 py-2.5 align-top">
+                              <td className="whitespace-nowrap px-3.5 py-2.5 align-top">
                                 <GridStarRating rating={r.rating} reviewCount={r.review_count} />
                               </td>
-                              <td className="hidden max-w-[100px] px-2 py-2.5 align-top text-[11px] text-zinc-600 sm:table-cell">
+                              <td className="hidden max-w-[100px] px-3.5 py-2.5 align-top text-[11px] text-zinc-600 sm:table-cell">
                                 {r.category ?? "—"}
                               </td>
-                              <td className="hidden whitespace-nowrap px-2 py-2.5 align-top text-[11px] text-zinc-600 md:table-cell">
+                              <td className="hidden whitespace-nowrap px-3.5 py-2.5 align-top text-[11px] text-zinc-600 md:table-cell">
                                 {r.phone ? (
                                   <a href={`tel:${r.phone}`} className="hover:text-[#137752]">
                                     {r.phone}
@@ -360,7 +360,7 @@ export function CellInspectorDrawer({
                                   "—"
                                 )}
                               </td>
-                              <td className="px-2 py-2.5 align-top text-right">
+                              <td className="px-3.5 py-2.5 align-top text-right">
                                 {r.url ? (
                                   <a
                                     href={r.url}

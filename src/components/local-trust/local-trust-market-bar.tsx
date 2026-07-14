@@ -51,7 +51,7 @@ export function LocalTrustMarketBar({
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200/70 bg-white px-3 py-2.5 shadow-sm">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200/70 bg-white px-3.5 py-2.5 shadow-sm">
         <div className="flex items-center gap-1.5 text-[13px] font-medium text-zinc-700">
           <MapPin className="h-3.5 w-3.5 text-emerald-600" />
           Market
@@ -72,7 +72,7 @@ export function LocalTrustMarketBar({
             <div className="absolute left-0 z-20 mt-1 min-w-[240px] rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
               <button
                 type="button"
-                className="block w-full px-3 py-2 text-left text-sm hover:bg-zinc-50"
+                className="block w-full px-3.5 py-2 text-left text-sm hover:bg-zinc-50"
                 onClick={() => {
                   onSelect("all");
                   setOpen(false);
@@ -84,7 +84,7 @@ export function LocalTrustMarketBar({
                 <button
                   key={`${m.city}-${m.state}`}
                   type="button"
-                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-zinc-50"
+                  className="flex w-full items-center justify-between gap-3 px-3.5 py-2 text-left text-sm hover:bg-zinc-50"
                   onClick={() => {
                     onSelect({ city: m.city, state: m.state });
                     setOpen(false);
@@ -97,7 +97,7 @@ export function LocalTrustMarketBar({
                 </button>
               ))}
               {!markets.length && (
-                <p className="px-3 py-2 text-xs text-zinc-400">No markets scanned yet</p>
+                <p className="px-3.5 py-2 text-xs text-zinc-400">No markets scanned yet</p>
               )}
             </div>
           )}
@@ -115,7 +115,7 @@ export function LocalTrustMarketBar({
       </div>
 
       {suggestions.length > 0 && selected !== "all" && (
-        <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50/80 px-3 py-2 text-[12px] text-zinc-600">
+        <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50/80 px-3.5 py-2 text-[12px] text-zinc-600">
           Want more opportunities? Search nearby service areas like{" "}
           {suggestions.map((s, i) => (
             <span key={`${s.city}-${s.state}`}>
@@ -176,13 +176,13 @@ export function LocalTrustMarketBar({
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="rounded-md border border-zinc-200 px-3 py-1.5 text-[12px] font-medium text-zinc-700"
+                  className="rounded-md border border-zinc-200 px-3.5 py-2 text-[12px] font-medium text-zinc-700"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="rounded-md bg-emerald-600 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-emerald-700"
+                  className="rounded-md bg-emerald-600 px-3.5 py-2 text-[12px] font-semibold text-white hover:bg-emerald-700"
                 >
                   Start Scan
                 </button>

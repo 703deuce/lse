@@ -116,19 +116,19 @@ function IgnoredTable({
       <table className="min-w-full text-[13px]">
         <thead className="bg-zinc-50 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
           <tr>
-            <th className="px-3 py-2.5">
+            <th className="px-3.5 py-2.5">
               <input type="checkbox" className="rounded border-border" aria-label="Select all" />
             </th>
-            <th className="px-3 py-2.5">Domain</th>
-            <th className="px-3 py-2.5">Power</th>
-            <th className="px-3 py-2.5">Link type</th>
-            <th className="px-3 py-2.5">Relevance</th>
-            <th className="px-3 py-2.5">Source type</th>
-            <th className="px-3 py-2.5">Reason flagged</th>
-            <th className="px-3 py-2.5">Competitors</th>
-            <th className="px-3 py-2.5">Action status</th>
-            <th className="px-3 py-2.5">Confidence</th>
-            <th className="px-3 py-2.5">
+            <th className="px-3.5 py-2.5">Domain</th>
+            <th className="px-3.5 py-2.5">Power</th>
+            <th className="px-3.5 py-2.5">Link type</th>
+            <th className="px-3.5 py-2.5">Relevance</th>
+            <th className="px-3.5 py-2.5">Source type</th>
+            <th className="px-3.5 py-2.5">Reason flagged</th>
+            <th className="px-3.5 py-2.5">Competitors</th>
+            <th className="px-3.5 py-2.5">Action status</th>
+            <th className="px-3.5 py-2.5">Confidence</th>
+            <th className="px-3.5 py-2.5">
               <Settings className="h-3.5 w-3.5 text-text-muted" aria-label="Column settings" />
             </th>
           </tr>
@@ -140,10 +140,10 @@ function IgnoredTable({
               className="cursor-pointer hover:bg-surface-subtle/80"
               onClick={() => onSelect(o)}
             >
-              <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+              <td className="px-3.5 py-2.5" onClick={(e) => e.stopPropagation()}>
                 <input type="checkbox" className="rounded border-border" aria-label={`Select ${o.referring_domain}`} />
               </td>
-              <td className="px-3 py-2.5">
+              <td className="px-3.5 py-2.5">
                 <a
                   href={`https://${o.referring_domain}`}
                   target="_blank"
@@ -155,19 +155,19 @@ function IgnoredTable({
                   <ExternalLink className="h-3 w-3" />
                 </a>
               </td>
-              <td className="px-3 py-2.5">{powerSegmentBar(o.powerScore)}</td>
-              <td className="px-3 py-2.5">{linkBadge(o.linkPassing)}</td>
-              <td className="px-3 py-2.5">{topicalBadge(o.topicalFit)}</td>
-              <td className="px-3 py-2.5 text-xs text-text-muted">{o.source_type}</td>
-              <td className="max-w-[180px] truncate px-3 py-2.5 text-xs text-text-muted">
+              <td className="px-3.5 py-2.5">{powerSegmentBar(o.powerScore)}</td>
+              <td className="px-3.5 py-2.5">{linkBadge(o.linkPassing)}</td>
+              <td className="px-3.5 py-2.5">{topicalBadge(o.topicalFit)}</td>
+              <td className="px-3.5 py-2.5 text-xs text-text-muted">{o.source_type}</td>
+              <td className="max-w-[180px] truncate px-3.5 py-2.5 text-xs text-text-muted">
                 {o.reason ?? "Spam signals detected"}
               </td>
-              <td className="px-3 py-2.5">
+              <td className="px-3.5 py-2.5">
                 {competitorAvatars(o.linked_competitors ?? [], totalCompetitors)}
               </td>
-              <td className="px-3 py-2.5">{actionStatusBadge(o.status, o.priority)}</td>
-              <td className="px-3 py-2.5">{confidenceBadge(o.priority)}</td>
-              <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+              <td className="px-3.5 py-2.5">{actionStatusBadge(o.status, o.priority)}</td>
+              <td className="px-3.5 py-2.5">{confidenceBadge(o.priority)}</td>
+              <td className="px-3.5 py-2.5" onClick={(e) => e.stopPropagation()}>
                 <button type="button" className="rounded p-1 hover:bg-surface-subtle" aria-label="More actions">
                   <MoreHorizontal className="h-4 w-4 text-text-muted" />
                 </button>
@@ -198,15 +198,15 @@ function OpportunityTable({
       <table className="min-w-full text-[13px]">
         <thead className="bg-zinc-50 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
           <tr>
-            <th className="px-3 py-2.5">Domain</th>
-            <th className="px-3 py-2.5">Power</th>
-            <th className="px-3 py-2.5">Link type</th>
-            <th className="px-3 py-2.5">Relevance</th>
-            <th className="px-3 py-2.5">Source type</th>
-            <th className="px-3 py-2.5">Anchor</th>
-            <th className="px-3 py-2.5">Page title</th>
-            <th className="px-3 py-2.5 text-center">Competitors</th>
-            <th className="px-3 py-2.5">Priority</th>
+            <th className="px-3.5 py-2.5">Domain</th>
+            <th className="px-3.5 py-2.5">Power</th>
+            <th className="px-3.5 py-2.5">Link type</th>
+            <th className="px-3.5 py-2.5">Relevance</th>
+            <th className="px-3.5 py-2.5">Source type</th>
+            <th className="px-3.5 py-2.5">Anchor</th>
+            <th className="px-3.5 py-2.5">Page title</th>
+            <th className="px-3.5 py-2.5 text-center">Competitors</th>
+            <th className="px-3.5 py-2.5">Priority</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-100">
@@ -216,21 +216,21 @@ function OpportunityTable({
               className="cursor-pointer hover:bg-surface-subtle/80"
               onClick={() => onSelect(o)}
             >
-              <td className="px-3 py-2.5 font-medium text-emerald-700">{o.referring_domain}</td>
-              <td className="px-3 py-2.5">{powerBar(o.powerScore)}</td>
-              <td className="px-3 py-2.5">{linkBadge(o.linkPassing)}</td>
-              <td className="px-3 py-2.5">{topicalBadge(o.topicalFit)}</td>
-              <td className="px-3 py-2.5 text-xs text-text-muted">{o.source_type}</td>
-              <td className="max-w-[140px] truncate px-3 py-2.5 text-xs italic text-text-muted">
+              <td className="px-3.5 py-2.5 font-medium text-emerald-700">{o.referring_domain}</td>
+              <td className="px-3.5 py-2.5">{powerBar(o.powerScore)}</td>
+              <td className="px-3.5 py-2.5">{linkBadge(o.linkPassing)}</td>
+              <td className="px-3.5 py-2.5">{topicalBadge(o.topicalFit)}</td>
+              <td className="px-3.5 py-2.5 text-xs text-text-muted">{o.source_type}</td>
+              <td className="max-w-[140px] truncate px-3.5 py-2.5 text-xs italic text-text-muted">
                 {o.anchor_text ? `"${o.anchor_text}"` : "—"}
               </td>
-              <td className="max-w-[160px] truncate px-3 py-2.5 text-xs text-text-muted">
+              <td className="max-w-[160px] truncate px-3.5 py-2.5 text-xs text-text-muted">
                 {o.source_title ?? "—"}
               </td>
-              <td className="px-3 py-2.5 text-center text-xs font-medium">
+              <td className="px-3.5 py-2.5 text-center text-xs font-medium">
                 {o.competitor_count}/{totalCompetitors}
               </td>
-              <td className="px-3 py-2.5">{priorityBadge(o.priority)}</td>
+              <td className="px-3.5 py-2.5">{priorityBadge(o.priority)}</td>
             </tr>
           ))}
         </tbody>

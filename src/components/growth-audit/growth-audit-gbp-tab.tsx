@@ -114,23 +114,23 @@ export function GrowthAuditGbpTab({
             <table className="w-full text-[12px]">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50/80 text-left text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                  <th className="px-3 py-2">Check</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">GBP</th>
-                  <th className="px-3 py-2">Website</th>
-                  <th className="px-3 py-2">Bucket</th>
+                  <th className="px-3.5 py-2">Check</th>
+                  <th className="px-3.5 py-2">Status</th>
+                  <th className="px-3.5 py-2">GBP</th>
+                  <th className="px-3.5 py-2">Website</th>
+                  <th className="px-3.5 py-2">Bucket</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 {gbp.checks.map((c) => (
                   <tr key={c.id} className="hover:bg-zinc-50/50">
-                    <td className="px-3 py-2 font-medium text-zinc-900">{c.label}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-3.5 py-2 font-medium text-zinc-900">{c.label}</td>
+                    <td className="px-3.5 py-2">
                       <MatchStatusBadge status={c.status} />
                     </td>
-                    <td className="max-w-[140px] truncate px-3 py-2 text-zinc-600">{c.gbpValue ?? "—"}</td>
-                    <td className="max-w-[140px] truncate px-3 py-2 text-zinc-600">{c.websiteValue ?? "—"}</td>
-                    <td className="px-3 py-2">
+                    <td className="max-w-[140px] truncate px-3.5 py-2 text-zinc-600">{c.gbpValue ?? "—"}</td>
+                    <td className="max-w-[140px] truncate px-3.5 py-2 text-zinc-600">{c.websiteValue ?? "—"}</td>
+                    <td className="px-3.5 py-2">
                       <span className="text-[11px] font-medium text-zinc-500">{bucketLabel(c.bucket)}</span>
                     </td>
                   </tr>
@@ -252,27 +252,27 @@ export function GrowthAuditGbpTab({
                 <table className="w-full text-left text-[12px]">
                   <thead className="sticky top-0 bg-zinc-50 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                     <tr>
-                      <th className="px-3 py-2">Category</th>
-                      <th className="px-3 py-2">Your GBP</th>
-                      <th className="px-3 py-2">Top 3</th>
-                      <th className="px-3 py-2">Top 20</th>
-                      <th className="px-3 py-2">Confidence</th>
-                      <th className="px-3 py-2">Recommendation</th>
+                      <th className="px-3.5 py-2">Category</th>
+                      <th className="px-3.5 py-2">Your GBP</th>
+                      <th className="px-3.5 py-2">Top 3</th>
+                      <th className="px-3.5 py-2">Top 20</th>
+                      <th className="px-3.5 py-2">Confidence</th>
+                      <th className="px-3.5 py-2">Recommendation</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
                     {alignment.patterns.slice(0, 12).map((row) => (
                       <tr key={row.category} className="hover:bg-zinc-50/50">
-                        <td className="px-3 py-2 font-medium text-zinc-900">{row.category}</td>
-                        <td className="px-3 py-2">{row.onYourGbp ? "Yes" : "No"}</td>
-                        <td className="px-3 py-2 tabular-nums">
+                        <td className="px-3.5 py-2 font-medium text-zinc-900">{row.category}</td>
+                        <td className="px-3.5 py-2">{row.onYourGbp ? "Yes" : "No"}</td>
+                        <td className="px-3.5 py-2 tabular-nums">
                           {row.top3Count}/3
                         </td>
-                        <td className="px-3 py-2 tabular-nums">
+                        <td className="px-3.5 py-2 tabular-nums">
                           {row.top20Count}/{row.totalCompetitors}
                         </td>
-                        <td className="px-3 py-2">{confidenceBadge(row.confidence)}</td>
-                        <td className="px-3 py-2 text-[11px] text-zinc-600">
+                        <td className="px-3.5 py-2">{confidenceBadge(row.confidence)}</td>
+                        <td className="px-3.5 py-2 text-[11px] text-zinc-600">
                           {recommendationLabel(row.recommendation)}
                         </td>
                       </tr>

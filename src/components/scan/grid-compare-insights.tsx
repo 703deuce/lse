@@ -35,7 +35,7 @@ export function GridCompareInsights({
 
   return (
     <div className="space-y-2.5">
-      <div className={cn(compareCardClass, "p-3")}>
+      <div className={cn(compareCardClass, "p-3.5")}>
         <h3 className={dashboardCardTitle}>Insights</h3>
         <div className="mt-2.5 space-y-2.5">
           <div>
@@ -135,7 +135,7 @@ export function GridCompareInsights({
         </div>
       </div>
 
-      <div className={cn(compareCardClass, "p-3")}>
+      <div className={cn(compareCardClass, "p-3.5")}>
         <div className="flex items-center gap-2">
           <StickyNote className="h-3.5 w-3.5 text-zinc-400" />
           <h3 className={dashboardCardTitle}>Scan notes</h3>

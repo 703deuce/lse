@@ -107,58 +107,58 @@ export function ReviewRequestsCampaignsTable({ businessId }: { businessId: strin
         <table className="min-w-full text-[12px]">
           <thead className="bg-zinc-50 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
             <tr>
-              <th className="px-3 py-2">Campaign</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2">Channel</th>
-              <th className="px-3 py-2 text-right">Recipients</th>
-              <th className="px-3 py-2 text-right">Queued</th>
-              <th className="px-3 py-2 text-right">Sent</th>
-              <th className="px-3 py-2 text-right">Failed</th>
-              <th className="px-3 py-2 text-right">Clicked</th>
-              <th className="px-3 py-2">Created</th>
-              <th className="px-3 py-2">Actions</th>
+              <th className="px-3.5 py-2">Campaign</th>
+              <th className="px-3.5 py-2">Status</th>
+              <th className="px-3.5 py-2">Channel</th>
+              <th className="px-3.5 py-2 text-right">Recipients</th>
+              <th className="px-3.5 py-2 text-right">Queued</th>
+              <th className="px-3.5 py-2 text-right">Sent</th>
+              <th className="px-3.5 py-2 text-right">Failed</th>
+              <th className="px-3.5 py-2 text-right">Clicked</th>
+              <th className="px-3.5 py-2">Created</th>
+              <th className="px-3.5 py-2">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {campaigns.map((c) => (
               <tr key={c.id} className="hover:bg-zinc-50/80">
-                <td className="px-3 py-2 font-medium text-zinc-900">{c.name}</td>
-                <td className="px-3 py-2">{statusBadge(c.status)}</td>
-                <td className="px-3 py-2 capitalize text-zinc-600">{c.channel}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{c.recipients_ready}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{c.queued}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-emerald-700">{c.sent}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-red-600">{c.failed}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{c.clicked}</td>
-                <td className="px-3 py-2 text-[11px] text-zinc-500">
+                <td className="px-3.5 py-2 font-medium text-zinc-900">{c.name}</td>
+                <td className="px-3.5 py-2">{statusBadge(c.status)}</td>
+                <td className="px-3.5 py-2 capitalize text-zinc-600">{c.channel}</td>
+                <td className="px-3.5 py-2 text-right tabular-nums">{c.recipients_ready}</td>
+                <td className="px-3.5 py-2 text-right tabular-nums">{c.queued}</td>
+                <td className="px-3.5 py-2 text-right tabular-nums text-emerald-700">{c.sent}</td>
+                <td className="px-3.5 py-2 text-right tabular-nums text-red-600">{c.failed}</td>
+                <td className="px-3.5 py-2 text-right tabular-nums">{c.clicked}</td>
+                <td className="px-3.5 py-2 text-[11px] text-zinc-500">
                   {new Date(c.created_at).toLocaleDateString()}
                 </td>
-                <td className="relative px-3 py-2">
+                <td className="relative px-3.5 py-2">
                   <button type="button" className={rrOutlineBtn} onClick={() => setMenuId(menuId === c.id ? null : c.id)}>
                     <MoreHorizontal className="h-4 w-4" />
                   </button>
                   {menuId === c.id && (
                     <div className="absolute right-3 z-10 mt-1 w-36 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
                       {c.status === "active" && (
-                        <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-zinc-50" onClick={() => void action(c.id, "pause")}>
+                        <button type="button" className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs hover:bg-zinc-50" onClick={() => void action(c.id, "pause")}>
                           <Pause className="h-3 w-3" /> Pause
                         </button>
                       )}
                       {c.status === "paused" && (
-                        <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-zinc-50" onClick={() => void action(c.id, "resume")}>
+                        <button type="button" className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs hover:bg-zinc-50" onClick={() => void action(c.id, "resume")}>
                           <Play className="h-3 w-3" /> Resume
                         </button>
                       )}
                       {c.status === "draft" && (
-                        <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-zinc-50" onClick={() => void action(c.id, "start")}>
+                        <button type="button" className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs hover:bg-zinc-50" onClick={() => void action(c.id, "start")}>
                           <Play className="h-3 w-3" /> Start
                         </button>
                       )}
-                      <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-zinc-50" onClick={() => void duplicate(c.id)}>
+                      <button type="button" className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs hover:bg-zinc-50" onClick={() => void duplicate(c.id)}>
                         Duplicate
                       </button>
                       {!["completed", "cancelled"].includes(c.status) && (
-                        <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-red-700 hover:bg-red-50" onClick={() => void action(c.id, "cancel")}>
+                        <button type="button" className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs text-red-700 hover:bg-red-50" onClick={() => void action(c.id, "cancel")}>
                           <X className="h-3 w-3" /> Cancel
                         </button>
                       )}

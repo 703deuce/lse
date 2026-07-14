@@ -81,7 +81,7 @@ export function SinglePointConfirmModal({
             <select
               value={keywordId}
               onChange={(e) => setKeywordId(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="mt-1 w-full rounded-lg border border-border px-3.5 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             >
               {keywords.map((k) => (
                 <option key={k.id} value={k.id}>
@@ -95,7 +95,7 @@ export function SinglePointConfirmModal({
             placeholder="Label (optional)"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="w-full rounded-lg border border-border px-3.5 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
           />
         </div>
         <div className="mt-4 flex justify-end gap-2">

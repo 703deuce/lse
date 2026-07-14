@@ -54,7 +54,7 @@ function MiniStars({ rating }: { rating: number | null }) {
 
 function ReviewSnippet({ review }: { review: DashboardLatestReview }) {
   return (
-    <div className="rounded-lg border border-zinc-100 bg-zinc-50/50 px-2.5 py-2">
+    <div className="rounded-lg border border-zinc-100 bg-zinc-50/50 px-3.5 py-2">
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">
           <MiniStars rating={review.rating} />

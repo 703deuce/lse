@@ -70,12 +70,12 @@ export function DashboardRecentScans({
             <thead>
               <tr className="border-b border-zinc-100 bg-zinc-50/60">
                 <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>Keyword</th>
-                <th className={cn(dashboardSectionLabel, "px-2.5 py-2 text-left")}>Date</th>
-                <th className={cn(dashboardSectionLabel, "px-2.5 py-2 text-left")}>Grid</th>
-                <th className={cn(dashboardSectionLabel, "px-2.5 py-2 text-left")}>ARP</th>
-                <th className={cn(dashboardSectionLabel, "px-2.5 py-2 text-left")}>SOLV / SAIV</th>
-                <th className={cn(dashboardSectionLabel, "px-2.5 py-2 text-left")}>Change</th>
-                <th className={cn(dashboardSectionLabel, "px-2.5 py-2 text-left")}>Heatmap</th>
+                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>Date</th>
+                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>Grid</th>
+                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>ARP</th>
+                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>SOLV / SAIV</th>
+                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>Change</th>
+                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>Heatmap</th>
                 <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-right")}>Action</th>
               </tr>
             </thead>
@@ -85,25 +85,25 @@ export function DashboardRecentScans({
                   <td className="px-3.5 py-2 text-[13px] font-medium text-zinc-900">
                     {scan.keyword ?? "Unknown keyword"}
                   </td>
-                  <td className="whitespace-nowrap px-2.5 py-2 text-[12px] tabular-nums text-zinc-500">
+                  <td className="whitespace-nowrap px-3.5 py-2 text-[12px] tabular-nums text-zinc-500">
                     {formatScanDate(scan.finishedAt)}
                   </td>
-                  <td className="px-2.5 py-2 text-[12px] tabular-nums text-zinc-500">
+                  <td className="px-3.5 py-2 text-[12px] tabular-nums text-zinc-500">
                     {scan.gridSize}×{scan.gridSize}
                   </td>
-                  <td className="px-2.5 py-2 text-[13px] font-semibold tabular-nums text-zinc-900">
+                  <td className="px-3.5 py-2 text-[13px] font-semibold tabular-nums text-zinc-900">
                     {scan.arp ?? "—"}
                   </td>
-                  <td className="px-2.5 py-2 text-[12px] tabular-nums text-zinc-600">
+                  <td className="px-3.5 py-2 text-[12px] tabular-nums text-zinc-600">
                     {scan.solv != null ? `${scan.solv}%` : "—"}
                     {scan.saiv != null && (
                       <span className="text-zinc-400"> / {scan.saiv}%</span>
                     )}
                   </td>
-                  <td className="px-2.5 py-2">
+                  <td className="px-3.5 py-2">
                     <ChangeCell value={scan.change} />
                   </td>
-                  <td className="px-2.5 py-2">
+                  <td className="px-3.5 py-2">
                     <ScanMiniHeatmap ranks={scan.ranks} gridSize={scan.gridSize} />
                   </td>
                   <td className="px-3.5 py-2 text-right">

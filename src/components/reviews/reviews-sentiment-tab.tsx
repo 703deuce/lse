@@ -246,7 +246,7 @@ export function ReviewsSentimentTab({ data }: { data: ReviewsPageData }) {
 
           <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {activeEntity.themes.map((theme) => (
-              <div key={theme.themeId} className="rounded-lg border border-zinc-100 bg-zinc-50/40 px-2.5 py-2">
+              <div key={theme.themeId} className="rounded-lg border border-zinc-100 bg-zinc-50/40 px-3.5 py-2">
                 <p className="text-[13px] font-medium text-zinc-900">{theme.label}</p>
                 <p className={`mt-0.5 ${dashboardMicro}`}>
                   {theme.reviewCount} reviews · {theme.pct}%
@@ -348,7 +348,7 @@ export function ReviewsSentimentTab({ data }: { data: ReviewsPageData }) {
           <h3 className={dashboardCardTitle}>Sentiment Snapshot</h3>
           <p className={`mt-0.5 ${dashboardMicro}`}>Secondary view — themes above are the primary signal.</p>
           <dl className="mt-2 space-y-1.5 text-[13px]">
-            <div className="flex justify-between rounded-lg bg-emerald-50/50 px-2.5 py-1.5">
+            <div className="flex justify-between rounded-lg bg-emerald-50/50 px-3.5 py-2">
               <dt className="font-medium text-zinc-900">You</dt>
               <dd className="text-emerald-700">{sentiment.yours.sentiment.positivePct}% positive</dd>
             </div>

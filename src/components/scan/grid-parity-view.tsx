@@ -39,7 +39,7 @@ export function GridParityView({ businessId }: { businessId: string }) {
 
       <ul className="space-y-2 text-sm">
         {PARITY_TEST_PROFILES.map((p) => (
-          <li key={p.id} className="rounded-lg border border-zinc-200/80 bg-white px-3 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <li key={p.id} className="rounded-lg border border-zinc-200/80 bg-white px-3.5 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
             <strong>{p.label}</strong> — {p.device} / {p.os} / {p.browser}
             {p.description ? <span className="ml-2 text-zinc-500">({p.description})</span> : null}
           </li>

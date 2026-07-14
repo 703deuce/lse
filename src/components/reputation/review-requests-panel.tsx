@@ -334,7 +334,7 @@ export function ReviewRequestsPanel({
               key={t.id}
               type="button"
               onClick={() => setInternalSection(t.id)}
-                className={`px-3 py-2 text-[13px] font-medium ${
+                className={`px-3.5 py-2 text-[13px] font-medium ${
                 section === t.id
                   ? "border-b-2 border-primary text-primary-muted"
                   : "text-text-muted hover:text-text"
@@ -364,13 +364,13 @@ export function ReviewRequestsPanel({
                     type="text"
                     value={shortSlug}
                     onChange={(e) => setShortSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                    className="min-w-0 flex-1 border-0 bg-white px-3 py-2 text-[13px] outline-none focus:ring-0"
+                    className="min-w-0 flex-1 border-0 bg-white px-3.5 py-2 text-[13px] outline-none focus:ring-0"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={() => void copyReviewLink()}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-600 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-600 px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
                 >
                   {copied === "link" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   Copy Link
@@ -462,7 +462,7 @@ export function ReviewRequestsPanel({
                     maxLength={50}
                     value={poster.title}
                     onChange={(e) => setPoster((p) => ({ ...p, title: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-[13px] outline-none focus:border-emerald-500"
+                    className="mt-1 w-full rounded-lg border border-zinc-200 px-3.5 py-2 text-[13px] outline-none focus:border-emerald-500"
                   />
                   <p className="mt-1 text-right text-[10px] text-zinc-400">
                     {poster.title.length} / 50
@@ -475,7 +475,7 @@ export function ReviewRequestsPanel({
                     maxLength={60}
                     value={poster.description}
                     onChange={(e) => setPoster((p) => ({ ...p, description: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-[13px] outline-none focus:border-emerald-500"
+                    className="mt-1 w-full rounded-lg border border-zinc-200 px-3.5 py-2 text-[13px] outline-none focus:border-emerald-500"
                   />
                   <p className="mt-1 text-right text-[10px] text-zinc-400">
                     {poster.description.length} / 60
@@ -731,7 +731,7 @@ function MessagesSection({
                 key={id}
                 type="button"
                 onClick={() => setTemplateChannel(id)}
-                className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium ${
+                className={`inline-flex items-center gap-1.5 rounded-md px-3.5 py-2 text-[13px] font-medium ${
                   templateChannel === id
                     ? "bg-emerald-600 text-white shadow-sm"
                     : "text-zinc-600 hover:bg-white"
@@ -746,7 +746,7 @@ function MessagesSection({
             type="button"
             onClick={() => void onGenerate()}
             disabled={generating}
-            className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-emerald-600 px-3 py-1.5 text-[13px] font-medium text-emerald-700 hover:bg-emerald-50"
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-emerald-600 px-3.5 py-2 text-[13px] font-medium text-emerald-700 hover:bg-emerald-50"
           >
             {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             AI Templates
@@ -777,7 +777,7 @@ function MessagesSection({
                   readOnly
                   rows={6}
                   value={active.body}
-                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 pr-10 text-[13px] leading-relaxed outline-none"
+                  className="w-full rounded-lg border border-zinc-200 px-3.5 py-2 pr-10 text-[13px] leading-relaxed outline-none"
                 />
                 <button
                   type="button"
@@ -827,7 +827,7 @@ function MessagesSection({
                   </button>
                 ))}
               </div>
-              <select className="mt-2 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs text-zinc-700">
+              <select className="mt-2 rounded-lg border border-zinc-200 px-3.5 py-2 text-xs text-zinc-700">
                 <option>English (US)</option>
               </select>
             </div>
@@ -873,16 +873,16 @@ function MessagesSection({
                 <Check className="h-4 w-4" />
                 Save Template
               </button>
-              <button type="button" className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
+              <button type="button" className="rounded-lg border border-zinc-200 px-3.5 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
                 Duplicate
               </button>
-              <button type="button" className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
+              <button type="button" className="rounded-lg border border-zinc-200 px-3.5 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
                 Reset to Default
               </button>
               <button
                 type="button"
                 onClick={() => void onCopy(copyBody, templateChannel)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3.5 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
               >
                 <Copy className="h-3.5 w-3.5" />
                 Copy Template
@@ -920,7 +920,7 @@ function MessagesSection({
             </div>
             <div className="min-h-[200px] px-3 py-4">
               <div className="flex justify-start">
-                <div className="max-w-[92%] rounded-2xl rounded-tl-md bg-white px-3 py-2.5 shadow-sm ring-1 ring-zinc-200/80">
+                <div className="max-w-[92%] rounded-2xl rounded-tl-md bg-white px-3.5 py-2.5 shadow-sm ring-1 ring-zinc-200/80">
                   <MessageWithLink
                     text={previewBody}
                     linkLabel={reviewLinkLabel}
@@ -1181,15 +1181,15 @@ function TrackingSection({
               <table className="min-w-full text-left text-[12px]">
                 <thead className="bg-zinc-50 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                   <tr>
-                    <th className="w-10 px-3 py-2">
+                    <th className="w-10 px-3.5 py-2">
                       <input type="checkbox" className="rounded border-zinc-300" aria-label="Select all" />
                     </th>
-                    <th className="px-3 py-2">Status</th>
-                    <th className="px-3 py-2">Recipient</th>
-                    <th className="px-3 py-2">Channel</th>
-                    <th className="px-3 py-2">Message Preview</th>
-                    <th className="px-3 py-2">Sent At</th>
-                    <th className="px-3 py-2" />
+                    <th className="px-3.5 py-2">Status</th>
+                    <th className="px-3.5 py-2">Recipient</th>
+                    <th className="px-3.5 py-2">Channel</th>
+                    <th className="px-3.5 py-2">Message Preview</th>
+                    <th className="px-3.5 py-2">Sent At</th>
+                    <th className="px-3.5 py-2" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
@@ -1202,13 +1202,13 @@ function TrackingSection({
                   ) : (
                     filteredSends.slice(0, 10).map((s) => (
                       <tr key={s.id} className="hover:bg-zinc-50">
-                        <td className="px-3 py-2">
+                        <td className="px-3.5 py-2">
                           <input type="checkbox" className="rounded border-zinc-300" aria-label="Select row" />
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3.5 py-2">
                           {statusPill(s.status, s.has_reply)}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3.5 py-2">
                           <p className="font-medium text-zinc-900">
                             {s.review_request_contacts?.customer_name ?? "—"}
                           </p>
@@ -1216,7 +1216,7 @@ function TrackingSection({
                             {s.recipient_email ?? s.recipient_phone ?? "—"}
                           </p>
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3.5 py-2">
                           <span className="inline-flex items-center gap-1 capitalize text-zinc-700">
                             {s.channel === "email" ? (
                               <Mail className="h-3.5 w-3.5 text-violet-500" />
@@ -1226,10 +1226,10 @@ function TrackingSection({
                             {s.channel}
                           </span>
                         </td>
-                        <td className="max-w-[180px] truncate px-3 py-2 text-zinc-500">
+                        <td className="max-w-[180px] truncate px-3.5 py-2 text-zinc-500">
                           {s.message_body?.slice(0, 50) ?? "—"}
                         </td>
-                        <td className="px-3 py-2 text-zinc-500">
+                        <td className="px-3.5 py-2 text-zinc-500">
                           {new Date(s.sent_at ?? s.created_at).toLocaleString("en-US", {
                             month: "short",
                             day: "numeric",
@@ -1238,7 +1238,7 @@ function TrackingSection({
                             minute: "2-digit",
                           })}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3.5 py-2">
                           <button type="button" className="rounded p-1 hover:bg-zinc-100" aria-label="More actions">
                             <MoreHorizontal className="h-4 w-4 text-zinc-400" />
                           </button>

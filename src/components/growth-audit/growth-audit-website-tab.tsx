@@ -127,13 +127,13 @@ export function GrowthAuditWebsiteTab({
           <table className="w-full text-[12px]">
             <thead>
               <tr className="border-b border-zinc-100 bg-zinc-50/80 text-left text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                <th className="px-3 py-2">Check</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">GBP</th>
-                <th className="px-3 py-2">Website</th>
-                <th className="px-3 py-2">Bucket</th>
-                <th className="px-3 py-2">Recommendation</th>
-                <th className="px-3 py-2" />
+                <th className="px-3.5 py-2">Check</th>
+                <th className="px-3.5 py-2">Status</th>
+                <th className="px-3.5 py-2">GBP</th>
+                <th className="px-3.5 py-2">Website</th>
+                <th className="px-3.5 py-2">Bucket</th>
+                <th className="px-3.5 py-2">Recommendation</th>
+                <th className="px-3.5 py-2" />
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -141,7 +141,7 @@ export function GrowthAuditWebsiteTab({
                 const Icon = checkIcon(c.label);
                 return (
                   <tr key={c.id} className="group hover:bg-zinc-50/50">
-                    <td className="px-3 py-2">
+                    <td className="px-3.5 py-2">
                       <div className="flex items-center gap-2">
                         <span className="flex h-7 w-7 items-center justify-center rounded-md bg-zinc-50 text-zinc-500">
                           <Icon className="h-3.5 w-3.5" />
@@ -149,18 +149,18 @@ export function GrowthAuditWebsiteTab({
                         <span className="font-medium text-zinc-900">{c.label}</span>
                       </div>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3.5 py-2">
                       <MatchStatusBadge status={c.status} />
                     </td>
-                    <td className="max-w-[120px] truncate px-3 py-2 text-zinc-600">{c.gbpValue ?? "—"}</td>
-                    <td className="max-w-[120px] truncate px-3 py-2 text-zinc-600">{c.websiteValue ?? "—"}</td>
-                    <td className="px-3 py-2">
+                    <td className="max-w-[120px] truncate px-3.5 py-2 text-zinc-600">{c.gbpValue ?? "—"}</td>
+                    <td className="max-w-[120px] truncate px-3.5 py-2 text-zinc-600">{c.websiteValue ?? "—"}</td>
+                    <td className="px-3.5 py-2">
                       <BucketBadge bucket={c.bucket} />
                     </td>
-                    <td className="max-w-[180px] px-3 py-2 text-[11px] text-zinc-500">
+                    <td className="max-w-[180px] px-3.5 py-2 text-[11px] text-zinc-500">
                       {c.whyItMatters ?? (c.status !== "match" ? "Align values across GBP and website." : "—")}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3.5 py-2">
                       <ChevronRight className="h-4 w-4 text-zinc-300 group-hover:text-zinc-500" />
                     </td>
                   </tr>
@@ -183,7 +183,7 @@ export function GrowthAuditWebsiteTab({
           <button
             type="button"
             onClick={onGoToActionPlan}
-            className="shrink-0 rounded-lg bg-emerald-700 px-3 py-2 text-[13px] font-semibold text-white hover:bg-emerald-800"
+            className="shrink-0 rounded-lg bg-emerald-700 px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-emerald-800"
           >
             Go to Action Plan →
           </button>

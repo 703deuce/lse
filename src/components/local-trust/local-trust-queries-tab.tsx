@@ -121,7 +121,7 @@ export function LocalTrustQueriesTab({
         <TrustSearchInput value="" onChange={() => {}} placeholder="Search queries..." />
         <button
           type="button"
-          className="mb-0.5 inline-flex items-center gap-1.5 self-end rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 shadow-sm hover:bg-zinc-50"
+          className="mb-0.5 inline-flex items-center gap-1.5 self-end rounded-md border border-zinc-200 bg-white px-3.5 py-2 text-[12px] font-medium text-zinc-700 shadow-sm hover:bg-zinc-50"
         >
           <Filter className="h-3.5 w-3.5" />
           Filters
@@ -170,12 +170,12 @@ export function LocalTrustQueriesTab({
             <table className="min-w-full text-[12px]">
               <thead>
                 <tr className="border-b border-zinc-100 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-                  <th className="px-2.5 py-2">Query</th>
-                  <th className="px-2.5 py-2">Intent / Category</th>
-                  <th className="px-2.5 py-2">Engine</th>
-                  <th className="px-2.5 py-2 text-right">Results</th>
-                  <th className="px-2.5 py-2">Date Run</th>
-                  <th className="px-2.5 py-2">Status</th>
+                  <th className="px-3.5 py-2">Query</th>
+                  <th className="px-3.5 py-2">Intent / Category</th>
+                  <th className="px-3.5 py-2">Engine</th>
+                  <th className="px-3.5 py-2 text-right">Results</th>
+                  <th className="px-3.5 py-2">Date Run</th>
+                  <th className="px-3.5 py-2">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -183,26 +183,26 @@ export function LocalTrustQueriesTab({
                   const cat = CLUSTER_META[classifyQuery(q)]?.title ?? "Local Directories";
                   return (
                     <tr key={q} className="hover:bg-zinc-50/80">
-                      <td className="max-w-xs px-2.5 py-2">
+                      <td className="max-w-xs px-3.5 py-2">
                         <span className="flex items-center gap-1.5">
                           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
                           <span className="truncate font-medium text-zinc-800">{q}</span>
                         </span>
                       </td>
-                      <td className="px-2.5 py-2 text-[11px] text-zinc-500">{cat}</td>
-                      <td className="px-2.5 py-2">
+                      <td className="px-3.5 py-2 text-[11px] text-zinc-500">{cat}</td>
+                      <td className="px-3.5 py-2">
                         <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-zinc-100 text-[9px] font-bold text-zinc-600">
                           G
                         </span>
                       </td>
-                      <td className="px-2.5 py-2 text-right tabular-nums text-zinc-600">
+                      <td className="px-3.5 py-2 text-right tabular-nums text-zinc-600">
                         {Math.max(1, Math.round(opportunitiesFound / Math.max(searchQueries.length, 1)))}
                       </td>
-                      <td className="px-2.5 py-2 text-[11px] text-zinc-500">
+                      <td className="px-3.5 py-2 text-[11px] text-zinc-500">
                         {lastRun.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}{" "}
                         {lastRunTime}
                       </td>
-                      <td className="px-2.5 py-2">
+                      <td className="px-3.5 py-2">
                         <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
                           Completed
                         </span>
@@ -256,7 +256,7 @@ export function LocalTrustQueriesTab({
               {suggestions.map((q, i) => (
                 <li
                   key={q}
-                  className="flex items-center justify-between gap-2 rounded-md border border-zinc-100 bg-zinc-50/50 px-2.5 py-2"
+                  className="flex items-center justify-between gap-2 rounded-md border border-zinc-100 bg-zinc-50/50 px-3.5 py-2"
                 >
                   <div className="flex min-w-0 items-center gap-1.5">
                     <Search className="h-3.5 w-3.5 shrink-0 text-zinc-400" />

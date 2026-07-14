@@ -52,7 +52,7 @@ export const REVIEWS_TABS = [
 export type ReviewsTabId = (typeof REVIEWS_TABS)[number]["id"];
 
 export function RvCard({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn(dashboardCard, "p-3", className)}>{children}</div>;
+  return <div className={cn(dashboardCard, "p-3.5", className)}>{children}</div>;
 }
 
 export function RvSectionTitle({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
@@ -416,7 +416,7 @@ export function SuggestedActionsSidebar({
   };
 
   return (
-    <RvCard className="sticky top-6 !p-3">
+    <RvCard className="sticky top-6">
       <div className="mb-2.5 flex items-center gap-2">
         <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
         <h3 className={dashboardCardTitle}>Suggested Actions</h3>
@@ -458,7 +458,7 @@ export function SuggestedActionsSidebar({
 export function SuggestedReplyTasksSidebar({ data, businessId }: { data: ReviewsPageData; businessId: string }) {
   const themes = data.sentiment.yours.themes.slice(0, 3);
   return (
-    <RvCard className="sticky top-6 !p-3">
+    <RvCard className="sticky top-6">
       <div className="mb-2.5 flex items-center gap-2">
         <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
         <h3 className={dashboardCardTitle}>Suggested Reply Tasks</h3>
@@ -609,20 +609,20 @@ export function ReviewsTable({
       <table className="w-full text-left text-[13px]">
         <thead>
           <tr className="border-b border-zinc-100">
-            {showBusiness ? <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5 font-semibold")}>Business</th> : <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Reviewer</th>}
-            <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Rating</th>
-            {!showUrgency && <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Date</th>}
-            <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>{showUrgency ? "Review (excerpt)" : "Review Text"}</th>
-            {!showBusiness && !showUrgency && <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Source</th>}
-            <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Keywords</th>
+            {showBusiness ? <th className={cn(dashboardSectionLabel, "px-3.5 py-2 font-semibold")}>Business</th> : <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>Reviewer</th>}
+            <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>Rating</th>
+            {!showUrgency && <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>Date</th>}
+            <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>{showUrgency ? "Review (excerpt)" : "Review Text"}</th>
+            {!showBusiness && !showUrgency && <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>Source</th>}
+            <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>Keywords</th>
             {showUrgency && (
               <>
-                <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Days Waiting</th>
-                <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>SLA / Urgency</th>
+                <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>Days Waiting</th>
+                <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>SLA / Urgency</th>
               </>
             )}
-            <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Status</th>
-            <th className={cn(dashboardSectionLabel, "pb-2")}>Action</th>
+            <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>Status</th>
+            <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>Action</th>
           </tr>
         </thead>
         <tbody>
@@ -632,7 +632,7 @@ export function ReviewsTable({
               className={cn("border-b border-zinc-50 hover:bg-zinc-50/60", onViewReview && "cursor-pointer")}
               onClick={() => onViewReview?.(row)}
             >
-              <td className="py-2 pr-2.5">
+              <td className="px-3.5 py-2">
                 {showBusiness ? (
                   <BusinessCell row={row} />
                 ) : (
@@ -645,11 +645,11 @@ export function ReviewsTable({
                   </div>
                 )}
               </td>
-              <td className="py-2 pr-2.5">
+              <td className="px-3.5 py-2">
                 <StarRating rating={row.rating} />
               </td>
               {!showUrgency && (
-                <td className="py-2 pr-2.5 whitespace-nowrap">
+                <td className="whitespace-nowrap px-3.5 py-2">
                   <p className="text-zinc-900">
                     {row.reviewDate
                       ? new Date(row.reviewDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
@@ -658,7 +658,7 @@ export function ReviewsTable({
                   {row.relativeDate && <p className="text-[11px] text-zinc-500">{row.relativeDate}</p>}
                 </td>
               )}
-              <td className="min-w-[200px] max-w-md py-2 pr-2.5">
+              <td className="min-w-[200px] max-w-md px-3.5 py-2">
                 {textDisplay === "full" ? (
                   <p className="whitespace-pre-wrap text-zinc-700">{row.reviewText?.trim() || "—"}</p>
                 ) : (
@@ -680,29 +680,29 @@ export function ReviewsTable({
                 )}
               </td>
               {!showBusiness && !showUrgency && (
-                <td className="py-2 pr-2.5">
+                <td className="px-3.5 py-2">
                   <SourceIcon source={row.source} />
                 </td>
               )}
-              <td className="py-2 pr-2.5">
+              <td className="px-3.5 py-2">
                 <TagPills tags={row.tags} />
               </td>
               {showUrgency && (
                 <>
-                  <td className="py-2 pr-2.5">
+                  <td className="px-3.5 py-2">
                     <span className={cn("text-sm font-medium", (row.daysWaiting ?? 0) >= 7 ? "text-red-600" : "text-amber-600")}>
                       {row.daysWaiting ?? 0} days
                     </span>
                   </td>
-                  <td className="py-2 pr-2.5">
+                  <td className="px-3.5 py-2">
                     <UrgencyBadge urgency={row.urgency} />
                   </td>
                 </>
               )}
-              <td className="py-2 pr-2.5">
+              <td className="px-3.5 py-2">
                 <ReviewStatusBadge replied={row.replied} variant={mode === "default" ? "pill" : "default"} />
               </td>
-              <td className="py-2">
+              <td className="px-3.5 py-2">
                 <div className="flex items-center gap-1">
                   {!row.replied && (
                     <button
@@ -748,7 +748,7 @@ export function KeywordList({
   linkLabel?: string;
 }) {
   return (
-    <RvCard className="!p-3">
+    <RvCard>
       <h3 className={dashboardCardTitle}>{title}</h3>
       <ul className="mt-2.5 space-y-2">
         {items.length === 0 ? (
@@ -773,7 +773,7 @@ export function KeywordList({
 
 export function KeywordCloud({ items, title, linkLabel }: { items: Array<{ keyword: string; count: number }>; title: string; linkLabel?: string }) {
   return (
-    <RvCard className="!p-3">
+    <RvCard>
       <h3 className={dashboardCardTitle}>{title}</h3>
       <div className="mt-2.5 flex flex-wrap gap-1.5">
         {items.length === 0 ? (

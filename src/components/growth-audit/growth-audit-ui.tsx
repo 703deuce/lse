@@ -106,7 +106,7 @@ export function GaCard({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={cn(dashboardCard, "p-3", className)}>{children}</div>;
+  return <div className={cn(dashboardCard, "p-3.5", className)}>{children}</div>;
 }
 
 export function GaSectionTitle({
@@ -212,7 +212,7 @@ export function MiniScoreCard({
   const status = scoreStatus(score);
   const data = sparkData ?? [score - 8, score - 4, score - 2, score];
   return (
-    <GaCard className="!p-2.5">
+    <GaCard className="!p-3.5">
       <div className="flex items-center justify-between gap-2">
         <p className={dashboardSectionLabel}>{title}</p>
         <Info className="h-3 w-3 shrink-0 text-zinc-400" />
@@ -243,7 +243,7 @@ export function StatHighlightCard({
   footer?: React.ReactNode;
 }) {
   return (
-    <GaCard className="!p-2.5">
+    <GaCard className="!p-3.5">
       <p className={dashboardSectionLabel}>{title}</p>
       <p className={cn("mt-0.5 text-base font-bold tabular-nums leading-none text-zinc-900", valueClassName)}>
         {value}

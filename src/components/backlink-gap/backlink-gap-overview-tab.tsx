@@ -74,7 +74,7 @@ export function BacklinkGapOverviewTab({
           {aiSummary ? (
             <div className="space-y-3">
               <p className={dashboardBody}>{aiSummary}</p>
-              <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2.5">
+              <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3.5 py-2.5">
                 <div className="flex gap-2">
                   <KeyRound className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
                   <div>

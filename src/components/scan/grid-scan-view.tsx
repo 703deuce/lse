@@ -888,7 +888,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
             )}
 
             {(scanActive || (progressCompleted > 0 && progressCompleted < progressTotal)) && (
-              <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50/80 px-3 py-2 dark:border-emerald-900 dark:bg-emerald-950/40">
+              <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50/80 px-3.5 py-2 dark:border-emerald-900 dark:bg-emerald-950/40">
                 <p className="text-xs font-medium text-emerald-900 dark:text-emerald-100">
                   {cellsInFlight || cellsStillLoading
                     ? "Analyzing locations"
@@ -929,7 +929,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
             )}
 
             {!scanActive && (enrichmentRunning || batchStatus === "rank_ready") && progressMessage && (
-              <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 dark:border-amber-900 dark:bg-amber-950/40">
+              <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50/80 px-3.5 py-2 dark:border-amber-900 dark:bg-amber-950/40">
                 <p className="text-xs text-amber-900 dark:text-amber-100">{progressMessage}</p>
               </div>
             )}
@@ -1014,7 +1014,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                       gridSize={gridSize}
                       radiusMeters={radiusMeters}
                     />
-                    <div className="border-t border-zinc-100 bg-white px-3 py-2">
+                    <div className="border-t border-zinc-100 bg-white px-3.5 py-2">
                       <GridRankLegend
                         mode={colorMode}
                         onModeChange={handleColorModeChange}

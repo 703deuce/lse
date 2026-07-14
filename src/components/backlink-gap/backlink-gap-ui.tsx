@@ -433,7 +433,7 @@ export function PanelCard({
         </div>
         {action}
       </div>
-      <div className="p-3">{children}</div>
+      <div className="p-3.5">{children}</div>
       {footer && <div className="border-t border-zinc-100 px-3.5 py-2.5">{footer}</div>}
     </div>
   );

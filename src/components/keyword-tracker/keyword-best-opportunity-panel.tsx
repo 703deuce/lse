@@ -142,7 +142,7 @@ export function KeywordBestOpportunityPanel({ keyword }: { keyword: BestKeyword 
 
         <button
           type="button"
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-[13px] font-semibold text-white shadow-sm hover:bg-emerald-700"
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-[13px] font-semibold text-white shadow-sm hover:bg-emerald-700"
         >
           View Optimization Tips
           <ExternalLink className="h-3.5 w-3.5" />

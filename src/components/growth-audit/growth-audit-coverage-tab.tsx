@@ -97,19 +97,19 @@ export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSect
             <table className="w-full text-[12px]">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50/80 text-left text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                  <th className="px-3 py-2">Service</th>
-                  <th className="px-3 py-2">On website</th>
-                  <th className="px-3 py-2">On GBP</th>
-                  <th className="px-3 py-2">Competitors</th>
-                  <th className="px-3 py-2">Opportunity</th>
-                  <th className="px-3 py-2">Status</th>
+                  <th className="px-3.5 py-2">Service</th>
+                  <th className="px-3.5 py-2">On website</th>
+                  <th className="px-3.5 py-2">On GBP</th>
+                  <th className="px-3.5 py-2">Competitors</th>
+                  <th className="px-3.5 py-2">Opportunity</th>
+                  <th className="px-3.5 py-2">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 {serviceRows.map((row) => (
                   <tr key={row.service} className="hover:bg-zinc-50/50">
-                    <td className="px-3 py-2 font-medium text-zinc-900">{row.service}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-3.5 py-2 font-medium text-zinc-900">{row.service}</td>
+                    <td className="px-3.5 py-2">
                       {row.pageExists ? (
                         row.pageUrl ? (
                           <a
@@ -128,16 +128,16 @@ export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSect
                         <span className="text-zinc-400">No</span>
                       )}
                     </td>
-                    <td className="px-3 py-2">{(row.onYourGbp ?? row.gbpListed) ? "Yes" : "No"}</td>
-                    <td className="px-3 py-2 tabular-nums text-zinc-600">
+                    <td className="px-3.5 py-2">{(row.onYourGbp ?? row.gbpListed) ? "Yes" : "No"}</td>
+                    <td className="px-3.5 py-2 tabular-nums text-zinc-600">
                       {row.competitorTop20Count != null
                         ? `${row.competitorTop20Count}/${serviceCoverage.serviceKeywords?.totalCompetitors ?? "—"}`
                         : (row.competitorNote ?? "—")}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3.5 py-2">
                       {row.opportunity ? opportunityTag(row.opportunity) : "—"}
                     </td>
-                    <td className="px-3 py-2">{statusTag(row.status)}</td>
+                    <td className="px-3.5 py-2">{statusTag(row.status)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -210,38 +210,38 @@ export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSect
             <table className="w-full text-[12px]">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50/80 text-left text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                  <th className="px-3 py-2">Area</th>
-                  <th className="px-3 py-2">Page</th>
-                  <th className="px-3 py-2">Mentioned on site</th>
-                  <th className="px-3 py-2">Competitors</th>
-                  <th className="px-3 py-2">Opportunity</th>
-                  <th className="px-3 py-2">Status</th>
+                  <th className="px-3.5 py-2">Area</th>
+                  <th className="px-3.5 py-2">Page</th>
+                  <th className="px-3.5 py-2">Mentioned on site</th>
+                  <th className="px-3.5 py-2">Competitors</th>
+                  <th className="px-3.5 py-2">Opportunity</th>
+                  <th className="px-3.5 py-2">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 {localRows.map((row) => (
                   <tr key={row.area} className="hover:bg-zinc-50/50">
-                    <td className="px-3 py-2 font-medium text-zinc-900">
+                    <td className="px-3.5 py-2 font-medium text-zinc-900">
                       {row.area}
                       <span className="ml-1.5 text-[10px] font-normal uppercase text-zinc-400">{row.type}</span>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3.5 py-2">
                       {row.hasPage ? (
                         <span className="text-emerald-600">Page exists</span>
                       ) : (
                         <span className="text-zinc-400">No page</span>
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3.5 py-2">
                       {row.mentionedOnSite ? (
                         <span className="text-emerald-600">Yes</span>
                       ) : (
                         <span className="text-zinc-400">No</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 tabular-nums">{row.competitorCount}/20</td>
-                    <td className="px-3 py-2">{opportunityTag(row.opportunity)}</td>
-                    <td className="px-3 py-2">{statusTag(row.status)}</td>
+                    <td className="px-3.5 py-2 tabular-nums">{row.competitorCount}/20</td>
+                    <td className="px-3.5 py-2">{opportunityTag(row.opportunity)}</td>
+                    <td className="px-3.5 py-2">{statusTag(row.status)}</td>
                   </tr>
                 ))}
               </tbody>
