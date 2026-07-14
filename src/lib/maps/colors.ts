@@ -2,7 +2,6 @@
 export type GridColorMode = "strict" | "falcon";
 
 const PENDING_HEX = "#d4d4d8";
-const FAILED_HEX = "#fca5a5";
 const NOT_FOUND_HEX = "#ef4444";
 
 /** Local Falcon–inspired anchor colors (rank 1 → 20) */
@@ -115,10 +114,8 @@ export function rankPinStyle(
   mode: GridColorMode,
   options?: { pending?: boolean; failed?: boolean; notInResults?: boolean }
 ): RankPinStyle {
-  if (options?.failed) {
-    return { background: FAILED_HEX, color: "#991b1b", baseHex: FAILED_HEX };
-  }
-  if (options?.pending) {
+  // User-facing grid never shows a hard-fail pin — retries are normal, stay pending.
+  if (options?.pending || options?.failed) {
     return { background: PENDING_HEX, color: "#52525b", baseHex: PENDING_HEX };
   }
   const baseHex = options?.notInResults ? NOT_FOUND_HEX : rankHex(rank, mode);
