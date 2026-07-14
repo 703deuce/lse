@@ -17,12 +17,10 @@ import {
   DEFAULT_GRID_SIZE,
   DEFAULT_RADIUS_METERS,
   GRID_SIZE_OPTIONS,
-  RADIUS_MILE_PRESETS,
-  milesToMeters,
-  metersToMiles,
   computeSolv,
 } from "@/lib/maps/grid-metrics";
 import { DEFAULT_SCAN_PROFILE } from "@/lib/maps/scan-profiles";
+import { RadiusMilesField } from "@/components/scan/radius-miles-field";
 import { cn } from "@/lib/utils";
 import type { KeywordOption, ScanListItem } from "@/components/scan/scans-hub-types";
 
@@ -101,11 +99,6 @@ export function ScanSetupStudio({
     setLocationQuery(accountAddress);
     setUsingAccountLocation(true);
   }, [defaultCenterLat, defaultCenterLng, accountAddress]);
-
-  const radiusMiles = Math.round(metersToMiles(radiusMeters) * 10) / 10;
-  const closestRadiusMiles = RADIUS_MILE_PRESETS.reduce((best, p) =>
-    Math.abs(p.miles - radiusMiles) < Math.abs(best.miles - radiusMiles) ? p : best
-  ).miles;
 
   const totalPoints = gridSize * gridSize;
   const includedCount = totalPoints - excludedLabels.size;
@@ -400,20 +393,13 @@ export function ScanSetupStudio({
                 ))}
               </select>
             </label>
-            <label className={fieldLabel}>
-              Radius
-              <select
-                value={closestRadiusMiles}
-                onChange={(e) => setRadiusMeters(milesToMeters(Number(e.target.value)))}
-                className={fieldSelect}
-              >
-                {RADIUS_MILE_PRESETS.map((p) => (
-                  <option key={p.miles} value={p.miles}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <RadiusMilesField
+              valueMeters={radiusMeters}
+              onChangeMeters={setRadiusMeters}
+              labelClassName={fieldLabel}
+              selectClassName={fieldSelect}
+              inputClassName={cn(dashboardControl, "h-auto w-full px-2.5 py-1.5")}
+            />
             <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-[12px] leading-relaxed text-sky-900">
               <p className="flex gap-1.5">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />

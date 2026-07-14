@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEFAULT_RADIUS_METERS, MAX_RADIUS_METERS, MIN_RADIUS_METERS } from "@/lib/maps/grid-metrics";
 
 export const resolveBusinessSchema = z.object({
   name: z.string().min(1),
@@ -30,7 +31,12 @@ export const createBusinessSchema = z.object({
 export const createScanSchema = z.object({
   businessId: z.string().uuid(),
   gridSize: z.number().int().min(3).max(11).default(7),
-  radiusMeters: z.number().int().min(500).max(17000).default(8047),
+  radiusMeters: z
+    .number()
+    .int()
+    .min(MIN_RADIUS_METERS)
+    .max(MAX_RADIUS_METERS)
+    .default(DEFAULT_RADIUS_METERS),
   scanType: z.enum(["quick", "standard"]).default("quick"),
   device: z.enum(["desktop", "mobile"]).default("mobile"),
   os: z.enum(["android", "ios", "windows", "macos"]).default("android"),

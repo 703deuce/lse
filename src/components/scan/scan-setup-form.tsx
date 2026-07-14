@@ -8,12 +8,10 @@ import {
   DEFAULT_GRID_SIZE,
   DEFAULT_RADIUS_METERS,
   GRID_SIZE_OPTIONS,
-  RADIUS_MILE_PRESETS,
   gridScanMeta,
-  milesToMeters,
-  metersToMiles,
 } from "@/lib/maps/grid-metrics";
 import { DEFAULT_SCAN_PROFILE } from "@/lib/maps/scan-profiles";
+import { RadiusMilesField } from "@/components/scan/radius-miles-field";
 
 export function ScanSetupForm({
   businessId,
@@ -50,10 +48,6 @@ export function ScanSetupForm({
   }, [defaults.gridSize, defaults.radiusMeters, defaults.scanCenterLat, defaults.scanCenterLng]);
 
   const preview = gridScanMeta(form.gridSize, form.radiusMeters);
-  const radiusMiles = metersToMiles(form.radiusMeters);
-  const closestPreset = RADIUS_MILE_PRESETS.reduce((best, p) =>
-    Math.abs(p.miles - radiusMiles) < Math.abs(best.miles - radiusMiles) ? p : best
-  );
 
   function updateForm(patch: Partial<typeof form>) {
     setForm((prev) => {
@@ -128,20 +122,14 @@ export function ScanSetupForm({
             ))}
           </select>
         </label>
-        <label className="text-xs font-medium text-text-muted">
-          Radius
-          <select
-            className={selectClass}
-            value={closestPreset.miles}
-            onChange={(e) => updateForm({ radiusMeters: milesToMeters(Number(e.target.value)) })}
-          >
-            {RADIUS_MILE_PRESETS.map((p) => (
-              <option key={p.miles} value={p.miles}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <RadiusMilesField
+          valueMeters={form.radiusMeters}
+          onChangeMeters={(meters) => updateForm({ radiusMeters: meters })}
+          labelClassName="text-xs font-medium text-text-muted"
+          selectClassName={selectClass}
+          inputClassName={selectClass}
+          hint={null}
+        />
         <div className="flex items-end">
           <button
             type="button"
