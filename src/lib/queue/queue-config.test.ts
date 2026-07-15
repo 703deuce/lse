@@ -79,6 +79,36 @@ describe("queue config", () => {
     assert.ok(brightDataFairChunkSize() <= 100);
   });
 
+  it("defaults Bright Data fair chunk / start rate for ~100-cell waves", async () => {
+    const prevChunk = process.env.BRIGHTDATA_FAIR_CHUNK_SIZE;
+    const prevRate = process.env.BRIGHTDATA_GLOBAL_START_RATE_PER_SEC;
+    const prevBatch = process.env.BRIGHTDATA_GRID_BATCH_SIZE;
+    delete process.env.BRIGHTDATA_FAIR_CHUNK_SIZE;
+    delete process.env.BRIGHTDATA_GLOBAL_START_RATE_PER_SEC;
+    delete process.env.BRIGHTDATA_GRID_BATCH_SIZE;
+
+    // Re-import after env clear is not needed — helpers read env on each call.
+    const { brightDataFairChunkSize: chunkFn, brightDataStartRatePerSec: rateFn } =
+      await import("@/lib/queue/config");
+    const { mapsCellBatchSize, mapsGridConcurrency } = await import(
+      "@/lib/jobs/run-grid-cells"
+    );
+
+    assert.equal(chunkFn(), 100);
+    assert.equal(rateFn(), 100);
+    assert.equal(mapsCellBatchSize(), 100);
+    assert.equal(mapsGridConcurrency(49), 49);
+    assert.equal(mapsGridConcurrency(100), 100);
+    assert.equal(mapsGridConcurrency(121), 100);
+
+    if (prevChunk === undefined) delete process.env.BRIGHTDATA_FAIR_CHUNK_SIZE;
+    else process.env.BRIGHTDATA_FAIR_CHUNK_SIZE = prevChunk;
+    if (prevRate === undefined) delete process.env.BRIGHTDATA_GLOBAL_START_RATE_PER_SEC;
+    else process.env.BRIGHTDATA_GLOBAL_START_RATE_PER_SEC = prevRate;
+    if (prevBatch === undefined) delete process.env.BRIGHTDATA_GRID_BATCH_SIZE;
+    else process.env.BRIGHTDATA_GRID_BATCH_SIZE = prevBatch;
+  });
+
   it("orders priority classes highest < normal < lower", () => {
     assert.ok(PRIORITY_SCORES.highest < PRIORITY_SCORES.normal);
     assert.ok(PRIORITY_SCORES.normal < PRIORITY_SCORES.lower);

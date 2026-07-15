@@ -26,8 +26,8 @@ import {
   maybeStartEarlyEnrichment,
 } from "@/lib/jobs/run-early-enrichment";
 
-/** Default fair chunk (platform-wide) — overridden by BRIGHTDATA_GRID_BATCH_SIZE / FAIR_CHUNK. */
-const BRIGHTDATA_GRID_BATCH_SIZE = 25;
+/** Default wave size — overridden by BRIGHTDATA_GRID_BATCH_SIZE / FAIR_CHUNK (max 100). */
+const BRIGHTDATA_GRID_BATCH_SIZE = 100;
 
 export function mapsDepth(): number {
   const n = Number(
@@ -45,12 +45,18 @@ export function mapsCellBatchSize(): number {
       process.env.BRIGHTDATA_BURST_MAX_CONCURRENCY ??
       ""
   );
-  if (Number.isFinite(n) && n > 0) return n;
-  return fairChunkSize() || BRIGHTDATA_GRID_BATCH_SIZE;
+  // Cap at 100 — matches Bright Data start capacity and fair-chunk default.
+  if (Number.isFinite(n) && n > 0) return Math.min(Math.floor(n), 100);
+  return Math.min(fairChunkSize() || BRIGHTDATA_GRID_BATCH_SIZE, 100);
 }
 
+/**
+ * In-scan parallelism. Defaults to min(cells, 100) so a lone 7×7/10×10
+ * fires in one wave. Extra simultaneous scans are paced by
+ * acquireBrightDataSlot (global Redis rate + in-flight), not by this cap.
+ */
 export function mapsGridConcurrency(cellCount: number): number {
-  return Math.min(cellCount, mapsCellBatchSize());
+  return Math.min(Math.max(cellCount, 0), mapsCellBatchSize());
 }
 
 export function mapsGridCellTimeoutMs(): number {

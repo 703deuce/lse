@@ -53,15 +53,20 @@ export function logCellPhaseTimings(
   );
 }
 
-/** Recommended worker pool size by grid cell count. */
+/**
+ * Recommended in-scan pool size by grid cell count.
+ * Prefer mapsGridConcurrency() in live paths — this helper stays for tools/tests.
+ */
 export function mapsConcurrencyForCellCount(totalCells: number): number {
-  const envCap = Number(process.env.BRIGHTDATA_MAPS_CONCURRENCY ?? process.env.SCRAPINGDOG_MAPS_CONCURRENCY);
+  const envCap = Number(
+    process.env.BRIGHTDATA_MAPS_CONCURRENCY ??
+      process.env.BRIGHTDATA_GRID_BATCH_SIZE ??
+      process.env.SCRAPINGDOG_MAPS_CONCURRENCY
+  );
   if (Number.isFinite(envCap) && envCap > 0) {
-    return Math.min(envCap, 15);
+    return Math.min(Math.floor(envCap), 100, Math.max(totalCells, 1));
   }
-  if (totalCells <= 9) return 9;
-  if (totalCells <= 25) return 10;
-  return 10;
+  return Math.min(Math.max(totalCells, 1), 100);
 }
 
 /**
