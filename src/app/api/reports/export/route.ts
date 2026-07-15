@@ -13,6 +13,24 @@ import {
 } from "@/lib/reporting/csv";
 import { exportReportSchema } from "@/lib/validation/schemas";
 
+function exportStatus(message: string): number {
+  if (message.includes("access denied") || message.includes("Authentication required")) {
+    return 403;
+  }
+  if (
+    message.includes("required") ||
+    message.includes("at least 2") ||
+    message.includes("at least two") ||
+    message.includes("No review momentum") ||
+    message.includes("Add a keyword") ||
+    message.includes("not implemented") ||
+    /not found/i.test(message)
+  ) {
+    return 400;
+  }
+  return 500;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -41,6 +59,7 @@ export async function POST(request: Request) {
       );
     }
 
+    const persist = data.format !== "csv";
     const result = await generateTypedReport({
       businessId: data.businessId,
       scanBatchId: data.scanBatchId,
@@ -51,6 +70,7 @@ export async function POST(request: Request) {
       gridSize: data.gridSize,
       radiusMeters: data.radiusMeters,
       selectedCompetitorKeys: data.selectedCompetitorKeys,
+      persist,
     });
 
     if (data.format === "csv") {
@@ -84,15 +104,6 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Export failed";
-    const status =
-      message.includes("access denied") || message.includes("not found")
-        ? 403
-        : message.includes("required") ||
-            message.includes("at least two") ||
-            message.includes("No review momentum") ||
-            message.includes("Add a keyword")
-          ? 400
-          : 500;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: message }, { status: exportStatus(message) });
   }
 }

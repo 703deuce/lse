@@ -53,13 +53,13 @@ function aggregateLocationKpis(
         ) / 100
       : 0;
 
+  // Rollup aggregate across locations — ARP/ATRP/SoLV only (no fake visibility).
   return {
     ...emptyKpis(),
     arp,
     atrp,
     solv,
     top3Pct: solv,
-    visibilityScore: Math.round(solv),
     totalCells: rows.length,
     foundCells: withArp.length,
   };

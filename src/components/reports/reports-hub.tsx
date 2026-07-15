@@ -231,15 +231,29 @@ export function ReportsHub({
         reportType: activeType,
         format,
       };
-      if (scanId) body.scanBatchId = scanId;
+      // Only attach scanBatchId for reports that are about a specific scan.
+      if (
+        (activeType === "single_scan" || activeType === "competitor") &&
+        scanId
+      ) {
+        body.scanBatchId = scanId;
+      }
       if (activeType === "keyword" && keywordId) {
         body.keywordId = keywordId;
-      } else if (selectedScan?.keywordId) {
+      } else if (
+        (activeType === "trend" || activeType === "single_scan" || activeType === "competitor") &&
+        selectedScan?.keywordId
+      ) {
         body.keywordId = selectedScan.keywordId;
       }
-      if (selectedScan?.locationId) body.locationId = selectedScan.locationId;
-      if (selectedScan?.gridSize) body.gridSize = selectedScan.gridSize;
-      if (selectedScan?.radiusMeters) body.radiusMeters = selectedScan.radiusMeters;
+      if (activeType === "trend" || activeType === "keyword") {
+        // Always pass locationId for trend (including null = business location).
+        if (activeType === "trend") {
+          body.locationId = selectedScan ? selectedScan.locationId : null;
+        }
+        if (selectedScan?.gridSize) body.gridSize = selectedScan.gridSize;
+        if (selectedScan?.radiusMeters) body.radiusMeters = selectedScan.radiusMeters;
+      }
       if (activeType === "review_campaign" && campaignId) body.campaignId = campaignId;
 
       const res = await fetch("/api/reports/export", {
@@ -346,10 +360,16 @@ export function ReportsHub({
             })}
           </div>
 
-          {!loadingScans && scans.length === 0 ? (
+          {!loadingScans &&
+          scans.length === 0 &&
+          (activeCard.needsScan ||
+            activeType === "trend" ||
+            activeType === "location" ||
+            activeType === "keyword" ||
+            activeType === "maps_campaign") ? (
             <EmptyState
               title="No completed scans yet"
-              description="Single Scan, Competitor, Trend, Location, Keyword, and Maps Campaign reports work best after at least one finished grid. Reviews and Review Campaign reports do not need a scan."
+              description="This report needs at least one finished grid scan. Reviews and Review Campaign reports can still be generated without a scan."
             />
           ) : null}
         </div>
@@ -456,7 +476,12 @@ export function ReportsHub({
           <div className="mt-4 flex flex-col gap-2">
             <button
               type="button"
-              disabled={busy != null}
+              disabled={
+                busy != null ||
+                (activeCard.needsScan && !scanId) ||
+                (activeCard.needsCampaign && !campaignId) ||
+                (activeCard.needsKeyword && !keywordId)
+              }
               onClick={() => void createReport("share")}
               className={cn(btnPrimary, "h-9 w-full justify-center px-3 text-[13px]")}
             >
@@ -469,7 +494,12 @@ export function ReportsHub({
             </button>
             <button
               type="button"
-              disabled={busy != null}
+              disabled={
+                busy != null ||
+                (activeCard.needsScan && !scanId) ||
+                (activeCard.needsCampaign && !campaignId) ||
+                (activeCard.needsKeyword && !keywordId)
+              }
               onClick={() => void createReport("csv")}
               className={cn(btnSecondary, "h-9 w-full justify-center px-3 text-[13px]")}
             >

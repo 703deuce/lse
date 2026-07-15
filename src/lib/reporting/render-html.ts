@@ -89,12 +89,17 @@ function kpiCards(kpis: ReportKpis): string {
     { label: "Best", value: fmt(kpis.bestRank, 0) },
     { label: "Found", value: `${kpis.foundCells}/${kpis.totalCells}` },
   ];
-  return `<div class="kpi-row">${items
-    .map(
-      (i) =>
-        `<div class="kpi"><span class="kpi-label">${escapeHtml(i.label)}</span><span class="kpi-value">${escapeHtml(i.value)}</span></div>`
-    )
-    .join("")}</div>`;
+  return simpleKpiRow(items);
+}
+
+/** Rollup reports only have honest ARP/ATRP/SoLV averages — not cell-level coverage. */
+function rollupKpiCards(kpis: ReportKpis, unitLabel: string): string {
+  return simpleKpiRow([
+    { label: "Avg ARP", value: fmt(kpis.arp) },
+    { label: "Avg ATRP", value: fmt(kpis.atrp) },
+    { label: "Avg SoLV", value: `${fmt(kpis.solv)}%` },
+    { label: unitLabel, value: `${kpis.foundCells}/${kpis.totalCells}` },
+  ]);
 }
 
 function heatmapHtml(gridSize: number, cells: HeatmapCell[]): string {
@@ -298,9 +303,9 @@ function renderTrend(payload: TrendReportPayload): string {
   const body = `
     <p class="muted">${escapeHtml(payload.parameters.keyword)} · ${payload.parameters.gridSize}×${payload.parameters.gridSize} · ${payload.parameters.radiusMeters}m · ${payload.parameters.scanCount} scans</p>
     <div class="delta-row">
-      <span>ARP ${escapeHtml(fmt(payload.current.arp))} <small class="muted">(Δ ${escapeHtml(fmt(payload.deltas.arp))})</small></span>
-      <span>ATRP ${escapeHtml(fmt(payload.current.atrp))} <small class="muted">(Δ ${escapeHtml(fmt(payload.deltas.atrp))})</small></span>
-      <span>SoLV ${escapeHtml(fmt(payload.current.solv))}% <small class="muted">(Δ ${escapeHtml(fmt(payload.deltas.solv))})</small></span>
+      <span>ARP ${escapeHtml(fmt(payload.current.arp))} <small class="muted">(Δ ${escapeHtml(fmt(payload.deltas.arp))} vs prior · + = improved)</small></span>
+      <span>ATRP ${escapeHtml(fmt(payload.current.atrp))} <small class="muted">(Δ ${escapeHtml(fmt(payload.deltas.atrp))} · + = improved)</small></span>
+      <span>SoLV ${escapeHtml(fmt(payload.current.solv))}% <small class="muted">(Δ ${escapeHtml(fmt(payload.deltas.solv))} · + = improved)</small></span>
     </div>
     <h2>Trend</h2>
     ${trendChartSvg(payload.series)}
@@ -359,7 +364,7 @@ function renderLocation(payload: LocationReportPayload): string {
     .join("");
   const body = `
     <p class="muted">${payload.parameters.keywordCount} keywords · ${escapeHtml(payload.parameters.dateFrom)} → ${escapeHtml(payload.parameters.dateTo)}</p>
-    ${kpiCards(payload.aggregate)}
+    ${rollupKpiCards(payload.aggregate, "Keywords with rank")}
     <h2>Rising / falling</h2>
     <div class="chips">${rising || '<span class="muted">No rising keywords</span>'}</div>
     <div class="chips">${falling || '<span class="muted">No falling keywords</span>'}</div>
@@ -387,7 +392,7 @@ function renderLocation(payload: LocationReportPayload): string {
 function renderKeyword(payload: KeywordReportPayload): string {
   const body = `
     <p class="muted">${escapeHtml(payload.parameters.keyword)} · ${payload.parameters.locationCount} locations · ${payload.parameters.gridSize}×${payload.parameters.gridSize} · ${payload.parameters.radiusMeters}m</p>
-    ${kpiCards(payload.aggregate)}
+    ${rollupKpiCards(payload.aggregate, "Locations with rank")}
     <h2>Locations</h2>
     <table class="data">
       <thead><tr><th>Location</th><th>ARP</th><th>ATRP</th><th>SoLV</th><th>Last scan</th></tr></thead>
@@ -422,7 +427,7 @@ function renderMapsCampaign(payload: MapsCampaignReportPayload): string {
     : "Weekly schedule off";
   const body = `
     <p class="muted">${scheduleLine} · ${payload.parameters.keywordCount} keywords</p>
-    ${kpiCards(payload.aggregate)}
+    ${rollupKpiCards(payload.aggregate, "Keywords with rank")}
     <h2>Rising / falling</h2>
     <div class="chips">${rising || '<span class="muted">No rising keywords</span>'}</div>
     <div class="chips">${falling || '<span class="muted">No falling keywords</span>'}</div>
