@@ -15,10 +15,13 @@ export function getQueuePrefix(): string {
   return process.env.QUEUE_PREFIX?.trim() || "lse";
 }
 
-/** Global Bright Data start rate (requests/sec) across all workers. */
+/**
+ * Global Bright Data start rate (requests/sec) across all workers.
+ * Provider allows ~100/sec; keep a little headroom for other features.
+ */
 export function brightDataStartRatePerSec(): number {
-  const n = Number(process.env.BRIGHTDATA_GLOBAL_START_RATE_PER_SEC ?? 80);
-  return Number.isFinite(n) && n > 0 ? n : 80;
+  const n = Number(process.env.BRIGHTDATA_GLOBAL_START_RATE_PER_SEC ?? 100);
+  return Number.isFinite(n) && n > 0 ? n : 100;
 }
 
 /** Global in-flight Bright Data requests across all workers. */
@@ -27,10 +30,15 @@ export function brightDataMaxInFlight(): number {
   return Number.isFinite(n) && n > 0 ? n : 250;
 }
 
-/** Fair chunk size so one huge scan cannot monopolize the provider. */
+/**
+ * Max cells one scan launches per wave (and local pLimit concurrency).
+ * Default 100 = one full large grid wave when alone. Concurrent scans share
+ * capacity via the Redis global in-flight / start-rate limiter, so two 7×7
+ * jobs (~49+49) can run together without one waiting for the other to finish.
+ */
 export function brightDataFairChunkSize(): number {
-  const n = Number(process.env.BRIGHTDATA_FAIR_CHUNK_SIZE ?? 25);
-  return Number.isFinite(n) && n > 0 ? Math.min(n, 100) : 25;
+  const n = Number(process.env.BRIGHTDATA_FAIR_CHUNK_SIZE ?? 100);
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 100) : 100;
 }
 
 export function maxActiveMapsScansPerOrg(): number {

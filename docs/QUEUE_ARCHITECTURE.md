@@ -106,9 +106,11 @@ Then restart web + all worker services. Existing database-driver jobs continue v
 
 Cross-tenant limits (Redis-backed when `REDIS_URL` is set):
 
-- `BRIGHTDATA_GLOBAL_START_RATE_PER_SEC` (default `80`)
-- `BRIGHTDATA_GLOBAL_MAX_IN_FLIGHT` (default `250`)
-- `BRIGHTDATA_FAIR_CHUNK_SIZE` (default `25`) — fair bursts so one 225-cell scan cannot monopolize capacity
+- `BRIGHTDATA_GLOBAL_START_RATE_PER_SEC` (default `100`) — how many SERP calls may *start* per second
+- `BRIGHTDATA_GLOBAL_MAX_IN_FLIGHT` (default `250`) — open requests across all workers
+- `BRIGHTDATA_FAIR_CHUNK_SIZE` / `BRIGHTDATA_GRID_BATCH_SIZE` (default `100`) — max cells one scan launches per wave / in-scan `pLimit`
+
+A lone 7×7 (49) or 10×10 (100) starts all cells in one wave. Two simultaneous 7×7s both schedule ~49 workers; the Redis global limiter shares starts/in-flight so neither waits for the other job’s whole grid to finish. Grids larger than 100 cells go in waves of 100.
 
 ## Per-tenant Maps fairness
 
