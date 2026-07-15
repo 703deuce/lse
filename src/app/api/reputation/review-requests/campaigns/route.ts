@@ -55,6 +55,8 @@ export async function POST(request: Request) {
       mapping,
       recipients,
       status,
+      sequence,
+      description,
     } = body as {
       businessId?: string;
       duplicateFrom?: string;
@@ -73,6 +75,8 @@ export async function POST(request: Request) {
       mapping?: Record<string, CsvMapTarget>;
       recipients?: ValidatedRecipient[];
       status?: "draft" | "scheduled" | "active";
+      sequence?: CreateCampaignInput["sequence"];
+      description?: string | null;
     };
 
     if (!businessId) {
@@ -144,6 +148,8 @@ export async function POST(request: Request) {
       mapping,
       recipients,
       status: status ?? "active",
+      sequence,
+      description: description ?? null,
     };
 
     try {

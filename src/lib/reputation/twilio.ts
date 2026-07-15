@@ -5,6 +5,8 @@ import { fetchWithTimeout, providerTimeoutMs } from "@/lib/providers/fetch-with-
 export type TwilioSendParams = {
   toPhone: string;
   body: string;
+  /** Public URL for delivery receipts (MessageStatus callbacks). */
+  statusCallbackUrl?: string;
 };
 
 export type TwilioSendResult =
@@ -86,6 +88,16 @@ export async function sendTwilioSms(params: TwilioSendParams): Promise<TwilioSen
     From: fromNumber,
     Body: outboundBody,
   });
+  const statusUrl =
+    params.statusCallbackUrl?.trim() ||
+    process.env.TWILIO_STATUS_CALLBACK_URL?.trim() ||
+    (process.env.NEXT_PUBLIC_APP_URL
+      ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/api/webhooks/twilio/sms`
+      : "");
+  if (statusUrl) {
+    body.set("StatusCallback", statusUrl);
+    body.set("StatusCallbackMethod", "POST");
+  }
 
   try {
     const res = await fetchWithTimeout(

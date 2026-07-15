@@ -131,37 +131,235 @@ export function evaluateSequenceCondition(
   }
 }
 
-/** Default review-request drip (brief example). */
-export function defaultReviewRequestSequence() {
+export type SequenceStepType = "send_sms" | "send_email" | "wait" | "condition" | "end";
+
+export type SequenceStep = {
+  step_key: string;
+  step_type: SequenceStepType;
+  config: Record<string, unknown>;
+};
+
+export type ConditionConfig = {
+  all?: string[];
+  any?: string[];
+  then?: string;
+  else?: string;
+};
+
+function sendStepForChannel(channel: "sms" | "email" | "both"): SequenceStepType {
+  if (channel === "email") return "send_email";
+  return "send_sms";
+}
+
+/** Default review-request drip (initial + up to two reminders). */
+export function defaultReviewRequestSequence(
+  channel: "sms" | "email" | "both" = "sms"
+): SequenceStep[] {
+  const send = sendStepForChannel(channel);
   return [
-    { step_key: "initial", step_type: "send_sms" as const, config: {} },
-    { step_key: "wait_2d", step_type: "wait" as const, config: { days: 2 } },
+    { step_key: "initial", step_type: send, config: {} },
+    { step_key: "wait_2d", step_type: "wait", config: { days: 2 } },
     {
       step_key: "reminder_1_gate",
-      step_type: "condition" as const,
+      step_type: "condition",
       config: {
-        all: ["no_activity", "customer_opted_out:false"] as string[],
+        all: ["no_activity", "customer_opted_out:false"],
         then: "reminder_1",
         else: "end",
       },
     },
-    { step_key: "reminder_1", step_type: "send_sms" as const, config: { template: "reminder" } },
-    { step_key: "wait_4d", step_type: "wait" as const, config: { days: 4 } },
+    { step_key: "reminder_1", step_type: send, config: { template: "reminder" } },
+    { step_key: "wait_4d", step_type: "wait", config: { days: 4 } },
     {
       step_key: "reminder_2_gate",
-      step_type: "condition" as const,
+      step_type: "condition",
       config: {
-        all: ["no_activity", "customer_opted_out:false"] as string[],
+        all: ["no_activity", "customer_opted_out:false"],
         then: "reminder_2",
         else: "end",
       },
     },
-    { step_key: "reminder_2", step_type: "send_sms" as const, config: { template: "final" } },
-    { step_key: "end", step_type: "end" as const, config: {} },
+    { step_key: "reminder_2", step_type: send, config: { template: "final" } },
+    { step_key: "end", step_type: "end", config: {} },
   ];
 }
 
 export const SEQUENCE_LIMITS = {
   maxReminders: 2,
   minWaitHours: 24,
+  maxSteps: 12,
 } as const;
+
+export function findStepIndex(steps: SequenceStep[], stepKey: string): number {
+  return steps.findIndex((s) => s.step_key === stepKey);
+}
+
+/** Contiguous send_* steps from the start (before first wait/condition/end). */
+export function initialSendSteps(steps: SequenceStep[]): SequenceStep[] {
+  const out: SequenceStep[] = [];
+  for (const step of steps) {
+    if (step.step_type === "send_sms" || step.step_type === "send_email") {
+      out.push(step);
+      continue;
+    }
+    break;
+  }
+  return out;
+}
+
+export function channelForSendStep(step: SequenceStep): "sms" | "email" | null {
+  if (step.step_type === "send_sms") return "sms";
+  if (step.step_type === "send_email") return "email";
+  return null;
+}
+
+/** Wait duration in ms from config.days / config.hours (min 1 minute for tests). */
+export function waitDurationMs(config: Record<string, unknown>): number {
+  const days = Number(config.days ?? 0);
+  const hours = Number(config.hours ?? 0);
+  const minutes = Number(config.minutes ?? 0);
+  const ms = ((days * 24 + hours) * 60 + minutes) * 60_000;
+  return Math.max(60_000, ms);
+}
+
+function matchConditionToken(token: string, facts: RecipientFacts): boolean {
+  if (token.endsWith(":false")) {
+    const cond = token.slice(0, -6) as SequenceCondition;
+    return !evaluateSequenceCondition(cond, facts);
+  }
+  if (token.endsWith(":true")) {
+    const cond = token.slice(0, -5) as SequenceCondition;
+    return evaluateSequenceCondition(cond, facts);
+  }
+  return evaluateSequenceCondition(token as SequenceCondition, facts);
+}
+
+export function evaluateConditionConfig(
+  config: ConditionConfig | Record<string, unknown>,
+  facts: RecipientFacts
+): boolean {
+  const all = Array.isArray(config.all) ? (config.all as string[]) : [];
+  const any = Array.isArray(config.any) ? (config.any as string[]) : [];
+  if (all.length === 0 && any.length === 0) return true;
+  const allOk = all.length === 0 || all.every((t) => matchConditionToken(t, facts));
+  const anyOk = any.length === 0 || any.some((t) => matchConditionToken(t, facts));
+  return allOk && anyOk;
+}
+
+export type SequenceAdvanceDecision =
+  | { action: "wait"; stepIndex: number; stepKey: string; until: Date }
+  | { action: "send"; stepIndex: number; stepKey: string; channel: "sms" | "email" }
+  | { action: "jump"; stepIndex: number; stepKey: string }
+  | { action: "end"; stepIndex: number; stepKey: string }
+  | { action: "stop"; reason: "opted_out" | "invalid_step" };
+
+/**
+ * Pure step interpreter: given the step at `stepIndex`, decide the next workflow action.
+ * Callers apply the decision (DB updates / enqueue) then may re-enter on the new index.
+ */
+export function interpretSequenceStep(
+  steps: SequenceStep[],
+  stepIndex: number,
+  facts: RecipientFacts,
+  now = new Date()
+): SequenceAdvanceDecision {
+  if (facts.optedOut) return { action: "stop", reason: "opted_out" };
+  if (stepIndex < 0 || stepIndex >= steps.length) {
+    return { action: "end", stepIndex: Math.max(0, steps.length - 1), stepKey: "end" };
+  }
+  const step = steps[stepIndex]!;
+  if (step.step_type === "end") {
+    return { action: "end", stepIndex, stepKey: step.step_key };
+  }
+  if (step.step_type === "wait") {
+    return {
+      action: "wait",
+      stepIndex,
+      stepKey: step.step_key,
+      until: new Date(now.getTime() + waitDurationMs(step.config)),
+    };
+  }
+  if (step.step_type === "condition") {
+    const cfg = step.config as ConditionConfig;
+    const pass = evaluateConditionConfig(cfg, facts);
+    const targetKey = String((pass ? cfg.then : cfg.else) ?? "end");
+    const targetIdx = findStepIndex(steps, targetKey);
+    if (targetIdx < 0) {
+      return { action: "end", stepIndex, stepKey: "end" };
+    }
+    return { action: "jump", stepIndex: targetIdx, stepKey: targetKey };
+  }
+  const channel = channelForSendStep(step);
+  if (!channel) return { action: "stop", reason: "invalid_step" };
+  if (channel === "sms" && !facts.hasPhone) {
+    // Skip unreachable channel — jump to next index.
+    if (stepIndex + 1 >= steps.length) {
+      return { action: "end", stepIndex, stepKey: step.step_key };
+    }
+    return {
+      action: "jump",
+      stepIndex: stepIndex + 1,
+      stepKey: steps[stepIndex + 1]!.step_key,
+    };
+  }
+  if (channel === "email" && !facts.hasEmail) {
+    if (stepIndex + 1 >= steps.length) {
+      return { action: "end", stepIndex, stepKey: step.step_key };
+    }
+    return {
+      action: "jump",
+      stepIndex: stepIndex + 1,
+      stepKey: steps[stepIndex + 1]!.step_key,
+    };
+  }
+  return { action: "send", stepIndex, stepKey: step.step_key, channel };
+}
+
+/** After a send step finishes, move to the following index. */
+export function indexAfterSend(steps: SequenceStep[], sendStepIndex: number): number {
+  return Math.min(sendStepIndex + 1, Math.max(0, steps.length - 1));
+}
+
+export function normalizeSequenceSteps(raw: unknown): SequenceStep[] {
+  if (!Array.isArray(raw) || raw.length === 0) return defaultReviewRequestSequence();
+  const out: SequenceStep[] = [];
+  for (const item of raw.slice(0, SEQUENCE_LIMITS.maxSteps)) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const step_key = String(row.step_key ?? "").trim();
+    const step_type = String(row.step_type ?? "") as SequenceStepType;
+    if (!step_key) continue;
+    if (!["send_sms", "send_email", "wait", "condition", "end"].includes(step_type)) continue;
+    out.push({
+      step_key,
+      step_type,
+      config: (row.config && typeof row.config === "object"
+        ? (row.config as Record<string, unknown>)
+        : {}) as Record<string, unknown>,
+    });
+  }
+  if (!out.some((s) => s.step_type === "end")) {
+    out.push({ step_key: "end", step_type: "end", config: {} });
+  }
+  return out.length ? out : defaultReviewRequestSequence();
+}
+
+/** Validate builder sequence: max 2 send reminders after initial, waits ≥ 24h (except minutes in tests). */
+export function validateSequenceForLaunch(steps: SequenceStep[]): string | null {
+  const sends = steps.filter((s) => s.step_type === "send_sms" || s.step_type === "send_email");
+  if (sends.length === 0) return "Sequence needs at least one send step.";
+  if (sends.length > SEQUENCE_LIMITS.maxReminders + 1) {
+    return `At most ${SEQUENCE_LIMITS.maxReminders} reminders after the initial send.`;
+  }
+  for (const step of steps) {
+    if (step.step_type !== "wait") continue;
+    const days = Number(step.config.days ?? 0);
+    const hours = Number(step.config.hours ?? 0);
+    const minutes = Number(step.config.minutes ?? 0);
+    if (minutes > 0 && days === 0 && hours === 0) continue; // test/dev short waits
+    if (days * 24 + hours < SEQUENCE_LIMITS.minWaitHours) {
+      return `Wait steps must be at least ${SEQUENCE_LIMITS.minWaitHours} hours.`;
+    }
+  }
+  return null;
+}

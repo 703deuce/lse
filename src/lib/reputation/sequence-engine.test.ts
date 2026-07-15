@@ -1,0 +1,85 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import {
+  defaultReviewRequestSequence,
+  evaluateConditionConfig,
+  indexAfterSend,
+  initialSendSteps,
+  interpretSequenceStep,
+  validateSequenceForLaunch,
+  type RecipientFacts,
+} from "./sequence-engine";
+
+const baseFacts: RecipientFacts = {
+  delivered: true,
+  clicked: false,
+  replied: false,
+  optedOut: false,
+  reviewDetected: false,
+  hasPhone: true,
+  hasEmail: true,
+};
+
+describe("sequence engine", () => {
+  it("starts with a contiguous initial send step", () => {
+    const steps = defaultReviewRequestSequence("sms");
+    const initial = initialSendSteps(steps);
+    assert.equal(initial.length, 1);
+    assert.equal(initial[0]?.step_key, "initial");
+    assert.equal(initial[0]?.step_type, "send_sms");
+  });
+
+  it("interprets wait then condition → reminder when no activity", () => {
+    const steps = defaultReviewRequestSequence("sms");
+    const waitIdx = steps.findIndex((s) => s.step_key === "wait_2d");
+    const wait = interpretSequenceStep(steps, waitIdx, baseFacts, new Date("2026-07-01T12:00:00Z"));
+    assert.equal(wait.action, "wait");
+    if (wait.action === "wait") {
+      assert.ok(wait.until.getTime() > Date.parse("2026-07-01T12:00:00Z"));
+    }
+
+    const gateIdx = steps.findIndex((s) => s.step_key === "reminder_1_gate");
+    const gate = interpretSequenceStep(steps, gateIdx, baseFacts);
+    assert.equal(gate.action, "jump");
+    if (gate.action === "jump") assert.equal(gate.stepKey, "reminder_1");
+  });
+
+  it("ends sequence when customer already clicked", () => {
+    const steps = defaultReviewRequestSequence("sms");
+    const gateIdx = steps.findIndex((s) => s.step_key === "reminder_1_gate");
+    const gate = interpretSequenceStep(steps, gateIdx, { ...baseFacts, clicked: true });
+    assert.equal(gate.action, "jump");
+    if (gate.action === "jump") assert.equal(gate.stepKey, "end");
+  });
+
+  it("stops immediately on opt-out", () => {
+    const steps = defaultReviewRequestSequence("sms");
+    const decision = interpretSequenceStep(steps, 0, { ...baseFacts, optedOut: true });
+    assert.deepEqual(decision, { action: "stop", reason: "opted_out" });
+  });
+
+  it("evaluates negated condition tokens", () => {
+    assert.equal(
+      evaluateConditionConfig({ all: ["customer_opted_out:false"] }, baseFacts),
+      true
+    );
+    assert.equal(
+      evaluateConditionConfig({ all: ["customer_opted_out:false"] }, { ...baseFacts, optedOut: true }),
+      false
+    );
+  });
+
+  it("advances index after send", () => {
+    const steps = defaultReviewRequestSequence("email");
+    assert.equal(steps[0]?.step_type, "send_email");
+    assert.equal(indexAfterSend(steps, 0), 1);
+  });
+
+  it("rejects too many send reminders", () => {
+    const steps = [
+      ...defaultReviewRequestSequence("sms"),
+      { step_key: "extra", step_type: "send_sms" as const, config: {} },
+    ];
+    assert.ok(validateSequenceForLaunch(steps));
+  });
+});

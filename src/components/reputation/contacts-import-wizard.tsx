@@ -104,6 +104,50 @@ export function ContactsImportWizard({
     void loadHistory();
   }, [loadHistory]);
 
+  // Poll background import progress while queued/running.
+  useEffect(() => {
+    const uploadId = typeof result?.uploadId === "string" ? result.uploadId : null;
+    const status = String(result?.status ?? "");
+    if (!uploadId || (status !== "queued" && status !== "running")) return;
+
+    let cancelled = false;
+    const tick = async () => {
+      const res = await fetch(`/api/reputation/contacts/import?businessId=${businessId}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || cancelled) return;
+      const rows = (json.imports ?? []) as ImportHistoryRow[];
+      setHistory(rows);
+      const mine = rows.find((h) => h.id === uploadId);
+      if (!mine) return;
+      if (mine.status === "completed" || mine.status === "failed") {
+        setResult({
+          status: mine.status,
+          uploadId: mine.id,
+          imported: mine.imported_rows,
+          skipped: mine.skipped_rows,
+          failed: mine.failed_rows,
+        });
+        onDone?.();
+      } else {
+        setResult((prev) => ({
+          ...(prev ?? {}),
+          status: mine.status,
+          uploadId: mine.id,
+          imported: mine.imported_rows,
+          skipped: mine.skipped_rows,
+          failed: mine.failed_rows,
+        }));
+      }
+    };
+
+    const id = window.setInterval(() => void tick(), 2000);
+    void tick();
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [businessId, result?.uploadId, result?.status, onDone]);
+
   const sample = useMemo(() => csvRows.slice(0, 3), [csvRows]);
 
   const onFile = useCallback((file: File) => {
@@ -394,10 +438,18 @@ export function ContactsImportWizard({
       {step === 3 && result && (
         <div className="space-y-2 text-[13px]">
           <p className="font-medium text-zinc-900">
-            {String(result.status) === "queued"
-              ? "Import queued for background processing"
-              : "Import complete"}
+            {String(result.status) === "queued" || String(result.status) === "running"
+              ? "Import in progress…"
+              : String(result.status) === "failed"
+                ? "Import finished with errors"
+                : "Import complete"}
           </p>
+          {(String(result.status) === "queued" || String(result.status) === "running") && (
+            <p className="flex items-center gap-1.5 text-[12px] text-zinc-500">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Large imports run in the job queue. This view refreshes every few seconds.
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             <Stat label="Imported" value={Number(result.imported ?? 0)} tone="text-emerald-700" />
             <Stat label="Skipped" value={Number(result.skipped ?? 0)} />

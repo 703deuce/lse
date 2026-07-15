@@ -10,7 +10,15 @@ import {
 } from "@/lib/reputation/campaign-scheduler";
 import { renderTemplate } from "@/lib/reputation/template-vars";
 import { buildTrackingUrl, generateTrackingToken } from "@/lib/reputation/tracking";
-import { defaultReviewRequestSequence } from "@/lib/reputation/sequence-engine";
+import {
+  channelForSendStep,
+  defaultReviewRequestSequence,
+  initialSendSteps,
+  normalizeSequenceSteps,
+  validateSequenceForLaunch,
+  type SequenceStep,
+} from "@/lib/reputation/sequence-engine";
+import { persistCampaignSteps } from "@/lib/reputation/sequence-runner";
 
 export type CampaignChannel = "sms" | "email" | "both";
 export type CampaignStatus =
@@ -41,6 +49,9 @@ export type CreateCampaignInput = {
   mapping: Record<string, CsvMapTarget>;
   recipients: ValidatedRecipient[];
   status: "draft" | "scheduled" | "active";
+  /** Custom drip sequence; defaults to channel-aware review request sequence. */
+  sequence?: SequenceStep[];
+  description?: string | null;
 };
 
 function displayName(r: ValidatedRecipient): string {
@@ -122,6 +133,14 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
     throw new Error("Consent confirmation is required.");
   }
 
+  const sequence = normalizeSequenceSteps(
+    input.sequence?.length ? input.sequence : defaultReviewRequestSequence(input.channel)
+  );
+  if (input.status !== "draft") {
+    const seqErr = validateSequenceForLaunch(sequence);
+    if (seqErr) throw new Error(seqErr);
+  }
+
   const googleReviewUrl = await loadGoogleReviewUrl(input.businessId);
   const ready = input.recipients.filter((r) => r.status === "ready");
   const skipped = input.recipients.length - ready.length;
@@ -145,7 +164,8 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
       consent_confirmed: input.consentConfirmed,
       started_at: input.status === "active" ? new Date().toISOString() : null,
       objective: "request_review",
-      sequence_json: defaultReviewRequestSequence(),
+      description: input.description ?? null,
+      sequence_json: sequence,
       channel_strategy:
         input.channel === "sms"
           ? "sms_only"
@@ -158,6 +178,13 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
     .single();
 
   if (campErr) throw new Error(campErr.message);
+
+  await persistCampaignSteps({
+    organizationId: input.organizationId,
+    businessId: input.businessId,
+    campaignId: campaign.id,
+    steps: sequence,
+  });
 
   const { data: upload } = await supabase
     .from("review_request_uploads")
@@ -190,6 +217,9 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
     notes: r.notes ?? null,
     status: r.status,
     skip_reason: r.skip_reason ?? null,
+    workflow_status: r.status === "ready" ? "scheduled" : "stopped",
+    current_step: 0,
+    next_action_at: r.status === "ready" ? new Date().toISOString() : null,
   }));
 
   const { data: insertedRecipients, error: recErr } = await supabase
@@ -200,24 +230,58 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
   if (recErr) throw new Error(recErr.message);
 
   const readyRecipients = (insertedRecipients ?? []).filter((r) => r.status === "ready");
-  const messageItems: Array<{ recipientId: string; channel: "sms" | "email" }> = [];
+
+  // Only enqueue the first contiguous send step(s). Reminders are enqueued by the sequence runner.
+  const firstSends = initialSendSteps(sequence);
+  const messageItems: Array<{
+    recipientId: string;
+    channel: "sms" | "email";
+    stepKey: string;
+  }> = [];
 
   for (const r of readyRecipients) {
-    const vr = input.recipients.find((x) => x.rowIndex === undefined) ?? ({} as ValidatedRecipient);
-    void vr;
-    const channels = channelsForRecipient(input.channel, {
+    const base = {
       ...r,
       rowIndex: 0,
-      status: "ready",
+      status: "ready" as const,
       phone: r.phone ?? undefined,
       email: r.email ?? undefined,
       first_name: r.first_name ?? undefined,
       last_name: r.last_name ?? undefined,
       full_name: r.full_name ?? undefined,
       job_type: r.job_type ?? undefined,
-    });
-    for (const ch of channels) {
-      messageItems.push({ recipientId: r.id as string, channel: ch });
+    };
+
+    if (firstSends.length) {
+      for (const step of firstSends) {
+        const ch = channelForSendStep(step);
+        if (!ch) continue;
+        if (ch === "sms" && !r.phone) continue;
+        if (ch === "email" && !r.email) continue;
+        // Honor campaign channel gate
+        if (input.channel === "sms" && ch !== "sms") continue;
+        if (input.channel === "email" && ch !== "email") continue;
+        messageItems.push({ recipientId: r.id as string, channel: ch, stepKey: step.step_key });
+      }
+      // both_same_time: if sequence only has SMS initial, still enqueue email when campaign allows.
+      if (input.channel === "both" && firstSends.every((s) => s.step_type === "send_sms") && r.email) {
+        messageItems.push({
+          recipientId: r.id as string,
+          channel: "email",
+          stepKey: firstSends[0]!.step_key,
+        });
+      }
+      if (input.channel === "both" && firstSends.every((s) => s.step_type === "send_email") && r.phone) {
+        messageItems.push({
+          recipientId: r.id as string,
+          channel: "sms",
+          stepKey: firstSends[0]!.step_key,
+        });
+      }
+    } else {
+      for (const ch of channelsForRecipient(input.channel, base)) {
+        messageItems.push({ recipientId: r.id as string, channel: ch, stepKey: "initial" });
+      }
     }
   }
 
@@ -230,13 +294,18 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
       windowEnd: input.sendWindowEnd,
       timezone: input.timezone,
     };
-    const slots = buildMessageSchedule(messageItems, scheduleConfig);
+    const slots = buildMessageSchedule(
+      messageItems.map((m) => ({ recipientId: m.recipientId, channel: m.channel })),
+      scheduleConfig
+    );
 
     const smsTemplate = await loadTemplate(input.businessId, "sms", input.templateId);
     const emailTemplate = await loadTemplate(input.businessId, "email", input.templateId);
 
     const messageRows = [];
-    for (const slot of slots) {
+    for (let i = 0; i < slots.length; i++) {
+      const slot = slots[i]!;
+      const meta = messageItems[i]!;
       const recipient = readyRecipients.find((r) => r.id === slot.recipientId)!;
       const token = generateTrackingToken();
       const trackingUrl = buildTrackingUrl(token);
@@ -278,6 +347,8 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
         subject,
         message_body: body,
         scheduled_for: slot.scheduledFor.toISOString(),
+        step_key: meta.stepKey,
+        idempotency_key: `${campaign.id}:${slot.recipientId}:${meta.stepKey}:${slot.channel}`,
       });
     }
 
@@ -285,6 +356,16 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
       const { error: msgErr } = await supabase.from("review_request_messages").insert(messageRows);
       if (msgErr) throw new Error(msgErr.message);
     }
+
+    const firstStepIdx = Math.max(
+      0,
+      sequence.findIndex((s) => s.step_key === (firstSends[0]?.step_key ?? "initial"))
+    );
+    await supabase
+      .from("review_request_recipients")
+      .update({ workflow_status: "in_progress", current_step: firstStepIdx })
+      .eq("campaign_id", campaign.id)
+      .eq("status", "ready");
   }
 
   const businessDays = estimateBusinessDays(messageItems.length, input.dailySendLimit);
@@ -296,6 +377,7 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
     skippedCount: skipped,
     messageCount: messageItems.length,
     businessDays,
+    sequenceSteps: sequence.length,
   };
 }
 
@@ -326,6 +408,11 @@ export async function listCampaigns(businessId: string) {
     .select("campaign_id, status")
     .in("campaign_id", ids);
 
+  const { data: attributions } = await supabase
+    .from("review_campaign_attributions")
+    .select("campaign_id, attribution_level")
+    .in("campaign_id", ids);
+
   const msgByCamp = new Map<string, { queued: number; sent: number; failed: number; clicked: number; opted_out: number; delivered: number }>();
   for (const id of ids) {
     msgByCamp.set(id, { queued: 0, sent: 0, failed: 0, clicked: 0, opted_out: 0, delivered: 0 });
@@ -351,6 +438,16 @@ export async function listCampaigns(businessId: string) {
     if (r.status === "ready") bucket.ready++;
   }
 
+  const attrByCamp = new Map<string, number>();
+  for (const id of ids) attrByCamp.set(id, 0);
+  for (const a of attributions ?? []) {
+    const id = a.campaign_id as string;
+    // Count confirmed + likely only — unattributed is campaign-window noise.
+    if (a.attribution_level === "confirmed" || a.attribution_level === "likely") {
+      attrByCamp.set(id, (attrByCamp.get(id) ?? 0) + 1);
+    }
+  }
+
   return visible.map((c) => {
     const msgs = msgByCamp.get(c.id) ?? {
       queued: 0,
@@ -371,8 +468,8 @@ export async function listCampaigns(businessId: string) {
       failed: msgs.failed,
       clicked: msgs.clicked,
       opted_out: msgs.opted_out,
-      // Honest label — not "reviews generated"
-      reviews_detected: 0,
+      // Honest: confirmed + likely attributions only (not raw review volume)
+      reviews_detected: attrByCamp.get(c.id) ?? 0,
       replied: 0,
     };
   });

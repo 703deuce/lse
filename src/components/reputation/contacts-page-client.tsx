@@ -70,6 +70,12 @@ export function ContactsPageClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- search on mount / allowed
   }, [allowed, businessId]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("import") === "1") setShowImport(true);
+  }, []);
+
   if (!allowed) {
     return <ReviewCampaignsUpgrade businessId={businessId} />;
   }

@@ -72,7 +72,37 @@ Expect JSON like:
 
 Check Coolify logs for `campaign_message_sent` / `jobs_process_complete`.
 
-## 5. What this does *not* replace
+## 5. Prove overlapping workers cannot double-send
+
+Unit coverage (memory CAS) lives in `src/lib/reputation/campaign-claim.test.ts` — run `npm test`.
+
+Production check (same scheduled messages, two concurrent cron hits):
+
+```bash
+# Fire two overlapping process calls against a campaign with queued due messages
+curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" \
+  "https://YOUR_DOMAIN/api/jobs/process" &
+curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" \
+  "https://YOUR_DOMAIN/api/jobs/process" &
+wait
+```
+
+Then verify in logs / DB:
+- Each `review_request_messages` row has at most one `provider_message_id`
+- Only one `campaign_message_sent` log per message id
+- Coolify scheduled-task history shows failed runs (if any curl errors)
+
+Also set `TWILIO_STATUS_CALLBACK_URL` (or rely on `NEXT_PUBLIC_APP_URL` + `/api/webhooks/twilio/sms`) so delivery receipts flip messages to `delivered`.
+
+## 6. End-to-end scheduled campaign smoke test
+
+1. Create a 1–2 recipient SMS campaign + a 1–2 recipient email campaign, start date = today, low daily limit.
+2. Confirm Coolify cron runs every minute (`* * * * *`).
+3. Watch Coolify logs for `campaign_message_sent`.
+4. Confirm Twilio STOP and Brevo inbound still update suppression / replies (push webhooks).
+5. Confirm campaign detail shows delivery/click/reply and does not mark completed while recipients are still `waiting` on sequence waits.
+
+## 7. What this does *not* replace
 
 - Twilio delivery / inbound webhooks still hit `/api/webhooks/twilio/sms`
 - Brevo inbound replies still hit `/api/webhooks/brevo/inbound`

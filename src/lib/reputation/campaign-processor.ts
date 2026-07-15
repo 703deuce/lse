@@ -15,6 +15,11 @@ import { appendSmsOptOut } from "@/lib/reputation/phone";
 import { sendTwilioSms } from "@/lib/reputation/twilio";
 import { logger } from "@/lib/observability/logger";
 import { claimQueuedCampaignMessage } from "@/lib/reputation/campaign-claim";
+import {
+  processSequenceWaits,
+  tryAdvanceRecipientAfterSend,
+} from "@/lib/reputation/sequence-runner";
+import { attributeRecentReviewsForBusiness } from "@/lib/reputation/attribution";
 
 /** Requeue messages stuck in sending if a worker died mid-flight. */
 const SENDING_STALE_MS = Number(process.env.CAMPAIGN_SENDING_STALE_MS ?? 15 * 60 * 1000);
@@ -53,6 +58,9 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
   const now = new Date();
 
   await reclaimStaleSending(supabase, now);
+
+  // Advance wait/condition/reminder steps (CAS-locked per recipient).
+  await processSequenceWaits(Math.min(50, limit * 2));
 
   const { data: campaigns } = await supabase
     .from("review_request_campaigns")
@@ -148,12 +156,24 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
         .select("id", { count: "exact", head: true })
         .eq("campaign_id", campaign.id)
         .in("status", ["queued", "sending"]);
-      if (count === 0) {
+      const { count: waitingCount } = await supabase
+        .from("review_request_recipients")
+        .select("id", { count: "exact", head: true })
+        .eq("campaign_id", campaign.id)
+        .in("workflow_status", ["waiting", "in_progress", "scheduled"]);
+      if (count === 0 && (waitingCount ?? 0) === 0) {
         await supabase
           .from("review_request_campaigns")
           .update({ status: "completed", completed_at: now.toISOString() })
           .eq("id", campaign.id)
           .in("status", ["active", "scheduled"]);
+      } else {
+        // Soft attribution pass while campaign is still live.
+        await attributeRecentReviewsForBusiness({
+          businessId: campaign.business_id,
+          organizationId: campaign.organization_id,
+          campaignId: campaign.id,
+        }).catch(() => undefined);
       }
       continue;
     }
@@ -206,6 +226,14 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
             .update({ status: "opted_out", updated_at: claimTs })
             .eq("id", claimed.id)
             .eq("status", "sending");
+          await supabase
+            .from("review_request_recipients")
+            .update({
+              workflow_status: "opted_out",
+              next_action_at: null,
+              updated_at: claimTs,
+            })
+            .eq("id", claimed.recipient_id);
           continue;
         }
       }
@@ -300,6 +328,17 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
           channel: claimed.channel,
           provider: claimed.channel === "sms" ? "twilio" : "brevo",
         });
+        const stepKey = String(claimed.step_key ?? "initial");
+        await tryAdvanceRecipientAfterSend({
+          supabase,
+          recipientId: String(claimed.recipient_id),
+          stepKey,
+        }).catch((err) => {
+          logger.warn("sequence_advance_after_send_failed", {
+            messageId: claimed.id,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
       } else {
         // Release reserved usage on provider failure so limits stay honest.
         await releaseUsage(campaign.organization_id, usageKey, 1).catch(() => undefined);
@@ -313,6 +352,12 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
           })
           .eq("id", claimed.id)
           .eq("status", "sending");
+        const stepKey = String(claimed.step_key ?? "initial");
+        await tryAdvanceRecipientAfterSend({
+          supabase,
+          recipientId: String(claimed.recipient_id),
+          stepKey,
+        }).catch(() => undefined);
       }
     }
   }

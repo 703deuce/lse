@@ -113,3 +113,13 @@ Reputation → Reviews; sublink Review Requests. Momentum is under Main.
 - Campaign detail: filters, activity timeline, recipient drawer (messages/clicks/failures/next action/attribution labels).
 - Dual-worker claim-lock unit test (`campaign-claim.test.ts`) proves only one concurrent claim wins.
 
+### Phase 2c (sequences + builder)
+
+- **Sequence execution:** `sequence-engine` interpreter + `sequence-runner` advances wait/condition/reminder; processor calls waits + post-send advance; campaigns only enqueue initial send steps; completion waits for waiting recipients.
+- **Campaign builder UI:** Details → Audience (CSV or Contacts) → Channel → Sequence → Content → Launch (`campaign-builder.tsx`).
+- **Import progress:** contacts wizard polls queued/running uploads.
+- **Delivery status:** Twilio `StatusCallback` → `applyProviderDeliveryStatus`.
+- **Attribution writes:** `attributeRecentReviewsForBusiness` inserts confirmed/likely/unattributed during processing.
+- **Ops:** Coolify doc sections for dual-cron proof + E2E smoke test.
+- **Still not Stripe.** Production Coolify `CRON_SECRET` + live dual-send proof remain operator steps.
+

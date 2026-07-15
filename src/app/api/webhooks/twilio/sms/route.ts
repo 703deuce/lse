@@ -10,6 +10,7 @@ import {
   verifyTwilioRequestSignature,
 } from "@/lib/reputation/twilio";
 import { logger } from "@/lib/observability/logger";
+import { applyProviderDeliveryStatus } from "@/lib/reputation/delivery-status";
 
 function twilioXml(body = ""): NextResponse {
   return new NextResponse(body ? `<Response><Message>${body}</Message></Response>` : "<Response></Response>", {
@@ -56,7 +57,18 @@ export async function POST(request: Request) {
 
     const from = formParams.From ?? "";
     const body = formParams.Body ?? "";
-    const messageSid = formParams.MessageSid ?? "";
+    const messageSid = formParams.MessageSid ?? formParams.SmsSid ?? "";
+    const messageStatus = formParams.MessageStatus ?? formParams.SmsStatus ?? "";
+
+    // Delivery status callbacks (no inbound SMS body).
+    if (messageSid && messageStatus && !body) {
+      await applyProviderDeliveryStatus({
+        providerMessageId: messageSid,
+        status: messageStatus,
+        errorCode: formParams.ErrorCode ?? null,
+      });
+      return twilioXml();
+    }
 
     if (!from) {
       return new NextResponse("<Response></Response>", {

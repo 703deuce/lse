@@ -7,6 +7,7 @@ import { ModulePage } from "@/components/ui/design-system";
 import { PageHeader } from "@/components/ui/page-header";
 import { ReviewRequestsCampaignsTable } from "@/components/reputation/review-requests-campaigns";
 import { ReviewRequestsPanel } from "@/components/reputation/review-requests-panel";
+import { CampaignBuilder } from "@/components/reputation/campaign-builder";
 import { cn } from "@/lib/utils";
 
 type CampaignSummary = {
@@ -16,7 +17,7 @@ type CampaignSummary = {
   delivered?: number;
   clicked: number;
   opted_out: number;
-  reviews_detected?: number;
+  reviews_detected?: number | null;
 };
 
 function MicroStat({ label, value }: { label: string; value: string }) {
@@ -58,7 +59,8 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
     const deliveryRate = sent > 0 ? Math.round((delivered / sent) * 100) : 0;
     const clickRate = delivered > 0 ? Math.round((clicked / delivered) * 100) : 0;
     const optRate = sent > 0 ? Math.round((opted / sent) * 100) : 0;
-    return { active, sent, deliveryRate, clickRate, optRate };
+    const reviews = campaigns.reduce((n, c) => n + (c.reviews_detected ?? 0), 0);
+    return { active, sent, deliveryRate, clickRate, optRate, reviews };
   }, [campaigns]);
 
   return (
@@ -80,17 +82,13 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
             <Plus className="h-3.5 w-3.5" />
             Create Campaign
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setBuilderTab("bulk");
-              setShowBuilder(true);
-            }}
+          <Link
+            href={`/businesses/${businessId}/contacts?import=1`}
             className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
           >
             <Upload className="h-3.5 w-3.5" />
             Import Customers
-          </button>
+          </Link>
           <Link
             href={`/businesses/${businessId}/contacts`}
             className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
@@ -120,7 +118,7 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
             <MicroStat label="Delivery rate" value={`${stats.deliveryRate}%`} />
             <MicroStat label="Click rate" value={`${stats.clickRate}%`} />
             <MicroStat label="Opt-out rate" value={`${stats.optRate}%`} />
-            <MicroStat label="Reviews detected" value="—" />
+            <MicroStat label="Likely/confirmed reviews" value={String(stats.reviews)} />
           </>
         )}
       </div>
@@ -135,23 +133,13 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
             <div>
               <p className="text-[13px] font-semibold text-zinc-900">Campaign builder</p>
               <p className="text-[11px] text-zinc-500">
-                Details → audience (CSV) → channel → schedule → launch. Full sequence canvas comes next.
+                Details → audience → channel → sequence → content → launch confirmation.
               </p>
-              <div className="mt-1.5 flex flex-wrap gap-1">
-                {["Details", "Audience", "Channel", "Sequence", "Content", "Launch"].map((s, i) => (
-                  <span
-                    key={s}
-                    className="rounded bg-zinc-50 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600"
-                  >
-                    {i + 1}. {s}
-                  </span>
-                ))}
-              </div>
             </div>
             <div className="flex gap-1">
               {(
                 [
-                  ["bulk", "Campaign / CSV"],
+                  ["bulk", "Campaign"],
                   ["send", "Quick Send"],
                 ] as const
               ).map(([id, label]) => (
@@ -181,11 +169,17 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
               </button>
             </div>
           </div>
-          <ReviewRequestsPanel
-            businessId={businessId}
-            section={builderTab === "bulk" ? "bulk" : "send"}
-            hideSubTabs
-          />
+          {builderTab === "bulk" ? (
+            <CampaignBuilder
+              businessId={businessId}
+              onComplete={() => {
+                setShowBuilder(false);
+                void load();
+              }}
+            />
+          ) : (
+            <ReviewRequestsPanel businessId={businessId} section="send" hideSubTabs />
+          )}
         </div>
       )}
     </ModulePage>
