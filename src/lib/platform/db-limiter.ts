@@ -8,7 +8,9 @@ let inFlight = 0;
 const waiters: Array<() => void> = [];
 
 function pump() {
+  // Reserve the slot before waking so a sync caller cannot steal it.
   while (inFlight < max && waiters.length) {
+    inFlight += 1;
     const next = waiters.shift();
     if (next) next();
   }
@@ -17,8 +19,9 @@ function pump() {
 export async function withDbLimit<T>(fn: () => Promise<T>): Promise<T> {
   if (inFlight >= max) {
     await new Promise<void>((resolve) => waiters.push(resolve));
+  } else {
+    inFlight += 1;
   }
-  inFlight += 1;
   try {
     return await fn();
   } finally {
