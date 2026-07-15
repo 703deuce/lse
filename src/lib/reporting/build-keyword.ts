@@ -166,9 +166,16 @@ export async function buildKeywordReport(params: {
     });
   }
 
-  locations.sort((a, b) => (a.arp ?? 99) - (b.arp ?? 99));
+  const scannedLocations = locations.filter((l) => l.scanId != null);
+  if (scannedLocations.length === 0) {
+    throw new Error(
+      "No completed scans to include for this keyword. Run a grid scan first."
+    );
+  }
 
-  const dates = locations
+  scannedLocations.sort((a, b) => (a.arp ?? 99) - (b.arp ?? 99));
+
+  const dates = scannedLocations
     .map((l) => l.scannedAt)
     .filter((d): d is string => !!d)
     .sort();
@@ -191,12 +198,12 @@ export async function buildKeywordReport(params: {
       keywordId,
       gridSize,
       radiusMeters,
-      locationCount: locations.length,
+      locationCount: scannedLocations.length,
       dateFrom: dates[0] ?? new Date().toISOString(),
       dateTo: dates[dates.length - 1] ?? new Date().toISOString(),
     },
-    aggregate: aggregateLocationKpis(locations),
-    locations,
+    aggregate: aggregateLocationKpis(scannedLocations),
+    locations: scannedLocations,
     whiteLabel,
     generatedAt: new Date().toISOString(),
   };

@@ -143,7 +143,20 @@ export async function updateOrganizationReportBranding(
 ) {
   const supabase = createServiceClient();
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if ("logoUrl" in patch) update.report_logo_url = patch.logoUrl?.trim() || null;
+  if ("logoUrl" in patch) {
+    const logo = patch.logoUrl?.trim() || null;
+    if (
+      logo &&
+      !/^https?:\/\//i.test(logo) &&
+      !logo.startsWith("/") &&
+      !/^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/i.test(logo)
+    ) {
+      throw new Error(
+        "logoUrl must be an http(s) URL, site-relative path, or data:image… base64"
+      );
+    }
+    update.report_logo_url = logo;
+  }
   if ("accentColor" in patch) {
     const color = patch.accentColor?.trim() || null;
     if (color && !/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) {

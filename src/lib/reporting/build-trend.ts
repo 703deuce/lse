@@ -39,10 +39,13 @@ export async function buildTrendReport(params: {
     throw new Error("keywordId is required for trend reports");
   }
 
+  // Default to business location when omitted — never mix all locations into one series.
+  const locationId = params.locationId !== undefined ? params.locationId : null;
+
   const history = await loadScanHistory(supabase, {
     businessId: params.businessId,
     keywordId,
-    locationId: params.locationId,
+    locationId,
     gridSize: params.gridSize,
     radiusMeters: params.radiusMeters,
     mode: "target",
@@ -88,7 +91,8 @@ export async function buildTrendReport(params: {
       scanId: entry.scan_id,
       date: entry.completed_at,
       arp,
-      atrp: arp, // history fallback: approximate atrp from avg_rank
+      // aggregate avg_rank is ARP — leave ATRP null when grid is not recomputed
+      atrp: null,
       solv: entry.solv,
       top3Pct,
       top10Pct: entry.visibility_score,
@@ -120,8 +124,7 @@ export async function buildTrendReport(params: {
       keyword: keywordLabel,
       gridSize: last.grid_size,
       radiusMeters: last.radius_meters,
-      locationId:
-        params.locationId !== undefined ? params.locationId : last.location_id,
+      locationId,
       dateFrom: first.completed_at,
       dateTo: last.completed_at,
       scanCount: series.length,

@@ -115,10 +115,16 @@ function fallbackMetrics(entry: ScanEntry): {
   };
 }
 
-/** Prefer business-location scans (location_id null); fall back only if none exist. */
+/**
+ * Prefer business-location scans (location_id null).
+ * If every scan is tied to a rank location, pin to one location (newest) —
+ * never mix centers for latest vs previous Δ ARP.
+ */
 function preferBusinessLocationScans(scans: ScanEntry[]): ScanEntry[] {
   const primary = scans.filter((s) => s.locationId == null);
-  return primary.length > 0 ? primary : scans;
+  if (primary.length > 0) return primary;
+  const anchorId = scans[0]?.locationId ?? null;
+  return scans.filter((s) => s.locationId === anchorId);
 }
 
 export async function buildLocationReport(params: {

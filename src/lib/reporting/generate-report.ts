@@ -50,7 +50,8 @@ function reportIdentityKey(
     case "single_scan":
       return `single_scan:${payload.parameters.scanId}`;
     case "competitor":
-      return `competitor:${payload.parameters.scanId}:${[...(params.selectedCompetitorKeys ?? [])]
+      // Use post-default selection from the payload (builder fills top 5 when empty).
+      return `competitor:${payload.parameters.scanId}:${[...payload.selectedCompetitorKeys]
         .sort()
         .join(",")}`;
     case "trend":
