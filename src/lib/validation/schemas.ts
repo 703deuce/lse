@@ -95,10 +95,20 @@ export const exportReportSchema = z.object({
   format: z.enum(["share", "csv"]).optional().default("share"),
 });
 
+const reportLogoUrlSchema = z
+  .string()
+  .max(2048)
+  .refine(
+    (v) =>
+      v === "" ||
+      /^https?:\/\//i.test(v) ||
+      v.startsWith("/") ||
+      /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/i.test(v),
+    "logoUrl must be an http(s) URL, site-relative path, or data:image… base64"
+  );
+
 export const reportBrandingSchema = z.object({
-  logoUrl: z
-    .union([z.string().url(), z.literal(""), z.null()])
-    .optional(),
+  logoUrl: z.union([reportLogoUrlSchema, z.null()]).optional(),
   accentColor: z
     .union([
       z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Use a hex color like #059669"),

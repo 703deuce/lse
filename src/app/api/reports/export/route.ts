@@ -26,6 +26,7 @@ function exportStatus(message: string): number {
     message.includes("No completed scans") ||
     message.includes("Add a keyword") ||
     message.includes("not implemented") ||
+    message.includes("does not belong") ||
     /not found/i.test(message)
   ) {
     return 400;
