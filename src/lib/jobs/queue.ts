@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/db/client";
 import { processCampaignMessages } from "@/lib/reputation/campaign-processor";
+import { processNewReviewAlerts } from "@/lib/reputation/review-alerts";
 import { processScanBatch } from "@/lib/jobs/process-scan";
 import { reclaimStaleInFlightScans } from "@/lib/jobs/schedule-scan";
 import { maybeRunDataRetentionCleanup } from "@/lib/jobs/retention";
@@ -63,6 +64,7 @@ async function reclaimStaleRunningJobs(
 export async function processPendingJobs(limit = 5): Promise<{
   jobsProcessed: number;
   campaignSent: number;
+  reviewAlertsSent: number;
   scansReclaimed: number;
   jobsReclaimed: number;
   retention: Awaited<ReturnType<typeof maybeRunDataRetentionCleanup>>;
@@ -83,7 +85,15 @@ export async function processPendingJobs(limit = 5): Promise<{
 
   if (!jobs?.length) {
     const campaignSent = await processCampaignMessages(20);
-    return { jobsProcessed: 0, campaignSent, scansReclaimed, jobsReclaimed, retention };
+    const reviewAlertsSent = await processNewReviewAlerts(15).catch(() => 0);
+    return {
+      jobsProcessed: 0,
+      campaignSent,
+      reviewAlertsSent,
+      scansReclaimed,
+      jobsReclaimed,
+      retention,
+    };
   }
 
   let processed = 0;
@@ -209,6 +219,14 @@ export async function processPendingJobs(limit = 5): Promise<{
   }
 
   const campaignSent = await processCampaignMessages(20);
+  const reviewAlertsSent = await processNewReviewAlerts(15).catch(() => 0);
 
-  return { jobsProcessed: processed, campaignSent, scansReclaimed, jobsReclaimed, retention };
+  return {
+    jobsProcessed: processed,
+    campaignSent,
+    reviewAlertsSent,
+    scansReclaimed,
+    jobsReclaimed,
+    retention,
+  };
 }

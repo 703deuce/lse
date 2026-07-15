@@ -102,11 +102,29 @@ Also set `TWILIO_STATUS_CALLBACK_URL` (or rely on `NEXT_PUBLIC_APP_URL` + `/api/
 4. Confirm Twilio STOP and Brevo inbound still update suppression / replies (push webhooks).
 5. Confirm campaign detail shows delivery/click/reply and does not mark completed while recipients are still `waiting` on sequence waits.
 
-## 7. What this does *not* replace
+## 7. Provider webhooks (push — not cron)
 
-- Twilio delivery / inbound webhooks still hit `/api/webhooks/twilio/sms`
-- Brevo inbound replies still hit `/api/webhooks/brevo/inbound`
-- Those are push callbacks, not cron
+| Provider | Purpose | Endpoint |
+|----------|---------|----------|
+| Twilio SMS reply / STOP | Inbound + opt-out | `/api/webhooks/twilio/sms` |
+| Twilio MessageStatus | Delivered / failed | same URL via `StatusCallback` |
+| Brevo inbound | Email replies (plus-address) | `/api/webhooks/brevo/inbound?token=…` |
+| Brevo transactional | Delivered / bounce / complaint / unsub | `/api/webhooks/brevo/events?token=…` |
+
+Set `BREVO_EVENTS_WEBHOOK_SECRET` (or reuse `BREVO_INBOUND_WEBHOOK_SECRET`) and configure the Brevo transactional webhook in the Brevo dashboard.
+
+Unsubscribe links: campaign + one-off emails include `List-Unsubscribe` pointing at `/api/reputation/unsubscribe?token=…`.
+
+## 8. What cron also drains
+
+- Campaign sequence waits / reminders (`processSequenceWaits`)
+- Contact CSV import jobs (`import_contacts`)
+- New-review alert emails (when alert settings have recipients)
+
+## 9. What this does *not* replace
+
+- Twilio / Brevo push webhooks above — cron never substitutes for those
+- Live Stripe checkout (intentionally deferred)
 
 ## Policy reminder
 

@@ -2,6 +2,7 @@ import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { hasEntitlement } from "@/lib/auth/entitlements";
 import { ReviewCampaignsUpgrade } from "@/components/reputation/review-campaigns-upgrade";
 import { ReviewRequestsPanel } from "@/components/reputation/review-requests-panel";
+import { ReviewAlertSettings } from "@/components/reputation/review-alert-settings";
 import { ModulePage } from "@/components/ui/design-system";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -19,10 +20,11 @@ export default async function ReviewSettingsPage({
     <ModulePage>
       <PageHeader
         title="Review settings"
-        subtitle="Review destination link, poster, and request kit. Alert preferences expand in a later phase."
+        subtitle="Review destination link, poster kit, and new-review alert preferences."
       />
-      <div className="mt-3">
+      <div className="mt-3 space-y-3">
         <ReviewRequestsPanel businessId={businessId} section="poster" hideSubTabs />
+        <ReviewAlertSettings businessId={businessId} />
       </div>
     </ModulePage>
   );

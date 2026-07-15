@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import { sendReviewRequestEmail } from "@/lib/reputation/review-sends";
 import { PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
 
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
     }
 
     const auth = await requireBusinessAccess(body.businessId);
+    await requireEntitlement(auth.organizationId, "review_campaigns");
     organizationId = auth.organizationId;
     await reserveUsageOrThrow(auth.organizationId, "review_emails_sent", 1);
     reserved = true;
@@ -47,6 +49,9 @@ export async function POST(request: Request) {
   } catch (err) {
     if (reserved && organizationId) {
       await releaseUsage(organizationId, "review_emails_sent", 1).catch(() => {});
+    }
+    if (err instanceof EntitlementError) {
+      return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
     }
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });

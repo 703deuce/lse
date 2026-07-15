@@ -156,6 +156,82 @@ export async function listBusinessContacts(
   return { items, nextCursor };
 }
 
+export async function setContactSuppression(params: {
+  organizationId: string;
+  businessId: string;
+  contactId: string;
+  smsOptOut?: boolean;
+  emailUnsubscribed?: boolean;
+}): Promise<void> {
+  const supabase = createServiceClient();
+  const { data: contact } = await supabase
+    .from("review_request_contacts")
+    .select("id, phone_e164, email_normalized, sms_opt_out, email_unsubscribed")
+    .eq("id", params.contactId)
+    .eq("business_id", params.businessId)
+    .maybeSingle();
+  if (!contact) throw new Error("Contact not found");
+
+  const smsOptOut = params.smsOptOut ?? Boolean(contact.sms_opt_out);
+  const emailUnsubscribed = params.emailUnsubscribed ?? Boolean(contact.email_unsubscribed);
+  const now = new Date().toISOString();
+
+  await supabase
+    .from("review_request_contacts")
+    .update({
+      sms_opt_out: smsOptOut,
+      email_unsubscribed: emailUnsubscribed,
+      updated_at: now,
+    })
+    .eq("id", contact.id);
+
+  if (smsOptOut && contact.phone_e164) {
+    const { data: existing } = await supabase
+      .from("review_request_suppression")
+      .select("id")
+      .eq("business_id", params.businessId)
+      .eq("phone", contact.phone_e164)
+      .limit(1);
+    if (!existing?.length) {
+      await supabase.from("review_request_suppression").insert({
+        organization_id: params.organizationId,
+        business_id: params.businessId,
+        phone: contact.phone_e164,
+        reason: "manual_sms_opt_out",
+      });
+    }
+  } else if (!smsOptOut && contact.phone_e164) {
+    await supabase
+      .from("review_request_suppression")
+      .delete()
+      .eq("business_id", params.businessId)
+      .eq("phone", contact.phone_e164);
+  }
+
+  if (emailUnsubscribed && contact.email_normalized) {
+    const { data: existing } = await supabase
+      .from("review_request_suppression")
+      .select("id")
+      .eq("business_id", params.businessId)
+      .eq("email", contact.email_normalized)
+      .limit(1);
+    if (!existing?.length) {
+      await supabase.from("review_request_suppression").insert({
+        organization_id: params.organizationId,
+        business_id: params.businessId,
+        email: contact.email_normalized,
+        reason: "manual_email_unsubscribe",
+      });
+    }
+  } else if (!emailUnsubscribed && contact.email_normalized) {
+    await supabase
+      .from("review_request_suppression")
+      .delete()
+      .eq("business_id", params.businessId)
+      .eq("email", contact.email_normalized);
+  }
+}
+
 export async function clearSmsSuppression(params: {
   organizationId: string;
   businessId: string;

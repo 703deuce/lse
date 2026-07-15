@@ -78,7 +78,13 @@ export async function POST(request: Request) {
     }
 
     if (isSmsOptOutMessage(body) || isSmsOptInMessage(body)) {
-      await handleTwilioSmsReply({ from, body, messageSid });
+      // Do not treat STOP/START as a normal reply (avoids setting replied_at).
+      await handleTwilioSmsReply({
+        from,
+        body,
+        messageSid,
+        skipCampaignReplyState: true,
+      });
       const phone = normalizePhoneE164(from);
       if (isSmsOptOutMessage(body) && phone) {
         const supabase = createServiceClient();

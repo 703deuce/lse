@@ -3,6 +3,8 @@ import { getBusiness } from "@/lib/db/queries";
 import { isBillingHealthy, hasEntitlement } from "@/lib/auth/entitlements";
 import { PlanLimitError, releaseUsage, reserveUsage } from "@/lib/plans";
 import { sendBrevoEmail } from "@/lib/reputation/brevo";
+import { buildInboundReplyAddress } from "@/lib/reputation/inbound-reply";
+import { buildUnsubscribeUrl } from "@/lib/reputation/unsubscribe";
 import {
   campaignImmediateSendEnabled,
   countSentTodayInTz,
@@ -287,6 +289,8 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
             fromName: business?.name,
             subject: String(claimed.subject ?? `Feedback for ${business?.name ?? "us"}`),
             textBody: String(claimed.message_body ?? ""),
+            replyToEmail: buildInboundReplyAddress(String(claimed.id)),
+            listUnsubscribeUrl: buildUnsubscribeUrl(String(claimed.id)),
           });
           ok = result.ok;
           if (result.ok) providerId = result.messageId;

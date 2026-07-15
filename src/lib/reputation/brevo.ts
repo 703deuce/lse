@@ -8,6 +8,8 @@ export type BrevoSendParams = {
   /** Display name shown in the recipient's inbox (defaults to REVIEW_REQUEST_FROM_NAME). */
   fromName?: string;
   replyToEmail?: string | null;
+  /** One-click / mailto List-Unsubscribe URL (RFC 2369). */
+  listUnsubscribeUrl?: string | null;
 };
 
 export type BrevoSendResult =
@@ -32,6 +34,14 @@ export async function sendBrevoEmail(params: BrevoSendParams): Promise<BrevoSend
 
   if (params.replyToEmail) {
     payload.replyTo = { email: params.replyToEmail, name: fromName };
+  }
+
+  if (params.listUnsubscribeUrl) {
+    const unsub = params.listUnsubscribeUrl.trim();
+    payload.headers = {
+      "List-Unsubscribe": `<${unsub}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    };
   }
 
   try {

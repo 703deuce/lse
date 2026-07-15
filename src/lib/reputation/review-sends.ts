@@ -9,6 +9,7 @@ import { appendSmsOptOut, normalizePhoneE164, phoneDigitsForMatch } from "@/lib/
 import { renderTemplate } from "@/lib/reputation/template-vars";
 import { sendTwilioSms } from "@/lib/reputation/twilio";
 import { buildTrackingUrl, generateTrackingToken } from "@/lib/reputation/tracking";
+import { buildUnsubscribeUrl } from "@/lib/reputation/unsubscribe";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
@@ -329,6 +330,7 @@ export async function sendReviewRequestEmail(input: SendReviewEmailInput) {
     subject,
     textBody: body,
     replyToEmail: resolveReplyToEmail(sendRow.id, business),
+    listUnsubscribeUrl: buildUnsubscribeUrl(sendRow.id),
   });
 
   const now = new Date().toISOString();
@@ -627,6 +629,8 @@ export async function handleTwilioSmsReply(params: {
   from: string;
   body: string;
   messageSid?: string;
+  /** When true, skip setting replied_at / stopping workflow (used for STOP/START). */
+  skipCampaignReplyState?: boolean;
 }) {
   const supabase = createServiceClient();
   const fromDigits = phoneDigitsForMatch(params.from);
@@ -716,13 +720,14 @@ export async function handleTwilioSmsReply(params: {
     }
   }
 
-  if (campaignMatch) {
+  if (campaignMatch && !params.skipCampaignReplyState) {
     const snippet = params.body.trim().slice(0, 280);
     await supabase
       .from("review_request_recipients")
       .update({
         replied_at: new Date().toISOString(),
         workflow_status: "stopped",
+        next_action_at: null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", campaignMatch.id);
@@ -772,7 +777,73 @@ export async function handleBrevoInboundEmail(item: BrevoInboundItem) {
     match = data;
   }
 
-  // Fail closed without a plus-addressed sendId — global email fallback can cross tenants.
+  // Campaign email: Reply-To uses campaign message id (same plus-address format).
+  if (!match && item.sendId) {
+    const { data: campaignMsg } = await supabase
+      .from("review_request_messages")
+      .select("id, organization_id, business_id, recipient_id, campaign_id")
+      .eq("id", item.sendId)
+      .eq("channel", "email")
+      .maybeSingle();
+    if (campaignMsg) {
+      const snippet = (item.replyBody || "").trim().slice(0, 280);
+      const now = new Date().toISOString();
+      await supabase
+        .from("review_request_recipients")
+        .update({
+          replied_at: now,
+          workflow_status: "stopped",
+          next_action_at: null,
+          updated_at: now,
+        })
+        .eq("id", campaignMsg.recipient_id);
+      await supabase
+        .from("review_request_messages")
+        .update({ status: "skipped", updated_at: now })
+        .eq("recipient_id", campaignMsg.recipient_id)
+        .in("status", ["queued", "sending"]);
+
+      const { data: recipient } = await supabase
+        .from("review_request_recipients")
+        .select("email")
+        .eq("id", campaignMsg.recipient_id)
+        .maybeSingle();
+      const emailNorm = recipient?.email?.toLowerCase() ?? null;
+      if (emailNorm) {
+        await supabase
+          .from("review_request_contacts")
+          .update({
+            latest_reply_at: now,
+            latest_reply_snippet: snippet || null,
+            updated_at: now,
+          })
+          .eq("business_id", campaignMsg.business_id)
+          .eq("email_normalized", emailNorm);
+      }
+
+      const forwardTo = process.env.REVIEW_REPLY_FORWARD_EMAIL?.trim();
+      if (forwardTo) {
+        const business = await getBusiness(
+          campaignMsg.business_id as string,
+          campaignMsg.organization_id as string
+        );
+        await sendBrevoEmail({
+          toEmail: forwardTo,
+          subject: `Campaign email reply${business ? ` — ${business.name}` : ""}`,
+          textBody: `${item.fromEmail ?? "Customer"} replied:\n\n${item.replyBody || "(empty)"}\n\n— Maps Growth`,
+        });
+      }
+
+      return {
+        matched: true as const,
+        sendId: null,
+        messageId: campaignMsg.id as string,
+        recipientId: campaignMsg.recipient_id as string,
+      };
+    }
+  }
+
+  // Fail closed without a plus-addressed id — global email fallback can cross tenants.
   if (!match) {
     return { matched: false as const };
   }

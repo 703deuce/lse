@@ -1,10 +1,11 @@
-/** Build Reply-To for Brevo inbound parsing: reply+{sendId}@reply.yourdomain.com */
-export function buildInboundReplyAddress(sendId: string): string | null {
+/** Build Reply-To for Brevo inbound parsing: reply+{uuid}@reply.yourdomain.com */
+export function buildInboundReplyAddress(entityId: string): string | null {
   const domain = process.env.REVIEW_REQUEST_REPLY_DOMAIN?.trim();
   if (!domain) return null;
-  return `reply+${sendId}@${domain}`;
+  return `reply+${entityId}@${domain}`;
 }
 
+/** UUID from plus-addressed Reply-To (one-off send id or campaign message id). */
 export function parseSendIdFromRecipient(recipient: string): string | null {
   const normalized = recipient.trim().toLowerCase();
   const plusMatch = normalized.match(/reply\+([0-9a-f-]{36})@/);

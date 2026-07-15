@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import { applyMapping, type CsvMapTarget } from "@/lib/reputation/bulk-csv";
 import { validateBulkRecipients } from "@/lib/reputation/bulk-validate";
 
@@ -24,7 +25,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "businessId, headers, rows, and mapping required" }, { status: 400 });
     }
 
-    await requireBusinessAccess(businessId);
+    const auth = await requireBusinessAccess(businessId);
+    await requireEntitlement(auth.organizationId, "review_campaigns");
     const mapped = applyMapping(headers, rows, mapping);
     const result = await validateBulkRecipients({
       businessId,
@@ -34,6 +36,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (err) {
+    if (err instanceof EntitlementError) {
+      return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
+    }
     const message = err instanceof Error ? err.message : "Validation failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }

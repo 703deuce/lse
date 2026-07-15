@@ -422,9 +422,13 @@ export async function processSequenceWaits(limit = 50): Promise<number> {
     }
 
     const steps = normalizeSequenceSteps(campaign.sequence_json);
-    // After wait completes, advance past the wait step.
+    // After wait completes, advance past the wait step (or end if wait was last).
     const waitIdx = Number(claimed.current_step ?? 0);
-    const nextIdx = Math.min(waitIdx + 1, steps.length - 1);
+    const waitStep = steps[waitIdx];
+    const nextIdx =
+      waitStep?.step_type === "wait"
+        ? Math.min(waitIdx + 1, steps.length - 1)
+        : waitIdx;
     try {
       await applyWorkflowFromIndex({
         supabase,

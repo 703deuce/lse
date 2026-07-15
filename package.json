@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "eslint",
-    "test": "tsx --test src/lib/reputation/foundation.test.ts src/lib/reputation/campaign-claim.test.ts src/lib/reputation/sequence-engine.test.ts",
+    "test": "tsx --test src/lib/reputation/foundation.test.ts src/lib/reputation/campaign-claim.test.ts src/lib/reputation/sequence-engine.test.ts src/lib/reputation/unsubscribe.test.ts src/lib/reputation/brevo-events.test.ts",
     "debug:city-junk": "node scripts/debug-scrapingdog-city-junk.mjs"
   },
   "dependencies": {

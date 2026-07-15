@@ -166,6 +166,27 @@ export function TemplatesManager({ businessId }: { businessId: string }) {
     }
   }
 
+  async function generateAi() {
+    setSaving(true);
+    setError(null);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/reputation/templates/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId, tone: "friendly" }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Generate failed");
+      setMsg("AI templates generated");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Generate failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="grid gap-3 lg:grid-cols-2">
       <div className="space-y-2 rounded-lg border border-zinc-200 bg-white p-3">
@@ -253,6 +274,14 @@ export function TemplatesManager({ businessId }: { businessId: string }) {
               </ul>
             )}
             <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void generateAi()}
+                className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-[12px] font-medium text-zinc-700"
+              >
+                Generate with AI
+              </button>
               <button
                 type="button"
                 disabled={saving}

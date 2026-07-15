@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
-import { listBusinessContacts, upsertBusinessContact } from "@/lib/reputation/contacts";
+import {
+  listBusinessContacts,
+  setContactSuppression,
+  upsertBusinessContact,
+} from "@/lib/reputation/contacts";
 
 export async function GET(request: Request) {
   try {
@@ -59,6 +63,61 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
     }
     const message = err instanceof Error ? err.message : "Failed to save contact";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const businessId = body.businessId as string | undefined;
+    const contactId = body.contactId as string | undefined;
+    if (!businessId || !contactId) {
+      return NextResponse.json({ error: "businessId and contactId required" }, { status: 400 });
+    }
+    const auth = await requireBusinessAccess(businessId);
+    await requireEntitlement(auth.organizationId, "review_campaigns");
+
+    if (body.action === "suppress" || body.action === "unsuppress") {
+      const channel = String(body.channel ?? "both");
+      await setContactSuppression({
+        organizationId: auth.organizationId,
+        businessId,
+        contactId,
+        smsOptOut:
+          channel === "email"
+            ? undefined
+            : body.action === "suppress"
+              ? true
+              : false,
+        emailUnsubscribed:
+          channel === "sms"
+            ? undefined
+            : body.action === "suppress"
+              ? true
+              : false,
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    // Update identity fields via upsert patch
+    const result = await upsertBusinessContact({
+      organizationId: auth.organizationId,
+      businessId,
+      firstName: body.firstName,
+      lastName: body.lastName,
+      customerName: body.customerName,
+      phone: body.phone,
+      email: body.email,
+      notes: body.notes,
+      source: body.source ?? "manual_edit",
+    });
+    return NextResponse.json(result);
+  } catch (err) {
+    if (err instanceof EntitlementError) {
+      return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
+    }
+    const message = err instanceof Error ? err.message : "Failed to update contact";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

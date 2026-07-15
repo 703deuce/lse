@@ -27,6 +27,8 @@ export type ReviewListItem = {
   competitorId: string | null;
   daysWaiting: number | null;
   urgency: "urgent" | "high" | "medium" | "low" | null;
+  /** Honest campaign attribution when matched — never invents confirmed. */
+  campaignAttribution?: "confirmed" | "likely" | "unattributed" | null;
 };
 
 export type CompetitorSummary = {
@@ -147,7 +149,40 @@ function toListItem(
     competitorId: row.competitor_id,
     daysWaiting,
     urgency: daysWaiting != null && !hasOwnerResponse(row.owner_response_text) ? urgencyFromDays(daysWaiting) : null,
+    campaignAttribution: null,
   };
+}
+
+async function loadAttributionMap(
+  supabase: ReturnType<typeof createServiceClient>,
+  businessId: string,
+  reviewIds: string[]
+): Promise<Map<string, "confirmed" | "likely" | "unattributed">> {
+  const map = new Map<string, "confirmed" | "likely" | "unattributed">();
+  if (!reviewIds.length) return map;
+  const { data } = await supabase
+    .from("review_campaign_attributions")
+    .select("review_id, attribution_level")
+    .eq("business_id", businessId)
+    .in("review_id", reviewIds.slice(0, 200));
+  for (const row of data ?? []) {
+    const id = String(row.review_id);
+    const level = row.attribution_level as "confirmed" | "likely" | "unattributed";
+    const prev = map.get(id);
+    const rank = (l: string) => (l === "confirmed" ? 3 : l === "likely" ? 2 : 1);
+    if (!prev || rank(level) > rank(prev)) map.set(id, level);
+  }
+  return map;
+}
+
+function applyAttribution(
+  items: ReviewListItem[],
+  attrMap: Map<string, "confirmed" | "likely" | "unattributed">
+): ReviewListItem[] {
+  return items.map((item) => ({
+    ...item,
+    campaignAttribution: attrMap.get(item.id) ?? null,
+  }));
 }
 
 function sparkFromReviews(rows: StoredReviewRow[], weeks = 8): number[] {
@@ -376,6 +411,18 @@ export async function loadReviewsPageData(businessId: string): Promise<ReviewsPa
 
   const hasData = targetRows.length > 0 || allCompRows.length > 0;
 
+  const attrMap = await loadAttributionMap(
+    supabase,
+    businessId,
+    target90.map((r) => r.id)
+  );
+  const yourReviewsAttr = applyAttribution(yourReviews, attrMap);
+  const streamAttr = applyAttribution(stream, attrMap);
+  const unansweredAttr = applyAttribution(
+    unanswered.sort((a, b) => (b.daysWaiting ?? 0) - (a.daysWaiting ?? 0)),
+    attrMap
+  );
+
   return {
     businessId,
     businessName: business.name,
@@ -396,7 +443,7 @@ export async function loadReviewsPageData(businessId: string): Promise<ReviewsPa
       avgDaysWaiting,
       urgentCount,
     },
-    latestTargetReviews: yourReviews.slice(0, 3),
+    latestTargetReviews: yourReviewsAttr.slice(0, 3),
     competitorActivity,
     topKeywords,
     competitorWinningKeywords,
@@ -407,8 +454,8 @@ export async function loadReviewsPageData(businessId: string): Promise<ReviewsPa
           delta: fastestGrowingCompetitor.newReviews90d,
         }
       : null,
-    stream,
-    yourReviews,
+    stream: streamAttr,
+    yourReviews: yourReviewsAttr,
     competitors,
     competitorReviews,
     keywordGaps,
@@ -417,7 +464,7 @@ export async function loadReviewsPageData(businessId: string): Promise<ReviewsPa
     negativePct,
     themeMovement,
     sentiment,
-    unanswered: unanswered.sort((a, b) => (b.daysWaiting ?? 0) - (a.daysWaiting ?? 0)),
+    unanswered: unansweredAttr,
     suggestions,
     syncState: {
       needsRun: !hasData,

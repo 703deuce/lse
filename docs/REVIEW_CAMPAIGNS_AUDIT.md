@@ -123,3 +123,13 @@ Reputation → Reviews; sublink Review Requests. Momentum is under Main.
 - **Ops:** Coolify doc sections for dual-cron proof + E2E smoke test.
 - **Still not Stripe.** Production Coolify `CRON_SECRET` + live dual-send proof remain operator steps.
 
+### Phase 2d (finish remaining product gaps)
+
+- Brevo transactional events webhook + List-Unsubscribe / one-click unsubscribe.
+- Campaign email replies via plus-addressed Reply-To → `replied_at`.
+- STOP/START no longer set `replied_at`.
+- New-review alert settings UI + worker dispatcher.
+- Attribution badges on review feed + Momentum summary.
+- Contact suppress/clear actions; Templates “Generate with AI”; entitlement gates on send/validate/generate.
+- Campaign activity timeline includes delivered / opted-out / attribution events.
+

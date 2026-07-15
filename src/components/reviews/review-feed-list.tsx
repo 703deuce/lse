@@ -64,7 +64,24 @@ export function ReviewFeedList({
                     </div>
                   </div>
                 </div>
-                <ReviewStatusBadge replied={row.replied} variant="pill" />
+                <div className="flex flex-col items-end gap-1">
+                  <ReviewStatusBadge replied={row.replied} variant="pill" />
+                  {row.isTarget && row.campaignAttribution === "confirmed" && (
+                    <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800">
+                      Confirmed attribution
+                    </span>
+                  )}
+                  {row.isTarget && row.campaignAttribution === "likely" && (
+                    <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
+                      Likely campaign completion
+                    </span>
+                  )}
+                  {row.isTarget && row.campaignAttribution === "unattributed" && (
+                    <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
+                      During campaign (unattributed)
+                    </span>
+                  )}
+                </div>
               </div>
 
               <p

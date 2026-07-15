@@ -217,6 +217,7 @@ export function ContactsPageClient({
               <th className="px-2.5 py-2 font-medium">Phone</th>
               <th className="px-2.5 py-2 font-medium">Email</th>
               <th className="px-2.5 py-2 font-medium">Status</th>
+              <th className="px-2.5 py-2 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -230,13 +231,46 @@ export function ContactsPageClient({
                 <td className="px-2.5 py-1.5 tabular-nums text-zinc-700">{c.phone_e164 || "—"}</td>
                 <td className="px-2.5 py-1.5 text-zinc-700">{c.email_normalized || "—"}</td>
                 <td className="px-2.5 py-1.5 text-zinc-600">
-                  {c.sms_opt_out || c.email_unsubscribed ? "Suppressed" : "Active"}
+                  {c.sms_opt_out && c.email_unsubscribed
+                    ? "SMS + email suppressed"
+                    : c.sms_opt_out
+                      ? "SMS suppressed"
+                      : c.email_unsubscribed
+                        ? "Email suppressed"
+                        : "Active"}
+                </td>
+                <td className="px-2.5 py-1.5">
+                  <button
+                    type="button"
+                    className="text-[11px] font-medium text-emerald-700 hover:underline"
+                    onClick={() => {
+                      void (async () => {
+                        const suppressed = c.sms_opt_out || c.email_unsubscribed;
+                        const res = await fetch("/api/reputation/contacts", {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            businessId,
+                            contactId: c.id,
+                            action: suppressed ? "unsuppress" : "suppress",
+                            channel: "both",
+                          }),
+                        });
+                        if (res.ok) {
+                          setCursor(null);
+                          await load({ reset: true });
+                        }
+                      })();
+                    }}
+                  >
+                    {c.sms_opt_out || c.email_unsubscribed ? "Clear suppression" : "Suppress"}
+                  </button>
                 </td>
               </tr>
             ))}
             {!loading && items.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-2.5 py-8 text-center text-zinc-500">
+                <td colSpan={5} className="px-2.5 py-8 text-center text-zinc-500">
                   No contacts yet. Add a customer or import via a campaign.
                 </td>
               </tr>

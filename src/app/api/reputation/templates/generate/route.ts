@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import {
   generateAndSaveTemplates,
   loadReviewRequestKit,
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
     }
 
     const auth = await requireBusinessAccess(businessId);
+    await requireEntitlement(auth.organizationId, "review_campaigns");
     const kit = await loadReviewRequestKit(businessId, auth.organizationId);
 
     if (!kit.link?.review_url) {
@@ -35,6 +37,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (err) {
+    if (err instanceof EntitlementError) {
+      return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
+    }
     const message = err instanceof Error ? err.message : "Failed to generate templates";
     return NextResponse.json({ error: message }, { status: 500 });
   }

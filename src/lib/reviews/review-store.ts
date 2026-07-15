@@ -156,6 +156,21 @@ export async function upsertReviews(
   const updated = rows.filter((r) => existingSet.has(r.source_review_id)).length;
   const inserted = rows.length - updated;
 
+  // Soft attribution pass after new reviews land (never invents confirmed).
+  if (params.businessId && inserted > 0) {
+    try {
+      const { attributeRecentReviewsForBusiness } = await import(
+        "@/lib/reputation/attribution"
+      );
+      await attributeRecentReviewsForBusiness({
+        businessId: params.businessId,
+        organizationId: params.organizationId,
+      });
+    } catch {
+      /* non-blocking */
+    }
+  }
+
   const knownIds = sourceIds.filter(Boolean).slice(0, 500);
 
   await updateSyncState(supabase, {

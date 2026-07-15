@@ -611,7 +611,9 @@ export async function getCampaignDetail(
   // Compact activity timeline from message status transitions + clicks + replies
   const { data: recentMsgs } = await supabase
     .from("review_request_messages")
-    .select("id, status, channel, sent_at, delivered_at, clicked_at, failed_at, failed_reason, scheduled_for, created_at")
+    .select(
+      "id, status, channel, sent_at, delivered_at, clicked_at, failed_at, failed_reason, scheduled_for, created_at, updated_at"
+    )
     .eq("campaign_id", campaignId)
     .eq("business_id", businessId)
     .order("updated_at", { ascending: false })
@@ -658,12 +660,28 @@ export async function getCampaignDetail(
         meta: m.id as string,
       });
     }
+    if (m.delivered_at) {
+      activity.push({
+        at: String(m.delivered_at),
+        type: "delivered",
+        label: `${m.channel} delivered`,
+        meta: m.id as string,
+      });
+    }
     if (m.failed_at) {
       activity.push({
         at: String(m.failed_at),
         type: "failed",
         label: "Send failed",
         meta: (m.failed_reason as string) || undefined,
+      });
+    }
+    if (String(m.status) === "opted_out") {
+      activity.push({
+        at: String(m.updated_at ?? m.created_at),
+        type: "opted_out",
+        label: `${m.channel} opted out / suppressed`,
+        meta: m.id as string,
       });
     }
   }
@@ -682,6 +700,27 @@ export async function getCampaignDetail(
       label: `Reply from ${r.full_name || r.first_name || "customer"}`,
     });
   }
+
+  const { data: attrsForTimeline } = await supabase
+    .from("review_campaign_attributions")
+    .select("attribution_level, detected_at, recipient_id")
+    .eq("campaign_id", campaignId)
+    .order("detected_at", { ascending: false })
+    .limit(20);
+  for (const a of attrsForTimeline ?? []) {
+    activity.push({
+      at: String(a.detected_at),
+      type: "attribution",
+      label:
+        a.attribution_level === "confirmed"
+          ? "Confirmed review attribution"
+          : a.attribution_level === "likely"
+            ? "Likely review completion"
+            : "New review during campaign (unattributed)",
+      meta: (a.recipient_id as string) || undefined,
+    });
+  }
+
   activity.sort((a, b) => (a.at < b.at ? 1 : -1));
 
   return {

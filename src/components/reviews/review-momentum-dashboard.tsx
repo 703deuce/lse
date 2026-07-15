@@ -95,6 +95,11 @@ interface TaskRow {
 }
 
 interface RunData {
+  campaignAttribution?: {
+    confirmed: number;
+    likely: number;
+    unattributed: number;
+  };
   run: {
     id: string;
     status: string;
@@ -302,6 +307,17 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
               </ul>
             </div>
           )}
+
+          {data.campaignAttribution &&
+            (data.campaignAttribution.confirmed > 0 ||
+              data.campaignAttribution.likely > 0 ||
+              data.campaignAttribution.unattributed > 0) && (
+              <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[12px] text-zinc-700">
+                <span className="font-semibold text-zinc-900">Campaign attribution (honest): </span>
+                {data.campaignAttribution.confirmed} confirmed · {data.campaignAttribution.likely}{" "}
+                likely · {data.campaignAttribution.unattributed} unattributed during campaigns
+              </div>
+            )}
 
           {targetVelocityAvailable && target && market && (
             <>
