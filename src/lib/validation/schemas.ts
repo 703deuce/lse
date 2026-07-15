@@ -71,9 +71,27 @@ export const updateTaskSchema = z.object({
   status: z.enum(["open", "in_progress", "done", "skipped"]),
 });
 
+export const reportTypeSchema = z.enum([
+  "single_scan",
+  "competitor",
+  "trend",
+  "location",
+  "keyword",
+  "maps_campaign",
+  "reviews",
+  "review_campaign",
+]);
+
 export const exportReportSchema = z.object({
   businessId: z.string().uuid(),
-  scanBatchId: z.string().uuid(),
+  scanBatchId: z.string().uuid().optional(),
+  reportType: reportTypeSchema.optional().default("single_scan"),
+  keywordId: z.string().uuid().optional().nullable(),
+  locationId: z.string().uuid().optional().nullable(),
+  gridSize: z.number().int().positive().optional().nullable(),
+  radiusMeters: z.number().positive().optional().nullable(),
+  selectedCompetitorKeys: z.array(z.string()).optional(),
+  format: z.enum(["share", "csv"]).optional().default("share"),
 });
 
 export const revokeReportSchema = z.object({

@@ -956,6 +956,13 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                 <Link href={`/businesses/${businessId}/scans`} className={headerBtn}>
                   History
                 </Link>
+                <Link
+                  href={`/businesses/${businessId}/reports`}
+                  className={headerBtn}
+                  title="Create Single Scan, Trend, or Competitor reports"
+                >
+                  Reports
+                </Link>
                 {isDev && (
                   <Link
                     href={`/businesses/${businessId}/grid/${activeScanId}/debug`}
