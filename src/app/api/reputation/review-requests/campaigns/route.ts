@@ -43,6 +43,7 @@ export async function POST(request: Request) {
       name,
       channel,
       templateId,
+      emailTemplateId,
       dailySendLimit,
       sendDays,
       sendWindowStart,
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
       name?: string;
       channel?: CampaignChannel;
       templateId?: string | null;
+      emailTemplateId?: string | null;
       dailySendLimit?: number;
       sendDays?: number[];
       sendWindowStart?: string;
@@ -136,6 +138,7 @@ export async function POST(request: Request) {
       name,
       channel: channel ?? "both",
       templateId,
+      emailTemplateId,
       dailySendLimit: dailySendLimit ?? 10,
       sendDays: sendDays ?? [1, 2, 3, 4, 5],
       sendWindowStart: sendWindowStart ?? "10:00",

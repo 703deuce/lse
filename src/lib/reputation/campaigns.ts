@@ -11,10 +11,10 @@ import {
 import { renderTemplate } from "@/lib/reputation/template-vars";
 import { buildTrackingUrl, generateTrackingToken } from "@/lib/reputation/tracking";
 import {
-  channelForSendStep,
   defaultReviewRequestSequence,
   initialSendSteps,
   normalizeSequenceSteps,
+  resolveWaveChannels,
   validateSequenceForLaunch,
   type SequenceStep,
 } from "@/lib/reputation/sequence-engine";
@@ -37,6 +37,8 @@ export type CreateCampaignInput = {
   name: string;
   channel: CampaignChannel;
   templateId?: string | null;
+  /** Optional email template when channel is both (falls back to templateId / default). */
+  emailTemplateId?: string | null;
   dailySendLimit: number;
   sendDays: number[];
   sendWindowStart: string;
@@ -253,30 +255,16 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
     };
 
     if (firstSends.length) {
-      for (const step of firstSends) {
-        const ch = channelForSendStep(step);
-        if (!ch) continue;
-        if (ch === "sms" && !r.phone) continue;
-        if (ch === "email" && !r.email) continue;
-        // Honor campaign channel gate
-        if (input.channel === "sms" && ch !== "sms") continue;
-        if (input.channel === "email" && ch !== "email") continue;
+      // Only the first wave at create — later reminder waves use the same channel plan.
+      const step = firstSends[0]!;
+      const wave = resolveWaveChannels({
+        campaignChannel: input.channel,
+        step,
+        hasPhone: Boolean(r.phone),
+        hasEmail: Boolean(r.email),
+      });
+      for (const ch of wave) {
         messageItems.push({ recipientId: r.id as string, channel: ch, stepKey: step.step_key });
-      }
-      // both_same_time: if sequence only has SMS initial, still enqueue email when campaign allows.
-      if (input.channel === "both" && firstSends.every((s) => s.step_type === "send_sms") && r.email) {
-        messageItems.push({
-          recipientId: r.id as string,
-          channel: "email",
-          stepKey: firstSends[0]!.step_key,
-        });
-      }
-      if (input.channel === "both" && firstSends.every((s) => s.step_type === "send_email") && r.phone) {
-        messageItems.push({
-          recipientId: r.id as string,
-          channel: "sms",
-          stepKey: firstSends[0]!.step_key,
-        });
       }
     } else {
       for (const ch of channelsForRecipient(input.channel, base)) {
@@ -300,7 +288,11 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
     );
 
     const smsTemplate = await loadTemplate(input.businessId, "sms", input.templateId);
-    const emailTemplate = await loadTemplate(input.businessId, "email", input.templateId);
+    const emailTemplate = await loadTemplate(
+      input.businessId,
+      "email",
+      input.emailTemplateId ?? input.templateId
+    );
 
     const messageRows = [];
     for (let i = 0; i < slots.length; i++) {

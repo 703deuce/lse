@@ -117,6 +117,7 @@ export function CampaignBuilder({
   const [channel, setChannel] = useState<"sms" | "email" | "both">("both");
   const [sequence, setSequence] = useState<SequenceStep[]>(() => defaultReviewRequestSequence("both"));
   const [templateId, setTemplateId] = useState("");
+  const [emailTemplateId, setEmailTemplateId] = useState("");
   const [dailyLimit, setDailyLimit] = useState(10);
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [consent, setConsent] = useState(false);
@@ -279,6 +280,7 @@ export function CampaignBuilder({
           description: description.trim() || null,
           channel,
           templateId: templateId || null,
+          emailTemplateId: emailTemplateId || null,
           dailySendLimit: dailyLimit,
           sendDays: [1, 2, 3, 4, 5],
           sendWindowStart: "10:00",
@@ -324,7 +326,10 @@ export function CampaignBuilder({
       const reminder: SequenceStep = {
         step_key: `reminder_${Date.now()}`,
         step_type: sendType,
-        config: { template: "reminder" },
+        config:
+          channel === "both"
+            ? { template: "reminder", channels: ["sms", "email"] }
+            : { template: "reminder" },
       };
       const gate: SequenceStep = {
         step_key: `gate_${Date.now()}`,
@@ -341,10 +346,6 @@ export function CampaignBuilder({
       return copy;
     });
   };
-
-  const channelTemplates = templates.filter(
-    (t) => channel === "both" || t.channel === channel || t.channel === "both"
-  );
 
   return (
     <div className="space-y-3">
@@ -520,28 +521,47 @@ export function CampaignBuilder({
       )}
 
       {step === 2 && (
-        <div className="flex flex-wrap gap-2">
-          {(
-            [
-              ["sms", "SMS only"],
-              ["email", "Email only"],
-              ["both", "SMS + email"],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setChannel(id)}
-              className={cn(
-                "rounded-md border px-3 py-2 text-[12px] font-medium",
-                channel === id
-                  ? "border-emerald-300 bg-emerald-50 text-emerald-900"
-                  : "border-zinc-200 text-zinc-700 hover:bg-zinc-50"
-              )}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="space-y-2">
+          <p className="text-[12px] text-zinc-600">
+            Pick how this campaign reaches people. Your plan meters SMS and email separately —
+            Starter has email only; Pro/Agency include SMS caps.
+          </p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {(
+              [
+                [
+                  "sms",
+                  "SMS only",
+                  "Twilio texts with STOP opt-out. Needs phone numbers and SMS quota on the plan.",
+                ],
+                [
+                  "email",
+                  "Email only",
+                  "Brevo emails with unsubscribe + reply tracking. Needs email addresses.",
+                ],
+                [
+                  "both",
+                  "SMS + email",
+                  "Sends both on each wave when the recipient has that contact — reminders included.",
+                ],
+              ] as const
+            ).map(([id, label, help]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setChannel(id)}
+                className={cn(
+                  "rounded-md border px-3 py-2 text-left text-[12px]",
+                  channel === id
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                    : "border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+                )}
+              >
+                <span className="block font-semibold">{label}</span>
+                <span className="mt-1 block text-[11px] font-normal text-zinc-500">{help}</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -549,6 +569,11 @@ export function CampaignBuilder({
         <div className="space-y-2">
           <p className="text-[11px] text-zinc-500">
             Ordered drip: initial send → wait → condition → reminder (max 2 reminders).
+            {channel === "both"
+              ? " With SMS + email, each send wave delivers both channels (same step) when contacts exist."
+              : channel === "sms"
+                ? " This campaign is SMS-only — email steps are ignored."
+                : " This campaign is email-only — SMS steps are ignored."}
           </p>
           <ol className="space-y-1.5">
             {sequence.map((s, i) => (
@@ -621,21 +646,49 @@ export function CampaignBuilder({
 
       {step === 4 && (
         <div className="space-y-2">
-          <label className="block text-[12px] font-medium text-zinc-700">
-            Template
-            <select
-              className="mt-1 w-full rounded-md border border-zinc-200 px-2.5 py-1.5 text-[13px]"
-              value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
-            >
-              <option value="">Default for channel</option>
-              {channelTemplates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({t.channel})
-                </option>
-              ))}
-            </select>
-          </label>
+          {(channel === "sms" || channel === "both") && (
+            <label className="block text-[12px] font-medium text-zinc-700">
+              SMS template
+              <select
+                className="mt-1 w-full rounded-md border border-zinc-200 px-2.5 py-1.5 text-[13px]"
+                value={templateId}
+                onChange={(e) => setTemplateId(e.target.value)}
+              >
+                <option value="">Default SMS template</option>
+                {templates
+                  .filter((t) => t.channel === "sms")
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                      {t.is_default ? " ★" : ""}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          )}
+          {(channel === "email" || channel === "both") && (
+            <label className="block text-[12px] font-medium text-zinc-700">
+              Email template
+              <select
+                className="mt-1 w-full rounded-md border border-zinc-200 px-2.5 py-1.5 text-[13px]"
+                value={channel === "email" ? templateId : emailTemplateId}
+                onChange={(e) => {
+                  if (channel === "email") setTemplateId(e.target.value);
+                  else setEmailTemplateId(e.target.value);
+                }}
+              >
+                <option value="">Default email template</option>
+                {templates
+                  .filter((t) => t.channel === "email")
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                      {t.is_default ? " ★" : ""}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          )}
           <p className="text-[11px] text-zinc-500">
             Messages use tracked links that redirect immediately to your Google review URL. Live
             previews and test sends are on Templates.
@@ -648,10 +701,17 @@ export function CampaignBuilder({
           <div className="rounded-md border border-zinc-100 bg-zinc-50/60 p-2.5 space-y-1">
             <p className="font-semibold text-zinc-900">Review & launch</p>
             <p className="text-zinc-600">
-              <span className="font-medium text-zinc-800">{name}</span> · {channel} · {readyCount}{" "}
-              recipients · ~{messageEstimate} initial sends · {sequence.length} sequence steps · ~
-              {businessDays} business day(s) at {dailyLimit}/day
+              <span className="font-medium text-zinc-800">{name}</span> ·{" "}
+              {channel === "both" ? "SMS + email" : channel === "sms" ? "SMS only" : "Email only"} ·{" "}
+              {readyCount} recipients · ~{messageEstimate} initial messages · {sequence.length}{" "}
+              sequence steps · ~{businessDays} business day(s) at {dailyLimit}/day
             </p>
+            {channel !== "email" && (
+              <p className="text-[11px] text-amber-800">
+                SMS uses your plan’s monthly SMS quota. If the quota is exhausted mid-campaign, sending
+                pauses until the next cycle (or you upgrade).
+              </p>
+            )}
             <p className="text-zinc-500">
               Window Mon–Fri 10:00–18:00 America/New_York · start {startDate}
             </p>

@@ -11,6 +11,7 @@ import {
   indexAfterSend,
   interpretSequenceStep,
   normalizeSequenceSteps,
+  resolveWaveChannels,
   type RecipientFacts,
   type SequenceStep,
 } from "@/lib/reputation/sequence-engine";
@@ -288,7 +289,10 @@ async function applyWorkflowFromIndex(params: {
     String(campaign.business_id)
   );
 
-  const decision = interpretSequenceStep(steps, stepIndex, facts, new Date());
+  const campaignChannel = (["sms", "email", "both"].includes(String(campaign.channel))
+    ? String(campaign.channel)
+    : "sms") as "sms" | "email" | "both";
+  const decision = interpretSequenceStep(steps, stepIndex, facts, new Date(), campaignChannel);
   const nowIso = new Date().toISOString();
 
   if (decision.action === "stop") {
@@ -341,7 +345,7 @@ async function applyWorkflowFromIndex(params: {
     return;
   }
 
-  // send
+  // send — expand to SMS and/or email based on campaign plan + step config
   const scheduleConfig: ScheduleConfig = {
     startDate: String(campaign.start_date ?? ymdInTimeZone(new Date(), String(campaign.timezone || "America/New_York"))),
     dailySendLimit: Number(campaign.daily_send_limit ?? 10),
@@ -350,28 +354,36 @@ async function applyWorkflowFromIndex(params: {
     windowEnd: String(campaign.send_window_end ?? "18:00"),
     timezone: String(campaign.timezone ?? "America/New_York"),
   };
+  const step = steps[decision.stepIndex]!;
+  const wave = resolveWaveChannels({
+    campaignChannel,
+    step,
+    hasPhone: facts.hasPhone,
+    hasEmail: facts.hasEmail,
+  });
   const slots = buildMessageSchedule(
-    [{ recipientId: String(recipient.id), channel: decision.channel }],
+    wave.map((channel) => ({ recipientId: String(recipient.id), channel })),
     scheduleConfig
   );
-  const scheduledFor = slots[0]?.scheduledFor ?? new Date();
-  const step = steps[decision.stepIndex]!;
 
-  await enqueueSendForRecipient({
-    supabase,
-    campaign,
-    recipient,
-    step,
-    channel: decision.channel,
-    scheduledFor,
-  });
+  for (let i = 0; i < wave.length; i++) {
+    await enqueueSendForRecipient({
+      supabase,
+      campaign,
+      recipient,
+      step,
+      channel: wave[i]!,
+      scheduledFor: slots[i]?.scheduledFor ?? new Date(),
+    });
+  }
 
+  const nextAt = slots[0]?.scheduledFor ?? new Date();
   await supabase
     .from("review_request_recipients")
     .update({
       workflow_status: "in_progress",
       current_step: decision.stepIndex,
-      next_action_at: scheduledFor.toISOString(),
+      next_action_at: nextAt.toISOString(),
       updated_at: nowIso,
     })
     .eq("id", recipient.id);

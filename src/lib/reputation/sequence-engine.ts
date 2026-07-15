@@ -151,13 +151,56 @@ function sendStepForChannel(channel: "sms" | "email" | "both"): SequenceStepType
   return "send_sms";
 }
 
+/**
+ * Channels to fire for a send_* sequence step.
+ * Campaign channel is the plan (sms | email | both); step type + config.channels refine it.
+ * For plan "both", default waves send SMS and email together (same step_key).
+ */
+export function resolveWaveChannels(params: {
+  campaignChannel: "sms" | "email" | "both";
+  step: SequenceStep;
+  hasPhone: boolean;
+  hasEmail: boolean;
+}): Array<"sms" | "email"> {
+  const { campaignChannel, step, hasPhone, hasEmail } = params;
+  if (step.step_type !== "send_sms" && step.step_type !== "send_email") return [];
+
+  const configured = Array.isArray(step.config.channels)
+    ? (step.config.channels as unknown[]).map(String).filter((c) => c === "sms" || c === "email")
+    : null;
+
+  let wanted: Array<"sms" | "email">;
+  if (configured?.length) {
+    wanted = configured as Array<"sms" | "email">;
+  } else if (campaignChannel === "both") {
+    // Plan is multi-channel → each send wave covers both (unless step is email-only / sms-only by type and config.force_step_channel)
+    if (step.config.force_step_channel === true) {
+      wanted = step.step_type === "send_email" ? ["email"] : ["sms"];
+    } else {
+      wanted = ["sms", "email"];
+    }
+  } else if (campaignChannel === "email") {
+    wanted = ["email"];
+  } else {
+    wanted = ["sms"];
+  }
+
+  // Cap by campaign plan
+  if (campaignChannel === "sms") wanted = wanted.filter((c) => c === "sms");
+  if (campaignChannel === "email") wanted = wanted.filter((c) => c === "email");
+
+  return wanted.filter((c) => (c === "sms" ? hasPhone : hasEmail));
+}
+
 /** Default review-request drip (initial + up to two reminders). */
 export function defaultReviewRequestSequence(
   channel: "sms" | "email" | "both" = "sms"
 ): SequenceStep[] {
   const send = sendStepForChannel(channel);
+  const sendConfig =
+    channel === "both" ? { channels: ["sms", "email"] as string[] } : ({} as Record<string, unknown>);
   return [
-    { step_key: "initial", step_type: send, config: {} },
+    { step_key: "initial", step_type: send, config: { ...sendConfig } },
     { step_key: "wait_2d", step_type: "wait", config: { days: 2 } },
     {
       step_key: "reminder_1_gate",
@@ -168,7 +211,11 @@ export function defaultReviewRequestSequence(
         else: "end",
       },
     },
-    { step_key: "reminder_1", step_type: send, config: { template: "reminder" } },
+    {
+      step_key: "reminder_1",
+      step_type: send,
+      config: { template: "reminder", ...sendConfig },
+    },
     { step_key: "wait_4d", step_type: "wait", config: { days: 4 } },
     {
       step_key: "reminder_2_gate",
@@ -179,7 +226,11 @@ export function defaultReviewRequestSequence(
         else: "end",
       },
     },
-    { step_key: "reminder_2", step_type: send, config: { template: "final" } },
+    {
+      step_key: "reminder_2",
+      step_type: send,
+      config: { template: "final", ...sendConfig },
+    },
     { step_key: "end", step_type: "end", config: {} },
   ];
 }
@@ -261,7 +312,8 @@ export function interpretSequenceStep(
   steps: SequenceStep[],
   stepIndex: number,
   facts: RecipientFacts,
-  now = new Date()
+  now = new Date(),
+  campaignChannel: "sms" | "email" | "both" = "sms"
 ): SequenceAdvanceDecision {
   if (facts.optedOut) return { action: "stop", reason: "opted_out" };
   if (stepIndex < 0 || stepIndex >= steps.length) {
@@ -289,10 +341,17 @@ export function interpretSequenceStep(
     }
     return { action: "jump", stepIndex: targetIdx, stepKey: targetKey };
   }
-  const channel = channelForSendStep(step);
-  if (!channel) return { action: "stop", reason: "invalid_step" };
-  if (channel === "sms" && !facts.hasPhone) {
-    // Skip unreachable channel — jump to next index.
+  if (step.step_type !== "send_sms" && step.step_type !== "send_email") {
+    return { action: "stop", reason: "invalid_step" };
+  }
+  const wave = resolveWaveChannels({
+    campaignChannel,
+    step,
+    hasPhone: facts.hasPhone,
+    hasEmail: facts.hasEmail,
+  });
+  if (!wave.length) {
+    // No reachable contact for this wave — skip to next step.
     if (stepIndex + 1 >= steps.length) {
       return { action: "end", stepIndex, stepKey: step.step_key };
     }
@@ -302,17 +361,8 @@ export function interpretSequenceStep(
       stepKey: steps[stepIndex + 1]!.step_key,
     };
   }
-  if (channel === "email" && !facts.hasEmail) {
-    if (stepIndex + 1 >= steps.length) {
-      return { action: "end", stepIndex, stepKey: step.step_key };
-    }
-    return {
-      action: "jump",
-      stepIndex: stepIndex + 1,
-      stepKey: steps[stepIndex + 1]!.step_key,
-    };
-  }
-  return { action: "send", stepIndex, stepKey: step.step_key, channel };
+  // Runner expands the full wave; primary channel is first reachable.
+  return { action: "send", stepIndex, stepKey: step.step_key, channel: wave[0]! };
 }
 
 /** After a send step finishes, move to the following index. */

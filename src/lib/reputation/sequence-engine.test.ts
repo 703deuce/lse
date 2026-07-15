@@ -6,6 +6,7 @@ import {
   indexAfterSend,
   initialSendSteps,
   interpretSequenceStep,
+  resolveWaveChannels,
   validateSequenceForLaunch,
   type RecipientFacts,
 } from "./sequence-engine";
@@ -81,5 +82,37 @@ describe("sequence engine", () => {
       { step_key: "extra", step_type: "send_sms" as const, config: {} },
     ];
     assert.ok(validateSequenceForLaunch(steps));
+  });
+
+  it("both plan sends SMS + email on each wave when contacts exist", () => {
+    const steps = defaultReviewRequestSequence("both");
+    const initial = steps[0]!;
+    assert.deepEqual(
+      resolveWaveChannels({
+        campaignChannel: "both",
+        step: initial,
+        hasPhone: true,
+        hasEmail: true,
+      }),
+      ["sms", "email"]
+    );
+    assert.deepEqual(
+      resolveWaveChannels({
+        campaignChannel: "both",
+        step: initial,
+        hasPhone: true,
+        hasEmail: false,
+      }),
+      ["sms"]
+    );
+    assert.deepEqual(
+      resolveWaveChannels({
+        campaignChannel: "sms",
+        step: initial,
+        hasPhone: true,
+        hasEmail: true,
+      }),
+      ["sms"]
+    );
   });
 });
