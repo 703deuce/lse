@@ -134,7 +134,7 @@ export async function listStaleInFlightScanIds(limit = 5): Promise<string[]> {
   const { data: expired } = await supabase
     .from("scan_batches")
     .select("id")
-    .in("status", ["dispatching", "provider_running"])
+    .in("status", ["dispatching", "provider_running", "normalizing"])
     .lt("lease_expires_at", nowIso)
     .order("lease_expires_at", { ascending: true })
     .limit(limit);
@@ -145,7 +145,7 @@ export async function listStaleInFlightScanIds(limit = 5): Promise<string[]> {
     const { data: unleashed } = await supabase
       .from("scan_batches")
       .select("id")
-      .in("status", ["dispatching", "provider_running"])
+      .in("status", ["dispatching", "provider_running", "normalizing"])
       .is("lease_expires_at", null)
       .or(`started_at.lt.${staleBefore},and(started_at.is.null,updated_at.lt.${staleBefore})`)
       .limit(limit - ids.size);

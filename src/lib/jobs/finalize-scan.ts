@@ -36,12 +36,28 @@ export async function finalizeRankReady(
     .select("*")
     .maybeSingle();
 
-  if (!claimed) {
-    console.log("[finalizeRankReady] skip — already claimed or not in-flight", scanBatchId);
-    return;
+  let batch = claimed;
+  if (!batch) {
+    // Resume finalize if a prior claim stuck in `normalizing` (worker crash).
+    const nowIso = new Date().toISOString();
+    const { data: stuck } = await supabase
+      .from("scan_batches")
+      .update({
+        status: "normalizing",
+        heartbeat_at: nowIso,
+      })
+      .eq("id", scanBatchId)
+      .eq("status", "normalizing")
+      .or(`lease_expires_at.is.null,lease_expires_at.lt.${nowIso}`)
+      .select("*")
+      .maybeSingle();
+    if (!stuck) {
+      console.log("[finalizeRankReady] skip — already claimed or not in-flight", scanBatchId);
+      return;
+    }
+    console.log("[finalizeRankReady] resuming stuck normalizing", scanBatchId);
+    batch = stuck;
   }
-
-  const batch = claimed;
 
   const { data: business } = await supabase.from("businesses").select("*").eq("id", batch.business_id).single();
   if (!business) throw new Error("Business not found");

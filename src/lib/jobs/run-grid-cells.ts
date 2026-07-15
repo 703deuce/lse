@@ -411,6 +411,26 @@ async function runOneCell(
       dbSaveSec = elapsedSec(dbStart);
       invalidateScanGridCache(job.scanBatchId);
 
+      // Bill only after validation + durable save (not bare Bright Data HTTP 200).
+      if (job.organizationId) {
+        const { recordUsage } = await import("@/lib/platform/usage-ledger");
+        const { estimateProviderCost } = await import("@/lib/providers/fetch-with-timeout");
+        await recordUsage({
+          organizationId: job.organizationId,
+          feature: "maps_grid_cell",
+          provider: "brightdata",
+          unitType: "request",
+          estimatedCostUsd: estimateProviderCost("brightdata"),
+          actualUnits: 1,
+          metadata: {
+            scan_batch_id: job.scanBatchId,
+            scan_point_id: job.point.id,
+            keyword_id: job.keyword.id,
+            pass: passLabel,
+          },
+        }).catch(() => {});
+      }
+
       const totalSec = elapsedSec(cellStarted);
       const timings: CellPhaseTimings = {
         gridLabel: job.point.grid_label,

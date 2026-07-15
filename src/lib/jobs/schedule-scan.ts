@@ -2,48 +2,10 @@ import { after } from "next/server";
 import { createServiceClient } from "@/lib/db/client";
 import { processScanBatch } from "@/lib/jobs/process-scan";
 import { listStaleInFlightScanIds, scanLeaseTtlMs } from "@/lib/jobs/scan-lease";
-import { gridMapCredits, releaseUsage } from "@/lib/plans";
+import { maybeReleaseUnusedMapCredits } from "@/lib/jobs/map-credits";
 import { enqueueMapsScanJob, resolveQueueDriver } from "@/lib/queue";
+import { findJobByIdempotencyKey } from "@/lib/queue/ledger";
 import { logger } from "@/lib/observability/logger";
-
-const PRE_PROVIDER_FAIL =
-  /No keywords|No matching keywords|Scan center is missing|Business not found|Failed to create scan points|No grid points left after exclusions/i;
-
-async function maybeReleasePreProviderCredits(
-  scanBatchId: string,
-  organizationId: string,
-  message: string
-): Promise<void> {
-  if (!PRE_PROVIDER_FAIL.test(message)) return;
-
-  const supabase = createServiceClient();
-  const { data: batch } = await supabase
-    .from("scan_batches")
-    .select("grid_size")
-    .eq("id", scanBatchId)
-    .maybeSingle();
-  if (!batch?.grid_size) return;
-
-  const { data: points } = await supabase
-    .from("scan_points")
-    .select("id")
-    .eq("scan_batch_id", scanBatchId);
-  const pointIds = (points ?? []).map((p) => p.id);
-
-  let resultCount = 0;
-  if (pointIds.length) {
-    const { count } = await supabase
-      .from("scan_results")
-      .select("id", { count: "exact", head: true })
-      .in("scan_point_id", pointIds);
-    resultCount = count ?? 0;
-  }
-
-  // Only refund when no provider cells produced results.
-  if (resultCount > 0) return;
-
-  await releaseUsage(organizationId, "map_credits_used", gridMapCredits(Number(batch.grid_size)));
-}
 
 /** Run scan processing after the HTTP response — database-driver fast path. */
 async function markMapsLedgerTerminal(
@@ -94,7 +56,7 @@ export function scheduleScanProcessing(scanBatchId: string, organizationId?: str
 
       if (organizationId) {
         try {
-          await maybeReleasePreProviderCredits(scanBatchId, organizationId, message);
+          await maybeReleaseUnusedMapCredits(scanBatchId, organizationId, message);
         } catch (releaseErr) {
           console.error(
             `[Scan] Failed to release credits for ${scanBatchId}:`,
@@ -186,19 +148,72 @@ export async function reclaimStaleInFlightScans(limit = 5): Promise<number> {
         organizationId = biz?.organization_id as string | undefined;
       }
       if (businessId && organizationId) {
-        await enqueueMapsScanJob({
-          scanBatchId: id,
-          businessId,
-          organizationId,
-          priority: "highest",
-        }).catch((err) => {
-          logger.warn("scan_reclaim_enqueue_failed", {
-            scanBatchId: id,
-            error: err instanceof Error ? err.message : String(err),
+        // Prefer requeueing the existing ledger row (avoids clearing idempotency
+        // on enqueue_failed and creating a second live BullMQ job).
+        const existing = await findJobByIdempotencyKey(`maps-scan:${id}`).catch(() => null);
+        if (
+          existing &&
+          existing.queueName &&
+          (existing.status === "pending" ||
+            existing.status === "running" ||
+            existing.enqueueState === "enqueue_failed")
+        ) {
+          const { bullmqRequeueLedgerJob } = await import(
+            "@/lib/queue/drivers/bullmq-driver"
+          );
+          const { createServiceClient: svc } = await import("@/lib/db/client");
+          const sb = svc();
+          if (existing.status === "running" || existing.enqueueState === "enqueue_failed") {
+            await sb
+              .from("job_queue")
+              .update({
+                status: "pending",
+                lifecycle_status: "queued",
+                enqueue_state: "pending",
+                lease_owner: null,
+                lease_expires_at: null,
+                scheduled_at: new Date().toISOString(),
+              })
+              .eq("id", existing.id)
+              .in("status", ["pending", "running"]);
+          }
+          await bullmqRequeueLedgerJob({
+            id: existing.id,
+            queueName: existing.queueName,
+            jobType: existing.jobType,
+            payload: existing.payload,
+            organizationId: existing.organizationId,
+            businessId: existing.businessId,
+            priority: existing.priority,
+            maxAttempts: existing.maxAttempts,
+          }).catch(async (err) => {
+            const { markLedgerEnqueueFailed } = await import("@/lib/queue/ledger");
+            await markLedgerEnqueueFailed(
+              existing.id,
+              err instanceof Error ? err.message : "reclaim requeue failed"
+            );
+            logger.warn("scan_reclaim_requeue_failed", {
+              scanBatchId: id,
+              jobId: existing.id,
+              error: err instanceof Error ? err.message : String(err),
+            });
           });
-        });
+        } else {
+          await enqueueMapsScanJob({
+            scanBatchId: id,
+            businessId,
+            organizationId,
+            priority: "highest",
+          }).catch((err) => {
+            logger.warn("scan_reclaim_enqueue_failed", {
+              scanBatchId: id,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          });
+        }
       } else {
-        scheduleScanProcessing(id);
+        // Never run heavy Maps work on the web/cron process under BullMQ.
+        logger.warn("scan_reclaim_missing_tenant", { scanBatchId: id });
       }
     } else {
       scheduleScanProcessing(id);

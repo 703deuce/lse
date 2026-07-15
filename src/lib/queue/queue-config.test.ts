@@ -15,6 +15,15 @@ import {
   derivePhase,
 } from "@/lib/jobs/active-job-status";
 
+describe("map credit refund helper", () => {
+  it("treats known pre-provider and cancel messages as refundable", async () => {
+    const { PRE_PROVIDER_FAIL } = await import("@/lib/jobs/map-credits");
+    assert.equal(PRE_PROVIDER_FAIL.test("No keywords configured"), true);
+    assert.equal(PRE_PROVIDER_FAIL.test("Canceled by operator"), true);
+    assert.equal(PRE_PROVIDER_FAIL.test("Bright Data timeout"), false);
+  });
+});
+
 describe("bullmq queue names", () => {
   it("rejects colon-containing queue names and accepts registry names", async () => {
     const {

@@ -26,12 +26,11 @@ const SCAN_ALREADY_DONE = new Set([
   "partial",
   "failed",
   "enriching",
-  "rank_ready",
   "scoring",
   "ai_planning",
 ]);
 // Note: `normalizing` is intentionally NOT here — finalize may still be writing.
-// Another worker seeing normalizing should defer, not mark the ledger completed.
+// `rank_ready` is handled separately: only already_done when pass=complete.
 
 /**
  * Process or resume a scan batch.
@@ -60,11 +59,29 @@ export async function processScanBatch(
   if (!batch) {
     const { data: current } = await supabase
       .from("scan_batches")
-      .select("status")
+      .select("status, confidence_summary")
       .eq("id", scanBatchId)
       .maybeSingle();
     const status = String(current?.status ?? "");
     if (SCAN_ALREADY_DONE.has(status)) return "already_done";
+    if (status === "rank_ready") {
+      const pass = String(
+        ((current?.confidence_summary as { pass?: unknown } | null)?.pass ?? "") as string
+      );
+      // Soft-ready with unfinished retries must not ACK the ledger as complete.
+      if (pass === "complete" || !pass) return "already_done";
+      return "deferred";
+    }
+    // Stuck normalizing: attempt finalize resume rather than defer forever.
+    if (status === "normalizing") {
+      try {
+        const { finalizeRankReady } = await import("@/lib/jobs/finalize-scan");
+        await finalizeRankReady(scanBatchId, organizationId);
+        return "already_done";
+      } catch {
+        return "deferred";
+      }
+    }
     return "deferred";
   }
 

@@ -94,9 +94,21 @@ export async function executeJobType(
         const scanBatchId = String(payload.scanBatchId ?? "");
         if (!scanBatchId) return permanent("Missing scanBatchId");
         const orgId = await resolveOrgId(payload);
-        const outcome = await processScanBatch(scanBatchId, orgId);
-        if (outcome === "deferred") return { ok: true, markComplete: false };
-        return { ok: true, markComplete: true };
+        try {
+          const outcome = await processScanBatch(scanBatchId, orgId);
+          if (outcome === "deferred") return { ok: true, markComplete: false };
+          return { ok: true, markComplete: true };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Scan failed";
+          if (orgId) {
+            const { maybeReleaseUnusedMapCredits, PRE_PROVIDER_FAIL } = await import(
+              "@/lib/jobs/map-credits"
+            );
+            await maybeReleaseUnusedMapCredits(scanBatchId, orgId, message).catch(() => {});
+            if (PRE_PROVIDER_FAIL.test(message)) return permanent(message);
+          }
+          throw err;
+        }
       }
       case "scan_enrichment": {
         const scanBatchId = String(payload.scanBatchId ?? "");
