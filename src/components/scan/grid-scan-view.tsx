@@ -25,13 +25,18 @@ import { profileFromBatch } from "@/lib/maps/scan-profiles";
 import {
   buildEntityGridCells,
   buildYouEntity,
+  entitiesFromTopCompetitors,
   entityFromKey,
   metricsFromCells,
   solvFromCells,
   type StoredCompetitor,
 } from "@/lib/maps/grid-entity";
 import { CellInspectorDrawer } from "@/components/scan/cell-inspector-drawer";
-import { CompetitorGridToggle, type EntityOption } from "@/components/scan/competitor-grid-toggle";
+import {
+  CompetitorGridToggle,
+  type CompetitorAddOption,
+  type EntityOption,
+} from "@/components/scan/competitor-grid-toggle";
 import {
   areCellsInFlight,
   hasCellsPending,
@@ -77,6 +82,11 @@ const ScanMap = dynamic(
 
 const isDev = process.env.NODE_ENV === "development";
 
+/** Auto-pin top pack competitors as grid chips. */
+const AUTO_COMPETITOR_CHIPS = 5;
+/** Full add-from-scan pool (picker + table selection). */
+const COMPETITOR_POOL_LIMIT = 20;
+
 type ScanViewData = {
   batch: Record<string, unknown>;
   business: {
@@ -117,7 +127,8 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
   const [colorMode, setColorMode] = useState<GridColorMode>("falcon");
   const [keywordId, setKeywordId] = useState<string | null>(null);
   const [entityKey, setEntityKey] = useState("you");
-  const [entities, setEntities] = useState<EntityOption[]>([]);
+  /** User-pinned competitors beyond the auto top chips. */
+  const [extraEntityKeys, setExtraEntityKeys] = useState<string[]>([]);
   const [inspectorCellId, setInspectorCellId] = useState<string | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareInitialMode, setCompareInitialMode] = useState<"scans" | "competitors">("scans");
@@ -158,6 +169,8 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
   useEffect(() => {
     setActiveScanId(scanId);
     setPeakProgress(0);
+    setEntityKey("you");
+    setExtraEntityKeys([]);
     if (typeof window !== "undefined") {
       const kw = new URLSearchParams(window.location.search).get("keywordId");
       if (kw) setKeywordId(kw);
@@ -329,32 +342,6 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
   }, [activeScanId, pollStatus, keywordId]);
 
   useEffect(() => {
-    const abort = new AbortController();
-    async function loadEntities() {
-      const params = keywordId ? `?keywordId=${keywordId}` : "";
-      try {
-        const res = await fetch(`/api/scans/${activeScanId}/competitors${params}`, {
-          signal: abort.signal,
-        });
-        if (!res.ok) return;
-        const json = await res.json();
-        setEntities(
-          (json.entities ?? []).map((e: EntityOption) => ({
-            key: e.key,
-            label: e.label,
-            isTarget: e.isTarget,
-          }))
-        );
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-      }
-    }
-    void loadEntities();
-    return () => abort.abort();
-    // Intentionally omit results.length — refetch on scan/keyword change only.
-  }, [activeScanId, keywordId]);
-
-  useEffect(() => {
     async function loadSpotChecks() {
       const res = await fetch(`/api/single-point-rank/${businessId}`);
       if (!res.ok) return;
@@ -483,12 +470,130 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
     [business]
   );
 
+  const locationTokens = useMemo(
+    () =>
+      [data?.primaryKeywordCity, data?.primaryKeywordState].filter(
+        (t): t is string => !!t?.trim()
+      ),
+    [data?.primaryKeywordCity, data?.primaryKeywordState]
+  );
+
+  /** Top ~20 pack competitors from live results — grows as cells finish. */
+  const competitorPool = useMemo(
+    () =>
+      buildGridTopCompetitors(data?.results ?? [], {
+        excludeCid: business?.cid,
+        excludePlaceId: business?.place_id,
+        excludeName: business?.name,
+        targetCategory: business?.primary_category,
+        keyword: data?.primaryKeyword as string | null | undefined,
+        locationTokens,
+        limit: COMPETITOR_POOL_LIMIT,
+      }),
+    [
+      data?.results,
+      business?.cid,
+      business?.place_id,
+      business?.name,
+      business?.primary_category,
+      data?.primaryKeyword,
+      locationTokens,
+    ]
+  );
+
+  const poolEntities = useMemo(
+    () => entitiesFromTopCompetitors(competitorPool, COMPETITOR_POOL_LIMIT),
+    [competitorPool]
+  );
+
+  const autoChipKeys = useMemo(
+    () => poolEntities.slice(0, AUTO_COMPETITOR_CHIPS).map((e) => e.key),
+    [poolEntities]
+  );
+
+  // Drop pinned keys that graduated into auto chips or left the pool.
+  useEffect(() => {
+    const auto = new Set(autoChipKeys);
+    const poolKeys = new Set(poolEntities.map((e) => e.key));
+    setExtraEntityKeys((prev) => {
+      const next = prev.filter((k) => poolKeys.has(k) && !auto.has(k));
+      return next.length === prev.length && next.every((k, i) => k === prev[i]) ? prev : next;
+    });
+  }, [autoChipKeys, poolEntities]);
+
+  // Reset user pins when keyword context changes (new scan already clears above).
+  useEffect(() => {
+    setExtraEntityKeys([]);
+    setEntityKey("you");
+  }, [keywordId]);
+
+  const entities: EntityOption[] = useMemo(() => {
+    if (!youEntity) return [];
+    const byKey = new Map(poolEntities.map((e) => [e.key, e]));
+    const chips: EntityOption[] = [
+      { key: "you", label: youEntity.label, isTarget: true },
+    ];
+    for (const key of autoChipKeys) {
+      const e = byKey.get(key);
+      if (!e) continue;
+      chips.push({ key: e.key, label: e.label, isTarget: false });
+    }
+    for (const key of extraEntityKeys) {
+      if (autoChipKeys.includes(key)) continue;
+      const e = byKey.get(key);
+      if (!e) continue;
+      chips.push({ key: e.key, label: e.label, isTarget: false });
+    }
+    return chips;
+  }, [youEntity, poolEntities, autoChipKeys, extraEntityKeys]);
+
+  const addPool: CompetitorAddOption[] = useMemo(() => {
+    const shown = new Set(entities.map((e) => e.key));
+    return poolEntities
+      .filter((e) => !shown.has(e.key))
+      .map((e) => {
+        const raw = competitorPool.find(
+          (c) => entityKeyFromParts(c) === e.key
+        );
+        return {
+          key: e.key,
+          label: e.label,
+          placeId: e.place_id,
+          subtitle: raw?.category ?? null,
+        };
+      });
+  }, [entities, poolEntities, competitorPool]);
+
+  const removableKeys = useMemo(() => new Set(extraEntityKeys), [extraEntityKeys]);
+
+  const pinCompetitor = useCallback((key: string) => {
+    if (key === "you") {
+      setEntityKey("you");
+      return;
+    }
+    setEntityKey(key);
+    setExtraEntityKeys((prev) => {
+      if (prev.includes(key) || autoChipKeys.includes(key)) return prev;
+      return [...prev, key];
+    });
+  }, [autoChipKeys]);
+
+  const removeCompetitor = useCallback(
+    (key: string) => {
+      setExtraEntityKeys((prev) => prev.filter((k) => k !== key));
+      setEntityKey((current) => (current === key ? "you" : current));
+    },
+    []
+  );
+
   const activeEntity = useMemo(() => {
     if (entityKey === "you" || !youEntity) return youEntity;
+    const fromPool = poolEntities.find((e) => e.key === entityKey);
+    if (fromPool) return fromPool;
     const found = entities.find((e) => e.key === entityKey);
-    if (!found) return youEntity;
-    return entityFromKey(found.key, found.label);
-  }, [entityKey, entities, youEntity]);
+    if (found && !found.isTarget) return entityFromKey(found.key, found.label);
+    return youEntity;
+  }, [entityKey, entities, poolEntities, youEntity]);
 
   const gridCells = useMemo(() => {
     if (!data?.points || !activeEntity) return [];
@@ -523,18 +628,8 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
     (data?.priorMetrics as Parameters<typeof computeScanTrend>[1]) ?? null
   );
 
-  const locationTokens = [data?.primaryKeywordCity, data?.primaryKeywordState].filter(
-    (t): t is string => !!t?.trim()
-  );
-  const topCompetitors = buildGridTopCompetitors(data?.results ?? [], {
-    excludeCid: business?.cid,
-    excludePlaceId: business?.place_id,
-    excludeName: business?.name,
-    targetCategory: business?.primary_category,
-    keyword: data?.primaryKeyword as string | null | undefined,
-    locationTokens,
-    limit: 5,
-  });
+  /** Table shows the leading pack; picker uses the fuller pool. */
+  const topCompetitors = competitorPool.slice(0, AUTO_COMPETITOR_CHIPS);
 
   const cells: GridCell[] = gridCells.map((c) => ({
     label: c.label,
@@ -654,11 +749,11 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
 
   const competitorTimelineOptions = useMemo(
     () =>
-      topCompetitors.map((c) => ({
+      competitorPool.slice(0, AUTO_COMPETITOR_CHIPS).map((c) => ({
         key: entityKeyFromParts(c),
         label: c.name ?? "Competitor",
       })),
-    [topCompetitors]
+    [competitorPool]
   );
 
   useEffect(() => {
@@ -669,11 +764,11 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
 
   useEffect(() => {
     if (timelineMode === "competitor" && timelineCompetitorKey) {
-      setEntityKey(timelineCompetitorKey);
+      pinCompetitor(timelineCompetitorKey);
     } else if (timelineMode === "target") {
       setEntityKey("you");
     }
-  }, [timelineMode, timelineCompetitorKey]);
+  }, [timelineMode, timelineCompetitorKey, pinCompetitor]);
 
   function handleLocationChange(loc: LocationScanSummary, newScanId: string | null) {
     setLocationId(loc.id);
@@ -1042,7 +1137,11 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                   <CompetitorGridToggle
                     entities={entities}
                     selectedKey={entityKey}
-                    onSelect={setEntityKey}
+                    onSelect={pinCompetitor}
+                    addPool={addPool}
+                    onAdd={pinCompetitor}
+                    removableKeys={removableKeys}
+                    onRemove={removeCompetitor}
                     viewingLabel={viewingEntity?.label}
                     className="mb-2"
                   />
@@ -1226,7 +1325,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                 <GridScanCompetitorsTable
                   competitors={topCompetitors}
                   keyword={data?.primaryKeyword}
-                  onSelectCompetitor={(key) => setEntityKey(key)}
+                  onSelectCompetitor={(key) => pinCompetitor(key)}
                 />
                 <GridScanTrendChart
                   businessId={businessId}
