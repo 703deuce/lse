@@ -17,7 +17,12 @@ export async function POST(request: Request) {
 
     const { data, error } = await supabase
       .from("reports")
-      .update({ share_token: null, share_expires_at: new Date().toISOString() })
+      .update({
+        share_token: null,
+        share_expires_at: new Date().toISOString(),
+        html_content: null,
+        metadata_json: {},
+      })
       .eq("id", reportId)
       .eq("business_id", businessId)
       .select("id")
@@ -33,7 +38,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, reportId: data.id });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Revoke failed";
-    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
+    const status =
+      message.includes("access denied") || message.includes("Authentication required")
+        ? 403
+        : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }

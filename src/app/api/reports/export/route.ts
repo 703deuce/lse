@@ -22,6 +22,8 @@ function exportStatus(message: string): number {
     message.includes("at least 2") ||
     message.includes("at least two") ||
     message.includes("No review momentum") ||
+    message.includes("No completed review momentum") ||
+    message.includes("No completed scans") ||
     message.includes("Add a keyword") ||
     message.includes("not implemented") ||
     /not found/i.test(message)

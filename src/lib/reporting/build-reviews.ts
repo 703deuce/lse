@@ -17,8 +17,11 @@ export async function buildReviewsReport(params: {
   if (!business) throw new Error("Business not found");
 
   const momentum = await loadLatestMomentumRun(params.businessId);
-  if (!momentum?.run) {
-    throw new Error("No review momentum audit found. Run a Reviews Momentum audit first.");
+  const runStatus = String(momentum?.run?.status ?? "");
+  if (!momentum?.run || !["ready", "partial"].includes(runStatus)) {
+    throw new Error(
+      "No completed review momentum audit found. Run a Reviews Momentum audit first."
+    );
   }
 
   const targetEntity = momentum.entities.find((e) => e.entity_type === "target");

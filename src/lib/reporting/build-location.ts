@@ -19,6 +19,20 @@ import type {
 
 type KeywordMetric = LocationReportPayload["keywords"][number];
 
+type ScanEntry = {
+  scanId: string;
+  scannedAt: string;
+  keywordId: string | null;
+  keyword: string;
+  locationId: string | null;
+  metrics: {
+    averageRank?: number | null;
+    top3Cells?: number;
+    totalCells?: number;
+    visibilityScore?: number;
+  };
+};
+
 function emptyKpis(): ReportKpis {
   return {
     arp: null,
@@ -84,6 +98,29 @@ async function metricsForBatch(
   return { arp: kpis.arp, atrp: kpis.atrp, solv: kpis.solv };
 }
 
+function fallbackMetrics(entry: ScanEntry): {
+  arp: number | null;
+  atrp: number | null;
+  solv: number | null;
+} {
+  const arp = round1(entry.metrics.averageRank ?? null);
+  return {
+    arp,
+    // aggregate_metrics.averageRank is ARP, not ATRP — leave ATRP null when unrecomputed
+    atrp: null,
+    solv:
+      entry.metrics.top3Cells != null && entry.metrics.totalCells
+        ? pct(entry.metrics.top3Cells, entry.metrics.totalCells)
+        : null,
+  };
+}
+
+/** Prefer business-location scans (location_id null); fall back only if none exist. */
+function preferBusinessLocationScans(scans: ScanEntry[]): ScanEntry[] {
+  const primary = scans.filter((s) => s.locationId == null);
+  return primary.length > 0 ? primary : scans;
+}
+
 export async function buildLocationReport(params: {
   businessId: string;
   whiteLabel?: Partial<WhiteLabelConfig>;
@@ -100,23 +137,14 @@ export async function buildLocationReport(params: {
   const { data: batches } = await supabase
     .from("scan_batches")
     .select(
-      "id, created_at, finished_at, status, aggregate_metrics, confidence_summary, grid_size, radius_meters"
+      "id, created_at, finished_at, status, aggregate_metrics, confidence_summary, grid_size, radius_meters, location_id"
     )
     .eq("business_id", params.businessId)
     .in("status", ["ready", "partial", "rank_ready"])
     .order("created_at", { ascending: false })
-    .limit(80);
+    .limit(120);
 
-  const byKeyword = new Map<
-    string,
-    Array<{
-      scanId: string;
-      scannedAt: string;
-      keywordId: string | null;
-      keyword: string;
-      metrics: { averageRank?: number | null; top3Cells?: number; totalCells?: number; visibilityScore?: number };
-    }>
-  >();
+  const byKeyword = new Map<string, ScanEntry[]>();
 
   for (const batch of (batches ?? []) as ScanBatchRow[]) {
     const conf = (batch.confidence_summary ?? {}) as {
@@ -132,6 +160,7 @@ export async function buildLocationReport(params: {
       scannedAt: batch.finished_at ?? batch.created_at,
       keywordId,
       keyword,
+      locationId: batch.location_id ?? null,
       metrics: (batch.aggregate_metrics ?? {}) as {
         averageRank?: number | null;
         top3Cells?: number;
@@ -144,21 +173,13 @@ export async function buildLocationReport(params: {
 
   const keywords: KeywordMetric[] = [];
 
-  for (const [, scans] of byKeyword) {
-    // batches query is descending; keep that order (newest first)
+  for (const [, allScans] of byKeyword) {
+    // Keep order newest-first within preferred location scope.
+    const scans = preferBusinessLocationScans(allScans);
     const latest = scans[0]!;
     const previous = scans[1];
 
-    let latestMetrics = {
-      arp: round1(latest.metrics.averageRank ?? null),
-      atrp: round1(latest.metrics.averageRank ?? null),
-      solv:
-        latest.metrics.top3Cells != null && latest.metrics.totalCells
-          ? pct(latest.metrics.top3Cells, latest.metrics.totalCells)
-          : null,
-    };
-
-    // Recompute precise KPIs for latest (and previous when present).
+    let latestMetrics = fallbackMetrics(latest);
     const recomputed = await metricsForBatch(
       supabase,
       latest.scanId,
@@ -177,8 +198,8 @@ export async function buildLocationReport(params: {
         previous.keywordId,
         business as BusinessRow
       );
-      const prevArp =
-        prevRecomputed.arp ?? round1(previous.metrics.averageRank ?? null);
+      const prevFallback = fallbackMetrics(previous);
+      const prevArp = prevRecomputed.arp ?? prevFallback.arp;
       if (latestMetrics.arp != null && prevArp != null) {
         // Positive = improved (lower ARP)
         changeArp = Math.round((prevArp - latestMetrics.arp) * 10) / 10;
@@ -195,6 +216,10 @@ export async function buildLocationReport(params: {
       solv: latestMetrics.solv,
       changeArp,
     });
+  }
+
+  if (keywords.length === 0) {
+    throw new Error("No completed scans to include. Run a grid scan first.");
   }
 
   keywords.sort((a, b) => (a.arp ?? 99) - (b.arp ?? 99));

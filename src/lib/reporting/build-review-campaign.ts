@@ -56,13 +56,12 @@ export async function buildReviewCampaignReport(params: {
 
   const sentBase = metrics.sent || 0;
   const attributed = attribution.confirmed + attribution.likely;
+  // Match campaign UI: reply / attributed rates are over sends, not all recipients.
   const rates = {
     deliveryRate: sentBase > 0 ? pct(metrics.delivered, sentBase) : null,
     clickRate: metrics.delivered > 0 ? pct(metrics.clicked, metrics.delivered) : null,
-    replyRate:
-      (recipientsTotal ?? 0) > 0 ? pct(metrics.replied, recipientsTotal ?? 0) : null,
-    attributedReviewRate:
-      (recipientsTotal ?? 0) > 0 ? pct(attributed, recipientsTotal ?? 0) : null,
+    replyRate: sentBase > 0 ? pct(metrics.replied, sentBase) : null,
+    attributedReviewRate: sentBase > 0 ? pct(attributed, sentBase) : null,
   };
 
   const whiteLabel = await resolveOrgWhiteLabel(

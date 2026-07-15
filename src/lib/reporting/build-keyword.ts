@@ -136,7 +136,7 @@ export async function buildKeywordReport(params: {
   const locations: KeywordReportPayload["locations"] = [];
   for (const s of summaries) {
     let arp = round1(s.latestRank);
-    let atrp = arp;
+    let atrp: number | null = null;
     let solv = s.solv != null ? Number(s.solv) : null;
 
     if (s.latestScanId) {

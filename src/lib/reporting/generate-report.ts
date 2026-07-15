@@ -193,6 +193,39 @@ async function persistReport(params: {
     .select("id")
     .single();
 
+  // Concurrent create of the same identity — fall back to update the winner row.
+  if (error && /duplicate|unique/i.test(error.message)) {
+    const retry = await resolveExistingShare(supabase, {
+      businessId: params.businessId,
+      reportType: params.payload.reportType,
+      identityKey: params.identityKey,
+    });
+    if (!retry.existingReportId) {
+      throw new Error(error.message);
+    }
+    const { data: updated, error: updateErr } = await supabase
+      .from("reports")
+      .update({
+        share_token: retry.shareToken,
+        share_expires_at: retry.shareExpiresAt,
+        html_content: params.html,
+        metadata_json: metadata,
+        generated_at: new Date().toISOString(),
+        scan_batch_id: scanBatchId,
+      })
+      .eq("id", retry.existingReportId)
+      .eq("business_id", params.businessId)
+      .select("id")
+      .single();
+    if (updateErr || !updated) throw new Error(updateErr?.message ?? "Failed to update report");
+    return {
+      reportId: updated.id,
+      shareToken: retry.shareToken,
+      html: params.html,
+      payload: params.payload,
+    };
+  }
+
   if (error || !report) throw new Error(error?.message ?? "Failed to create report");
   return {
     reportId: report.id,

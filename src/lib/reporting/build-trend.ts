@@ -34,9 +34,14 @@ export async function buildTrendReport(params: {
     .single();
   if (!business) throw new Error("Business not found");
 
+  let keywordId = params.keywordId ?? null;
+  if (!keywordId) {
+    throw new Error("keywordId is required for trend reports");
+  }
+
   const history = await loadScanHistory(supabase, {
     businessId: params.businessId,
-    keywordId: params.keywordId,
+    keywordId,
     locationId: params.locationId,
     gridSize: params.gridSize,
     radiusMeters: params.radiusMeters,
