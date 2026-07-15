@@ -76,6 +76,22 @@ export async function cancelJob(jobId: string): Promise<boolean> {
 }
 
 export async function retryJob(jobId: string): Promise<boolean> {
+  // Refuse retry while a live worker still holds a valid lease.
+  const supabase = createServiceClient();
+  const { data: live } = await supabase
+    .from("job_queue")
+    .select("status, lease_expires_at, lease_owner")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (
+    live?.status === "running" &&
+    live.lease_owner &&
+    live.lease_expires_at &&
+    new Date(String(live.lease_expires_at)).getTime() > Date.now()
+  ) {
+    return false;
+  }
+
   const ok = await retryLedgerJob(jobId);
   if (!ok) return false;
   if (resolveQueueDriver() === "bullmq" && getRedisUrl()) {

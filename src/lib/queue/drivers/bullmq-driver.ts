@@ -11,6 +11,7 @@ import {
   markLedgerEnqueued,
 } from "@/lib/queue/ledger";
 import type { EnqueueJobInput, EnqueueJobResult, QueueName } from "@/lib/queue/types";
+import { canReuseExistingJob } from "@/lib/queue/idempotency";
 
 const queues = new Map<string, import("bullmq").Queue>();
 
@@ -37,7 +38,7 @@ async function getQueue(name: QueueName): Promise<import("bullmq").Queue> {
 export async function bullmqEnqueue(input: EnqueueJobInput): Promise<EnqueueJobResult> {
   if (input.idempotencyKey) {
     const existing = await findJobByIdempotencyKey(input.idempotencyKey);
-    if (existing && !["failed", "completed"].includes(existing.status)) {
+    if (existing && canReuseExistingJob(existing)) {
       return {
         jobId: existing.id,
         queueName: input.queueName,

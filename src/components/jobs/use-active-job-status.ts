@@ -88,7 +88,20 @@ async function tick(url: string) {
     });
     const json = (await res.json()) as Record<string, unknown>;
     if (!res.ok) {
-      throw new Error(String(json.error ?? `Status ${res.status}`));
+      const message = String(json.error ?? `Status ${res.status}`);
+      // Stop forever-polls on auth / missing jobs.
+      if (res.status === 401 || res.status === 403 || res.status === 404) {
+        entry.error = message;
+        entry.status = {
+          jobId: String(json.jobId ?? url),
+          status: "failed",
+          phase: "failed",
+          errorMessage: message,
+        };
+        bump(entry);
+        return;
+      }
+      throw new Error(message);
     }
     const progress = json.progress as LightweightJobStatus["progress"];
     const mapped: LightweightJobStatus = {

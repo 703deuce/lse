@@ -355,7 +355,19 @@ export async function executeJobType(
       case "gbp_audit_module": {
         const businessId = String(payload.businessId ?? "");
         const module = String(payload.module ?? "");
+        const organizationId = String(payload.organizationId ?? "");
         if (!businessId || !module) return permanent("gbp_audit_module payload incomplete");
+        if (organizationId) {
+          const supabase = createServiceClient();
+          const { data: biz } = await supabase
+            .from("businesses")
+            .select("organization_id")
+            .eq("id", businessId)
+            .maybeSingle();
+          if (!biz || biz.organization_id !== organizationId) {
+            return permanent("gbp_audit_module tenant mismatch");
+          }
+        }
         const { executeAuditModule, isAuditModule } = await import("@/lib/audit/run-module");
         if (!isAuditModule(module)) return permanent("Unknown GBP audit module");
         const result = await executeAuditModule({
@@ -387,14 +399,8 @@ export async function executeJobType(
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (payload.reservedUsage && payload.organizationId) {
-      await releaseUsage(
-        String(payload.organizationId),
-        payload.reservedUsage.key as Parameters<typeof releaseUsage>[1],
-        payload.reservedUsage.amount
-      ).catch(() => {});
-    }
     logger.error("job_handler_failed", { jobType, error: message });
+    // Do not release reservedUsage on retryable errors — processor releases only on terminal failure.
     if (PERMANENT_PATTERN.test(message)) {
       return { ok: false, permanent: true, error: message };
     }

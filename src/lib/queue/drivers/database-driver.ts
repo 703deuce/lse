@@ -5,6 +5,7 @@ import {
   markLedgerEnqueued,
 } from "@/lib/queue/ledger";
 import type { EnqueueJobInput } from "@/lib/queue/types";
+import { canReuseExistingJob } from "@/lib/queue/idempotency";
 
 /**
  * Database driver: Postgres job_queue is both ledger and execution source.
@@ -16,12 +17,12 @@ export async function databaseEnqueue(
 ): Promise<EnqueueJobResult> {
   if (input.idempotencyKey) {
     const existing = await findJobByIdempotencyKey(input.idempotencyKey);
-    if (existing && !["failed", "completed"].includes(existing.status)) {
+    if (existing && canReuseExistingJob(existing)) {
       return {
         jobId: existing.id,
         queueName: input.queueName,
         driver: "database",
-        enqueueState: existing.enqueueState === "enqueued" ? "enqueued" : "enqueued",
+        enqueueState: existing.enqueueState,
         reused: true,
         status: existing.status,
       };

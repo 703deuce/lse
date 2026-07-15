@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/context";
 import { isDevBypassEnabled } from "@/lib/auth/dev";
+import { isAdminEmail } from "@/lib/auth/admin";
 import { getJobStatus } from "@/lib/queue";
 import { derivePhase } from "@/lib/jobs/active-job-status";
 
@@ -20,11 +21,13 @@ export async function GET(
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    if (
-      job.organizationId &&
-      job.organizationId !== auth.organizationId &&
-      !isDevBypassEnabled()
-    ) {
+    const isAdmin = isAdminEmail(auth.email);
+    // Jobs without organization_id are internal drains — never expose to tenants.
+    if (!job.organizationId) {
+      if (!isAdmin && !isDevBypassEnabled()) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+    } else if (job.organizationId !== auth.organizationId && !isAdmin && !isDevBypassEnabled()) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 

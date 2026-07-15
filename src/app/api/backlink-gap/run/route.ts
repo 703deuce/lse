@@ -84,12 +84,16 @@ export async function POST(request: Request) {
       );
     }
 
+    if (job.reused) {
+      await releaseUsage(auth.organizationId, "backlink_gap_runs_used", 1).catch(() => {});
+    }
     reserved = false;
     return NextResponse.json({
       queued: true,
       status: "queued",
       jobId: job.jobId,
       queueDriver: job.driver,
+      reused: job.reused,
     });
   } catch (err) {
     if (reserved && organizationId) {

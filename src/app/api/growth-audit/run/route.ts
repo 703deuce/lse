@@ -48,12 +48,17 @@ export async function POST(request: Request) {
       );
     }
 
+    // Idempotent reuse already owns the usage reservation from the first enqueue.
+    if (job.reused) {
+      await releaseUsage(auth.organizationId, "growth_audits_used", 1).catch(() => {});
+    }
     reserved = false;
     return NextResponse.json({
       queued: true,
       status: "queued",
       jobId: job.jobId,
       queueDriver: job.driver,
+      reused: job.reused,
     });
   } catch (err) {
     if (reserved && organizationId) {

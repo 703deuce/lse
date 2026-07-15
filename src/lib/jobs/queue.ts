@@ -70,6 +70,8 @@ async function reclaimStaleRunningJobs(
   const leasedIds = await reclaimExpiredJobLeases(50).catch(() => [] as string[]);
 
   const staleBefore = new Date(Date.now() - JOB_RUNNING_STALE_MS).toISOString();
+  const nowIso = new Date().toISOString();
+  // Only steal jobs whose lease is missing/expired — do not interrupt heartbeated long work.
   const { data } = await supabase
     .from("job_queue")
     .update({
@@ -82,6 +84,7 @@ async function reclaimStaleRunningJobs(
     })
     .eq("status", "running")
     .lt("started_at", staleBefore)
+    .or(`lease_expires_at.is.null,lease_expires_at.lt.${nowIso}`)
     .select("id");
 
   const byStarted = (data ?? []).map((r) => r.id as string);
@@ -206,13 +209,23 @@ export async function processPendingJobs(limit = 5): Promise<{
   }
 
   let processed = 0;
+  const workerId =
+    process.env.WORKER_ID?.trim() ||
+    process.env.HOSTNAME?.trim() ||
+    `cron-${process.pid}`;
+
   for (const job of jobs) {
     const { data: claimed } = await supabase
       .from("job_queue")
       .update({
         status: "running",
+        lifecycle_status: "running",
         started_at: new Date().toISOString(),
+        heartbeat_at: new Date().toISOString(),
         attempts: (job.attempts ?? 0) + 1,
+        worker_id: workerId,
+        lease_owner: workerId,
+        lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
       })
       .eq("id", job.id)
       .eq("status", "pending")
@@ -239,17 +252,30 @@ export async function processPendingJobs(limit = 5): Promise<{
           .from("job_queue")
           .update({
             status: "pending",
+            lifecycle_status: "queued",
             scheduled_at: new Date(Date.now() + 5_000).toISOString(),
             error_message: "Deferred — another worker holds the lease",
+            lease_owner: null,
+            lease_expires_at: null,
           })
-          .eq("id", claimed.id);
+          .eq("id", claimed.id)
+          .eq("status", "running")
+          .eq("lease_owner", workerId);
         continue;
       }
 
       await supabase
         .from("job_queue")
-        .update({ status: "completed", finished_at: new Date().toISOString() })
-        .eq("id", claimed.id);
+        .update({
+          status: "completed",
+          lifecycle_status: "completed",
+          finished_at: new Date().toISOString(),
+          lease_owner: null,
+          lease_expires_at: null,
+        })
+        .eq("id", claimed.id)
+        .eq("status", "running")
+        .eq("lease_owner", workerId);
       processed++;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
@@ -280,7 +306,9 @@ export async function processPendingJobs(limit = 5): Promise<{
           lease_owner: null,
           lease_expires_at: null,
         })
-        .eq("id", claimed.id);
+        .eq("id", claimed.id)
+        .eq("status", "running")
+        .eq("lease_owner", workerId);
 
       const payload = claimed.payload as { scanBatchId?: string };
       if (payload.scanBatchId && failed && claimed.job_type === "process_scan") {

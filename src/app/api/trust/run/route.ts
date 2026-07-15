@@ -52,12 +52,16 @@ export async function POST(request: Request) {
       );
     }
 
-    reserved = false; // failures release credits inside the job handler
+    if (job.reused) {
+      await releaseUsage(auth.organizationId, "local_trust_scans_used", 1).catch(() => {});
+    }
+    reserved = false; // terminal failures release credits in the processor
     return NextResponse.json({
       queued: true,
       status: "queued",
       jobId: job.jobId,
       queueDriver: job.driver,
+      reused: job.reused,
     });
   } catch (err) {
     if (reserved && organizationId) {

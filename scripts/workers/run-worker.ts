@@ -18,7 +18,11 @@ import {
   type QueueName,
 } from "../../src/lib/queue/types";
 import { getBullmqConnectionOptions, getQueueConfig } from "../../src/lib/queue/config";
-import { isPermanentError, processQueueJob } from "../../src/lib/queue/processors";
+import {
+  bullmqLockDurationMs,
+  isPermanentError,
+  processQueueJob,
+} from "../../src/lib/queue/processors";
 import type { QueueJobPayload } from "../../src/lib/queue/processors";
 import { recoverPendingEnqueues } from "../../src/lib/queue/service";
 
@@ -89,6 +93,8 @@ async function main() {
       {
         connection,
         concurrency: settings.concurrency,
+        // Must cover long Maps/intelligence work; our processor also heartbeats the ledger lease.
+        lockDuration: bullmqLockDurationMs(queueName),
         limiter: settings.limiter
           ? { max: settings.limiter.max, duration: settings.limiter.durationMs }
           : undefined,
