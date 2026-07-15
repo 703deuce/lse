@@ -4,6 +4,7 @@ import { processScanBatch } from "@/lib/jobs/process-scan";
 import { reclaimStaleInFlightScans } from "@/lib/jobs/schedule-scan";
 import { maybeRunDataRetentionCleanup } from "@/lib/jobs/retention";
 import { logger } from "@/lib/observability/logger";
+import { runContactImport, type ContactImportMode, type ContactImportRow } from "@/lib/reputation/contact-import";
 
 const JOB_RUNNING_STALE_MS = Number(process.env.JOB_RUNNING_STALE_MS ?? 20 * 60 * 1000);
 
@@ -12,6 +13,20 @@ export async function enqueueScanJob(scanBatchId: string, businessId?: string): 
   await supabase.from("job_queue").insert({
     job_type: "process_scan",
     payload: { scanBatchId, businessId },
+    status: "pending",
+  });
+}
+
+export async function enqueueImportContactsJob(payload: {
+  uploadId: string;
+  businessId: string;
+  organizationId: string;
+  mode: ContactImportMode;
+}): Promise<void> {
+  const supabase = createServiceClient();
+  await supabase.from("job_queue").insert({
+    job_type: "import_contacts",
+    payload,
     status: "pending",
   });
 }
@@ -119,6 +134,32 @@ export async function processPendingJobs(limit = 5): Promise<{
           }
           await processScanBatch(payload.scanBatchId, orgId);
         }
+      } else if (claimed.job_type === "import_contacts") {
+        const payload = claimed.payload as {
+          uploadId?: string;
+          businessId?: string;
+          organizationId?: string;
+          mode?: ContactImportMode;
+        };
+        if (!payload.uploadId || !payload.businessId || !payload.organizationId) {
+          throw new Error("import_contacts payload incomplete");
+        }
+        const { data: upload } = await supabase
+          .from("review_request_uploads")
+          .update({ status: "running", started_at: new Date().toISOString() })
+          .eq("id", payload.uploadId)
+          .in("status", ["queued", "running"])
+          .select("rows_json, mode")
+          .maybeSingle();
+        if (!upload) throw new Error("Import upload not found or already finished");
+        const rows = (upload.rows_json ?? []) as ContactImportRow[];
+        await runContactImport({
+          organizationId: payload.organizationId,
+          businessId: payload.businessId,
+          uploadId: payload.uploadId,
+          mode: payload.mode ?? (upload.mode as ContactImportMode) ?? "update",
+          rows,
+        });
       }
 
       await supabase

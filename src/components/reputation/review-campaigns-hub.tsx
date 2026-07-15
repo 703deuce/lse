@@ -132,6 +132,22 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
       {showBuilder && (
         <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
+            <div>
+              <p className="text-[13px] font-semibold text-zinc-900">Campaign builder</p>
+              <p className="text-[11px] text-zinc-500">
+                Details → audience (CSV) → channel → schedule → launch. Full sequence canvas comes next.
+              </p>
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {["Details", "Audience", "Channel", "Sequence", "Content", "Launch"].map((s, i) => (
+                  <span
+                    key={s}
+                    className="rounded bg-zinc-50 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600"
+                  >
+                    {i + 1}. {s}
+                  </span>
+                ))}
+              </div>
+            </div>
             <div className="flex gap-1">
               {(
                 [
@@ -153,17 +169,17 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
                   {label}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBuilder(false);
+                  void load();
+                }}
+                className="text-[12px] font-medium text-zinc-500 hover:text-zinc-800"
+              >
+                Close
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setShowBuilder(false);
-                void load();
-              }}
-              className="text-[12px] font-medium text-zinc-500 hover:text-zinc-800"
-            >
-              Close
-            </button>
           </div>
           <ReviewRequestsPanel
             businessId={businessId}

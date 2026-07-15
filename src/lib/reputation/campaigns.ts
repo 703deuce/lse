@@ -450,7 +450,18 @@ export async function getCampaignDetail(
     .limit(limit + 1);
 
   if (options?.recipientStatus) {
-    recipQuery = recipQuery.eq("status", options.recipientStatus);
+    const rs = options.recipientStatus;
+    if (
+      ["ready", "duplicate", "invalid_contact", "missing_contact", "recently_contacted", "opted_out", "skipped"].includes(
+        rs
+      )
+    ) {
+      recipQuery = recipQuery.eq("status", rs);
+    } else if (rs === "replied") {
+      recipQuery = recipQuery.not("replied_at", "is", null);
+    } else if (rs === "reviewed") {
+      recipQuery = recipQuery.not("review_detected_at", "is", null);
+    }
   }
   if (options?.recipientCursor) {
     recipQuery = recipQuery.lt("created_at", options.recipientCursor);
@@ -488,9 +499,99 @@ export async function getCampaignDetail(
     }
   }
 
+  // Attribution counts (honest labels only)
+  const { data: attrs } = await supabase
+    .from("review_campaign_attributions")
+    .select("attribution_level")
+    .eq("campaign_id", campaignId)
+    .eq("business_id", businessId);
+  const attribution = {
+    confirmed: (attrs ?? []).filter((a) => a.attribution_level === "confirmed").length,
+    likely: (attrs ?? []).filter((a) => a.attribution_level === "likely").length,
+    unattributed: (attrs ?? []).filter((a) => a.attribution_level === "unattributed").length,
+  };
+
+  // Compact activity timeline from message status transitions + clicks + replies
+  const { data: recentMsgs } = await supabase
+    .from("review_request_messages")
+    .select("id, status, channel, sent_at, delivered_at, clicked_at, failed_at, failed_reason, scheduled_for, created_at")
+    .eq("campaign_id", campaignId)
+    .eq("business_id", businessId)
+    .order("updated_at", { ascending: false })
+    .limit(40);
+
+  const { data: clicks } = await supabase
+    .from("review_request_clicks")
+    .select("id, clicked_at, recipient_id, message_id")
+    .eq("campaign_id", campaignId)
+    .order("clicked_at", { ascending: false })
+    .limit(20);
+
+  const { data: repliedRecips } = await supabase
+    .from("review_request_recipients")
+    .select("id, full_name, first_name, replied_at")
+    .eq("campaign_id", campaignId)
+    .not("replied_at", "is", null)
+    .order("replied_at", { ascending: false })
+    .limit(20);
+
+  type TimelineItem = { at: string; type: string; label: string; meta?: string };
+  const activity: TimelineItem[] = [];
+  activity.push({
+    at: String(campaign.created_at),
+    type: "created",
+    label: "Campaign created",
+  });
+  if (campaign.started_at) {
+    activity.push({ at: String(campaign.started_at), type: "started", label: "Campaign started" });
+  }
+  if (campaign.completed_at) {
+    activity.push({
+      at: String(campaign.completed_at),
+      type: "completed",
+      label: `Campaign ${campaign.status}`,
+    });
+  }
+  for (const m of recentMsgs ?? []) {
+    if (m.sent_at) {
+      activity.push({
+        at: String(m.sent_at),
+        type: "sent",
+        label: `${m.channel} sent`,
+        meta: m.id as string,
+      });
+    }
+    if (m.failed_at) {
+      activity.push({
+        at: String(m.failed_at),
+        type: "failed",
+        label: "Send failed",
+        meta: (m.failed_reason as string) || undefined,
+      });
+    }
+  }
+  for (const c of clicks ?? []) {
+    activity.push({
+      at: String(c.clicked_at),
+      type: "clicked",
+      label: "Link clicked",
+      meta: c.recipient_id as string,
+    });
+  }
+  for (const r of repliedRecips ?? []) {
+    activity.push({
+      at: String(r.replied_at),
+      type: "replied",
+      label: `Reply from ${r.full_name || r.first_name || "customer"}`,
+    });
+  }
+  activity.sort((a, b) => (a.at < b.at ? 1 : -1));
+
   return {
     campaign,
     metrics,
+    attribution,
+    activity: activity.slice(0, 50),
     recipients: {
       items: items.map((r) => ({
         ...r,
@@ -498,6 +599,57 @@ export async function getCampaignDetail(
       })),
       nextCursor: hasMore ? String(items[items.length - 1]?.created_at ?? "") : null,
     },
+  };
+}
+
+export async function getRecipientEventHistory(params: {
+  campaignId: string;
+  businessId: string;
+  recipientId: string;
+}) {
+  const supabase = createServiceClient();
+  const { data: recipient } = await supabase
+    .from("review_request_recipients")
+    .select("*")
+    .eq("id", params.recipientId)
+    .eq("campaign_id", params.campaignId)
+    .eq("business_id", params.businessId)
+    .maybeSingle();
+  if (!recipient) throw new Error("Recipient not found");
+
+  const { data: messages } = await supabase
+    .from("review_request_messages")
+    .select(
+      "id, channel, status, subject, message_body, scheduled_for, sent_at, delivered_at, clicked_at, failed_at, failed_reason, provider_message_id, tracking_url"
+    )
+    .eq("recipient_id", params.recipientId)
+    .order("scheduled_for", { ascending: true });
+
+  const { data: clicks } = await supabase
+    .from("review_request_clicks")
+    .select("id, message_id, clicked_at, user_agent")
+    .eq("recipient_id", params.recipientId)
+    .order("clicked_at", { ascending: false });
+
+  const { data: attrs } = await supabase
+    .from("review_campaign_attributions")
+    .select("attribution_level, detected_at, evidence_json")
+    .eq("recipient_id", params.recipientId);
+
+  const nextQueued = (messages ?? []).find((m) => m.status === "queued" || m.status === "sending");
+
+  return {
+    recipient,
+    messages: messages ?? [],
+    clicks: clicks ?? [],
+    attributions: attrs ?? [],
+    nextAction: nextQueued
+      ? {
+          at: nextQueued.scheduled_for,
+          channel: nextQueued.channel,
+          status: nextQueued.status,
+        }
+      : null,
   };
 }
 
@@ -594,28 +746,43 @@ export async function recordTrackingClick(params: {
     .eq("tracking_token", params.token)
     .maybeSingle();
 
-  if (!message) return null;
+  if (message) {
+    const now = new Date().toISOString();
+    if (!message.clicked_at) {
+      await supabase
+        .from("review_request_messages")
+        .update({ status: "clicked", clicked_at: now, updated_at: now })
+        .eq("id", message.id);
 
-  const now = new Date().toISOString();
-  if (!message.clicked_at) {
-    await supabase
-      .from("review_request_messages")
-      .update({ status: "clicked", clicked_at: now, updated_at: now })
-      .eq("id", message.id);
-
-    await supabase.from("review_request_clicks").insert({
-      organization_id: message.organization_id,
-      business_id: message.business_id,
-      campaign_id: message.campaign_id,
-      recipient_id: message.recipient_id,
-      message_id: message.id,
-      tracking_token: params.token,
-      ip_hash: params.ip ? hashIp(params.ip) : null,
-      user_agent: params.userAgent?.slice(0, 500) ?? null,
-    });
+      await supabase.from("review_request_clicks").insert({
+        organization_id: message.organization_id,
+        business_id: message.business_id,
+        campaign_id: message.campaign_id,
+        recipient_id: message.recipient_id,
+        message_id: message.id,
+        tracking_token: params.token,
+        ip_hash: params.ip ? hashIp(params.ip) : null,
+        user_agent: params.userAgent?.slice(0, 500) ?? null,
+      });
+    }
+    return message.google_review_url as string;
   }
 
-  return message.google_review_url as string;
+  // One-off quick-send tracking (no campaign message row).
+  const { data: send } = await supabase
+    .from("review_request_sends")
+    .select("id, review_url, status")
+    .eq("tracking_token", params.token)
+    .maybeSingle();
+  if (!send?.review_url) return null;
+  if (send.status !== "clicked") {
+    await supabase
+      .from("review_request_sends")
+      .update({ status: "clicked" })
+      .eq("id", send.id)
+      .neq("status", "clicked");
+  }
+  return send.review_url as string;
 }
 
 function hashIp(ip: string): string {

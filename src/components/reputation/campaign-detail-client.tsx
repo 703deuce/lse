@@ -1,10 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { ArrowLeft, Loader2, Pause, Play, X } from "lucide-react";
 import { ModulePage } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
+import { attributionDisplayLabel, type AttributionLevel } from "@/lib/reputation/contacts-normalize";
 
 type Metrics = {
   queued: number;
@@ -27,6 +28,8 @@ type Recipient = {
   status: string;
   workflow_status: string | null;
   replied_at: string | null;
+  review_detected_at: string | null;
+  review_attribution: string | null;
   latest_message: {
     status: string;
     channel: string;
@@ -35,6 +38,17 @@ type Recipient = {
     clicked_at: string | null;
   } | null;
 };
+
+type Activity = { at: string; type: string; label: string; meta?: string };
+
+const FILTERS = [
+  { id: "", label: "All" },
+  { id: "ready", label: "Pending" },
+  { id: "opted_out", label: "Opted out" },
+  { id: "replied", label: "Replied" },
+  { id: "reviewed", label: "Reviewed" },
+  { id: "skipped", label: "Skipped" },
+] as const;
 
 function MicroStat({ label, value }: { label: string; value: string }) {
   return (
@@ -56,16 +70,24 @@ export function CampaignDetailClient({
   const [error, setError] = useState<string | null>(null);
   const [campaign, setCampaign] = useState<Record<string, unknown> | null>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [attribution, setAttribution] = useState({ confirmed: 0, likely: 0, unattributed: 0 });
+  const [activity, setActivity] = useState<Activity[]>([]);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [filter, setFilter] = useState("");
+  const [drawerId, setDrawerId] = useState<string | null>(null);
+  const [drawer, setDrawer] = useState<Record<string, unknown> | null>(null);
+  const [drawerLoading, setDrawerLoading] = useState(false);
 
   const load = useCallback(
-    async (opts?: { append?: boolean; cursor?: string | null }) => {
+    async (opts?: { append?: boolean; cursor?: string | null; status?: string }) => {
       setLoading(true);
       setError(null);
       try {
         const params = new URLSearchParams({ businessId, limit: "50" });
         if (opts?.cursor) params.set("cursor", opts.cursor);
+        const status = opts?.status ?? filter;
+        if (status) params.set("recipientStatus", status);
         const res = await fetch(
           `/api/reputation/review-requests/campaigns/${campaignId}?${params}`
         );
@@ -73,6 +95,8 @@ export function CampaignDetailClient({
         if (!res.ok) throw new Error(json.error || "Failed to load");
         setCampaign(json.campaign);
         setMetrics(json.metrics);
+        setAttribution(json.attribution ?? { confirmed: 0, likely: 0, unattributed: 0 });
+        setActivity(json.activity ?? []);
         setRecipients((prev) =>
           opts?.append ? [...prev, ...(json.recipients?.items ?? [])] : json.recipients?.items ?? []
         );
@@ -83,12 +107,29 @@ export function CampaignDetailClient({
         setLoading(false);
       }
     },
-    [businessId, campaignId]
+    [businessId, campaignId, filter]
   );
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void load({ status: filter });
+  }, [load, filter]);
+
+  async function openDrawer(recipientId: string) {
+    setDrawerId(recipientId);
+    setDrawerLoading(true);
+    try {
+      const res = await fetch(
+        `/api/reputation/review-requests/campaigns/${campaignId}?businessId=${businessId}&recipientId=${recipientId}`
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed");
+      setDrawer(json);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load history");
+    } finally {
+      setDrawerLoading(false);
+    }
+  }
 
   async function action(act: string) {
     setError(null);
@@ -107,9 +148,7 @@ export function CampaignDetailClient({
 
   const status = String(campaign?.status ?? "");
   const name = String(campaign?.name ?? "Campaign");
-  const autoPause = campaign?.auto_pause_reason
-    ? String(campaign.auto_pause_reason)
-    : null;
+  const autoPause = campaign?.auto_pause_reason ? String(campaign.auto_pause_reason) : null;
 
   return (
     <ModulePage>
@@ -133,7 +172,7 @@ export function CampaignDetailClient({
             <button
               type="button"
               onClick={() => void action("pause")}
-              className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
+              className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium"
             >
               <Pause className="h-3.5 w-3.5" /> Pause
             </button>
@@ -142,7 +181,7 @@ export function CampaignDetailClient({
             <button
               type="button"
               onClick={() => void action(status === "draft" ? "start" : "resume")}
-              className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-emerald-500"
+              className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white"
             >
               <Play className="h-3.5 w-3.5" /> {status === "draft" ? "Start" : "Resume"}
             </button>
@@ -151,7 +190,7 @@ export function CampaignDetailClient({
             <button
               type="button"
               onClick={() => void action("cancel")}
-              className="inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-red-700 hover:bg-red-50"
+              className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-2.5 py-1.5 text-[12px] font-medium text-red-700"
             >
               <X className="h-3.5 w-3.5" /> Cancel
             </button>
@@ -173,13 +212,25 @@ export function CampaignDetailClient({
             <MicroStat label="Queued" value={String(metrics.queued + metrics.sending)} />
           </>
         ) : (
-          <div className="flex items-center gap-2 text-[12px] text-zinc-500">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading metrics…
-          </div>
+          <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
         )}
       </div>
 
-      {/* Compact funnel */}
+      <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-zinc-600">
+        <span>
+          {attributionDisplayLabel("confirmed")}:{" "}
+          <strong className="text-zinc-900">{attribution.confirmed}</strong>
+        </span>
+        <span>
+          {attributionDisplayLabel("likely")}:{" "}
+          <strong className="text-zinc-900">{attribution.likely}</strong>
+        </span>
+        <span>
+          {attributionDisplayLabel("unattributed")}:{" "}
+          <strong className="text-zinc-900">{attribution.unattributed}</strong>
+        </span>
+      </div>
+
       {metrics && metrics.sent > 0 && (
         <div className="mt-3 rounded-lg border border-zinc-200 bg-white px-3 py-2.5">
           <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Funnel</p>
@@ -198,77 +249,229 @@ export function CampaignDetailClient({
                     style={{ height: `${Math.min(56, pct * 0.5)}px` }}
                   />
                   <p className="mt-1 text-[11px] font-medium text-zinc-800">
-                    {step.n}{" "}
-                    <span className="font-normal text-zinc-500">{step.label}</span>
+                    {step.n} <span className="font-normal text-zinc-500">{step.label}</span>
                   </p>
                 </div>
               );
             })}
           </div>
-          <p className="mt-2 text-[11px] text-zinc-500">
-            Clicks are tracked. Review completions are not claimed unless attribution is confirmed.
-          </p>
         </div>
       )}
 
-      <div className="mt-4 overflow-x-auto rounded-lg border border-zinc-200 bg-white">
-        <table className="min-w-full text-left text-[12px]">
-          <thead className="border-b border-zinc-100 bg-zinc-50/80 text-[10px] uppercase tracking-wide text-zinc-500">
-            <tr>
-              <th className="px-2.5 py-2 font-medium">Customer</th>
-              <th className="px-2.5 py-2 font-medium">Channel</th>
-              <th className="px-2.5 py-2 font-medium">Status</th>
-              <th className="px-2.5 py-2 font-medium">Delivered</th>
-              <th className="px-2.5 py-2 font-medium">Clicked</th>
-              <th className="px-2.5 py-2 font-medium">Replied</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recipients.map((r) => {
-              const label =
-                r.full_name ||
-                [r.first_name, r.last_name].filter(Boolean).join(" ") ||
-                r.phone ||
-                r.email ||
-                "—";
-              const msg = r.latest_message;
-              return (
-                <tr key={r.id} className="border-b border-zinc-50">
-                  <td className="px-2.5 py-1.5 font-medium text-zinc-900">{label}</td>
-                  <td className="px-2.5 py-1.5 capitalize text-zinc-600">{msg?.channel ?? "—"}</td>
-                  <td className="px-2.5 py-1.5 text-zinc-700">{msg?.status ?? r.status}</td>
-                  <td className="px-2.5 py-1.5 text-zinc-600">
-                    {msg && ["sent", "delivered", "clicked"].includes(msg.status) ? "Yes" : "—"}
-                  </td>
-                  <td className="px-2.5 py-1.5 text-zinc-600">{msg?.clicked_at ? "Yes" : "—"}</td>
-                  <td className="px-2.5 py-1.5 text-zinc-600">{r.replied_at ? "Yes" : "—"}</td>
+      <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_16rem]">
+        <div>
+          <div className="mb-2 flex flex-wrap gap-1">
+            {FILTERS.map((f) => (
+              <button
+                key={f.id || "all"}
+                type="button"
+                onClick={() => setFilter(f.id)}
+                className={cn(
+                  "rounded-md px-2 py-1 text-[11px] font-medium",
+                  filter === f.id
+                    ? "bg-emerald-50 text-emerald-800"
+                    : "bg-zinc-50 text-zinc-600 hover:bg-zinc-100"
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
+            <table className="min-w-full text-left text-[12px]">
+              <thead className="border-b border-zinc-100 bg-zinc-50/80 text-[10px] uppercase tracking-wide text-zinc-500">
+                <tr>
+                  <th className="px-2.5 py-2 font-medium">Customer</th>
+                  <th className="px-2.5 py-2 font-medium">Channel</th>
+                  <th className="px-2.5 py-2 font-medium">Status</th>
+                  <th className="px-2.5 py-2 font-medium">Next</th>
+                  <th className="px-2.5 py-2 font-medium">Flags</th>
                 </tr>
-              );
-            })}
-            {!loading && recipients.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-2.5 py-8 text-center text-zinc-500">
-                  No recipients yet.
-                </td>
-              </tr>
+              </thead>
+              <tbody>
+                {recipients.map((r) => {
+                  const label =
+                    r.full_name ||
+                    [r.first_name, r.last_name].filter(Boolean).join(" ") ||
+                    r.phone ||
+                    r.email ||
+                    "—";
+                  const msg = r.latest_message;
+                  return (
+                    <tr
+                      key={r.id}
+                      className="cursor-pointer border-b border-zinc-50 hover:bg-zinc-50/80"
+                      onClick={() => void openDrawer(r.id)}
+                    >
+                      <td className="px-2.5 py-1.5 font-medium text-zinc-900">{label}</td>
+                      <td className="px-2.5 py-1.5 capitalize text-zinc-600">
+                        {msg?.channel ?? "—"}
+                      </td>
+                      <td className="px-2.5 py-1.5 text-zinc-700">{msg?.status ?? r.status}</td>
+                      <td className="px-2.5 py-1.5 text-[11px] text-zinc-500">
+                        {msg?.status === "queued"
+                          ? new Date(msg.scheduled_for).toLocaleString()
+                          : "—"}
+                      </td>
+                      <td className="px-2.5 py-1.5 text-[11px] text-zinc-600">
+                        {[
+                          msg?.clicked_at ? "clicked" : null,
+                          r.replied_at ? "replied" : null,
+                          r.review_attribution
+                            ? attributionDisplayLabel(r.review_attribution as AttributionLevel)
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {!loading && recipients.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-2.5 py-8 text-center text-zinc-500">
+                      No recipients for this filter.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          {nextCursor && (
+            <button
+              type="button"
+              className="mt-2 text-[12px] font-medium text-emerald-700 hover:underline"
+              onClick={() => void load({ append: true, cursor: nextCursor })}
+            >
+              Load more
+            </button>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-zinc-200 bg-white p-2.5">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+            Activity
+          </p>
+          <ul className="mt-2 max-h-[28rem] space-y-2 overflow-y-auto">
+            {activity.map((a, i) => (
+              <li key={`${a.at}-${a.type}-${i}`} className="text-[11px]">
+                <p className="font-medium text-zinc-800">{a.label}</p>
+                <p className="text-zinc-500">{new Date(a.at).toLocaleString()}</p>
+                {a.meta && <p className="truncate text-zinc-400">{a.meta}</p>}
+              </li>
+            ))}
+            {!activity.length && (
+              <li className="text-[11px] text-zinc-500">No activity yet.</li>
             )}
-          </tbody>
-        </table>
+          </ul>
+        </div>
       </div>
 
-      {loading && (
-        <div className="mt-2 flex items-center gap-2 text-[12px] text-zinc-500">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
+      {drawerId && (
+        <div className="fixed inset-0 z-40 flex justify-end bg-black/20">
+          <button
+            type="button"
+            className="h-full flex-1"
+            aria-label="Close"
+            onClick={() => {
+              setDrawerId(null);
+              setDrawer(null);
+            }}
+          />
+          <div className="h-full w-full max-w-md overflow-y-auto border-l border-zinc-200 bg-white p-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[14px] font-semibold text-zinc-900">Recipient history</h2>
+              <button
+                type="button"
+                className="text-[12px] text-zinc-500"
+                onClick={() => {
+                  setDrawerId(null);
+                  setDrawer(null);
+                }}
+              >
+                Close
+              </button>
+            </div>
+            {drawerLoading && (
+              <div className="mt-6 flex items-center gap-2 text-[12px] text-zinc-500">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
+              </div>
+            )}
+            {drawer && (
+              <div className="mt-3 space-y-3 text-[12px]">
+                {drawer.nextAction ? (
+                  <p className="rounded-md bg-amber-50 px-2 py-1.5 text-amber-900">
+                    Next: {String((drawer.nextAction as { channel: string }).channel)} ·{" "}
+                    {new Date(
+                      String((drawer.nextAction as { at: string }).at)
+                    ).toLocaleString()}
+                  </p>
+                ) : (
+                  <p className="text-zinc-500">No next scheduled action.</p>
+                )}
+                <div>
+                  <p className="text-[10px] font-semibold uppercase text-zinc-500">Messages</p>
+                  <ul className="mt-1 space-y-2">
+                    {(
+                      (drawer.messages as Array<Record<string, unknown>>) ?? []
+                    ).map((m) => (
+                      <li key={String(m.id)} className="rounded border border-zinc-100 p-2">
+                        <p className="font-medium capitalize text-zinc-800">
+                          {String(m.channel)} · {String(m.status)}
+                        </p>
+                        {m.failed_reason ? (
+                          <p className="text-red-600">Failure: {String(m.failed_reason)}</p>
+                        ) : null}
+                        <p className="mt-1 whitespace-pre-wrap text-zinc-600">
+                          {String(m.message_body ?? "").slice(0, 280)}
+                        </p>
+                        <p className="mt-1 text-[10px] text-zinc-400">
+                          scheduled {m.scheduled_for ? new Date(String(m.scheduled_for)).toLocaleString() : "—"}
+                          {m.sent_at ? ` · sent ${new Date(String(m.sent_at)).toLocaleString()}` : ""}
+                          {m.clicked_at
+                            ? ` · clicked ${new Date(String(m.clicked_at)).toLocaleString()}`
+                            : ""}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase text-zinc-500">Clicks</p>
+                  <ul className="mt-1 space-y-1">
+                    {((drawer.clicks as Array<Record<string, unknown>>) ?? []).map((c) => (
+                      <li key={String(c.id)} className="text-zinc-600">
+                        {new Date(String(c.clicked_at)).toLocaleString()}
+                      </li>
+                    ))}
+                    {!((drawer.clicks as unknown[]) ?? []).length && (
+                      <li className="text-zinc-400">None</li>
+                    )}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase text-zinc-500">
+                    Review attribution
+                  </p>
+                  <ul className="mt-1 space-y-1">
+                    {(
+                      (drawer.attributions as Array<{ attribution_level: string; detected_at: string }>) ??
+                      []
+                    ).map((a, i) => (
+                      <li key={i}>
+                        {attributionDisplayLabel(a.attribution_level as AttributionLevel)} ·{" "}
+                        {new Date(a.detected_at).toLocaleString()}
+                      </li>
+                    ))}
+                    {!((drawer.attributions as unknown[]) ?? []).length && (
+                      <li className="text-zinc-400">None detected</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      )}
-      {nextCursor && (
-        <button
-          type="button"
-          className={cn("mt-2 text-[12px] font-medium text-emerald-700 hover:underline")}
-          onClick={() => void load({ append: true, cursor: nextCursor })}
-        >
-          Load more
-        </button>
       )}
     </ModulePage>
   );

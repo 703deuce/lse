@@ -3,6 +3,7 @@ import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import {
   getCampaignDetail,
+  getRecipientEventHistory,
   updateCampaignStatus,
   type CampaignStatus,
 } from "@/lib/reputation/campaigns";
@@ -21,6 +22,16 @@ export async function GET(
     }
     const auth = await requireBusinessAccess(businessId);
     await requireEntitlement(auth.organizationId, "review_campaigns");
+
+    const recipientId = url.searchParams.get("recipientId");
+    if (recipientId) {
+      const history = await getRecipientEventHistory({
+        campaignId,
+        businessId,
+        recipientId,
+      });
+      return NextResponse.json(history);
+    }
 
     const detail = await getCampaignDetail(campaignId, businessId, {
       recipientCursor: url.searchParams.get("cursor"),

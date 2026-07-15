@@ -5,6 +5,7 @@ import { Loader2, Plus } from "lucide-react";
 import { ModulePage } from "@/components/ui/design-system";
 import { PageHeader } from "@/components/ui/page-header";
 import { ReviewCampaignsUpgrade } from "@/components/reputation/review-campaigns-upgrade";
+import { ContactsImportWizard } from "@/components/reputation/contacts-import-wizard";
 
 type ContactRow = {
   id: string;
@@ -33,6 +34,7 @@ export function ContactsPageClient({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
@@ -112,14 +114,23 @@ export function ContactsPageClient({
           title="Contacts"
           subtitle="Customers eligible for review campaigns. Opted-out contacts stay suppressed even after CSV re-upload."
         />
-        <button
-          type="button"
-          onClick={() => setShowAdd((v) => !v)}
-          className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-emerald-500"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add Customer
-        </button>
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => setShowImport((v) => !v)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
+          >
+            Import CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAdd((v) => !v)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-emerald-500"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Customer
+          </button>
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -140,6 +151,18 @@ export function ContactsPageClient({
           Search
         </button>
       </div>
+
+      {showImport && (
+        <div className="mt-3">
+          <ContactsImportWizard
+            businessId={businessId}
+            onDone={() => {
+              setCursor(null);
+              void load({ reset: true });
+            }}
+          />
+        </div>
+      )}
 
       {showAdd && (
         <div className="mt-3 grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 sm:grid-cols-4">

@@ -3,42 +3,94 @@ import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import { createServiceClient } from "@/lib/db/client";
 import type { CsvMapTarget } from "@/lib/reputation/bulk-csv";
-import { upsertBusinessContact } from "@/lib/reputation/contacts";
-import { contactIdentity } from "@/lib/reputation/contacts-normalize";
+import {
+  errorReportToCsv,
+  mappedRowsToImportRows,
+  previewContactImport,
+  runContactImport,
+  type ContactImportMode,
+  type ContactImportRow,
+} from "@/lib/reputation/contact-import";
+import { enqueueImportContactsJob } from "@/lib/jobs/queue";
 
-type ImportMode = "create" | "update" | "skip";
-
-type ImportRow = {
-  firstName?: string | null;
-  lastName?: string | null;
-  fullName?: string | null;
-  phone?: string | null;
-  email?: string | null;
-  customerDate?: string | null;
-  notes?: string | null;
-  tags?: string[];
-  externalCustomerId?: string | null;
-};
-
+const SYNC_ROW_LIMIT = 200;
 const MAX_ROWS = 5000;
 
-/**
- * Import contacts into the business CRM (not a campaign launch).
- * Opted-out contacts are never reactivated.
- */
+export async function GET(request: Request) {
+  try {
+    const url = new URL(request.url);
+    const businessId = url.searchParams.get("businessId");
+    const uploadId = url.searchParams.get("uploadId");
+    const downloadErrors = url.searchParams.get("downloadErrors") === "1";
+    if (!businessId) {
+      return NextResponse.json({ error: "businessId required" }, { status: 400 });
+    }
+    const auth = await requireBusinessAccess(businessId);
+    await requireEntitlement(auth.organizationId, "review_campaigns");
+    const supabase = createServiceClient();
+
+    if (uploadId && downloadErrors) {
+      const { data } = await supabase
+        .from("review_request_uploads")
+        .select("error_report_json, filename")
+        .eq("id", uploadId)
+        .eq("business_id", businessId)
+        .maybeSingle();
+      if (!data) return NextResponse.json({ error: "Import not found" }, { status: 404 });
+      const errors = Array.isArray(data.error_report_json)
+        ? (data.error_report_json as Array<{ row: number; error: string }>)
+        : [];
+      const csv = errorReportToCsv(errors);
+      return new NextResponse(csv, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="import-errors-${uploadId.slice(0, 8)}.csv"`,
+        },
+      });
+    }
+
+    const { data: uploads } = await supabase
+      .from("review_request_uploads")
+      .select(
+        "id, filename, total_rows, valid_rows, imported_rows, skipped_rows, failed_rows, status, mode, started_at, completed_at, created_at"
+      )
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: false })
+      .limit(30);
+
+    return NextResponse.json({ imports: uploads ?? [] });
+  } catch (err) {
+    if (err instanceof EntitlementError) {
+      return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
+    }
+    const message = err instanceof Error ? err.message : "Failed";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const businessId = body.businessId as string | undefined;
-    const mode = (body.mode as ImportMode | undefined) ?? "update";
+    const action = (body.action as string | undefined) ?? "import";
+    const mode = (body.mode as ContactImportMode | undefined) ?? "update";
     const filename = (body.filename as string | undefined) ?? "import.csv";
     const mapping = (body.mapping as Record<string, CsvMapTarget> | undefined) ?? {};
-    const rows = (body.rows as ImportRow[] | undefined) ?? [];
 
     if (!businessId) {
       return NextResponse.json({ error: "businessId required" }, { status: 400 });
     }
-    if (!Array.isArray(rows) || rows.length === 0) {
+
+    const auth = await requireBusinessAccess(businessId);
+    await requireEntitlement(auth.organizationId, "review_campaigns");
+
+    let rows: ContactImportRow[] = Array.isArray(body.rows) ? body.rows : [];
+    if ((!rows.length || action === "preview") && Array.isArray(body.csvRows) && Array.isArray(body.headers)) {
+      rows = mappedRowsToImportRows(body.headers, body.csvRows, mapping);
+    }
+
+    if (!rows.length) {
       return NextResponse.json({ error: "rows required" }, { status: 400 });
     }
     if (rows.length > MAX_ROWS) {
@@ -48,11 +100,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const auth = await requireBusinessAccess(businessId);
-    await requireEntitlement(auth.organizationId, "review_campaigns");
+    if (action === "preview") {
+      const preview = await previewContactImport({ businessId, rows });
+      return NextResponse.json(preview);
+    }
 
     const supabase = createServiceClient();
     const startedAt = new Date().toISOString();
+    const useBackground = rows.length > SYNC_ROW_LIMIT || body.background === true;
+
     const { data: upload, error: uploadErr } = await supabase
       .from("review_request_uploads")
       .insert({
@@ -61,133 +117,46 @@ export async function POST(request: Request) {
         filename,
         total_rows: rows.length,
         mapping_json: mapping,
-        status: "running",
+        status: useBackground ? "queued" : "running",
+        mode,
         started_at: startedAt,
         uploaded_by: auth.userId,
+        rows_json: useBackground ? rows : null,
       })
       .select("id")
       .single();
     if (uploadErr) throw new Error(uploadErr.message);
 
-    let imported = 0;
-    let skipped = 0;
-    let failed = 0;
-    const errors: Array<{ row: number; error: string }> = [];
-
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      const identity = contactIdentity({ phone: row.phone, email: row.email });
-      if (!identity.phoneE164 && !identity.emailNormalized) {
-        failed++;
-        errors.push({ row: i + 1, error: "Missing valid phone or email" });
-        continue;
-      }
-
-      try {
-        if (mode === "skip") {
-          let exists = false;
-          if (identity.phoneE164) {
-            const { data } = await supabase
-              .from("review_request_contacts")
-              .select("id")
-              .eq("business_id", businessId)
-              .eq("phone_e164", identity.phoneE164)
-              .maybeSingle();
-            exists = Boolean(data);
-          }
-          if (!exists && identity.emailNormalized) {
-            const { data } = await supabase
-              .from("review_request_contacts")
-              .select("id")
-              .eq("business_id", businessId)
-              .eq("email_normalized", identity.emailNormalized)
-              .maybeSingle();
-            exists = Boolean(data);
-          }
-          if (exists) {
-            skipped++;
-            continue;
-          }
-        }
-
-        if (mode === "create") {
-          // Force insert failure path by checking first; upsert still used when missing.
-          let exists = false;
-          if (identity.phoneE164) {
-            const { data } = await supabase
-              .from("review_request_contacts")
-              .select("id")
-              .eq("business_id", businessId)
-              .eq("phone_e164", identity.phoneE164)
-              .maybeSingle();
-            exists = Boolean(data);
-          }
-          if (!exists && identity.emailNormalized) {
-            const { data } = await supabase
-              .from("review_request_contacts")
-              .select("id")
-              .eq("business_id", businessId)
-              .eq("email_normalized", identity.emailNormalized)
-              .maybeSingle();
-            exists = Boolean(data);
-          }
-          if (exists) {
-            skipped++;
-            continue;
-          }
-        }
-
-        const result = await upsertBusinessContact({
-          organizationId: auth.organizationId,
-          businessId,
-          firstName: row.firstName,
-          lastName: row.lastName,
-          customerName: row.fullName,
-          phone: row.phone,
-          email: row.email,
-          notes: row.notes,
-          tags: row.tags,
-          externalCustomerId: row.externalCustomerId,
-          customerDate: row.customerDate,
-          source: "csv_import",
-          consentState: "implied",
-          consentSource: "csv_import",
-        });
-        if (mode === "create" && !result.created) {
-          skipped++;
-        } else {
-          imported++;
-        }
-      } catch (e) {
-        failed++;
-        errors.push({
-          row: i + 1,
-          error: e instanceof Error ? e.message : "Import failed",
-        });
-      }
+    if (useBackground) {
+      await enqueueImportContactsJob({
+        uploadId: upload.id,
+        businessId,
+        organizationId: auth.organizationId,
+        mode,
+      });
+      return NextResponse.json({
+        uploadId: upload.id,
+        status: "queued",
+        message: "Large import queued — the Coolify cron worker will process it.",
+        total: rows.length,
+      });
     }
 
-    const completedAt = new Date().toISOString();
-    await supabase
-      .from("review_request_uploads")
-      .update({
-        valid_rows: imported + skipped,
-        imported_rows: imported,
-        skipped_rows: skipped,
-        failed_rows: failed,
-        status: "completed",
-        error_report_json: errors.slice(0, 500),
-        completed_at: completedAt,
-      })
-      .eq("id", upload.id);
+    const result = await runContactImport({
+      organizationId: auth.organizationId,
+      businessId,
+      uploadId: upload.id,
+      mode,
+      rows,
+      userId: auth.userId,
+    });
 
     return NextResponse.json({
       uploadId: upload.id,
+      status: "completed",
       total: rows.length,
-      imported,
-      skipped,
-      failed,
-      errors: errors.slice(0, 100),
+      ...result,
+      errors: result.errors.slice(0, 100),
     });
   } catch (err) {
     if (err instanceof EntitlementError) {

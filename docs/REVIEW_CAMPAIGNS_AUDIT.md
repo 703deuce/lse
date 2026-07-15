@@ -105,3 +105,11 @@ Reputation → Reviews; sublink Review Requests. Momentum is under Main.
 - **Workers:** Coolify/Hetzner cron → `POST /api/jobs/process` with `CRON_SECRET` (see `docs/COOLIFY_CRON_CAMPAIGNS.md`).
 - **Campaign detail** + recipient pagination; contacts CSV import API `/api/reputation/contacts/import`.
 
+### Phase 2b (this continuation)
+
+- Full Contacts CSV UI: upload → map → preview → import mode → history + error CSV download; large imports queue `import_contacts` jobs.
+- Templates CRUD API + manager UI (edit/duplicate/archive/default/test send + compliance warnings).
+- One-off SMS/email now use tracked `/r/{token}` redirects (same as campaigns).
+- Campaign detail: filters, activity timeline, recipient drawer (messages/clicks/failures/next action/attribution labels).
+- Dual-worker claim-lock unit test (`campaign-claim.test.ts`) proves only one concurrent claim wins.
+

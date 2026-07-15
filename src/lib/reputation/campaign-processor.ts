@@ -14,6 +14,7 @@ import {
 import { appendSmsOptOut } from "@/lib/reputation/phone";
 import { sendTwilioSms } from "@/lib/reputation/twilio";
 import { logger } from "@/lib/observability/logger";
+import { claimQueuedCampaignMessage } from "@/lib/reputation/campaign-claim";
 
 /** Requeue messages stuck in sending if a worker died mid-flight. */
 const SENDING_STALE_MS = Number(process.env.CAMPAIGN_SENDING_STALE_MS ?? 15 * 60 * 1000);
@@ -164,13 +165,11 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
 
       // Atomic claim — only one worker may take a queued message.
       const claimTs = new Date().toISOString();
-      const { data: claimed } = await supabase
-        .from("review_request_messages")
-        .update({ status: "sending", updated_at: claimTs })
-        .eq("id", msg.id)
-        .eq("status", "queued")
-        .select("*")
-        .maybeSingle();
+      const claimed = await claimQueuedCampaignMessage(
+        supabase as unknown as Parameters<typeof claimQueuedCampaignMessage>[0],
+        msg.id,
+        claimTs
+      );
 
       if (!claimed) continue;
 

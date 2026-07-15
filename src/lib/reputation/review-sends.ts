@@ -8,6 +8,7 @@ import {
 import { appendSmsOptOut, normalizePhoneE164, phoneDigitsForMatch } from "@/lib/reputation/phone";
 import { renderTemplate } from "@/lib/reputation/template-vars";
 import { sendTwilioSms } from "@/lib/reputation/twilio";
+import { buildTrackingUrl, generateTrackingToken } from "@/lib/reputation/tracking";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
@@ -185,6 +186,7 @@ async function insertSend(
     providerMessageId?: string | null;
     errorMessage?: string | null;
     sentAt?: string | null;
+    trackingToken?: string | null;
   }
 ) {
   const { data, error } = await supabase
@@ -205,6 +207,7 @@ async function insertSend(
       provider_message_id: row.providerMessageId ?? null,
       error_message: row.errorMessage ?? null,
       sent_at: row.sentAt ?? null,
+      tracking_token: row.trackingToken ?? null,
     })
     .select("*")
     .single();
@@ -275,11 +278,14 @@ export async function sendReviewRequestEmail(input: SendReviewEmailInput) {
   const link = await loadActiveLink(supabase, input.businessId);
   if (!link) throw new Error("Review link missing. Generate review link first.");
 
+  const trackingToken = generateTrackingToken();
+  const trackingUrl = buildTrackingUrl(trackingToken);
+
   const template = await loadTemplate(supabase, input.businessId, "email", input.templateId);
   const vars = templateVars({
     customerName: input.customerName,
     businessName: business.name,
-    reviewUrl: link.review_url,
+    reviewUrl: trackingUrl,
     serviceType: input.serviceType,
   });
 
@@ -291,7 +297,7 @@ export async function sendReviewRequestEmail(input: SendReviewEmailInput) {
     ? renderTemplate(input.customMessage, vars)
     : template
       ? renderTemplate(template.body, vars)
-      : `Hi ${input.customerName},\n\nThanks again for choosing ${business.name}. If you have a minute, would you leave us a quick honest Google review?\n\n${link.review_url}`;
+      : `Hi ${input.customerName},\n\nThanks again for choosing ${business.name}. If you have a minute, would you leave us a quick honest Google review?\n\n${trackingUrl}`;
 
   const contactId = await upsertContact(supabase, {
     organizationId: input.organizationId,
@@ -313,6 +319,7 @@ export async function sendReviewRequestEmail(input: SendReviewEmailInput) {
     reviewUrl: link.review_url,
     status: "queued",
     provider: "brevo",
+    trackingToken,
   });
 
   const result = await sendBrevoEmail({
@@ -389,11 +396,14 @@ export async function sendReviewRequestSms(input: SendReviewSmsInput) {
   const link = await loadActiveLink(supabase, input.businessId);
   if (!link) throw new Error("Review link missing. Generate review link first.");
 
+  const trackingToken = generateTrackingToken();
+  const trackingUrl = buildTrackingUrl(trackingToken);
+
   const template = await loadTemplate(supabase, input.businessId, "sms", input.templateId);
   const vars = templateVars({
     customerName: input.customerName,
     businessName: business.name,
-    reviewUrl: link.review_url,
+    reviewUrl: trackingUrl,
     serviceType: input.serviceType,
   });
 
@@ -401,7 +411,7 @@ export async function sendReviewRequestSms(input: SendReviewSmsInput) {
     ? renderTemplate(input.customMessage, vars)
     : template
       ? renderTemplate(template.body, vars)
-      : `Hi ${input.customerName}, this is ${business.name}. Thanks again for choosing us. Could you leave us a quick honest Google review? ${link.review_url}`;
+      : `Hi ${input.customerName}, this is ${business.name}. Thanks again for choosing us. Could you leave us a quick honest Google review? ${trackingUrl}`;
 
   if (!body.includes(business.name)) {
     body = `Hi ${input.customerName}, this is ${business.name}. ${body}`;
@@ -428,6 +438,7 @@ export async function sendReviewRequestSms(input: SendReviewSmsInput) {
     reviewUrl: link.review_url,
     status: "queued",
     provider: "twilio",
+    trackingToken,
   });
 
   const result = await sendTwilioSms({ toPhone: normalized, body });

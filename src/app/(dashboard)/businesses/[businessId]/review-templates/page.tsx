@@ -1,7 +1,7 @@
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { hasEntitlement } from "@/lib/auth/entitlements";
 import { ReviewCampaignsUpgrade } from "@/components/reputation/review-campaigns-upgrade";
-import { ReviewRequestsPanel } from "@/components/reputation/review-requests-panel";
+import { TemplatesManager } from "@/components/reputation/templates-manager";
 import { ModulePage } from "@/components/ui/design-system";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -19,10 +19,10 @@ export default async function ReviewTemplatesPage({
     <ModulePage>
       <PageHeader
         title="Templates"
-        subtitle="SMS and email templates for review requests. Avoid five-star-only or incentive language."
+        subtitle="Create, edit, and test SMS/email templates. Tracked {{review_link}} tokens redirect through /r/ then to Google."
       />
       <div className="mt-3">
-        <ReviewRequestsPanel businessId={businessId} section="messages" hideSubTabs />
+        <TemplatesManager businessId={businessId} />
       </div>
     </ModulePage>
   );
