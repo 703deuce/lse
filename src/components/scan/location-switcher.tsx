@@ -163,7 +163,7 @@ export function LocationSwitcher({
             className={
               compact
                 ? "min-w-0 flex-1 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[13px] text-zinc-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
-                : "min-w-[200px] flex-1 rounded-lg border border-border bg-white px-3.5 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                : "min-w-0 w-full flex-1 rounded-lg border border-border bg-white px-3.5 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             }
           >
             {locations.map((loc) => (

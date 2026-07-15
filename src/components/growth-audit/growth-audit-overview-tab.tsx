@@ -135,8 +135,10 @@ export function GrowthAuditOverviewTab({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-2 xl:grid-cols-[minmax(220px,1.25fr)_repeat(5,minmax(0,1fr))]">
-        <ScoreGaugeCard title="Overall Audit Score" score={growthScore} />
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[minmax(220px,1.25fr)_repeat(5,minmax(0,1fr))]">
+        <div className="sm:col-span-2 lg:col-span-3 xl:col-span-1">
+          <ScoreGaugeCard title="Overall Audit Score" score={growthScore} />
+        </div>
         <MiniScoreCard title="GBP Score" score={sections.gbp.score} />
         <MiniScoreCard title="Website Match" score={sections.website.score} />
         <MiniScoreCard title="Coverage" score={Math.round((sections.serviceCoverage.score + sections.localCoverage.score) / 2)} />

@@ -301,8 +301,8 @@ export function MapsAuditWorkspace({ businessId }: { businessId: string }) {
         <MetricCard label="Latest Scan" value={data.latestScan?.id ? "Ready" : "None"} />
       </div>
 
-      <div className="flex min-h-0 flex-1">
-        <aside className="w-72 shrink-0 overflow-y-auto border-r border-border bg-surface-subtle dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <aside className="max-h-56 w-full shrink-0 overflow-y-auto border-b border-border bg-surface-subtle lg:max-h-none lg:w-72 lg:border-b-0 lg:border-r dark:border-zinc-800 dark:bg-zinc-950">
           <p className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-text-muted">
             {competitorCount} competitors + your business
           </p>

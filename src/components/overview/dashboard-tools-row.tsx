@@ -71,7 +71,7 @@ export function DashboardToolsRow({ businessId }: { businessId: string }) {
   return (
     <section className={cn(dashboardCard, "px-3.5 py-3")}>
       <h2 className={cn(dashboardSectionLabel, "mb-2.5")}>Tools</h2>
-      <div className="grid grid-cols-4 gap-1 sm:grid-cols-7">
+      <div className="grid grid-cols-3 gap-1 sm:grid-cols-4 md:grid-cols-7">
         {tools.map((tool) => (
           <Link
             key={tool.label}

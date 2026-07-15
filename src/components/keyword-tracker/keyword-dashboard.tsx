@@ -413,7 +413,7 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
         <div className="grid gap-3 xl:grid-cols-[1fr_300px]">
           <KeywordsPanel className="overflow-hidden">
             <div className="flex flex-wrap items-center gap-2 border-b border-zinc-100 px-3.5 py-2.5">
-              <div className="relative min-w-[200px] flex-1">
+              <div className="relative min-w-0 w-full flex-1 sm:min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                 <input
                   value={search}
