@@ -88,10 +88,27 @@ export const exportReportSchema = z.object({
   reportType: reportTypeSchema.optional().default("single_scan"),
   keywordId: z.string().uuid().optional().nullable(),
   locationId: z.string().uuid().optional().nullable(),
+  campaignId: z.string().uuid().optional().nullable(),
   gridSize: z.number().int().positive().optional().nullable(),
   radiusMeters: z.number().positive().optional().nullable(),
   selectedCompetitorKeys: z.array(z.string()).optional(),
   format: z.enum(["share", "csv"]).optional().default("share"),
+});
+
+export const reportBrandingSchema = z.object({
+  logoUrl: z
+    .union([z.string().url(), z.literal(""), z.null()])
+    .optional(),
+  accentColor: z
+    .union([
+      z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Use a hex color like #059669"),
+      z.literal(""),
+      z.null(),
+    ])
+    .optional(),
+  footerText: z.union([z.string().max(240), z.null()]).optional(),
+  contactLine: z.union([z.string().max(240), z.null()]).optional(),
+  hidePlatformBranding: z.boolean().optional(),
 });
 
 export const revokeReportSchema = z.object({

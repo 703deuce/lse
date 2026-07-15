@@ -11,6 +11,9 @@ import {
   Link2,
   Loader2,
   MapPinned,
+  Megaphone,
+  Star,
+  Target,
   Users,
 } from "lucide-react";
 import {
@@ -39,14 +42,25 @@ type ScanOption = {
   visibilityScore: number | null;
 };
 
+type KeywordOption = { id: string; keyword: string; isPrimary: boolean };
+type CampaignOption = {
+  id: string;
+  name: string;
+  status: string;
+  channel: string;
+  sent: number;
+  reviewsDetected: number;
+};
+
 type ReportCard = {
   type: ReportType;
   title: string;
   description: string;
   icon: typeof FileText;
   needsScan: boolean;
+  needsCampaign?: boolean;
+  needsKeyword?: boolean;
   available: boolean;
-  comingSoon?: boolean;
 };
 
 const REPORT_CARDS: ReportCard[] = [
@@ -83,40 +97,38 @@ const REPORT_CARDS: ReportCard[] = [
     available: true,
   },
   {
-    type: "review_campaign",
-    title: "Review Campaign Report",
-    description: "SMS/email funnel, attribution, and recipient status for review requests.",
-    icon: BarChart3,
+    type: "keyword",
+    title: "Keyword Report",
+    description: "One keyword across business + additional rank locations.",
+    icon: Target,
     needsScan: false,
-    available: false,
-    comingSoon: true,
+    needsKeyword: true,
+    available: true,
+  },
+  {
+    type: "maps_campaign",
+    title: "Maps Campaign Report",
+    description: "Scheduled tracking summary with keyword rollup and rising/falling.",
+    icon: Megaphone,
+    needsScan: false,
+    available: true,
   },
   {
     type: "reviews",
     title: "Reviews Report",
     description: "Rating, velocity, response rate, and competitor review momentum.",
-    icon: FileText,
+    icon: Star,
     needsScan: false,
-    available: false,
-    comingSoon: true,
+    available: true,
   },
   {
-    type: "maps_campaign",
-    title: "Maps Campaign Report",
-    description: "Consolidated multi-keyword scheduled tracking summary.",
-    icon: FileText,
+    type: "review_campaign",
+    title: "Review Campaign Report",
+    description: "SMS/email funnel, attribution, and recipient status for review requests.",
+    icon: BarChart3,
     needsScan: false,
-    available: false,
-    comingSoon: true,
-  },
-  {
-    type: "keyword",
-    title: "Keyword Report",
-    description: "One keyword across multiple locations (multi-location accounts).",
-    icon: FileText,
-    needsScan: false,
-    available: false,
-    comingSoon: true,
+    needsCampaign: true,
+    available: true,
   },
 ];
 
@@ -133,8 +145,13 @@ export function ReportsHub({
   latestScanId?: string | null;
 }) {
   const [scans, setScans] = useState<ScanOption[]>([]);
+  const [keywords, setKeywords] = useState<KeywordOption[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
   const [loadingScans, setLoadingScans] = useState(true);
+  const [loadingOptions, setLoadingOptions] = useState(true);
   const [scanId, setScanId] = useState(latestScanId ?? "");
+  const [keywordId, setKeywordId] = useState("");
+  const [campaignId, setCampaignId] = useState("");
   const [activeType, setActiveType] = useState<ReportType>("single_scan");
   const [busy, setBusy] = useState<"share" | "csv" | "revoke" | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -157,8 +174,28 @@ export function ReportsHub({
     }
   }, [businessId, scanId]);
 
+  const loadOptions = useCallback(async () => {
+    setLoadingOptions(true);
+    try {
+      const res = await fetch(`/api/reports/options?businessId=${businessId}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to load report options");
+      const kw = (json.keywords ?? []) as KeywordOption[];
+      const camps = (json.campaigns ?? []) as CampaignOption[];
+      setKeywords(kw);
+      setCampaigns(camps);
+      if (!keywordId && kw[0]?.id) setKeywordId(kw[0].id);
+      if (!campaignId && camps[0]?.id) setCampaignId(camps[0].id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load report options");
+    } finally {
+      setLoadingOptions(false);
+    }
+  }, [businessId, campaignId, keywordId]);
+
   useEffect(() => {
     void loadScans();
+    void loadOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initial load only
   }, [businessId]);
 
@@ -168,11 +205,22 @@ export function ReportsHub({
   );
 
   const activeCard = REPORT_CARDS.find((c) => c.type === activeType) ?? REPORT_CARDS[0];
+  const needsScanPicker = Boolean(
+    activeCard.needsScan || activeType === "trend" || activeType === "keyword"
+  );
 
   async function createReport(format: "share" | "csv") {
-    if (activeCard.comingSoon || !activeCard.available) return;
+    if (!activeCard.available) return;
     if (activeCard.needsScan && !scanId) {
       setError("Select a completed scan first");
+      return;
+    }
+    if (activeCard.needsCampaign && !campaignId) {
+      setError("Select a review campaign first");
+      return;
+    }
+    if (activeCard.needsKeyword && !keywordId) {
+      setError("Select a keyword first");
       return;
     }
     setBusy(format);
@@ -184,10 +232,15 @@ export function ReportsHub({
         format,
       };
       if (scanId) body.scanBatchId = scanId;
-      if (selectedScan?.keywordId) body.keywordId = selectedScan.keywordId;
+      if (activeType === "keyword" && keywordId) {
+        body.keywordId = keywordId;
+      } else if (selectedScan?.keywordId) {
+        body.keywordId = selectedScan.keywordId;
+      }
       if (selectedScan?.locationId) body.locationId = selectedScan.locationId;
       if (selectedScan?.gridSize) body.gridSize = selectedScan.gridSize;
       if (selectedScan?.radiusMeters) body.radiusMeters = selectedScan.radiusMeters;
+      if (activeType === "review_campaign" && campaignId) body.campaignId = campaignId;
 
       const res = await fetch("/api/reports/export", {
         method: "POST",
@@ -246,180 +299,230 @@ export function ReportsHub({
     <ModulePage wide>
       <ModuleHeader
         title="Reports"
-        subtitle="Client-ready Scan, Trend, Competitor, and Location reports — share, print to PDF, or export CSV."
+        subtitle="Client-ready Maps and Reviews reports — share, print to PDF, or export CSV."
       />
 
-      {!loadingScans && scans.length === 0 ? (
-        <EmptyState
-          title="No completed scans yet"
-          description="Run a grid scan first. Single Scan and Competitor reports need at least one finished map."
-        />
-      ) : (
-        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]">
-          <div className="space-y-3">
-            <div className="grid gap-2 sm:grid-cols-2">
-              {REPORT_CARDS.map((card) => {
-                const Icon = card.icon;
-                const selected = activeType === card.type;
-                return (
-                  <button
-                    key={card.type}
-                    type="button"
-                    onClick={() => {
-                      setActiveType(card.type);
-                      setShareUrl(null);
-                      setReportId(null);
-                      setError(null);
-                    }}
-                    className={cn(
-                      "rounded-xl border p-3.5 text-left transition",
-                      selected
-                        ? "border-emerald-300 bg-emerald-50/60 ring-1 ring-emerald-200"
-                        : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50/50",
-                      card.comingSoon && "opacity-80"
-                    )}
-                  >
-                    <div className="flex items-start gap-2.5">
-                      <span
-                        className={cn(
-                          "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                          selected ? "bg-emerald-100 text-emerald-700" : "bg-zinc-100 text-zinc-600"
-                        )}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </span>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-[13px] font-semibold text-zinc-900">{card.title}</p>
-                          {card.comingSoon ? (
-                            <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
-                              Soon
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="mt-0.5 text-[12px] leading-snug text-zinc-500">{card.description}</p>
-                      </div>
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]">
+        <div className="space-y-3">
+          <div className="grid gap-2 sm:grid-cols-2">
+            {REPORT_CARDS.map((card) => {
+              const Icon = card.icon;
+              const selected = activeType === card.type;
+              return (
+                <button
+                  key={card.type}
+                  type="button"
+                  onClick={() => {
+                    setActiveType(card.type);
+                    setShareUrl(null);
+                    setReportId(null);
+                    setError(null);
+                  }}
+                  className={cn(
+                    "rounded-xl border p-3.5 text-left transition",
+                    selected
+                      ? "border-emerald-300 bg-emerald-50/60 ring-1 ring-emerald-200"
+                      : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50/50"
+                  )}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <span
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                        selected ? "bg-emerald-100 text-emerald-700" : "bg-zinc-100 text-zinc-600"
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-semibold text-zinc-900">{card.title}</p>
+                      <p className="mt-0.5 text-[12px] leading-snug text-zinc-500">
+                        {card.description}
+                      </p>
                     </div>
-                  </button>
-                );
-              })}
-            </div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
-          <ContentCard className="h-fit xl:sticky xl:top-4">
-            <h2 className="text-[13px] font-semibold text-zinc-900">{activeCard.title}</h2>
-            <p className="mt-0.5 text-[12px] leading-snug text-zinc-500">{activeCard.description}</p>
+          {!loadingScans && scans.length === 0 ? (
+            <EmptyState
+              title="No completed scans yet"
+              description="Single Scan, Competitor, Trend, Location, Keyword, and Maps Campaign reports work best after at least one finished grid. Reviews and Review Campaign reports do not need a scan."
+            />
+          ) : null}
+        </div>
 
-            {(activeCard.needsScan || activeType === "trend") && (
-              <div className="mt-3">
-                <label className={fieldLabelClass}>
-                  {activeType === "trend" ? "Anchor scan (keyword / grid)" : "Scan"}
-                </label>
-                {loadingScans ? (
-                  <p className="mt-1 flex items-center gap-2 text-[12px] text-zinc-500">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading scans…
-                  </p>
-                ) : (
-                  <select
-                    className={cn(inputClass, "mt-1")}
-                    value={scanId}
-                    onChange={(e) => setScanId(e.target.value)}
-                  >
-                    {scans.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.keyword} · {s.gridSize}×{s.gridSize} · {milesLabel(s.radiusMeters)} ·{" "}
-                        {new Date(s.scannedAt).toLocaleString()}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                {selectedScan ? (
-                  <p className="mt-1.5 text-[11px] text-zinc-500">
-                    ARP {selectedScan.averageRank ?? "—"} · Visibility{" "}
-                    {selectedScan.visibilityScore ?? "—"}%
-                    {selectedScan.centerLabel ? ` · ${selectedScan.centerLabel}` : ""}
-                  </p>
-                ) : null}
-              </div>
-            )}
+        <ContentCard className="h-fit xl:sticky xl:top-4">
+          <h2 className="text-[13px] font-semibold text-zinc-900">{activeCard.title}</h2>
+          <p className="mt-0.5 text-[12px] leading-snug text-zinc-500">{activeCard.description}</p>
 
-            {activeCard.comingSoon ? (
-              <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
-                This report type is next in the roadmap. Use Single Scan, Trend, Competitor, or
-                Location for now.
-              </p>
-            ) : (
-              <div className="mt-4 flex flex-col gap-2">
-                <button
-                  type="button"
-                  disabled={busy != null}
-                  onClick={() => void createReport("share")}
-                  className={cn(btnPrimary, "h-9 w-full justify-center px-3 text-[13px]")}
+          {needsScanPicker && (
+            <div className="mt-3">
+              <label className={fieldLabelClass}>
+                {activeType === "trend"
+                  ? "Anchor scan (keyword / grid)"
+                  : activeType === "keyword"
+                    ? "Grid settings (from scan)"
+                    : "Scan"}
+              </label>
+              {loadingScans ? (
+                <p className="mt-1 flex items-center gap-2 text-[12px] text-zinc-500">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading scans…
+                </p>
+              ) : scans.length === 0 ? (
+                <p className="mt-1 text-[12px] text-amber-700">
+                  No completed scans yet
+                  {activeType === "keyword" ? " — using default 7×7 / 5 mi." : "."}
+                </p>
+              ) : (
+                <select
+                  className={cn(inputClass, "mt-1")}
+                  value={scanId}
+                  onChange={(e) => setScanId(e.target.value)}
                 >
-                  {busy === "share" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Link2 className="h-3.5 w-3.5" />
-                  )}
-                  Create shareable report
-                </button>
-                <button
-                  type="button"
-                  disabled={busy != null}
-                  onClick={() => void createReport("csv")}
+                  {scans.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.keyword} · {s.gridSize}×{s.gridSize} · {milesLabel(s.radiusMeters)} ·{" "}
+                      {new Date(s.scannedAt).toLocaleString()}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {selectedScan ? (
+                <p className="mt-1.5 text-[11px] text-zinc-500">
+                  ARP {selectedScan.averageRank ?? "—"} · Visibility{" "}
+                  {selectedScan.visibilityScore ?? "—"}%
+                  {selectedScan.centerLabel ? ` · ${selectedScan.centerLabel}` : ""}
+                </p>
+              ) : null}
+            </div>
+          )}
+
+          {activeCard.needsKeyword ? (
+            <div className="mt-3">
+              <label className={fieldLabelClass}>Keyword</label>
+              {loadingOptions ? (
+                <p className="mt-1 flex items-center gap-2 text-[12px] text-zinc-500">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading keywords…
+                </p>
+              ) : keywords.length === 0 ? (
+                <p className="mt-1 text-[12px] text-amber-700">Add a keyword first.</p>
+              ) : (
+                <select
+                  className={cn(inputClass, "mt-1")}
+                  value={keywordId}
+                  onChange={(e) => setKeywordId(e.target.value)}
+                >
+                  {keywords.map((k) => (
+                    <option key={k.id} value={k.id}>
+                      {k.keyword}
+                      {k.isPrimary ? " (primary)" : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          ) : null}
+
+          {activeCard.needsCampaign ? (
+            <div className="mt-3">
+              <label className={fieldLabelClass}>Review campaign</label>
+              {loadingOptions ? (
+                <p className="mt-1 flex items-center gap-2 text-[12px] text-zinc-500">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading campaigns…
+                </p>
+              ) : campaigns.length === 0 ? (
+                <p className="mt-1 text-[12px] text-amber-700">
+                  No review campaigns yet. Create one under Review Campaigns first.
+                </p>
+              ) : (
+                <select
+                  className={cn(inputClass, "mt-1")}
+                  value={campaignId}
+                  onChange={(e) => setCampaignId(e.target.value)}
+                >
+                  {campaigns.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} · {c.status} · {c.sent} sent · {c.reviewsDetected} attributed
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          ) : null}
+
+          <div className="mt-4 flex flex-col gap-2">
+            <button
+              type="button"
+              disabled={busy != null}
+              onClick={() => void createReport("share")}
+              className={cn(btnPrimary, "h-9 w-full justify-center px-3 text-[13px]")}
+            >
+              {busy === "share" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Link2 className="h-3.5 w-3.5" />
+              )}
+              Create shareable report
+            </button>
+            <button
+              type="button"
+              disabled={busy != null}
+              onClick={() => void createReport("csv")}
+              className={cn(btnSecondary, "h-9 w-full justify-center px-3 text-[13px]")}
+            >
+              {busy === "csv" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Download className="h-3.5 w-3.5" />
+              )}
+              Download CSV
+            </button>
+            {shareUrl ? (
+              <>
+                <a
+                  href={shareUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className={cn(btnSecondary, "h-9 w-full justify-center px-3 text-[13px]")}
                 >
-                  {busy === "csv" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Download className="h-3.5 w-3.5" />
-                  )}
-                  Download CSV
-                </button>
-                {shareUrl ? (
-                  <>
-                    <a
-                      href={shareUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={cn(btnSecondary, "h-9 w-full justify-center px-3 text-[13px]")}
-                    >
-                      <FileText className="h-3.5 w-3.5" />
-                      Open report (Print → PDF)
-                    </a>
-                    {reportId ? (
-                      <button
-                        type="button"
-                        disabled={busy != null}
-                        onClick={() => void revokeShare()}
-                        className={cn(btnSecondary, "h-9 w-full justify-center px-3 text-[13px]")}
-                      >
-                        {busy === "revoke" ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Ban className="h-3.5 w-3.5" />
-                        )}
-                        Revoke share link
-                      </button>
-                    ) : null}
-                    <p className="break-all text-[11px] text-zinc-500">{shareUrl}</p>
-                  </>
+                  <FileText className="h-3.5 w-3.5" />
+                  Open report (Print → PDF)
+                </a>
+                {reportId ? (
+                  <button
+                    type="button"
+                    disabled={busy != null}
+                    onClick={() => void revokeShare()}
+                    className={cn(btnSecondary, "h-9 w-full justify-center px-3 text-[13px]")}
+                  >
+                    {busy === "revoke" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Ban className="h-3.5 w-3.5" />
+                    )}
+                    Revoke share link
+                  </button>
                 ) : null}
-              </div>
-            )}
+                <p className="break-all text-[11px] text-zinc-500">{shareUrl}</p>
+              </>
+            ) : null}
+          </div>
 
-            {error ? <p className="mt-3 text-[12px] text-red-600">{error}</p> : null}
+          {error ? <p className="mt-3 text-[12px] text-red-600">{error}</p> : null}
 
-            <div className="mt-4 border-t border-zinc-100 pt-3 text-[11px] leading-relaxed text-zinc-500">
-              <p className="font-semibold text-zinc-700">Exports</p>
-              <p className="mt-1">
-                Share link = interactive report. Use the in-report <strong>Print / Save as PDF</strong>{" "}
-                button for client PDFs. CSV is for spreadsheet analysis.
-              </p>
-            </div>
-          </ContentCard>
-        </div>
-      )}
+          <div className="mt-4 border-t border-zinc-100 pt-3 text-[11px] leading-relaxed text-zinc-500">
+            <p className="font-semibold text-zinc-700">Exports</p>
+            <p className="mt-1">
+              Share link = interactive report. Use the in-report <strong>Print / Save as PDF</strong>{" "}
+              button for client PDFs. CSV is for spreadsheet analysis. Branding (logo/colors) is under
+              Settings → Report branding.
+            </p>
+          </div>
+        </ContentCard>
+      </div>
     </ModulePage>
   );
 }

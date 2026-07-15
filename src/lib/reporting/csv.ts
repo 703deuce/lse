@@ -1,7 +1,11 @@
 import { escapeCsv } from "@/lib/reporting/metrics";
 import type {
   CompetitorReportPayload,
+  KeywordReportPayload,
   LocationReportPayload,
+  MapsCampaignReportPayload,
+  ReviewCampaignReportPayload,
+  ReviewsReportPayload,
   SingleScanReportPayload,
   TrendReportPayload,
 } from "@/lib/reporting/types";
@@ -182,6 +186,159 @@ export function locationToCsv(payload: LocationReportPayload): string {
         k.changeArp,
       ])
     );
+  }
+  return lines.join("\n");
+}
+
+export function keywordToCsv(payload: KeywordReportPayload): string {
+  const lines: string[] = [];
+  lines.push(row(["report_type", payload.reportType]));
+  lines.push(row(["business", payload.business.name]));
+  lines.push(row(["keyword", payload.parameters.keyword]));
+  lines.push(row(["keyword_id", payload.parameters.keywordId]));
+  lines.push(row(["grid_size", payload.parameters.gridSize]));
+  lines.push(row(["radius_meters", payload.parameters.radiusMeters]));
+  lines.push(row(["location_count", payload.parameters.locationCount]));
+  lines.push(row(["aggregate_arp", payload.aggregate.arp]));
+  lines.push(row(["aggregate_atrp", payload.aggregate.atrp]));
+  lines.push(row(["aggregate_solv", payload.aggregate.solv]));
+  lines.push("");
+  lines.push(
+    row([
+      "location",
+      "location_id",
+      "is_business_location",
+      "scan_id",
+      "scanned_at",
+      "arp",
+      "atrp",
+      "solv",
+    ])
+  );
+  for (const l of payload.locations) {
+    lines.push(
+      row([
+        l.name,
+        l.locationId,
+        l.isBusinessLocation ? "yes" : "no",
+        l.scanId,
+        l.scannedAt,
+        l.arp,
+        l.atrp,
+        l.solv,
+      ])
+    );
+  }
+  return lines.join("\n");
+}
+
+export function mapsCampaignToCsv(payload: MapsCampaignReportPayload): string {
+  const lines: string[] = [];
+  lines.push(row(["report_type", payload.reportType]));
+  lines.push(row(["business", payload.business.name]));
+  lines.push(row(["schedule_enabled", payload.parameters.scheduleEnabled ? "yes" : "no"]));
+  lines.push(row(["next_run_at", payload.parameters.nextRunAt]));
+  lines.push(row(["last_run_at", payload.parameters.lastRunAt]));
+  lines.push(row(["keyword_count", payload.parameters.keywordCount]));
+  lines.push(row(["aggregate_arp", payload.aggregate.arp]));
+  lines.push(row(["aggregate_atrp", payload.aggregate.atrp]));
+  lines.push(row(["aggregate_solv", payload.aggregate.solv]));
+  lines.push(row(["rising", payload.rising.join("|")]));
+  lines.push(row(["falling", payload.falling.join("|")]));
+  lines.push("");
+  lines.push(
+    row(["keyword", "keyword_id", "scan_id", "scanned_at", "arp", "atrp", "solv", "change_arp"])
+  );
+  for (const k of payload.keywords) {
+    lines.push(
+      row([
+        k.keyword,
+        k.keywordId,
+        k.scanId,
+        k.scannedAt,
+        k.arp,
+        k.atrp,
+        k.solv,
+        k.changeArp,
+      ])
+    );
+  }
+  return lines.join("\n");
+}
+
+export function reviewsToCsv(payload: ReviewsReportPayload): string {
+  const lines: string[] = [];
+  lines.push(row(["report_type", payload.reportType]));
+  lines.push(row(["business", payload.business.name]));
+  lines.push(row(["run_id", payload.parameters.runId]));
+  lines.push(row(["audited_at", payload.parameters.auditedAt]));
+  lines.push(row(["summary", payload.summary]));
+  lines.push("");
+  lines.push(row(["entity", "name", "rating", "total", "reviews_30d", "weekly", "momentum", "score"]));
+  lines.push(
+    row([
+      "target",
+      payload.target.name,
+      payload.target.rating,
+      payload.target.totalReviews,
+      payload.target.reviews30d,
+      payload.target.avgReviewsPerWeek,
+      payload.target.momentumLabel,
+      payload.target.momentumScore,
+    ])
+  );
+  for (const c of payload.competitors) {
+    lines.push(
+      row([
+        "competitor",
+        c.name,
+        c.rating,
+        c.totalReviews,
+        c.reviews30d,
+        c.avgReviewsPerWeek,
+        c.momentumLabel,
+        c.momentumScore,
+      ])
+    );
+  }
+  lines.push("");
+  lines.push(row(["task_title", "priority", "description"]));
+  for (const t of payload.tasks) {
+    lines.push(row([t.title, t.priority, t.description]));
+  }
+  return lines.join("\n");
+}
+
+export function reviewCampaignToCsv(payload: ReviewCampaignReportPayload): string {
+  const lines: string[] = [];
+  lines.push(row(["report_type", payload.reportType]));
+  lines.push(row(["business", payload.business.name]));
+  lines.push(row(["campaign", payload.parameters.campaignName]));
+  lines.push(row(["status", payload.parameters.status]));
+  lines.push(row(["channel", payload.parameters.channel]));
+  lines.push("");
+  lines.push(row(["metric", "value"]));
+  lines.push(row(["recipients_total", payload.funnel.recipientsTotal]));
+  lines.push(row(["queued", payload.funnel.queued]));
+  lines.push(row(["sent", payload.funnel.sent]));
+  lines.push(row(["delivered", payload.funnel.delivered]));
+  lines.push(row(["clicked", payload.funnel.clicked]));
+  lines.push(row(["failed", payload.funnel.failed]));
+  lines.push(row(["opted_out", payload.funnel.optedOut]));
+  lines.push(row(["replied", payload.funnel.replied]));
+  lines.push(row(["sms", payload.funnel.sms]));
+  lines.push(row(["email", payload.funnel.email]));
+  lines.push(row(["attr_confirmed", payload.attribution.confirmed]));
+  lines.push(row(["attr_likely", payload.attribution.likely]));
+  lines.push(row(["attr_unattributed", payload.attribution.unattributed]));
+  lines.push(row(["delivery_rate", payload.rates.deliveryRate]));
+  lines.push(row(["click_rate", payload.rates.clickRate]));
+  lines.push(row(["reply_rate", payload.rates.replyRate]));
+  lines.push(row(["attributed_review_rate", payload.rates.attributedReviewRate]));
+  lines.push("");
+  lines.push(row(["recipient", "status", "channel", "replied_at", "review_detected_at"]));
+  for (const r of payload.recipients) {
+    lines.push(row([r.name, r.status, r.channel, r.repliedAt, r.reviewDetectedAt]));
   }
   return lines.join("\n");
 }

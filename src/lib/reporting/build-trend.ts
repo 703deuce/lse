@@ -6,14 +6,13 @@ import {
 } from "@/lib/maps/grid-entity";
 import { loadScanHistory } from "@/lib/maps/scan-history";
 import { loadScanGridData } from "@/lib/maps/scan-queries";
-import { resolveWhiteLabelCompanyName } from "@/lib/reporting/build-single-scan";
 import {
   deltaMetric,
   kpisFromRanks,
-  mergeWhiteLabel,
   pct,
   round1,
 } from "@/lib/reporting/metrics";
+import { resolveOrgWhiteLabel } from "@/lib/reporting/white-label";
 import type { TrendReportPayload, WhiteLabelConfig } from "@/lib/reporting/types";
 
 const RECOMPUTE_GRID_THRESHOLD = 12;
@@ -97,8 +96,7 @@ export async function buildTrendReport(params: {
   const first = history[0]!;
   const last = history[history.length - 1]!;
 
-  const companyName = await resolveWhiteLabelCompanyName(supabase, business);
-  const whiteLabel = mergeWhiteLabel(companyName, params.whiteLabel);
+  const whiteLabel = await resolveOrgWhiteLabel(supabase, business, params.whiteLabel);
 
   let keywordLabel = last.keyword ?? first.keyword ?? "—";
   if (params.keywordId) {

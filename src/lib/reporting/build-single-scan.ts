@@ -13,45 +13,18 @@ import { loadScanGridData } from "@/lib/maps/scan-queries";
 import {
   kpisFromRanks,
   mapsUrlFromPlaceId,
-  mergeWhiteLabel,
   pct,
 } from "@/lib/reporting/metrics";
+import {
+  resolveOrgWhiteLabel,
+  resolveWhiteLabelCompanyName,
+} from "@/lib/reporting/white-label";
 import type {
   HeatmapCell,
   ReportCompetitorRow,
   SingleScanReportPayload,
   WhiteLabelConfig,
 } from "@/lib/reporting/types";
-
-async function resolveWhiteLabelCompanyName(
-  supabase: ReturnType<typeof createServiceClient>,
-  business: { id: string; name?: string | null; organization_id?: string | null }
-): Promise<string> {
-  const orgId = business.organization_id;
-  if (orgId) {
-    const { data: org } = await supabase
-      .from("organizations")
-      .select("name")
-      .eq("id", orgId)
-      .maybeSingle();
-    if (org?.name) return String(org.name);
-  } else {
-    const { data: biz } = await supabase
-      .from("businesses")
-      .select("organization_id")
-      .eq("id", business.id)
-      .maybeSingle();
-    if (biz?.organization_id) {
-      const { data: org } = await supabase
-        .from("organizations")
-        .select("name")
-        .eq("id", biz.organization_id)
-        .maybeSingle();
-      if (org?.name) return String(org.name);
-    }
-  }
-  return business.name?.trim() || "Maps Report";
-}
 
 function competitorRowFromEntity(
   entity: GridEntityRef,
@@ -241,12 +214,15 @@ export async function buildSingleScanReport(params: {
     });
   }
 
-  const companyName = await resolveWhiteLabelCompanyName(supabase, {
-    id: businessId,
-    name: business.name,
-    organization_id: (business as BusinessRow).organization_id,
-  });
-  const whiteLabel = mergeWhiteLabel(companyName, params.whiteLabel);
+  const whiteLabel = await resolveOrgWhiteLabel(
+    supabase,
+    {
+      id: businessId,
+      name: business.name,
+      organization_id: (business as BusinessRow).organization_id,
+    },
+    params.whiteLabel
+  );
   const ratingInfo = extractBusinessRating(results);
   const placeId = business.place_id ?? null;
   const batch = gridData.batch;

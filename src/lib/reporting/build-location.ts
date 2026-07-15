@@ -5,13 +5,12 @@ import {
   buildYouEntity,
 } from "@/lib/maps/grid-entity";
 import { loadScanGridData } from "@/lib/maps/scan-queries";
-import { resolveWhiteLabelCompanyName } from "@/lib/reporting/build-single-scan";
 import {
   kpisFromRanks,
-  mergeWhiteLabel,
   pct,
   round1,
 } from "@/lib/reporting/metrics";
+import { resolveOrgWhiteLabel } from "@/lib/reporting/white-label";
 import type {
   LocationReportPayload,
   ReportKpis,
@@ -213,8 +212,11 @@ export async function buildLocationReport(params: {
     .filter((d): d is string => !!d)
     .sort();
 
-  const companyName = await resolveWhiteLabelCompanyName(supabase, business as BusinessRow);
-  const whiteLabel = mergeWhiteLabel(companyName, params.whiteLabel);
+  const whiteLabel = await resolveOrgWhiteLabel(
+    supabase,
+    business as BusinessRow,
+    params.whiteLabel
+  );
 
   return {
     reportType: "location",

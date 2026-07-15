@@ -126,6 +126,11 @@ export interface OrganizationRow {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  report_logo_url?: string | null;
+  report_accent_color?: string | null;
+  report_footer_text?: string | null;
+  report_contact_line?: string | null;
+  report_hide_platform_branding?: boolean;
 }
 
 export interface OrganizationMemberRow {

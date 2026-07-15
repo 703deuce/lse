@@ -3,7 +3,11 @@ import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { generateTypedReport } from "@/lib/reporting/generate-report";
 import {
   competitorsToCsv,
+  keywordToCsv,
   locationToCsv,
+  mapsCampaignToCsv,
+  reviewCampaignToCsv,
+  reviewsToCsv,
   singleScanToCsv,
   trendToCsv,
 } from "@/lib/reporting/csv";
@@ -30,6 +34,12 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    if (reportType === "review_campaign" && !data.campaignId) {
+      return NextResponse.json(
+        { error: "campaignId is required for review campaign reports" },
+        { status: 400 }
+      );
+    }
 
     const result = await generateTypedReport({
       businessId: data.businessId,
@@ -37,6 +47,7 @@ export async function POST(request: Request) {
       reportType,
       keywordId: data.keywordId,
       locationId: data.locationId,
+      campaignId: data.campaignId,
       gridSize: data.gridSize,
       radiusMeters: data.radiusMeters,
       selectedCompetitorKeys: data.selectedCompetitorKeys,
@@ -49,6 +60,10 @@ export async function POST(request: Request) {
       else if (payload.reportType === "trend") csv = trendToCsv(payload);
       else if (payload.reportType === "competitor") csv = competitorsToCsv(payload);
       else if (payload.reportType === "location") csv = locationToCsv(payload);
+      else if (payload.reportType === "keyword") csv = keywordToCsv(payload);
+      else if (payload.reportType === "maps_campaign") csv = mapsCampaignToCsv(payload);
+      else if (payload.reportType === "reviews") csv = reviewsToCsv(payload);
+      else if (payload.reportType === "review_campaign") csv = reviewCampaignToCsv(payload);
       else {
         return NextResponse.json({ error: "CSV not available for this report type" }, { status: 400 });
       }
@@ -72,7 +87,10 @@ export async function POST(request: Request) {
     const status =
       message.includes("access denied") || message.includes("not found")
         ? 403
-        : message.includes("required") || message.includes("at least two")
+        : message.includes("required") ||
+            message.includes("at least two") ||
+            message.includes("No review momentum") ||
+            message.includes("Add a keyword")
           ? 400
           : 500;
     return NextResponse.json({ error: message }, { status });

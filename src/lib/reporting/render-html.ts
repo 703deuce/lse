@@ -4,9 +4,13 @@ import type {
   AnyReportPayload,
   CompetitorReportPayload,
   HeatmapCell,
+  KeywordReportPayload,
   LocationReportPayload,
+  MapsCampaignReportPayload,
   ReportCompetitorRow,
   ReportKpis,
+  ReviewCampaignReportPayload,
+  ReviewsReportPayload,
   SingleScanReportPayload,
   TrendReportPayload,
   WhiteLabelConfig,
@@ -31,6 +35,14 @@ function reportTitle(type: AnyReportPayload["reportType"]): string {
       return "Competitor Report";
     case "location":
       return "Location Report";
+    case "keyword":
+      return "Keyword Report";
+    case "maps_campaign":
+      return "Maps Campaign Report";
+    case "reviews":
+      return "Reviews Report";
+    case "review_campaign":
+      return "Review Campaign Report";
     default:
       return "Maps Report";
   }
@@ -40,10 +52,30 @@ function periodLabel(payload: AnyReportPayload): string {
   if (payload.reportType === "single_scan" || payload.reportType === "competitor") {
     return payload.parameters.scannedAt;
   }
-  if (payload.reportType === "trend" || payload.reportType === "location") {
+  if (
+    payload.reportType === "trend" ||
+    payload.reportType === "location" ||
+    payload.reportType === "keyword" ||
+    payload.reportType === "maps_campaign"
+  ) {
     return `${payload.parameters.dateFrom} → ${payload.parameters.dateTo}`;
   }
+  if (payload.reportType === "reviews") {
+    return payload.parameters.auditedAt ?? "";
+  }
+  if (payload.reportType === "review_campaign") {
+    return payload.parameters.campaignName;
+  }
   return "";
+}
+
+function simpleKpiRow(items: Array<{ label: string; value: string }>): string {
+  return `<div class="kpi-row">${items
+    .map(
+      (i) =>
+        `<div class="kpi"><span class="kpi-label">${escapeHtml(i.label)}</span><span class="kpi-value">${escapeHtml(i.value)}</span></div>`
+    )
+    .join("")}</div>`;
 }
 
 function kpiCards(kpis: ReportKpis): string {
@@ -352,6 +384,197 @@ function renderLocation(payload: LocationReportPayload): string {
   return shell(payload, body);
 }
 
+function renderKeyword(payload: KeywordReportPayload): string {
+  const body = `
+    <p class="muted">${escapeHtml(payload.parameters.keyword)} · ${payload.parameters.locationCount} locations · ${payload.parameters.gridSize}×${payload.parameters.gridSize} · ${payload.parameters.radiusMeters}m</p>
+    ${kpiCards(payload.aggregate)}
+    <h2>Locations</h2>
+    <table class="data">
+      <thead><tr><th>Location</th><th>ARP</th><th>ATRP</th><th>SoLV</th><th>Last scan</th></tr></thead>
+      <tbody>
+        ${payload.locations
+          .map(
+            (l) => `<tr>
+          <td>${escapeHtml(l.name)}${l.isBusinessLocation ? ' <span class="badge">Primary</span>' : ""}</td>
+          <td>${escapeHtml(fmt(l.arp))}</td>
+          <td>${escapeHtml(fmt(l.atrp))}</td>
+          <td>${escapeHtml(fmt(l.solv))}%</td>
+          <td>${escapeHtml(l.scannedAt ?? "—")}</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>`;
+  return shell(payload, body);
+}
+
+function renderMapsCampaign(payload: MapsCampaignReportPayload): string {
+  const rising = payload.rising
+    .slice(0, 8)
+    .map((k) => `<span class="chip up">${escapeHtml(k)}</span>`)
+    .join("");
+  const falling = payload.falling
+    .slice(0, 8)
+    .map((k) => `<span class="chip down">${escapeHtml(k)}</span>`)
+    .join("");
+  const scheduleLine = payload.parameters.scheduleEnabled
+    ? `Weekly schedule on · next ${escapeHtml(payload.parameters.nextRunAt ?? "—")}`
+    : "Weekly schedule off";
+  const body = `
+    <p class="muted">${scheduleLine} · ${payload.parameters.keywordCount} keywords</p>
+    ${kpiCards(payload.aggregate)}
+    <h2>Rising / falling</h2>
+    <div class="chips">${rising || '<span class="muted">No rising keywords</span>'}</div>
+    <div class="chips">${falling || '<span class="muted">No falling keywords</span>'}</div>
+    <h2>Tracked keywords</h2>
+    <table class="data">
+      <thead><tr><th>Keyword</th><th>ARP</th><th>ATRP</th><th>SoLV</th><th>Δ ARP</th><th>Last scan</th></tr></thead>
+      <tbody>
+        ${payload.keywords
+          .map(
+            (k) => `<tr>
+          <td>${escapeHtml(k.keyword)}</td>
+          <td>${escapeHtml(fmt(k.arp))}</td>
+          <td>${escapeHtml(fmt(k.atrp))}</td>
+          <td>${escapeHtml(fmt(k.solv))}%</td>
+          <td>${escapeHtml(fmt(k.changeArp))}</td>
+          <td>${escapeHtml(k.scannedAt ?? "—")}</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>`;
+  return shell(payload, body);
+}
+
+function renderReviews(payload: ReviewsReportPayload): string {
+  const t = payload.target;
+  const body = `
+    <p class="muted">${escapeHtml(payload.parameters.auditedAt ?? "Latest momentum audit")}${payload.summary ? ` · ${escapeHtml(payload.summary)}` : ""}</p>
+    ${simpleKpiRow([
+      { label: "Rating", value: fmt(t.rating) },
+      { label: "Total", value: String(t.totalReviews) },
+      { label: "30d", value: String(t.reviews30d) },
+      { label: "Momentum", value: t.momentumLabel ?? "—" },
+      { label: "Score", value: fmt(t.momentumScore, 0) },
+      { label: "Resp %", value: t.responseRate != null ? `${t.responseRate}%` : "—" },
+      { label: "Unanswered 90d", value: t.unanswered90d != null ? String(t.unanswered90d) : "—" },
+      { label: "Gap to top 3", value: fmt(t.gapToTop3_30d, 0) },
+    ])}
+    <h2>Competitors</h2>
+    <table class="data">
+      <thead><tr><th>Business</th><th>Rating</th><th>Total</th><th>30d</th><th>Weekly</th><th>Momentum</th></tr></thead>
+      <tbody>
+        <tr class="is-target">
+          <td>${escapeHtml(t.name)} <span class="badge">You</span></td>
+          <td>${escapeHtml(fmt(t.rating))}</td>
+          <td>${t.totalReviews}</td>
+          <td>${t.reviews30d}</td>
+          <td>${escapeHtml(fmt(t.avgReviewsPerWeek))}</td>
+          <td>${escapeHtml(t.momentumLabel ?? "—")}</td>
+        </tr>
+        ${payload.competitors
+          .map(
+            (c) => `<tr>
+          <td>${escapeHtml(c.name)}</td>
+          <td>${escapeHtml(fmt(c.rating))}</td>
+          <td>${c.totalReviews}</td>
+          <td>${c.reviews30d}</td>
+          <td>${escapeHtml(fmt(c.avgReviewsPerWeek))}</td>
+          <td>${escapeHtml(c.momentumLabel ?? "—")}</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>
+    ${
+      payload.tasks.length
+        ? `<h2>Recommended actions</h2>
+    <table class="data">
+      <thead><tr><th>Task</th><th>Priority</th></tr></thead>
+      <tbody>
+        ${payload.tasks
+          .map(
+            (task) => `<tr>
+          <td><strong>${escapeHtml(task.title)}</strong>${task.description ? `<div class="muted">${escapeHtml(task.description)}</div>` : ""}</td>
+          <td>${escapeHtml(task.priority ?? "—")}</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>`
+        : ""
+    }`;
+  return shell(payload, body);
+}
+
+function renderReviewCampaign(payload: ReviewCampaignReportPayload): string {
+  const f = payload.funnel;
+  const a = payload.attribution;
+  const body = `
+    <p class="muted">${escapeHtml(payload.parameters.campaignName)} · ${escapeHtml(payload.parameters.status)} · ${escapeHtml(payload.parameters.channel)}</p>
+    ${simpleKpiRow([
+      { label: "Recipients", value: String(f.recipientsTotal) },
+      { label: "Sent", value: String(f.sent) },
+      { label: "Delivered", value: String(f.delivered) },
+      { label: "Clicked", value: String(f.clicked) },
+      { label: "Replied", value: String(f.replied) },
+      { label: "Failed", value: String(f.failed) },
+      { label: "Opted out", value: String(f.optedOut) },
+      { label: "Attributed", value: String(a.confirmed + a.likely) },
+    ])}
+    <h2>Rates</h2>
+    <div class="delta-row">
+      <span>Delivery ${escapeHtml(fmt(payload.rates.deliveryRate))}%</span>
+      <span>Click ${escapeHtml(fmt(payload.rates.clickRate))}%</span>
+      <span>Reply ${escapeHtml(fmt(payload.rates.replyRate))}%</span>
+      <span>Attributed ${escapeHtml(fmt(payload.rates.attributedReviewRate))}%</span>
+    </div>
+    <h2>Attribution</h2>
+    <div class="dist">
+      <div class="dist-item"><strong>${a.confirmed}</strong><span class="muted">Confirmed</span></div>
+      <div class="dist-item"><strong>${a.likely}</strong><span class="muted">Likely</span></div>
+      <div class="dist-item"><strong>${a.unattributed}</strong><span class="muted">Unattributed</span></div>
+      <div class="dist-item"><strong>${f.sms}/${f.email}</strong><span class="muted">SMS / Email</span></div>
+    </div>
+    <h2>Recipients (sample)</h2>
+    <table class="data">
+      <thead><tr><th>Name</th><th>Status</th><th>Channel</th><th>Replied</th><th>Review</th></tr></thead>
+      <tbody>
+        ${payload.recipients
+          .map(
+            (r) => `<tr>
+          <td>${escapeHtml(r.name)}</td>
+          <td>${escapeHtml(r.status)}</td>
+          <td>${escapeHtml(r.channel ?? "—")}</td>
+          <td>${escapeHtml(r.repliedAt ?? "—")}</td>
+          <td>${escapeHtml(r.reviewDetectedAt ?? "—")}</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>
+    <section class="page-break">
+      <h2>Activity</h2>
+      <table class="data">
+        <thead><tr><th>When</th><th>Type</th><th>Event</th></tr></thead>
+        <tbody>
+          ${payload.activity
+            .slice(0, 40)
+            .map(
+              (ev) => `<tr>
+            <td>${escapeHtml(ev.at)}</td>
+            <td>${escapeHtml(ev.type)}</td>
+            <td>${escapeHtml(ev.label)}</td>
+          </tr>`
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </section>`;
+  return shell(payload, body);
+}
+
 export function renderReportHtml(payload: AnyReportPayload): string {
   switch (payload.reportType) {
     case "single_scan":
@@ -362,6 +585,14 @@ export function renderReportHtml(payload: AnyReportPayload): string {
       return renderCompetitor(payload);
     case "location":
       return renderLocation(payload);
+    case "keyword":
+      return renderKeyword(payload);
+    case "maps_campaign":
+      return renderMapsCampaign(payload);
+    case "reviews":
+      return renderReviews(payload);
+    case "review_campaign":
+      return renderReviewCampaign(payload);
     default: {
       const _exhaustive: never = payload;
       return shell(_exhaustive, "<p>Unsupported report type</p>");

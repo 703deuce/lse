@@ -1,7 +1,11 @@
 import { randomBytes } from "crypto";
 import { createServiceClient } from "@/lib/db/client";
 import { buildCompetitorReport } from "@/lib/reporting/build-competitor";
+import { buildKeywordReport } from "@/lib/reporting/build-keyword";
 import { buildLocationReport } from "@/lib/reporting/build-location";
+import { buildMapsCampaignReport } from "@/lib/reporting/build-maps-campaign";
+import { buildReviewCampaignReport } from "@/lib/reporting/build-review-campaign";
+import { buildReviewsReport } from "@/lib/reporting/build-reviews";
 import { buildSingleScanReport } from "@/lib/reporting/build-single-scan";
 import { buildTrendReport } from "@/lib/reporting/build-trend";
 import { renderReportHtml } from "@/lib/reporting/render-html";
@@ -17,6 +21,7 @@ export type GenerateReportParams = {
   reportType?: ReportType;
   keywordId?: string | null;
   locationId?: string | null;
+  campaignId?: string | null;
   gridSize?: number | null;
   radiusMeters?: number | null;
   selectedCompetitorKeys?: string[];
@@ -209,6 +214,71 @@ export async function generateTypedReport(
     });
   }
 
+  if (reportType === "keyword") {
+    const payload = await buildKeywordReport({
+      businessId: params.businessId,
+      keywordId: params.keywordId,
+      gridSize: params.gridSize,
+      radiusMeters: params.radiusMeters,
+      whiteLabel: params.whiteLabel,
+    });
+    const html = renderReportHtml(payload);
+    const firstScan = payload.locations.find((l) => l.scanId)?.scanId ?? params.scanBatchId ?? null;
+    return persistReport({
+      businessId: params.businessId,
+      scanBatchId: firstScan,
+      html,
+      payload,
+    });
+  }
+
+  if (reportType === "maps_campaign") {
+    const payload = await buildMapsCampaignReport({
+      businessId: params.businessId,
+      whiteLabel: params.whiteLabel,
+    });
+    const html = renderReportHtml(payload);
+    const firstScan = payload.keywords.find((k) => k.scanId)?.scanId ?? params.scanBatchId ?? null;
+    return persistReport({
+      businessId: params.businessId,
+      scanBatchId: firstScan,
+      html,
+      payload,
+    });
+  }
+
+  if (reportType === "reviews") {
+    const payload = await buildReviewsReport({
+      businessId: params.businessId,
+      whiteLabel: params.whiteLabel,
+    });
+    const html = renderReportHtml(payload);
+    return persistReport({
+      businessId: params.businessId,
+      scanBatchId: null,
+      html,
+      payload,
+    });
+  }
+
+  if (reportType === "review_campaign") {
+    if (!params.campaignId) {
+      throw new Error("campaignId is required for review_campaign reports");
+    }
+    const payload = await buildReviewCampaignReport({
+      businessId: params.businessId,
+      campaignId: params.campaignId,
+      whiteLabel: params.whiteLabel,
+    });
+    const html = renderReportHtml(payload);
+    return persistReport({
+      businessId: params.businessId,
+      scanBatchId: null,
+      html,
+      payload,
+    });
+  }
+
   throw new Error(`Report type "${reportType}" is not implemented yet`);
 }
 
@@ -219,6 +289,7 @@ export async function generateReport(params: {
   reportType?: ReportType;
   keywordId?: string | null;
   locationId?: string | null;
+  campaignId?: string | null;
   gridSize?: number | null;
   radiusMeters?: number | null;
   selectedCompetitorKeys?: string[];
