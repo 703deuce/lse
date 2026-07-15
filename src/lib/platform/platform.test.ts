@@ -73,25 +73,22 @@ describe("provider gateway classification", () => {
 });
 
 describe("db limiter", () => {
-  it("serializes beyond max concurrency", async () => {
-    const prev = process.env.DB_OP_CONCURRENCY;
-    process.env.DB_OP_CONCURRENCY = "2";
-    // Re-importing the module is awkward; exercise current singleton with low pressure.
+  it("runs concurrent work without exceeding max", async () => {
     const { withDbLimit, dbLimiterStats } = await import("@/lib/platform/db-limiter");
+    const { max } = dbLimiterStats();
     let peak = 0;
     let current = 0;
     await Promise.all(
-      Array.from({ length: 6 }, () =>
+      Array.from({ length: max + 4 }, () =>
         withDbLimit(async () => {
           current += 1;
           peak = Math.max(peak, current);
-          await new Promise((r) => setTimeout(r, 15));
+          await new Promise((r) => setTimeout(r, 10));
           current -= 1;
         })
       )
     );
-    assert.ok(peak <= Math.max(2, dbLimiterStats().max));
-    if (prev === undefined) delete process.env.DB_OP_CONCURRENCY;
-    else process.env.DB_OP_CONCURRENCY = prev;
+    assert.ok(peak <= max);
+    assert.equal(dbLimiterStats().inFlight, 0);
   });
 });
