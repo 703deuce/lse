@@ -86,6 +86,48 @@ SET email_normalized = lower(trim(customer_email))
 WHERE customer_email IS NOT NULL
   AND (email_normalized IS NULL OR email_normalized = '');
 
+UPDATE review_request_contacts
+SET email_normalized = NULL
+WHERE email_normalized IS NOT NULL AND trim(email_normalized) = '';
+
+-- Collapse duplicate emails per business before unique indexes (legacy imports)
+-- Prefer suppressed rows, then most recently updated. Full merge lives in 041 if needed.
+WITH ranked AS (
+  SELECT
+    id,
+    ROW_NUMBER() OVER (
+      PARTITION BY business_id, email_normalized
+      ORDER BY
+        (COALESCE(email_unsubscribed, false) OR COALESCE(sms_opt_out, false)) DESC,
+        COALESCE(updated_at, created_at, now()) DESC,
+        id
+    ) AS rn
+  FROM review_request_contacts
+  WHERE email_normalized IS NOT NULL
+)
+UPDATE review_request_contacts c
+SET email_normalized = NULL, updated_at = now()
+FROM ranked r
+WHERE c.id = r.id AND r.rn > 1;
+
+WITH ranked AS (
+  SELECT
+    id,
+    ROW_NUMBER() OVER (
+      PARTITION BY business_id, phone_e164
+      ORDER BY
+        (COALESCE(email_unsubscribed, false) OR COALESCE(sms_opt_out, false)) DESC,
+        COALESCE(updated_at, created_at, now()) DESC,
+        id
+    ) AS rn
+  FROM review_request_contacts
+  WHERE phone_e164 IS NOT NULL
+)
+UPDATE review_request_contacts c
+SET phone_e164 = NULL, updated_at = now()
+FROM ranked r
+WHERE c.id = r.id AND r.rn > 1;
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_review_contacts_business_phone_e164
   ON review_request_contacts(business_id, phone_e164)
   WHERE phone_e164 IS NOT NULL;
