@@ -1,5 +1,7 @@
 import { createServiceClient } from "@/lib/db/client";
 import { getBusiness } from "@/lib/db/queries";
+import { isBillingHealthy, hasEntitlement } from "@/lib/auth/entitlements";
+import { PlanLimitError, releaseUsage, reserveUsage } from "@/lib/plans";
 import { sendBrevoEmail } from "@/lib/reputation/brevo";
 import {
   campaignImmediateSendEnabled,
@@ -11,6 +13,7 @@ import {
 } from "@/lib/reputation/campaign-scheduler";
 import { appendSmsOptOut } from "@/lib/reputation/phone";
 import { sendTwilioSms } from "@/lib/reputation/twilio";
+import { logger } from "@/lib/observability/logger";
 
 /** Requeue messages stuck in sending if a worker died mid-flight. */
 const SENDING_STALE_MS = Number(process.env.CAMPAIGN_SENDING_STALE_MS ?? 15 * 60 * 1000);
@@ -60,6 +63,23 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
   let processed = 0;
 
   for (const campaign of campaigns) {
+    // Billing / add-on guard — pause outbound rather than send while ineligible.
+    if (!(await hasEntitlement(campaign.organization_id, "review_campaigns"))) {
+      continue;
+    }
+    if (!(await isBillingHealthy(campaign.organization_id))) {
+      await supabase
+        .from("review_request_campaigns")
+        .update({
+          status: "paused",
+          auto_pause_reason: "billing_inactive",
+          updated_at: now.toISOString(),
+        })
+        .eq("id", campaign.id)
+        .in("status", ["active", "scheduled"]);
+      continue;
+    }
+
     if (campaign.status === "scheduled" && campaign.start_date) {
       const tz = (campaign.timezone as string) || "America/New_York";
       if (!isOnOrAfterStartDate(now, String(campaign.start_date), tz)) continue;
@@ -191,6 +211,36 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
         }
       }
 
+      // Reserve usage BEFORE provider send so we never deliver then requeue.
+      const usageKey = claimed.channel === "sms" ? "review_sms_sent" : "review_emails_sent";
+      try {
+        await reserveUsage(campaign.organization_id, usageKey, 1, { enforceLimit: true });
+      } catch (err) {
+        if (err instanceof PlanLimitError) {
+          await supabase
+            .from("review_request_messages")
+            .update({ status: "queued", updated_at: claimTs })
+            .eq("id", claimed.id)
+            .eq("status", "sending");
+          await supabase
+            .from("review_request_campaigns")
+            .update({
+              status: "paused",
+              auto_pause_reason: `plan_limit:${err.limitKey}`,
+              updated_at: claimTs,
+            })
+            .eq("id", campaign.id)
+            .eq("status", "active");
+          logger.warn("campaign_paused_plan_limit", {
+            campaignId: campaign.id,
+            businessId: campaign.business_id,
+            limitKey: err.limitKey,
+          });
+          break;
+        }
+        throw err;
+      }
+
       let ok = false;
       let providerId: string | null = null;
       let failReason: string | null = null;
@@ -243,7 +293,17 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
           .eq("id", claimed.id)
           .eq("status", "sending");
         processed++;
+        logger.info("campaign_message_sent", {
+          campaignId: campaign.id,
+          businessId: campaign.business_id,
+          recipientId: claimed.recipient_id,
+          messageId: claimed.id,
+          channel: claimed.channel,
+          provider: claimed.channel === "sms" ? "twilio" : "brevo",
+        });
       } else {
+        // Release reserved usage on provider failure so limits stay honest.
+        await releaseUsage(campaign.organization_id, usageKey, 1).catch(() => undefined);
         await supabase
           .from("review_request_messages")
           .update({

@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "eslint",
+    "test": "tsx --test src/lib/reputation/foundation.test.ts",
     "debug:city-junk": "node scripts/debug-scrapingdog-city-junk.mjs"
   },
   "dependencies": {
@@ -48,6 +49,7 @@
     "pg": "^8.22.0",
     "playwright": "^1.61.1",
     "tailwindcss": "^4",
+    "tsx": "^4.19.3",
     "typescript": "^5"
   }
 }

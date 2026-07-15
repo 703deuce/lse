@@ -9,8 +9,11 @@ import {
   KeyRound,
   LayoutDashboard,
   Link2,
+  MessageSquareText,
+  Settings2,
   Star,
   TrendingUp,
+  Users,
 } from "lucide-react";
 
 export type SidebarNavItem = {
@@ -46,13 +49,19 @@ export function buildBusinessSidebarNav(businessId: string): {
         { href: `${base}/overview`, label: "Dashboard", icon: LayoutDashboard },
         { href: `${base}/scans`, label: "Maps Scans", icon: Grid3X3, isRankGrid: true },
         { href: `${base}/growth-audit`, label: "Growth Audit", icon: FileSearch },
-        { href: `${base}/review-momentum`, label: "Review Momentum™", icon: TrendingUp },
       ],
     },
     reputation: {
-      title: "Reputation",
-      items: [{ href: `${base}/reviews`, label: "Reviews", icon: Star }],
-      subLinks: [{ href: `${base}/review-requests`, label: "Review Requests" }],
+      title: "Reviews",
+      items: [
+        { href: `${base}/reviews`, label: "Review Feed", icon: Star },
+        { href: `${base}/review-momentum`, label: "Review Momentum", icon: TrendingUp },
+        { href: `${base}/review-campaigns`, label: "Review Campaigns", icon: MessageSquareText },
+        { href: `${base}/contacts`, label: "Contacts", icon: Users },
+        { href: `${base}/review-templates`, label: "Templates", icon: FileText },
+        { href: `${base}/review-settings`, label: "Settings", icon: Settings2 },
+      ],
+      subLinks: [],
     },
     research: {
       title: "Research",
@@ -82,8 +91,11 @@ export function isSidebarHrefActive(
   if (flags?.isRankGrid) {
     return pathname.includes(`/businesses/${businessId}/grid/`) || pathname === href;
   }
-  if (href.includes("/review-requests")) {
-    return pathname.includes(`/businesses/${businessId}/review-requests`);
+  if (href.includes("/review-requests") || href.includes("/review-campaigns")) {
+    return (
+      pathname.includes(`/businesses/${businessId}/review-requests`) ||
+      pathname.includes(`/businesses/${businessId}/review-campaigns`)
+    );
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

@@ -19,6 +19,10 @@ export type PlanFeatures = {
   rank_grid: boolean;
   review_requests: boolean;
   bulk_review_requests: boolean;
+  /** Paid Review Campaigns add-on (multi-channel + sequences). Enforced server-side. */
+  review_campaigns: boolean;
+  review_campaigns_managed: boolean;
+  dedicated_messaging_number: boolean;
   local_trust: boolean;
   backlink_gap: boolean;
   growth_audit: boolean;
@@ -56,6 +60,10 @@ export const PLAN_DEFINITIONS: Record<PlanId, PlanDefinition> = {
       rank_grid: true,
       review_requests: true,
       bulk_review_requests: true,
+      // Starter keeps Quick Send; bulk campaigns require the add-on / higher plan.
+      review_campaigns: false,
+      review_campaigns_managed: false,
+      dedicated_messaging_number: false,
       local_trust: true,
       backlink_gap: true,
       growth_audit: true,
@@ -84,6 +92,9 @@ export const PLAN_DEFINITIONS: Record<PlanId, PlanDefinition> = {
       rank_grid: true,
       review_requests: true,
       bulk_review_requests: true,
+      review_campaigns: true,
+      review_campaigns_managed: false,
+      dedicated_messaging_number: false,
       local_trust: true,
       backlink_gap: true,
       growth_audit: true,
@@ -112,6 +123,9 @@ export const PLAN_DEFINITIONS: Record<PlanId, PlanDefinition> = {
       rank_grid: true,
       review_requests: true,
       bulk_review_requests: true,
+      review_campaigns: true,
+      review_campaigns_managed: true,
+      dedicated_messaging_number: true,
       local_trust: true,
       backlink_gap: true,
       growth_audit: true,
@@ -140,6 +154,9 @@ export const PLAN_DEFINITIONS: Record<PlanId, PlanDefinition> = {
       rank_grid: true,
       review_requests: true,
       bulk_review_requests: true,
+      review_campaigns: true,
+      review_campaigns_managed: true,
+      dedicated_messaging_number: true,
       local_trust: true,
       backlink_gap: true,
       growth_audit: true,

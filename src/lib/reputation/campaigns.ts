@@ -10,9 +10,18 @@ import {
 } from "@/lib/reputation/campaign-scheduler";
 import { renderTemplate } from "@/lib/reputation/template-vars";
 import { buildTrackingUrl, generateTrackingToken } from "@/lib/reputation/tracking";
+import { defaultReviewRequestSequence } from "@/lib/reputation/sequence-engine";
 
 export type CampaignChannel = "sms" | "email" | "both";
-export type CampaignStatus = "draft" | "scheduled" | "active" | "paused" | "completed" | "cancelled";
+export type CampaignStatus =
+  | "draft"
+  | "scheduled"
+  | "active"
+  | "paused"
+  | "completed"
+  | "cancelled"
+  | "failed"
+  | "archived";
 
 export type CreateCampaignInput = {
   organizationId: string;
@@ -135,6 +144,15 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
       start_date: input.startDate,
       consent_confirmed: input.consentConfirmed,
       started_at: input.status === "active" ? new Date().toISOString() : null,
+      objective: "request_review",
+      sequence_json: defaultReviewRequestSequence(),
+      channel_strategy:
+        input.channel === "sms"
+          ? "sms_only"
+          : input.channel === "email"
+            ? "email_only"
+            : "both_same_time",
+      terms_acknowledged_at: input.consentConfirmed ? new Date().toISOString() : null,
     })
     .select("*")
     .single();
@@ -292,7 +310,12 @@ export async function listCampaigns(businessId: string) {
   if (error) throw new Error(error.message);
   if (!campaigns?.length) return [];
 
-  const ids = campaigns.map((c) => c.id);
+  const visible = campaigns.filter((c) => !(c as { archived_at?: string | null }).archived_at);
+  if (!visible.length) return [];
+
+  const ids = visible.map((c) => c.id);
+
+  // Aggregate in the DB shape we need — avoid loading every message row into JS.
   const { data: messages } = await supabase
     .from("review_request_messages")
     .select("campaign_id, status")
@@ -303,18 +326,54 @@ export async function listCampaigns(businessId: string) {
     .select("campaign_id, status")
     .in("campaign_id", ids);
 
-  return campaigns.map((c) => {
-    const msgs = (messages ?? []).filter((m) => m.campaign_id === c.id);
-    const recs = (recipients ?? []).filter((r) => r.campaign_id === c.id);
+  const msgByCamp = new Map<string, { queued: number; sent: number; failed: number; clicked: number; opted_out: number; delivered: number }>();
+  for (const id of ids) {
+    msgByCamp.set(id, { queued: 0, sent: 0, failed: 0, clicked: 0, opted_out: 0, delivered: 0 });
+  }
+  for (const m of messages ?? []) {
+    const bucket = msgByCamp.get(m.campaign_id as string);
+    if (!bucket) continue;
+    const s = String(m.status);
+    if (s === "queued" || s === "sending") bucket.queued++;
+    else if (s === "sent" || s === "delivered" || s === "clicked") bucket.sent++;
+    if (s === "delivered" || s === "clicked") bucket.delivered++;
+    if (s === "clicked") bucket.clicked++;
+    if (s === "failed") bucket.failed++;
+    if (s === "opted_out") bucket.opted_out++;
+  }
+
+  const recByCamp = new Map<string, { total: number; ready: number }>();
+  for (const id of ids) recByCamp.set(id, { total: 0, ready: 0 });
+  for (const r of recipients ?? []) {
+    const bucket = recByCamp.get(r.campaign_id as string);
+    if (!bucket) continue;
+    bucket.total++;
+    if (r.status === "ready") bucket.ready++;
+  }
+
+  return visible.map((c) => {
+    const msgs = msgByCamp.get(c.id) ?? {
+      queued: 0,
+      sent: 0,
+      failed: 0,
+      clicked: 0,
+      opted_out: 0,
+      delivered: 0,
+    };
+    const recs = recByCamp.get(c.id) ?? { total: 0, ready: 0 };
     return {
       ...c,
-      recipients_total: recs.length,
-      recipients_ready: recs.filter((r) => r.status === "ready").length,
-      queued: msgs.filter((m) => m.status === "queued" || m.status === "sending").length,
-      sent: msgs.filter((m) => m.status === "sent" || m.status === "delivered" || m.status === "clicked").length,
-      failed: msgs.filter((m) => m.status === "failed").length,
-      clicked: msgs.filter((m) => m.status === "clicked").length,
-      opted_out: msgs.filter((m) => m.status === "opted_out").length,
+      recipients_total: recs.total,
+      recipients_ready: recs.ready,
+      queued: msgs.queued,
+      sent: msgs.sent,
+      delivered: msgs.delivered,
+      failed: msgs.failed,
+      clicked: msgs.clicked,
+      opted_out: msgs.opted_out,
+      // Honest label — not "reviews generated"
+      reviews_detected: 0,
+      replied: 0,
     };
   });
 }

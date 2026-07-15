@@ -619,49 +619,124 @@ export async function handleTwilioSmsReply(params: {
 }) {
   const supabase = createServiceClient();
   const fromDigits = phoneDigitsForMatch(params.from);
+  const e164 = normalizePhoneE164(params.from);
 
-  const { data: recentSends } = await supabase
-    .from("review_request_sends")
-    .select("*")
-    .eq("channel", "sms")
-    .order("created_at", { ascending: false })
-    .limit(100);
+  // Prefer exact e164 match on one-off sends (indexed), then digit-suffix scan limited to that phone.
+  let match: {
+    id: string;
+    organization_id: string;
+    business_id: string;
+    link_id: string;
+  } | null = null;
 
-  const match =
-    (recentSends ?? []).find((s) => {
-      if (!s.recipient_phone) return false;
-      return phoneDigitsForMatch(s.recipient_phone) === fromDigits;
-    }) ?? null;
+  if (e164) {
+    const { data } = await supabase
+      .from("review_request_sends")
+      .select("id, organization_id, business_id, link_id")
+      .eq("channel", "sms")
+      .eq("recipient_phone", e164)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    match = data;
+  }
 
-  if (!match) {
+  if (!match && fromDigits.length >= 10) {
+    // Narrow by last-10 digits via filter — avoid loading global recent sends.
+    const { data: candidates } = await supabase
+      .from("review_request_sends")
+      .select("id, organization_id, business_id, link_id, recipient_phone")
+      .eq("channel", "sms")
+      .ilike("recipient_phone", `%${fromDigits.slice(-10)}`)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    match =
+      (candidates ?? []).find((s) => {
+        if (!s.recipient_phone) return false;
+        return phoneDigitsForMatch(s.recipient_phone) === fromDigits;
+      }) ?? null;
+  }
+
+  // Campaign SMS replies — match latest recipient by phone for this tenant phone.
+  let campaignMatch: {
+    id: string;
+    organization_id: string;
+    business_id: string;
+    campaign_id: string;
+  } | null = null;
+  if (e164) {
+    const { data } = await supabase
+      .from("review_request_recipients")
+      .select("id, organization_id, business_id, campaign_id")
+      .eq("phone", e164)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    campaignMatch = data;
+  }
+
+  if (!match && !campaignMatch) {
     return { matched: false as const };
   }
 
-  await insertEvent(supabase, {
-    organizationId: match.organization_id,
-    businessId: match.business_id,
-    linkId: match.link_id,
-    sendId: match.id,
-    eventType: "reply_received",
-    channel: "sms",
-    metadata: {
-      replyBody: params.body,
-      twilioMessageSid: params.messageSid ?? null,
-      from: params.from,
-    },
-  });
-
-  const forwardTo = process.env.REVIEW_REPLY_FORWARD_EMAIL;
-  if (forwardTo) {
-    const business = await getBusiness(match.business_id, match.organization_id);
-    await sendBrevoEmail({
-      toEmail: forwardTo,
-      subject: `Review request reply${business ? ` — ${business.name}` : ""}`,
-      textBody: `Customer replied to a review request:\n\n${params.body}\n\nFrom: ${params.from}`,
+  if (match) {
+    await insertEvent(supabase, {
+      organizationId: match.organization_id,
+      businessId: match.business_id,
+      linkId: match.link_id,
+      sendId: match.id,
+      eventType: "reply_received",
+      channel: "sms",
+      metadata: {
+        replyBody: params.body,
+        twilioMessageSid: params.messageSid ?? null,
+        from: params.from,
+      },
     });
+
+    const forwardTo = process.env.REVIEW_REPLY_FORWARD_EMAIL;
+    if (forwardTo) {
+      const business = await getBusiness(match.business_id, match.organization_id);
+      await sendBrevoEmail({
+        toEmail: forwardTo,
+        subject: `Review request reply${business ? ` — ${business.name}` : ""}`,
+        textBody: `Customer replied to a review request:\n\n${params.body}\n\nFrom: ${params.from}`,
+      });
+    }
   }
 
-  return { matched: true as const, sendId: match.id };
+  if (campaignMatch) {
+    const snippet = params.body.trim().slice(0, 280);
+    await supabase
+      .from("review_request_recipients")
+      .update({
+        replied_at: new Date().toISOString(),
+        workflow_status: "stopped",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", campaignMatch.id);
+    // Stop queued/sending reminders for this recipient after any reply.
+    await supabase
+      .from("review_request_messages")
+      .update({ status: "skipped", updated_at: new Date().toISOString() })
+      .eq("recipient_id", campaignMatch.id)
+      .in("status", ["queued", "sending"]);
+    await supabase
+      .from("review_request_contacts")
+      .update({
+        latest_reply_at: new Date().toISOString(),
+        latest_reply_snippet: snippet,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("business_id", campaignMatch.business_id)
+      .eq("phone_e164", e164);
+  }
+
+  return {
+    matched: true as const,
+    sendId: match?.id ?? null,
+    recipientId: campaignMatch?.id ?? null,
+  };
 }
 
 export async function handleBrevoInboundEmail(item: BrevoInboundItem) {

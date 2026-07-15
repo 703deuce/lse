@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import { createServiceClient } from "@/lib/db/client";
 import {
   createReviewCampaign,
@@ -20,10 +21,14 @@ export async function GET(request: Request) {
     if (!businessId) {
       return NextResponse.json({ error: "businessId required" }, { status: 400 });
     }
-    await requireBusinessAccess(businessId);
+    const auth = await requireBusinessAccess(businessId);
+    await requireEntitlement(auth.organizationId, "review_campaigns");
     const campaigns = await listCampaigns(businessId);
     return NextResponse.json({ campaigns });
   } catch (err) {
+    if (err instanceof EntitlementError) {
+      return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
+    }
     const message = err instanceof Error ? err.message : "Failed to list campaigns";
     return NextResponse.json({ error: message }, { status: 500 });
   }
@@ -75,9 +80,9 @@ export async function POST(request: Request) {
     }
 
     const auth = await requireBusinessAccess(businessId);
+    await requireEntitlement(auth.organizationId, "review_campaigns");
 
     if (duplicateFrom) {
-      // Peek ready recipient count before cloning so we meter the same as create.
       const supabase = createServiceClient();
       const { data: sourceCampaign } = await supabase
         .from("review_request_campaigns")
@@ -153,6 +158,9 @@ export async function POST(request: Request) {
       throw createErr;
     }
   } catch (err) {
+    if (err instanceof EntitlementError) {
+      return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
+    }
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
