@@ -274,6 +274,11 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
 
     async function poll() {
       if (!active || inFlight) return;
+      // Pause while the tab is hidden — resume on visibilitychange below.
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        scheduleNext(5000);
+        return;
+      }
       inFlight = true;
       try {
         const json = (await pollStatus(abort.signal)) as ScanViewData;
@@ -321,6 +326,13 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
 
     void poll();
 
+    const onVisibility = () => {
+      if (document.visibilityState === "visible" && active && !inFlight) {
+        void poll();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     const channel = supabase
       .channel(`scan-${activeScanId}`)
       .on(
@@ -337,6 +349,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
       active = false;
       if (timeoutId) clearTimeout(timeoutId);
       abort.abort();
+      document.removeEventListener("visibilitychange", onVisibility);
       supabase.removeChannel(channel);
     };
   }, [activeScanId, pollStatus, keywordId]);

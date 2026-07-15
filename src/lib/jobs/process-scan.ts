@@ -22,7 +22,14 @@ import {
  * - Fresh: claims `queued` → creates points → runs all cells.
  * - Resume: reclaims stale `dispatching`/`provider_running` → keeps points → skips complete cells.
  */
-export async function processScanBatch(scanBatchId: string, organizationId?: string): Promise<void> {
+/**
+ * @returns true when this invocation owned the lease and ran (or failed while owning it).
+ * false when another worker owns the lease or the scan is already finished.
+ */
+export async function processScanBatch(
+  scanBatchId: string,
+  organizationId?: string
+): Promise<boolean> {
   const supabase = createServiceClient();
   const leaseOwner = newScanLeaseOwner();
 
@@ -35,7 +42,7 @@ export async function processScanBatch(scanBatchId: string, organizationId?: str
   }
 
   if (!batch) {
-    return; // Another worker owns the lease, or scan already finished
+    return false; // Another worker owns the lease, or scan already finished
   }
 
   const heartbeatMs = Math.max(15_000, Math.floor(scanLeaseTtlMs() / 3));
@@ -268,6 +275,7 @@ export async function processScanBatch(scanBatchId: string, organizationId?: str
       totalCells,
       successCells,
     });
+    return true;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Processing failed";
     await supabase

@@ -19,9 +19,10 @@ import {
   validateStoredCellResult,
 } from "@/lib/maps/cell-result-integrity";
 import { invalidateScanGridCache } from "@/lib/maps/scan-queries";
+import { acquireBrightDataSlot, fairChunkSize } from "@/lib/queue/bright-data-limiter";
 
-/** Bright Data global fair-use ~100 QPS — primary pass runs in batches of this size. */
-const BRIGHTDATA_GRID_BATCH_SIZE = 100;
+/** Default fair chunk (platform-wide) — overridden by BRIGHTDATA_GRID_BATCH_SIZE / FAIR_CHUNK. */
+const BRIGHTDATA_GRID_BATCH_SIZE = 25;
 
 export function mapsDepth(): number {
   const n = Number(
@@ -35,10 +36,12 @@ export function mapsDepth(): number {
 export function mapsCellBatchSize(): number {
   const n = Number(
     process.env.BRIGHTDATA_GRID_BATCH_SIZE ??
+      process.env.BRIGHTDATA_FAIR_CHUNK_SIZE ??
       process.env.BRIGHTDATA_BURST_MAX_CONCURRENCY ??
-      BRIGHTDATA_GRID_BATCH_SIZE
+      ""
   );
-  return Number.isFinite(n) && n > 0 ? n : BRIGHTDATA_GRID_BATCH_SIZE;
+  if (Number.isFinite(n) && n > 0) return n;
+  return fairChunkSize() || BRIGHTDATA_GRID_BATCH_SIZE;
 }
 
 export function mapsGridConcurrency(cellCount: number): number {
@@ -311,24 +314,31 @@ async function runOneCell(
 
     try {
       const apiStart = performance.now();
-      const live = await withTimeout(
-        mapsGridCell({
-          keyword: kw,
-          lat,
-          lng,
-          device: job.device === "mobile" ? "mobile" : "desktop",
-          os: (["android", "ios", "windows", "macos"].includes(job.os)
-            ? job.os
-            : job.device === "mobile"
-              ? "android"
-              : "windows") as "android" | "ios" | "windows" | "macos",
-          browser: job.browser === "firefox" ? "firefox" : "chrome",
-          depth,
-          organizationId: job.organizationId,
-        }),
-        timeoutMs,
-        job.point.grid_label
-      );
+      // Global start-rate + in-flight limiter (Redis when configured, else in-process).
+      const slot = await acquireBrightDataSlot(timeoutMs + 15_000);
+      let live;
+      try {
+        live = await withTimeout(
+          mapsGridCell({
+            keyword: kw,
+            lat,
+            lng,
+            device: job.device === "mobile" ? "mobile" : "desktop",
+            os: (["android", "ios", "windows", "macos"].includes(job.os)
+              ? job.os
+              : job.device === "mobile"
+                ? "android"
+                : "windows") as "android" | "ios" | "windows" | "macos",
+            browser: job.browser === "firefox" ? "firefox" : "chrome",
+            depth,
+            organizationId: job.organizationId,
+          }),
+          timeoutMs,
+          job.point.grid_label
+        );
+      } finally {
+        await slot.release();
+      }
       apiSec = elapsedSec(apiStart);
 
       const items = live.items as MapsLiveResult[];

@@ -6,15 +6,45 @@ import { reclaimStaleInFlightScans } from "@/lib/jobs/schedule-scan";
 import { maybeRunDataRetentionCleanup } from "@/lib/jobs/retention";
 import { logger } from "@/lib/observability/logger";
 import { runContactImport, type ContactImportMode, type ContactImportRow } from "@/lib/reputation/contact-import";
+import {
+  enqueueMapsScanJob,
+  enqueueReviewImportJob,
+  recoverPendingEnqueues,
+  resolveQueueDriver,
+} from "@/lib/queue";
 
 const JOB_RUNNING_STALE_MS = Number(process.env.JOB_RUNNING_STALE_MS ?? 20 * 60 * 1000);
 
+/** @deprecated Prefer enqueueMapsScanJob / dispatchScanProcessing — kept for SQL/cron callers. */
 export async function enqueueScanJob(scanBatchId: string, businessId?: string): Promise<void> {
-  const supabase = createServiceClient();
-  await supabase.from("job_queue").insert({
-    job_type: "process_scan",
-    payload: { scanBatchId, businessId },
-    status: "pending",
+  let organizationId = "";
+  if (businessId) {
+    const supabase = createServiceClient();
+    const { data: biz } = await supabase
+      .from("businesses")
+      .select("organization_id")
+      .eq("id", businessId)
+      .maybeSingle();
+    organizationId = (biz?.organization_id as string) ?? "";
+  }
+  if (!organizationId || !businessId) {
+    // Fallback bare insert for scheduled SQL inserts that omit org.
+    const supabase = createServiceClient();
+    await supabase.from("job_queue").insert({
+      job_type: "process_scan",
+      payload: { scanBatchId, businessId },
+      status: "pending",
+      queue_name: "maps-scan",
+      enqueue_state: "enqueued",
+      idempotency_key: `maps-scan:${scanBatchId}`,
+    });
+    return;
+  }
+  await enqueueMapsScanJob({
+    scanBatchId,
+    businessId,
+    organizationId,
+    priority: "normal",
   });
 }
 
@@ -24,12 +54,7 @@ export async function enqueueImportContactsJob(payload: {
   organizationId: string;
   mode: ContactImportMode;
 }): Promise<void> {
-  const supabase = createServiceClient();
-  await supabase.from("job_queue").insert({
-    job_type: "import_contacts",
-    payload,
-    status: "pending",
-  });
+  await enqueueReviewImportJob(payload);
 }
 
 function retryDelayMs(attempt: number): number {
@@ -72,8 +97,27 @@ export async function processPendingJobs(limit = 5): Promise<{
   const supabase = createServiceClient();
 
   const retention = await maybeRunDataRetentionCleanup();
+  const enqueueRecovered = await recoverPendingEnqueues(25).catch(() => 0);
+  if (enqueueRecovered > 0) {
+    logger.info("job_queue_enqueue_recovered", { enqueueRecovered });
+  }
   const jobsReclaimed = await reclaimStaleRunningJobs(supabase);
   const scansReclaimed = await reclaimStaleInFlightScans(5);
+
+  // BullMQ workers own ledger job execution. Cron still recovers enqueues,
+  // reclaims leases, and drains campaign/alert side work not yet migrated.
+  if (resolveQueueDriver() === "bullmq") {
+    const campaignSent = await processCampaignMessages(20);
+    const reviewAlertsSent = await processNewReviewAlerts(15).catch(() => 0);
+    return {
+      jobsProcessed: 0,
+      campaignSent,
+      reviewAlertsSent,
+      scansReclaimed,
+      jobsReclaimed,
+      retention,
+    };
+  }
 
   const { data: jobs } = await supabase
     .from("job_queue")
@@ -142,7 +186,19 @@ export async function processPendingJobs(limit = 5): Promise<{
               orgId = biz?.organization_id;
             }
           }
-          await processScanBatch(payload.scanBatchId, orgId);
+          const ran = await processScanBatch(payload.scanBatchId, orgId);
+          if (!ran) {
+            // Lease owned elsewhere — do not mark the ledger complete.
+            await supabase
+              .from("job_queue")
+              .update({
+                status: "pending",
+                scheduled_at: new Date(Date.now() + 5_000).toISOString(),
+                error_message: "Deferred — another worker holds the scan lease",
+              })
+              .eq("id", claimed.id);
+            continue;
+          }
         }
       } else if (claimed.job_type === "import_contacts") {
         const payload = claimed.payload as {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
-import { scheduleScanProcessing } from "@/lib/jobs/schedule-scan";
+import { dispatchScanProcessing } from "@/lib/jobs/schedule-scan";
 import { createScanSchema } from "@/lib/validation/schemas";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
 import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
@@ -11,6 +11,7 @@ import {
   releaseUsage,
   reserveUsageOrThrow,
 } from "@/lib/plans";
+import { assertCanEnqueueMapsScan, findDuplicateActiveScan } from "@/lib/queue";
 
 const PARITY_SUMMARY = {
   search_engine: LOCAL_FALCON_PARITY.searchEngine,
@@ -103,6 +104,38 @@ export async function POST(request: Request) {
       );
     }
 
+    const keywordLabel = primaryKw?.keyword ?? null;
+    const duplicate = await findDuplicateActiveScan({
+      businessId,
+      keywordLabel,
+      gridSize,
+      radiusMeters,
+    });
+    if (duplicate) {
+      return NextResponse.json(
+        {
+          error: "An equivalent scan is already queued or running for this keyword and grid.",
+          scan: { id: duplicate.id, status: duplicate.status },
+          duplicate: true,
+        },
+        { status: 409 }
+      );
+    }
+
+    const fairness = await assertCanEnqueueMapsScan({
+      organizationId: auth.organizationId,
+      businessId,
+      scanBatchId: "00000000-0000-0000-0000-000000000000",
+      keyword: keywordLabel,
+      gridSize,
+    });
+    if (!fairness.ok && fairness.code === "queued_limit") {
+      return NextResponse.json(
+        { error: fairness.reason, code: fairness.code },
+        { status: 429 }
+      );
+    }
+
     const creditsNeeded = gridMapCredits(gridSize);
     await reserveUsageOrThrow(auth.organizationId, "map_credits_used", creditsNeeded);
 
@@ -132,6 +165,9 @@ export async function POST(request: Request) {
             ...(primaryKw?.id
               ? { keyword_ids: [primaryKw.id], keyword_label: primaryKw.keyword }
               : {}),
+            ...(fairness.ok
+              ? {}
+              : { fairness_note: fairness.reason, fairness_code: fairness.code }),
           },
         })
         .select("*")
@@ -142,9 +178,13 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error?.message ?? "Failed to create scan" }, { status: 500 });
       }
 
-      scheduleScanProcessing(batch.id, auth.organizationId);
+      const dispatched = await dispatchScanProcessing({
+        scanBatchId: batch.id,
+        businessId,
+        organizationId: auth.organizationId,
+      });
 
-      return NextResponse.json({ scan: batch });
+      return NextResponse.json({ scan: batch, jobId: dispatched.jobId, queueDriver: dispatched.driver });
     } catch (inner) {
       await releaseUsage(auth.organizationId, "map_credits_used", creditsNeeded).catch(() => {});
       throw inner;

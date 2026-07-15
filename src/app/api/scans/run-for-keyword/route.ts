@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
-import { scheduleScanProcessing } from "@/lib/jobs/schedule-scan";
+import { dispatchScanProcessing } from "@/lib/jobs/schedule-scan";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
 import {
   gridMapCredits,
@@ -170,11 +170,17 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error?.message ?? "Failed to create scan" }, { status: 500 });
       }
 
-      scheduleScanProcessing(batch.id, auth.organizationId);
+      const dispatched = await dispatchScanProcessing({
+        scanBatchId: batch.id,
+        businessId,
+        organizationId: auth.organizationId,
+      });
 
       return NextResponse.json({
         scan: batch,
         keyword: { id: kwRow.id, keyword: String(kwRow.keyword).trim() },
+        jobId: dispatched.jobId,
+        queueDriver: dispatched.driver,
       });
     } catch (inner) {
       await releaseUsage(auth.organizationId, "map_credits_used", creditsNeeded).catch(() => {});

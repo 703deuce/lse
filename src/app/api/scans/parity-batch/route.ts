@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
-import { scheduleScanProcessing } from "@/lib/jobs/schedule-scan";
+import { dispatchScanProcessing } from "@/lib/jobs/schedule-scan";
 import { PARITY_TEST_PROFILES } from "@/lib/maps/scan-profiles";
 import { DEFAULT_RADIUS_METERS } from "@/lib/maps/grid-metrics";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
@@ -75,7 +75,11 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: error?.message ?? "Failed to create parity scan" }, { status: 500 });
         }
 
-        scheduleScanProcessing(batch.id, auth.organizationId);
+        await dispatchScanProcessing({
+          scanBatchId: batch.id,
+          businessId,
+          organizationId: auth.organizationId,
+        });
         scans.push({ profile: profile.label, profileId: profile.id, scanId: batch.id });
         created += 1;
       }
