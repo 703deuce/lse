@@ -1,186 +1,236 @@
-import { createServiceClient } from "@/lib/db/client";
-import { aggregateCompetitors, type AggregatedCompetitor } from "@/lib/maps/grid";
-import { SCAN_RESULT_GRID_COLUMNS } from "@/lib/maps/scan-result-columns";
 import { randomBytes } from "crypto";
+import { createServiceClient } from "@/lib/db/client";
+import { buildCompetitorReport } from "@/lib/reporting/build-competitor";
+import { buildLocationReport } from "@/lib/reporting/build-location";
+import { buildSingleScanReport } from "@/lib/reporting/build-single-scan";
+import { buildTrendReport } from "@/lib/reporting/build-trend";
+import { renderReportHtml } from "@/lib/reporting/render-html";
+import type {
+  AnyReportPayload,
+  ReportType,
+  WhiteLabelConfig,
+} from "@/lib/reporting/types";
 
-export async function generateReport(params: {
+export type GenerateReportParams = {
   businessId: string;
-  scanBatchId: string;
-}): Promise<{ reportId: string; shareToken: string; html: string }> {
-  const supabase = createServiceClient();
+  scanBatchId?: string;
+  reportType?: ReportType;
+  keywordId?: string | null;
+  locationId?: string | null;
+  gridSize?: number | null;
+  radiusMeters?: number | null;
+  selectedCompetitorKeys?: string[];
+  whiteLabel?: Partial<WhiteLabelConfig>;
+};
 
-  const { data: existingReport } = await supabase
-    .from("reports")
-    .select("id, share_token, share_expires_at")
-    .eq("scan_batch_id", params.scanBatchId)
-    .eq("business_id", params.businessId)
-    .order("generated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+export type GenerateReportResult = {
+  reportId: string;
+  shareToken: string;
+  html: string;
+  payload: AnyReportPayload;
+};
 
-  const { data: business } = await supabase.from("businesses").select("*").eq("id", params.businessId).single();
-  const { data: batch } = await supabase.from("scan_batches").select("*").eq("id", params.scanBatchId).single();
-  if (!business || !batch) throw new Error("Business or scan not found");
-  if (batch.business_id !== params.businessId) {
-    throw new Error("Scan does not belong to business");
-  }
-
-  const { data: keywords } = await supabase
-    .from("business_keywords")
-    .select("*")
-    .eq("business_id", business.id)
-    .eq("is_primary", true)
-    .maybeSingle();
-
-  const { data: audit } = await supabase.from("audits").select("*").eq("scan_batch_id", params.scanBatchId).maybeSingle();
-
-  const { data: actionPlan } = audit
-    ? await supabase.from("action_plans").select("id").eq("audit_id", audit.id).maybeSingle()
-    : { data: null };
-
-  let actionItems: Array<{ title: string; description: string | null }> = [];
-  if (actionPlan?.id) {
-    const { data } = await supabase
-      .from("action_items")
-      .select("title, description")
-      .eq("action_plan_id", actionPlan.id)
-      .order("priority_rank")
-      .limit(3);
-    actionItems = data ?? [];
-  }
-
-  const { data: points } = await supabase.from("scan_points").select("id").eq("scan_batch_id", params.scanBatchId);
-  const pointIds = (points ?? []).map((p) => p.id);
-  let checkUrl: string | null = null;
-  let topCompetitors: AggregatedCompetitor[] = [];
-  if (pointIds.length) {
-    const { data: results } = await supabase
-      .from("scan_results")
-      .select(SCAN_RESULT_GRID_COLUMNS)
-      .in("scan_point_id", pointIds);
-    checkUrl = results?.[0]?.check_url ?? null;
-    topCompetitors = aggregateCompetitors(results ?? [], {
-      excludeCid: business.cid,
-      excludePlaceId: business.place_id,
-      excludeName: business.name,
-      targetCategory: business.primary_category,
-      keyword: keywords?.keyword,
-    }).slice(0, 5);
-  }
-
-  const metrics = (batch.aggregate_metrics ?? {}) as Record<string, number | null>;
-  const confidence = (batch.confidence_summary ?? {}) as Record<string, unknown>;
-  const generatedAt = new Date().toLocaleString();
+async function resolveShareToken(
+  supabase: ReturnType<typeof createServiceClient>,
+  params: { businessId: string; scanBatchId?: string | null; reportType: string }
+): Promise<{ existingReportId: string | null; shareToken: string; shareExpiresAt: string }> {
   const shareExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
 
-  // Reuse an active share token so existing links keep working; mint a new one
-  // when the prior token was revoked or expired.
-  const existingExpiresAt = existingReport?.share_expires_at
-    ? new Date(existingReport.share_expires_at as string).getTime()
+  let query = supabase
+    .from("reports")
+    .select("id, share_token, share_expires_at, metadata_json")
+    .eq("business_id", params.businessId)
+    .order("generated_at", { ascending: false })
+    .limit(8);
+
+  if (params.scanBatchId) {
+    query = query.eq("scan_batch_id", params.scanBatchId);
+  } else {
+    query = query.is("scan_batch_id", null);
+  }
+
+  const { data: existingReports } = await query;
+  const matched =
+    (existingReports ?? []).find((r) => {
+      const meta = (r.metadata_json ?? {}) as { reportType?: string };
+      return meta.reportType === params.reportType || !meta.reportType;
+    }) ?? null;
+
+  const existingExpiresAt = matched?.share_expires_at
+    ? new Date(matched.share_expires_at as string).getTime()
     : null;
   const existingExpired =
     existingExpiresAt !== null && Number.isFinite(existingExpiresAt) && existingExpiresAt <= Date.now();
   const shareToken =
-    existingReport?.share_token && !existingExpired
-      ? (existingReport.share_token as string)
+    matched?.share_token && !existingExpired
+      ? (matched.share_token as string)
       : randomBytes(16).toString("hex");
 
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>Maps Growth Report — ${escapeHtml(business.name)}</title>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; color: #111; }
-    h1 { font-size: 1.5rem; }
-    .meta { color: #666; font-size: 0.875rem; margin-bottom: 2rem; }
-    .metric { display: inline-block; margin-right: 2rem; margin-bottom: 1rem; }
-    .metric strong { display: block; font-size: 1.5rem; }
-    ul { line-height: 1.6; }
-    .footer { margin-top: 3rem; font-size: 0.75rem; color: #888; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-    td, th { border-bottom: 1px solid #eee; padding: 0.5rem; text-align: left; }
-  </style>
-</head>
-<body>
-  <h1>${escapeHtml(business.name)} — Maps Visibility Report</h1>
-  <div class="meta">
-    Generated ${generatedAt} · Keyword: ${escapeHtml(keywords?.keyword ?? "—")} ·
-    Grid: ${batch.grid_size}×${batch.grid_size} · Radius: ${batch.radius_meters}m ·
-    Provider: DataForSEO (${batch.scan_type})
-  </div>
+  return {
+    existingReportId: (matched?.id as string | undefined) ?? null,
+    shareToken,
+    shareExpiresAt,
+  };
+}
 
-  <section>
-    <div class="metric"><strong>${metrics.averageRank ?? "—"}</strong>Avg rank</div>
-    <div class="metric"><strong>${metrics.top3Cells ?? 0}</strong>Top 3 cells</div>
-    <div class="metric"><strong>${metrics.top10Cells ?? 0}</strong>Top 10 cells</div>
-    <div class="metric"><strong>${metrics.top20Cells ?? 0}</strong>Top 20 cells</div>
-    <div class="metric"><strong>${metrics.visibilityScore ?? 0}%</strong>Visibility</div>
-  </section>
-
-  <section><h2>Proof & confidence</h2>
-  <p>Depersonalized location-based benchmark. Failed cells: ${String(confidence.failed_cells ?? 0)}.</p>
-  ${checkUrl ? `<p><a href="${escapeHtml(checkUrl)}">Verify on Google Maps</a></p>` : ""}
-  </section>
-
-  ${topCompetitors.length ? `<section><h2>Top competitors (same category · top-3 pack)</h2><table>
-  <tr><th>Business</th><th>Top-3 cells</th><th>Avg rank in pack</th></tr>
-  ${topCompetitors.map((c) => `<tr><td>${escapeHtml(c.name ?? "Unknown")}</td><td>${c.top3Appearances}/${c.totalCells}</td><td>#${c.avgTop3Rank}</td></tr>`).join("")}
-  </table></section>` : ""}
-
-  ${audit ? `<section><h2>Audit scores</h2>
-  <p>Overall: ${audit.overall_score}/100 · Relevance: ${audit.relevance_score} · Distance: ${audit.distance_score} · Prominence: ${audit.prominence_score} · Trust: ${audit.trust_score}</p></section>` : ""}
-
-  <section><h2>Top 3 actions this week</h2><ul>
-    ${actionItems.map((a) => `<li><strong>${escapeHtml(a.title)}</strong> — ${escapeHtml(a.description ?? "")}</li>`).join("")}
-  </ul></section>
-
-  <div class="footer">Maps Growth Agent · Not a personalized result for every searcher</div>
-</body>
-</html>`;
+async function persistReport(params: {
+  businessId: string;
+  scanBatchId?: string | null;
+  html: string;
+  payload: AnyReportPayload;
+}): Promise<GenerateReportResult> {
+  const supabase = createServiceClient();
+  const { existingReportId, shareToken, shareExpiresAt } = await resolveShareToken(supabase, {
+    businessId: params.businessId,
+    scanBatchId: params.scanBatchId,
+    reportType: params.payload.reportType,
+  });
 
   const metadata = {
-    generatedAt,
-    keyword: keywords?.keyword,
-    checkUrl,
-    provider: "dataforseo",
+    reportType: params.payload.reportType,
+    payload: params.payload,
+    generatedAt: params.payload.generatedAt,
   };
 
-  if (existingReport?.id) {
+  if (existingReportId) {
     const { data: report, error } = await supabase
       .from("reports")
       .update({
         share_token: shareToken,
         share_expires_at: shareExpiresAt,
-        html_content: html,
+        html_content: params.html,
         metadata_json: metadata,
         generated_at: new Date().toISOString(),
+        scan_batch_id: params.scanBatchId ?? null,
       })
-      .eq("id", existingReport.id)
+      .eq("id", existingReportId)
       .eq("business_id", params.businessId)
       .select("id")
       .single();
     if (error || !report) throw new Error(error?.message ?? "Failed to update report");
-    return { reportId: report.id, shareToken, html };
+    return {
+      reportId: report.id,
+      shareToken,
+      html: params.html,
+      payload: params.payload,
+    };
   }
 
   const { data: report, error } = await supabase
     .from("reports")
     .insert({
       business_id: params.businessId,
-      scan_batch_id: params.scanBatchId,
+      scan_batch_id: params.scanBatchId ?? null,
       share_token: shareToken,
       share_expires_at: shareExpiresAt,
-      html_content: html,
+      html_content: params.html,
       metadata_json: metadata,
     })
     .select("id")
     .single();
 
   if (error || !report) throw new Error(error?.message ?? "Failed to create report");
-  return { reportId: report.id, shareToken, html };
+  return {
+    reportId: report.id,
+    shareToken,
+    html: params.html,
+    payload: params.payload,
+  };
 }
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+export async function generateTypedReport(
+  params: GenerateReportParams
+): Promise<GenerateReportResult> {
+  const reportType = params.reportType ?? "single_scan";
+
+  if (reportType === "single_scan") {
+    if (!params.scanBatchId) throw new Error("scanBatchId is required for single_scan reports");
+    const payload = await buildSingleScanReport({
+      businessId: params.businessId,
+      scanBatchId: params.scanBatchId,
+      whiteLabel: params.whiteLabel,
+    });
+    const html = renderReportHtml(payload);
+    return persistReport({
+      businessId: params.businessId,
+      scanBatchId: params.scanBatchId,
+      html,
+      payload,
+    });
+  }
+
+  if (reportType === "trend") {
+    const payload = await buildTrendReport({
+      businessId: params.businessId,
+      keywordId: params.keywordId,
+      locationId: params.locationId,
+      gridSize: params.gridSize,
+      radiusMeters: params.radiusMeters,
+      whiteLabel: params.whiteLabel,
+    });
+    const html = renderReportHtml(payload);
+    const lastScanId = payload.series[payload.series.length - 1]?.scanId ?? params.scanBatchId ?? null;
+    return persistReport({
+      businessId: params.businessId,
+      scanBatchId: lastScanId,
+      html,
+      payload,
+    });
+  }
+
+  if (reportType === "competitor") {
+    if (!params.scanBatchId) throw new Error("scanBatchId is required for competitor reports");
+    const payload = await buildCompetitorReport({
+      businessId: params.businessId,
+      scanBatchId: params.scanBatchId,
+      selectedCompetitorKeys: params.selectedCompetitorKeys,
+      whiteLabel: params.whiteLabel,
+    });
+    const html = renderReportHtml(payload);
+    return persistReport({
+      businessId: params.businessId,
+      scanBatchId: params.scanBatchId,
+      html,
+      payload,
+    });
+  }
+
+  if (reportType === "location") {
+    const payload = await buildLocationReport({
+      businessId: params.businessId,
+      whiteLabel: params.whiteLabel,
+    });
+    const html = renderReportHtml(payload);
+    return persistReport({
+      businessId: params.businessId,
+      scanBatchId: params.scanBatchId ?? null,
+      html,
+      payload,
+    });
+  }
+
+  throw new Error(`Report type "${reportType}" is not implemented yet`);
+}
+
+/** Backward-compatible entry: defaults to single_scan and requires scanBatchId. */
+export async function generateReport(params: {
+  businessId: string;
+  scanBatchId: string;
+  reportType?: ReportType;
+  keywordId?: string | null;
+  locationId?: string | null;
+  gridSize?: number | null;
+  radiusMeters?: number | null;
+  selectedCompetitorKeys?: string[];
+  whiteLabel?: Partial<WhiteLabelConfig>;
+}): Promise<{ reportId: string; shareToken: string; html: string }> {
+  const result = await generateTypedReport({
+    ...params,
+    reportType: params.reportType ?? "single_scan",
+  });
+  return {
+    reportId: result.reportId,
+    shareToken: result.shareToken,
+    html: result.html,
+  };
 }
