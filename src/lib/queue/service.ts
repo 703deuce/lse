@@ -370,6 +370,7 @@ export async function enqueueMapsScanJob(params: {
     },
     organizationId: params.organizationId,
     businessId: params.businessId,
+    relatedResourceId: params.scanBatchId,
     idempotencyKey: `maps-scan:${params.scanBatchId}`,
     priority: params.priority ?? "highest",
     maxAttempts: 3,

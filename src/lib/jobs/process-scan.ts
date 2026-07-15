@@ -20,13 +20,18 @@ import {
 /** Outcome of attempting to process a scan batch. */
 export type ProcessScanOutcome = "ran" | "deferred" | "already_done";
 
+/** Usable / post-cell statuses — job can complete without re-running the grid. */
 const SCAN_ALREADY_DONE = new Set([
   "ready",
   "partial",
   "failed",
   "enriching",
-  "normalizing",
+  "rank_ready",
+  "scoring",
+  "ai_planning",
 ]);
+// Note: `normalizing` is intentionally NOT here — finalize may still be writing.
+// Another worker seeing normalizing should defer, not mark the ledger completed.
 
 /**
  * Process or resume a scan batch.
@@ -279,10 +284,10 @@ export async function processScanBatch(
       await finalizeRankReady(scanBatchId, organizationId, failedCells, totalCells);
     } else {
       await rankReadyPromise;
-      // Soft-ready finalized early — sync failed ids to what actually saved after retries.
-      const { reconcileScanCellFailures } = await import("@/lib/jobs/reconcile-scan-failures");
-      await reconcileScanCellFailures(scanBatchId, failedCells, totalCells);
     }
+    // Always reconcile after retries/integrity — soft-ready may have finalized early.
+    const { reconcileScanCellFailures } = await import("@/lib/jobs/reconcile-scan-failures");
+    await reconcileScanCellFailures(scanBatchId, failedCells, totalCells);
 
     await clearScanLease(scanBatchId, leaseOwner);
 

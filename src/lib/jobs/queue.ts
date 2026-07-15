@@ -97,6 +97,80 @@ async function reclaimStaleRunningJobs(
   return ids;
 }
 
+/**
+ * Job ledger marked completed while the scan batch is still non-terminal
+ * (e.g. `normalizing` treated as already_done). Re-enqueue so a worker can finish.
+ */
+async function reconcileCompletedMapsJobScanMismatch(limit = 10): Promise<number> {
+  const supabase = createServiceClient();
+  const { data: jobs } = await supabase
+    .from("job_queue")
+    .select("id, payload, related_resource_id, organization_id, business_id, enqueue_state")
+    .eq("job_type", "process_scan")
+    .eq("status", "completed")
+    .order("finished_at", { ascending: false })
+    .limit(limit * 3);
+
+  let fixed = 0;
+  for (const job of jobs ?? []) {
+    if (fixed >= limit) break;
+    const payload = (job.payload ?? {}) as Record<string, unknown>;
+    const scanBatchId =
+      (typeof payload.scanBatchId === "string" && payload.scanBatchId) ||
+      (typeof job.related_resource_id === "string" ? job.related_resource_id : null);
+    if (!scanBatchId) continue;
+
+    const { data: batch } = await supabase
+      .from("scan_batches")
+      .select("id, status, business_id")
+      .eq("id", scanBatchId)
+      .maybeSingle();
+    if (!batch) continue;
+
+    const status = String(batch.status);
+    if (!["queued", "dispatching", "provider_running", "normalizing"].includes(status)) {
+      continue;
+    }
+
+    const businessId =
+      (batch.business_id as string | undefined) ||
+      (typeof payload.businessId === "string" ? payload.businessId : undefined) ||
+      (job.business_id as string | undefined);
+    const organizationId =
+      (typeof payload.organizationId === "string" ? payload.organizationId : undefined) ||
+      (job.organization_id as string | undefined);
+    if (!businessId || !organizationId) continue;
+
+    logger.warn("maps_completed_job_nonterminal_scan", {
+      jobId: job.id,
+      scanBatchId,
+      scanStatus: status,
+    });
+
+    // Clear terminal row's idempotency so a fresh run can enqueue.
+    await supabase
+      .from("job_queue")
+      .update({ idempotency_key: null })
+      .eq("id", job.id)
+      .eq("status", "completed");
+
+    const result = await enqueueMapsScanJob({
+      scanBatchId,
+      businessId,
+      organizationId,
+      priority: "highest",
+    }).catch((err) => {
+      logger.warn("maps_mismatch_reenqueue_failed", {
+        scanBatchId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return null;
+    });
+    if (result) fixed++;
+  }
+  return fixed;
+}
+
 /** Enqueue recurring messaging / monitor drains (idempotent per minute). */
 async function enqueueRecurringDrains(): Promise<void> {
   const bucket = Math.floor(Date.now() / 60_000);
@@ -169,12 +243,16 @@ export async function processPendingJobs(limit = 5): Promise<{
     }
   }
   const scansReclaimed = await reclaimStaleInFlightScans(5);
+  const mapsMismatches = await reconcileCompletedMapsJobScanMismatch(10).catch(() => 0);
 
   // Campaigns + review alerts go through named queues (messaging / intelligence workers).
   await enqueueRecurringDrains();
 
   // BullMQ workers own ledger job execution after handoff.
   if (resolveQueueDriver() === "bullmq") {
+    if (mapsMismatches > 0) {
+      logger.warn("maps_job_scan_mismatch_requeued", { count: mapsMismatches });
+    }
     return {
       jobsProcessed: 0,
       campaignSent: 0,

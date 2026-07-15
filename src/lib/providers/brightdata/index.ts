@@ -78,7 +78,7 @@ async function logBrightDataRun(params: {
   statusCode: number;
   latencyMs: number;
   costEstimate?: number;
-}): Promise<void> {
+}): Promise<string | null> {
   try {
     const supabase = createServiceClient();
     const requestHash = await hashRequest(params.request);
@@ -93,8 +93,9 @@ async function logBrightDataRun(params: {
       raw_request_json: params.request,
       raw_response_json: params.response as Record<string, unknown>,
     });
+    return requestHash;
   } catch {
-    /* non-blocking */
+    return null;
   }
 }
 
@@ -183,14 +184,22 @@ export async function mapsSearchAtCoordinate(params: {
     parsed = { raw: text.slice(0, 2000) };
   }
 
-  await logBrightDataRun({
+  const costEstimate = estimateProviderCost("brightdata");
+  const requestForLog = {
+    ...requestBody,
+    keyword: params.keyword,
+    lat: params.lat,
+    lng: params.lng,
+    zoom,
+  };
+  const requestHash = await logBrightDataRun({
     organizationId: params.organizationId,
     endpoint: "request",
-    request: { ...requestBody, keyword: params.keyword, lat: params.lat, lng: params.lng, zoom },
+    request: requestForLog,
     response: parsed,
     statusCode: res.status,
     latencyMs,
-    costEstimate: estimateProviderCost("brightdata"),
+    costEstimate,
   });
 
   if (!res.ok) {
@@ -210,6 +219,30 @@ export async function mapsSearchAtCoordinate(params: {
         : "Bright Data returned no map results for this cell"
     );
   }
+
+  // Charge only after a parseable ranked response (not bare HTTP 200 / HTML).
+  if (params.organizationId) {
+    const hash =
+      requestHash ??
+      (await hashRequest(requestForLog).catch(() => null));
+    const { recordUsage } = await import("@/lib/platform/usage-ledger");
+    await recordUsage({
+      organizationId: params.organizationId,
+      feature: "maps_grid_cell",
+      provider: "brightdata",
+      unitType: "request",
+      estimatedCostUsd: costEstimate,
+      actualUnits: 1,
+      metadata: {
+        endpoint: "request",
+        request_hash: hash,
+        keyword: params.keyword,
+        lat: params.lat,
+        lng: params.lng,
+      },
+    });
+  }
+
   return items;
 }
 

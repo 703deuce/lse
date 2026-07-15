@@ -43,17 +43,30 @@ export function maxQueuedMapsScansPerOrg(): number {
   return Number.isFinite(n) && n > 0 ? n : 10;
 }
 
+export type BullmqConnectionRole = "worker" | "producer";
+
 /**
  * BullMQ connection options as plain ioredis fields (avoids duplicate-ioredis
  * type conflicts when constructing Redis clients in app vs bullmq's nested copy).
+ *
+ * Workers retry forever with bounded backoff + keepalive so a transient
+ * ETIMEDOUT during deploy does not kill the process. Producers share the same
+ * reconnect strategy; enqueue failures still mark ledger `enqueue_failed`.
  */
-export function getBullmqConnectionOptions(redisUrl?: string | null): {
+export function getBullmqConnectionOptions(
+  redisUrl?: string | null,
+  _role: BullmqConnectionRole = "producer"
+): {
   host: string;
   port: number;
   username?: string;
   password?: string;
   maxRetriesPerRequest: null;
   enableReadyCheck: boolean;
+  keepAlive: number;
+  connectTimeout: number;
+  retryStrategy: (times: number) => number | void;
+  enableOfflineQueue: boolean;
   tls?: Record<string, never>;
 } {
   const url = redisUrl ?? getRedisUrl();
@@ -64,8 +77,14 @@ export function getBullmqConnectionOptions(redisUrl?: string | null): {
     port: Number(parsed.port || 6379),
     username: parsed.username || undefined,
     password: parsed.password || undefined,
+    // Required for BullMQ blocking commands (BRPOPLPUSH / BZPOPMIN).
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
+    keepAlive: 30_000,
+    connectTimeout: 20_000,
+    // Indefinite reconnect with bounded backoff (ms).
+    retryStrategy: (times: number) => Math.min(Math.max(times, 1) * 200, 5_000),
+    enableOfflineQueue: true,
     ...(parsed.protocol === "rediss:" ? { tls: {} } : {}),
   };
 }

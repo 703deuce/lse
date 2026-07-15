@@ -911,6 +911,11 @@ export async function runGridCellsLive(params: {
     console.log(
       `[Scan] Primary batch ${batchIndex + 1}/${primaryChunks.length}: ${chunk.length} cells`
     );
+    // When trailing=0 (softMin===totalCells), never soft-ready mid-primary —
+    // retries/integrity can still rewrite ranks after all cells "settle".
+    // Soft-ready fires only after the complete pass (below) so pins stay fresh.
+    const allowMidPrimarySoftReady =
+      !rankReadyStarted && softMin < totalCells && softMin > 0;
     const pass = await runJobsWithConcurrency(chunk, {
       scanBatchId: params.scanBatchId,
       depth,
@@ -921,8 +926,8 @@ export async function runGridCellsLive(params: {
       passLabel,
       completedOffset,
       updateProgress: true,
-      softReadyMinSuccess: rankReadyStarted ? undefined : softMin,
-      onSoftReady: rankReadyStarted ? undefined : onSoftReady,
+      softReadyMinSuccess: allowMidPrimarySoftReady ? softMin : undefined,
+      onSoftReady: allowMidPrimarySoftReady ? onSoftReady : undefined,
       onCellSettled,
       organizationId: params.organizationId,
     });

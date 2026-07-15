@@ -83,7 +83,7 @@ async function main() {
     console.log(`[worker] recovered ${recovered} pending enqueue(s)`);
   }
 
-  const connection = getBullmqConnectionOptions(config.redisUrl);
+  const connection = getBullmqConnectionOptions(config.redisUrl, "worker");
   const queues = PROFILE_QUEUES[profile];
   const workers: Worker[] = [];
 
@@ -131,11 +131,19 @@ async function main() {
     worker.on("failed", (job, err) => {
       console.error(`[worker:${queueName}] failed ${job?.id}:`, err.message);
     });
+    worker.on("error", (err) => {
+      // Connection blips (ETIMEDOUT) should log and reconnect — not exit.
+      console.error(`[worker:${queueName}] error:`, err.message);
+    });
     workers.push(worker);
     console.log(
       `[worker] listening on name=${name} prefix=${prefix} concurrency=${settings.concurrency}`
     );
   }
+
+  console.log(
+    `[worker] redis reconnect=indefinite keepalive=30s host=${connection.host}:${connection.port}`
+  );
 
   const shutdown = async (signal: string) => {
     console.log(`[worker] ${signal} — shutting down`);
