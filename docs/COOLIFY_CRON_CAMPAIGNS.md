@@ -48,7 +48,7 @@ Notes:
 ## 3. Alternative: host crontab on the Hetzner box
 
 ```cron
-* * * * * curl -fsS -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" https://YOUR_DOMAIN/api/jobs/process >> /var/log/maps-jobs-cron.log 2>&1
+* * * * * curl -fsS -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" https://app.localexpress.com/api/jobs/process >> /var/log/maps-jobs-cron.log 2>&1
 ```
 
 ## 4. Verify
@@ -56,7 +56,7 @@ Notes:
 ```bash
 curl -i -X POST \
   -H "Authorization: Bearer $CRON_SECRET" \
-  https://YOUR_DOMAIN/api/jobs/process
+  https://app.localexpress.com/api/jobs/process
 ```
 
 Expect JSON like:
@@ -81,11 +81,13 @@ Production check (same scheduled messages, two concurrent cron hits):
 ```bash
 # Fire two overlapping process calls against a campaign with queued due messages
 curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" \
-  "https://YOUR_DOMAIN/api/jobs/process" &
+  "https://app.localexpress.com/api/jobs/process" &
 curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" \
-  "https://YOUR_DOMAIN/api/jobs/process" &
+  "https://app.localexpress.com/api/jobs/process" &
 wait
 ```
+
+Full webhook URL cheat-sheet (Twilio + Brevo + cron): `docs/PRODUCTION_WEBHOOKS.md`.
 
 Then verify in logs / DB:
 - Each `review_request_messages` row has at most one `provider_message_id`

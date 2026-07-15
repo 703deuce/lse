@@ -10,6 +10,7 @@ import {
   verifyTwilioRequestSignature,
 } from "@/lib/reputation/twilio";
 import { logger } from "@/lib/observability/logger";
+import { getTwilioSmsWebhookUrl } from "@/lib/app-url";
 import { applyProviderDeliveryStatus } from "@/lib/reputation/delivery-status";
 
 function twilioXml(body = ""): NextResponse {
@@ -34,8 +35,8 @@ function authorizeTwilioWebhook(request: Request, formParams: Record<string, str
   }
 
   const signature = request.headers.get("x-twilio-signature");
-  // Prefer explicit public URL (proxies may rewrite request.url).
-  const url = process.env.TWILIO_WEBHOOK_URL?.trim() || request.url;
+  // Prefer configured public URL (Coolify/proxies may rewrite request.url).
+  const url = getTwilioSmsWebhookUrl() || request.url;
 
   if (!verifyTwilioRequestSignature({ authToken, signature, url, formParams })) {
     logger.warn("twilio_webhook_invalid_signature");

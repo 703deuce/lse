@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "crypto";
+import { appUrl } from "@/lib/app-url";
 import { createServiceClient } from "@/lib/db/client";
 import { addSuppression } from "@/lib/reputation/bulk-validate";
 import { normalizeEmail } from "@/lib/reputation/contacts-normalize";
@@ -40,13 +41,8 @@ export function verifyUnsubscribeToken(token: string): { messageId: string } | n
 }
 
 export function buildUnsubscribeUrl(messageId: string): string | null {
-  const base = (
-    process.env.NEXT_PUBLIC_APP_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "")
-  ).replace(/\/$/, "");
-  if (!base) return null;
   const token = buildUnsubscribeToken(messageId);
-  return `${base}/api/reputation/unsubscribe?token=${encodeURIComponent(token)}`;
+  return `${appUrl("/api/reputation/unsubscribe")}?token=${encodeURIComponent(token)}`;
 }
 
 /**
