@@ -1,11 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Calendar, ChevronDown, Loader2, Zap } from "lucide-react";
+import { Loader2, Zap } from "lucide-react";
 import type { MomentumLabel } from "@/lib/reviews/metrics";
 import {
   dashboardCard,
-  dashboardControl,
   dashboardSectionLabel,
 } from "@/components/overview/dashboard-ui";
 import { ModuleHeader, btnPrimary } from "@/components/ui/design-system";
@@ -45,14 +44,6 @@ export function MomentumTopBar({
 }) {
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2">
-      <button
-        type="button"
-        className={cn(dashboardControl, "inline-flex h-9 items-center gap-2 px-3 font-medium text-zinc-600")}
-      >
-        <Calendar className="h-3.5 w-3.5 text-zinc-400" />
-        Last 30 Days
-        <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
-      </button>
       <button
         type="button"
         onClick={onRun}

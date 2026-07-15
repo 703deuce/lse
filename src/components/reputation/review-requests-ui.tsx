@@ -1,19 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, BookOpen, Calendar, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ReviewRequestsSection } from "@/components/reputation/review-requests-sub-tabs";
 import {
   ModuleHeader,
   TabBar,
-  btnIcon,
   btnPrimary,
   btnSecondary,
   inputClass,
   fieldLabelClass,
 } from "@/components/ui/design-system";
-import { dashboardControl } from "@/components/overview/dashboard-ui";
 
 export function ReviewRequestsPageHeader({
   campaignsHref,
@@ -40,33 +37,7 @@ export function ReviewRequestsPageHeader({
 }
 
 export function ReviewRequestsTopBar() {
-  return (
-    <div className="flex shrink-0 flex-wrap items-center gap-2">
-      <button type="button" className={cn(btnIcon, "h-9 w-9")} aria-label="Learn">
-        <BookOpen className="h-3.5 w-3.5" />
-      </button>
-      <button type="button" className={cn(btnIcon, "relative h-9 w-9")} aria-label="Notifications">
-        <Bell className="h-3.5 w-3.5" />
-        <span className="absolute -right-1 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-bold text-white">
-          8
-        </span>
-      </button>
-      <button
-        type="button"
-        className={cn(
-          dashboardControl,
-          "inline-flex items-center gap-1.5 px-2.5 font-medium text-zinc-700"
-        )}
-      >
-        <Calendar className="h-3.5 w-3.5 text-zinc-500" />
-        Last 30 days
-        <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
-      </button>
-      <span className="hidden h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-bold text-white sm:inline-flex">
-        JD
-      </span>
-    </div>
-  );
+  return null;
 }
 
 const SECTIONS: Array<{ id: ReviewRequestsSection; label: string }> = [

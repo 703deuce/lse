@@ -2,9 +2,7 @@
 
 import type { ComponentType, ReactNode } from "react";
 import {
-  Bell,
   Calendar,
-  CircleHelp,
   ClipboardList,
   Clock,
   Eye,
@@ -28,7 +26,6 @@ import {
   TabBar,
   btnPrimary,
   btnSecondary,
-  btnIcon,
 } from "@/components/ui/design-system";
 import { GridMetricCard, KpiRow } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
@@ -57,30 +54,14 @@ export function GapTopBar({ businessId }: { businessId: string }) {
   return (
     <div className="flex shrink-0 items-center gap-2">
       <Link
-        href={`/businesses/${businessId}/workspace`}
+        href={`/businesses/${businessId}/scans`}
         className={cn(
           dashboardControl,
           "inline-flex items-center gap-1.5 px-3 font-medium text-zinc-600"
         )}
       >
-        ← Maps Workspace
+        Maps Scans
       </Link>
-      <button type="button" className={cn(btnIcon, "h-9 w-9")} aria-label="Help">
-        <CircleHelp className="h-3.5 w-3.5" />
-      </button>
-      <button
-        type="button"
-        className={cn(btnIcon, "relative h-9 w-9")}
-        aria-label="Notifications"
-      >
-        <Bell className="h-3.5 w-3.5" />
-        <span className="absolute -right-1 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-bold text-white">
-          3
-        </span>
-      </button>
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-bold text-white">
-        JD
-      </span>
     </div>
   );
 }

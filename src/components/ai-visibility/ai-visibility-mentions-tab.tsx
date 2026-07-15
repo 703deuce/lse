@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Download, MoreHorizontal, Search, Shield, ShieldAlert, Star } from "lucide-react";
+import { Download, Search, Shield, ShieldAlert, Star } from "lucide-react";
 import { ENGINE_LABELS, type AggregateMetrics, type AiEngine, type HistoricalMentionRow, type MentionLeaderboardRow } from "@/lib/ai-visibility/types";
 import { AiKpiCard, AiPanel, EngineIconRow, Sparkles, TrendingUp } from "@/components/ai-visibility/ai-visibility-ui";
 import type { MentionsViewMode } from "@/components/ai-visibility/ai-visibility-ui";
@@ -116,9 +116,6 @@ export function AiVisibilityMentionsTab({
               </li>
             ))}
           </ol>
-          <button type="button" className="mt-2 text-[10px] font-medium text-emerald-700 hover:underline">
-            View full landscape →
-          </button>
         </AiKpiCard>
         <AiKpiCard
           label="Mention Velocity"
@@ -234,7 +231,6 @@ export function AiVisibilityMentionsTab({
                 <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Engines Mentioned In</th>
                 <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Last Seen</th>
                 <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Status</th>
-                <th className="w-10 px-3.5 py-2" />
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -279,11 +275,6 @@ export function AiVisibilityMentionsTab({
                         <StatusIcon className="h-3 w-3" />
                         {st.label}
                       </span>
-                    </td>
-                    <td className="px-3.5 py-2">
-                      <button type="button" className="rounded p-1 text-text-muted hover:bg-surface-subtle">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </button>
                     </td>
                   </tr>
                 );

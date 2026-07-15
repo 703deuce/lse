@@ -11,7 +11,6 @@ import {
   Mail,
   MapPin,
   MessageSquare,
-  MoreVertical,
   Plus,
   RefreshCw,
   Shield,
@@ -244,7 +243,7 @@ export function ReviewsHeader({
           </Link>
           <button type="button" onClick={onRunMomentum} className={cn(btnPrimary, "h-9 px-3.5 text-[13px]")}>
             <Plus className="h-3.5 w-3.5" />
-            Create Reply Tasks
+            Run Momentum Audit
           </button>
         </>
       }
@@ -751,9 +750,6 @@ export function ReviewsTable({
                     title="View full review"
                   >
                     <Eye className="h-4 w-4" />
-                  </button>
-                  <button type="button" onClick={(e) => e.stopPropagation()} className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100">
-                    <MoreVertical className="h-4 w-4" />
                   </button>
                 </div>
               </td>

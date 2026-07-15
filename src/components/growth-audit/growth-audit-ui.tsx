@@ -6,7 +6,6 @@ import {
   ChevronRight,
   Info,
   Loader2,
-  MoreVertical,
   Play,
   Star,
   TrendingUp,
@@ -24,7 +23,6 @@ import {
   TabBar,
   ModuleHeader,
   btnPrimary,
-  btnIcon,
 } from "@/components/ui/design-system";
 
 export const GROWTH_AUDIT_TABS = [
@@ -326,9 +324,6 @@ export function GrowthAuditHeader({
             {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5 fill-current" />}
             <span className="sm:hidden">Run Audit</span>
             <span className="hidden sm:inline">Run Full Growth Audit</span>
-          </button>
-          <button type="button" className={cn(btnIcon, "h-9 w-9 shrink-0")} aria-label="More options">
-            <MoreVertical className="h-3.5 w-3.5" />
           </button>
         </>
       }

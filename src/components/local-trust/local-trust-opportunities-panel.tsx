@@ -9,7 +9,6 @@ import {
   Info,
   Link2,
   Loader2,
-  MoreHorizontal,
   Sparkles,
   Zap,
   ArrowUpDown,
@@ -81,7 +80,6 @@ function OpportunityTable({ rows, showMarketBadge }: { rows: OppRow[]; showMarke
             <th className="px-3.5 py-2">Difficulty</th>
             <th className="px-3.5 py-2">Priority</th>
             <th className="px-3.5 py-2">Suggested Action</th>
-            <th className="w-10 px-3.5 py-2" />
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-100">
@@ -123,11 +121,6 @@ function OpportunityTable({ rows, showMarketBadge }: { rows: OppRow[]; showMarke
                 <td className="px-3.5 py-2">{trustDifficultyBadge(String(row.difficulty))}</td>
                 <td className="px-3.5 py-2">{trustPriorityBadge(String(row.priority))}</td>
                 <td className="max-w-xs px-3.5 py-2 text-[11px] leading-snug text-zinc-600">{actionText}</td>
-                <td className="px-3.5 py-2">
-                  <button type="button" className="rounded p-1 text-zinc-400 hover:bg-zinc-100">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </button>
-                </td>
               </tr>
             );
           })}

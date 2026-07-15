@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { toPng } from "html-to-image";
-import { Copy, Download, ExternalLink, Eye, Loader2, Link2, Send, Sparkles, Check, Shield, Mail, MessageSquare, X, ArrowLeftRight, Search, ChevronDown, Info, MoreHorizontal, Smile } from "lucide-react";
+import { Copy, Download, ExternalLink, Loader2, Link2, Send, Sparkles, Check, Shield, Mail, MessageSquare, X, ArrowLeftRight, Search, Info, Smile } from "lucide-react";
 import { renderTemplate } from "@/lib/reputation/template-vars";
 import {
   DEFAULT_POSTER_CONFIG,
@@ -542,10 +542,6 @@ export function ReviewRequestsPanel({
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                 Save Changes
-              </button>
-              <button type="button" className={rrOutlineBtn + " py-2.5"}>
-                <Eye className="h-4 w-4" />
-                Preview
               </button>
               <button
                 type="button"
@@ -1140,21 +1136,12 @@ function TrackingSection({
           </div>
 
           <div className={cn(dashboardCard, "overflow-hidden")}>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-3.5 py-2.5">
-              <div>
-                <h3 className={dashboardCardTitle}>Recent Requests</h3>
-                <p className={`mt-0.5 ${dashboardMicro}`}>Track every review request sent from this business.</p>
-              </div>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-medium hover:bg-zinc-50"
-              >
-                <Download className="h-3.5 w-3.5" />
-                Export
-              </button>
+            <div className="border-b border-zinc-100 px-3.5 py-2.5">
+              <h3 className={dashboardCardTitle}>Recent Requests</h3>
+              <p className={`mt-0.5 ${dashboardMicro}`}>Track every review request sent from this business.</p>
             </div>
-            <div className="flex flex-wrap gap-2 border-b border-zinc-100 px-3.5 py-2.5">
-              <div className="relative min-w-[200px] flex-1">
+            <div className="border-b border-zinc-100 px-3.5 py-2.5">
+              <div className="relative min-w-[200px] max-w-md">
                 <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
                 <input
                   placeholder="Search by customer, phone, email…"
@@ -1163,45 +1150,28 @@ function TrackingSection({
                   className="w-full rounded-lg border border-zinc-200 py-2 pl-8 pr-3 text-xs outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20"
                 />
               </div>
-              <select className="rounded-lg border border-zinc-200 px-2 py-1.5 text-xs text-zinc-600">
-                <option>All Channels</option>
-              </select>
-              <select className="rounded-lg border border-zinc-200 px-2 py-1.5 text-xs text-zinc-600">
-                <option>All Statuses</option>
-              </select>
-              <button type="button" className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-2 py-1.5 text-xs text-zinc-600">
-                Last 30 days
-                <ChevronDown className="h-3 w-3" />
-              </button>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full text-left text-[12px]">
                 <thead className="bg-zinc-50 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                   <tr>
-                    <th className="w-10 px-3.5 py-2">
-                      <input type="checkbox" className="rounded border-zinc-300" aria-label="Select all" />
-                    </th>
                     <th className="px-3.5 py-2">Status</th>
                     <th className="px-3.5 py-2">Recipient</th>
                     <th className="px-3.5 py-2">Channel</th>
                     <th className="px-3.5 py-2">Message Preview</th>
                     <th className="px-3.5 py-2">Sent At</th>
-                    <th className="px-3.5 py-2" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
                   {filteredSends.length === 0 && events.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-6 text-zinc-500">
+                      <td colSpan={5} className="px-4 py-6 text-zinc-500">
                         No activity yet.
                       </td>
                     </tr>
                   ) : (
                     filteredSends.slice(0, 10).map((s) => (
                       <tr key={s.id} className="hover:bg-zinc-50">
-                        <td className="px-3.5 py-2">
-                          <input type="checkbox" className="rounded border-zinc-300" aria-label="Select row" />
-                        </td>
                         <td className="px-3.5 py-2">
                           {statusPill(s.status, s.has_reply)}
                         </td>
@@ -1235,46 +1205,17 @@ function TrackingSection({
                             minute: "2-digit",
                           })}
                         </td>
-                        <td className="px-3.5 py-2">
-                          <button type="button" className="rounded p-1 hover:bg-zinc-100" aria-label="More actions">
-                            <MoreHorizontal className="h-4 w-4 text-zinc-400" />
-                          </button>
-                        </td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 px-3.5 py-2.5 text-[11px] text-zinc-500">
-              <span>
-                Showing 1 to {Math.min(10, filteredSends.length)} of {filteredSends.length} results
-              </span>
-              <div className="flex items-center gap-2">
-                <select className="rounded border border-zinc-200 px-2 py-1 text-[12px]">
-                  <option>10 per page</option>
-                  <option>25 per page</option>
-                </select>
-                <div className="flex items-center gap-1">
-                  <button type="button" className="rounded border border-zinc-200 px-2 py-0.5 text-zinc-500 hover:bg-zinc-50">
-                    ‹
-                  </button>
-                  <button type="button" className="min-w-[28px] rounded border border-emerald-600 bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-700">
-                    1
-                  </button>
-                  <button type="button" className="rounded border border-zinc-200 px-2 py-0.5 hover:bg-zinc-50">
-                    2
-                  </button>
-                  <button type="button" className="rounded border border-zinc-200 px-2 py-0.5 hover:bg-zinc-50">
-                    3
-                  </button>
-                  <span className="px-1 text-zinc-400">…</span>
-                  <button type="button" className="rounded border border-zinc-200 px-2 py-0.5 hover:bg-zinc-50">
-                    ›
-                  </button>
-                </div>
+            {filteredSends.length > 0 && (
+              <div className="border-t border-zinc-100 px-3.5 py-2.5 text-[11px] text-zinc-500">
+                Showing {Math.min(10, filteredSends.length)} of {filteredSends.length} results
               </div>
-            </div>
+            )}
           </div>
         </div>
 

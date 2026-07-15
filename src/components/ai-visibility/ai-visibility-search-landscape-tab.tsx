@@ -1,6 +1,6 @@
 "use client";
 
-import { Columns3, Download, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import type { MapPackEntry, OrganicSerpEntry, SerpMatchRow } from "@/lib/ai-visibility/types";
 import { AiPanel, TintedKpiCard, VisibilityScoreRing } from "@/components/ai-visibility/ai-visibility-ui";
 import { cn } from "@/lib/utils";
@@ -101,18 +101,6 @@ export function AiVisibilitySearchLandscapeTab({
         title="AI Mentions vs Google Placement"
         subtitle="See how AI visibility compares to traditional Google rankings and map presence."
         className="overflow-hidden p-0"
-        action={
-          <div className="flex gap-2">
-            <button type="button" className="inline-flex items-center gap-1 text-xs font-medium text-text-muted hover:text-text">
-              <Download className="h-3.5 w-3.5" />
-              Export
-            </button>
-            <button type="button" className="inline-flex items-center gap-1 text-xs font-medium text-text-muted">
-              <Columns3 className="h-3.5 w-3.5" />
-              Columns
-            </button>
-          </div>
-        }
       >
         <div className="flex flex-wrap gap-3 border-b border-border px-3.5 py-2 text-[10px] text-text-muted">
           <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /> In Map Pack</span>
@@ -190,11 +178,8 @@ export function AiVisibilitySearchLandscapeTab({
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-between border-t border-border px-3.5 py-2 text-xs text-text-muted">
-          <button type="button" className="font-medium text-emerald-700 hover:underline">
-            View all {serpMatches.length} AI-mentioned companies →
-          </button>
-          <span>Showing 1–{Math.min(5, serpMatches.length)} of {serpMatches.length}</span>
+        <div className="border-t border-border px-3.5 py-2 text-xs text-text-muted">
+          <span>Showing 1–{Math.min(12, serpMatches.length)} of {serpMatches.length}</span>
         </div>
       </AiPanel>
 
@@ -219,9 +204,6 @@ export function AiVisibilitySearchLandscapeTab({
               </li>
             ))}
           </ol>
-          <button type="button" className="mt-3 text-xs font-medium text-emerald-700 hover:underline">
-            View full map pack results →
-          </button>
         </AiPanel>
 
         <AiPanel title="Google Organic Results (Top 10)" action={<Info className="h-3.5 w-3.5 text-zinc-300" />}>
@@ -239,9 +221,6 @@ export function AiVisibilitySearchLandscapeTab({
               </li>
             ))}
           </ol>
-          <button type="button" className="mt-3 text-xs font-medium text-emerald-700 hover:underline">
-            View all organic results →
-          </button>
         </AiPanel>
 
         <AiPanel title="Landscape Insights" action={<Info className="h-3.5 w-3.5 text-zinc-300" />}>
@@ -268,9 +247,6 @@ export function AiVisibilitySearchLandscapeTab({
               </div>
             </li>
           </ul>
-          <button type="button" className="mt-2.5 w-full rounded-md border border-border py-1.5 text-xs font-medium text-text hover:bg-surface-subtle">
-            View all insights →
-          </button>
         </AiPanel>
       </div>
     </div>

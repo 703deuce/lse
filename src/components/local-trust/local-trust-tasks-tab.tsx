@@ -1,20 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  Calendar,
-  ChevronDown,
-  ChevronRight,
-  SlidersHorizontal,
-  Star,
-} from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { TrustFilterPill, trustImpactBadge, trustPriorityBadge } from "@/components/local-trust/local-trust-ui";
 import { dashboardCard, dashboardCardTitle } from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
 
 type TaskRow = Record<string, unknown>;
-
-const OWNER_INITIALS = ["JD", "KL", "JS", "AM"];
 
 function statusBadge(status: string) {
   const colors: Record<string, string> = {
@@ -22,7 +14,8 @@ function statusBadge(status: string) {
     in_progress: "bg-blue-50 text-blue-700",
     complete: "bg-emerald-50 text-emerald-700",
   };
-  const label = status === "in_progress" ? "In Progress" : status === "complete" ? "Complete" : "Not Started";
+  const label =
+    status === "in_progress" ? "In Progress" : status === "complete" ? "Complete" : "Not Started";
   return (
     <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", colors[status] ?? colors.open)}>
       {label}
@@ -48,14 +41,16 @@ export function LocalTrustTasksTab({ tasks }: { tasks: TaskRow[] }) {
     });
   }, [tasks, priorityFilter, statusFilter]);
 
-  const dueSoon = filtered.slice(0, 3);
+  const openTasks = filtered.filter((t) => String(t.status ?? "open") !== "complete").slice(0, 5);
   const completed = filtered.filter((t) => t.status === "complete");
-  const highImpact = filtered.filter((t) => t.impact === "high");
+  const highImpact = filtered.filter((t) => t.impact === "high" || t.priority === "high");
 
   if (!tasks.length) {
     return (
       <div className={cn(dashboardCard, "px-3.5 py-8 text-center")}>
-        <p className="text-[13px] text-zinc-500">No tasks yet. Run the finder to generate recommended actions.</p>
+        <p className="text-[13px] text-zinc-500">
+          No tasks yet. Run the finder to generate recommended actions.
+        </p>
       </div>
     );
   }
@@ -75,7 +70,6 @@ export function LocalTrustTasksTab({ tasks }: { tasks: TaskRow[] }) {
               { value: "low", label: "Low" },
             ]}
           />
-          <TrustFilterPill label="Owner" value="all" onChange={() => {}} options={[{ value: "all", label: "All" }]} />
           <TrustFilterPill
             label="Status"
             value={statusFilter}
@@ -87,14 +81,18 @@ export function LocalTrustTasksTab({ tasks }: { tasks: TaskRow[] }) {
               { value: "complete", label: "Complete" },
             ]}
           />
-          <TrustFilterPill label="Due Date" value="all" onChange={() => {}} options={[{ value: "all", label: "All" }]} />
-          <button type="button" className="text-xs font-medium text-emerald-700 hover:underline">
-            Clear filters
-          </button>
-          <div className="ml-auto flex items-center gap-1 text-xs text-zinc-500">
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-            Sort: Due Date
-          </div>
+          {(priorityFilter !== "all" || statusFilter !== "all") && (
+            <button
+              type="button"
+              onClick={() => {
+                setPriorityFilter("all");
+                setStatusFilter("all");
+              }}
+              className="text-xs font-medium text-emerald-700 hover:underline"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
 
         <h3 className="text-[13px] font-semibold text-zinc-900">All Tasks ({filtered.length})</h3>
@@ -103,18 +101,17 @@ export function LocalTrustTasksTab({ tasks }: { tasks: TaskRow[] }) {
           {filtered.map((t, i) => {
             const status = String(t.status ?? "open");
             const pct = progressPct(status, i);
-            const owner = OWNER_INITIALS[i % OWNER_INITIALS.length];
-            const dueDate = new Date(Date.now() + (i + 3) * 86400000 * 3);
             return (
-              <div
-                key={String(t.id ?? i)}
-                className={cn(dashboardCard, "p-3")}
-              >
+              <div key={String(t.id ?? i)} className={cn(dashboardCard, "p-3")}>
                 <div className="flex items-start gap-2">
                   <span
                     className={cn(
                       "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white",
-                      t.priority === "high" ? "bg-red-500" : t.priority === "medium" ? "bg-amber-500" : "bg-blue-500"
+                      t.priority === "high"
+                        ? "bg-red-500"
+                        : t.priority === "medium"
+                          ? "bg-amber-500"
+                          : "bg-blue-500"
                     )}
                   >
                     {String(t.title).charAt(0)}
@@ -128,9 +125,10 @@ export function LocalTrustTasksTab({ tasks }: { tasks: TaskRow[] }) {
                       <p className="mt-0.5 text-[12px] text-zinc-500">{String(t.description)}</p>
                     )}
                     <p className="mt-0.5 text-[11px] text-zinc-400">
-                      Next step: {String(t.suggested_action ?? t.description ?? "Review opportunity details")}
+                      Next step:{" "}
+                      {String(t.suggested_action ?? t.description ?? "Review opportunity details")}
                     </p>
-                    <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                    <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                       <div>
                         <p className="text-[10px] uppercase text-zinc-400">Impact</p>
                         {trustImpactBadge(String(t.impact ?? "medium"))}
@@ -138,19 +136,6 @@ export function LocalTrustTasksTab({ tasks }: { tasks: TaskRow[] }) {
                       <div>
                         <p className="text-[10px] uppercase text-zinc-400">Effort</p>
                         {trustImpactBadge(String(t.effort ?? "medium"))}
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase text-zinc-400">Due Date</p>
-                        <p className="flex items-center gap-1 text-xs text-zinc-600">
-                          <Calendar className="h-3 w-3" />
-                          {dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase text-zinc-400">Owner</p>
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white">
-                          {owner}
-                        </span>
                       </div>
                       <div>
                         <p className="text-[10px] uppercase text-zinc-400">Status</p>
@@ -167,71 +152,54 @@ export function LocalTrustTasksTab({ tasks }: { tasks: TaskRow[] }) {
             );
           })}
         </div>
-
-        <button type="button" className="flex items-center gap-1 text-[12px] font-medium text-emerald-700 hover:underline">
-          View all tasks
-          <ChevronDown className="h-3.5 w-3.5" />
-        </button>
       </div>
 
       <div className="space-y-3">
-        <SidebarCard title="Tasks Due Soon" action="View all">
+        <SidebarCard title="Open tasks">
           <ul className="space-y-2">
-            {dueSoon.map((t, i) => (
-              <li key={String(t.id)} className="flex items-center justify-between text-sm">
-                <span className="truncate text-zinc-700">{String(t.title)}</span>
-                <span className="shrink-0 text-xs font-medium text-red-600">
-                  {new Date(Date.now() + (i + 2) * 86400000 * 4).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                </span>
+            {openTasks.map((t) => (
+              <li key={String(t.id)} className="truncate text-sm text-zinc-700">
+                {String(t.title)}
               </li>
             ))}
-          </ul>
-        </SidebarCard>
-
-        <SidebarCard title="Completed This Week" action="View all">
-          <p className="text-base font-bold text-zinc-900">{completed.length}</p>
-          <p className="text-[11px] font-medium text-emerald-600">+{completed.length > 0 ? 100 : 0}% vs last week</p>
-          <ul className="mt-3 space-y-2">
-            {completed.slice(0, 2).map((t) => (
-              <li key={String(t.id)} className="flex items-center gap-2 text-sm text-zinc-600">
-                <span className="text-emerald-500">✓</span>
-                <span className="truncate">{String(t.title)}</span>
-              </li>
-            ))}
-            {completed.length === 0 && (
-              <li className="text-xs text-zinc-400">No completed tasks yet</li>
+            {openTasks.length === 0 && (
+              <li className="text-[12px] text-zinc-400">No open tasks</li>
             )}
           </ul>
         </SidebarCard>
 
-        <SidebarCard title="High-Impact Actions" action="View all">
-          <p className="text-base font-bold text-zinc-900">{highImpact.length || tasks.filter((t) => t.priority === "high").length}</p>
-          <div className="mt-2 rounded-md bg-emerald-50 px-2.5 py-2 text-[11px] leading-snug text-emerald-800">
-            <Star className="mb-0.5 inline h-3 w-3" /> Focus on high-impact tasks to maximize visibility and community trust.
-          </div>
+        <SidebarCard title="Completed">
+          <p className="text-base font-bold text-zinc-900">{completed.length}</p>
+          <ul className="mt-3 space-y-2">
+            {completed.slice(0, 3).map((t) => (
+              <li key={String(t.id)} className="truncate text-sm text-zinc-600">
+                {String(t.title)}
+              </li>
+            ))}
+          </ul>
+        </SidebarCard>
+
+        <SidebarCard title="High-impact">
+          <ul className="space-y-2">
+            {highImpact.slice(0, 3).map((t) => (
+              <li key={String(t.id)} className="truncate text-sm text-zinc-700">
+                {String(t.title)}
+              </li>
+            ))}
+            {highImpact.length === 0 && (
+              <li className="text-[12px] text-zinc-400">None yet</li>
+            )}
+          </ul>
         </SidebarCard>
       </div>
     </div>
   );
 }
 
-function SidebarCard({
-  title,
-  action,
-  children,
-}: {
-  title: string;
-  action: string;
-  children: React.ReactNode;
-}) {
+function SidebarCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className={cn(dashboardCard, "p-3")}>
-      <div className="mb-2.5 flex items-center justify-between">
-        <h4 className={dashboardCardTitle}>{title}</h4>
-        <button type="button" className="text-[11px] font-medium text-emerald-700 hover:underline">
-          {action}
-        </button>
-      </div>
+      <h4 className={cn(dashboardCardTitle, "mb-2.5")}>{title}</h4>
       {children}
     </div>
   );

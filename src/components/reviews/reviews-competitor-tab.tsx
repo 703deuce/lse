@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Building2, CheckCircle2, Clock, DollarSign, SlidersHorizontal, Smile } from "lucide-react";
+import { Building2, CheckCircle2, Clock, DollarSign, Smile } from "lucide-react";
 import {
   CartesianGrid,
   Line,
@@ -143,16 +143,6 @@ export function ReviewsCompetitorTab({ data }: { data: ReviewsPageData }) {
             </option>
           ))}
         </select>
-        <select className={cn(dashboardControl, "px-3 text-[13px] text-zinc-700")}>
-          <option>Last 90 days</option>
-        </select>
-        <select className={cn(dashboardControl, "px-3 text-[13px] text-zinc-700")}>
-          <option>All Ratings</option>
-        </select>
-        <button type="button" className={cn(dashboardControl, "inline-flex items-center gap-1.5 px-3 font-medium text-zinc-700")}>
-          <SlidersHorizontal className="h-3.5 w-3.5" />
-          More Filters
-        </button>
       </div>
 
       <div className="grid gap-3 xl:grid-cols-5">

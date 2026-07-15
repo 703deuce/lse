@@ -2,9 +2,7 @@
 
 import { useMemo } from "react";
 import {
-  ArrowRight,
   Building2,
-  Filter,
   Globe,
   GraduationCap,
   Heart,
@@ -12,11 +10,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import {
-  TrustFilterBar,
-  TrustFilterPill,
   TrustPanelCard,
   TrustQueryKpiRow,
-  TrustSearchInput,
 } from "@/components/local-trust/local-trust-ui";
 
 type QueryCluster = {
@@ -113,21 +108,6 @@ export function LocalTrustQueriesTab({
         lastRunTime={lastRunTime}
       />
 
-      <TrustFilterBar>
-        <TrustFilterPill label="Query Type" value="all" onChange={() => {}} options={[{ value: "all", label: "All Types" }]} />
-        <TrustFilterPill label="Status" value="all" onChange={() => {}} options={[{ value: "all", label: "All Statuses" }]} />
-        <TrustFilterPill label="Source / Engine" value="all" onChange={() => {}} options={[{ value: "all", label: "All Engines" }]} />
-        <TrustFilterPill label="Last Run" value="all" onChange={() => {}} options={[{ value: "all", label: "All Time" }]} />
-        <TrustSearchInput value="" onChange={() => {}} placeholder="Search queries..." />
-        <button
-          type="button"
-          className="mb-0.5 inline-flex items-center gap-1.5 self-end rounded-md border border-zinc-200 bg-white px-3.5 py-2 text-[12px] font-medium text-zinc-700 shadow-sm hover:bg-zinc-50"
-        >
-          <Filter className="h-3.5 w-3.5" />
-          Filters
-        </button>
-      </TrustFilterBar>
-
       <TrustPanelCard
         title="AI Query Clusters"
         subtitle="Grouped search footprints used to discover local trust opportunities"
@@ -213,20 +193,12 @@ export function LocalTrustQueriesTab({
               </tbody>
             </table>
           </div>
-          <button type="button" className="mt-2.5 text-[12px] font-medium text-emerald-700 hover:underline">
-            View all query runs →
-          </button>
         </TrustPanelCard>
 
         <div className="space-y-3">
           <TrustPanelCard
             title="Top Performing Footprints"
             subtitle="Categories with the highest discovery success"
-            action={
-              <button type="button" className="text-xs font-medium text-emerald-700 hover:underline">
-                View full report
-              </button>
-            }
           >
             <ul className="space-y-2">
               {footprints.map((f, i) => (
@@ -262,30 +234,18 @@ export function LocalTrustQueriesTab({
                     <Search className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
                     <span className="truncate text-[13px] text-zinc-800">{q}</span>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <span
-                      className={
-                        i === 0
-                          ? "rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800"
-                          : "rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"
-                      }
-                    >
-                      {i === 0 ? "High Potential" : "Medium Potential"}
-                    </span>
-                    <button
-                      type="button"
-                      className="rounded-md border border-zinc-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50"
-                    >
-                      Run
-                    </button>
-                    <ArrowRight className="h-3.5 w-3.5 text-zinc-300" />
-                  </div>
+                  <span
+                    className={
+                      i === 0
+                        ? "shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800"
+                        : "shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"
+                    }
+                  >
+                    {i === 0 ? "High Potential" : "Medium Potential"}
+                  </span>
                 </li>
               ))}
             </ul>
-            <button type="button" className="mt-2.5 text-[12px] font-medium text-emerald-700 hover:underline">
-              View all suggestions →
-            </button>
           </TrustPanelCard>
         </div>
       </div>

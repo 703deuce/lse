@@ -148,13 +148,6 @@ export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSect
               Services derived from competitor Maps place topics and GBP services — not invented keywords.
             </p>
           )}
-          {serviceCoverage.rows.length > 8 && (
-            <div className="border-t border-zinc-100 px-3.5 py-2.5 text-center">
-              <button type="button" className="text-[12px] font-medium text-zinc-600">
-                View all services ({serviceCoverage.rows.length})
-              </button>
-            </div>
-          )}
         </GaCard>
 
         <GaCard>

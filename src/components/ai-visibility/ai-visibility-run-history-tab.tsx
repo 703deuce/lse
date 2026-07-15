@@ -182,9 +182,6 @@ export function AiVisibilityRunHistoryTab({
               sub={`${insights.mentionedRuns}/${completeRuns.length} runs`}
             />
           </div>
-          <button type="button" className="mt-4 text-xs font-medium text-emerald-700 hover:underline">
-            View all insights →
-          </button>
         </AiPanel>
       )}
     </div>
