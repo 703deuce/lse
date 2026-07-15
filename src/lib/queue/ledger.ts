@@ -5,6 +5,7 @@ import type {
   QueueJobRecord,
 } from "@/lib/queue/types";
 import { PRIORITY_SCORES } from "@/lib/queue/types";
+import { canReuseExistingJob } from "@/lib/queue/idempotency";
 
 function priorityScore(priority: EnqueueJobInput["priority"]): number {
   if (typeof priority === "number" && Number.isFinite(priority)) return priority;
@@ -60,14 +61,52 @@ export async function createLedgerJob(input: EnqueueJobInput): Promise<QueueJobR
     .single();
 
   if (error || !data) {
-    // Unique idempotency race — return existing.
+    // Unique idempotency race — reuse live work, or free the key on terminal rows.
     if (input.idempotencyKey && /duplicate|unique/i.test(error?.message ?? "")) {
       const existing = await findJobByIdempotencyKey(input.idempotencyKey);
-      if (existing) return existing;
+      if (existing && canReuseExistingJob(existing)) return existing;
+      if (existing) {
+        // Free key on terminal / enqueue_failed / half-created so a new run can proceed.
+        await clearIdempotencyKey(existing.id);
+        const retry = await supabase
+          .from("job_queue")
+          .insert({
+            job_type: input.jobType,
+            payload: input.payload,
+            status: "pending",
+            organization_id: input.organizationId ?? null,
+            business_id: input.businessId ?? null,
+            parent_job_id: input.parentJobId ?? null,
+            related_resource_id: input.relatedResourceId ?? null,
+            initiated_by_user_id: input.initiatedByUserId ?? null,
+            queue_name: input.queueName,
+            priority: priorityScore(input.priority),
+            idempotency_key: input.idempotencyKey ?? null,
+            max_attempts: input.maxAttempts ?? 3,
+            scheduled_at: scheduledAt,
+            enqueue_state: "pending",
+            lifecycle_status: "pending_enqueue",
+            cost_estimate: input.costEstimate ?? null,
+            progress_json: {},
+            progress_completed: 0,
+            progress_failed: 0,
+          })
+          .select("*")
+          .single();
+        if (retry.data) return rowToRecord(retry.data);
+        const again = await findJobByIdempotencyKey(input.idempotencyKey);
+        if (again && canReuseExistingJob(again)) return again;
+      }
     }
     throw new Error(error?.message ?? "Failed to create job ledger row");
   }
   return rowToRecord(data);
+}
+
+/** Free idempotency_key so a new non-reusable conflict can insert a fresh row. */
+async function clearIdempotencyKey(jobId: string): Promise<void> {
+  const supabase = createServiceClient();
+  await supabase.from("job_queue").update({ idempotency_key: null }).eq("id", jobId);
 }
 
 export async function markLedgerEnqueued(
@@ -75,6 +114,7 @@ export async function markLedgerEnqueued(
   opts: { queueJobId?: string | null; enqueueState?: EnqueueState } = {}
 ): Promise<void> {
   const supabase = createServiceClient();
+  // Never reopen terminal rows (unique-collision / stale recovery races).
   await supabase
     .from("job_queue")
     .update({
@@ -83,7 +123,8 @@ export async function markLedgerEnqueued(
       lifecycle_status: "queued",
       enqueued_at: new Date().toISOString(),
     })
-    .eq("id", jobId);
+    .eq("id", jobId)
+    .eq("status", "pending");
 }
 
 export async function markLedgerEnqueueFailed(jobId: string, message: string): Promise<void> {
@@ -98,7 +139,8 @@ export async function markLedgerEnqueueFailed(jobId: string, message: string): P
       error_class: "enqueue",
       customer_error: "We could not start this job. It will be retried automatically.",
     })
-    .eq("id", jobId);
+    .eq("id", jobId)
+    .eq("status", "pending");
 }
 
 export async function updateJobProgress(
@@ -125,14 +167,19 @@ export async function heartbeatJob(
 ): Promise<void> {
   const supabase = createServiceClient();
   const leaseMs = opts.leaseMs ?? 60_000;
-  await supabase
+  let query = supabase
     .from("job_queue")
     .update({
       heartbeat_at: new Date().toISOString(),
-      ...(opts.workerId ? { worker_id: opts.workerId, lease_owner: opts.workerId } : {}),
       lease_expires_at: new Date(Date.now() + leaseMs).toISOString(),
     })
-    .eq("id", jobId);
+    .eq("id", jobId)
+    .eq("status", "running");
+  // When a lease owner is provided, only that claim may refresh the lease.
+  if (opts.workerId) {
+    query = query.eq("lease_owner", opts.workerId);
+  }
+  await query;
 }
 
 /** Conditional cancel — only from non-terminal statuses. */
@@ -283,11 +330,13 @@ export async function countJobsByStatus(): Promise<Record<string, number>> {
 
 /**
  * Requeue jobs whose lease expired (worker crash) even if started_at is recent.
+ * Single conditional update — avoids TOCTOU steal after a heartbeat renews the lease.
  * @returns reclaimed job ids
  */
 export async function reclaimExpiredJobLeases(limit = 50): Promise<string[]> {
   const supabase = createServiceClient();
   const now = new Date().toISOString();
+  // PostgREST cannot LIMIT an UPDATE directly; select candidates then re-check expiry.
   const { data: expired } = await supabase
     .from("job_queue")
     .select("id")
@@ -308,6 +357,7 @@ export async function reclaimExpiredJobLeases(limit = 50): Promise<string[]> {
     })
     .in("id", ids)
     .eq("status", "running")
+    .lt("lease_expires_at", now)
     .select("id");
   return (data ?? []).map((r) => r.id as string);
 }

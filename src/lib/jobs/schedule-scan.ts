@@ -56,7 +56,10 @@ async function markMapsLedgerTerminal(
     .from("job_queue")
     .update({
       status,
+      lifecycle_status: status === "completed" ? "completed" : "permanently_failed",
       finished_at: new Date().toISOString(),
+      lease_owner: null,
+      lease_expires_at: null,
       ...(errorMessage ? { error_message: errorMessage } : {}),
     })
     .eq("idempotency_key", `maps-scan:${scanBatchId}`)
@@ -66,8 +69,8 @@ async function markMapsLedgerTerminal(
 export function scheduleScanProcessing(scanBatchId: string, organizationId?: string): void {
   after(async () => {
     try {
-      const ran = await processScanBatch(scanBatchId, organizationId);
-      if (ran) {
+      const outcome = await processScanBatch(scanBatchId, organizationId);
+      if (outcome === "ran" || outcome === "already_done") {
         await markMapsLedgerTerminal(scanBatchId, "completed").catch(() => {});
       }
     } catch (err) {

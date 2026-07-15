@@ -52,6 +52,28 @@ export async function bullmqEnqueue(input: EnqueueJobInput): Promise<EnqueueJobR
 
   const row = await createLedgerJob(input);
 
+  // createLedgerJob may return a live reusable row from a unique race.
+  if (canReuseExistingJob(row) && row.id) {
+    return {
+      jobId: row.id,
+      queueName: input.queueName,
+      driver: "bullmq",
+      enqueueState: row.enqueueState,
+      reused: true,
+      status: row.status,
+    };
+  }
+  if (row.status !== "pending") {
+    return {
+      jobId: row.id,
+      queueName: input.queueName,
+      driver: "bullmq",
+      enqueueState: "enqueue_failed",
+      reused: false,
+      status: row.status,
+    };
+  }
+
   try {
     const queue = await getQueue(input.queueName);
     const job = await queue.add(

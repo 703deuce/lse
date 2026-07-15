@@ -11,7 +11,7 @@
  * Requires QUEUE_DRIVER=bullmq and REDIS_URL.
  */
 
-import { Worker, UnrecoverableError } from "bullmq";
+import { DelayedError, Worker, UnrecoverableError } from "bullmq";
 import {
   JOB_QUEUES,
   type JobQueueName,
@@ -20,6 +20,7 @@ import {
 import { getBullmqConnectionOptions, getQueueConfig } from "../../src/lib/queue/config";
 import {
   bullmqLockDurationMs,
+  isDeferredError,
   isPermanentError,
   processQueueJob,
 } from "../../src/lib/queue/processors";
@@ -82,6 +83,14 @@ async function main() {
         try {
           await processQueueJob(queueName, payload);
         } catch (err) {
+          if (isDeferredError(err)) {
+            const delayMs =
+              typeof (err as { delayMs?: number }).delayMs === "number"
+                ? (err as { delayMs: number }).delayMs
+                : 5_000;
+            await job.moveToDelayed(Date.now() + delayMs, job.token);
+            throw new DelayedError();
+          }
           if (isPermanentError(err)) {
             throw new UnrecoverableError(
               err instanceof Error ? err.message : "Permanent job failure"

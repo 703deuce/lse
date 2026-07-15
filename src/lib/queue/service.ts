@@ -24,6 +24,7 @@ import type {
 } from "@/lib/queue/types";
 import { createServiceClient } from "@/lib/db/client";
 import { logger } from "@/lib/observability/logger";
+import { releaseUsage, reserveUsageOrThrow, type UsageKey } from "@/lib/plans";
 
 /**
  * Public queue API — feature code must call this (or dispatchFeatureJob), never BullMQ directly.
@@ -72,7 +73,92 @@ export async function cancelJob(jobId: string): Promise<boolean> {
     const { bullmqRemoveLedgerJob } = await import("@/lib/queue/drivers/bullmq-driver");
     await bullmqRemoveLedgerJob(before.queueName, jobId).catch(() => {});
   }
+  await releaseReservedUsageFromPayload(before?.payload, before?.organizationId).catch(() => {});
+  await failRelatedFeatureRowOnCancel(before).catch(() => {});
   return true;
+}
+
+async function releaseReservedUsageFromPayload(
+  payload: Record<string, unknown> | undefined,
+  organizationId: string | null | undefined
+): Promise<void> {
+  const reserved = payload?.reservedUsage as { key?: string; amount?: number } | undefined;
+  const orgId =
+    (typeof organizationId === "string" && organizationId) ||
+    (typeof payload?.organizationId === "string" ? payload.organizationId : null);
+  if (!reserved?.key || !orgId || !reserved.amount) return;
+  await releaseUsage(orgId, reserved.key as UsageKey, Number(reserved.amount));
+}
+
+/** Best-effort: stop product UIs stuck on `running` after admin cancel. */
+async function failRelatedFeatureRowOnCancel(
+  job: QueueJobRecord | null | undefined
+): Promise<void> {
+  if (!job) return;
+  const supabase = createServiceClient();
+  const payload = job.payload ?? {};
+  const finishedAt = new Date().toISOString();
+  const finished = {
+    status: "failed",
+    error_message: "Canceled by operator",
+    finished_at: finishedAt,
+  };
+  switch (job.jobType) {
+    case "growth_audit_run":
+    case "growth_audit_extended": {
+      const runId = String(payload.growthRunId ?? "");
+      let q = supabase
+        .from("growth_audit_runs")
+        .update(finished)
+        .in("status", ["running", "core_ready", "extended_running"]);
+      if (runId) q = q.eq("id", runId);
+      else if (job.businessId && job.organizationId) {
+        q = q.eq("business_id", job.businessId).eq("organization_id", job.organizationId);
+      } else return;
+      await q;
+      break;
+    }
+    case "local_trust_run": {
+      let q = supabase.from("local_trust_runs").update(finished).eq("status", "running");
+      if (job.businessId && job.organizationId) {
+        q = q.eq("business_id", job.businessId).eq("organization_id", job.organizationId);
+      } else return;
+      await q;
+      break;
+    }
+    case "backlink_gap_run": {
+      let q = supabase.from("backlink_gap_runs").update(finished).eq("status", "running");
+      if (job.businessId && job.organizationId) {
+        q = q.eq("business_id", job.businessId).eq("organization_id", job.organizationId);
+      } else return;
+      await q;
+      break;
+    }
+    case "ai_visibility_run": {
+      let q = supabase.from("ai_visibility_runs").update(finished).eq("status", "running");
+      if (job.businessId && job.organizationId) {
+        q = q.eq("business_id", job.businessId).eq("organization_id", job.organizationId);
+      } else return;
+      await q;
+      break;
+    }
+    case "import_contacts": {
+      const uploadId = String(payload.uploadId ?? "");
+      if (!uploadId) return;
+      await supabase
+        .from("review_request_uploads")
+        .update({
+          status: "failed",
+          error_report_json: [{ row: 0, error: "Canceled by operator" }],
+          completed_at: finishedAt,
+        })
+        .eq("id", uploadId)
+        .in("status", ["queued", "running"]);
+      break;
+    }
+    default:
+      break;
+  }
 }
 
 export async function retryJob(jobId: string): Promise<boolean> {
@@ -92,8 +178,38 @@ export async function retryJob(jobId: string): Promise<boolean> {
     return false;
   }
 
+  const beforeRetry = await getLedgerJob(jobId);
   const ok = await retryLedgerJob(jobId);
   if (!ok) return false;
+
+  // Terminal failure already refunded reservedUsage — re-charge on explicit retry.
+  const reserved = beforeRetry?.payload?.reservedUsage as
+    | { key?: string; amount?: number }
+    | undefined;
+  const orgId =
+    beforeRetry?.organizationId ||
+    (typeof beforeRetry?.payload?.organizationId === "string"
+      ? beforeRetry.payload.organizationId
+      : null);
+  if (reserved?.key && orgId && reserved.amount) {
+    try {
+      await reserveUsageOrThrow(orgId, reserved.key as UsageKey, Number(reserved.amount));
+    } catch (err) {
+      await createServiceClient()
+        .from("job_queue")
+        .update({
+          status: "failed",
+          lifecycle_status: "permanently_failed",
+          error_message:
+            err instanceof Error ? err.message : "Usage limit reached on retry",
+          finished_at: new Date().toISOString(),
+        })
+        .eq("id", jobId)
+        .eq("status", "pending");
+      return false;
+    }
+  }
+
   if (resolveQueueDriver() === "bullmq" && getRedisUrl()) {
     const job = await getLedgerJob(jobId);
     if (job?.queueName) {

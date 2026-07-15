@@ -43,3 +43,17 @@ describe("idempotent job reuse", () => {
     assert.equal(canReuseExistingJob(job({ status: "pending", enqueueState: "pending" })), false);
   });
 });
+
+describe("job deferred error", () => {
+  it("marks deferred errors distinctly from permanent failures", async () => {
+    const { JobDeferredError, isDeferredError } = await import("@/lib/queue/errors");
+    const { isPermanentError, isDeferredError: deferredFromProcessors } = await import(
+      "@/lib/queue/processors"
+    );
+    const deferred = new JobDeferredError("wait", 7_000);
+    assert.equal(isDeferredError(deferred), true);
+    assert.equal(deferredFromProcessors(deferred), true);
+    assert.equal(deferred.delayMs, 7_000);
+    assert.equal(isPermanentError(deferred), false);
+  });
+});

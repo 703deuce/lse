@@ -11,7 +11,10 @@ import {
   resolveQueueDriver,
 } from "@/lib/queue";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
-import { executeJobType } from "@/lib/queue/job-handlers";
+import { jobTypeToQueue } from "@/lib/queue/job-handlers";
+import { processQueueJob } from "@/lib/queue/processors";
+import type { QueueName } from "@/lib/queue/types";
+import { isDeferredError } from "@/lib/queue/errors";
 
 const JOB_RUNNING_STALE_MS = Number(process.env.JOB_RUNNING_STALE_MS ?? 20 * 60 * 1000);
 
@@ -54,12 +57,6 @@ export async function enqueueImportContactsJob(payload: {
   mode: ContactImportMode;
 }): Promise<void> {
   await enqueueReviewImportJob(payload);
-}
-
-function retryDelayMs(attempt: number): number {
-  const base = Math.min(60_000, 1000 * 2 ** Math.max(0, attempt - 1));
-  const jitter = Math.floor(Math.random() * 1000);
-  return base + jitter;
 }
 
 /** Requeue jobs stuck in `running` after a worker crash / deploys. */
@@ -209,127 +206,27 @@ export async function processPendingJobs(limit = 5): Promise<{
   }
 
   let processed = 0;
-  const workerId =
-    process.env.WORKER_ID?.trim() ||
-    process.env.HOSTNAME?.trim() ||
-    `cron-${process.pid}`;
 
+  // Share claim/heartbeat/billing/summary path with BullMQ workers.
   for (const job of jobs) {
-    const { data: claimed } = await supabase
-      .from("job_queue")
-      .update({
-        status: "running",
-        lifecycle_status: "running",
-        started_at: new Date().toISOString(),
-        heartbeat_at: new Date().toISOString(),
-        attempts: (job.attempts ?? 0) + 1,
-        worker_id: workerId,
-        lease_owner: workerId,
-        lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
-      })
-      .eq("id", job.id)
-      .eq("status", "pending")
-      .select("id, job_type, payload, attempts, max_attempts")
-      .maybeSingle();
-
-    if (!claimed) continue;
-
+    const payload = (job.payload ?? {}) as Record<string, unknown>;
+    const queueName = (job.queue_name as QueueName | null) || jobTypeToQueue(String(job.job_type));
     try {
-      const payload = (claimed.payload ?? {}) as Record<string, unknown>;
-      const result = await executeJobType(String(claimed.job_type), {
+      await processQueueJob(queueName, {
         ...payload,
-        ledgerJobId: claimed.id,
+        ledgerJobId: job.id,
+        jobType: String(job.job_type),
       });
-
-      if (!result.ok) {
-        throw Object.assign(new Error(result.error ?? "Job failed"), {
-          unrecoverable: result.permanent,
-        });
-      }
-
-      if (result.markComplete === false) {
-        await supabase
-          .from("job_queue")
-          .update({
-            status: "pending",
-            lifecycle_status: "queued",
-            scheduled_at: new Date(Date.now() + 5_000).toISOString(),
-            error_message: "Deferred — another worker holds the lease",
-            lease_owner: null,
-            lease_expires_at: null,
-          })
-          .eq("id", claimed.id)
-          .eq("status", "running")
-          .eq("lease_owner", workerId);
-        continue;
-      }
-
-      await supabase
-        .from("job_queue")
-        .update({
-          status: "completed",
-          lifecycle_status: "completed",
-          finished_at: new Date().toISOString(),
-          lease_owner: null,
-          lease_expires_at: null,
-        })
-        .eq("id", claimed.id)
-        .eq("status", "running")
-        .eq("lease_owner", workerId);
       processed++;
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      const permanent = Boolean(
-        err instanceof Error && (err as Error & { unrecoverable?: boolean }).unrecoverable
-      );
-      const attempts = claimed.attempts ?? (job.attempts ?? 0) + 1;
-      const maxAttempts = claimed.max_attempts ?? job.max_attempts ?? 3;
-      const failed = permanent || attempts >= maxAttempts;
-      const delay = retryDelayMs(attempts);
-
-      await supabase
-        .from("job_queue")
-        .update({
-          status: failed ? "failed" : "pending",
-          lifecycle_status: permanent
-            ? "permanently_failed"
-            : failed
-              ? "dead_letter"
-              : "retrying",
-          error_message: message,
-          error_class: permanent ? "permanent" : failed ? "dead_letter" : "retryable",
-          customer_error: failed
-            ? "This job failed after multiple retries. An operator can retry it from Admin → Ops."
-            : null,
-          finished_at: failed ? new Date().toISOString() : null,
-          scheduled_at: failed ? undefined : new Date(Date.now() + delay).toISOString(),
-          lease_owner: null,
-          lease_expires_at: null,
-        })
-        .eq("id", claimed.id)
-        .eq("status", "running")
-        .eq("lease_owner", workerId);
-
-      const payload = claimed.payload as { scanBatchId?: string };
-      if (payload.scanBatchId && failed && claimed.job_type === "process_scan") {
-        await supabase
-          .from("scan_batches")
-          .update({
-            status: "failed",
-            error_message: message,
-            finished_at: new Date().toISOString(),
-            lease_owner: null,
-            lease_expires_at: null,
-          })
-          .eq("id", payload.scanBatchId)
-          .in("status", ["queued", "dispatching", "provider_running", "normalizing"]);
+      if (isDeferredError(err)) {
+        // Ledger already rescheduled — deferred is not a failure.
+        continue;
       }
       logger.error("job_queue_processing_failed", {
-        jobId: claimed.id,
-        jobType: claimed.job_type,
-        attempts,
-        failed,
-        error: message,
+        jobId: job.id,
+        jobType: job.job_type,
+        error: err instanceof Error ? err.message : String(err),
       });
     }
   }

@@ -29,6 +29,7 @@ export async function getFeatureSummary(params: {
   const { data } = await supabase
     .from("feature_business_summaries")
     .select("summary_json, version")
+    .eq("organization_id", params.organizationId)
     .eq("business_id", params.businessId)
     .eq("feature", params.feature)
     .maybeSingle();
@@ -52,6 +53,7 @@ export async function upsertFeatureSummary(params: {
   const { data: existing } = await supabase
     .from("feature_business_summaries")
     .select("version")
+    .eq("organization_id", params.organizationId)
     .eq("business_id", params.businessId)
     .eq("feature", params.feature)
     .maybeSingle();

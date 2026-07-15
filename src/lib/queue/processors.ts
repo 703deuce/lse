@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createServiceClient } from "@/lib/db/client";
 import {
   executeJobType,
@@ -8,6 +9,7 @@ import type { QueueName } from "@/lib/queue/types";
 import { logger } from "@/lib/observability/logger";
 import { QUEUE_CONFIGS } from "@/lib/queue/config";
 import { releaseUsage } from "@/lib/plans";
+import { JobDeferredError } from "@/lib/queue/errors";
 
 export type QueueJobPayload = JobHandlerPayload & {
   jobType?: string;
@@ -20,7 +22,7 @@ const HEARTBEAT_MS = 20_000;
 
 /**
  * Shared processors for BullMQ workers and Next.js after() kicks.
- * Database cron also uses executeJobType via processPendingJobs.
+ * Database cron also routes through this path for leases/heartbeats/billing.
  */
 export async function processQueueJob(
   queueName: QueueName,
@@ -34,18 +36,21 @@ export async function processQueueJob(
 
   let jobType = typeof payload.jobType === "string" ? payload.jobType : "";
 
-  const workerId =
+  const workerLabel =
     process.env.WORKER_ID?.trim() ||
     process.env.HOSTNAME?.trim() ||
     `web-${process.pid}`;
+  /** Unique per claim — never reuse HOSTNAME alone (concurrency-safe). */
+  const leaseOwner = randomUUID();
   let attempts = 0;
   let maxAttempts = 3;
   let claimedOk = !ledgerJobId;
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  let leaseLost = false;
 
   try {
     if (ledgerJobId) {
-      const claimed = await claimLedgerJob(ledgerJobId, workerId, supabase);
+      const claimed = await claimLedgerJob(ledgerJobId, leaseOwner, workerLabel, supabase);
       if (claimed.kind === "skip") {
         logger.info("queue_processor_skip", {
           ledgerJobId,
@@ -54,15 +59,19 @@ export async function processQueueJob(
         });
         return;
       }
+      if (claimed.kind === "not_ready") {
+        throw new JobDeferredError("Job not ready yet", claimed.delayMs);
+      }
       if (claimed.kind === "busy") {
-        throw new Error("Job lease held by another worker");
+        throw new JobDeferredError("Job lease held by another worker", 5_000);
       }
       claimedOk = true;
       jobType = jobType || claimed.jobType;
       attempts = claimed.attempts;
       maxAttempts = claimed.maxAttempts;
       heartbeatTimer = setInterval(() => {
-        void extendLease(ledgerJobId, workerId).catch((err) => {
+        void extendLease(ledgerJobId, leaseOwner).catch((err) => {
+          leaseLost = true;
           logger.warn("queue_lease_heartbeat_failed", {
             ledgerJobId,
             error: err instanceof Error ? err.message : String(err),
@@ -88,10 +97,17 @@ export async function processQueueJob(
       ledgerJobId: ledgerJobId ?? undefined,
     });
 
+    if (leaseLost || (ledgerJobId && !(await stillOwnsLease(ledgerJobId, leaseOwner)))) {
+      logger.warn("queue_processor_lost_lease_after_work", { ledgerJobId, queueName, jobType });
+      // Do not flip terminal status or release usage — the reclaiming worker owns that.
+      return;
+    }
+
     if (!result.ok) {
       if (ledgerJobId) {
         const exhausted = !result.permanent && attempts >= maxAttempts;
         const terminal = result.permanent || exhausted;
+        const delayMs = 5_000;
         await supabase
           .from("job_queue")
           .update({
@@ -108,19 +124,22 @@ export async function processQueueJob(
               ? "This job failed after multiple retries. An operator can retry it from Admin → Ops."
               : null,
             finished_at: terminal ? new Date().toISOString() : null,
-            scheduled_at: terminal ? undefined : new Date(Date.now() + 5_000).toISOString(),
+            scheduled_at: terminal ? undefined : new Date(Date.now() + delayMs).toISOString(),
             lease_owner: null,
             lease_expires_at: null,
           })
           .eq("id", ledgerJobId)
           .eq("status", "running")
-          .eq("lease_owner", workerId);
+          .eq("lease_owner", leaseOwner);
 
         if (terminal) {
           await releaseReservedUsage(payload);
           if (jobType === "early_enrichment") {
             await clearEarlyEnrichmentFlag(payload).catch(() => {});
           }
+        } else {
+          // Durable ledger retry — BullMQ uses DelayedError (no attempt burn); cron ignores.
+          throw new JobDeferredError(result.error ?? "Job failed — retry scheduled", delayMs);
         }
       }
       if (result.permanent) {
@@ -132,25 +151,26 @@ export async function processQueueJob(
     }
 
     if (ledgerJobId && result.markComplete === false) {
-      // Mirror database-driver deferral — never ACK BullMQ on deferred work.
+      const delayMs = 5_000;
       await supabase
         .from("job_queue")
         .update({
           status: "pending",
           lifecycle_status: "queued",
-          scheduled_at: new Date(Date.now() + 5_000).toISOString(),
+          scheduled_at: new Date(Date.now() + delayMs).toISOString(),
           error_message: "Deferred — another worker holds the lease",
           lease_owner: null,
           lease_expires_at: null,
         })
         .eq("id", ledgerJobId)
         .eq("status", "running")
-        .eq("lease_owner", workerId);
-      throw new Error("Deferred — another worker holds the lease");
+        .eq("lease_owner", leaseOwner);
+
+      throw new JobDeferredError("Deferred — another worker holds the lease", delayMs);
     }
 
     if (ledgerJobId && result.markComplete !== false) {
-      await markLedgerTerminal(ledgerJobId, "completed", workerId);
+      await markLedgerTerminal(ledgerJobId, "completed", leaseOwner);
       const { rebuildFeatureSummaryAfterJob } = await import("@/lib/platform/summaries");
       await rebuildFeatureSummaryAfterJob({
         jobType,
@@ -168,27 +188,32 @@ export async function processQueueJob(
 
 async function claimLedgerJob(
   ledgerJobId: string,
-  workerId: string,
+  leaseOwner: string,
+  workerLabel: string,
   supabase: ReturnType<typeof createServiceClient>
 ): Promise<
   | { kind: "claimed"; jobType: string; attempts: number; maxAttempts: number }
   | { kind: "skip"; status: string }
   | { kind: "busy" }
+  | { kind: "not_ready"; delayMs: number }
 > {
-  const leaseUntil = new Date(Date.now() + LEASE_MS).toISOString();
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const leaseUntil = new Date(now.getTime() + LEASE_MS).toISOString();
   const { data: claimed } = await supabase
     .from("job_queue")
     .update({
       status: "running",
       lifecycle_status: "running",
-      started_at: new Date().toISOString(),
-      heartbeat_at: new Date().toISOString(),
-      worker_id: workerId,
-      lease_owner: workerId,
+      started_at: nowIso,
+      heartbeat_at: nowIso,
+      worker_id: workerLabel,
+      lease_owner: leaseOwner,
       lease_expires_at: leaseUntil,
     })
     .eq("id", ledgerJobId)
     .eq("status", "pending")
+    .lte("scheduled_at", nowIso)
     .select("id, attempts, max_attempts, job_type")
     .maybeSingle();
 
@@ -205,12 +230,19 @@ async function claimLedgerJob(
 
   const { data: row } = await supabase
     .from("job_queue")
-    .select("status, job_type, lease_expires_at, attempts, max_attempts")
+    .select("status, job_type, lease_expires_at, scheduled_at, attempts, max_attempts")
     .eq("id", ledgerJobId)
     .maybeSingle();
 
   if (!row || TERMINAL_STATUSES.has(String(row.status))) {
     return { kind: "skip", status: String(row?.status ?? "missing") };
+  }
+
+  if (row.status === "pending" && row.scheduled_at) {
+    const readyAt = new Date(String(row.scheduled_at)).getTime();
+    if (readyAt > Date.now()) {
+      return { kind: "not_ready", delayMs: Math.max(1_000, readyAt - Date.now()) };
+    }
   }
 
   if (row.status === "running") {
@@ -226,8 +258,8 @@ async function claimLedgerJob(
         lifecycle_status: "running",
         started_at: new Date().toISOString(),
         heartbeat_at: new Date().toISOString(),
-        worker_id: workerId,
-        lease_owner: workerId,
+        worker_id: workerLabel,
+        lease_owner: leaseOwner,
         lease_expires_at: new Date(Date.now() + LEASE_MS).toISOString(),
       })
       .eq("id", ledgerJobId)
@@ -250,7 +282,7 @@ async function claimLedgerJob(
   return { kind: "busy" };
 }
 
-async function extendLease(ledgerJobId: string, workerId: string): Promise<void> {
+async function extendLease(ledgerJobId: string, leaseOwner: string): Promise<void> {
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("job_queue")
@@ -260,7 +292,7 @@ async function extendLease(ledgerJobId: string, workerId: string): Promise<void>
     })
     .eq("id", ledgerJobId)
     .eq("status", "running")
-    .eq("lease_owner", workerId)
+    .eq("lease_owner", leaseOwner)
     .select("id")
     .maybeSingle();
   if (!data) {
@@ -268,10 +300,22 @@ async function extendLease(ledgerJobId: string, workerId: string): Promise<void>
   }
 }
 
+async function stillOwnsLease(ledgerJobId: string, leaseOwner: string): Promise<boolean> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("job_queue")
+    .select("id")
+    .eq("id", ledgerJobId)
+    .eq("status", "running")
+    .eq("lease_owner", leaseOwner)
+    .maybeSingle();
+  return Boolean(data);
+}
+
 async function markLedgerTerminal(
   ledgerJobId: string,
   status: "completed" | "failed",
-  workerId: string
+  leaseOwner: string
 ): Promise<void> {
   const supabase = createServiceClient();
   await supabase
@@ -286,7 +330,7 @@ async function markLedgerTerminal(
     })
     .eq("id", ledgerJobId)
     .eq("status", "running")
-    .eq("lease_owner", workerId);
+    .eq("lease_owner", leaseOwner);
 }
 
 async function releaseReservedUsage(payload: JobHandlerPayload): Promise<void> {
@@ -341,6 +385,8 @@ function defaultJobTypeForQueue(queueName: QueueName): string {
 export function isPermanentError(err: unknown): boolean {
   return Boolean(err instanceof Error && (err as Error & { unrecoverable?: boolean }).unrecoverable);
 }
+
+export { isDeferredError, JobDeferredError } from "@/lib/queue/errors";
 
 /** Expose for tests / worker lockDuration. */
 export function bullmqLockDurationMs(queueName: QueueName): number {

@@ -94,8 +94,9 @@ export async function executeJobType(
         const scanBatchId = String(payload.scanBatchId ?? "");
         if (!scanBatchId) return permanent("Missing scanBatchId");
         const orgId = await resolveOrgId(payload);
-        const ran = await processScanBatch(scanBatchId, orgId);
-        return { ok: true, markComplete: ran };
+        const outcome = await processScanBatch(scanBatchId, orgId);
+        if (outcome === "deferred") return { ok: true, markComplete: false };
+        return { ok: true, markComplete: true };
       }
       case "scan_enrichment": {
         const scanBatchId = String(payload.scanBatchId ?? "");
@@ -160,17 +161,35 @@ export async function executeJobType(
           .maybeSingle();
         if (!upload) return permanent("Import upload not found or already finished");
         const rows = (upload.rows_json ?? []) as ContactImportRow[];
-        await runContactImport({
-          organizationId,
-          businessId,
-          uploadId,
-          mode:
-            (payload.mode as ContactImportMode) ??
-            (upload.mode as ContactImportMode) ??
-            "update",
-          rows,
-        });
-        return { ok: true };
+        try {
+          await runContactImport({
+            organizationId,
+            businessId,
+            uploadId,
+            mode:
+              (payload.mode as ContactImportMode) ??
+              (upload.mode as ContactImportMode) ??
+              "update",
+            rows,
+          });
+          return { ok: true };
+        } catch (err) {
+          await supabase
+            .from("review_request_uploads")
+            .update({
+              status: "failed",
+              error_report_json: [
+                {
+                  row: 0,
+                  error: err instanceof Error ? err.message : "Import failed",
+                },
+              ],
+              completed_at: new Date().toISOString(),
+            })
+            .eq("id", uploadId)
+            .eq("status", "running");
+          throw err;
+        }
       }
       case "campaign_send_batch": {
         const limit = Number(payload.limit ?? 20);

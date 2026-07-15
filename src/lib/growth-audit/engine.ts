@@ -174,7 +174,7 @@ export async function runGrowthAudit(params: {
     if (updateError) throw new Error(updateError.message);
 
     if (!params.skipBackground) {
-      await dispatchFeatureJob({
+      const extended = await dispatchFeatureJob({
         jobType: "growth_audit_extended",
         payload: {
           growthRunId: runId,
@@ -187,6 +187,24 @@ export async function runGrowthAudit(params: {
         priority: "normal",
         maxAttempts: 2,
       });
+      if (extended.enqueueState === "enqueue_failed") {
+        await supabase
+          .from("growth_audit_runs")
+          .update({
+            status: "failed",
+            error_message: "Extended modules could not be queued — retry the audit",
+            finished_at: new Date().toISOString(),
+            progress_stage: null,
+          })
+          .eq("id", runId);
+        return {
+          runId,
+          status: "failed",
+          growthScore: overview.growthScore,
+          sections,
+          growthPlan: growthPlan.tasks,
+        };
+      }
     }
 
     return {

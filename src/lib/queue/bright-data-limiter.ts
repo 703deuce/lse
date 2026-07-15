@@ -21,21 +21,40 @@ let memoryInFlight = 0;
 let memoryWindowStart = Date.now();
 let memoryStartsInWindow = 0;
 
+let sharedRedis: import("ioredis").default | null = null;
+let sharedRedisConnecting: Promise<import("ioredis").default | null> | null = null;
+
 async function getRedis(): Promise<import("ioredis").default | null> {
   const url = getRedisUrl();
   if (!url) return null;
-  try {
-    const IORedis = (await import("ioredis")).default;
-    const client = new IORedis(url, {
-      maxRetriesPerRequest: 1,
-      enableReadyCheck: true,
-      lazyConnect: true,
-    });
-    if (client.status === "wait") await client.connect();
-    return client;
-  } catch {
-    return null;
+  if (sharedRedis && sharedRedis.status !== "end" && sharedRedis.status !== "close") {
+    return sharedRedis;
   }
+  if (sharedRedisConnecting) return sharedRedisConnecting;
+
+  sharedRedisConnecting = (async () => {
+    try {
+      const IORedis = (await import("ioredis")).default;
+      const client = new IORedis(url, {
+        maxRetriesPerRequest: 1,
+        enableReadyCheck: true,
+        lazyConnect: true,
+      });
+      if (client.status === "wait") await client.connect();
+      sharedRedis = client;
+      client.on("end", () => {
+        if (sharedRedis === client) sharedRedis = null;
+      });
+      return client;
+    } catch {
+      sharedRedis = null;
+      return null;
+    } finally {
+      sharedRedisConnecting = null;
+    }
+  })();
+
+  return sharedRedisConnecting;
 }
 
 function sleep(ms: number): Promise<void> {

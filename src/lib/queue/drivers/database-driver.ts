@@ -30,6 +30,28 @@ export async function databaseEnqueue(
   }
 
   const row = await createLedgerJob(input);
+
+  if (canReuseExistingJob(row)) {
+    return {
+      jobId: row.id,
+      queueName: input.queueName,
+      driver: "database" satisfies QueueDriverName,
+      enqueueState: row.enqueueState,
+      reused: true,
+      status: row.status,
+    };
+  }
+  if (row.status !== "pending") {
+    return {
+      jobId: row.id,
+      queueName: input.queueName,
+      driver: "database",
+      enqueueState: "enqueue_failed",
+      reused: false,
+      status: row.status,
+    };
+  }
+
   await markLedgerEnqueued(row.id, { queueJobId: row.id, enqueueState: "enqueued" });
 
   return {
