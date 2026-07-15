@@ -37,7 +37,7 @@ Coolify → Project → Scheduled Tasks (or Server → Cron Jobs):
 curl -fsS -X POST \
   -H "Authorization: Bearer ${CRON_SECRET}" \
   -H "Content-Type: application/json" \
-  "https://YOUR_DOMAIN/api/jobs/process"
+  "https://app.localexpress.com/api/jobs/process"
 ```
 
 Notes:
