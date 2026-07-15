@@ -220,28 +220,10 @@ export async function mapsSearchAtCoordinate(params: {
     );
   }
 
-  // Charge only after a parseable ranked response (not bare HTTP 200 / HTML).
-  if (params.organizationId) {
-    const hash =
-      requestHash ??
-      (await hashRequest(requestForLog).catch(() => null));
-    const { recordUsage } = await import("@/lib/platform/usage-ledger");
-    await recordUsage({
-      organizationId: params.organizationId,
-      feature: "maps_grid_cell",
-      provider: "brightdata",
-      unitType: "request",
-      estimatedCostUsd: costEstimate,
-      actualUnits: 1,
-      metadata: {
-        endpoint: "request",
-        request_hash: hash,
-        keyword: params.keyword,
-        lat: params.lat,
-        lng: params.lng,
-      },
-    });
-  }
+  // Usage is recorded by the caller after SERP validation + upsert so incomplete
+  // responses that throw post-parse are not billed (retries would double-charge).
+  void requestHash;
+  void costEstimate;
 
   return items;
 }

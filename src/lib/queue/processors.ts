@@ -7,7 +7,6 @@ import {
 } from "@/lib/queue/job-handlers";
 import type { QueueName } from "@/lib/queue/types";
 import { logger } from "@/lib/observability/logger";
-import { QUEUE_CONFIGS } from "@/lib/queue/config";
 import { releaseUsage } from "@/lib/plans";
 import { JobDeferredError } from "@/lib/queue/errors";
 
@@ -142,12 +141,10 @@ export async function processQueueJob(
           throw new JobDeferredError(result.error ?? "Job failed — retry scheduled", delayMs);
         }
       }
-      if (result.permanent) {
-        const err = new Error(result.error ?? "Permanent job failure");
-        (err as Error & { unrecoverable?: boolean }).unrecoverable = true;
-        throw err;
-      }
-      throw new Error(result.error ?? "Job failed");
+      // Terminal ledger updates already applied — do not burn BullMQ attempts.
+      const err = new Error(result.error ?? "Job failed");
+      (err as Error & { unrecoverable?: boolean }).unrecoverable = true;
+      throw err;
     }
 
     if (ledgerJobId && result.markComplete === false) {
@@ -389,8 +386,8 @@ export function isPermanentError(err: unknown): boolean {
 export { isDeferredError, JobDeferredError } from "@/lib/queue/errors";
 
 /** Expose for tests / worker lockDuration. */
-export function bullmqLockDurationMs(queueName: QueueName): number {
-  const timeout = QUEUE_CONFIGS[queueName]?.timeoutMs ?? 300_000;
-  // Lock must outlive typical work; renewals also use BullMQ's lock renewal.
-  return Math.max(timeout + 60_000, 120_000);
+export function bullmqLockDurationMs(_queueName: QueueName): number {
+  // Keep locks short — BullMQ renews while the worker is alive. Long locks
+  // only delay stalled-job recovery after a hard crash (amplifies duplicates).
+  return 120_000;
 }

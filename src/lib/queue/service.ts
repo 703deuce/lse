@@ -156,6 +156,34 @@ async function failRelatedFeatureRowOnCancel(
         .in("status", ["queued", "running"]);
       break;
     }
+    case "process_scan":
+    case "retry_scan_cells": {
+      const scanBatchId = String(payload.scanBatchId ?? "");
+      if (!scanBatchId) return;
+      await supabase
+        .from("scan_batches")
+        .update({
+          status: "failed",
+          error_message: "Canceled by operator",
+          finished_at: finishedAt,
+          lease_owner: null,
+          lease_expires_at: null,
+        })
+        .eq("id", scanBatchId)
+        .in("status", ["queued", "dispatching", "provider_running", "normalizing"]);
+      const orgId =
+        job.organizationId ||
+        (typeof payload.organizationId === "string" ? payload.organizationId : null);
+      if (orgId) {
+        const { maybeReleaseUnusedMapCredits } = await import("@/lib/jobs/map-credits");
+        await maybeReleaseUnusedMapCredits(
+          scanBatchId,
+          orgId,
+          "Canceled by operator"
+        ).catch(() => {});
+      }
+      break;
+    }
     default:
       break;
   }
