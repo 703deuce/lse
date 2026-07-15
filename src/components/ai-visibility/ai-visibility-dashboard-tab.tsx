@@ -107,13 +107,8 @@ export function AiVisibilityDashboardTab({
 
         <AiPanel
           title="Visibility Trend"
-          subtitle="Last 30 days"
+          subtitle="From your completed runs"
           className="lg:col-span-3"
-          action={
-            <select className="rounded border border-border px-2 py-1 text-[10px] text-text-muted">
-              <option>Last 30 days</option>
-            </select>
-          }
           bodyClassName="pt-1.5"
         >
           <div className="h-32">

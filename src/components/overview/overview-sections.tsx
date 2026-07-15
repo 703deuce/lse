@@ -11,7 +11,6 @@ import {
   MessageSquare,
   FileText,
   ArrowUpRight,
-  Phone,
   FileBarChart,
   Sparkles,
   Grid3X3,

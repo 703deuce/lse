@@ -37,12 +37,6 @@ const TASK_FILTERS = [
 
 const TASK_ICONS = [Globe, Handshake, Star, ClipboardList, Globe];
 
-const PLACEHOLDER_OWNERS = [
-  { initials: "SJ", name: "Sarah Johnson", color: "bg-sky-500" },
-  { initials: "MC", name: "Mike Chen", color: "bg-violet-500" },
-  { initials: "JD", name: "John Doe", color: "bg-emerald-600" },
-];
-
 function impactBars(impact: string) {
   const level = impact === "high" ? 3 : impact === "medium" ? 2 : 1;
   const color = impact === "high" ? "bg-emerald-500" : impact === "medium" ? "bg-amber-500" : "bg-zinc-400";
@@ -106,38 +100,12 @@ function statusBadge(status: string) {
   );
 }
 
-function ownerDisplay(index: number) {
-  const owner = PLACEHOLDER_OWNERS[index % PLACEHOLDER_OWNERS.length];
-  return (
-    <div className="flex items-center gap-2">
-      <span
-        className={cn(
-          "flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white",
-          owner.color
-        )}
-      >
-        {owner.initials}
-      </span>
-      <span className="text-xs text-zinc-700">{owner.name}</span>
-    </div>
-  );
+function ownerDisplay() {
+  return <span className="text-xs text-zinc-400">Unassigned</span>;
 }
 
-function dueDateDisplay(index: number) {
-  const daysLeft = [3, 7, 14, 5, 21][index % 5];
-  const date = new Date();
-  date.setDate(date.getDate() + daysLeft);
-  const formatted = date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-  return (
-    <div>
-      <p className="text-xs text-zinc-900">{formatted}</p>
-      <p className="text-[10px] text-red-500">{daysLeft} days left</p>
-    </div>
-  );
+function dueDateDisplay() {
+  return <span className="text-xs text-zinc-400">—</span>;
 }
 
 export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
@@ -334,8 +302,8 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
                     <td className="px-3.5 py-2">{impactDisplay(String(task.impact ?? "medium"))}</td>
                     <td className="px-3.5 py-2">{effortDisplay(String(task.effort ?? "medium"))}</td>
                     <td className="px-3.5 py-2">{priorityBadge(String(task.priority ?? "medium"))}</td>
-                    <td className="px-3.5 py-2">{ownerDisplay((page - 1) * pageSize + idx)}</td>
-                    <td className="px-3.5 py-2">{dueDateDisplay((page - 1) * pageSize + idx)}</td>
+                    <td className="px-3.5 py-2">{ownerDisplay()}</td>
+                    <td className="px-3.5 py-2">{dueDateDisplay()}</td>
                     <td className="px-3.5 py-2">{statusBadge(String(task.status ?? "open"))}</td>
                   </tr>
                 );

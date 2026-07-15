@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentType, ReactNode } from "react";
-import { AlertTriangle, Bell, ChevronDown, ChevronRight } from "lucide-react";
+import { AlertTriangle, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import {
   dashboardCard,
@@ -16,7 +16,7 @@ import {
   kpiSubClass,
   kpiValueClass,
 } from "@/components/ui/metric-card";
-import { ModuleHeader, btnIcon, btnSecondary } from "@/components/ui/design-system";
+import { ModuleHeader, btnSecondary } from "@/components/ui/design-system";
 
 export function KeywordsPageHeader({ businessId }: { businessId: string }) {
   return (

@@ -4,11 +4,9 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import {
   ArrowUpRight,
-  Bell,
   Calendar,
   CheckCircle2,
   ChevronDown,
-  CircleHelp,
   Globe,
   Info,
   MapPin,
@@ -31,7 +29,6 @@ import {
   TabBar,
   btnPrimary,
   btnSecondary,
-  btnIcon,
 } from "@/components/ui/design-system";
 import { GridMetricCard, KpiRow } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";

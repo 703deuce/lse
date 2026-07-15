@@ -2,9 +2,7 @@
 
 import type { ComponentType, ReactNode } from "react";
 import {
-  Bell,
   Calendar,
-  CircleHelp,
   ClipboardList,
   Clock,
   Eye,
@@ -28,7 +26,6 @@ import {
   TabBar,
   btnPrimary,
   btnSecondary,
-  btnIcon,
 } from "@/components/ui/design-system";
 import { GridMetricCard, KpiRow } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";

@@ -1,11 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Calendar, ChevronDown, Loader2, Zap } from "lucide-react";
+import { Loader2, Zap } from "lucide-react";
 import type { MomentumLabel } from "@/lib/reviews/metrics";
 import {
   dashboardCard,
-  dashboardControl,
   dashboardSectionLabel,
 } from "@/components/overview/dashboard-ui";
 import { ModuleHeader, btnPrimary } from "@/components/ui/design-system";

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  Download,
   ExternalLink,
   Loader2,
   Sparkles,
@@ -13,7 +12,6 @@ import { OPPORTUNITY_TYPE_LABELS, type OpportunityType } from "@/lib/local-trust
 import {
   AuthorityRing,
   TrustFilterSelect,
-  TrustSearchInput,
   domainInitials,
   localMatchDisplay,
   trustPriorityBadge,
@@ -121,22 +119,11 @@ export function LocalTrustCompetitorsTab({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[13px] text-zinc-500">
-          See where your top competitors are mentioned locally—and how you can get featured too.
-        </p>
-        <button type="button" className="text-[12px] font-medium text-emerald-700 hover:underline">
-          Insights summary →
-        </button>
-      </div>
+      <p className="text-[13px] text-zinc-500">
+        See where your top competitors are mentioned locally—and how you can get featured too.
+      </p>
 
       <div className="flex flex-wrap items-end gap-2 border-b border-zinc-100 pb-3">
-        <TrustFilterSelect
-          label="Competitor"
-          value="all"
-          onChange={() => {}}
-          options={[{ value: "all", label: "All competitors" }]}
-        />
         <TrustFilterSelect
           label="Mention Type"
           value={typeFilter}
@@ -176,16 +163,19 @@ export function LocalTrustCompetitorsTab({
             { value: "50", label: "50" },
           ]}
         />
-        <button type="button" className="text-xs font-medium text-emerald-700 hover:underline">
-          Clear filters
-        </button>
-        <button
-          type="button"
-          className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3.5 py-2 text-[12px] font-semibold text-white hover:bg-emerald-700"
-        >
-          <Download className="h-3.5 w-3.5" />
-          Export
-        </button>
+        {(typeFilter !== "all" || priorityFilter !== "all") && (
+          <button
+            type="button"
+            onClick={() => {
+              setTypeFilter("all");
+              setPriorityFilter("all");
+              setPage(1);
+            }}
+            className="text-xs font-medium text-emerald-700 hover:underline"
+          >
+            Clear filters
+          </button>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50/50 px-3.5 py-2.5">
@@ -196,9 +186,6 @@ export function LocalTrustCompetitorsTab({
             ? `Found ${total} pages where competitors appear locally. Focus on chamber and community pages for the fastest gap closure.`
             : "No competitor mentions found yet in this market. Run another scan or check Opportunities for open placements."}
         </p>
-        <button type="button" className="shrink-0 rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50">
-          View gap analysis →
-        </button>
       </div>
 
       <div className={cn(dashboardCard, "overflow-hidden")}>

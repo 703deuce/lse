@@ -23,7 +23,6 @@ import {
   TabBar,
   ModuleHeader,
   btnPrimary,
-  btnIcon,
 } from "@/components/ui/design-system";
 
 export const GROWTH_AUDIT_TABS = [
