@@ -19,7 +19,7 @@ export async function GET(request: Request) {
         "id, grid_size, radius_meters, created_at, finished_at, location_id, center_label, aggregate_metrics, confidence_summary, status"
       )
       .eq("business_id", businessId)
-      .in("status", ["ready", "partial", "rank_ready", "enriching", "enriched"])
+      .in("status", ["ready", "partial", "rank_ready"])
       .order("created_at", { ascending: false })
       .limit(40);
 

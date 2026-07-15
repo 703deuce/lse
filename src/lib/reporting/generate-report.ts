@@ -26,46 +26,100 @@ export type GenerateReportParams = {
   radiusMeters?: number | null;
   selectedCompetitorKeys?: string[];
   whiteLabel?: Partial<WhiteLabelConfig>;
+  /** When false, build HTML/payload without upserting a shareable report row. */
+  persist?: boolean;
 };
 
 export type GenerateReportResult = {
-  reportId: string;
-  shareToken: string;
+  reportId: string | null;
+  shareToken: string | null;
   html: string;
   payload: AnyReportPayload;
 };
 
-async function resolveShareToken(
+type ReportMeta = {
+  reportType?: string;
+  identityKey?: string;
+};
+
+function reportIdentityKey(
+  payload: AnyReportPayload,
+  params: GenerateReportParams
+): string {
+  switch (payload.reportType) {
+    case "single_scan":
+      return `single_scan:${payload.parameters.scanId}`;
+    case "competitor":
+      return `competitor:${payload.parameters.scanId}:${[...(params.selectedCompetitorKeys ?? [])]
+        .sort()
+        .join(",")}`;
+    case "trend":
+      return [
+        "trend",
+        params.keywordId ?? payload.parameters.keyword,
+        payload.parameters.locationId ?? "biz",
+        payload.parameters.gridSize,
+        payload.parameters.radiusMeters,
+      ].join(":");
+    case "location":
+      return "location";
+    case "keyword":
+      return [
+        "keyword",
+        payload.parameters.keywordId ?? payload.parameters.keyword,
+        payload.parameters.gridSize,
+        payload.parameters.radiusMeters,
+      ].join(":");
+    case "maps_campaign":
+      return "maps_campaign";
+    case "reviews":
+      return "reviews";
+    case "review_campaign":
+      return `review_campaign:${payload.parameters.campaignId}`;
+    default: {
+      const _exhaustive: never = payload;
+      return String((_exhaustive as AnyReportPayload).reportType);
+    }
+  }
+}
+
+/** Persist scan_batch_id only when the report is fundamentally about that scan. */
+function persistScanBatchId(payload: AnyReportPayload): string | null {
+  if (payload.reportType === "single_scan" || payload.reportType === "competitor") {
+    return payload.parameters.scanId;
+  }
+  return null;
+}
+
+async function resolveExistingShare(
   supabase: ReturnType<typeof createServiceClient>,
-  params: { businessId: string; scanBatchId?: string | null; reportType: string }
+  params: {
+    businessId: string;
+    reportType: string;
+    identityKey: string;
+  }
 ): Promise<{ existingReportId: string | null; shareToken: string; shareExpiresAt: string }> {
   const shareExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
 
-  let query = supabase
+  // Exact reportType + identityKey match — never collapse across campaigns/types.
+  const { data: existingReports } = await supabase
     .from("reports")
     .select("id, share_token, share_expires_at, metadata_json")
     .eq("business_id", params.businessId)
+    .eq("metadata_json->>reportType", params.reportType)
+    .eq("metadata_json->>identityKey", params.identityKey)
     .order("generated_at", { ascending: false })
-    .limit(8);
+    .limit(1);
 
-  if (params.scanBatchId) {
-    query = query.eq("scan_batch_id", params.scanBatchId);
-  } else {
-    query = query.is("scan_batch_id", null);
-  }
-
-  const { data: existingReports } = await query;
-  const matched =
-    (existingReports ?? []).find((r) => {
-      const meta = (r.metadata_json ?? {}) as { reportType?: string };
-      return meta.reportType === params.reportType || !meta.reportType;
-    }) ?? null;
+  const matched = (existingReports ?? [])[0] ?? null;
 
   const existingExpiresAt = matched?.share_expires_at
     ? new Date(matched.share_expires_at as string).getTime()
     : null;
   const existingExpired =
-    existingExpiresAt !== null && Number.isFinite(existingExpiresAt) && existingExpiresAt <= Date.now();
+    existingExpiresAt !== null &&
+    Number.isFinite(existingExpiresAt) &&
+    existingExpiresAt <= Date.now();
   const shareToken =
     matched?.share_token && !existingExpired
       ? (matched.share_token as string)
@@ -80,21 +134,26 @@ async function resolveShareToken(
 
 async function persistReport(params: {
   businessId: string;
-  scanBatchId?: string | null;
   html: string;
   payload: AnyReportPayload;
+  identityKey: string;
 }): Promise<GenerateReportResult> {
   const supabase = createServiceClient();
-  const { existingReportId, shareToken, shareExpiresAt } = await resolveShareToken(supabase, {
+  const scanBatchId = persistScanBatchId(params.payload);
+  const { existingReportId, shareToken, shareExpiresAt } = await resolveExistingShare(supabase, {
     businessId: params.businessId,
-    scanBatchId: params.scanBatchId,
     reportType: params.payload.reportType,
+    identityKey: params.identityKey,
   });
 
   const metadata = {
     reportType: params.payload.reportType,
+    identityKey: params.identityKey,
     payload: params.payload,
     generatedAt: params.payload.generatedAt,
+  } satisfies ReportMeta & {
+    payload: AnyReportPayload;
+    generatedAt: string;
   };
 
   if (existingReportId) {
@@ -106,7 +165,7 @@ async function persistReport(params: {
         html_content: params.html,
         metadata_json: metadata,
         generated_at: new Date().toISOString(),
-        scan_batch_id: params.scanBatchId ?? null,
+        scan_batch_id: scanBatchId,
       })
       .eq("id", existingReportId)
       .eq("business_id", params.businessId)
@@ -125,7 +184,7 @@ async function persistReport(params: {
     .from("reports")
     .insert({
       business_id: params.businessId,
-      scan_batch_id: params.scanBatchId ?? null,
+      scan_batch_id: scanBatchId,
       share_token: shareToken,
       share_expires_at: shareExpiresAt,
       html_content: params.html,
@@ -143,29 +202,22 @@ async function persistReport(params: {
   };
 }
 
-export async function generateTypedReport(
+export async function buildTypedReportPayload(
   params: GenerateReportParams
-): Promise<GenerateReportResult> {
+): Promise<AnyReportPayload> {
   const reportType = params.reportType ?? "single_scan";
 
   if (reportType === "single_scan") {
     if (!params.scanBatchId) throw new Error("scanBatchId is required for single_scan reports");
-    const payload = await buildSingleScanReport({
+    return buildSingleScanReport({
       businessId: params.businessId,
       scanBatchId: params.scanBatchId,
       whiteLabel: params.whiteLabel,
     });
-    const html = renderReportHtml(payload);
-    return persistReport({
-      businessId: params.businessId,
-      scanBatchId: params.scanBatchId,
-      html,
-      payload,
-    });
   }
 
   if (reportType === "trend") {
-    const payload = await buildTrendReport({
+    return buildTrendReport({
       businessId: params.businessId,
       keywordId: params.keywordId,
       locationId: params.locationId,
@@ -173,91 +225,46 @@ export async function generateTypedReport(
       radiusMeters: params.radiusMeters,
       whiteLabel: params.whiteLabel,
     });
-    const html = renderReportHtml(payload);
-    const lastScanId = payload.series[payload.series.length - 1]?.scanId ?? params.scanBatchId ?? null;
-    return persistReport({
-      businessId: params.businessId,
-      scanBatchId: lastScanId,
-      html,
-      payload,
-    });
   }
 
   if (reportType === "competitor") {
     if (!params.scanBatchId) throw new Error("scanBatchId is required for competitor reports");
-    const payload = await buildCompetitorReport({
+    return buildCompetitorReport({
       businessId: params.businessId,
       scanBatchId: params.scanBatchId,
       selectedCompetitorKeys: params.selectedCompetitorKeys,
       whiteLabel: params.whiteLabel,
     });
-    const html = renderReportHtml(payload);
-    return persistReport({
-      businessId: params.businessId,
-      scanBatchId: params.scanBatchId,
-      html,
-      payload,
-    });
   }
 
   if (reportType === "location") {
-    const payload = await buildLocationReport({
+    return buildLocationReport({
       businessId: params.businessId,
       whiteLabel: params.whiteLabel,
-    });
-    const html = renderReportHtml(payload);
-    return persistReport({
-      businessId: params.businessId,
-      scanBatchId: params.scanBatchId ?? null,
-      html,
-      payload,
     });
   }
 
   if (reportType === "keyword") {
-    const payload = await buildKeywordReport({
+    return buildKeywordReport({
       businessId: params.businessId,
       keywordId: params.keywordId,
       gridSize: params.gridSize,
       radiusMeters: params.radiusMeters,
       whiteLabel: params.whiteLabel,
     });
-    const html = renderReportHtml(payload);
-    const firstScan = payload.locations.find((l) => l.scanId)?.scanId ?? params.scanBatchId ?? null;
-    return persistReport({
-      businessId: params.businessId,
-      scanBatchId: firstScan,
-      html,
-      payload,
-    });
   }
 
   if (reportType === "maps_campaign") {
-    const payload = await buildMapsCampaignReport({
+    return buildMapsCampaignReport({
       businessId: params.businessId,
       whiteLabel: params.whiteLabel,
-    });
-    const html = renderReportHtml(payload);
-    const firstScan = payload.keywords.find((k) => k.scanId)?.scanId ?? params.scanBatchId ?? null;
-    return persistReport({
-      businessId: params.businessId,
-      scanBatchId: firstScan,
-      html,
-      payload,
     });
   }
 
   if (reportType === "reviews") {
-    const payload = await buildReviewsReport({
+    return buildReviewsReport({
       businessId: params.businessId,
       whiteLabel: params.whiteLabel,
-    });
-    const html = renderReportHtml(payload);
-    return persistReport({
-      businessId: params.businessId,
-      scanBatchId: null,
-      html,
-      payload,
     });
   }
 
@@ -265,21 +272,38 @@ export async function generateTypedReport(
     if (!params.campaignId) {
       throw new Error("campaignId is required for review_campaign reports");
     }
-    const payload = await buildReviewCampaignReport({
+    return buildReviewCampaignReport({
       businessId: params.businessId,
       campaignId: params.campaignId,
       whiteLabel: params.whiteLabel,
     });
-    const html = renderReportHtml(payload);
-    return persistReport({
-      businessId: params.businessId,
-      scanBatchId: null,
-      html,
-      payload,
-    });
   }
 
   throw new Error(`Report type "${reportType}" is not implemented yet`);
+}
+
+export async function generateTypedReport(
+  params: GenerateReportParams
+): Promise<GenerateReportResult> {
+  const payload = await buildTypedReportPayload(params);
+  const html = renderReportHtml(payload);
+  const identityKey = reportIdentityKey(payload, params);
+
+  if (params.persist === false) {
+    return {
+      reportId: null,
+      shareToken: null,
+      html,
+      payload,
+    };
+  }
+
+  return persistReport({
+    businessId: params.businessId,
+    html,
+    payload,
+    identityKey,
+  });
 }
 
 /** Backward-compatible entry: defaults to single_scan and requires scanBatchId. */
@@ -299,6 +323,9 @@ export async function generateReport(params: {
     ...params,
     reportType: params.reportType ?? "single_scan",
   });
+  if (!result.reportId || !result.shareToken) {
+    throw new Error("Failed to persist report");
+  }
   return {
     reportId: result.reportId,
     shareToken: result.shareToken,

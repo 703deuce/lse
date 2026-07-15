@@ -54,13 +54,14 @@ function aggregateKeywordKpis(rows: KeywordMetric[]): ReportKpis {
         ) / 100
       : 0;
 
+  // Rollup aggregate: ARP/ATRP/SoLV are averages across keywords.
+  // Do not fabricate Top-10 / visibility from SoLV — those need grid ranks.
   return {
     ...emptyKpis(),
     arp,
     atrp,
     solv,
     top3Pct: solv,
-    visibilityScore: Math.round(solv),
     totalCells: rows.length,
     foundCells: withArp.length,
   };

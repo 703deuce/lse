@@ -54,14 +54,24 @@ export async function resolveOrgWhiteLabel(
   }
 
   if (orgId) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("organizations")
       .select(
         "name, report_logo_url, report_accent_color, report_footer_text, report_contact_line, report_hide_platform_branding"
       )
       .eq("id", orgId)
       .maybeSingle();
-    org = (data as OrgBrandingRow | null) ?? null;
+    if (error) {
+      // Branding columns may not exist until migration 042 is applied.
+      const { data: fallback } = await supabase
+        .from("organizations")
+        .select("name")
+        .eq("id", orgId)
+        .maybeSingle();
+      org = (fallback as OrgBrandingRow | null) ?? null;
+    } else {
+      org = (data as OrgBrandingRow | null) ?? null;
+    }
   }
 
   const fromOrg = brandingFromOrg(org);
@@ -94,7 +104,22 @@ export async function loadOrganizationReportBranding(organizationId: string): Pr
     )
     .eq("id", organizationId)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) {
+    const { data: fallback, error: fallbackErr } = await supabase
+      .from("organizations")
+      .select("name")
+      .eq("id", organizationId)
+      .maybeSingle();
+    if (fallbackErr) throw new Error(fallbackErr.message);
+    return {
+      companyName: (fallback as OrgBrandingRow | null)?.name?.trim() || "Maps Report",
+      logoUrl: null,
+      accentColor: null,
+      footerText: null,
+      contactLine: null,
+      hidePlatformBranding: false,
+    };
+  }
   const org = (data as OrgBrandingRow | null) ?? null;
   return {
     companyName: org?.name?.trim() || "Maps Report",
@@ -140,7 +165,13 @@ export async function updateOrganizationReportBranding(
       "name, report_logo_url, report_accent_color, report_footer_text, report_contact_line, report_hide_platform_branding"
     )
     .single();
-  if (error || !data) throw new Error(error?.message ?? "Failed to update branding");
+  if (error || !data) {
+    throw new Error(
+      error?.message?.includes("report_")
+        ? "Report branding columns are missing — apply migration 042_org_report_branding.sql"
+        : error?.message ?? "Failed to update branding"
+    );
+  }
   const org = data as OrgBrandingRow;
   return {
     companyName: org.name?.trim() || "Maps Report",

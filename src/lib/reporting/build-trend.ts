@@ -115,7 +115,8 @@ export async function buildTrendReport(params: {
       keyword: keywordLabel,
       gridSize: last.grid_size,
       radiusMeters: last.radius_meters,
-      locationId: params.locationId ?? last.location_id,
+      locationId:
+        params.locationId !== undefined ? params.locationId : last.location_id,
       dateFrom: first.completed_at,
       dateTo: last.completed_at,
       scanCount: series.length,
@@ -132,9 +133,10 @@ export async function buildTrendReport(params: {
       solv: previousPoint.solv,
     },
     deltas: {
-      // Positive ARP/ATRP delta = worse rank (higher number). Callers interpret sign.
-      arp: deltaMetric(currentPoint.arp, previousPoint.arp),
-      atrp: deltaMetric(currentPoint.atrp, previousPoint.atrp),
+      // Positive ARP/ATRP = improved (rank went down). Positive SoLV = improved (share up).
+      // Matches Location / Maps Campaign Δ ARP convention (previous − current for ranks).
+      arp: deltaMetric(previousPoint.arp, currentPoint.arp),
+      atrp: deltaMetric(previousPoint.atrp, currentPoint.atrp),
       solv: deltaMetric(currentPoint.solv, previousPoint.solv),
     },
     whiteLabel,

@@ -14,6 +14,7 @@ import {
   kpisFromRanks,
   mapsUrlFromPlaceId,
   pct,
+  round1,
 } from "@/lib/reporting/metrics";
 import {
   resolveOrgWhiteLabel,
@@ -194,15 +195,23 @@ export async function buildSingleScanReport(params: {
   for (const entity of competitorEntities.slice(15)) {
     const meta = metaByKey.get(entity.key);
     const agg = topCompetitors.find((c) => entityKeyFromParts(c) === entity.key);
+    const totalCells = agg?.totalCells ?? kpis.totalCells;
+    const appearances = agg?.appearances ?? 0;
+    const arp = agg?.avgRank ?? null;
+    // Approximate ATRP for pack-only rows: treat non-appearances as rank 21.
+    const atrp =
+      arp != null && totalCells > 0
+        ? round1((arp * appearances + 21 * (totalCells - appearances)) / totalCells)
+        : arp;
     competitorRows.push({
       key: entity.key,
       name: entity.label,
-      arp: agg?.avgRank ?? null,
-      atrp: agg?.avgRank ?? null,
-      solv: pct(agg?.top3Appearances ?? 0, agg?.totalCells ?? kpis.totalCells),
+      arp,
+      atrp,
+      solv: pct(agg?.top3Appearances ?? 0, totalCells),
       top3Appearances: agg?.top3Appearances ?? 0,
-      totalCells: agg?.totalCells ?? kpis.totalCells,
-      appearancePct: pct(agg?.appearances ?? 0, agg?.totalCells ?? kpis.totalCells),
+      totalCells,
+      appearancePct: pct(appearances, totalCells),
       rating: meta?.rating ?? null,
       reviewCount: meta?.reviewCount ?? null,
       category: meta?.category ?? null,
