@@ -20,6 +20,7 @@ import {
 } from "@/lib/maps/cell-result-integrity";
 import { invalidateScanGridCache } from "@/lib/maps/scan-queries";
 import { acquireBrightDataSlot, fairChunkSize } from "@/lib/queue/bright-data-limiter";
+import { withDbLimit } from "@/lib/platform/db-limiter";
 
 /** Default fair chunk (platform-wide) — overridden by BRIGHTDATA_GRID_BATCH_SIZE / FAIR_CHUNK. */
 const BRIGHTDATA_GRID_BATCH_SIZE = 25;
@@ -153,53 +154,55 @@ async function saveCellProgress(
   failed: number,
   extra?: Record<string, unknown>
 ) {
-  const supabase = createServiceClient();
-  const failedPointIds = Array.isArray(extra?.failed_point_ids)
-    ? (extra.failed_point_ids as string[])
-    : [];
+  return withDbLimit(async () => {
+    const supabase = createServiceClient();
+    const failedPointIds = Array.isArray(extra?.failed_point_ids)
+      ? (extra.failed_point_ids as string[])
+      : [];
 
-  // Never let a retry/integrity pass rewind the public counter — that made the
-  // wait UI jump to 49 then drop back to ~47 while late flushes landed.
-  const { data: existing } = await supabase
-    .from("scan_batches")
-    .select("cells_completed, cells_total, confidence_summary")
-    .eq("id", scanBatchId)
-    .maybeSingle();
-  const conf = (existing?.confidence_summary ?? {}) as Record<string, unknown>;
-  const prevCompleted = Math.max(
-    Number(existing?.cells_completed ?? 0),
-    Number(conf.completed_cells ?? 0)
-  );
-  const prevTotal = Math.max(
-    Number(existing?.cells_total ?? 0),
-    Number(conf.total_cells ?? 0),
-    total
-  );
-  const safeCompleted = Math.max(prevCompleted, completed);
-  const safeTotal = Math.max(prevTotal, total);
+    // Never let a retry/integrity pass rewind the public counter — that made the
+    // wait UI jump to 49 then drop back to ~47 while late flushes landed.
+    const { data: existing } = await supabase
+      .from("scan_batches")
+      .select("cells_completed, cells_total, confidence_summary")
+      .eq("id", scanBatchId)
+      .maybeSingle();
+    const conf = (existing?.confidence_summary ?? {}) as Record<string, unknown>;
+    const prevCompleted = Math.max(
+      Number(existing?.cells_completed ?? 0),
+      Number(conf.completed_cells ?? 0)
+    );
+    const prevTotal = Math.max(
+      Number(existing?.cells_total ?? 0),
+      Number(conf.total_cells ?? 0),
+      total
+    );
+    const safeCompleted = Math.max(prevCompleted, completed);
+    const safeTotal = Math.max(prevTotal, total);
 
-  const { failed_point_ids: _ignored, ...restExtra } = extra ?? {};
-  const patch: Record<string, unknown> = {
-    provider: "brightdata",
-    method: "live_parallel",
-    completed_cells: safeCompleted,
-    total_cells: safeTotal,
-    failed_cells: failed,
-    failed_point_ids: failedPointIds,
-    ...restExtra,
-  };
+    const { failed_point_ids: _ignored, ...restExtra } = extra ?? {};
+    const patch: Record<string, unknown> = {
+      provider: "brightdata",
+      method: "live_parallel",
+      completed_cells: safeCompleted,
+      total_cells: safeTotal,
+      failed_cells: failed,
+      failed_point_ids: failedPointIds,
+      ...restExtra,
+    };
 
-  // Counters on columns; confidence keys merge so parallel writers cannot wipe siblings.
-  await supabase
-    .from("scan_batches")
-    .update({
-      cells_total: safeTotal,
-      cells_completed: safeCompleted,
-      cells_failed: failed,
-    })
-    .eq("id", scanBatchId);
+    // Counters on columns; confidence keys merge so parallel writers cannot wipe siblings.
+    await supabase
+      .from("scan_batches")
+      .update({
+        cells_total: safeTotal,
+        cells_completed: safeCompleted,
+        cells_failed: failed,
+      })
+      .eq("id", scanBatchId);
 
-  await mergeScanConfidenceSummary(supabase, scanBatchId, patch);
+    await mergeScanConfidenceSummary(supabase, scanBatchId, patch);
+  });
 }
 
 /** Serialize progress writes per scan so parallel cells cannot clobber confidence_summary. */

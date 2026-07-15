@@ -22,6 +22,7 @@ import { ModulePage, AlertBanner } from "@/components/ui/design-system";
 import { BacklinkGapOverviewTab } from "@/components/backlink-gap/backlink-gap-overview-tab";
 import { BacklinkGapMatrixTab } from "@/components/backlink-gap/backlink-gap-matrix-tab";
 import { BacklinkGapTasksTab } from "@/components/backlink-gap/backlink-gap-tasks-tab";
+import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 
 type GapData = {
   run: {
@@ -54,8 +55,6 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
   const [data, setData] = useState<GapData | null>(null);
   const [tab, setTab] = useState<BacklinkGapTabId>("overview");
   const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<EnrichedOpportunity | null>(null);
   const [updating, setUpdating] = useState(false);
   const [topOpportunities, setTopOpportunities] = useState<EnrichedOpportunity[]>([]);
@@ -63,7 +62,6 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
       const res = await fetch(`/api/backlink-gap/${businessId}`);
       const json = await res.json();
@@ -90,48 +88,37 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
   }, [businessId]);
 
   useEffect(() => {
-    load();
-    loadStats();
+    void load();
+    void loadStats();
   }, [load, loadStats]);
 
   useEffect(() => {
     if (data?.run?.status === "ready" || data?.run?.status === "partial") {
-      loadTopOpportunities();
+      void loadTopOpportunities();
     }
   }, [data?.run?.status, loadTopOpportunities]);
 
-  useEffect(() => {
-    if (!running && data?.run?.status !== "running") return;
-    const t = setInterval(() => void load(), 3000);
-    return () => clearInterval(t);
-  }, [data?.run?.status, running, load]);
-
-  useEffect(() => {
-    if (!running) return;
-    const status = data?.run?.status;
-    if (status === "ready" || status === "partial" || status === "failed") {
-      setRunning(false);
-      void loadStats();
-    }
-  }, [data?.run?.status, running, loadStats]);
-
-  async function runGap(forceRefresh = false) {
-    setRunning(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/backlink-gap/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId, forceRefresh }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Analysis failed");
+  const {
+    start: startJob,
+    running,
+    error,
+    setError,
+  } = useModuleJobRunner({
+    onSettled: async () => {
       await load();
       await loadStats();
-      if (!json.queued) setRunning(false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Analysis failed");
-      setRunning(false);
+    },
+  });
+
+  async function runGap(forceRefresh = false) {
+    try {
+      await startJob(
+        "/api/backlink-gap/run",
+        { businessId, forceRefresh },
+        "Analysis failed"
+      );
+    } catch {
+      /* error already set by runner */
     }
   }
 

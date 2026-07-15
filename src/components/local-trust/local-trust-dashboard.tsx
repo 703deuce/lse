@@ -21,6 +21,7 @@ import {
 } from "@/components/local-trust/local-trust-ui";
 import { ModulePage, AlertBanner, EmptyState } from "@/components/ui/design-system";
 import { dashboardCard } from "@/components/overview/dashboard-ui";
+import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 import { cn } from "@/lib/utils";
 
 type RunData = {
@@ -74,8 +75,6 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
   const [selectedMarket, setSelectedMarket] = useState<MarketSelection>("all");
   const [tab, setTab] = useState<LocalTrustTabId>("overview");
   const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [uniqueDomains, setUniqueDomains] = useState(0);
   const [lastRescanSummary, setLastRescanSummary] = useState<Record<string, unknown> | null>(null);
 
@@ -148,17 +147,17 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
     void load();
   }, [load]);
 
-  useEffect(() => {
-    if (!running && data?.run?.status !== "running") return;
-    const id = setInterval(() => void load(), 3000);
-    return () => clearInterval(id);
-  }, [data?.run?.status, running, load]);
-
-  useEffect(() => {
-    if (!running) return;
-    const status = data?.run?.status;
-    if (status === "complete" || status === "failed") setRunning(false);
-  }, [data?.run?.status, running]);
+  const {
+    start: startJob,
+    running,
+    error,
+    setError,
+  } = useModuleJobRunner({
+    onSettled: async () => {
+      await load();
+      await loadMarkets();
+    },
+  });
 
   async function runScan(input: {
     city?: string;
@@ -166,31 +165,24 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
     county?: string;
     rescan?: boolean;
   }) {
-    setRunning(true);
-    setError(null);
     try {
-      const res = await fetch("/api/trust/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      if (input.city && input.state) {
+        setSelectedMarket({ city: input.city, state: input.state });
+      }
+      const json = await startJob(
+        "/api/trust/run",
+        {
           businessId,
           city: input.city,
           state: input.state,
           county: input.county,
           rescan: input.rescan,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Finder failed");
+        },
+        "Finder failed"
+      );
       if (json.rescanSummary) setLastRescanSummary(json.rescanSummary as Record<string, unknown>);
-      if (input.city && input.state) {
-        setSelectedMarket({ city: input.city, state: input.state });
-      }
-      await load();
-      if (!json.queued) setRunning(false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Finder failed");
-      setRunning(false);
+    } catch {
+      /* error already set by runner */
     }
   }
 

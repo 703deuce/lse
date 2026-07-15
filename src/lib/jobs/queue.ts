@@ -66,11 +66,17 @@ function retryDelayMs(attempt: number): number {
 async function reclaimStaleRunningJobs(
   supabase: ReturnType<typeof createServiceClient>
 ): Promise<number> {
+  const { reclaimExpiredJobLeases } = await import("@/lib/queue/ledger");
+  const leased = await reclaimExpiredJobLeases(50).catch(() => 0);
+
   const staleBefore = new Date(Date.now() - JOB_RUNNING_STALE_MS).toISOString();
   const { data } = await supabase
     .from("job_queue")
     .update({
       status: "pending",
+      lifecycle_status: "queued",
+      lease_owner: null,
+      lease_expires_at: null,
       scheduled_at: new Date().toISOString(),
       error_message: "Reclaimed stale running job",
     })
@@ -78,9 +84,14 @@ async function reclaimStaleRunningJobs(
     .lt("started_at", staleBefore)
     .select("id");
 
-  const count = data?.length ?? 0;
+  const count = (data?.length ?? 0) + leased;
   if (count > 0) {
-    logger.warn("job_queue_stale_running_reclaimed", { count, staleBefore });
+    logger.warn("job_queue_stale_running_reclaimed", {
+      count,
+      leased,
+      byStartedAt: data?.length ?? 0,
+      staleBefore,
+    });
   }
   return count;
 }

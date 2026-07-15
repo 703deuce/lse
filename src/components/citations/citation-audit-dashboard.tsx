@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2, Play, RefreshCw, ListChecks } from "lucide-react";
 import { MetricCard } from "@/components/ui/metric-card";
 import type { NapIssue } from "@/lib/citations/nap-match";
+import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 
 type TabId = "overview" | "found" | "missing" | "nap" | "competitors" | "tasks";
 
@@ -72,21 +73,18 @@ export function CitationAuditDashboard({ businessId }: { businessId: string }) {
   const [data, setData] = useState<AuditData | null>(null);
   const [tab, setTab] = useState<TabId>("overview");
   const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (opts?: { quiet?: boolean }) => {
-    if (!opts?.quiet) setLoading(true);
-    setError(null);
+  const load = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await fetch(`/api/citations/${businessId}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to load");
       setData(json);
     } catch (e) {
-      if (!opts?.quiet) setError(e instanceof Error ? e.message : "Load failed");
+      setError(e instanceof Error ? e.message : "Load failed");
     } finally {
-      if (!opts?.quiet) setLoading(false);
+      setLoading(false);
     }
   }, [businessId]);
 
@@ -94,34 +92,20 @@ export function CitationAuditDashboard({ businessId }: { businessId: string }) {
     void load();
   }, [load]);
 
-  useEffect(() => {
-    if (!running && data?.audit?.status !== "running") return;
-    const id = setInterval(() => void load({ quiet: true }), 3000);
-    return () => clearInterval(id);
-  }, [data?.audit?.status, running, load]);
-
-  useEffect(() => {
-    if (!running) return;
-    const status = data?.audit?.status;
-    if (status && status !== "running") setRunning(false);
-  }, [data?.audit?.status, running]);
+  const {
+    start: startJob,
+    running,
+    error,
+    setError,
+  } = useModuleJobRunner({
+    onSettled: () => load(),
+  });
 
   async function runAudit() {
-    setRunning(true);
-    setError(null);
     try {
-      const res = await fetch("/api/citations/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Audit failed");
-      await load();
-      if (!json.queued) setRunning(false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Audit failed");
-      setRunning(false);
+      await startJob("/api/citations/run", { businessId }, "Audit failed");
+    } catch {
+      /* error already set by runner */
     }
   }
 

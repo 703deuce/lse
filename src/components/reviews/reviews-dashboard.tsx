@@ -19,6 +19,7 @@ import {
   type ReviewsTabId,
 } from "@/components/reviews/reviews-ui";
 import type { ReviewsPageData } from "@/lib/reviews/reviews-page-data";
+import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 
 function parseTab(value: string | null): ReviewsTabId {
   if (value === "keywords") return "sentiment";
@@ -32,8 +33,6 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
   const [tab, setTab] = useState<ReviewsTabId>(() => parseTab(searchParams.get("tab")));
   const [data, setData] = useState<ReviewsPageData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setTab(parseTab(searchParams.get("tab")));
@@ -51,7 +50,6 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
       const res = await fetch(`/api/reviews/${businessId}`);
       const json = await res.json();
@@ -68,28 +66,20 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
     void load();
   }, [load]);
 
+  const {
+    start: startJob,
+    running,
+    error,
+    setError,
+  } = useModuleJobRunner({
+    onSettled: () => load(),
+  });
+
   const runMomentum = async () => {
-    setRunning(true);
     try {
-      const res = await fetch("/api/reviews/momentum/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Run failed");
-      if (json.queued) {
-        for (let i = 0; i < 40; i++) {
-          await new Promise((r) => setTimeout(r, 3000));
-          await load();
-        }
-      } else {
-        await load();
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Run failed");
-    } finally {
-      setRunning(false);
+      await startJob("/api/reviews/momentum/run", { businessId }, "Run failed");
+    } catch {
+      /* error already set by runner */
     }
   };
 

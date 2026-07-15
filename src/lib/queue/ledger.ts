@@ -201,6 +201,97 @@ export async function listEnqueueFailedJobs(limit = 20): Promise<QueueJobRecord[
   return (data ?? []).map(rowToRecord);
 }
 
+export type AdminJobListFilters = {
+  status?: string | null;
+  jobType?: string | null;
+  organizationId?: string | null;
+  q?: string | null;
+  limit?: number;
+};
+
+/** Admin ops search — newest first. */
+export async function listJobsForAdmin(
+  filters: AdminJobListFilters = {}
+): Promise<Array<QueueJobRecord & { lifecycleStatus?: string | null; createdAt?: string }>> {
+  const supabase = createServiceClient();
+  const limit = Math.min(Math.max(filters.limit ?? 50, 1), 200);
+  let query = supabase
+    .from("job_queue")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (filters.status) query = query.eq("status", filters.status);
+  if (filters.jobType) query = query.eq("job_type", filters.jobType);
+  if (filters.organizationId) query = query.eq("organization_id", filters.organizationId);
+  if (filters.q) {
+    const q = filters.q.trim();
+    if (/^[0-9a-f-]{36}$/i.test(q)) {
+      query = query.or(`id.eq.${q},business_id.eq.${q},organization_id.eq.${q}`);
+    } else {
+      query = query.ilike("job_type", `%${q}%`);
+    }
+  }
+
+  const { data } = await query;
+  return (data ?? []).map((row) => ({
+    ...rowToRecord(row),
+    lifecycleStatus: (row.lifecycle_status as string | null) ?? null,
+    createdAt: String(row.created_at ?? ""),
+  }));
+}
+
+export async function countJobsByStatus(): Promise<Record<string, number>> {
+  const supabase = createServiceClient();
+  const statuses = ["pending", "running", "completed", "failed", "canceled"] as const;
+  const counts: Record<string, number> = {};
+  await Promise.all(
+    statuses.map(async (status) => {
+      const { count } = await supabase
+        .from("job_queue")
+        .select("id", { count: "exact", head: true })
+        .eq("status", status);
+      counts[status] = count ?? 0;
+    })
+  );
+  const { count: enqueueFailed } = await supabase
+    .from("job_queue")
+    .select("id", { count: "exact", head: true })
+    .eq("enqueue_state", "enqueue_failed");
+  counts.enqueue_failed = enqueueFailed ?? 0;
+  return counts;
+}
+
+/**
+ * Requeue jobs whose lease expired (worker crash) even if started_at is recent.
+ */
+export async function reclaimExpiredJobLeases(limit = 50): Promise<number> {
+  const supabase = createServiceClient();
+  const now = new Date().toISOString();
+  const { data: expired } = await supabase
+    .from("job_queue")
+    .select("id")
+    .eq("status", "running")
+    .lt("lease_expires_at", now)
+    .limit(limit);
+  const ids = (expired ?? []).map((r) => r.id as string);
+  if (!ids.length) return 0;
+  const { data } = await supabase
+    .from("job_queue")
+    .update({
+      status: "pending",
+      lifecycle_status: "queued",
+      lease_owner: null,
+      lease_expires_at: null,
+      scheduled_at: now,
+      error_message: "Reclaimed expired job lease",
+    })
+    .in("id", ids)
+    .eq("status", "running")
+    .select("id");
+  return data?.length ?? 0;
+}
+
 function rowToRecord(data: Record<string, unknown>): QueueJobRecord {
   return {
     id: String(data.id),

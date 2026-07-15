@@ -55,20 +55,23 @@ Fine-grained priority is carried on the job (`priority` + `job_type`), not by sp
 | Cache | `src/lib/cache/*` | none / memory / redis |
 | Locks | `src/lib/locks/*` | lease-based semaphores |
 | Realtime | `src/lib/realtime/*` | transport selection |
-| Active job UI | `src/components/jobs/use-active-job-status.ts` | deduped adaptive polling |
+| Active job UI | `src/components/jobs/use-active-job-status.ts` + `use-module-job-runner.ts` | deduped adaptive polling |
 | Usage ledger | `src/lib/platform/usage-ledger.ts` | cost/usage append API |
+| Feature summaries | `src/lib/platform/summaries.ts` | compact post-job snapshots + cache |
+| DB op limiter | `src/lib/platform/db-limiter.ts` | caps concurrent hot DB writes |
+| Admin ops | `/admin/ops` + `/api/admin/ops/*` | queue/provider console |
 
 ## Rollout phases (brief Part 27)
 
 | Phase | Scope | Status in this PR |
 | --- | --- | --- |
 | 1 | Inventory + shared interfaces | **Done** |
-| 2 | Harden database driver (leases, DLQ, org limits) | Partial (scan leases + fairness + enqueue recovery) |
-| 3 | All heavy features behind abstraction | **Mostly done**; KD/keywords/single-point/early-enrich wired here |
-| 4 | DB efficiency / summaries / indexes | Follow-up |
-| 5 | Frontend shared status everywhere | Foundation + scan; migrate remaining dashboards |
-| 6 | Redis/BullMQ + cache/lock redis drivers | Drivers present; Coolify flip remaining |
-| 7 | Admin console + mixed load tests | Follow-up |
+| 2 | Harden database driver (leases, DLQ, org limits) | **Mostly done** (scan + job lease reclaim, fairness, enqueue recovery) |
+| 3 | All heavy features behind abstraction | **Mostly done**; KD/keywords/single-point/early-enrich wired |
+| 4 | DB efficiency / summaries / indexes | **Done** (migration 046 + summary rebuild on complete); deep query-plan audit still optional |
+| 5 | Frontend shared status everywhere | **Done** for module run buttons (Maps foundation + Local Trust, AI Visibility, Backlink Gap, Citations, Reputation, Growth Audit, Review Momentum, Reviews) |
+| 6 | Redis/BullMQ + cache/lock redis drivers | Drivers present; Coolify `QUEUE_DRIVER=bullmq` flip remaining |
+| 7 | Admin console + mixed load tests | Admin ops console **Done**; mixed load tests still follow-up |
 
 ## Coolify services
 

@@ -104,6 +104,15 @@ export async function processQueueJob(
 
   if (ledgerJobId && result.markComplete !== false) {
     await markLedgerTerminal(ledgerJobId, "completed");
+    const { rebuildFeatureSummaryAfterJob } = await import("@/lib/platform/summaries");
+    await rebuildFeatureSummaryAfterJob({
+      jobType,
+      organizationId:
+        typeof payload.organizationId === "string" ? payload.organizationId : null,
+      businessId: typeof payload.businessId === "string" ? payload.businessId : null,
+      jobId: ledgerJobId,
+      payload,
+    }).catch(() => {});
   }
 }
 

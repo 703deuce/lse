@@ -71,3 +71,27 @@ describe("provider gateway classification", () => {
     assert.equal(classifyProviderError(new Error("Invalid business")), "permanent");
   });
 });
+
+describe("db limiter", () => {
+  it("serializes beyond max concurrency", async () => {
+    const prev = process.env.DB_OP_CONCURRENCY;
+    process.env.DB_OP_CONCURRENCY = "2";
+    // Re-importing the module is awkward; exercise current singleton with low pressure.
+    const { withDbLimit, dbLimiterStats } = await import("@/lib/platform/db-limiter");
+    let peak = 0;
+    let current = 0;
+    await Promise.all(
+      Array.from({ length: 6 }, () =>
+        withDbLimit(async () => {
+          current += 1;
+          peak = Math.max(peak, current);
+          await new Promise((r) => setTimeout(r, 15));
+          current -= 1;
+        })
+      )
+    );
+    assert.ok(peak <= Math.max(2, dbLimiterStats().max));
+    if (prev === undefined) delete process.env.DB_OP_CONCURRENCY;
+    else process.env.DB_OP_CONCURRENCY = prev;
+  });
+});

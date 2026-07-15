@@ -26,6 +26,7 @@ import {
 } from "@/components/ai-visibility/ai-visibility-ui";
 import { ModulePage } from "@/components/ui/design-system";
 import { KpiRow } from "@/components/ui/metric-card";
+import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 import type { RunSummary } from "@/lib/ai-visibility/types";
 
 function formatRunLabel(r: RunSummary) {
@@ -53,7 +54,6 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
   const [tab, setTab] = useState<AiVisibilityTabId>("dashboard");
   const [runView, setRunView] = useState<RunView | "pending">("pending");
   const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [mentionsMode, setMentionsMode] = useState<"current" | "across" | "by-engine">("current");
@@ -88,25 +88,12 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
     void load();
   }, [load]);
 
-  useEffect(() => {
-    if (
-      !running &&
-      data?.runningRun?.status !== "running" &&
-      data?.latestRun?.status !== "running"
-    ) {
-      return;
-    }
-    const id = setInterval(() => void load(), 3000);
-    return () => clearInterval(id);
-  }, [data?.latestRun?.status, data?.runningRun?.status, running, load]);
-
-  useEffect(() => {
-    if (!running) return;
-    const status = data?.runningRun?.status ?? data?.latestRun?.status;
-    if (status === "complete" || status === "failed" || status === "partial") {
-      setRunning(false);
-    }
-  }, [data?.runningRun?.status, data?.latestRun?.status, running]);
+  const { start: startJob, running } = useModuleJobRunner({
+    onSettled: async () => {
+      setRunView("combined");
+      await load();
+    },
+  });
 
   const isCombined = effectiveRunView === "combined";
   const run = data?.latestRun;
@@ -152,22 +139,16 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
   }
 
   async function runCheck() {
-    setRunning(true);
     setError(null);
     try {
-      const res = await fetch("/api/ai-visibility/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId, maxPrompts: 1 }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Check failed");
-      setRunView(json.queued ? "pending" : "combined");
-      await load();
-      if (!json.queued) setRunning(false);
+      setRunView("pending");
+      await startJob(
+        "/api/ai-visibility/run",
+        { businessId, maxPrompts: 1 },
+        "Check failed"
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Check failed");
-      setRunning(false);
     }
   }
 
