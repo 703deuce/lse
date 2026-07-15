@@ -936,11 +936,11 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
           </button>
         </div>
       )}
-      <div className="border-b border-zinc-200 bg-white px-4 py-2">
+      <div className="border-b border-zinc-200 bg-white px-3 py-2 sm:px-4">
             <div className="flex flex-wrap items-center justify-between gap-2.5">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-bold tracking-tight text-zinc-900">Rank Grid</h1>
+            <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <h1 className="text-base font-bold tracking-tight text-zinc-900 sm:text-lg">Rank Grid</h1>
                 {batch?.status ? <StatusBadge status={String(batch.status)} /> : null}
                 {enrichmentRunning ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900">
@@ -949,7 +949,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                 ) : null}
                 {scanActive ? <Loader2 className="h-4 w-4 animate-spin text-emerald-600" /> : null}
               </div>
-              <div className="flex flex-wrap items-center gap-2 border-l border-zinc-200 pl-3">
+              <div className="flex flex-wrap items-center gap-2 sm:border-l sm:border-zinc-200 sm:pl-3">
                 <button type="button" onClick={() => setCompareOpen(true)} className={headerBtn}>
                   <GitCompare className="h-3.5 w-3.5" /> Compare
                 </button>
@@ -1005,7 +1005,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-2.5">
+        <div className="flex-1 overflow-x-hidden overflow-y-auto px-3 py-2.5 sm:px-4">
         {!data ? (
           <div className="flex items-center gap-2 text-zinc-500">
             <Loader2 className="h-5 w-5 animate-spin" /> Loading scan…
@@ -1038,7 +1038,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
             )}
 
             {waitingForMap ? (
-              <div className="mb-3 flex min-h-[min(62vh,560px)] flex-col items-center justify-center rounded-xl border border-zinc-200 bg-gradient-to-b from-emerald-50/80 to-white px-6 py-12 text-center shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+              <div className="mb-3 flex min-h-[min(52vh,420px)] flex-col items-center justify-center rounded-xl border border-zinc-200 bg-gradient-to-b from-emerald-50/80 to-white px-4 py-10 text-center shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:min-h-[min(62vh,560px)] sm:px-6 sm:py-12">
                 <Loader2 className="h-9 w-9 animate-spin text-emerald-600" />
                 <h2 className="mt-4 text-[18px] font-semibold text-zinc-900">{waitTitle}</h2>
                 <p className="mt-1.5 max-w-md text-[13px] leading-relaxed text-zinc-600">
@@ -1174,7 +1174,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                       className="mb-2"
                     />
                     <div
-                      className={`flex min-h-[min(62vh,560px)] overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-opacity duration-300 ${
+                      className={`flex min-h-[min(52vh,420px)] overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-opacity duration-300 sm:min-h-[min(62vh,560px)] ${
                         timelineFetching ? "opacity-75" : "opacity-100"
                       }`}
                     >

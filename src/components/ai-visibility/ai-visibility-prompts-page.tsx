@@ -213,7 +213,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search prompts by name or keyword…"
-          className="min-w-[220px] flex-1 rounded-md border border-border bg-white px-3.5 py-2 text-[13px] shadow-sm"
+          className="min-w-0 w-full flex-1 rounded-md border border-border bg-white px-3.5 py-2 text-[13px] shadow-sm sm:min-w-[220px]"
         />
         <select className="rounded-md border border-border bg-white px-2.5 py-2 text-xs font-medium text-text shadow-sm" defaultValue="all">
           <option value="all">All Groups</option>

@@ -51,8 +51,8 @@ export function DashboardHeader({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="relative min-w-[11.5rem]">
+        <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+          <label className="relative w-full min-w-0 sm:min-w-[11.5rem] sm:max-w-[16rem]">
             <Building2 className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
             <select
               value={businessId}
@@ -75,17 +75,19 @@ export function DashboardHeader({
             type="button"
             className={cn(
               dashboardControl,
-              "inline-flex items-center gap-2 px-3 font-medium text-zinc-600"
+              "inline-flex w-full items-center justify-between gap-2 px-3 font-medium text-zinc-600 sm:w-auto"
             )}
           >
-            <Calendar className="h-3.5 w-3.5 text-zinc-400" />
-            <span className="whitespace-nowrap">{formatDateRange()}</span>
-            <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
+            <span className="inline-flex min-w-0 items-center gap-2">
+              <Calendar className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+              <span className="truncate whitespace-nowrap">{formatDateRange()}</span>
+            </span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
           </button>
 
           <Link
             href={`/businesses/${businessId}/scans`}
-            className={cn(btnPrimary, "h-9 px-3.5 text-[13px]")}
+            className={cn(btnPrimary, "h-9 w-full justify-center px-3.5 text-[13px] sm:w-auto")}
           >
             <Play className="h-3.5 w-3.5 fill-current" />
             Run Quick Scan

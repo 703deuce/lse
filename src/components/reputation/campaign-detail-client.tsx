@@ -52,7 +52,7 @@ const FILTERS = [
 
 function MicroStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-[6.5rem] rounded-md border border-zinc-200 bg-white px-2.5 py-1.5">
+    <div className="min-w-[calc(50%-0.25rem)] flex-1 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 sm:min-w-[6.5rem] sm:flex-none">
       <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{label}</p>
       <p className="mt-0.5 text-[15px] font-semibold tabular-nums text-zinc-900">{value}</p>
     </div>
@@ -368,7 +368,7 @@ export function CampaignDetailClient({
       </div>
 
       {drawerId && (
-        <div className="fixed inset-0 z-40 flex justify-end bg-black/20">
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/20">
           <button
             type="button"
             className="h-full flex-1"
