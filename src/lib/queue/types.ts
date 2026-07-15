@@ -1,4 +1,11 @@
-/** Named queues — keep workloads isolated so Maps cannot starve notifications. */
+/**
+ * Canonical logical queue names (hyphenated).
+ *
+ * IMPORTANT: These are BullMQ queue *names*. They must never contain `:`.
+ * Namespace with QUEUE_PREFIX via BullMQ's `prefix` option (see bullmq-names.ts).
+ *
+ * Do not scatter string literals — import from JOB_QUEUES / ALL_QUEUE_NAMES.
+ */
 export type QueueName =
   | "maps-scan"
   | "maps-cell-retry"
@@ -15,6 +22,7 @@ export type QueueName =
 /** @deprecated Prefer QueueName — alias kept for worker scripts. */
 export type JobQueueName = QueueName;
 
+/** Single registry for producers, workers, recovery, and admin. */
 export const JOB_QUEUES = {
   MAPS_SCAN: "maps-scan",
   MAPS_CELL_RETRY: "maps-cell-retry",
@@ -28,6 +36,8 @@ export const JOB_QUEUES = {
   NOTIFICATIONS: "notifications",
   MAINTENANCE: "maintenance",
 } as const satisfies Record<string, QueueName>;
+
+export const ALL_QUEUE_NAMES = Object.values(JOB_QUEUES) as QueueName[];
 
 export type QueueDriverName = "database" | "bullmq";
 

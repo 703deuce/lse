@@ -20,7 +20,10 @@ Never infer the driver from a successful Redis ping. Misconfiguration with `QUEU
 
 ## Queues
 
-| Queue | Purpose |
+Canonical names live in `JOB_QUEUES` / `ALL_QUEUE_NAMES` (`src/lib/queue/types.ts`).
+**BullMQ queue names must never contain `:`** — BullMQ uses `:` as an internal Redis key separator.
+
+| Queue name (no colon) | Purpose |
 | --- | --- |
 | `maps-scan` | Parent grid scans |
 | `maps-cell-retry` | Failed-cell retry bursts |
@@ -34,7 +37,31 @@ Never infer the driver from a successful Redis ping. Misconfiguration with `QUEU
 | `notifications` | Transactional notifications |
 | `maintenance` | Retention, reconciliation |
 
+`QUEUE_PREFIX` (default `lse`) is passed as BullMQ's `prefix` option — **not** concatenated into the queue name. Wrong: `new Worker("lse:maps-scan")`. Right: `new Worker("maps-scan", { prefix: "lse" })`.
+
+Helpers: `resolveBullmqQueueIdentity()` / `assertValidBullmqQueueName()` in `src/lib/queue/bullmq-names.ts`.
+
 Each queue has concurrency, limiter, retry, and timeout settings in `src/lib/queue/config.ts` (overridable by env).
+
+### If workers crashed with `Queue name cannot contain :`
+
+That was the old `${QUEUE_PREFIX}:${queueName}` bug. After deploying the fix:
+
+1. Keep web on `QUEUE_DRIVER=database` until a worker stays healthy.
+2. Redeploy workers; logs should show `listening on name=maps-scan prefix=lse ...`.
+3. Optional Redis cleanup (only if anything was enqueued under the bad names):
+
+```bash
+# Inspect (read-only)
+redis-cli -u "$REDIS_URL" --scan --pattern 'bull:lse:*'
+redis-cli -u "$REDIS_URL" --scan --pattern 'lse:*:*'
+
+# Only if web stayed on database and workers never processed work, it is
+# safe to delete orphaned keys from the broken naming attempt:
+# redis-cli -u "$REDIS_URL" --scan --pattern 'bull:lse:*' | xargs -r redis-cli -u "$REDIS_URL" DEL
+```
+
+With web on `database` and workers crash-looping before this fix, there are normally **no** production BullMQ jobs to migrate — recover via Postgres `job_queue` / cron instead.
 
 ## Coolify services
 

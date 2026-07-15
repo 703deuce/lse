@@ -15,6 +15,34 @@ import {
   derivePhase,
 } from "@/lib/jobs/active-job-status";
 
+describe("bullmq queue names", () => {
+  it("rejects colon-containing queue names and accepts registry names", async () => {
+    const {
+      assertValidBullmqQueueName,
+      assertValidBullmqPrefix,
+      resolveBullmqQueueIdentity,
+      listRegisteredQueueNames,
+    } = await import("@/lib/queue/bullmq-names");
+
+    assert.throws(() => assertValidBullmqQueueName("lse:maps-scan"), /cannot contain/);
+    assert.throws(() => assertValidBullmqQueueName("maps:scan"), /cannot contain/);
+    assert.throws(() => assertValidBullmqPrefix("lse:prod"), /must not contain/);
+
+    for (const name of listRegisteredQueueNames()) {
+      assertValidBullmqQueueName(name);
+      assert.ok(!name.includes(":"), name);
+    }
+
+    const prev = process.env.QUEUE_PREFIX;
+    process.env.QUEUE_PREFIX = "lse";
+    const id = resolveBullmqQueueIdentity("maps-scan");
+    assert.equal(id.name, "maps-scan");
+    assert.equal(id.prefix, "lse");
+    if (prev === undefined) delete process.env.QUEUE_PREFIX;
+    else process.env.QUEUE_PREFIX = prev;
+  });
+});
+
 describe("queue config", () => {
   it("defaults QUEUE_DRIVER to database when unset or unknown", () => {
     const prev = process.env.QUEUE_DRIVER;

@@ -1,7 +1,6 @@
 import {
   QUEUE_CONFIGS,
   getBullmqConnectionOptions,
-  getQueuePrefix,
   getRedisUrl,
 } from "@/lib/queue/config";
 import {
@@ -12,18 +11,30 @@ import {
 } from "@/lib/queue/ledger";
 import type { EnqueueJobInput, EnqueueJobResult, QueueName } from "@/lib/queue/types";
 import { canReuseExistingJob } from "@/lib/queue/idempotency";
+import {
+  assertValidBullmqQueueName,
+  resolveBullmqQueueIdentity,
+} from "@/lib/queue/bullmq-names";
 
 const queues = new Map<string, import("bullmq").Queue>();
 
+function cacheKey(name: QueueName, prefix: string): string {
+  // Map key only — never passed to BullMQ as a queue name.
+  return `${prefix}__${name}`;
+}
+
 async function getQueue(name: QueueName): Promise<import("bullmq").Queue> {
-  const key = `${getQueuePrefix()}:${name}`;
+  assertValidBullmqQueueName(name);
+  const { name: queueName, prefix } = resolveBullmqQueueIdentity(name);
+  const key = cacheKey(queueName, prefix);
   const existing = queues.get(key);
   if (existing) return existing;
   const { Queue } = await import("bullmq");
   const connection = getBullmqConnectionOptions(getRedisUrl());
   const cfg = QUEUE_CONFIGS[name];
-  const q = new Queue(key, {
+  const q = new Queue(queueName, {
     connection,
+    prefix,
     defaultJobOptions: {
       attempts: cfg.maxAttempts,
       backoff: { type: "exponential", delay: 2000 },
