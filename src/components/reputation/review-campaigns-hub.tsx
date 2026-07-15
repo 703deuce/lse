@@ -22,7 +22,7 @@ type CampaignSummary = {
 
 function MicroStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-[7.5rem] rounded-md border border-zinc-200 bg-white px-2.5 py-1.5">
+    <div className="min-w-[calc(50%-0.25rem)] flex-1 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 sm:min-w-[7.5rem] sm:flex-none">
       <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{label}</p>
       <p className="mt-0.5 text-[15px] font-semibold tabular-nums text-zinc-900">{value}</p>
     </div>
@@ -70,35 +70,35 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
           title="Review Campaigns"
           subtitle="Request honest reviews by SMS and email. Tracking shows delivery and clicks — not guaranteed review attribution."
         />
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex w-full flex-wrap gap-1.5 sm:w-auto">
           <button
             type="button"
             onClick={() => {
               setBuilderTab("bulk");
               setShowBuilder(true);
             }}
-            className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-emerald-500"
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-emerald-500 sm:flex-none"
           >
             <Plus className="h-3.5 w-3.5" />
             Create Campaign
           </button>
           <Link
             href={`/businesses/${businessId}/contacts?import=1`}
-            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50 sm:flex-none"
           >
             <Upload className="h-3.5 w-3.5" />
             Import Customers
           </Link>
           <Link
             href={`/businesses/${businessId}/contacts`}
-            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50 sm:flex-none"
           >
             <UserPlus className="h-3.5 w-3.5" />
             Add Customer
           </Link>
           <Link
             href={`/businesses/${businessId}/review-templates`}
-            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50 sm:w-auto"
           >
             <FileText className="h-3.5 w-3.5" />
             Manage Templates

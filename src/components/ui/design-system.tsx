@@ -28,7 +28,7 @@ export const filterBarClass =
 
 /* ── Typography tokens ───────────────────────────────────────── */
 
-export const pageTitleClass = "text-xl font-semibold tracking-tight text-zinc-900";
+export const pageTitleClass = "text-lg font-semibold tracking-tight text-zinc-900 sm:text-xl";
 export const pageSubtitleClass = "mt-1 max-w-3xl text-[13px] leading-snug text-zinc-500";
 export const sectionTitleClass = "text-[13px] font-semibold text-zinc-900";
 export const cardLabelClass = "text-[10px] font-medium uppercase tracking-wide text-zinc-500";
@@ -61,7 +61,11 @@ export function ModulePage({
   className?: string;
   wide?: boolean;
 }) {
-  return <div className={cn(moduleStack, wide && moduleMaxWidth, className)}>{children}</div>;
+  return (
+    <div className={cn(moduleStack, "min-w-0 overflow-x-hidden", wide && moduleMaxWidth, className)}>
+      {children}
+    </div>
+  );
 }
 
 export function ModuleHeader({
@@ -89,7 +93,11 @@ export function ModuleHeader({
         {subtitle ? <p className={pageSubtitleClass}>{subtitle}</p> : null}
         {meta ? <div className="mt-2">{meta}</div> : null}
       </div>
-      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? (
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
+          {actions}
+        </div>
+      ) : null}
     </header>
   );
 }
@@ -137,7 +145,7 @@ export function TabBar<T extends string>({
 }) {
   return (
     <div className={cn("-mb-px border-b border-zinc-200", className)}>
-      <div className="flex flex-wrap gap-4 overflow-x-auto">
+      <div className="-mx-1 flex flex-nowrap gap-4 overflow-x-auto px-1 pb-px [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((tab) => (
           <button
             key={tab.id}

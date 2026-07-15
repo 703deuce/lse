@@ -300,7 +300,7 @@ export function GrowthAuditHeader({
       title="Google Maps Growth Audit"
       subtitle="One audit. One growth plan. Everything wrong with your Maps presence."
       icon={BadgeCheck}
-      className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
+      className="[&_h1]:text-lg sm:[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
       meta={
         startedAt ? (
           <p className={dashboardMicro}>
@@ -317,11 +317,17 @@ export function GrowthAuditHeader({
       }
       actions={
         <>
-          <button type="button" disabled={running} onClick={onRun} className={cn(btnPrimary, "h-9 px-3 text-[13px]")}>
+          <button
+            type="button"
+            disabled={running}
+            onClick={onRun}
+            className={cn(btnPrimary, "h-9 w-full px-3 text-[13px] sm:w-auto")}
+          >
             {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5 fill-current" />}
-            Run Full Growth Audit
+            <span className="sm:hidden">Run Audit</span>
+            <span className="hidden sm:inline">Run Full Growth Audit</span>
           </button>
-          <button type="button" className={cn(btnIcon, "h-9 w-9")} aria-label="More options">
+          <button type="button" className={cn(btnIcon, "h-9 w-9 shrink-0")} aria-label="More options">
             <MoreVertical className="h-3.5 w-3.5" />
           </button>
         </>

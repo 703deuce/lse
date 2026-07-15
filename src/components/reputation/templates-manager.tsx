@@ -318,7 +318,7 @@ export function TemplatesManager({ businessId }: { businessId: string }) {
             </div>
             <div className="flex flex-wrap items-center gap-1.5 border-t border-zinc-100 pt-2">
               <input
-                className="h-8 min-w-[12rem] flex-1 rounded-md border border-zinc-200 px-2 text-[12px]"
+                className="h-8 min-w-0 w-full flex-1 rounded-md border border-zinc-200 px-2 text-[12px] sm:min-w-[12rem]"
                 placeholder={channel === "sms" ? "Test phone (+1…)" : "Test email"}
                 value={testTo}
                 onChange={(e) => setTestTo(e.target.value)}

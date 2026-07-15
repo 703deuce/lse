@@ -32,12 +32,14 @@ function SidebarNavItemRow({
   icon: Icon,
   active,
   staticLinks,
+  onNavigate,
 }: {
   href: string;
   label: string;
   icon: ComponentType<{ className?: string }>;
   active: boolean;
   staticLinks?: boolean;
+  onNavigate?: () => void;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -65,7 +67,12 @@ function SidebarNavItemRow({
   }
 
   return (
-    <Link href={href} suppressHydrationWarning className={className}>
+    <Link
+      href={href}
+      suppressHydrationWarning
+      className={className}
+      onClick={() => onNavigate?.()}
+    >
       {content}
     </Link>
   );
@@ -77,12 +84,14 @@ function SidebarNavSubItemRow({
   active,
   dot,
   staticLinks,
+  onNavigate,
 }: {
   href: string;
   label: string;
   active: boolean;
   dot?: boolean;
   staticLinks?: boolean;
+  onNavigate?: () => void;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -107,7 +116,12 @@ function SidebarNavSubItemRow({
   }
 
   return (
-    <Link href={href} suppressHydrationWarning className={className}>
+    <Link
+      href={href}
+      suppressHydrationWarning
+      className={className}
+      onClick={() => onNavigate?.()}
+    >
       {content}
     </Link>
   );
@@ -119,12 +133,14 @@ function NavSection({
   businessId,
   pathname,
   staticLinks,
+  onNavigate,
 }: {
   title: string;
   items: SidebarNavItem[];
   businessId: string;
   pathname: string;
   staticLinks?: boolean;
+  onNavigate?: () => void;
 }) {
   return (
     <div className="mb-2">
@@ -140,6 +156,7 @@ function NavSection({
             icon={item.icon}
             active={isSidebarHrefActive(pathname, item.href, businessId, { isRankGrid: item.isRankGrid })}
             staticLinks={staticLinks}
+            onNavigate={onNavigate}
           />
         ))}
       </div>
@@ -153,17 +170,26 @@ export function DashboardSidebarPanel({
   businessName,
   staticLinks = false,
   showFooter = true,
+  className,
+  onNavigate,
 }: {
   businessId?: string;
   pathname: string;
   businessName?: string | null;
   staticLinks?: boolean;
   showFooter?: boolean;
+  className?: string;
+  onNavigate?: () => void;
 }) {
   const nav = businessId ? buildBusinessSidebarNav(businessId) : null;
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
+    <aside
+      className={cn(
+        "w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar",
+        className ?? "flex"
+      )}
+    >
       <div className="border-b border-sidebar-border px-4 py-3.5">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-600">
@@ -173,7 +199,11 @@ export function DashboardSidebarPanel({
             {staticLinks ? (
               <p className="truncate text-sm font-bold text-white">Maps Growth Agent</p>
             ) : (
-              <Link href="/businesses" className="block truncate text-sm font-bold text-white">
+              <Link
+                href="/businesses"
+                className="block truncate text-sm font-bold text-white"
+                onClick={() => onNavigate?.()}
+              >
                 Maps Growth Agent
               </Link>
             )}
@@ -191,6 +221,7 @@ export function DashboardSidebarPanel({
             <Link
               href="/businesses"
               className="mx-1 mt-2.5 flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/10"
+              onClick={() => onNavigate?.()}
             >
               <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
               <span className="min-w-0 flex-1 truncate">{businessName ?? "Select business…"}</span>
@@ -199,7 +230,7 @@ export function DashboardSidebarPanel({
           )
         )}
       </div>
-      <nav className="flex-1 space-y-0.5 overflow-y-auto p-2.5" suppressHydrationWarning>
+      <nav className="flex-1 space-y-0.5 overflow-y-auto overscroll-contain p-2.5" suppressHydrationWarning>
         {!businessId &&
           navItems.map((item) => (
             <SidebarNavItemRow
@@ -213,6 +244,7 @@ export function DashboardSidebarPanel({
                   : pathname === item.href || pathname.startsWith(`${item.href}/`)
               }
               staticLinks={staticLinks}
+              onNavigate={onNavigate}
             />
           ))}
         {nav && businessId && (
@@ -223,6 +255,7 @@ export function DashboardSidebarPanel({
               businessId={businessId}
               pathname={pathname}
               staticLinks={staticLinks}
+              onNavigate={onNavigate}
             />
             <div className="mb-2">
               <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
@@ -239,6 +272,7 @@ export function DashboardSidebarPanel({
                         exact: Boolean(item.children?.length),
                       })}
                       staticLinks={staticLinks}
+                      onNavigate={onNavigate}
                     />
                     {item.children?.map((child) => (
                       <SidebarNavSubItemRow
@@ -248,6 +282,7 @@ export function DashboardSidebarPanel({
                         active={isSidebarHrefActive(pathname, child.href, businessId)}
                         dot
                         staticLinks={staticLinks}
+                        onNavigate={onNavigate}
                       />
                     ))}
                   </div>
@@ -260,6 +295,7 @@ export function DashboardSidebarPanel({
                     active={isSidebarHrefActive(pathname, item.href, businessId)}
                     dot
                     staticLinks={staticLinks}
+                    onNavigate={onNavigate}
                   />
                 ))}
               </div>
@@ -270,6 +306,7 @@ export function DashboardSidebarPanel({
               businessId={businessId}
               pathname={pathname}
               staticLinks={staticLinks}
+              onNavigate={onNavigate}
             />
             <NavSection
               title={nav.reports.title}
@@ -277,6 +314,7 @@ export function DashboardSidebarPanel({
               businessId={businessId}
               pathname={pathname}
               staticLinks={staticLinks}
+              onNavigate={onNavigate}
             />
           </div>
         )}
@@ -300,6 +338,7 @@ export function DashboardSidebarPanel({
             label="Settings"
             icon={Settings}
             active={pathname.startsWith(`/businesses/${businessId}/settings`)}
+            onNavigate={onNavigate}
           />
           <SidebarUserMenu />
         </div>
@@ -310,21 +349,40 @@ export function DashboardSidebarPanel({
 
 export function DashboardSidebar({
   businessId,
+  className,
+  onNavigate,
 }: {
   businessId?: string;
   /** @deprecated Compare is opened from Rank Grid, not the sidebar */
   compareActive?: boolean;
+  className?: string;
+  onNavigate?: () => void;
 }) {
   return (
-    <Suspense fallback={<SidebarFallback businessId={businessId} />}>
-      <DashboardSidebarInner businessId={businessId} />
+    <Suspense fallback={<SidebarFallback businessId={businessId} className={className} />}>
+      <DashboardSidebarInner
+        businessId={businessId}
+        className={className}
+        onNavigate={onNavigate}
+      />
     </Suspense>
   );
 }
 
-function SidebarFallback({ businessId }: { businessId?: string }) {
+function SidebarFallback({
+  businessId,
+  className,
+}: {
+  businessId?: string;
+  className?: string;
+}) {
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
+    <aside
+      className={cn(
+        "w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar",
+        className ?? "flex"
+      )}
+    >
       <div className="border-b border-sidebar-border px-4 py-3.5">
         <p className="text-sm font-bold text-white">Maps Growth Agent</p>
       </div>
@@ -334,7 +392,15 @@ function SidebarFallback({ businessId }: { businessId?: string }) {
   );
 }
 
-function DashboardSidebarInner({ businessId }: { businessId?: string }) {
+function DashboardSidebarInner({
+  businessId,
+  className,
+  onNavigate,
+}: {
+  businessId?: string;
+  className?: string;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
   const [businessName, setBusinessName] = useState<string | null>(null);
 
@@ -353,6 +419,8 @@ function DashboardSidebarInner({ businessId }: { businessId?: string }) {
       businessId={businessId}
       pathname={pathname}
       businessName={businessName}
+      className={className}
+      onNavigate={onNavigate}
     />
   );
 }
