@@ -10,6 +10,10 @@ export type BrevoSendParams = {
   replyToEmail?: string | null;
   /** One-click / mailto List-Unsubscribe URL (RFC 2369). */
   listUnsubscribeUrl?: string | null;
+  /** When set, successful sends append a usage_ledger row. */
+  organizationId?: string | null;
+  businessId?: string | null;
+  jobId?: string | null;
 };
 
 export type BrevoSendResult =
@@ -56,7 +60,21 @@ export async function sendBrevoEmail(params: BrevoSendParams): Promise<BrevoSend
         },
         body: JSON.stringify(payload),
       },
-      { provider: "brevo", timeoutMs: providerTimeoutMs("brevo", 20_000), label: "sendEmail" }
+      {
+        provider: "brevo",
+        timeoutMs: providerTimeoutMs("brevo", 20_000),
+        label: "sendEmail",
+        usage: params.organizationId
+          ? {
+              organizationId: params.organizationId,
+              businessId: params.businessId,
+              jobId: params.jobId,
+              feature: "review_email",
+              unitType: "message",
+              estimatedCostUsd: 0.001,
+            }
+          : undefined,
+      }
     );
 
     const json = (await res.json().catch(() => ({}))) as { messageId?: string; message?: string; code?: string };

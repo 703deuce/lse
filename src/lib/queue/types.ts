@@ -53,6 +53,10 @@ export type EnqueueJobInput = {
   payload: Record<string, unknown>;
   organizationId?: string | null;
   businessId?: string | null;
+  /** Parent ledger job when this is a child (enrichment, extended modules, etc.). */
+  parentJobId?: string | null;
+  relatedResourceId?: string | null;
+  initiatedByUserId?: string | null;
   /** Dedupes equivalent work. Required for customer-facing jobs when possible. */
   idempotencyKey?: string | null;
   priority?: JobPriorityClass | number;

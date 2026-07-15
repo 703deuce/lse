@@ -67,6 +67,22 @@ export async function processMapsDifficultyJob(input: MapsDifficultyJobInput): P
     expansionReach,
   });
 
+  const { trackProviderUsage } = await import("@/lib/providers/gateway");
+  await trackProviderUsage("scrapingdog", {
+    organizationId: input.organizationId,
+    feature: "maps_difficulty",
+    unitType: "run",
+    estimatedCostUsd: 0.05,
+    actualUnits: 1,
+  });
+  await trackProviderUsage("dataforseo", {
+    organizationId: input.organizationId,
+    feature: "maps_difficulty",
+    unitType: "run",
+    estimatedCostUsd: 0.03,
+    actualUnits: 1,
+  });
+
   return {
     runId: id ?? "",
     mapsKeywordDifficulty: result.score.mapsKeywordDifficulty,

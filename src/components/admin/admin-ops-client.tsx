@@ -28,9 +28,23 @@ type OpsJob = {
   lifecycleStatus?: string | null;
 };
 
+type UsageRollup = {
+  billingPeriod: string;
+  totals: { estimatedCostUsd: number; actualCostUsd: number; units: number; rowCount: number };
+  byOrganization: Array<{
+    organizationId: string;
+    estimatedCostUsd: number;
+    actualCostUsd: number;
+    units: number;
+    rows: number;
+  }>;
+  byProvider: Array<{ provider: string; estimatedCostUsd: number; units: number }>;
+};
+
 export function AdminOpsClient() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [jobs, setJobs] = useState<OpsJob[]>([]);
+  const [usage, setUsage] = useState<UsageRollup | null>(null);
   const [status, setStatus] = useState("");
   const [q, setQ] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -53,14 +67,25 @@ export function AdminOpsClient() {
     setJobs(json.jobs ?? []);
   }, [status, q]);
 
+  const loadUsage = useCallback(async () => {
+    const res = await fetch("/api/admin/ops/usage?limit=100");
+    const json = await res.json();
+    if (!res.ok) {
+      // Soft-fail when usage_ledger is not migrated yet.
+      setUsage(null);
+      return;
+    }
+    setUsage(json);
+  }, []);
+
   const refresh = useCallback(async () => {
     setError(null);
     try {
-      await Promise.all([loadOverview(), loadJobs()]);
+      await Promise.all([loadOverview(), loadJobs(), loadUsage()]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load ops");
     }
-  }, [loadOverview, loadJobs]);
+  }, [loadOverview, loadJobs, loadUsage]);
 
   useEffect(() => {
     void refresh();
@@ -165,6 +190,43 @@ export function AdminOpsClient() {
                 {p.circuitOpen ? " open" : " ok"}
               </span>
             ))}
+          </div>
+        </ContentCard>
+      )}
+
+      {usage && (
+        <ContentCard>
+          <p className="text-xs uppercase tracking-wide text-zinc-500">
+            Cost / usage — {usage.billingPeriod}
+          </p>
+          <p className="mt-1 text-sm text-zinc-900">
+            est ${usage.totals.estimatedCostUsd.toFixed(4)} · actual $
+            {usage.totals.actualCostUsd.toFixed(4)} · {usage.totals.units} units ·{" "}
+            {usage.totals.rowCount} ledger rows
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <p className="text-xs font-medium text-zinc-500">By organization</p>
+              <ul className="mt-1 space-y-1 text-xs text-zinc-700">
+                {usage.byOrganization.slice(0, 8).map((o) => (
+                  <li key={o.organizationId} className="font-mono">
+                    {o.organizationId.slice(0, 8)}… ${o.estimatedCostUsd.toFixed(4)} ({o.rows} rows)
+                  </li>
+                ))}
+                {!usage.byOrganization.length && <li className="text-zinc-400">No usage rows yet</li>}
+              </ul>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-zinc-500">By provider</p>
+              <ul className="mt-1 space-y-1 text-xs text-zinc-700">
+                {usage.byProvider.slice(0, 8).map((p) => (
+                  <li key={p.provider}>
+                    {p.provider}: ${p.estimatedCostUsd.toFixed(4)} · {p.units} units
+                  </li>
+                ))}
+                {!usage.byProvider.length && <li className="text-zinc-400">No provider spend yet</li>}
+              </ul>
+            </div>
           </div>
         </ContentCard>
       )}

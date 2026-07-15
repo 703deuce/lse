@@ -129,7 +129,7 @@ export async function POST(request: Request) {
       keyword: keywordLabel,
       gridSize,
     });
-    if (!fairness.ok && fairness.code === "queued_limit") {
+    if (!fairness.ok && (fairness.code === "queued_limit" || fairness.code === "active_limit")) {
       return NextResponse.json(
         { error: fairness.reason, code: fairness.code },
         { status: 429 }

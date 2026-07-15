@@ -105,10 +105,26 @@ export function providerTimeoutMs(provider: string, fallback = 45_000): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+export type FetchUsageContext = {
+  organizationId?: string | null;
+  businessId?: string | null;
+  jobId?: string | null;
+  feature?: string;
+  unitType?: string;
+  estimatedCostUsd?: number | null;
+  actualUnits?: number | null;
+};
+
 export async function fetchWithTimeout(
   input: RequestInfo | URL,
   init: RequestInit | undefined,
-  opts: { provider: string; timeoutMs: number; label?: string; skipCircuit?: boolean }
+  opts: {
+    provider: string;
+    timeoutMs: number;
+    label?: string;
+    skipCircuit?: boolean;
+    usage?: FetchUsageContext;
+  }
 ): Promise<Response> {
   if (!opts.skipCircuit) {
     assertCircuitClosed(opts.provider);
@@ -136,6 +152,18 @@ export async function fetchWithTimeout(
       recordProviderFailure(opts.provider, { status: res.status });
     } else if (res.ok) {
       recordProviderSuccess(opts.provider);
+      if (opts.usage?.organizationId) {
+        const { trackProviderUsage } = await import("@/lib/providers/gateway");
+        void trackProviderUsage(opts.provider, {
+          organizationId: opts.usage.organizationId,
+          businessId: opts.usage.businessId,
+          jobId: opts.usage.jobId,
+          feature: opts.usage.feature ?? opts.label ?? opts.provider,
+          unitType: opts.usage.unitType ?? "request",
+          estimatedCostUsd: opts.usage.estimatedCostUsd ?? estimateProviderCost(opts.provider),
+          actualUnits: opts.usage.actualUnits ?? 1,
+        });
+      }
     }
     return res;
   } catch (err) {

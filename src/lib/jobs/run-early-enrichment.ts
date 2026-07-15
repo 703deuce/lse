@@ -73,6 +73,7 @@ export async function maybeStartEarlyEnrichment(
       },
       organizationId,
       businessId: batch.business_id as string,
+      relatedResourceId: scanBatchId,
       idempotencyKey: `early-enrichment:${scanBatchId}`,
       priority: "lower",
       maxAttempts: 2,

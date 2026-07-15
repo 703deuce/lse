@@ -1,6 +1,6 @@
 # Platform execution inventory
 
-Audit of meaningful operations (Phase 1). Classification key:
+Audit of meaningful operations. Classification key:
 
 1. lightweight interactive  
 2. background queued  
@@ -10,74 +10,67 @@ Audit of meaningful operations (Phase 1). Classification key:
 6. expensive database  
 7. maintenance  
 
-Status: **queued** = uses `dispatchFeatureJob` / ledger; **in-request** = still blocks HTTP; **void** = fire-and-forget; **cron-side** = Coolify `/api/jobs/process`.
+Status: **queued** = uses `dispatchFeatureJob` / ledger; **in-request** = still blocks HTTP; **webhook** = provider callback; **cron-side** = Coolify `/api/jobs/process`.
 
 ## Platform spine
 
 | Feature | Trigger | Where | Blocks HTTP | Provider | Class | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| Cron drain | `POST /api/jobs/process` | cron web | cron | multi | 4,7 | cron-side |
+| Cron drain | `POST /api/jobs/process` | cron web | cron | multi | 4,7 | cron-side (recover + drains; no claim under BullMQ) |
 | BullMQ workers | `scripts/workers/run-worker.ts` | worker | n/a | multi | 2 | queued |
 | Job status | `GET /api/jobs/[jobId]/status` | request | light | none | 1,5 | in-request |
-| Adaptive poller | `useActiveJobStatus` | client | n/a | none | 5 | polling |
+| Adaptive poller | `useActiveJobStatus` / `useModuleJobRunner` | client | n/a | none | 5 | polling |
 | Retention | `maybeRunDataRetentionCleanup` | cron/worker | no | none | 7 | cron-side |
+| Admin ops | `/admin/ops` | request | light | none | 1,7 | in-request |
+| Usage / cost ledger | `usage_ledger` + `/api/admin/ops/usage` | request/worker | no | multi | 7 | append on provider success |
 
 ## Maps
 
-| Feature | Trigger | Where | Blocks | Provider | Class | Status |
-| --- | --- | --- | --- | --- | --- | --- |
-| Create / keyword / parity / rerun | scan APIs → `dispatchScanProcessing` | after/cron/worker | no | Bright Data | 2 | queued |
-| Audit reprocess | `POST /api/audits/run` | queue | no | Bright Data | 2 | queued |
-| Grid cells | `processScanBatch` | worker | no | Bright Data | 2,6 | queued |
-| Enrichment | finalize + enrich route | queue | no | DeepSeek | 2 | queued |
-| Early enrichment | during scan | **void** | no | ScrapingDog/DFS | 2 | **void → fixing** |
-| DFS webhook | `/api/webhooks/dataforseo` | request | yes | DFS | 3 | webhook |
-| Status / SSE / progress | scan GET APIs | request | light | none | 1,5 | in-request |
-| Weekly schedules | SQL `process_due_scheduled_scans` | pg_cron (optional) | n/a | none | 4 | legacy SQL + reconcile |
-| Maps KD | `POST /api/maps-difficulty/run` | **request** | **yes** | ScrapingDog/DFS | 2 | **in-request → fixing** |
-| Keyword check/volume | `/api/keywords/{check,volume}` | **request** | **yes** | BD/DFS | 2 | **in-request → fixing** |
-| Single-point rank | `/api/single-point-rank/check` | **request** | **yes** | BD/DFS | 2 | **in-request → fixing** |
+| Feature | Trigger | Status |
+| --- | --- | --- |
+| Create / keyword / parity / rerun | scan APIs → `dispatchScanProcessing` | queued |
+| Grid cells | `processScanBatch` | queued |
+| Enrichment | finalize → `scan_enrichment` | queued |
+| Early enrichment | progress ≥ 17 cells → `early_enrichment` | queued |
+| Maps KD | `POST /api/maps-difficulty/run` | queued (+ UI job poll) |
+| Keyword check/volume | `/api/keywords/{check,volume}` | queued (+ UI job poll) |
+| Single-point rank | `/api/single-point-rank/check` | queued (handler registered) |
+| Status / SSE / progress | scan GET APIs | in-request light |
+| Fairness | active + queued org caps | HTTP 429 when over cap |
 
 ## Intelligence product modules
 
-| Feature | Trigger | Class | Status |
-| --- | --- | --- | --- |
-| Local Trust (+ sponsorships) | `/api/trust/run` | 2 | queued |
-| Backlink Gap | `/api/backlink-gap/run` | 2 | queued |
-| AI Visibility | `/api/ai-visibility/run` | 2 | queued |
-| Citations | `/api/citations/run` | 2 | queued |
-| Reputation audit | `/api/reputation/run` | 2 | queued |
-| Review momentum | `/api/reviews/momentum/run` | 2 | queued |
-| Growth Audit + extended | `/api/growth-audit/run` | 2 | queued |
-| GBP audit modules | `/api/audits/modules` | 2 | in-request (borderline) |
-| AI prompt / reply generate | prompt & response generate | 2 | in-request (interactive LLM) |
+| Feature | Status |
+| --- | --- |
+| Local Trust, Backlink Gap, AI Visibility, Citations, Reputation, Review momentum, Growth Audit | queued + `useModuleJobRunner` |
+| GBP audit modules (`/api/audits/modules`) | still in-request (borderline; follow-up) |
+| Tiny interactive LLM generates | in-request by design |
 
 ## Reviews / messaging
 
-| Feature | Trigger | Class | Status |
-| --- | --- | --- | --- |
-| Campaign create | campaigns API | 1 | in-request (schedules rows) |
-| Campaign send drain | cron → `campaign_send_batch` | 2,4 | queued |
-| Review alerts | cron → `review_alert_scan` | 2,4 | queued |
-| Contact import large | contacts/import | 2 | queued |
-| Contact import small | contacts/import | 1 | in-request |
-| One-off SMS/email | send-sms / send-email | 1 | sync (user waits) |
-| Twilio / Brevo webhooks | webhooks | 3 | in-request idempotent |
+| Feature | Status |
+| --- | --- |
+| Campaign send drain / review alerts | queued (cron enqueue) |
+| Contact import large | queued |
+| One-off SMS/email | sync (user waits); usage ledger on success |
+| Twilio / Brevo | `fetchWithTimeout` + optional `trackProviderUsage` |
 
 ## Reports
 
-| Feature | Trigger | Class | Status |
-| --- | --- | --- | --- |
-| HTML/CSV export | `/api/reports/export` | 1/6 | in-request (generator registered for async) |
+| Feature | Status |
+| --- | --- |
+| HTML/CSV export | primarily in-request; async generator registered |
 
-## Gaps vs platform brief
+## Closed vs brief gaps
 
-1. Central job lifecycle columns incomplete vs Part 2 (parent_job_id, lease, units, worker_id, error classes) → migration 045  
-2. No `src/lib/cache` / `src/lib/locks` packages → Phase 1 abstractions  
-3. Provider calls mostly via `src/lib/providers/*` but messaging + Maps KD bypass → gateway registry  
-4. Dashboard polls load full modules every 3s instead of shared job status client  
-5. Cost ledger not unified  
-6. Admin ops console not built (Phase 7)  
-7. Summary read-models incomplete (Phase 4)  
+1. ~~Lifecycle columns~~ — migration 045 + lease reclaim + dead_letter  
+2. ~~Cache / locks~~ — `src/lib/cache`, `src/lib/locks`  
+3. ~~Provider gateway for messaging / KD~~ — timeout + usage hooks wired  
+4. ~~Dashboard 3s full reload~~ — shared job runner on module tools  
+5. ~~Cost ledger~~ — append API + admin cost-by-org view  
+6. ~~Admin ops~~ — `/admin/ops`  
+7. ~~Summaries~~ — migration 046 + rebuild on complete  
 
-See `docs/PLATFORM_ARCHITECTURE.md` for phased rollout against the 27-part brief.
+Remaining ops: Coolify `QUEUE_DRIVER=bullmq` flip + workers; full soak load against prod-like Redis/Postgres; optional GBP module queue migration.
+
+See `docs/PLATFORM_ARCHITECTURE.md` and `docs/QUEUE_ARCHITECTURE.md`.

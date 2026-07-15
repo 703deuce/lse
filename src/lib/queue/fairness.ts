@@ -56,7 +56,7 @@ export async function assertCanEnqueueMapsScan(params: {
     return {
       ok: false,
       code: "active_limit",
-      reason: `Organization already has ${orgActive} active Maps scans (limit ${maxActiveMapsScansPerOrg()}). New scan stays queued.`,
+      reason: `Organization already has ${orgActive} active Maps scans (limit ${maxActiveMapsScansPerOrg()}). Wait for one to finish, then try again.`,
     };
   }
 

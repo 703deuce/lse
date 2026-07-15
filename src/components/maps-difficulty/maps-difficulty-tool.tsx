@@ -22,6 +22,7 @@ import type { MapsDifficultyResult } from "@/lib/maps-difficulty/enrich";
 import { BUCKET_MAX, PROFILE_STRENGTH_MAX } from "@/lib/maps-difficulty/score";
 import type { ExpansionReachResult } from "@/lib/maps-difficulty/expansion-reach";
 import type { LocalPageTier, ProfileOrder } from "@/lib/maps-difficulty/score";
+import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 
 type MapsDifficultyRunResponse = MapsDifficultyResult & {
   expansionReach?: ExpansionReachResult;
@@ -199,14 +200,40 @@ export function MapsDifficultyTool() {
       if (!res.ok) return;
       const data = await res.json();
       setHistory((data.runs ?? []) as HistoryRow[]);
+      return (data.runs ?? []) as HistoryRow[];
     } catch {
       /* history is best-effort */
+      return [] as HistoryRow[];
     }
   }, []);
 
+  const {
+    start: startJob,
+    running: jobRunning,
+    error: jobError,
+    setError: setJobError,
+  } = useModuleJobRunner({
+    onSettled: async () => {
+      const runs = (await loadHistory()) ?? [];
+      const latest = runs[0];
+      if (latest) {
+        setResult(latest.result);
+        setRunId(latest.id);
+        if (latest.result.expansionReach == null && latest.result.expansionError) {
+          setExpansionError(String(latest.result.expansionError));
+        }
+      }
+      setLoading(false);
+    },
+  });
+
   useEffect(() => {
-    loadHistory();
+    void loadHistory();
   }, [loadHistory]);
+
+  useEffect(() => {
+    if (jobError) setError(jobError);
+  }, [jobError]);
 
   async function geocode(): Promise<{ lat: number; lng: number; label: string } | null> {
     if (!address.trim()) {
@@ -270,20 +297,20 @@ export function MapsDifficultyTool() {
       };
       if (mode === "expansion") payload.businessBaseAddress = businessBase.trim();
 
-      const res = await fetch("/api/maps-difficulty/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Run failed");
-      setResult(data as MapsDifficultyRunResponse);
-      setRunId((data as MapsDifficultyRunResponse).id ?? null);
-      if (data.expansionError) setExpansionError(data.expansionError as string);
-      loadHistory();
+      setJobError(null);
+      const json = await startJob("/api/maps-difficulty/run", payload, "Run failed");
+      if (!json.queued) {
+        // Sync escape hatch (local debug) — treat body as result.
+        if (json.id || json.score) {
+          setResult(json as unknown as MapsDifficultyRunResponse);
+          setRunId(typeof json.id === "string" ? json.id : null);
+          if (json.expansionError) setExpansionError(String(json.expansionError));
+        }
+        await loadHistory();
+        setLoading(false);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Run failed");
-    } finally {
       setLoading(false);
     }
   }
@@ -340,7 +367,8 @@ export function MapsDifficultyTool() {
   const bucketTotal = score
     ? Object.values(score.bucketScores).reduce((s, v) => s + (typeof v === "number" ? v : 0), 0)
     : 0;
-  const canRecheckExpansion = mode === "expansion" && result && businessBase.trim() && !loading;
+  const runBusy = loading || jobRunning;
+  const canRecheckExpansion = mode === "expansion" && result && businessBase.trim() && !runBusy;
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -597,19 +625,19 @@ export function MapsDifficultyTool() {
 
           <button
             onClick={run}
-            disabled={loading || geocoding || expansionLoading || !keyword.trim() || (!coordsResolved && !address.trim()) || (mode === "expansion" && !businessBase.trim())}
+            disabled={runBusy || geocoding || expansionLoading || !keyword.trim() || (!coordsResolved && !address.trim()) || (mode === "expansion" && !businessBase.trim())}
             className={`inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
               mode === "expansion" ? "bg-sky-600 hover:bg-sky-700" : "bg-primary hover:bg-primary-hover"
             }`}
           >
-            {loading ? (
+            {runBusy ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : mode === "expansion" ? (
               <Navigation2 className="h-4 w-4" />
             ) : (
               <Gauge className="h-4 w-4" />
             )}
-            {loading
+            {runBusy
               ? "Analyzing the 3-pack…"
               : mode === "expansion"
                 ? "Check Expansion Reach"
@@ -618,16 +646,16 @@ export function MapsDifficultyTool() {
           {canRecheckExpansion && (
             <button
               onClick={recheckExpansionOnly}
-              disabled={expansionLoading || loading}
+              disabled={expansionLoading || runBusy}
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-sky-300 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-50 disabled:opacity-60 dark:border-sky-800 dark:text-sky-300 dark:hover:bg-sky-900/20"
             >
               {expansionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation2 className="h-4 w-4" />}
               Recheck reach only (no new KD run)
             </button>
           )}
-          {loading && (
+          {runBusy && (
             <p className="text-center text-xs text-text-muted">
-              Running a live Maps search, then enriching the top 3 (reviews, links, GBP, local pages). This takes ~30–90s.
+              Queued analysis — enriching the top 3 (reviews, links, GBP, local pages). This takes ~30–90s.
             </p>
           )}
         </div>

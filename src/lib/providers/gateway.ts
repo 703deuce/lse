@@ -13,6 +13,8 @@ import {
   providerTimeoutMs,
   recordProviderFailure,
   recordProviderSuccess,
+  fetchWithTimeout,
+  estimateProviderCost,
 } from "@/lib/providers/fetch-with-timeout";
 import { recordUsage } from "@/lib/platform/usage-ledger";
 
@@ -48,6 +50,8 @@ export {
   providerTimeoutMs,
   recordProviderFailure,
   recordProviderSuccess,
+  fetchWithTimeout,
+  estimateProviderCost,
 };
 
 /** Record successful provider spend into the platform usage ledger. */
@@ -118,3 +122,5 @@ export function providerHealth(provider: ProviderName): {
 /** Re-exports of primary capability modules — single import surface for features. */
 export { mapsGridCell } from "@/lib/providers/brightdata";
 export { placeReviews as fetchReviewsForPlace } from "@/lib/providers/scrapingdog";
+export { sendTwilioSms } from "@/lib/reputation/twilio";
+export { sendBrevoEmail } from "@/lib/reputation/brevo";

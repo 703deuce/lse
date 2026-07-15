@@ -21,6 +21,10 @@ import {
 import { invalidateScanGridCache } from "@/lib/maps/scan-queries";
 import { acquireBrightDataSlot, fairChunkSize } from "@/lib/queue/bright-data-limiter";
 import { withDbLimit } from "@/lib/platform/db-limiter";
+import {
+  EARLY_ENRICHMENT_MIN_CELLS,
+  maybeStartEarlyEnrichment,
+} from "@/lib/jobs/run-early-enrichment";
 
 /** Default fair chunk (platform-wide) — overridden by BRIGHTDATA_GRID_BATCH_SIZE / FAIR_CHUNK. */
 const BRIGHTDATA_GRID_BATCH_SIZE = 25;
@@ -249,6 +253,13 @@ async function flushPendingProgress(scanBatchId: string, force = false): Promise
   await enqueueProgressWrite(scanBatchId, () =>
     saveCellProgress(scanBatchId, payload.completed, payload.total, payload.failed, payload.extra)
   );
+
+  // Kick early enrichment once enough cells exist (queued; never blocks the scan).
+  if (payload.completed >= EARLY_ENRICHMENT_MIN_CELLS) {
+    void maybeStartEarlyEnrichment(scanBatchId).catch((err) => {
+      console.warn("[Scan] early enrichment kick failed", scanBatchId, err);
+    });
+  }
 }
 
 async function scheduleCellProgress(

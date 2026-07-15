@@ -239,9 +239,20 @@ export async function processPendingJobs(limit = 5): Promise<{
         .from("job_queue")
         .update({
           status: failed ? "failed" : "pending",
+          lifecycle_status: permanent
+            ? "permanently_failed"
+            : failed
+              ? "dead_letter"
+              : "retrying",
           error_message: message,
+          error_class: permanent ? "permanent" : failed ? "dead_letter" : "retryable",
+          customer_error: failed
+            ? "This job failed after multiple retries. An operator can retry it from Admin → Ops."
+            : null,
           finished_at: failed ? new Date().toISOString() : null,
           scheduled_at: failed ? undefined : new Date(Date.now() + delay).toISOString(),
+          lease_owner: null,
+          lease_expires_at: null,
         })
         .eq("id", claimed.id);
 

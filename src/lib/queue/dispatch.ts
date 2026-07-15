@@ -10,6 +10,9 @@ export type DispatchFeatureJobInput = {
   payload: Record<string, unknown>;
   organizationId?: string | null;
   businessId?: string | null;
+  parentJobId?: string | null;
+  relatedResourceId?: string | null;
+  initiatedByUserId?: string | null;
   idempotencyKey?: string | null;
   priority?: JobPriorityClass | number;
   delayMs?: number;
@@ -32,6 +35,9 @@ export async function dispatchFeatureJob(
     payload: input.payload,
     organizationId: input.organizationId,
     businessId: input.businessId,
+    parentJobId: input.parentJobId,
+    relatedResourceId: input.relatedResourceId,
+    initiatedByUserId: input.initiatedByUserId,
     idempotencyKey: input.idempotencyKey,
     priority: input.priority ?? "normal",
     delayMs: input.delayMs,

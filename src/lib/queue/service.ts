@@ -251,6 +251,7 @@ export async function enqueueScanEnrichmentJob(params: {
   scanBatchId: string;
   organizationId?: string;
   businessId?: string;
+  parentJobId?: string | null;
 }): Promise<EnqueueJobResult> {
   return enqueueJob({
     queueName: "maps-scan",
@@ -262,6 +263,8 @@ export async function enqueueScanEnrichmentJob(params: {
     },
     organizationId: params.organizationId,
     businessId: params.businessId,
+    parentJobId: params.parentJobId,
+    relatedResourceId: params.scanBatchId,
     idempotencyKey: `scan-enrichment:${params.scanBatchId}`,
     priority: "normal",
     maxAttempts: 2,

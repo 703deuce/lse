@@ -40,6 +40,9 @@ export async function createLedgerJob(input: EnqueueJobInput): Promise<QueueJobR
       status: "pending",
       organization_id: input.organizationId ?? null,
       business_id: input.businessId ?? null,
+      parent_job_id: input.parentJobId ?? null,
+      related_resource_id: input.relatedResourceId ?? null,
+      initiated_by_user_id: input.initiatedByUserId ?? null,
       queue_name: input.queueName,
       priority: priorityScore(input.priority),
       idempotency_key: input.idempotencyKey ?? null,
@@ -259,6 +262,11 @@ export async function countJobsByStatus(): Promise<Record<string, number>> {
     .select("id", { count: "exact", head: true })
     .eq("enqueue_state", "enqueue_failed");
   counts.enqueue_failed = enqueueFailed ?? 0;
+  const { count: deadLetter } = await supabase
+    .from("job_queue")
+    .select("id", { count: "exact", head: true })
+    .eq("lifecycle_status", "dead_letter");
+  counts.dead_letter = deadLetter ?? 0;
   return counts;
 }
 

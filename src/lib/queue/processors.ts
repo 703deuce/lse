@@ -27,6 +27,13 @@ export async function processQueueJob(
 
   let jobType = typeof payload.jobType === "string" ? payload.jobType : "";
 
+  const workerId =
+    process.env.WORKER_ID?.trim() ||
+    process.env.HOSTNAME?.trim() ||
+    `web-${process.pid}`;
+  let attempts = 0;
+  let maxAttempts = 3;
+
   if (ledgerJobId) {
     const { data: claimed } = await supabase
       .from("job_queue")
@@ -35,6 +42,9 @@ export async function processQueueJob(
         lifecycle_status: "running",
         started_at: new Date().toISOString(),
         heartbeat_at: new Date().toISOString(),
+        worker_id: workerId,
+        lease_owner: workerId,
+        lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
       })
       .eq("id", ledgerJobId)
       .eq("status", "pending")
@@ -58,9 +68,11 @@ export async function processQueueJob(
       jobType = jobType || String(row.job_type ?? "");
     } else {
       jobType = jobType || String(claimed.job_type ?? "");
+      attempts = (claimed.attempts ?? 0) + 1;
+      maxAttempts = claimed.max_attempts ?? 3;
       await supabase
         .from("job_queue")
-        .update({ attempts: (claimed.attempts ?? 0) + 1 })
+        .update({ attempts })
         .eq("id", ledgerJobId);
     }
   }
@@ -79,18 +91,27 @@ export async function processQueueJob(
 
   if (!result.ok) {
     if (ledgerJobId) {
+      const exhausted = !result.permanent && attempts >= maxAttempts;
+      const terminal = result.permanent || exhausted;
       await supabase
         .from("job_queue")
         .update({
-          status: result.permanent ? "failed" : "pending",
-          lifecycle_status: result.permanent ? "permanently_failed" : "retrying",
+          status: terminal ? "failed" : "pending",
+          lifecycle_status: result.permanent
+            ? "permanently_failed"
+            : exhausted
+              ? "dead_letter"
+              : "retrying",
           error_message: result.error ?? "Job failed",
-          error_code: result.permanent ? "unrecoverable" : "retryable",
-          error_class: result.permanent ? "permanent" : "retryable",
-          finished_at: result.permanent ? new Date().toISOString() : null,
-          scheduled_at: result.permanent
-            ? undefined
-            : new Date(Date.now() + 5_000).toISOString(),
+          error_code: result.permanent ? "unrecoverable" : exhausted ? "dead_letter" : "retryable",
+          error_class: result.permanent ? "permanent" : exhausted ? "dead_letter" : "retryable",
+          customer_error: terminal
+            ? "This job failed after multiple retries. An operator can retry it from Admin → Ops."
+            : null,
+          finished_at: terminal ? new Date().toISOString() : null,
+          scheduled_at: terminal ? undefined : new Date(Date.now() + 5_000).toISOString(),
+          lease_owner: null,
+          lease_expires_at: null,
         })
         .eq("id", ledgerJobId);
     }

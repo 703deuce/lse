@@ -66,12 +66,12 @@ Fine-grained priority is carried on the job (`priority` + `job_type`), not by sp
 | Phase | Scope | Status in this PR |
 | --- | --- | --- |
 | 1 | Inventory + shared interfaces | **Done** |
-| 2 | Harden database driver (leases, DLQ, org limits) | **Mostly done** (scan + job lease reclaim, fairness, enqueue recovery) |
-| 3 | All heavy features behind abstraction | **Mostly done**; KD/keywords/single-point/early-enrich wired |
-| 4 | DB efficiency / summaries / indexes | **Done** (migration 046 + summary rebuild on complete); deep query-plan audit still optional |
-| 5 | Frontend shared status everywhere | **Done** for module run buttons (Maps foundation + Local Trust, AI Visibility, Backlink Gap, Citations, Reputation, Growth Audit, Review Momentum, Reviews) |
-| 6 | Redis/BullMQ + cache/lock redis drivers | Drivers present; Coolify `QUEUE_DRIVER=bullmq` flip remaining |
-| 7 | Admin console + mixed load tests | Admin ops console **Done**; mixed load tests still follow-up |
+| 2 | Harden database driver (leases, DLQ, org limits) | **Done** (scan + job leases, dead_letter, active/queued fairness 429, enqueue recovery) |
+| 3 | All heavy features behind abstraction | **Done** for heavy work; GBP modules + tiny LLM still sync by design |
+| 4 | DB efficiency / summaries / indexes | **Done** (migration 046 + summary rebuild); deep EXPLAIN audit optional |
+| 5 | Frontend shared status everywhere | **Done** (module runners + Maps KD + keyword check/volume) |
+| 6 | Redis/BullMQ + cache/lock redis drivers | Drivers present; Coolify flip is ops (see QUEUE_ARCHITECTURE) |
+| 7 | Admin console + mixed load tests | **Done** (ops + cost-by-org + CI mixed-load invariants); prod soak = ops checklist |
 
 ## Coolify services
 

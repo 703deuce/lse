@@ -54,9 +54,21 @@ Flip production with:
 ```bash
 QUEUE_DRIVER=bullmq
 REDIS_URL=redis://...
+# optional but recommended with Redis available:
+CACHE_DRIVER=redis
+LOCK_DRIVER=redis
 ```
 
-Then restart web + workers. Existing database-driver jobs continue via recovery/`job_queue`; new work uses BullMQ.
+Then restart web + all worker services. Existing database-driver jobs continue via recovery/`job_queue`; new work uses BullMQ.
+
+### BullMQ cutover checklist
+
+1. Deploy Redis and set private `REDIS_URL` on web + every worker.  
+2. Deploy worker services (`worker:maps`, `worker:messaging`, `worker:intelligence`, `worker:reports`) before flipping the driver.  
+3. Set `QUEUE_DRIVER=bullmq` on web + workers; leave Coolify cron on `/api/jobs/process` (recovery + drains only).  
+4. Smoke: create a Maps scan, Local Trust run, and campaign drip; confirm `/admin/ops` shows pending→running→completed and Redis ping ok.  
+5. Confirm no web process monopolizes Bright Data (workers hold in-flight).  
+6. Rollback: set `QUEUE_DRIVER=database`, restart web; workers become idle; cron resumes claiming.
 
 ## Bright Data global limits
 
