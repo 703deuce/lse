@@ -270,10 +270,18 @@ export type AdminJobListFilters = {
   limit?: number;
 };
 
+export type AdminJobRow = QueueJobRecord & {
+  lifecycleStatus?: string | null;
+  createdAt?: string;
+  relatedResourceId?: string | null;
+  /** For Maps jobs: scan_batches.status when resolvable. */
+  relatedScanStatus?: string | null;
+};
+
 /** Admin ops search — newest first. */
 export async function listJobsForAdmin(
   filters: AdminJobListFilters = {}
-): Promise<Array<QueueJobRecord & { lifecycleStatus?: string | null; createdAt?: string }>> {
+): Promise<AdminJobRow[]> {
   const supabase = createServiceClient();
   const limit = Math.min(Math.max(filters.limit ?? 50, 1), 200);
   let query = supabase
@@ -295,11 +303,46 @@ export async function listJobsForAdmin(
   }
 
   const { data } = await query;
-  return (data ?? []).map((row) => ({
-    ...rowToRecord(row),
-    lifecycleStatus: (row.lifecycle_status as string | null) ?? null,
-    createdAt: String(row.created_at ?? ""),
-  }));
+  const rows = data ?? [];
+  const scanIds = new Set<string>();
+  for (const row of rows) {
+    const payload = (row.payload ?? {}) as Record<string, unknown>;
+    const scanId =
+      (typeof payload.scanBatchId === "string" && payload.scanBatchId) ||
+      (typeof row.related_resource_id === "string" &&
+      ["process_scan", "scan_enrichment", "early_enrichment", "retry_scan_cells"].includes(
+        String(row.job_type)
+      )
+        ? row.related_resource_id
+        : null);
+    if (scanId) scanIds.add(scanId);
+  }
+
+  const scanStatusById = new Map<string, string>();
+  if (scanIds.size) {
+    const { data: scans } = await supabase
+      .from("scan_batches")
+      .select("id, status")
+      .in("id", [...scanIds]);
+    for (const s of scans ?? []) {
+      scanStatusById.set(String(s.id), String(s.status));
+    }
+  }
+
+  return rows.map((row) => {
+    const payload = (row.payload ?? {}) as Record<string, unknown>;
+    const relatedResourceId = (row.related_resource_id as string | null) ?? null;
+    const scanId =
+      (typeof payload.scanBatchId === "string" && payload.scanBatchId) ||
+      relatedResourceId;
+    return {
+      ...rowToRecord(row),
+      lifecycleStatus: (row.lifecycle_status as string | null) ?? null,
+      createdAt: String(row.created_at ?? ""),
+      relatedResourceId,
+      relatedScanStatus: scanId ? scanStatusById.get(scanId) ?? null : null,
+    };
+  });
 }
 
 export async function countJobsByStatus(): Promise<Record<string, number>> {

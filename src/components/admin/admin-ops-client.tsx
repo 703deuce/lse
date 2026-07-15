@@ -26,6 +26,8 @@ type OpsJob = {
   errorMessage: string | null;
   createdAt?: string;
   lifecycleStatus?: string | null;
+  relatedResourceId?: string | null;
+  relatedScanStatus?: string | null;
 };
 
 type UsageRollup = {
@@ -267,7 +269,8 @@ export function AdminOpsClient() {
             <thead className="text-xs uppercase text-zinc-500">
               <tr>
                 <th className="py-1.5 pr-3 font-medium">Job</th>
-                <th className="py-1.5 pr-3 font-medium">Status</th>
+                <th className="py-1.5 pr-3 font-medium">Job status</th>
+                <th className="py-1.5 pr-3 font-medium">Scan / feature</th>
                 <th className="py-1.5 pr-3 font-medium">Attempts</th>
                 <th className="py-1.5 pr-3 font-medium">Error</th>
                 <th className="py-1.5 font-medium">Actions</th>
@@ -284,10 +287,36 @@ export function AdminOpsClient() {
                     )}
                   </td>
                   <td className="py-2 pr-3">
-                    <div>{job.status}</div>
-                    <div className="text-[11px] text-zinc-500">
-                      {job.lifecycleStatus ?? job.enqueueState}
+                    <div>
+                      <span className="text-[10px] uppercase tracking-wide text-zinc-400">
+                        job{" "}
+                      </span>
+                      {job.status}
                     </div>
+                    <div className="text-[11px] text-zinc-500">
+                      <span className="text-[10px] uppercase tracking-wide text-zinc-400">
+                        lifecycle{" "}
+                      </span>
+                      {job.lifecycleStatus ?? "—"}
+                    </div>
+                    <div className="text-[11px] text-zinc-500">
+                      <span className="text-[10px] uppercase tracking-wide text-zinc-400">
+                        enqueue{" "}
+                      </span>
+                      {job.enqueueState}
+                    </div>
+                  </td>
+                  <td className="py-2 pr-3">
+                    {job.relatedScanStatus ? (
+                      <div>
+                        <span className="text-[10px] uppercase tracking-wide text-zinc-400">
+                          scan{" "}
+                        </span>
+                        {job.relatedScanStatus}
+                      </div>
+                    ) : (
+                      <span className="text-zinc-400">—</span>
+                    )}
                   </td>
                   <td className="py-2 pr-3">
                     {job.attempts}/{job.maxAttempts}

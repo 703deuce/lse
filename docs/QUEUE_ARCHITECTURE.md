@@ -80,11 +80,16 @@ Flip production with:
 
 ```bash
 QUEUE_DRIVER=bullmq
-REDIS_URL=redis://...
+REDIS_URL=redis://...   # private Coolify hostname, not a public IP
+QUEUE_PREFIX=lse
 # optional but recommended with Redis available:
 CACHE_DRIVER=redis
 LOCK_DRIVER=redis
 ```
+
+Workers use indefinite Redis reconnect + TCP keepalive. A single `ETIMEDOUT`
+during deploy is normal; repeated timeouts in steady state mean network/host
+misconfiguration.
 
 Then restart web + all worker services. Existing database-driver jobs continue via recovery/`job_queue`; new work uses BullMQ.
 

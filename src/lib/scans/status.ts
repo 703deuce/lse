@@ -59,6 +59,18 @@ function cellCounters(batch: {
 }
 
 /**
+ * Soft-ready / mid-pass state while retries or integrity can still rewrite ranks.
+ * Keep the UI poller alive so 20+/stale pins do not freeze before final upserts.
+ */
+export function isGridPassStillSettling(batch: {
+  confidence_summary?: Record<string, unknown> | null;
+}): boolean {
+  const pass = String((batch.confidence_summary as { pass?: unknown } | null)?.pass ?? "");
+  if (!pass || pass === "complete") return false;
+  return /^(primary|retry|integrity)/i.test(pass);
+}
+
+/**
  * Soft-ready promotes to rank_ready while trailing cells retry.
  * Keep the UI poller alive until completed catches up to total (final pass
  * always writes cells_completed = total, even when some points permanently fail).
@@ -73,6 +85,7 @@ export function hasTrailingCellsSettling(batch: {
   const status = batch.status ?? null;
   if (!status || !isMapRenderable(status)) return false;
   if (areCellsInFlight(status)) return false;
+  if (isGridPassStillSettling(batch)) return true;
   const { completed, total } = cellCounters(batch);
   return total > 0 && completed < total;
 }
@@ -103,6 +116,10 @@ export function isScanMapReady(
   if (!status || status === "failed" || status === "queued") return false;
   if (totalPoints <= 0) return false;
   if (areCellsInFlight(status)) return false;
+
+  // Retries/integrity can still overwrite ranks — do not freeze the map pins yet
+  // even if soft-ready already set rank_ready_at / finished_at.
+  if (isGridPassStillSettling(batch)) return false;
 
   // Must have a result row per grid point — same data a hard refresh would load.
   if (loadedResults < totalPoints) return false;
