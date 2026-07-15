@@ -1,8 +1,42 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
-import { updateCampaignStatus, type CampaignStatus } from "@/lib/reputation/campaigns";
+import {
+  getCampaignDetail,
+  updateCampaignStatus,
+  type CampaignStatus,
+} from "@/lib/reputation/campaigns";
 import { createServiceClient } from "@/lib/db/client";
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ campaignId: string }> }
+) {
+  try {
+    const { campaignId } = await params;
+    const url = new URL(request.url);
+    const businessId = url.searchParams.get("businessId");
+    if (!businessId) {
+      return NextResponse.json({ error: "businessId required" }, { status: 400 });
+    }
+    const auth = await requireBusinessAccess(businessId);
+    await requireEntitlement(auth.organizationId, "review_campaigns");
+
+    const detail = await getCampaignDetail(campaignId, businessId, {
+      recipientCursor: url.searchParams.get("cursor"),
+      recipientLimit: Number(url.searchParams.get("limit") ?? 50),
+      recipientStatus: url.searchParams.get("recipientStatus"),
+    });
+    return NextResponse.json(detail);
+  } catch (err) {
+    if (err instanceof EntitlementError) {
+      return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
+    }
+    const message = err instanceof Error ? err.message : "Failed to load campaign";
+    const statusCode = message.includes("not found") ? 404 : 500;
+    return NextResponse.json({ error: message }, { status: statusCode });
+  }
+}
 
 export async function PATCH(
   request: Request,

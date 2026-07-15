@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, MoreHorizontal, Pause, Play, X } from "lucide-react";
 import { rrOutlineBtn } from "@/components/reputation/review-requests-ui";
@@ -33,9 +34,16 @@ function statusBadge(status: string) {
     paused: "bg-amber-50 text-amber-700",
     completed: "bg-zinc-100 text-zinc-600",
     cancelled: "bg-red-50 text-red-700",
+    failed: "bg-red-50 text-red-700",
+    archived: "bg-zinc-100 text-zinc-500",
   };
   return (
-    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase", styles[status] ?? styles.draft)}>
+    <span
+      className={cn(
+        "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase",
+        styles[status] ?? styles.draft
+      )}
+    >
       {status}
     </span>
   );
@@ -104,8 +112,13 @@ export function ReviewRequestsCampaignsTable({ businessId }: { businessId: strin
 
   if (!campaigns.length) {
     return (
-      <div className={cn(dashboardCard, "border-dashed px-3.5 py-8 text-center text-[13px] text-zinc-500")}>
-        No bulk campaigns yet. Upload a CSV in the Bulk Upload tab to get started.
+      <div
+        className={cn(
+          dashboardCard,
+          "border-dashed px-3.5 py-8 text-center text-[13px] text-zinc-500"
+        )}
+      >
+        No campaigns yet. Create one from Campaigns or import customers with a CSV.
       </div>
     );
   }
@@ -113,11 +126,15 @@ export function ReviewRequestsCampaignsTable({ businessId }: { businessId: strin
   return (
     <div className={cn(dashboardCard, "overflow-hidden")}>
       {error && (
-        <div className="border-b border-red-100 bg-red-50 px-3.5 py-2 text-[12px] text-red-700">{error}</div>
+        <div className="border-b border-red-100 bg-red-50 px-3.5 py-2 text-[12px] text-red-700">
+          {error}
+        </div>
       )}
       <div className="border-b border-zinc-100 px-3.5 py-2.5">
-        <h3 className={dashboardCardTitle}>Bulk campaigns</h3>
-        <p className={dashboardMicro}>Paced CSV campaigns — clicks tracked, not review attribution.</p>
+        <h3 className={dashboardCardTitle}>Campaigns</h3>
+        <p className={dashboardMicro}>
+          Paced SMS/email requests — clicks tracked, not review attribution.
+        </p>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-[12px]">
@@ -138,7 +155,14 @@ export function ReviewRequestsCampaignsTable({ businessId }: { businessId: strin
           <tbody className="divide-y divide-zinc-100">
             {campaigns.map((c) => (
               <tr key={c.id} className="hover:bg-zinc-50/80">
-                <td className="px-3.5 py-2 font-medium text-zinc-900">{c.name}</td>
+                <td className="px-3.5 py-2 font-medium text-zinc-900">
+                  <Link
+                    href={`/businesses/${businessId}/review-campaigns/${c.id}`}
+                    className="hover:text-emerald-700 hover:underline"
+                  >
+                    {c.name}
+                  </Link>
+                </td>
                 <td className="px-3.5 py-2">{statusBadge(c.status)}</td>
                 <td className="px-3.5 py-2 capitalize text-zinc-600">{c.channel}</td>
                 <td className="px-3.5 py-2 text-right tabular-nums">{c.recipients_ready}</td>
@@ -150,31 +174,69 @@ export function ReviewRequestsCampaignsTable({ businessId }: { businessId: strin
                   {new Date(c.created_at).toLocaleDateString()}
                 </td>
                 <td className="relative px-3.5 py-2">
-                  <button type="button" className={rrOutlineBtn} onClick={() => setMenuId(menuId === c.id ? null : c.id)}>
+                  <button
+                    type="button"
+                    className={rrOutlineBtn}
+                    onClick={() => setMenuId(menuId === c.id ? null : c.id)}
+                  >
                     <MoreHorizontal className="h-4 w-4" />
                   </button>
                   {menuId === c.id && (
                     <div className="absolute right-3 z-10 mt-1 w-36 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
+                      <Link
+                        href={`/businesses/${businessId}/review-campaigns/${c.id}`}
+                        className="block px-3.5 py-2 text-left text-xs hover:bg-zinc-50"
+                        onClick={() => setMenuId(null)}
+                      >
+                        Open
+                      </Link>
                       {c.status === "active" && (
-                        <button type="button" className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs hover:bg-zinc-50" onClick={() => void action(c.id, "pause")}>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs hover:bg-zinc-50"
+                          onClick={() => void action(c.id, "pause")}
+                        >
                           <Pause className="h-3 w-3" /> Pause
                         </button>
                       )}
                       {c.status === "paused" && (
-                        <button type="button" className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs hover:bg-zinc-50" onClick={() => void action(c.id, "resume")}>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs hover:bg-zinc-50"
+                          onClick={() => void action(c.id, "resume")}
+                        >
                           <Play className="h-3 w-3" /> Resume
                         </button>
                       )}
                       {c.status === "draft" && (
-                        <button type="button" className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs hover:bg-zinc-50" onClick={() => void action(c.id, "start")}>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs hover:bg-zinc-50"
+                          onClick={() => void action(c.id, "start")}
+                        >
                           <Play className="h-3 w-3" /> Start
                         </button>
                       )}
-                      <button type="button" className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs hover:bg-zinc-50" onClick={() => void duplicate(c.id)}>
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs hover:bg-zinc-50"
+                        onClick={() => void duplicate(c.id)}
+                      >
                         Duplicate
                       </button>
-                      {!["completed", "cancelled"].includes(c.status) && (
-                        <button type="button" className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs text-red-700 hover:bg-red-50" onClick={() => void action(c.id, "cancel")}>
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs hover:bg-zinc-50"
+                        onClick={() => void action(c.id, "archive")}
+                      >
+                        Archive
+                      </button>
+                      {!["completed", "cancelled", "archived"].includes(c.status) && (
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs text-red-700 hover:bg-red-50"
+                          onClick={() => void action(c.id, "cancel")}
+                        >
                           <X className="h-3 w-3" /> Cancel
                         </button>
                       )}

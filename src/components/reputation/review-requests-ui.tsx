@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Bell, BookOpen, Calendar, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ReviewRequestsSection } from "@/components/reputation/review-requests-sub-tabs";
@@ -14,13 +15,27 @@ import {
 } from "@/components/ui/design-system";
 import { dashboardControl } from "@/components/overview/dashboard-ui";
 
-export function ReviewRequestsPageHeader() {
+export function ReviewRequestsPageHeader({
+  campaignsHref,
+}: {
+  campaignsHref?: string;
+} = {}) {
   return (
-    <ModuleHeader
-      title="Review Requests"
-      subtitle="Manage your review links, templates, sending, and tracking in one place."
-      className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
-    />
+    <div className="flex flex-wrap items-end gap-3">
+      <ModuleHeader
+        title="Review Requests"
+        subtitle="Poster, templates, quick send, and tracking. Use Campaigns for paced SMS/email sequences."
+        className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
+      />
+      {campaignsHref ? (
+        <Link
+          href={campaignsHref}
+          className="mb-1 inline-flex items-center rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
+        >
+          Open Campaigns →
+        </Link>
+      ) : null}
+    </div>
   );
 }
 

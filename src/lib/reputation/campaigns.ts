@@ -378,6 +378,129 @@ export async function listCampaigns(businessId: string) {
   });
 }
 
+export async function getCampaignDetail(
+  campaignId: string,
+  businessId: string,
+  options?: { recipientCursor?: string | null; recipientLimit?: number; recipientStatus?: string | null }
+) {
+  const supabase = createServiceClient();
+  const { data: campaign, error } = await supabase
+    .from("review_request_campaigns")
+    .select("*")
+    .eq("id", campaignId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!campaign) throw new Error("Campaign not found");
+
+  const { data: messageRows } = await supabase
+    .from("review_request_messages")
+    .select("status, channel")
+    .eq("campaign_id", campaignId)
+    .eq("business_id", businessId);
+
+  const metrics = {
+    queued: 0,
+    sending: 0,
+    sent: 0,
+    delivered: 0,
+    clicked: 0,
+    failed: 0,
+    opted_out: 0,
+    skipped: 0,
+    sms: 0,
+    email: 0,
+    replied: 0,
+  };
+  for (const m of messageRows ?? []) {
+    const s = String(m.status);
+    if (s === "queued") metrics.queued++;
+    else if (s === "sending") metrics.sending++;
+    else if (s === "sent") metrics.sent++;
+    else if (s === "delivered") {
+      metrics.sent++;
+      metrics.delivered++;
+    } else if (s === "clicked") {
+      metrics.sent++;
+      metrics.delivered++;
+      metrics.clicked++;
+    } else if (s === "failed") metrics.failed++;
+    else if (s === "opted_out") metrics.opted_out++;
+    else if (s === "skipped") metrics.skipped++;
+    if (m.channel === "sms") metrics.sms++;
+    if (m.channel === "email") metrics.email++;
+  }
+
+  const { count: repliedCount } = await supabase
+    .from("review_request_recipients")
+    .select("id", { count: "exact", head: true })
+    .eq("campaign_id", campaignId)
+    .not("replied_at", "is", null);
+  metrics.replied = repliedCount ?? 0;
+
+  const limit = Math.min(Math.max(options?.recipientLimit ?? 50, 1), 100);
+  let recipQuery = supabase
+    .from("review_request_recipients")
+    .select(
+      "id, first_name, last_name, full_name, phone, email, status, skip_reason, workflow_status, current_step, replied_at, review_detected_at, created_at, updated_at"
+    )
+    .eq("campaign_id", campaignId)
+    .eq("business_id", businessId)
+    .order("created_at", { ascending: false })
+    .limit(limit + 1);
+
+  if (options?.recipientStatus) {
+    recipQuery = recipQuery.eq("status", options.recipientStatus);
+  }
+  if (options?.recipientCursor) {
+    recipQuery = recipQuery.lt("created_at", options.recipientCursor);
+  }
+
+  const { data: recipients, error: recipErr } = await recipQuery;
+  if (recipErr) throw new Error(recipErr.message);
+  const rows = recipients ?? [];
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+
+  // Latest message per recipient (batch, not N+1).
+  const recipIds = items.map((r) => r.id);
+  const latestByRecipient = new Map<
+    string,
+    { status: string; channel: string; sent_at: string | null; scheduled_for: string; clicked_at: string | null }
+  >();
+  if (recipIds.length) {
+    const { data: msgs } = await supabase
+      .from("review_request_messages")
+      .select("recipient_id, status, channel, sent_at, scheduled_for, clicked_at")
+      .in("recipient_id", recipIds)
+      .order("scheduled_for", { ascending: false });
+    for (const m of msgs ?? []) {
+      const rid = m.recipient_id as string;
+      if (!latestByRecipient.has(rid)) {
+        latestByRecipient.set(rid, {
+          status: String(m.status),
+          channel: String(m.channel),
+          sent_at: (m.sent_at as string | null) ?? null,
+          scheduled_for: String(m.scheduled_for),
+          clicked_at: (m.clicked_at as string | null) ?? null,
+        });
+      }
+    }
+  }
+
+  return {
+    campaign,
+    metrics,
+    recipients: {
+      items: items.map((r) => ({
+        ...r,
+        latest_message: latestByRecipient.get(r.id) ?? null,
+      })),
+      nextCursor: hasMore ? String(items[items.length - 1]?.created_at ?? "") : null,
+    },
+  };
+}
+
 export async function updateCampaignStatus(
   campaignId: string,
   businessId: string,

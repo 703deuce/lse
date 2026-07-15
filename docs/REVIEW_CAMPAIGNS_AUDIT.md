@@ -96,3 +96,12 @@ Reputation → Reviews; sublink Review Requests. Momentum is under Main.
 | 8 Billing | Org `addons` + usage meters already partially present |
 
 **Policy (billing delinquent):** pause outbound scheduling immediately; keep historical data; resume when `billing_status` is healthy. Already-queued messages are not sent while paused/inactive.
+
+---
+
+## 6. Phase 2 progress
+
+- **Nav:** Review Requests is the parent; **Campaigns** is nested indented under it (own page `/review-campaigns`).
+- **Workers:** Coolify/Hetzner cron → `POST /api/jobs/process` with `CRON_SECRET` (see `docs/COOLIFY_CRON_CAMPAIGNS.md`).
+- **Campaign detail** + recipient pagination; contacts CSV import API `/api/reputation/contacts/import`.
+

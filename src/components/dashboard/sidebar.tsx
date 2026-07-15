@@ -89,8 +89,8 @@ function SidebarNavSubItemRow({
   const showActive = mounted && active;
 
   const className = cn(
-    "relative flex items-center gap-2 rounded-md py-1.5 pl-8 pr-3 text-[13px] font-medium transition-colors",
-    showActive ? "text-emerald-300" : "text-slate-300 hover:bg-white/5 hover:text-white"
+    "relative flex items-center gap-2 rounded-md py-1.5 pl-9 pr-3 text-[12px] font-medium transition-colors",
+    showActive ? "text-emerald-300" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
   );
 
   const content = (
@@ -230,14 +230,27 @@ export function DashboardSidebarPanel({
               </p>
               <div className="space-y-0.5">
                 {nav.reputation.items.map((item) => (
-                  <SidebarNavItemRow
-                    key={item.href}
-                    href={item.href}
-                    label={item.label}
-                    icon={item.icon}
-                    active={isSidebarHrefActive(pathname, item.href, businessId)}
-                    staticLinks={staticLinks}
-                  />
+                  <div key={item.href}>
+                    <SidebarNavItemRow
+                      href={item.href}
+                      label={item.label}
+                      icon={item.icon}
+                      active={isSidebarHrefActive(pathname, item.href, businessId, {
+                        exact: Boolean(item.children?.length),
+                      })}
+                      staticLinks={staticLinks}
+                    />
+                    {item.children?.map((child) => (
+                      <SidebarNavSubItemRow
+                        key={child.href}
+                        href={child.href}
+                        label={child.label}
+                        active={isSidebarHrefActive(pathname, child.href, businessId)}
+                        dot
+                        staticLinks={staticLinks}
+                      />
+                    ))}
+                  </div>
                 ))}
                 {nav.reputation.subLinks.map((item) => (
                   <SidebarNavSubItemRow

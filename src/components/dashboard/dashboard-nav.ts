@@ -16,11 +16,18 @@ import {
   Users,
 } from "lucide-react";
 
+export type SidebarNavChild = {
+  href: string;
+  label: string;
+};
+
 export type SidebarNavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
   isRankGrid?: boolean;
+  /** Nested links indented under this item (e.g. Campaigns under Review Requests). */
+  children?: SidebarNavChild[];
 };
 
 export type SidebarNavSection = {
@@ -31,7 +38,8 @@ export type SidebarNavSection = {
 export type SidebarReputationNav = {
   title: string;
   items: SidebarNavItem[];
-  subLinks: Array<{ href: string; label: string }>;
+  /** @deprecated Prefer item.children for nesting under a parent. */
+  subLinks: SidebarNavChild[];
 };
 
 export function buildBusinessSidebarNav(businessId: string): {
@@ -56,7 +64,12 @@ export function buildBusinessSidebarNav(businessId: string): {
       items: [
         { href: `${base}/reviews`, label: "Review Feed", icon: Star },
         { href: `${base}/review-momentum`, label: "Review Momentum", icon: TrendingUp },
-        { href: `${base}/review-campaigns`, label: "Review Campaigns", icon: MessageSquareText },
+        {
+          href: `${base}/review-requests`,
+          label: "Review Requests",
+          icon: MessageSquareText,
+          children: [{ href: `${base}/review-campaigns`, label: "Campaigns" }],
+        },
         { href: `${base}/contacts`, label: "Contacts", icon: Users },
         { href: `${base}/review-templates`, label: "Templates", icon: FileText },
         { href: `${base}/review-settings`, label: "Settings", icon: Settings2 },
@@ -86,16 +99,14 @@ export function isSidebarHrefActive(
   pathname: string,
   href: string,
   businessId: string,
-  flags?: { isRankGrid?: boolean }
+  flags?: { isRankGrid?: boolean; exact?: boolean }
 ): boolean {
   if (flags?.isRankGrid) {
     return pathname.includes(`/businesses/${businessId}/grid/`) || pathname === href;
   }
-  if (href.includes("/review-requests") || href.includes("/review-campaigns")) {
-    return (
-      pathname.includes(`/businesses/${businessId}/review-requests`) ||
-      pathname.includes(`/businesses/${businessId}/review-campaigns`)
-    );
+  // Review Requests parent should not stay active on nested Campaigns.
+  if (flags?.exact || href.endsWith("/review-requests")) {
+    return pathname === href || pathname.startsWith(`${href}?`);
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
