@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Ban,
   BarChart3,
@@ -157,6 +157,7 @@ export function ReportsHub({
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [reportId, setReportId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const requestGen = useRef(0);
 
   const loadScans = useCallback(async () => {
     setLoadingScans(true);
@@ -204,14 +205,30 @@ export function ReportsHub({
     [scans, scanId]
   );
 
+  const resolvedTrendKeywordId = useMemo(() => {
+    if (!selectedScan) return null;
+    if (selectedScan.keywordId) return selectedScan.keywordId;
+    const match = keywords.find(
+      (k) => k.keyword.trim().toLowerCase() === selectedScan.keyword.trim().toLowerCase()
+    );
+    return match?.id ?? null;
+  }, [selectedScan, keywords]);
+
   const activeCard = REPORT_CARDS.find((c) => c.type === activeType) ?? REPORT_CARDS[0];
   const needsScanPicker = Boolean(
     activeCard.needsScan || activeType === "trend" || activeType === "keyword"
   );
 
+  // Drop stale share links when report inputs change (identity moves).
+  useEffect(() => {
+    requestGen.current += 1;
+    setShareUrl(null);
+    setReportId(null);
+  }, [scanId, keywordId, campaignId, activeType]);
+
   async function createReport(format: "share" | "csv") {
     if (!activeCard.available) return;
-    if (activeCard.needsScan && !scanId) {
+    if ((activeCard.needsScan || activeType === "trend") && !scanId) {
       setError("Select a completed scan first");
       return;
     }
@@ -223,8 +240,18 @@ export function ReportsHub({
       setError("Select a keyword first");
       return;
     }
+    if (activeType === "trend" && !resolvedTrendKeywordId) {
+      setError("This scan has no resolvable keyword. Pick another scan or add the keyword.");
+      return;
+    }
+
+    const gen = ++requestGen.current;
     setBusy(format);
     setError(null);
+    if (format === "share") {
+      setShareUrl(null);
+      setReportId(null);
+    }
     try {
       const body: Record<string, unknown> = {
         businessId,
@@ -240,8 +267,10 @@ export function ReportsHub({
       }
       if (activeType === "keyword" && keywordId) {
         body.keywordId = keywordId;
+      } else if (activeType === "trend") {
+        body.keywordId = resolvedTrendKeywordId;
       } else if (
-        (activeType === "trend" || activeType === "single_scan" || activeType === "competitor") &&
+        (activeType === "single_scan" || activeType === "competitor") &&
         selectedScan?.keywordId
       ) {
         body.keywordId = selectedScan.keywordId;
@@ -267,6 +296,7 @@ export function ReportsHub({
           const json = await res.json().catch(() => ({}));
           throw new Error(json.error ?? "CSV export failed");
         }
+        if (gen !== requestGen.current) return;
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -279,12 +309,14 @@ export function ReportsHub({
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Export failed");
+      if (gen !== requestGen.current) return;
       setShareUrl(data.shareUrl);
       setReportId(data.reportId ?? null);
     } catch (err) {
+      if (gen !== requestGen.current) return;
       setError(err instanceof Error ? err.message : "Export failed");
     } finally {
-      setBusy(null);
+      if (gen === requestGen.current) setBusy(null);
     }
   }
 
@@ -478,7 +510,8 @@ export function ReportsHub({
               type="button"
               disabled={
                 busy != null ||
-                (activeCard.needsScan && !scanId) ||
+                ((activeCard.needsScan || activeType === "trend") && !scanId) ||
+                (activeType === "trend" && !resolvedTrendKeywordId) ||
                 (activeCard.needsCampaign && !campaignId) ||
                 (activeCard.needsKeyword && !keywordId)
               }
@@ -496,7 +529,8 @@ export function ReportsHub({
               type="button"
               disabled={
                 busy != null ||
-                (activeCard.needsScan && !scanId) ||
+                ((activeCard.needsScan || activeType === "trend") && !scanId) ||
+                (activeType === "trend" && !resolvedTrendKeywordId) ||
                 (activeCard.needsCampaign && !campaignId) ||
                 (activeCard.needsKeyword && !keywordId)
               }
