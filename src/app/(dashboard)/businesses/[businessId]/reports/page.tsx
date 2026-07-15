@@ -1,4 +1,4 @@
-import { ReportsPanel } from "@/components/reports/reports-panel";
+import { ReportsHub } from "@/components/reports/reports-hub";
 import { requireAuth } from "@/lib/auth/context";
 import { getBusiness, getLatestScan } from "@/lib/db/queries";
 import { notFound } from "next/navigation";
@@ -14,7 +14,5 @@ export default async function ReportsPage({
   if (!business) notFound();
   const latestScan = await getLatestScan(businessId);
 
-  return (
-    <ReportsPanel businessId={businessId} latestScanId={latestScan?.id ?? null} />
-  );
+  return <ReportsHub businessId={businessId} latestScanId={latestScan?.id ?? null} />;
 }

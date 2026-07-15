@@ -22,5 +22,12 @@ export default async function ShareReportPage({
     if (Number.isFinite(expires) && expires <= Date.now()) notFound();
   }
 
-  return <div dangerouslySetInnerHTML={{ __html: report.html_content }} />;
+  // Isolate full report document in an iframe so nested <html> never breaks the app shell.
+  return (
+    <iframe
+      title="Shared report"
+      className="h-dvh w-full border-0 bg-white"
+      srcDoc={report.html_content}
+    />
+  );
 }
