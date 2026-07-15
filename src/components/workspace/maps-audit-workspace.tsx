@@ -2,11 +2,15 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Grid3X3, Loader2, Play, Sparkles } from "lucide-react";
 import { GridToolbar } from "@/components/scan/grid-toolbar";
-import { CompetitorGridToggle, type EntityOption } from "@/components/scan/competitor-grid-toggle";
+import {
+  CompetitorGridToggle,
+  type CompetitorAddOption,
+  type EntityOption,
+} from "@/components/scan/competitor-grid-toggle";
 import { CellInspectorDrawer } from "@/components/scan/cell-inspector-drawer";
 import { ScanTimelineSlider } from "@/components/scan/scan-timeline-slider";
 import { RankByDistanceCard } from "@/components/maps/rank-by-distance-card";
@@ -83,7 +87,9 @@ export function MapsAuditWorkspace({ businessId }: { businessId: string }) {
   const [scanId, setScanId] = useState<string | null>(null);
   const [keywordId, setKeywordId] = useState<string | null>(null);
   const [entityKey, setEntityKey] = useState("you");
-  const [entities, setEntities] = useState<EntityOption[]>([]);
+  const [baseEntities, setBaseEntities] = useState<EntityOption[]>([]);
+  const [addPool, setAddPool] = useState<CompetitorAddOption[]>([]);
+  const [extraEntityKeys, setExtraEntityKeys] = useState<string[]>([]);
   const [gridCells, setGridCells] = useState<GridCell[]>([]);
   const [gridMetrics, setGridMetrics] = useState<{ solv: number; avgRank: number | null } | null>(null);
   const [inspectorCellId, setInspectorCellId] = useState<string | null>(null);
@@ -142,11 +148,19 @@ export function MapsAuditWorkspace({ businessId }: { businessId: string }) {
     const res = await fetch(`/api/scans/${scanId}/competitors?${params}${entityParam}`);
     if (!res.ok) return;
     const json = await res.json();
-    setEntities(
+    setBaseEntities(
       (json.entities ?? []).map((e: EntityOption) => ({
         key: e.key,
         label: e.label,
         isTarget: e.isTarget,
+      }))
+    );
+    setAddPool(
+      (json.addPool ?? []).map((e: CompetitorAddOption) => ({
+        key: e.key,
+        label: e.label,
+        placeId: e.placeId,
+        subtitle: e.subtitle,
       }))
     );
     const cells = (json.cells ?? []).map(
@@ -172,6 +186,43 @@ export function MapsAuditWorkspace({ businessId }: { businessId: string }) {
   useEffect(() => {
     void loadGrid();
   }, [loadGrid]);
+
+  useEffect(() => {
+    setExtraEntityKeys([]);
+    setEntityKey("you");
+  }, [scanId, keywordId]);
+
+  const entities = useMemo(() => {
+    const chips = [...baseEntities];
+    const shown = new Set(chips.map((e) => e.key));
+    for (const key of extraEntityKeys) {
+      if (shown.has(key)) continue;
+      const fromPool = addPool.find((e) => e.key === key);
+      if (!fromPool) continue;
+      chips.push({ key: fromPool.key, label: fromPool.label, isTarget: false });
+      shown.add(key);
+    }
+    return chips;
+  }, [baseEntities, addPool, extraEntityKeys]);
+
+  const pickerPool = useMemo(() => {
+    const shown = new Set(entities.map((e) => e.key));
+    return addPool.filter((e) => !shown.has(e.key));
+  }, [addPool, entities]);
+
+  const removableKeys = useMemo(() => new Set(extraEntityKeys), [extraEntityKeys]);
+
+  const pinCompetitor = useCallback((key: string) => {
+    setEntityKey(key);
+    if (key === "you") return;
+    if (baseEntities.some((e) => e.key === key)) return;
+    setExtraEntityKeys((prev) => (prev.includes(key) ? prev : [...prev, key]));
+  }, [baseEntities]);
+
+  const removeCompetitor = useCallback((key: string) => {
+    setExtraEntityKeys((prev) => prev.filter((k) => k !== key));
+    setEntityKey((current) => (current === key ? "you" : current));
+  }, []);
 
   async function runFullAudit() {
     setAuditRunning(true);
@@ -307,7 +358,11 @@ export function MapsAuditWorkspace({ businessId }: { businessId: string }) {
                 <CompetitorGridToggle
                   entities={entities}
                   selectedKey={entityKey}
-                  onSelect={setEntityKey}
+                  onSelect={pinCompetitor}
+                  addPool={pickerPool}
+                  onAdd={pinCompetitor}
+                  removableKeys={removableKeys}
+                  onRemove={removeCompetitor}
                   className="mt-2"
                 />
               )}

@@ -43,11 +43,12 @@ export async function GET(
       targetCategory: business.primary_category,
       keyword: gridData.activeKeyword?.keyword,
       locationTokens,
-      limit: 5,
+      limit: 20,
     });
 
-    const competitorEntities = entitiesFromTopCompetitors(topCompetitors, 5);
-    const entities: GridEntityRef[] = [you, ...competitorEntities];
+    const competitorEntities = entitiesFromTopCompetitors(topCompetitors, 20);
+    const chipEntities = competitorEntities.slice(0, 5);
+    const entities: GridEntityRef[] = [you, ...chipEntities];
 
     const resolveEntity = (key: string): GridEntityRef => {
       if (key === "you") return you;
@@ -64,6 +65,12 @@ export async function GET(
         key: e.key,
         label: e.label,
         isTarget: e.isTarget ?? false,
+      })),
+      addPool: competitorEntities.slice(5).map((e) => ({
+        key: e.key,
+        label: e.label,
+        placeId: e.place_id ?? null,
+        subtitle: null as string | null,
       })),
       cells,
       metrics,
@@ -106,22 +113,27 @@ export async function POST(
       targetCategory: business.primary_category,
       keyword: gridData.activeKeyword?.keyword,
       locationTokens,
-      limit: 5,
+      limit: 20,
     });
 
-    const entities: GridEntityRef[] = [
-      you,
-      ...entitiesFromTopCompetitors(topCompetitors, 5).map((e, i) => ({
-        ...e,
-        label: e.label || `Competitor ${i + 1}`,
-      })),
-    ];
+    const competitorEntities = entitiesFromTopCompetitors(topCompetitors, 20).map((e, i) => ({
+      ...e,
+      label: e.label || `Competitor ${i + 1}`,
+    }));
+
+    const entities: GridEntityRef[] = [you, ...competitorEntities.slice(0, 5)];
 
     return NextResponse.json({
       entities: entities.map((e) => ({
         key: e.key,
         label: e.label,
         isTarget: e.isTarget ?? false,
+      })),
+      addPool: competitorEntities.slice(5).map((e) => ({
+        key: e.key,
+        label: e.label,
+        placeId: e.place_id ?? null,
+        subtitle: null,
       })),
     });
   } catch (err) {
