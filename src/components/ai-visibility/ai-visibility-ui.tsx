@@ -6,7 +6,6 @@ import {
   Building2,
   Calendar,
   FileText,
-  Filter,
   Info,
   LayoutDashboard,
   Map,
@@ -221,58 +220,15 @@ export function AiVisibilitySearchBar({
   onChange: (v: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="relative min-w-0 flex-1">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-        <input
-          type="search"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Search for a competitor, engine, source, or topic…"
-          className={cn(inputClass, "py-2.5 pl-10 pr-3 shadow-sm")}
-        />
-      </div>
-      <button type="button" className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
-        <Filter className="h-3.5 w-3.5" />
-        Filter
-      </button>
-    </div>
-  );
-}
-
-export function AiVisibilityTabFilters({
-  primaryPrompt,
-}: {
-  primaryPrompt?: string | null;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface px-3.5 py-2.5 shadow-sm">
-      <label className="flex items-center gap-2 text-xs text-text-muted">
-        Prompt
-        <select className="rounded-md border border-border bg-surface px-2 py-1.5 text-xs font-medium text-text">
-          <option>{primaryPrompt ?? "Primary prompt"}</option>
-        </select>
-      </label>
-      <label className="flex items-center gap-2 text-xs text-text-muted">
-        Time range
-        <select className="rounded-md border border-border bg-surface px-2 py-1.5 text-xs font-medium text-text" defaultValue="30">
-          <option value="30">Last 30 days</option>
-          <option value="90">Last 90 days</option>
-        </select>
-      </label>
-      <label className="flex items-center gap-2 text-xs text-text-muted">
-        Engine
-        <select className="rounded-md border border-border bg-surface px-2 py-1.5 text-xs font-medium text-text" defaultValue="all">
-          <option value="all">All engines</option>
-        </select>
-      </label>
-      <button
-        type="button"
-        className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text hover:bg-surface-subtle"
-      >
-        <Filter className="h-3.5 w-3.5" />
-        Filters
-      </button>
+    <div className="relative min-w-0 w-full">
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Search for a competitor, engine, source, or topic…"
+        className={cn(inputClass, "w-full py-2.5 pl-10 pr-3 shadow-sm")}
+      />
     </div>
   );
 }

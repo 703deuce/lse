@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Building2, Calendar, ChevronDown, Play } from "lucide-react";
+import { Building2, ChevronDown, Play } from "lucide-react";
 import { pageSubtitleClass, pageTitleClass, btnPrimary } from "@/components/ui/design-system";
 import {
   dashboardControl,
@@ -13,15 +13,6 @@ function greetingForHour(hour: number): string {
   if (hour < 12) return "Good morning";
   if (hour < 17) return "Good afternoon";
   return "Good evening";
-}
-
-function formatDateRange(): string {
-  const end = new Date();
-  const start = new Date(end);
-  start.setDate(end.getDate() - 7);
-  const fmt = (d: Date) =>
-    d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  return `${fmt(start)} – ${fmt(end)}`;
 }
 
 export function DashboardHeader({
@@ -70,20 +61,6 @@ export function DashboardHeader({
             </select>
             <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
           </label>
-
-          <button
-            type="button"
-            className={cn(
-              dashboardControl,
-              "inline-flex w-full items-center justify-between gap-2 px-3 font-medium text-zinc-600 sm:w-auto"
-            )}
-          >
-            <span className="inline-flex min-w-0 items-center gap-2">
-              <Calendar className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-              <span className="truncate whitespace-nowrap">{formatDateRange()}</span>
-            </span>
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-          </button>
 
           <Link
             href={`/businesses/${businessId}/scans`}

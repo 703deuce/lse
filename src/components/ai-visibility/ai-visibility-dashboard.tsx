@@ -13,7 +13,6 @@ import {
   AiVisibilityFooter,
   AiVisibilityHeaderRow,
   AiVisibilitySearchBar,
-  AiVisibilityTabFilters,
   AiVisibilityTabs,
   AiVisibilityViewControls,
   BarChart3,
@@ -287,7 +286,6 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
 
       {tab === "history" && (
         <>
-          <AiVisibilityTabFilters primaryPrompt={data?.primaryPrompt?.prompt_text} />
           <KpiRow cols={4}>
             <AiKpiCard
               label="Total Runs"

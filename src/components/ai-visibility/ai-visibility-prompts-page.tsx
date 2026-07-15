@@ -6,7 +6,6 @@ import {
   Check,
   ChevronRight,
   Loader2,
-  MoreVertical,
   Plus,
   Trash2,
   X,
@@ -250,8 +249,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                 <th className="px-3.5 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Active</th>
                 <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Last Run</th>
                 <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Schedule</th>
-                <th className="px-3.5 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Runs</th>
-                <th className="w-10 px-3.5 py-2" />
+                <th className="px-3.5 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Mentions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -301,13 +299,8 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                         })
                       : "Never"}
                   </td>
-                  <td className="px-3.5 py-2 text-xs text-text-muted">Daily 8:00 AM</td>
-                  <td className="px-3.5 py-2 text-center tabular-nums text-text">{p.mention_count ?? 128}</td>
-                  <td className="px-3.5 py-2">
-                    <button type="button" className="rounded p-1 text-text-muted hover:bg-surface-subtle">
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
-                  </td>
+                  <td className="px-3.5 py-2 text-xs text-text-muted">—</td>
+                  <td className="px-3.5 py-2 text-center tabular-nums text-text">{p.mention_count ?? "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -372,15 +365,12 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                   className="w-full rounded-md border border-border bg-white px-3.5 py-2 text-[13px]"
                 />
               </label>
-              <label className="block text-[13px]">
+              <div className="block text-[13px]">
                 <span className="mb-1 block text-xs font-medium text-text-muted">Prompt Group</span>
-                <select className="w-full rounded-md border border-border bg-white px-3.5 py-2 text-[13px]" defaultValue={selected.category ?? "Core Visibility"}>
-                  <option>Core Visibility</option>
-                  <option>Pricing & Services</option>
-                  <option>Service Quality</option>
-                  <option>Trust & Authority</option>
-                </select>
-              </label>
+                <p className="rounded-md border border-border bg-surface-subtle px-3.5 py-2 text-[13px]">
+                  {selected.category ?? "Core Visibility"}
+                </p>
+              </div>
               <label className="block text-[13px]">
                 <span className="mb-1 flex justify-between text-xs font-medium text-text-muted">
                   Prompt Text
@@ -392,32 +382,12 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                   rows={5}
                   className="w-full rounded-md border border-border bg-surface-subtle px-3.5 py-2 text-[13px]"
                 />
-                <button type="button" className="mt-1 text-[10px] font-medium text-emerald-700">
-                  Insert Variable {"{}"}
-                </button>
               </label>
               <div>
                 <span className="mb-1 block text-xs font-medium text-text-muted">Location Context</span>
                 <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-subtle px-3.5 py-2 text-[13px]">
                   <span>{city && state ? `${city}, ${state}` : "Business location"}</span>
                   <span className="rounded bg-border px-1.5 py-0.5 text-[10px] font-medium text-text-muted">25 mi radius</span>
-                </div>
-                <button type="button" className="mt-1 text-[10px] font-medium text-emerald-700">
-                  + Add another location
-                </button>
-              </div>
-              <div>
-                <span className="mb-1 block text-xs font-medium text-text-muted">Run Frequency</span>
-                <div className="flex flex-wrap gap-2">
-                  <select className="rounded-md border border-border px-2 py-2 text-[13px]" defaultValue="daily">
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                  </select>
-                  <select className="rounded-md border border-border px-2 py-2 text-[13px]" defaultValue="8">
-                    <option value="8">8:00 AM</option>
-                    <option value="12">12:00 PM</option>
-                  </select>
-                  <span className="self-center text-xs text-text-muted">EST</span>
                 </div>
               </div>
               <div>
@@ -432,9 +402,6 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                       {ENGINE_LABELS[e]}
                     </span>
                   ))}
-                  <button type="button" className="rounded-full border border-dashed border-border px-2.5 py-1 text-[10px] font-medium text-text-muted">
-                    + Add Engine
-                  </button>
                 </div>
               </div>
               <label className="block text-[13px]">
@@ -489,11 +456,8 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
 
       {(data?.suggestedPrompts ?? []).length > 0 && (
         <div>
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3">
             <h3 className="font-semibold text-text">Prompt Templates</h3>
-            <button type="button" className="text-xs font-medium text-emerald-700 hover:underline">
-              View all templates →
-            </button>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[

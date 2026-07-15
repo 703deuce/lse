@@ -103,10 +103,6 @@ export function AiVisibilityDashboardTab({
                 ? `Tracking ${aggregate?.completeRuns ?? 0} runs across ${aggregate?.totalEngineChecks ?? 0} engine checks.`
                 : "No summary for this run yet.")}
           </p>
-          <button type="button" className="mt-2.5 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline">
-            View detailed insights
-            <ArrowRight className="h-3 w-3" />
-          </button>
         </AiPanel>
 
         <AiPanel
@@ -217,10 +213,6 @@ export function AiVisibilityDashboardTab({
               </table>
             </div>
           )}
-          <button type="button" className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline">
-            View all {isCombined ? historicalMentions.length : leaderboard.length} companies
-            <ArrowRight className="h-3 w-3" />
-          </button>
         </AiPanel>
 
         <div className="flex flex-col gap-2 lg:col-span-4">
@@ -285,10 +277,6 @@ export function AiVisibilityDashboardTab({
                 <p className="mt-0.5 text-[11px] text-text-muted">More unique domains citing your business helps AI trust.</p>
               </div>
             </div>
-            <button type="button" className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline">
-              View full insights
-              <ArrowRight className="h-3 w-3" />
-            </button>
           </AiPanel>
         </div>
       </div>

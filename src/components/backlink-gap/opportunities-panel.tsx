@@ -9,9 +9,7 @@ import {
   ExternalLink,
   Filter,
   Loader2,
-  MoreHorizontal,
   Search,
-  Settings,
   Sparkles,
 } from "lucide-react";
 import {
@@ -128,9 +126,6 @@ function IgnoredTable({
             <th className="px-3.5 py-2.5">Competitors</th>
             <th className="px-3.5 py-2.5">Action status</th>
             <th className="px-3.5 py-2.5">Confidence</th>
-            <th className="px-3.5 py-2.5">
-              <Settings className="h-3.5 w-3.5 text-text-muted" aria-label="Column settings" />
-            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-100">
@@ -167,11 +162,6 @@ function IgnoredTable({
               </td>
               <td className="px-3.5 py-2.5">{actionStatusBadge(o.status, o.priority)}</td>
               <td className="px-3.5 py-2.5">{confidenceBadge(o.priority)}</td>
-              <td className="px-3.5 py-2.5" onClick={(e) => e.stopPropagation()}>
-                <button type="button" className="rounded p-1 hover:bg-surface-subtle" aria-label="More actions">
-                  <MoreHorizontal className="h-4 w-4 text-text-muted" />
-                </button>
-              </td>
             </tr>
           ))}
         </tbody>
@@ -686,9 +676,6 @@ export function OpportunitiesPanel({
                 Highest impact opportunities based on Power, Relevance, and your competitors.
               </p>
             </div>
-            <button type="button" className="text-[12px] font-medium text-emerald-700 hover:underline">
-              View full recommendations →
-            </button>
           </div>
           <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
             {aiPicks.map((o) => (

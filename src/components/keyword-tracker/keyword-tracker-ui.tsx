@@ -25,24 +25,9 @@ export function KeywordsPageHeader({ businessId }: { businessId: string }) {
       subtitle="Track Google Maps ranking performance for your most important local search terms."
       className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
       actions={
-        <>
-          <button type="button" className={cn(btnIcon, "relative h-9 w-9 text-zinc-600")} aria-label="Notifications">
-            <Bell className="h-3.5 w-3.5" />
-            <span className="absolute -right-1 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-emerald-600 px-0.5 text-[9px] font-bold text-white">
-              3
-            </span>
-          </button>
-          <button type="button" className={cn(btnSecondary, "h-9 gap-1.5 px-2.5 text-[13px]")}>
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-600 text-[11px] font-bold text-white">
-              JD
-            </span>
-            <span className="hidden sm:inline">John Doe</span>
-            <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
-          </button>
-          <Link href={`/businesses/${businessId}/workspace`} className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
-            ← Maps Workspace
-          </Link>
-        </>
+        <Link href={`/businesses/${businessId}/scans`} className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
+          Maps Scans
+        </Link>
       }
     />
   );

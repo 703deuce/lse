@@ -20,7 +20,7 @@ export function DashboardQuickActions({ businessId }: { businessId: string }) {
       iconWrap: "bg-sky-50 text-sky-600 ring-1 ring-sky-100",
     },
     {
-      href: `/businesses/${businessId}/review-requests`,
+      href: `/businesses/${businessId}/review-campaigns`,
       title: "Create Campaign",
       description: "Send automated review requests.",
       icon: Megaphone,

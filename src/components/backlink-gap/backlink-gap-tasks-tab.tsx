@@ -10,7 +10,6 @@ import {
   Handshake,
   LayoutGrid,
   List,
-  MoreHorizontal,
   Star,
   TrendingUp,
 } from "lucide-react";
@@ -305,7 +304,6 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
                 <th className="px-3.5 py-2">Owner</th>
                 <th className="px-3.5 py-2">Due Date</th>
                 <th className="px-3.5 py-2">Status</th>
-                <th className="px-3.5 py-2" />
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -339,11 +337,6 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
                     <td className="px-3.5 py-2">{ownerDisplay((page - 1) * pageSize + idx)}</td>
                     <td className="px-3.5 py-2">{dueDateDisplay((page - 1) * pageSize + idx)}</td>
                     <td className="px-3.5 py-2">{statusBadge(String(task.status ?? "open"))}</td>
-                    <td className="px-3.5 py-2">
-                      <button type="button" className="rounded p-1 hover:bg-zinc-100" aria-label="More actions">
-                        <MoreHorizontal className="h-3.5 w-3.5 text-zinc-400" />
-                      </button>
-                    </td>
                   </tr>
                 );
               })}

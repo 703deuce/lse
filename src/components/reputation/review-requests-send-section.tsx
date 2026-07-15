@@ -8,8 +8,6 @@ import {
   Loader2,
   Mail,
   MessageSquare,
-  MoreHorizontal,
-  Save,
   Send,
 } from "lucide-react";
 import { renderTemplate } from "@/lib/reputation/template-vars";
@@ -419,10 +417,6 @@ export function ReviewRequestsSendSection({
               {sending === "both" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 text-emerald-600" />}
               Send Both
             </button>
-            <button type="button" className={rrOutlineBtn}>
-              <Save className="h-4 w-4" />
-              Save Draft
-            </button>
           </div>
         </div>
 
@@ -487,13 +481,12 @@ export function ReviewRequestsSendSection({
                 <th className="px-3.5 py-2">Status</th>
                 <th className="px-3.5 py-2">Sent</th>
                 <th className="px-3.5 py-2">Preview</th>
-                <th className="w-10 px-3.5 py-2" />
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {(stats?.recent_sends ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-3 py-8 text-center text-[13px] text-zinc-500">
+                  <td colSpan={6} className="px-3 py-8 text-center text-[13px] text-zinc-500">
                     No sends yet.
                   </td>
                 </tr>
@@ -526,21 +519,11 @@ export function ReviewRequestsSendSection({
                       {row.message_body.slice(0, 60)}
                       {row.message_body.length > 60 ? "…" : ""}
                     </td>
-                    <td className="px-3.5 py-2">
-                      <button type="button" className="rounded p-1 hover:bg-zinc-100" aria-label="More actions">
-                        <MoreHorizontal className="h-4 w-4 text-zinc-400" />
-                      </button>
-                    </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
-        </div>
-        <div className="border-t border-zinc-100 px-4 py-2.5 text-center">
-          <button type="button" className="text-xs font-semibold text-emerald-700 hover:underline">
-            View all sends →
-          </button>
         </div>
       </div>
     </div>

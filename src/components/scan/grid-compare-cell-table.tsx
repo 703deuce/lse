@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Download, Filter, MoreVertical, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, Download, Filter, Search } from "lucide-react";
 import type { CellComparison } from "@/lib/maps/grid-entity";
 import { rankLabel } from "@/lib/maps/grid-metrics";
 import { compareCardClass, compareHeaderBtn } from "@/components/scan/grid-compare-ui";
@@ -176,7 +176,6 @@ export function GridCompareCellTable({
               <th className="px-3.5 py-2">Δ Change</th>
               <th className="px-3.5 py-2">Movement</th>
               <th className="px-3.5 py-2">Change Type</th>
-              <th className="px-3.5 py-2 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -244,15 +243,6 @@ export function GridCompareCellTable({
                     >
                       {changeTypeLabel(c.direction, headToHead)}
                     </span>
-                  </td>
-                  <td className="px-3.5 py-2 text-right">
-                    <button
-                      type="button"
-                      className="inline-flex rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
-                      aria-label={`Actions for cell ${c.label}`}
-                    >
-                      <MoreVertical className="h-3.5 w-3.5" />
-                    </button>
                   </td>
                 </tr>
               );

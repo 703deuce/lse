@@ -323,15 +323,14 @@ export function DashboardSidebarPanel({
         <div className="space-y-2 border-t border-sidebar-border p-2.5">
           <div className="mx-1 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3">
             <p className="text-xs font-semibold text-emerald-200">Need help growing?</p>
-            <a
-              href="https://calendly.com"
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href={`/businesses/${businessId}/growth-audit?tab=growth-plan`}
+              onClick={() => onNavigate?.()}
               className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
             >
               <Phone className="h-3.5 w-3.5" />
-              Book a Strategy Call
-            </a>
+              Open Growth Plan
+            </Link>
           </div>
           <SidebarNavItemRow
             href={`/businesses/${businessId}/settings`}

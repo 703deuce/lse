@@ -2,13 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  ArrowRight,
   ChevronLeft,
   ChevronRight,
   Download,
   ExternalLink,
   Loader2,
-  MoreVertical,
   Sparkles,
 } from "lucide-react";
 import { OPPORTUNITY_TYPE_LABELS, type OpportunityType } from "@/lib/local-trust/types";
@@ -223,7 +221,6 @@ export function LocalTrustCompetitorsTab({
                   <th className="px-3.5 py-2">Local Relevance</th>
                   <th className="px-3.5 py-2">Authority / Score</th>
                   <th className="px-3.5 py-2">Suggested Action</th>
-                  <th className="w-10 px-3.5 py-2" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -272,18 +269,6 @@ export function LocalTrustCompetitorsTab({
                         <p className="text-[11px] leading-snug text-zinc-600">
                           {String(row.suggested_action ?? "Reach out to get featured on this page.")}
                         </p>
-                        <button
-                          type="button"
-                          className="mt-1.5 inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50"
-                        >
-                          View Opportunity
-                          <ArrowRight className="h-3 w-3" />
-                        </button>
-                      </td>
-                      <td className="px-3.5 py-2.5">
-                        <button type="button" className="rounded p-1 text-zinc-400 hover:bg-zinc-100">
-                          <MoreVertical className="h-4 w-4" />
-                        </button>
                       </td>
                     </tr>
                   );

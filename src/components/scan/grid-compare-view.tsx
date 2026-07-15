@@ -5,11 +5,9 @@ import dynamic from "next/dynamic";
 import {
   BarChart3,
   Calendar,
-  Download,
   Link2,
   Loader2,
   Plus,
-  Share2,
   Shield,
   Target,
   TrendingUp,
@@ -24,7 +22,6 @@ import { GridCompareCellTable } from "@/components/scan/grid-compare-cell-table"
 import { GridCompareInsights } from "@/components/scan/grid-compare-insights";
 import {
   compareCardClass,
-  compareHeaderBtn,
   comparePageBg,
   comparePrimaryBtn,
   compareSelectClass,
@@ -305,8 +302,6 @@ export function GridCompareView({
   const baselineDate = data?.scanA.finishedAt ?? data?.scanA.createdAt;
   const currentDate = data?.scanB.finishedAt ?? data?.scanB.createdAt;
 
-  const headerBtn = compareHeaderBtn;
-
   return (
     <div className={cn("fixed inset-y-0 right-0 left-60 z-50 flex min-h-screen", comparePageBg)}>
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -321,18 +316,6 @@ export function GridCompareView({
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <button type="button" className={headerBtn}>
-                <Download className="h-3.5 w-3.5" />
-                Export
-              </button>
-              <button type="button" className={headerBtn}>
-                <Share2 className="h-3.5 w-3.5" />
-                Share
-              </button>
-              <button type="button" className={headerBtn}>
-                <Calendar className="h-3.5 w-3.5" />
-                Schedule Report
-              </button>
               <button
                 type="button"
                 onClick={onClose}

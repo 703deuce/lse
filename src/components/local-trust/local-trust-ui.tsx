@@ -66,22 +66,7 @@ export function TrustPageHeader() {
 }
 
 export function TrustTopBar() {
-  return (
-    <div className="flex shrink-0 items-center gap-2">
-      <button type="button" className={cn(btnIcon, "h-9 w-9")} aria-label="Help">
-        <CircleHelp className="h-3.5 w-3.5" />
-      </button>
-      <button type="button" className={cn(btnIcon, "relative h-9 w-9")} aria-label="Notifications">
-        <Bell className="h-3.5 w-3.5" />
-        <span className="absolute -right-1 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-bold text-white">
-          3
-        </span>
-      </button>
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-bold text-white">
-        JD
-      </span>
-    </div>
-  );
+  return null;
 }
 
 export function TrustMetaLine({

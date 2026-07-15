@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, ChevronDown, Download, ExternalLink, Sparkles } from "lucide-react";
+import { CheckCircle2, ChevronDown, ExternalLink, Sparkles } from "lucide-react";
 import { ENGINE_LABELS, type AiEngine } from "@/lib/ai-visibility/types";
 import { AiPanel, AiKpiCard, EngineBadge, BarChart3, PieChart } from "@/components/ai-visibility/ai-visibility-ui";
 import type { FanoutRow, SourceRow } from "@/components/ai-visibility/ai-visibility-types";
@@ -156,12 +156,6 @@ export function AiVisibilityEvidenceTab({
             <AiPanel
               title="Cited Sources"
               subtitle="Web pages and content sources AI engines used to generate their responses."
-              action={
-                <button type="button" className="inline-flex items-center gap-1 text-xs font-medium text-text-muted">
-                  <Download className="h-3.5 w-3.5" />
-                  Export
-                </button>
-              }
               className="overflow-hidden p-0 lg:col-span-1"
             >
               <div className="overflow-x-auto">
@@ -239,11 +233,6 @@ export function AiVisibilityEvidenceTab({
           <AiPanel
             title="Research Trails (Fan-outs)"
             subtitle="Sub-queries and reasoning paths AI engines used."
-            action={
-              <button type="button" className="text-[10px] font-medium text-emerald-700 hover:underline">
-                Expand all
-              </button>
-            }
             className="h-fit"
           >
             <div className="space-y-2">

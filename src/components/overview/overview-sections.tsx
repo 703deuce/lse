@@ -282,15 +282,6 @@ export function OverviewFooterCta({ businessId }: { businessId: string }) {
             View Full Growth Plan
             <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
-          <a
-            href="https://calendly.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-white text-text-muted hover:bg-surface-subtle"
-            aria-label="Book a strategy call"
-          >
-            <Phone className="h-3.5 w-3.5" />
-          </a>
         </div>
       </div>
     </section>
