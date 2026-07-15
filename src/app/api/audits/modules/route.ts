@@ -1,117 +1,91 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
-import {
-  loadGbpProfile,
-  runFullAuditSuite,
-  saveAuditRun,
-  loadCompetitorsForBusiness,
-} from "@/lib/audit/run-audit";
-import { runWebsiteMatchAudit } from "@/lib/audit/website-match";
-import { runCategoryGapAudit } from "@/lib/audit/category-gap";
-import { runCore30Audit } from "@/lib/audit/core30";
-import { runHyperLocalAudit } from "@/lib/audit/hyperlocal";
-import { runCompetitorGapAudit } from "@/lib/audit/competitor-gap";
-import { runReviewAudit, runPostAudit, runPhotoAudit } from "@/lib/audit/gbp-modules";
+import { dispatchFeatureJob } from "@/lib/queue/dispatch";
+import { getLatestModuleAudit } from "@/lib/audit/run-audit";
+import { executeAuditModule, isAuditModule } from "@/lib/audit/run-module";
 
-const MODULES = [
-  "website-match",
-  "category-gap",
-  "core30",
-  "hyperlocal",
-  "competitor-gaps",
-  "reviews",
-  "posts",
-  "photos",
-  "action-plan",
-  "full",
-] as const;
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-type ModuleType = (typeof MODULES)[number] | string;
-
+/**
+ * Queue a GBP audit module (or return the latest saved result via GET).
+ * Escape hatch: `?sync=1` / body.sync for local debugging only.
+ */
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { businessId, module, keyword } = body as {
-      businessId: string;
-      module: ModuleType;
+    const { businessId, module, keyword, sync } = body as {
+      businessId?: string;
+      module?: string;
       keyword?: string;
+      sync?: boolean;
     };
 
     if (!businessId || !module) {
       return NextResponse.json({ error: "businessId and module required" }, { status: 400 });
     }
+    if (!isAuditModule(module)) {
+      return NextResponse.json({ error: "Unknown module" }, { status: 400 });
+    }
 
-    await requireBusinessAccess(businessId);
+    const auth = await requireBusinessAccess(businessId);
 
-    if (module === "full") {
-      const result = await runFullAuditSuite(businessId, keyword);
-      await saveAuditRun(businessId, "full", result, result.website.score);
+    if (sync === true && process.env.NODE_ENV !== "production") {
+      const result = await executeAuditModule({ businessId, module, keyword });
       return NextResponse.json(result);
     }
 
-    const gbp = await loadGbpProfile(businessId);
-    if (!gbp) return NextResponse.json({ error: "Business not found" }, { status: 404 });
+    const job = await dispatchFeatureJob({
+      jobType: "gbp_audit_module",
+      payload: {
+        businessId,
+        organizationId: auth.organizationId,
+        module,
+        keyword,
+      },
+      organizationId: auth.organizationId,
+      businessId,
+      relatedResourceId: `${businessId}:${module}`,
+      idempotencyKey: `gbp-audit:${businessId}:${module}:${Math.floor(Date.now() / 30_000)}`,
+      priority: "normal",
+      maxAttempts: 2,
+    });
 
-    const competitors = await loadCompetitorsForBusiness(businessId);
-    const competitorCategories = competitors.flatMap((c) =>
-      [c.category, ...(c.additionalCategories ?? [])].filter(Boolean) as string[]
-    );
-    const competitorPhotoAvg =
-      competitors.length > 0
-        ? competitors.reduce((s, c) => s + (c.photoCount ?? 0), 0) / competitors.length
-        : undefined;
-
-    switch (module) {
-      case "website-match": {
-        const result = await runWebsiteMatchAudit(gbp, keyword);
-        await saveAuditRun(businessId, module, result, result.score);
-        return NextResponse.json(result);
-      }
-      case "category-gap": {
-        const result = await runCategoryGapAudit(gbp, competitorCategories);
-        await saveAuditRun(businessId, module, result);
-        return NextResponse.json(result);
-      }
-      case "core30": {
-        const result = await runCore30Audit(gbp);
-        await saveAuditRun(businessId, module, result, result.completionScore);
-        return NextResponse.json(result);
-      }
-      case "hyperlocal": {
-        const result = await runHyperLocalAudit(gbp);
-        await saveAuditRun(businessId, module, result, result.score);
-        return NextResponse.json(result);
-      }
-      case "competitor-gaps": {
-        const result = await runCompetitorGapAudit(gbp, competitors);
-        await saveAuditRun(businessId, module, result);
-        return NextResponse.json(result);
-      }
-      case "reviews": {
-        const result = await runReviewAudit(gbp, businessId);
-        await saveAuditRun(businessId, module, result);
-        return NextResponse.json(result);
-      }
-      case "posts": {
-        const result = await runPostAudit(gbp, businessId);
-        await saveAuditRun(businessId, module, result);
-        return NextResponse.json(result);
-      }
-      case "photos": {
-        const result = await runPhotoAudit(gbp, businessId, competitorPhotoAvg);
-        await saveAuditRun(businessId, module, result);
-        return NextResponse.json(result);
-      }
-      case "action-plan": {
-        const suite = await runFullAuditSuite(businessId, keyword);
-        await saveAuditRun(businessId, module, suite.actionPlan);
-        return NextResponse.json(suite.actionPlan);
-      }
-      default:
-        return NextResponse.json({ error: "Unknown module" }, { status: 400 });
+    if (job.enqueueState === "enqueue_failed") {
+      return NextResponse.json(
+        { error: "Failed to queue audit module", jobId: job.jobId },
+        { status: 503 }
+      );
     }
+
+    return NextResponse.json({
+      queued: true,
+      status: "queued",
+      jobId: job.jobId,
+      module,
+      queueDriver: job.driver,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Audit module failed";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+/** Latest saved module result (used after a queued job settles). */
+export async function GET(request: Request) {
+  try {
+    const url = new URL(request.url);
+    const businessId = url.searchParams.get("businessId");
+    const module = url.searchParams.get("module");
+    if (!businessId || !module) {
+      return NextResponse.json({ error: "businessId and module required" }, { status: 400 });
+    }
+    await requireBusinessAccess(businessId);
+    const row = await getLatestModuleAudit(businessId, module);
+    if (!row) return NextResponse.json({ error: "No audit result yet" }, { status: 404 });
+    return NextResponse.json(row.result_json ?? {});
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to load audit";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

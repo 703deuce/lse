@@ -4,32 +4,43 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { BucketBadge } from "@/components/ui/metric-card";
 import type { ActionTask } from "@/lib/audit/types";
+import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 
 export function SopActionPlanRunner({ businessId }: { businessId: string }) {
-  const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState<{
     urgent: ActionTask[];
     sevenDay: ActionTask[];
     thirtyDay: ActionTask[];
   } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+
+  const { start, running, error, setError } = useModuleJobRunner({
+    onSettled: async (info) => {
+      if (!info.ok) return;
+      if (info.syncResult && !info.syncResult.queued) {
+        setPlan(info.syncResult as typeof plan);
+        return;
+      }
+      const res = await fetch(
+        `/api/audits/modules?businessId=${encodeURIComponent(businessId)}&module=action-plan`
+      );
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(typeof json.error === "string" ? json.error : "Failed to load action plan");
+        return;
+      }
+      setPlan(json as NonNullable<typeof plan>);
+    },
+  });
 
   async function run() {
-    setLoading(true);
-    setError(null);
     try {
-      const res = await fetch("/api/audits/modules", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId, module: "action-plan" }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed");
-      setPlan(json);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed");
-    } finally {
-      setLoading(false);
+      await start(
+        "/api/audits/modules",
+        { businessId, module: "action-plan" },
+        "Failed"
+      );
+    } catch {
+      /* error already set */
     }
   }
 
@@ -42,11 +53,11 @@ export function SopActionPlanRunner({ businessId }: { businessId: string }) {
         </div>
         <button
           type="button"
-          onClick={run}
-          disabled={loading}
+          onClick={() => void run()}
+          disabled={running}
           className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50"
         >
-          {loading ? (
+          {running ? (
             <span className="inline-flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" /> Running all audits…
             </span>
@@ -68,7 +79,7 @@ export function SopActionPlanRunner({ businessId }: { businessId: string }) {
 }
 
 function TaskSection({ title, tasks }: { title: string; tasks: ActionTask[] }) {
-  if (!tasks.length) return null;
+  if (!tasks?.length) return null;
   return (
     <section>
       <h3 className="font-semibold">{title}</h3>

@@ -65,7 +65,14 @@ export async function getJobStatus(jobId: string): Promise<QueueJobRecord | null
 }
 
 export async function cancelJob(jobId: string): Promise<boolean> {
-  return cancelLedgerJob(jobId);
+  const before = await getLedgerJob(jobId);
+  const ok = await cancelLedgerJob(jobId);
+  if (!ok) return false;
+  if (resolveQueueDriver() === "bullmq" && getRedisUrl() && before?.queueName) {
+    const { bullmqRemoveLedgerJob } = await import("@/lib/queue/drivers/bullmq-driver");
+    await bullmqRemoveLedgerJob(before.queueName, jobId).catch(() => {});
+  }
+  return true;
 }
 
 export async function retryJob(jobId: string): Promise<boolean> {
@@ -74,16 +81,29 @@ export async function retryJob(jobId: string): Promise<boolean> {
   if (resolveQueueDriver() === "bullmq" && getRedisUrl()) {
     const job = await getLedgerJob(jobId);
     if (job?.queueName) {
-      await bullmqRequeueLedgerJob({
-        id: job.id,
-        queueName: job.queueName,
-        jobType: job.jobType,
-        payload: job.payload,
-        organizationId: job.organizationId,
-        businessId: job.businessId,
-        priority: job.priority,
-        maxAttempts: job.maxAttempts,
-      }).catch(() => {});
+      try {
+        await bullmqRequeueLedgerJob({
+          id: job.id,
+          queueName: job.queueName,
+          jobType: job.jobType,
+          payload: job.payload,
+          organizationId: job.organizationId,
+          businessId: job.businessId,
+          priority: job.priority,
+          maxAttempts: job.maxAttempts,
+        });
+      } catch (err) {
+        await markLedgerEnqueueFailed(
+          job.id,
+          err instanceof Error ? err.message : "retry requeue failed"
+        );
+        return false;
+      }
+    }
+  } else {
+    const job = await getLedgerJob(jobId);
+    if (job) {
+      await markLedgerEnqueued(job.id, { queueJobId: job.id, enqueueState: "enqueued" });
     }
   }
   return true;

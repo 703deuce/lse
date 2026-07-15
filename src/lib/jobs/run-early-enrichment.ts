@@ -63,15 +63,24 @@ export async function maybeStartEarlyEnrichment(
   }
 
   try {
+    let orgId = organizationId;
+    if (!orgId && batch.business_id) {
+      const { data: biz } = await supabase
+        .from("businesses")
+        .select("organization_id")
+        .eq("id", batch.business_id)
+        .maybeSingle();
+      orgId = (biz?.organization_id as string | undefined) ?? undefined;
+    }
     const { dispatchFeatureJob } = await import("@/lib/queue/dispatch");
     await dispatchFeatureJob({
       jobType: "early_enrichment",
       payload: {
         scanBatchId,
-        organizationId,
+        organizationId: orgId,
         businessId: batch.business_id,
       },
-      organizationId,
+      organizationId: orgId,
       businessId: batch.business_id as string,
       relatedResourceId: scanBatchId,
       idempotencyKey: `early-enrichment:${scanBatchId}`,

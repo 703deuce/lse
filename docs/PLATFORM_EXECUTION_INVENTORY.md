@@ -43,7 +43,7 @@ Status: **queued** = uses `dispatchFeatureJob` / ledger; **in-request** = still 
 | Feature | Status |
 | --- | --- |
 | Local Trust, Backlink Gap, AI Visibility, Citations, Reputation, Review momentum, Growth Audit | queued + `useModuleJobRunner` |
-| GBP audit modules (`/api/audits/modules`) | still in-request (borderline; follow-up) |
+| GBP audit modules (`/api/audits/modules`) | queued (`gbp_audit_module`) + `useModuleJobRunner` |
 | Tiny interactive LLM generates | in-request by design |
 
 ## Reviews / messaging

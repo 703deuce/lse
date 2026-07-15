@@ -32,6 +32,7 @@ export async function GET(
       completed?: number;
       total?: number;
       failed?: number;
+      result?: unknown;
     };
 
     return NextResponse.json({
@@ -39,6 +40,7 @@ export async function GET(
       status: job.status,
       phase: derivePhase(job.status, progress),
       progress,
+      result: progress?.result ?? null,
       updatedAt: job.heartbeatAt ?? job.finishedAt ?? job.startedAt ?? job.scheduledAt,
       errorMessage: job.errorMessage,
       queueName: job.queueName,

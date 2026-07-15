@@ -52,7 +52,6 @@ export function jobTypeToQueue(jobType: string): QueueName {
     case "early_enrichment":
     case "keyword_check":
     case "keyword_volume":
-    case "single_point_rank":
       return "maps-scan";
     case "retry_scan_cells":
       return "maps-cell-retry";
@@ -77,6 +76,7 @@ export function jobTypeToQueue(jobType: string): QueueName {
     case "citation_audit":
     case "growth_audit_run":
     case "growth_audit_extended":
+    case "gbp_audit_module":
     case "data_retention":
     default:
       return "maintenance";
@@ -350,6 +350,32 @@ export async function executeJobType(
             : undefined,
           persist: payload.persist !== false,
         });
+        return { ok: true };
+      }
+      case "gbp_audit_module": {
+        const businessId = String(payload.businessId ?? "");
+        const module = String(payload.module ?? "");
+        if (!businessId || !module) return permanent("gbp_audit_module payload incomplete");
+        const { executeAuditModule, isAuditModule } = await import("@/lib/audit/run-module");
+        if (!isAuditModule(module)) return permanent("Unknown GBP audit module");
+        const result = await executeAuditModule({
+          businessId,
+          module,
+          keyword: optionalString(payload.keyword),
+        });
+        const ledgerJobId =
+          (typeof payload.ledgerJobId === "string" && payload.ledgerJobId) ||
+          (typeof payload.jobId === "string" && payload.jobId) ||
+          null;
+        if (ledgerJobId) {
+          const { updateJobProgress } = await import("@/lib/queue/ledger");
+          await updateJobProgress(ledgerJobId, { result, module });
+          const supabase = createServiceClient();
+          await supabase
+            .from("job_queue")
+            .update({ result_ref: `module_audits:${businessId}:${module}` })
+            .eq("id", ledgerJobId);
+        }
         return { ok: true };
       }
       case "data_retention": {

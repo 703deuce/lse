@@ -65,9 +65,9 @@ function retryDelayMs(attempt: number): number {
 /** Requeue jobs stuck in `running` after a worker crash / deploys. */
 async function reclaimStaleRunningJobs(
   supabase: ReturnType<typeof createServiceClient>
-): Promise<number> {
+): Promise<string[]> {
   const { reclaimExpiredJobLeases } = await import("@/lib/queue/ledger");
-  const leased = await reclaimExpiredJobLeases(50).catch(() => 0);
+  const leasedIds = await reclaimExpiredJobLeases(50).catch(() => [] as string[]);
 
   const staleBefore = new Date(Date.now() - JOB_RUNNING_STALE_MS).toISOString();
   const { data } = await supabase
@@ -84,16 +84,17 @@ async function reclaimStaleRunningJobs(
     .lt("started_at", staleBefore)
     .select("id");
 
-  const count = (data?.length ?? 0) + leased;
-  if (count > 0) {
+  const byStarted = (data ?? []).map((r) => r.id as string);
+  const ids = [...new Set([...leasedIds, ...byStarted])];
+  if (ids.length > 0) {
     logger.warn("job_queue_stale_running_reclaimed", {
-      count,
-      leased,
-      byStartedAt: data?.length ?? 0,
+      count: ids.length,
+      leased: leasedIds.length,
+      byStartedAt: byStarted.length,
       staleBefore,
     });
   }
-  return count;
+  return ids;
 }
 
 /** Enqueue recurring messaging / monitor drains (idempotent per minute). */
@@ -141,7 +142,32 @@ export async function processPendingJobs(limit = 5): Promise<{
   if (enqueueRecovered > 0 || legacyFixed > 0) {
     logger.info("job_queue_enqueue_recovered", { enqueueRecovered, legacyFixed });
   }
-  const jobsReclaimed = await reclaimStaleRunningJobs(supabase);
+  const reclaimedIds = await reclaimStaleRunningJobs(supabase);
+  const jobsReclaimed = reclaimedIds.length;
+  // Under BullMQ, reclaimed pending rows have no Redis job — hand them back.
+  if (resolveQueueDriver() === "bullmq" && reclaimedIds.length) {
+    const { getLedgerJob, markLedgerEnqueueFailed } = await import("@/lib/queue/ledger");
+    const { bullmqRequeueLedgerJob } = await import("@/lib/queue/drivers/bullmq-driver");
+    for (const id of reclaimedIds) {
+      const job = await getLedgerJob(id);
+      if (!job?.queueName) continue;
+      await bullmqRequeueLedgerJob({
+        id: job.id,
+        queueName: job.queueName,
+        jobType: job.jobType,
+        payload: job.payload,
+        organizationId: job.organizationId,
+        businessId: job.businessId,
+        priority: job.priority,
+        maxAttempts: job.maxAttempts,
+      }).catch(async (err) => {
+        await markLedgerEnqueueFailed(
+          job.id,
+          err instanceof Error ? err.message : "reclaim requeue failed"
+        );
+      });
+    }
+  }
   const scansReclaimed = await reclaimStaleInFlightScans(5);
 
   // Campaigns + review alerts go through named queues (messaging / intelligence workers).

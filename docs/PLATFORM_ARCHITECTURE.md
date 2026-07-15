@@ -67,7 +67,7 @@ Fine-grained priority is carried on the job (`priority` + `job_type`), not by sp
 | --- | --- | --- |
 | 1 | Inventory + shared interfaces | **Done** |
 | 2 | Harden database driver (leases, DLQ, org limits) | **Done** (scan + job leases, dead_letter, active/queued fairness 429, enqueue recovery) |
-| 3 | All heavy features behind abstraction | **Done** for heavy work; GBP modules + tiny LLM still sync by design |
+| 3 | All heavy features behind abstraction | **Done** for heavy work; tiny interactive LLM still sync by design |
 | 4 | DB efficiency / summaries / indexes | **Done** (migration 046 + summary rebuild); deep EXPLAIN audit optional |
 | 5 | Frontend shared status everywhere | **Done** (module runners + Maps KD + keyword check/volume) |
 | 6 | Redis/BullMQ + cache/lock redis drivers | Drivers present; Coolify flip is ops (see QUEUE_ARCHITECTURE) |

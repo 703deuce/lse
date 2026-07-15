@@ -213,7 +213,12 @@ export function MapsDifficultyTool() {
     error: jobError,
     setError: setJobError,
   } = useModuleJobRunner({
-    onSettled: async () => {
+    onSettled: async (info) => {
+      setLoading(false);
+      if (!info.ok) {
+        // Keep prior successful result on screen; error banner comes from the runner.
+        return;
+      }
       const runs = (await loadHistory()) ?? [];
       const latest = runs[0];
       if (latest) {
@@ -223,7 +228,6 @@ export function MapsDifficultyTool() {
           setExpansionError(String(latest.result.expansionError));
         }
       }
-      setLoading(false);
     },
   });
 

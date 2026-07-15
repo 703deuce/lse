@@ -88,12 +88,17 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
     void load();
   }, [load]);
 
-  const { start: startJob, running } = useModuleJobRunner({
-    onSettled: async () => {
+  const { start: startJob, running, error: jobError } = useModuleJobRunner({
+    onSettled: async (info) => {
+      if (!info.ok) return;
       setRunView("combined");
       await load();
     },
   });
+
+  useEffect(() => {
+    if (jobError) setError(jobError);
+  }, [jobError]);
 
   const isCombined = effectiveRunView === "combined";
   const run = data?.latestRun;

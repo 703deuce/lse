@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { AuditCheckTable } from "@/components/audit/audit-check-table";
 import { MetricCard } from "@/components/ui/metric-card";
 import type { AuditCheck } from "@/lib/audit/types";
+import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 
 export type AuditModuleVariant =
   | "website-match"
@@ -26,26 +27,32 @@ export function AuditModuleRunner({
   keyword?: string;
   title: string;
 }) {
-  const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
-  const [error, setError] = useState<string | null>(null);
+
+  const { start, running, error, setError } = useModuleJobRunner({
+    onSettled: async (info) => {
+      if (!info.ok) return;
+      if (info.syncResult && !info.syncResult.queued) {
+        setResult(info.syncResult as Record<string, unknown>);
+        return;
+      }
+      const res = await fetch(
+        `/api/audits/modules?businessId=${encodeURIComponent(businessId)}&module=${encodeURIComponent(module)}`
+      );
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(typeof json.error === "string" ? json.error : "Failed to load audit result");
+        return;
+      }
+      setResult(json as Record<string, unknown>);
+    },
+  });
 
   async function run() {
-    setLoading(true);
-    setError(null);
     try {
-      const res = await fetch("/api/audits/modules", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId, module, keyword }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed");
-      setResult(json);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed");
-    } finally {
-      setLoading(false);
+      await start("/api/audits/modules", { businessId, module, keyword }, "Failed");
+    } catch {
+      /* error already set */
     }
   }
 
@@ -54,11 +61,11 @@ export function AuditModuleRunner({
       <div className="flex items-center gap-4">
         <button
           type="button"
-          onClick={run}
-          disabled={loading}
+          onClick={() => void run()}
+          disabled={running}
           className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50"
         >
-          {loading ? (
+          {running ? (
             <span className="inline-flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" /> Running…
             </span>

@@ -11,6 +11,8 @@ export type QueueJobPayload = JobHandlerPayload & {
   jobType?: string;
 };
 
+const TERMINAL_STATUSES = new Set(["completed", "failed", "canceled", "cancelled"]);
+
 /**
  * Shared processors for BullMQ workers and Next.js after() kicks.
  * Database cron also uses executeJobType via processPendingJobs.
@@ -33,6 +35,7 @@ export async function processQueueJob(
     `web-${process.pid}`;
   let attempts = 0;
   let maxAttempts = 3;
+  let claimedOk = !ledgerJobId; // no ledger → execute unbound (legacy)
 
   if (ledgerJobId) {
     const { data: claimed } = await supabase
@@ -51,13 +54,20 @@ export async function processQueueJob(
       .select("id, attempts, max_attempts, job_type, queue_name")
       .maybeSingle();
 
-    if (!claimed) {
+    if (claimed) {
+      claimedOk = true;
+      jobType = jobType || String(claimed.job_type ?? "");
+      attempts = (claimed.attempts ?? 0) + 1;
+      maxAttempts = claimed.max_attempts ?? 3;
+      await supabase.from("job_queue").update({ attempts }).eq("id", ledgerJobId);
+    } else {
       const { data: row } = await supabase
         .from("job_queue")
-        .select("status, job_type")
+        .select("status, job_type, lease_expires_at, attempts, max_attempts")
         .eq("id", ledgerJobId)
         .maybeSingle();
-      if (!row || row.status === "completed" || row.status === "failed" || row.status === "running") {
+
+      if (!row || TERMINAL_STATUSES.has(String(row.status))) {
         logger.info("queue_processor_skip", {
           ledgerJobId,
           status: row?.status ?? "missing",
@@ -65,26 +75,56 @@ export async function processQueueJob(
         });
         return;
       }
-      jobType = jobType || String(row.job_type ?? "");
-    } else {
-      jobType = jobType || String(claimed.job_type ?? "");
-      attempts = (claimed.attempts ?? 0) + 1;
-      maxAttempts = claimed.max_attempts ?? 3;
-      await supabase
-        .from("job_queue")
-        .update({ attempts })
-        .eq("id", ledgerJobId);
+
+      if (row.status === "running") {
+        const leaseExpired =
+          row.lease_expires_at != null &&
+          new Date(String(row.lease_expires_at)).getTime() < Date.now();
+        if (!leaseExpired) {
+          // Another worker still holds the lease — force BullMQ retry, do not ack.
+          throw new Error("Job lease held by another worker");
+        }
+        const { data: reclaimed } = await supabase
+          .from("job_queue")
+          .update({
+            status: "running",
+            lifecycle_status: "running",
+            started_at: new Date().toISOString(),
+            heartbeat_at: new Date().toISOString(),
+            worker_id: workerId,
+            lease_owner: workerId,
+            lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
+          })
+          .eq("id", ledgerJobId)
+          .eq("status", "running")
+          .lt("lease_expires_at", new Date().toISOString())
+          .select("id, attempts, max_attempts, job_type")
+          .maybeSingle();
+        if (!reclaimed) {
+          throw new Error("Job lease held by another worker");
+        }
+        claimedOk = true;
+        jobType = jobType || String(reclaimed.job_type ?? "");
+        attempts = (reclaimed.attempts ?? 0) + 1;
+        maxAttempts = reclaimed.max_attempts ?? 3;
+        await supabase.from("job_queue").update({ attempts }).eq("id", ledgerJobId);
+      } else {
+        // Pending claim race — retry.
+        throw new Error("Failed to claim pending job");
+      }
     }
   }
 
   if (!jobType) {
-    // Infer from queue when BullMQ only passes queue name.
     jobType = defaultJobTypeForQueue(queueName);
   }
 
-  // Guard against wrong worker/queue pairing.
   if (jobTypeToQueue(jobType) !== queueName) {
     logger.warn("queue_processor_queue_mismatch", { queueName, jobType });
+  }
+
+  if (!claimedOk) {
+    throw new Error("Refusing to execute unclaimed ledger job");
   }
 
   const result = await executeJobType(jobType, payload);
@@ -113,7 +153,8 @@ export async function processQueueJob(
           lease_owner: null,
           lease_expires_at: null,
         })
-        .eq("id", ledgerJobId);
+        .eq("id", ledgerJobId)
+        .eq("status", "running");
     }
     if (result.permanent) {
       const err = new Error(result.error ?? "Permanent job failure");
@@ -149,8 +190,11 @@ async function markLedgerTerminal(
       lifecycle_status: status === "completed" ? "completed" : "permanently_failed",
       finished_at: new Date().toISOString(),
       heartbeat_at: new Date().toISOString(),
+      lease_owner: null,
+      lease_expires_at: null,
     })
-    .eq("id", ledgerJobId);
+    .eq("id", ledgerJobId)
+    .eq("status", "running");
 }
 
 function defaultJobTypeForQueue(queueName: QueueName): string {

@@ -165,9 +165,6 @@ export async function POST(request: Request) {
             ...(primaryKw?.id
               ? { keyword_ids: [primaryKw.id], keyword_label: primaryKw.keyword }
               : {}),
-            ...(fairness.ok
-              ? {}
-              : { fairness_note: fairness.reason, fairness_code: fairness.code }),
           },
         })
         .select("*")

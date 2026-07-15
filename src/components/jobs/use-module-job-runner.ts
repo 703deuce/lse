@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useActiveJobStatus } from "@/components/jobs/use-active-job-status";
+import type { LightweightJobStatus } from "@/lib/jobs/active-job-status";
 
 type RunResult = {
   queued?: boolean;
@@ -10,9 +11,17 @@ type RunResult = {
   [key: string]: unknown;
 };
 
+type SettleInfo = {
+  ok: boolean;
+  jobId: string | null;
+  status: LightweightJobStatus | null;
+  /** Present when the run completed synchronously (not queued). */
+  syncResult?: RunResult;
+};
+
 type Options = {
   /** Called after a terminal job status (or sync completion). */
-  onSettled?: () => void | Promise<void>;
+  onSettled?: (info: SettleInfo) => void | Promise<void>;
 };
 
 /**
@@ -41,8 +50,20 @@ export function useModuleJobRunner(options: Options = {}) {
       status.status === "canceled" ||
       status.status === "cancelled";
     if (!terminal) return;
+
+    const ok = status.status === "completed";
+    if (!ok) {
+      setError(status.errorMessage ?? "Job failed");
+    }
     setRunning(false);
-    void Promise.resolve(onSettledRef.current?.()).finally(() => {
+    const settledJobId = jobId;
+    void Promise.resolve(
+      onSettledRef.current?.({
+        ok,
+        jobId: settledJobId,
+        status,
+      })
+    ).finally(() => {
       setJobId(null);
     });
   }, [jobId, status]);
@@ -68,7 +89,12 @@ export function useModuleJobRunner(options: Options = {}) {
         return json;
       }
 
-      await onSettledRef.current?.();
+      await onSettledRef.current?.({
+        ok: true,
+        jobId: typeof json.jobId === "string" ? json.jobId : null,
+        status: null,
+        syncResult: json,
+      });
       setRunning(false);
       return json;
     } catch (e) {

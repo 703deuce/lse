@@ -145,6 +145,9 @@ export async function cancelLedgerJob(jobId: string): Promise<boolean> {
       lifecycle_status: "canceled",
       canceled_at: new Date().toISOString(),
       finished_at: new Date().toISOString(),
+      lease_owner: null,
+      lease_expires_at: null,
+      worker_id: null,
     })
     .eq("id", jobId)
     .in("status", ["pending", "running"])
@@ -161,14 +164,22 @@ export async function retryLedgerJob(jobId: string): Promise<boolean> {
     .update({
       status: "pending",
       lifecycle_status: "queued",
-      enqueue_state: "enqueued",
+      enqueue_state: "pending",
+      attempts: 0,
       scheduled_at: new Date().toISOString(),
       error_message: null,
+      error_code: null,
+      error_class: null,
+      customer_error: null,
       finished_at: null,
       canceled_at: null,
+      lease_owner: null,
+      lease_expires_at: null,
+      worker_id: null,
+      started_at: null,
     })
     .eq("id", jobId)
-    .in("status", ["failed", "canceled"])
+    .in("status", ["failed", "canceled", "cancelled"])
     .select("id")
     .maybeSingle();
   return Boolean(data);
@@ -272,8 +283,9 @@ export async function countJobsByStatus(): Promise<Record<string, number>> {
 
 /**
  * Requeue jobs whose lease expired (worker crash) even if started_at is recent.
+ * @returns reclaimed job ids
  */
-export async function reclaimExpiredJobLeases(limit = 50): Promise<number> {
+export async function reclaimExpiredJobLeases(limit = 50): Promise<string[]> {
   const supabase = createServiceClient();
   const now = new Date().toISOString();
   const { data: expired } = await supabase
@@ -283,7 +295,7 @@ export async function reclaimExpiredJobLeases(limit = 50): Promise<number> {
     .lt("lease_expires_at", now)
     .limit(limit);
   const ids = (expired ?? []).map((r) => r.id as string);
-  if (!ids.length) return 0;
+  if (!ids.length) return [];
   const { data } = await supabase
     .from("job_queue")
     .update({
@@ -297,7 +309,7 @@ export async function reclaimExpiredJobLeases(limit = 50): Promise<number> {
     .in("id", ids)
     .eq("status", "running")
     .select("id");
-  return data?.length ?? 0;
+  return (data ?? []).map((r) => r.id as string);
 }
 
 function rowToRecord(data: Record<string, unknown>): QueueJobRecord {

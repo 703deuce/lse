@@ -153,12 +153,14 @@ export async function fetchWithTimeout(
     } else if (res.ok) {
       recordProviderSuccess(opts.provider);
       if (opts.usage?.organizationId) {
-        const { trackProviderUsage } = await import("@/lib/providers/gateway");
-        void trackProviderUsage(opts.provider, {
+        // Import ledger directly — avoid fetch-with-timeout ↔ gateway cycle.
+        const { recordUsage } = await import("@/lib/platform/usage-ledger");
+        void recordUsage({
           organizationId: opts.usage.organizationId,
           businessId: opts.usage.businessId,
           jobId: opts.usage.jobId,
           feature: opts.usage.feature ?? opts.label ?? opts.provider,
+          provider: opts.provider,
           unitType: opts.usage.unitType ?? "request",
           estimatedCostUsd: opts.usage.estimatedCostUsd ?? estimateProviderCost(opts.provider),
           actualUnits: opts.usage.actualUnits ?? 1,

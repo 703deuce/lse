@@ -23,6 +23,7 @@ describe("mixed-load queue invariants", () => {
       local_trust_run: "local-trust",
       ai_visibility_run: "ai-visibility",
       growth_audit_run: "maintenance",
+      gbp_audit_module: "maintenance",
       generate_report: "report-generation",
     } as const;
 

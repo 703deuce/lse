@@ -107,6 +107,11 @@ export async function bullmqRequeueLedgerJob(job: {
   maxAttempts: number;
 }): Promise<void> {
   const queue = await getQueue(job.queueName);
+  // Avoid jobId collisions with retained completed/failed Redis jobs.
+  const existing = await queue.getJob(job.id).catch(() => null);
+  if (existing) {
+    await existing.remove().catch(() => {});
+  }
   const bullJob = await queue.add(
     job.jobType,
     {
@@ -126,6 +131,16 @@ export async function bullmqRequeueLedgerJob(job: {
     queueJobId: String(bullJob.id ?? job.id),
     enqueueState: "enqueued",
   });
+}
+
+/** Best-effort remove a Redis job so cancel/retry cannot race a stale worker. */
+export async function bullmqRemoveLedgerJob(
+  queueName: QueueName,
+  jobId: string
+): Promise<void> {
+  const queue = await getQueue(queueName);
+  const existing = await queue.getJob(jobId).catch(() => null);
+  if (existing) await existing.remove().catch(() => {});
 }
 
 export async function closeBullmqConnections(): Promise<void> {
