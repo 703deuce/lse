@@ -39,6 +39,14 @@ export {
   findDuplicateActiveScan,
 } from "@/lib/queue/fairness";
 export { scheduleJitterMs, delayWithinWindowMs } from "@/lib/queue/schedule-jitter";
+export {
+  assertValidBullmqQueueName,
+  assertValidBullmqPrefix,
+  resolveBullmqQueueIdentity,
+  listRegisteredQueueNames,
+  QUEUE_NAME_REGISTRY,
+} from "@/lib/queue/bullmq-names";
+export { JOB_QUEUES, ALL_QUEUE_NAMES } from "@/lib/queue/types";
 export type {
   EnqueueJobInput,
   EnqueueJobResult,

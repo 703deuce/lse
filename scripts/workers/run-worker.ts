@@ -9,6 +9,9 @@
  *   npm run worker:all
  *
  * Requires QUEUE_DRIVER=bullmq and REDIS_URL.
+ *
+ * Queue *names* are hyphenated (`maps-scan`). Namespacing uses BullMQ's
+ * `prefix` option (`QUEUE_PREFIX`, default `lse`) — never `${prefix}:${name}`.
  */
 
 import { DelayedError, Worker, UnrecoverableError } from "bullmq";
@@ -18,6 +21,11 @@ import {
   type QueueName,
 } from "../../src/lib/queue/types";
 import { getBullmqConnectionOptions, getQueueConfig } from "../../src/lib/queue/config";
+import {
+  assertValidBullmqQueueName,
+  listRegisteredQueueNames,
+  resolveBullmqQueueIdentity,
+} from "../../src/lib/queue/bullmq-names";
 import {
   bullmqLockDurationMs,
   isDeferredError,
@@ -44,7 +52,7 @@ const PROFILE_QUEUES: Record<WorkerProfile, JobQueueName[]> = {
     JOB_QUEUES.MAINTENANCE,
   ],
   reports: [JOB_QUEUES.REPORT_GENERATION],
-  all: Object.values(JOB_QUEUES) as QueueName[],
+  all: [...listRegisteredQueueNames()] as QueueName[],
 };
 
 async function main() {
@@ -65,6 +73,11 @@ async function main() {
     process.exit(1);
   }
 
+  // Fail fast before constructing any BullMQ objects if a registry name is invalid.
+  for (const queueName of listRegisteredQueueNames()) {
+    assertValidBullmqQueueName(queueName);
+  }
+
   const recovered = await recoverPendingEnqueues(100);
   if (recovered > 0) {
     console.log(`[worker] recovered ${recovered} pending enqueue(s)`);
@@ -76,8 +89,9 @@ async function main() {
 
   for (const queueName of queues) {
     const settings = config.queues[queueName];
+    const { name, prefix } = resolveBullmqQueueIdentity(queueName);
     const worker = new Worker(
-      `${config.prefix}:${queueName}`,
+      name,
       async (job) => {
         const payload = job.data as QueueJobPayload;
         try {
@@ -101,6 +115,7 @@ async function main() {
       },
       {
         connection,
+        prefix,
         concurrency: settings.concurrency,
         // Must cover long Maps/intelligence work; our processor also heartbeats the ledger lease.
         lockDuration: bullmqLockDurationMs(queueName),
@@ -118,7 +133,7 @@ async function main() {
     });
     workers.push(worker);
     console.log(
-      `[worker] listening on ${config.prefix}:${queueName} concurrency=${settings.concurrency}`
+      `[worker] listening on name=${name} prefix=${prefix} concurrency=${settings.concurrency}`
     );
   }
 
