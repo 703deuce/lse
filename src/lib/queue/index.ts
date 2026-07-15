@@ -2,10 +2,14 @@ export {
   enqueueJob,
   enqueueMapsScanJob,
   enqueueReviewImportJob,
+  enqueueScanEnrichmentJob,
   getJobStatus,
   recoverPendingEnqueues,
+  reconcileLegacyPendingJobs,
   resolveQueueDriver,
 } from "@/lib/queue/service";
+export { dispatchFeatureJob } from "@/lib/queue/dispatch";
+export { jobTypeToQueue } from "@/lib/queue/job-handlers";
 export {
   getQueueDriverName,
   getRedisUrl,

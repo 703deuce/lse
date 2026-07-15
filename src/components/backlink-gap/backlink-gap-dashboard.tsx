@@ -101,12 +101,19 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
   }, [data?.run?.status, loadTopOpportunities]);
 
   useEffect(() => {
-    const run = data?.run;
-    if (run?.status === "running") {
-      const t = setInterval(load, 4000);
-      return () => clearInterval(t);
+    if (!running && data?.run?.status !== "running") return;
+    const t = setInterval(() => void load(), 3000);
+    return () => clearInterval(t);
+  }, [data?.run?.status, running, load]);
+
+  useEffect(() => {
+    if (!running) return;
+    const status = data?.run?.status;
+    if (status === "ready" || status === "partial" || status === "failed") {
+      setRunning(false);
+      void loadStats();
     }
-  }, [data?.run?.status, load]);
+  }, [data?.run?.status, running, loadStats]);
 
   async function runGap(forceRefresh = false) {
     setRunning(true);
@@ -121,9 +128,9 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
       if (!res.ok) throw new Error(json.error ?? "Analysis failed");
       await load();
       await loadStats();
+      if (!json.queued) setRunning(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Analysis failed");
-    } finally {
       setRunning(false);
     }
   }

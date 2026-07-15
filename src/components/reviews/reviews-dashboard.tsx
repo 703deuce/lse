@@ -78,7 +78,14 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Run failed");
-      await load();
+      if (json.queued) {
+        for (let i = 0; i < 40; i++) {
+          await new Promise((r) => setTimeout(r, 3000));
+          await load();
+        }
+      } else {
+        await load();
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Run failed");
     } finally {

@@ -1,27 +1,19 @@
 import { createServiceClient } from "@/lib/db/client";
-import { processScanBatch } from "@/lib/jobs/process-scan";
 import {
-  runContactImport,
-  type ContactImportMode,
-  type ContactImportRow,
-} from "@/lib/reputation/contact-import";
+  executeJobType,
+  jobTypeToQueue,
+  type JobHandlerPayload,
+} from "@/lib/queue/job-handlers";
 import type { QueueName } from "@/lib/queue/types";
 import { logger } from "@/lib/observability/logger";
 
-export type QueueJobPayload = {
-  ledgerJobId?: string;
-  jobId?: string;
-  scanBatchId?: string;
-  businessId?: string;
-  organizationId?: string;
-  uploadId?: string;
-  mode?: string;
-  [key: string]: unknown;
+export type QueueJobPayload = JobHandlerPayload & {
+  jobType?: string;
 };
 
 /**
- * Shared processors for BullMQ workers.
- * Database-driver jobs still run via processPendingJobs (cron) + Next.js after().
+ * Shared processors for BullMQ workers and Next.js after() kicks.
+ * Database cron also uses executeJobType via processPendingJobs.
  */
 export async function processQueueJob(
   queueName: QueueName,
@@ -33,6 +25,8 @@ export async function processQueueJob(
     (typeof payload.jobId === "string" && payload.jobId) ||
     null;
 
+  let jobType = typeof payload.jobType === "string" ? payload.jobType : "";
+
   if (ledgerJobId) {
     const { data: claimed } = await supabase
       .from("job_queue")
@@ -42,23 +36,27 @@ export async function processQueueJob(
         heartbeat_at: new Date().toISOString(),
       })
       .eq("id", ledgerJobId)
-      .in("status", ["pending", "running"])
-      .select("id, attempts, max_attempts, job_type")
+      .eq("status", "pending")
+      .select("id, attempts, max_attempts, job_type, queue_name")
       .maybeSingle();
 
-    // Another worker may own it mid-flight; still run handlers that are idempotent
-    // if we were handed this BullMQ delivery (Maps lease + import claim guard).
     if (!claimed) {
       const { data: row } = await supabase
         .from("job_queue")
-        .select("status")
+        .select("status, job_type")
         .eq("id", ledgerJobId)
         .maybeSingle();
-      if (row?.status === "completed" || row?.status === "failed") {
-        logger.info("queue_processor_skip_terminal", { ledgerJobId, status: row.status, queueName });
+      if (!row || row.status === "completed" || row.status === "failed" || row.status === "running") {
+        logger.info("queue_processor_skip", {
+          ledgerJobId,
+          status: row?.status ?? "missing",
+          queueName,
+        });
         return;
       }
+      jobType = jobType || String(row.job_type ?? "");
     } else {
+      jobType = jobType || String(claimed.job_type ?? "");
       await supabase
         .from("job_queue")
         .update({ attempts: (claimed.attempts ?? 0) + 1 })
@@ -66,92 +64,43 @@ export async function processQueueJob(
     }
   }
 
-  try {
-    if (queueName === "maps-scan" || queueName === "maps-cell-retry") {
-      const scanBatchId = String(payload.scanBatchId ?? "");
-      if (!scanBatchId) throw permanentError("Missing scanBatchId");
-      let orgId =
-        typeof payload.organizationId === "string" ? payload.organizationId : undefined;
-      if (!orgId && typeof payload.businessId === "string") {
-        const { data: biz } = await supabase
-          .from("businesses")
-          .select("organization_id")
-          .eq("id", payload.businessId)
-          .maybeSingle();
-        orgId = biz?.organization_id as string | undefined;
-      }
-      const ran = await processScanBatch(scanBatchId, orgId);
-      if (ledgerJobId) {
-        if (ran) {
-          await markLedgerTerminal(ledgerJobId, "completed");
-        } else {
-          // Lease owned elsewhere or already finished — resolve ledger from scan state.
-          const { data: batch } = await supabase
-            .from("scan_batches")
-            .select("status")
-            .eq("id", scanBatchId)
-            .maybeSingle();
-          const st = batch?.status as string | undefined;
-          if (st === "completed" || st === "failed" || st === "rank_ready") {
-            await markLedgerTerminal(
-              ledgerJobId,
-              st === "failed" ? "failed" : "completed"
-            );
-          }
-          // else leave running/pending for the owning worker / recovery
-        }
-      }
-      return;
-    }
+  if (!jobType) {
+    // Infer from queue when BullMQ only passes queue name.
+    jobType = defaultJobTypeForQueue(queueName);
+  }
 
-    if (queueName === "review-import") {
-      const uploadId = String(payload.uploadId ?? "");
-      const businessId = String(payload.businessId ?? "");
-      const organizationId = String(payload.organizationId ?? "");
-      if (!uploadId || !businessId || !organizationId) {
-        throw permanentError("import_contacts payload incomplete");
-      }
-      const { data: upload } = await supabase
-        .from("review_request_uploads")
-        .update({ status: "running", started_at: new Date().toISOString() })
-        .eq("id", uploadId)
-        .in("status", ["queued", "running"])
-        .select("rows_json, mode")
-        .maybeSingle();
-      if (!upload) throw permanentError("Import upload not found or already finished");
-      const rows = (upload.rows_json ?? []) as ContactImportRow[];
-      await runContactImport({
-        organizationId,
-        businessId,
-        uploadId,
-        mode:
-          (payload.mode as ContactImportMode) ??
-          (upload.mode as ContactImportMode) ??
-          "update",
-        rows,
-      });
-      if (ledgerJobId) await markLedgerTerminal(ledgerJobId, "completed");
-      return;
-    }
+  // Guard against wrong worker/queue pairing.
+  if (jobTypeToQueue(jobType) !== queueName) {
+    logger.warn("queue_processor_queue_mismatch", { queueName, jobType });
+  }
 
-    // Queues registered for future processors — do not silently succeed.
-    throw permanentError(`No processor registered for queue ${queueName}`);
-  } catch (err) {
+  const result = await executeJobType(jobType, payload);
+
+  if (!result.ok) {
     if (ledgerJobId) {
-      const message = err instanceof Error ? err.message : "Job failed";
-      const permanent = isPermanentError(err);
       await supabase
         .from("job_queue")
         .update({
-          status: permanent ? "failed" : "pending",
-          error_message: message,
-          error_code: permanent ? "unrecoverable" : "retryable",
-          finished_at: permanent ? new Date().toISOString() : null,
-          enqueue_state: "enqueued",
+          status: result.permanent ? "failed" : "pending",
+          error_message: result.error ?? "Job failed",
+          error_code: result.permanent ? "unrecoverable" : "retryable",
+          finished_at: result.permanent ? new Date().toISOString() : null,
+          scheduled_at: result.permanent
+            ? undefined
+            : new Date(Date.now() + 5_000).toISOString(),
         })
         .eq("id", ledgerJobId);
     }
-    throw err;
+    if (result.permanent) {
+      const err = new Error(result.error ?? "Permanent job failure");
+      (err as Error & { unrecoverable?: boolean }).unrecoverable = true;
+      throw err;
+    }
+    throw new Error(result.error ?? "Job failed");
+  }
+
+  if (ledgerJobId && result.markComplete !== false) {
+    await markLedgerTerminal(ledgerJobId, "completed");
   }
 }
 
@@ -170,10 +119,33 @@ async function markLedgerTerminal(
     .eq("id", ledgerJobId);
 }
 
-function permanentError(message: string): Error {
-  const err = new Error(message);
-  (err as Error & { unrecoverable?: boolean }).unrecoverable = true;
-  return err;
+function defaultJobTypeForQueue(queueName: QueueName): string {
+  switch (queueName) {
+    case "maps-scan":
+      return "process_scan";
+    case "maps-cell-retry":
+      return "retry_scan_cells";
+    case "review-import":
+      return "import_contacts";
+    case "review-campaign":
+      return "campaign_send_batch";
+    case "review-monitor":
+      return "review_alert_scan";
+    case "backlink-gap":
+      return "backlink_gap_run";
+    case "local-trust":
+      return "local_trust_run";
+    case "ai-visibility":
+      return "ai_visibility_run";
+    case "report-generation":
+      return "generate_report";
+    case "notifications":
+      return "send_notification";
+    case "maintenance":
+      return "data_retention";
+    default:
+      return "data_retention";
+  }
 }
 
 export function isPermanentError(err: unknown): boolean {

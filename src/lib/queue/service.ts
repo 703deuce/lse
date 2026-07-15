@@ -9,17 +9,20 @@ import {
   getLedgerJob,
   listEnqueueFailedJobs,
   markLedgerEnqueueFailed,
+  markLedgerEnqueued,
 } from "@/lib/queue/ledger";
+import { jobTypeToQueue } from "@/lib/queue/job-handlers";
 import type {
   EnqueueJobInput,
   EnqueueJobResult,
   QueueDriverName,
   QueueJobRecord,
 } from "@/lib/queue/types";
+import { createServiceClient } from "@/lib/db/client";
 import { logger } from "@/lib/observability/logger";
 
 /**
- * Public queue API — feature code must call this, never BullMQ or job_queue directly.
+ * Public queue API — feature code must call this (or dispatchFeatureJob), never BullMQ directly.
  *
  * Driver is explicit via QUEUE_DRIVER (never inferred from a flaky Redis ping).
  */
@@ -93,7 +96,68 @@ export async function recoverPendingEnqueues(limit = 25): Promise<number> {
   return recovered;
 }
 
-/** Convenience: Maps parent scan enqueue. */
+/**
+ * Upgrade legacy/SQL-inserted process_scan rows so BullMQ can see them.
+ * Safe under database driver too (fills queue_name / enqueue_state).
+ */
+export async function reconcileLegacyPendingJobs(limit = 25): Promise<number> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("job_queue")
+    .select("id, job_type, payload, organization_id, business_id, queue_name, enqueue_state, priority, max_attempts")
+    .eq("status", "pending")
+    .order("created_at", { ascending: true })
+    .limit(limit * 3);
+
+  const rows = (data ?? []).filter(
+    (row) =>
+      !row.queue_name ||
+      row.enqueue_state === "pending" ||
+      row.enqueue_state === "enqueue_failed" ||
+      row.enqueue_state == null
+  );
+  let fixed = 0;
+  for (const row of rows.slice(0, limit)) {
+    const jobType = String(row.job_type);
+    const queueName = jobTypeToQueue(jobType);
+    const payload = (row.payload ?? {}) as Record<string, unknown>;
+    await supabase
+      .from("job_queue")
+      .update({
+        queue_name: queueName,
+        enqueue_state: "enqueued",
+        queue_job_id: row.id,
+      })
+      .eq("id", row.id);
+
+    if (resolveQueueDriver() === "bullmq" && getRedisUrl()) {
+      try {
+        await bullmqRequeueLedgerJob({
+          id: row.id,
+          queueName,
+          jobType,
+          payload,
+          organizationId: (row.organization_id as string | null) ?? null,
+          businessId: (row.business_id as string | null) ?? null,
+          priority: Number(row.priority ?? 50),
+          maxAttempts: Number(row.max_attempts ?? 3),
+        });
+      } catch (err) {
+        await markLedgerEnqueueFailed(
+          row.id,
+          err instanceof Error ? err.message : "reconcile requeue failed"
+        );
+        continue;
+      }
+    } else {
+      await markLedgerEnqueued(row.id, { queueJobId: row.id, enqueueState: "enqueued" });
+    }
+    fixed++;
+  }
+  if (fixed > 0) logger.info("queue_legacy_reconciled", { fixed });
+  return fixed;
+}
+
 export async function enqueueMapsScanJob(params: {
   scanBatchId: string;
   businessId: string;
@@ -106,6 +170,7 @@ export async function enqueueMapsScanJob(params: {
     payload: {
       scanBatchId: params.scanBatchId,
       businessId: params.businessId,
+      organizationId: params.organizationId,
     },
     organizationId: params.organizationId,
     businessId: params.businessId,
@@ -115,7 +180,6 @@ export async function enqueueMapsScanJob(params: {
   });
 }
 
-/** Convenience: contact import. */
 export async function enqueueReviewImportJob(params: {
   uploadId: string;
   businessId: string;
@@ -136,5 +200,26 @@ export async function enqueueReviewImportJob(params: {
     idempotencyKey: `review-import:${params.uploadId}`,
     priority: "normal",
     maxAttempts: 3,
+  });
+}
+
+export async function enqueueScanEnrichmentJob(params: {
+  scanBatchId: string;
+  organizationId?: string;
+  businessId?: string;
+}): Promise<EnqueueJobResult> {
+  return enqueueJob({
+    queueName: "maps-scan",
+    jobType: "scan_enrichment",
+    payload: {
+      scanBatchId: params.scanBatchId,
+      organizationId: params.organizationId,
+      businessId: params.businessId,
+    },
+    organizationId: params.organizationId,
+    businessId: params.businessId,
+    idempotencyKey: `scan-enrichment:${params.scanBatchId}`,
+    priority: "normal",
+    maxAttempts: 2,
   });
 }

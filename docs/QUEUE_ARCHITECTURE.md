@@ -89,6 +89,27 @@ Cron (`/api/jobs/process`) always:
 
 Under `QUEUE_DRIVER=bullmq`, cron does **not** claim `job_queue` rows for execution (workers own them).
 
+## Feature coverage
+
+All heavy product work is dispatched through `dispatchFeatureJob` / `@/lib/queue`:
+
+| Product surface | Job type | Queue |
+| --- | --- | --- |
+| Maps scans (+ enrich, difficulty cells via scan) | `process_scan`, `scan_enrichment` | `maps-scan` |
+| Review contact import | `import_contacts` | `review-import` |
+| Review campaign sends | `campaign_send_batch` (cron drain) | `review-campaign` |
+| New-review alerts | `review_alert_scan` (cron drain) | `review-monitor` |
+| Review momentum | `review_momentum_run` | `review-monitor` |
+| Reputation audit | `reputation_audit` | `review-monitor` |
+| Local Trust (+ sponsorships) | `local_trust_run` | `local-trust` |
+| Backlink Gap | `backlink_gap_run` | `backlink-gap` |
+| AI Visibility | `ai_visibility_run` | `ai-visibility` |
+| Citations | `citation_audit` | `maintenance` |
+| Growth Audit (+ extended modules) | `growth_audit_run`, `growth_audit_extended` | `maintenance` |
+| Reports (optional async) | `generate_report` | `report-generation` |
+
+Interactive one-off SMS/email review sends and CSV report downloads stay synchronous (user is waiting on the response). Provider webhooks remain request handlers that update Postgres idempotently.
+
 ## Feature code rule
 
-Call `@/lib/queue` (`enqueueJob`, `enqueueMapsScanJob`, …). Do not import BullMQ or insert into `job_queue` from feature routes.
+Call `@/lib/queue` (`dispatchFeatureJob`, `enqueueJob`, …). Do not import BullMQ or insert into `job_queue` from feature routes.

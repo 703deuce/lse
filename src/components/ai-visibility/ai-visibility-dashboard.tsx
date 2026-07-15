@@ -89,10 +89,24 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
   }, [load]);
 
   useEffect(() => {
-    if (data?.runningRun?.status !== "running" && data?.latestRun?.status !== "running") return;
-    const id = setInterval(() => void load(), 4000);
+    if (
+      !running &&
+      data?.runningRun?.status !== "running" &&
+      data?.latestRun?.status !== "running"
+    ) {
+      return;
+    }
+    const id = setInterval(() => void load(), 3000);
     return () => clearInterval(id);
-  }, [data?.latestRun?.status, data?.runningRun?.status, load]);
+  }, [data?.latestRun?.status, data?.runningRun?.status, running, load]);
+
+  useEffect(() => {
+    if (!running) return;
+    const status = data?.runningRun?.status ?? data?.latestRun?.status;
+    if (status === "complete" || status === "failed" || status === "partial") {
+      setRunning(false);
+    }
+  }, [data?.runningRun?.status, data?.latestRun?.status, running]);
 
   const isCombined = effectiveRunView === "combined";
   const run = data?.latestRun;
@@ -148,11 +162,11 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Check failed");
-      setRunView("combined");
+      setRunView(json.queued ? "pending" : "combined");
       await load();
+      if (!json.queued) setRunning(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Check failed");
-    } finally {
       setRunning(false);
     }
   }

@@ -149,10 +149,16 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
   }, [load]);
 
   useEffect(() => {
-    if (data?.run?.status !== "running") return;
-    const id = setInterval(() => void load(), 4000);
+    if (!running && data?.run?.status !== "running") return;
+    const id = setInterval(() => void load(), 3000);
     return () => clearInterval(id);
-  }, [data?.run?.status, load]);
+  }, [data?.run?.status, running, load]);
+
+  useEffect(() => {
+    if (!running) return;
+    const status = data?.run?.status;
+    if (status === "complete" || status === "failed") setRunning(false);
+  }, [data?.run?.status, running]);
 
   async function runScan(input: {
     city?: string;
@@ -181,9 +187,9 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
         setSelectedMarket({ city: input.city, state: input.state });
       }
       await load();
+      if (!json.queued) setRunning(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Finder failed");
-    } finally {
       setRunning(false);
     }
   }

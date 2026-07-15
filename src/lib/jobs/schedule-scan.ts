@@ -142,8 +142,8 @@ export async function dispatchScanProcessing(params: {
  * Safe on every poll — claims are atomic.
  */
 export function kickQueuedScanIfNeeded(scanBatchId: string, status: string, organizationId?: string): void {
-  // Under BullMQ, workers own execution — poll kicks only reclaim via database path.
-  if (resolveQueueDriver() === "bullmq" && status !== "queued") {
+  // Under BullMQ, Maps workers own execution — never steal via Next.js after() from polls.
+  if (resolveQueueDriver() === "bullmq") {
     return;
   }
 

@@ -57,6 +57,7 @@ export async function bullmqEnqueue(input: EnqueueJobInput): Promise<EnqueueJobR
       input.jobType,
       {
         ledgerJobId: row.id,
+        jobType: input.jobType,
         ...input.payload,
         organizationId: input.organizationId ?? null,
         businessId: input.businessId ?? null,
@@ -110,6 +111,7 @@ export async function bullmqRequeueLedgerJob(job: {
     job.jobType,
     {
       ledgerJobId: job.id,
+      jobType: job.jobType,
       ...job.payload,
       organizationId: job.organizationId,
       businessId: job.businessId,

@@ -16,8 +16,8 @@ import { buildOverviewSection } from "@/lib/growth-audit/sections/overview";
 import { computeGrowthScore, deriveStrengthsWeaknesses } from "@/lib/growth-audit/score";
 import { generateGrowthAuditSummary } from "@/lib/growth-audit/ai-summary";
 import { runServiceCoverageAudit } from "@/lib/audit/service-coverage";
-import { runExtendedModulesInBackground } from "@/lib/growth-audit/background";
 import type { GrowthAuditRunRow, GrowthAuditSections, GrowthTask } from "@/lib/growth-audit/types";
+import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 
 export type RunGrowthAuditResult = {
   runId: string;
@@ -174,10 +174,18 @@ export async function runGrowthAudit(params: {
     if (updateError) throw new Error(updateError.message);
 
     if (!params.skipBackground) {
-      void runExtendedModulesInBackground({
-        growthRunId: runId,
-        businessId: params.businessId,
+      await dispatchFeatureJob({
+        jobType: "growth_audit_extended",
+        payload: {
+          growthRunId: runId,
+          businessId: params.businessId,
+          organizationId: params.organizationId,
+        },
         organizationId: params.organizationId,
+        businessId: params.businessId,
+        idempotencyKey: `growth-extended:${runId}`,
+        priority: "normal",
+        maxAttempts: 2,
       });
     }
 

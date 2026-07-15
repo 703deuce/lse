@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
-import { runAiVisibilityCheck } from "@/lib/ai-visibility/engine";
 import { hasFeature, PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
+import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 
 export async function POST(request: Request) {
   let reserved = false;
@@ -25,14 +25,39 @@ export async function POST(request: Request) {
     organizationId = auth.organizationId;
     await reserveUsageOrThrow(auth.organizationId, "ai_visibility_runs_used", 1);
     reserved = true;
-    const result = await runAiVisibilityCheck({
-      businessId,
+
+    const job = await dispatchFeatureJob({
+      jobType: "ai_visibility_run",
+      payload: {
+        businessId,
+        organizationId: auth.organizationId,
+        maxPrompts: maxPrompts ?? 1,
+        promptIds,
+        reservedUsage: { key: "ai_visibility_runs_used", amount: 1 },
+      },
       organizationId: auth.organizationId,
-      maxPrompts: maxPrompts ?? 1,
-      promptIds,
+      businessId,
+      idempotencyKey: `ai-visibility:${businessId}:${Math.floor(Date.now() / 30_000)}`,
+      priority: "normal",
+      maxAttempts: 2,
     });
 
-    return NextResponse.json(result);
+    if (job.enqueueState === "enqueue_failed") {
+      await releaseUsage(auth.organizationId, "ai_visibility_runs_used", 1).catch(() => {});
+      reserved = false;
+      return NextResponse.json(
+        { error: "Failed to queue AI Visibility run", jobId: job.jobId },
+        { status: 503 }
+      );
+    }
+
+    reserved = false;
+    return NextResponse.json({
+      queued: true,
+      status: "queued",
+      jobId: job.jobId,
+      queueDriver: job.driver,
+    });
   } catch (err) {
     if (reserved && organizationId) {
       await releaseUsage(organizationId, "ai_visibility_runs_used", 1).catch(() => {});

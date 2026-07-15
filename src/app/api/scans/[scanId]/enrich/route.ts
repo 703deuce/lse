@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/db/client";
 import { requireScanAccess } from "@/lib/auth/api-auth";
-import { runScanEnrichment } from "@/lib/jobs/run-scan-enrichment";
+import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 
 export async function POST(
   _request: Request,
@@ -35,18 +35,26 @@ export async function POST(
       return NextResponse.json({ ok: true, message: "Enrichment already running" });
     }
 
-    // Claim happens inside runScanEnrichment — TOCTOU-safe vs parallel POSTs.
-    void runScanEnrichment(scanId, access.organizationId)
-      .then((result) => {
-        if (!result.started) {
-          console.log("[enrich] claim skipped (already running or not claimable)", scanId);
-        }
-      })
-      .catch((err) => {
-        console.error("[enrich] manual trigger failed", scanId, err);
-      });
+    const job = await dispatchFeatureJob({
+      jobType: "scan_enrichment",
+      payload: {
+        scanBatchId: scanId,
+        organizationId: access.organizationId,
+        businessId: access.businessId,
+      },
+      organizationId: access.organizationId,
+      businessId: access.businessId,
+      idempotencyKey: `scan-enrichment:${scanId}`,
+      priority: "normal",
+      maxAttempts: 2,
+    });
 
-    return NextResponse.json({ ok: true, message: "Enrichment started" });
+    return NextResponse.json({
+      ok: true,
+      queued: true,
+      jobId: job.jobId,
+      message: "Enrichment queued",
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Enrichment trigger failed";
     const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;

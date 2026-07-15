@@ -106,11 +106,16 @@ export function ReputationAuditDashboard({ businessId }: { businessId: string })
   }, [load]);
 
   useEffect(() => {
-    const status = data?.audit?.status;
-    if (status !== "running") return;
-    const id = setInterval(() => void load({ quiet: true }), 4000);
+    if (!running && data?.audit?.status !== "running") return;
+    const id = setInterval(() => void load({ quiet: true }), 3000);
     return () => clearInterval(id);
-  }, [data?.audit?.status, load]);
+  }, [data?.audit?.status, running, load]);
+
+  useEffect(() => {
+    if (!running) return;
+    const status = data?.audit?.status;
+    if (status && status !== "running") setRunning(false);
+  }, [data?.audit?.status, running]);
 
   async function runAudit() {
     setRunning(true);
@@ -124,9 +129,9 @@ export function ReputationAuditDashboard({ businessId }: { businessId: string })
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Audit failed");
       await load();
+      if (!json.queued) setRunning(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Audit failed");
-    } finally {
       setRunning(false);
     }
   }

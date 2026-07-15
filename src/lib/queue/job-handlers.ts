@@ -1,0 +1,343 @@
+/**
+ * Single execution registry for all job types.
+ * Used by BullMQ workers and the database-driver cron claimer.
+ */
+import { createServiceClient } from "@/lib/db/client";
+import { processScanBatch } from "@/lib/jobs/process-scan";
+import { runScanEnrichment } from "@/lib/jobs/run-scan-enrichment";
+import { maybeRunDataRetentionCleanup } from "@/lib/jobs/retention";
+import { runBacklinkGap } from "@/lib/backlink-gap/engine";
+import { runLocalTrustFinder } from "@/lib/local-trust/engine";
+import { runAiVisibilityCheck } from "@/lib/ai-visibility/engine";
+import { runCitationAudit } from "@/lib/citations/engine";
+import { runReputationAudit } from "@/lib/reputation/engine";
+import { runGrowthAudit } from "@/lib/growth-audit/engine";
+import { runExtendedModulesInBackground } from "@/lib/growth-audit/background";
+import { runReviewMomentum } from "@/lib/reviews/momentum-engine";
+import { processCampaignMessages } from "@/lib/reputation/campaign-processor";
+import { processNewReviewAlerts } from "@/lib/reputation/review-alerts";
+import {
+  runContactImport,
+  type ContactImportMode,
+  type ContactImportRow,
+} from "@/lib/reputation/contact-import";
+import { generateTypedReport } from "@/lib/reporting/generate-report";
+import { releaseUsage } from "@/lib/plans";
+import { logger } from "@/lib/observability/logger";
+import type { QueueName } from "@/lib/queue/types";
+
+export type JobHandlerPayload = Record<string, unknown> & {
+  ledgerJobId?: string;
+  organizationId?: string;
+  businessId?: string;
+  reservedUsage?: { key: string; amount: number };
+};
+
+export type JobHandlerResult = {
+  ok: boolean;
+  permanent?: boolean;
+  error?: string;
+  /** When false, do not mark ledger completed (another worker owns work). */
+  markComplete?: boolean;
+};
+
+const PERMANENT_PATTERN =
+  /not found|required|invalid|access denied|not included|unauthorized|unsupported|disabled|incomplete/i;
+
+export function jobTypeToQueue(jobType: string): QueueName {
+  switch (jobType) {
+    case "process_scan":
+    case "maps_difficulty_run":
+    case "scan_enrichment":
+    case "early_enrichment":
+      return "maps-scan";
+    case "retry_scan_cells":
+      return "maps-cell-retry";
+    case "import_contacts":
+      return "review-import";
+    case "campaign_send_batch":
+      return "review-campaign";
+    case "review_alert_scan":
+    case "reputation_audit":
+    case "review_momentum_run":
+      return "review-monitor";
+    case "backlink_gap_run":
+      return "backlink-gap";
+    case "local_trust_run":
+      return "local-trust";
+    case "ai_visibility_run":
+      return "ai-visibility";
+    case "generate_report":
+      return "report-generation";
+    case "send_notification":
+      return "notifications";
+    case "citation_audit":
+    case "growth_audit_run":
+    case "growth_audit_extended":
+    case "data_retention":
+    default:
+      return "maintenance";
+  }
+}
+
+export async function executeJobType(
+  jobType: string,
+  payload: JobHandlerPayload
+): Promise<JobHandlerResult> {
+  try {
+    switch (jobType) {
+      case "process_scan":
+      case "retry_scan_cells": {
+        const scanBatchId = String(payload.scanBatchId ?? "");
+        if (!scanBatchId) return permanent("Missing scanBatchId");
+        const orgId = await resolveOrgId(payload);
+        const ran = await processScanBatch(scanBatchId, orgId);
+        return { ok: true, markComplete: ran };
+      }
+      case "scan_enrichment": {
+        const scanBatchId = String(payload.scanBatchId ?? "");
+        if (!scanBatchId) return permanent("Missing scanBatchId");
+        await runScanEnrichment(scanBatchId, await resolveOrgId(payload));
+        return { ok: true };
+      }
+      case "import_contacts": {
+        const uploadId = String(payload.uploadId ?? "");
+        const businessId = String(payload.businessId ?? "");
+        const organizationId = String(payload.organizationId ?? "");
+        if (!uploadId || !businessId || !organizationId) {
+          return permanent("import_contacts payload incomplete");
+        }
+        const supabase = createServiceClient();
+        const { data: upload } = await supabase
+          .from("review_request_uploads")
+          .update({ status: "running", started_at: new Date().toISOString() })
+          .eq("id", uploadId)
+          .in("status", ["queued", "running"])
+          .select("rows_json, mode")
+          .maybeSingle();
+        if (!upload) return permanent("Import upload not found or already finished");
+        const rows = (upload.rows_json ?? []) as ContactImportRow[];
+        await runContactImport({
+          organizationId,
+          businessId,
+          uploadId,
+          mode:
+            (payload.mode as ContactImportMode) ??
+            (upload.mode as ContactImportMode) ??
+            "update",
+          rows,
+        });
+        return { ok: true };
+      }
+      case "campaign_send_batch": {
+        const limit = Number(payload.limit ?? 20);
+        await processCampaignMessages(Number.isFinite(limit) ? limit : 20);
+        return { ok: true };
+      }
+      case "review_alert_scan": {
+        const limit = Number(payload.limit ?? 15);
+        await processNewReviewAlerts(Number.isFinite(limit) ? limit : 15);
+        return { ok: true };
+      }
+      case "local_trust_run": {
+        const businessId = String(payload.businessId ?? "");
+        const organizationId = String(payload.organizationId ?? "");
+        if (!businessId || !organizationId) return permanent("local_trust payload incomplete");
+        await runLocalTrustFinder({
+          businessId,
+          organizationId,
+          city: optionalString(payload.city),
+          state: optionalString(payload.state),
+          county: optionalString(payload.county),
+          rescan: Boolean(payload.rescan),
+        });
+        return { ok: true };
+      }
+      case "backlink_gap_run": {
+        const businessId = String(payload.businessId ?? "");
+        const organizationId = String(payload.organizationId ?? "");
+        if (!businessId || !organizationId) return permanent("backlink_gap payload incomplete");
+        const result = await runBacklinkGap({
+          businessId,
+          organizationId,
+          scanBatchId: optionalString(payload.scanBatchId),
+          competitorLimit:
+            typeof payload.competitorLimit === "number" ? payload.competitorLimit : undefined,
+          selectedCompetitorIds: Array.isArray(payload.selectedCompetitorIds)
+            ? (payload.selectedCompetitorIds as string[])
+            : undefined,
+          forceRefresh: Boolean(payload.forceRefresh),
+        });
+        if (result.fromCache && payload.reservedUsage) {
+          await releaseUsage(
+            organizationId,
+            payload.reservedUsage.key as Parameters<typeof releaseUsage>[1],
+            payload.reservedUsage.amount
+          ).catch(() => {});
+        }
+        return { ok: true };
+      }
+      case "ai_visibility_run": {
+        const businessId = String(payload.businessId ?? "");
+        const organizationId = String(payload.organizationId ?? "");
+        if (!businessId || !organizationId) return permanent("ai_visibility payload incomplete");
+        await runAiVisibilityCheck({
+          businessId,
+          organizationId,
+          maxPrompts: typeof payload.maxPrompts === "number" ? payload.maxPrompts : 1,
+          promptIds: Array.isArray(payload.promptIds)
+            ? (payload.promptIds as string[])
+            : undefined,
+        });
+        return { ok: true };
+      }
+      case "citation_audit": {
+        const businessId = String(payload.businessId ?? "");
+        const organizationId = String(payload.organizationId ?? "");
+        if (!businessId || !organizationId) return permanent("citation_audit payload incomplete");
+        await runCitationAudit({
+          businessId,
+          organizationId,
+          competitorLimit:
+            typeof payload.competitorLimit === "number" ? payload.competitorLimit : undefined,
+          vertical: optionalString(payload.vertical),
+          forceRefresh: Boolean(payload.forceRefresh),
+        });
+        return { ok: true };
+      }
+      case "reputation_audit": {
+        const businessId = String(payload.businessId ?? "");
+        const organizationId = String(payload.organizationId ?? "");
+        if (!businessId || !organizationId) return permanent("reputation_audit payload incomplete");
+        await runReputationAudit({
+          businessId,
+          organizationId,
+          competitorLimit:
+            typeof payload.competitorLimit === "number" ? payload.competitorLimit : undefined,
+          lookbackDays:
+            typeof payload.lookbackDays === "number" ? payload.lookbackDays : undefined,
+          forceRefresh: Boolean(payload.forceRefresh),
+        });
+        return { ok: true };
+      }
+      case "growth_audit_run": {
+        const businessId = String(payload.businessId ?? "");
+        const organizationId = String(payload.organizationId ?? "");
+        if (!businessId || !organizationId) return permanent("growth_audit payload incomplete");
+        await runGrowthAudit({
+          businessId,
+          organizationId,
+          keyword: optionalString(payload.keyword),
+          // Engine enqueues growth_audit_extended unless skipBackground is set.
+          skipBackground: Boolean(payload.skipBackground),
+        });
+        return { ok: true };
+      }
+      case "growth_audit_extended": {
+        const growthRunId = String(payload.growthRunId ?? "");
+        const businessId = String(payload.businessId ?? "");
+        const organizationId = String(payload.organizationId ?? "");
+        if (!growthRunId || !businessId || !organizationId) {
+          return permanent("growth_audit_extended payload incomplete");
+        }
+        await runExtendedModulesInBackground({ growthRunId, businessId, organizationId });
+        return { ok: true };
+      }
+      case "review_momentum_run": {
+        const businessId = String(payload.businessId ?? "");
+        const organizationId = String(payload.organizationId ?? "");
+        if (!businessId || !organizationId) return permanent("review_momentum payload incomplete");
+        await runReviewMomentum({
+          businessId,
+          organizationId,
+          scanBatchId: optionalString(payload.scanBatchId),
+          competitorLimit:
+            typeof payload.competitorLimit === "number" ? payload.competitorLimit : undefined,
+          lookbackDays:
+            typeof payload.lookbackDays === "number" ? payload.lookbackDays : undefined,
+        });
+        return { ok: true };
+      }
+      case "maps_difficulty_run": {
+        const { runMapsDifficulty } = await import("@/lib/maps-difficulty/enrich");
+        const keyword = String(payload.keyword ?? "").trim();
+        const lat = Number(payload.lat);
+        const lng = Number(payload.lng);
+        if (!keyword || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+          return permanent("maps_difficulty payload incomplete");
+        }
+        await runMapsDifficulty({
+          keyword,
+          lat,
+          lng,
+          label: String(payload.label ?? keyword),
+          service: optionalString(payload.service),
+        });
+        return { ok: true };
+      }
+      case "generate_report": {
+        const businessId = String(payload.businessId ?? "");
+        if (!businessId) return permanent("generate_report payload incomplete");
+        const reportType = optionalString(payload.reportType) ?? "single_scan";
+        await generateTypedReport({
+          businessId,
+          scanBatchId: optionalString(payload.scanBatchId),
+          reportType: reportType as import("@/lib/reporting/types").ReportType,
+          keywordId: optionalString(payload.keywordId),
+          locationId: optionalString(payload.locationId),
+          campaignId: optionalString(payload.campaignId),
+          gridSize: typeof payload.gridSize === "number" ? payload.gridSize : undefined,
+          radiusMeters:
+            typeof payload.radiusMeters === "number" ? payload.radiusMeters : undefined,
+          selectedCompetitorKeys: Array.isArray(payload.selectedCompetitorKeys)
+            ? (payload.selectedCompetitorKeys as string[])
+            : undefined,
+          persist: payload.persist !== false,
+        });
+        return { ok: true };
+      }
+      case "data_retention": {
+        await maybeRunDataRetentionCleanup();
+        return { ok: true };
+      }
+      default:
+        return permanent(`No handler registered for job type ${jobType}`);
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (payload.reservedUsage && payload.organizationId) {
+      await releaseUsage(
+        String(payload.organizationId),
+        payload.reservedUsage.key as Parameters<typeof releaseUsage>[1],
+        payload.reservedUsage.amount
+      ).catch(() => {});
+    }
+    logger.error("job_handler_failed", { jobType, error: message });
+    if (PERMANENT_PATTERN.test(message)) {
+      return { ok: false, permanent: true, error: message };
+    }
+    return { ok: false, permanent: false, error: message };
+  }
+}
+
+function permanent(error: string): JobHandlerResult {
+  return { ok: false, permanent: true, error };
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length ? value : undefined;
+}
+
+async function resolveOrgId(payload: JobHandlerPayload): Promise<string | undefined> {
+  if (typeof payload.organizationId === "string" && payload.organizationId) {
+    return payload.organizationId;
+  }
+  if (typeof payload.businessId !== "string" || !payload.businessId) return undefined;
+  const supabase = createServiceClient();
+  const { data: biz } = await supabase
+    .from("businesses")
+    .select("organization_id")
+    .eq("id", payload.businessId)
+    .maybeSingle();
+  return (biz?.organization_id as string | undefined) ?? undefined;
+}

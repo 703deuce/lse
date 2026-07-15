@@ -137,12 +137,13 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
   }, [load]);
 
   useEffect(() => {
-    // core_ready means extended modules were kicked off in the background —
-    // keep polling until complete/failed so the UI does not look stuck.
+    // Queued / core_ready / extended — keep polling until complete/failed.
     if (
+      !running &&
       runStatus !== "extended_running" &&
       runStatus !== "running" &&
-      runStatus !== "core_ready"
+      runStatus !== "core_ready" &&
+      runStatus !== "queued"
     ) {
       return;
     }
@@ -155,16 +156,19 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
           setRunStatus(json.status);
           setExtended(json.extended ?? {});
           setProgressStage(json.progressStage);
-          if (json.status === "complete" || json.status === "failed") {
+          if (json.status === "complete" || json.status === "failed" || json.status === "core_ready") {
             void load();
+          }
+          if (json.status === "complete" || json.status === "failed") {
+            setRunning(false);
           }
         }
       } catch {
         /* soft-fail poll */
       }
-    }, 5000);
+    }, 3000);
     return () => clearInterval(id);
-  }, [runStatus, businessId, load]);
+  }, [runStatus, running, businessId, load]);
 
   async function runAudit() {
     setRunning(true);
@@ -177,14 +181,18 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Audit failed");
+      if (json.queued) {
+        setRunStatus("queued");
+        setStartedAt(new Date().toISOString());
+        return;
+      }
       setSections(json.sections);
       setGrowthScore(json.growthScore);
-      // Poll for background extended modules even though sync response is core_ready.
       setRunStatus(json.status === "core_ready" ? "extended_running" : json.status);
       setStartedAt(new Date().toISOString());
+      setRunning(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Audit failed");
-    } finally {
       setRunning(false);
     }
   }

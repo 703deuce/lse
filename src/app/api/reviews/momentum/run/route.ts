@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
-import { runReviewMomentum } from "@/lib/reviews/momentum-engine";
+import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 
 export async function POST(request: Request) {
   try {
@@ -17,15 +17,35 @@ export async function POST(request: Request) {
     }
 
     const auth = await requireBusinessAccess(businessId);
-    const result = await runReviewMomentum({
-      businessId,
+    const job = await dispatchFeatureJob({
+      jobType: "review_momentum_run",
+      payload: {
+        businessId,
+        organizationId: auth.organizationId,
+        scanBatchId,
+        competitorLimit,
+        lookbackDays,
+      },
       organizationId: auth.organizationId,
-      scanBatchId,
-      competitorLimit,
-      lookbackDays,
+      businessId,
+      idempotencyKey: `review-momentum:${businessId}:${Math.floor(Date.now() / 30_000)}`,
+      priority: "normal",
+      maxAttempts: 2,
     });
 
-    return NextResponse.json(result);
+    if (job.enqueueState === "enqueue_failed") {
+      return NextResponse.json(
+        { error: "Failed to queue review momentum run", jobId: job.jobId },
+        { status: 503 }
+      );
+    }
+
+    return NextResponse.json({
+      queued: true,
+      status: "queued",
+      jobId: job.jobId,
+      queueDriver: job.driver,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Review momentum run failed";
     return NextResponse.json({ error: message }, { status: 500 });

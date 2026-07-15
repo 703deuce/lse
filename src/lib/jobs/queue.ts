@@ -1,17 +1,17 @@
 import { createServiceClient } from "@/lib/db/client";
-import { processCampaignMessages } from "@/lib/reputation/campaign-processor";
-import { processNewReviewAlerts } from "@/lib/reputation/review-alerts";
-import { processScanBatch } from "@/lib/jobs/process-scan";
 import { reclaimStaleInFlightScans } from "@/lib/jobs/schedule-scan";
 import { maybeRunDataRetentionCleanup } from "@/lib/jobs/retention";
 import { logger } from "@/lib/observability/logger";
-import { runContactImport, type ContactImportMode, type ContactImportRow } from "@/lib/reputation/contact-import";
+import type { ContactImportMode } from "@/lib/reputation/contact-import";
 import {
   enqueueMapsScanJob,
   enqueueReviewImportJob,
+  reconcileLegacyPendingJobs,
   recoverPendingEnqueues,
   resolveQueueDriver,
 } from "@/lib/queue";
+import { dispatchFeatureJob } from "@/lib/queue/dispatch";
+import { executeJobType } from "@/lib/queue/job-handlers";
 
 const JOB_RUNNING_STALE_MS = Number(process.env.JOB_RUNNING_STALE_MS ?? 20 * 60 * 1000);
 
@@ -28,7 +28,6 @@ export async function enqueueScanJob(scanBatchId: string, businessId?: string): 
     organizationId = (biz?.organization_id as string) ?? "";
   }
   if (!organizationId || !businessId) {
-    // Fallback bare insert for scheduled SQL inserts that omit org.
     const supabase = createServiceClient();
     await supabase.from("job_queue").insert({
       job_type: "process_scan",
@@ -86,6 +85,35 @@ async function reclaimStaleRunningJobs(
   return count;
 }
 
+/** Enqueue recurring messaging / monitor drains (idempotent per minute). */
+async function enqueueRecurringDrains(): Promise<void> {
+  const bucket = Math.floor(Date.now() / 60_000);
+  await Promise.all([
+    dispatchFeatureJob({
+      jobType: "campaign_send_batch",
+      payload: { limit: 20 },
+      idempotencyKey: `campaign-drain:${bucket}`,
+      priority: "normal",
+      maxAttempts: 2,
+    }).catch((err) => {
+      logger.warn("campaign_drain_enqueue_failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }),
+    dispatchFeatureJob({
+      jobType: "review_alert_scan",
+      payload: { limit: 15 },
+      idempotencyKey: `review-alert-drain:${bucket}`,
+      priority: "highest",
+      maxAttempts: 2,
+    }).catch((err) => {
+      logger.warn("review_alert_drain_enqueue_failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }),
+  ]);
+}
+
 export async function processPendingJobs(limit = 5): Promise<{
   jobsProcessed: number;
   campaignSent: number;
@@ -98,21 +126,22 @@ export async function processPendingJobs(limit = 5): Promise<{
 
   const retention = await maybeRunDataRetentionCleanup();
   const enqueueRecovered = await recoverPendingEnqueues(25).catch(() => 0);
-  if (enqueueRecovered > 0) {
-    logger.info("job_queue_enqueue_recovered", { enqueueRecovered });
+  const legacyFixed = await reconcileLegacyPendingJobs(25).catch(() => 0);
+  if (enqueueRecovered > 0 || legacyFixed > 0) {
+    logger.info("job_queue_enqueue_recovered", { enqueueRecovered, legacyFixed });
   }
   const jobsReclaimed = await reclaimStaleRunningJobs(supabase);
   const scansReclaimed = await reclaimStaleInFlightScans(5);
 
-  // BullMQ workers own ledger job execution. Cron still recovers enqueues,
-  // reclaims leases, and drains campaign/alert side work not yet migrated.
+  // Campaigns + review alerts go through named queues (messaging / intelligence workers).
+  await enqueueRecurringDrains();
+
+  // BullMQ workers own ledger job execution after handoff.
   if (resolveQueueDriver() === "bullmq") {
-    const campaignSent = await processCampaignMessages(20);
-    const reviewAlertsSent = await processNewReviewAlerts(15).catch(() => 0);
     return {
       jobsProcessed: 0,
-      campaignSent,
-      reviewAlertsSent,
+      campaignSent: 0,
+      reviewAlertsSent: 0,
       scansReclaimed,
       jobsReclaimed,
       retention,
@@ -121,19 +150,18 @@ export async function processPendingJobs(limit = 5): Promise<{
 
   const { data: jobs } = await supabase
     .from("job_queue")
-    .select("id, job_type, payload, attempts, max_attempts, status, scheduled_at")
+    .select("id, job_type, payload, attempts, max_attempts, status, scheduled_at, queue_name")
     .eq("status", "pending")
     .lte("scheduled_at", new Date().toISOString())
+    .order("priority", { ascending: true })
     .order("scheduled_at", { ascending: true })
     .limit(limit);
 
   if (!jobs?.length) {
-    const campaignSent = await processCampaignMessages(20);
-    const reviewAlertsSent = await processNewReviewAlerts(15).catch(() => 0);
     return {
       jobsProcessed: 0,
-      campaignSent,
-      reviewAlertsSent,
+      campaignSent: 0,
+      reviewAlertsSent: 0,
       scansReclaimed,
       jobsReclaimed,
       retention,
@@ -154,78 +182,31 @@ export async function processPendingJobs(limit = 5): Promise<{
       .select("id, job_type, payload, attempts, max_attempts")
       .maybeSingle();
 
-    if (!claimed) {
-      continue;
-    }
+    if (!claimed) continue;
 
     try {
-      if (claimed.job_type === "process_scan") {
-        const payload = claimed.payload as { scanBatchId?: string; businessId?: string };
-        if (payload.scanBatchId) {
-          let orgId: string | undefined;
-          if (payload.businessId) {
-            const { data: biz } = await supabase
-              .from("businesses")
-              .select("organization_id")
-              .eq("id", payload.businessId)
-              .maybeSingle();
-            orgId = biz?.organization_id;
-          }
-          if (!orgId) {
-            const { data: batch } = await supabase
-              .from("scan_batches")
-              .select("business_id")
-              .eq("id", payload.scanBatchId)
-              .maybeSingle();
-            if (batch) {
-              const { data: biz } = await supabase
-                .from("businesses")
-                .select("organization_id")
-                .eq("id", batch.business_id)
-                .maybeSingle();
-              orgId = biz?.organization_id;
-            }
-          }
-          const ran = await processScanBatch(payload.scanBatchId, orgId);
-          if (!ran) {
-            // Lease owned elsewhere — do not mark the ledger complete.
-            await supabase
-              .from("job_queue")
-              .update({
-                status: "pending",
-                scheduled_at: new Date(Date.now() + 5_000).toISOString(),
-                error_message: "Deferred — another worker holds the scan lease",
-              })
-              .eq("id", claimed.id);
-            continue;
-          }
-        }
-      } else if (claimed.job_type === "import_contacts") {
-        const payload = claimed.payload as {
-          uploadId?: string;
-          businessId?: string;
-          organizationId?: string;
-          mode?: ContactImportMode;
-        };
-        if (!payload.uploadId || !payload.businessId || !payload.organizationId) {
-          throw new Error("import_contacts payload incomplete");
-        }
-        const { data: upload } = await supabase
-          .from("review_request_uploads")
-          .update({ status: "running", started_at: new Date().toISOString() })
-          .eq("id", payload.uploadId)
-          .in("status", ["queued", "running"])
-          .select("rows_json, mode")
-          .maybeSingle();
-        if (!upload) throw new Error("Import upload not found or already finished");
-        const rows = (upload.rows_json ?? []) as ContactImportRow[];
-        await runContactImport({
-          organizationId: payload.organizationId,
-          businessId: payload.businessId,
-          uploadId: payload.uploadId,
-          mode: payload.mode ?? (upload.mode as ContactImportMode) ?? "update",
-          rows,
+      const payload = (claimed.payload ?? {}) as Record<string, unknown>;
+      const result = await executeJobType(String(claimed.job_type), {
+        ...payload,
+        ledgerJobId: claimed.id,
+      });
+
+      if (!result.ok) {
+        throw Object.assign(new Error(result.error ?? "Job failed"), {
+          unrecoverable: result.permanent,
         });
+      }
+
+      if (result.markComplete === false) {
+        await supabase
+          .from("job_queue")
+          .update({
+            status: "pending",
+            scheduled_at: new Date(Date.now() + 5_000).toISOString(),
+            error_message: "Deferred — another worker holds the lease",
+          })
+          .eq("id", claimed.id);
+        continue;
       }
 
       await supabase
@@ -235,9 +216,12 @@ export async function processPendingJobs(limit = 5): Promise<{
       processed++;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
+      const permanent = Boolean(
+        err instanceof Error && (err as Error & { unrecoverable?: boolean }).unrecoverable
+      );
       const attempts = claimed.attempts ?? (job.attempts ?? 0) + 1;
       const maxAttempts = claimed.max_attempts ?? job.max_attempts ?? 3;
-      const failed = attempts >= maxAttempts;
+      const failed = permanent || attempts >= maxAttempts;
       const delay = retryDelayMs(attempts);
 
       await supabase
@@ -251,7 +235,7 @@ export async function processPendingJobs(limit = 5): Promise<{
         .eq("id", claimed.id);
 
       const payload = claimed.payload as { scanBatchId?: string };
-      if (payload.scanBatchId && failed) {
+      if (payload.scanBatchId && failed && claimed.job_type === "process_scan") {
         await supabase
           .from("scan_batches")
           .update({
@@ -274,13 +258,10 @@ export async function processPendingJobs(limit = 5): Promise<{
     }
   }
 
-  const campaignSent = await processCampaignMessages(20);
-  const reviewAlertsSent = await processNewReviewAlerts(15).catch(() => 0);
-
   return {
     jobsProcessed: processed,
-    campaignSent,
-    reviewAlertsSent,
+    campaignSent: 0,
+    reviewAlertsSent: 0,
     scansReclaimed,
     jobsReclaimed,
     retention,

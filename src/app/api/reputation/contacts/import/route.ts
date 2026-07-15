@@ -11,7 +11,7 @@ import {
   type ContactImportMode,
   type ContactImportRow,
 } from "@/lib/reputation/contact-import";
-import { enqueueImportContactsJob } from "@/lib/jobs/queue";
+import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 
 const SYNC_ROW_LIMIT = 200;
 const MAX_ROWS = 5000;
@@ -128,16 +128,26 @@ export async function POST(request: Request) {
     if (uploadErr) throw new Error(uploadErr.message);
 
     if (useBackground) {
-      await enqueueImportContactsJob({
-        uploadId: upload.id,
-        businessId,
+      const job = await dispatchFeatureJob({
+        jobType: "import_contacts",
+        payload: {
+          uploadId: upload.id,
+          businessId,
+          organizationId: auth.organizationId,
+          mode,
+        },
         organizationId: auth.organizationId,
-        mode,
+        businessId,
+        idempotencyKey: `review-import:${upload.id}`,
+        priority: "normal",
+        maxAttempts: 3,
       });
       return NextResponse.json({
         uploadId: upload.id,
         status: "queued",
-        message: "Large import queued — the Coolify cron worker will process it.",
+        jobId: job.jobId,
+        queueDriver: job.driver,
+        message: "Import queued for background processing.",
         total: rows.length,
       });
     }

@@ -181,6 +181,18 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => void load(), 3000);
+    return () => clearInterval(id);
+  }, [running, load]);
+
+  useEffect(() => {
+    if (!running) return;
+    const status = data?.run?.status;
+    if (status && status !== "running") setRunning(false);
+  }, [data?.run?.status, running]);
+
   async function runAudit() {
     setRunning(true);
     setError(null);
@@ -193,9 +205,9 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Run failed");
       await load();
+      if (!json.queued) setRunning(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Run failed");
-    } finally {
       setRunning(false);
     }
   }
