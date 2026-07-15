@@ -1,20 +1,52 @@
 import { createServiceClient } from "@/lib/db/client";
-import { processCampaignMessages } from "@/lib/reputation/campaign-processor";
-import { processNewReviewAlerts } from "@/lib/reputation/review-alerts";
-import { processScanBatch } from "@/lib/jobs/process-scan";
 import { reclaimStaleInFlightScans } from "@/lib/jobs/schedule-scan";
 import { maybeRunDataRetentionCleanup } from "@/lib/jobs/retention";
 import { logger } from "@/lib/observability/logger";
-import { runContactImport, type ContactImportMode, type ContactImportRow } from "@/lib/reputation/contact-import";
+import type { ContactImportMode } from "@/lib/reputation/contact-import";
+import {
+  enqueueMapsScanJob,
+  enqueueReviewImportJob,
+  reconcileLegacyPendingJobs,
+  recoverPendingEnqueues,
+  resolveQueueDriver,
+} from "@/lib/queue";
+import { dispatchFeatureJob } from "@/lib/queue/dispatch";
+import { jobTypeToQueue } from "@/lib/queue/job-handlers";
+import { processQueueJob } from "@/lib/queue/processors";
+import type { QueueName } from "@/lib/queue/types";
+import { isDeferredError } from "@/lib/queue/errors";
 
 const JOB_RUNNING_STALE_MS = Number(process.env.JOB_RUNNING_STALE_MS ?? 20 * 60 * 1000);
 
+/** @deprecated Prefer enqueueMapsScanJob / dispatchScanProcessing — kept for SQL/cron callers. */
 export async function enqueueScanJob(scanBatchId: string, businessId?: string): Promise<void> {
-  const supabase = createServiceClient();
-  await supabase.from("job_queue").insert({
-    job_type: "process_scan",
-    payload: { scanBatchId, businessId },
-    status: "pending",
+  let organizationId = "";
+  if (businessId) {
+    const supabase = createServiceClient();
+    const { data: biz } = await supabase
+      .from("businesses")
+      .select("organization_id")
+      .eq("id", businessId)
+      .maybeSingle();
+    organizationId = (biz?.organization_id as string) ?? "";
+  }
+  if (!organizationId || !businessId) {
+    const supabase = createServiceClient();
+    await supabase.from("job_queue").insert({
+      job_type: "process_scan",
+      payload: { scanBatchId, businessId },
+      status: "pending",
+      queue_name: "maps-scan",
+      enqueue_state: "enqueued",
+      idempotency_key: `maps-scan:${scanBatchId}`,
+    });
+    return;
+  }
+  await enqueueMapsScanJob({
+    scanBatchId,
+    businessId,
+    organizationId,
+    priority: "normal",
   });
 }
 
@@ -24,41 +56,74 @@ export async function enqueueImportContactsJob(payload: {
   organizationId: string;
   mode: ContactImportMode;
 }): Promise<void> {
-  const supabase = createServiceClient();
-  await supabase.from("job_queue").insert({
-    job_type: "import_contacts",
-    payload,
-    status: "pending",
-  });
-}
-
-function retryDelayMs(attempt: number): number {
-  const base = Math.min(60_000, 1000 * 2 ** Math.max(0, attempt - 1));
-  const jitter = Math.floor(Math.random() * 1000);
-  return base + jitter;
+  await enqueueReviewImportJob(payload);
 }
 
 /** Requeue jobs stuck in `running` after a worker crash / deploys. */
 async function reclaimStaleRunningJobs(
   supabase: ReturnType<typeof createServiceClient>
-): Promise<number> {
+): Promise<string[]> {
+  const { reclaimExpiredJobLeases } = await import("@/lib/queue/ledger");
+  const leasedIds = await reclaimExpiredJobLeases(50).catch(() => [] as string[]);
+
   const staleBefore = new Date(Date.now() - JOB_RUNNING_STALE_MS).toISOString();
+  const nowIso = new Date().toISOString();
+  // Only steal jobs whose lease is missing/expired — do not interrupt heartbeated long work.
   const { data } = await supabase
     .from("job_queue")
     .update({
       status: "pending",
+      lifecycle_status: "queued",
+      lease_owner: null,
+      lease_expires_at: null,
       scheduled_at: new Date().toISOString(),
       error_message: "Reclaimed stale running job",
     })
     .eq("status", "running")
     .lt("started_at", staleBefore)
+    .or(`lease_expires_at.is.null,lease_expires_at.lt.${nowIso}`)
     .select("id");
 
-  const count = data?.length ?? 0;
-  if (count > 0) {
-    logger.warn("job_queue_stale_running_reclaimed", { count, staleBefore });
+  const byStarted = (data ?? []).map((r) => r.id as string);
+  const ids = [...new Set([...leasedIds, ...byStarted])];
+  if (ids.length > 0) {
+    logger.warn("job_queue_stale_running_reclaimed", {
+      count: ids.length,
+      leased: leasedIds.length,
+      byStartedAt: byStarted.length,
+      staleBefore,
+    });
   }
-  return count;
+  return ids;
+}
+
+/** Enqueue recurring messaging / monitor drains (idempotent per minute). */
+async function enqueueRecurringDrains(): Promise<void> {
+  const bucket = Math.floor(Date.now() / 60_000);
+  await Promise.all([
+    dispatchFeatureJob({
+      jobType: "campaign_send_batch",
+      payload: { limit: 20 },
+      idempotencyKey: `campaign-drain:${bucket}`,
+      priority: "normal",
+      maxAttempts: 2,
+    }).catch((err) => {
+      logger.warn("campaign_drain_enqueue_failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }),
+    dispatchFeatureJob({
+      jobType: "review_alert_scan",
+      payload: { limit: 15 },
+      idempotencyKey: `review-alert-drain:${bucket}`,
+      priority: "highest",
+      maxAttempts: 2,
+    }).catch((err) => {
+      logger.warn("review_alert_drain_enqueue_failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }),
+  ]);
 }
 
 export async function processPendingJobs(limit = 5): Promise<{
@@ -72,24 +137,68 @@ export async function processPendingJobs(limit = 5): Promise<{
   const supabase = createServiceClient();
 
   const retention = await maybeRunDataRetentionCleanup();
-  const jobsReclaimed = await reclaimStaleRunningJobs(supabase);
+  const enqueueRecovered = await recoverPendingEnqueues(25).catch(() => 0);
+  const legacyFixed = await reconcileLegacyPendingJobs(25).catch(() => 0);
+  if (enqueueRecovered > 0 || legacyFixed > 0) {
+    logger.info("job_queue_enqueue_recovered", { enqueueRecovered, legacyFixed });
+  }
+  const reclaimedIds = await reclaimStaleRunningJobs(supabase);
+  const jobsReclaimed = reclaimedIds.length;
+  // Under BullMQ, reclaimed pending rows have no Redis job — hand them back.
+  if (resolveQueueDriver() === "bullmq" && reclaimedIds.length) {
+    const { getLedgerJob, markLedgerEnqueueFailed } = await import("@/lib/queue/ledger");
+    const { bullmqRequeueLedgerJob } = await import("@/lib/queue/drivers/bullmq-driver");
+    for (const id of reclaimedIds) {
+      const job = await getLedgerJob(id);
+      if (!job?.queueName) continue;
+      await bullmqRequeueLedgerJob({
+        id: job.id,
+        queueName: job.queueName,
+        jobType: job.jobType,
+        payload: job.payload,
+        organizationId: job.organizationId,
+        businessId: job.businessId,
+        priority: job.priority,
+        maxAttempts: job.maxAttempts,
+      }).catch(async (err) => {
+        await markLedgerEnqueueFailed(
+          job.id,
+          err instanceof Error ? err.message : "reclaim requeue failed"
+        );
+      });
+    }
+  }
   const scansReclaimed = await reclaimStaleInFlightScans(5);
+
+  // Campaigns + review alerts go through named queues (messaging / intelligence workers).
+  await enqueueRecurringDrains();
+
+  // BullMQ workers own ledger job execution after handoff.
+  if (resolveQueueDriver() === "bullmq") {
+    return {
+      jobsProcessed: 0,
+      campaignSent: 0,
+      reviewAlertsSent: 0,
+      scansReclaimed,
+      jobsReclaimed,
+      retention,
+    };
+  }
 
   const { data: jobs } = await supabase
     .from("job_queue")
-    .select("id, job_type, payload, attempts, max_attempts, status, scheduled_at")
+    .select("id, job_type, payload, attempts, max_attempts, status, scheduled_at, queue_name")
     .eq("status", "pending")
     .lte("scheduled_at", new Date().toISOString())
+    .order("priority", { ascending: true })
     .order("scheduled_at", { ascending: true })
     .limit(limit);
 
   if (!jobs?.length) {
-    const campaignSent = await processCampaignMessages(20);
-    const reviewAlertsSent = await processNewReviewAlerts(15).catch(() => 0);
     return {
       jobsProcessed: 0,
-      campaignSent,
-      reviewAlertsSent,
+      campaignSent: 0,
+      reviewAlertsSent: 0,
       scansReclaimed,
       jobsReclaimed,
       retention,
@@ -97,134 +206,35 @@ export async function processPendingJobs(limit = 5): Promise<{
   }
 
   let processed = 0;
+
+  // Share claim/heartbeat/billing/summary path with BullMQ workers.
   for (const job of jobs) {
-    const { data: claimed } = await supabase
-      .from("job_queue")
-      .update({
-        status: "running",
-        started_at: new Date().toISOString(),
-        attempts: (job.attempts ?? 0) + 1,
-      })
-      .eq("id", job.id)
-      .eq("status", "pending")
-      .select("id, job_type, payload, attempts, max_attempts")
-      .maybeSingle();
-
-    if (!claimed) {
-      continue;
-    }
-
+    const payload = (job.payload ?? {}) as Record<string, unknown>;
+    const queueName = (job.queue_name as QueueName | null) || jobTypeToQueue(String(job.job_type));
     try {
-      if (claimed.job_type === "process_scan") {
-        const payload = claimed.payload as { scanBatchId?: string; businessId?: string };
-        if (payload.scanBatchId) {
-          let orgId: string | undefined;
-          if (payload.businessId) {
-            const { data: biz } = await supabase
-              .from("businesses")
-              .select("organization_id")
-              .eq("id", payload.businessId)
-              .maybeSingle();
-            orgId = biz?.organization_id;
-          }
-          if (!orgId) {
-            const { data: batch } = await supabase
-              .from("scan_batches")
-              .select("business_id")
-              .eq("id", payload.scanBatchId)
-              .maybeSingle();
-            if (batch) {
-              const { data: biz } = await supabase
-                .from("businesses")
-                .select("organization_id")
-                .eq("id", batch.business_id)
-                .maybeSingle();
-              orgId = biz?.organization_id;
-            }
-          }
-          await processScanBatch(payload.scanBatchId, orgId);
-        }
-      } else if (claimed.job_type === "import_contacts") {
-        const payload = claimed.payload as {
-          uploadId?: string;
-          businessId?: string;
-          organizationId?: string;
-          mode?: ContactImportMode;
-        };
-        if (!payload.uploadId || !payload.businessId || !payload.organizationId) {
-          throw new Error("import_contacts payload incomplete");
-        }
-        const { data: upload } = await supabase
-          .from("review_request_uploads")
-          .update({ status: "running", started_at: new Date().toISOString() })
-          .eq("id", payload.uploadId)
-          .in("status", ["queued", "running"])
-          .select("rows_json, mode")
-          .maybeSingle();
-        if (!upload) throw new Error("Import upload not found or already finished");
-        const rows = (upload.rows_json ?? []) as ContactImportRow[];
-        await runContactImport({
-          organizationId: payload.organizationId,
-          businessId: payload.businessId,
-          uploadId: payload.uploadId,
-          mode: payload.mode ?? (upload.mode as ContactImportMode) ?? "update",
-          rows,
-        });
-      }
-
-      await supabase
-        .from("job_queue")
-        .update({ status: "completed", finished_at: new Date().toISOString() })
-        .eq("id", claimed.id);
+      await processQueueJob(queueName, {
+        ...payload,
+        ledgerJobId: job.id,
+        jobType: String(job.job_type),
+      });
       processed++;
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      const attempts = claimed.attempts ?? (job.attempts ?? 0) + 1;
-      const maxAttempts = claimed.max_attempts ?? job.max_attempts ?? 3;
-      const failed = attempts >= maxAttempts;
-      const delay = retryDelayMs(attempts);
-
-      await supabase
-        .from("job_queue")
-        .update({
-          status: failed ? "failed" : "pending",
-          error_message: message,
-          finished_at: failed ? new Date().toISOString() : null,
-          scheduled_at: failed ? undefined : new Date(Date.now() + delay).toISOString(),
-        })
-        .eq("id", claimed.id);
-
-      const payload = claimed.payload as { scanBatchId?: string };
-      if (payload.scanBatchId && failed) {
-        await supabase
-          .from("scan_batches")
-          .update({
-            status: "failed",
-            error_message: message,
-            finished_at: new Date().toISOString(),
-            lease_owner: null,
-            lease_expires_at: null,
-          })
-          .eq("id", payload.scanBatchId)
-          .in("status", ["queued", "dispatching", "provider_running", "normalizing"]);
+      if (isDeferredError(err)) {
+        // Ledger already rescheduled — deferred is not a failure.
+        continue;
       }
       logger.error("job_queue_processing_failed", {
-        jobId: claimed.id,
-        jobType: claimed.job_type,
-        attempts,
-        failed,
-        error: message,
+        jobId: job.id,
+        jobType: job.job_type,
+        error: err instanceof Error ? err.message : String(err),
       });
     }
   }
 
-  const campaignSent = await processCampaignMessages(20);
-  const reviewAlertsSent = await processNewReviewAlerts(15).catch(() => 0);
-
   return {
     jobsProcessed: processed,
-    campaignSent,
-    reviewAlertsSent,
+    campaignSent: 0,
+    reviewAlertsSent: 0,
     scansReclaimed,
     jobsReclaimed,
     retention,

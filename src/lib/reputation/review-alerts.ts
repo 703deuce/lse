@@ -143,6 +143,8 @@ export async function processNewReviewAlerts(limitBusinesses = 20): Promise<numb
           toEmail: to,
           subject,
           textBody: body,
+          organizationId: String(settings.organization_id ?? ""),
+          businessId: String(settings.business_id ?? ""),
         });
         if (!result.ok) {
           allOk = false;

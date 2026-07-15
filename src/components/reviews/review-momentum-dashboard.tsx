@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { type MomentumLabel } from "@/lib/reviews/metrics";
 import type { MarketInsights } from "@/lib/reviews/market-insights";
+import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 import { buildMarketInsightsFromEntityRows } from "@/lib/reviews/market-insights";
 import {
   MomentumScoreBarsPanel,
@@ -159,12 +160,9 @@ const TASK_ICON_COLORS = [
 export function ReviewMomentumDashboard({ businessId }: { businessId: string }) {
   const [data, setData] = useState<RunData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
       const res = await fetch(`/api/reviews/momentum/latest?businessId=${businessId}`);
       const json = await res.json();
@@ -181,22 +179,24 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
     void load();
   }, [load]);
 
+  const {
+    start: startJob,
+    running,
+    error,
+    setError,
+  } = useModuleJobRunner({
+    onSettled: () => load(),
+  });
+
   async function runAudit() {
-    setRunning(true);
-    setError(null);
     try {
-      const res = await fetch("/api/reviews/momentum/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId, competitorLimit: 3, lookbackDays: 90 }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Run failed");
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Run failed");
-    } finally {
-      setRunning(false);
+      await startJob(
+        "/api/reviews/momentum/run",
+        { businessId, competitorLimit: 3, lookbackDays: 90 },
+        "Run failed"
+      );
+    } catch {
+      /* error already set by runner */
     }
   }
 

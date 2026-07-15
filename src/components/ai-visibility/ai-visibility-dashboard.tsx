@@ -26,6 +26,7 @@ import {
 } from "@/components/ai-visibility/ai-visibility-ui";
 import { ModulePage } from "@/components/ui/design-system";
 import { KpiRow } from "@/components/ui/metric-card";
+import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 import type { RunSummary } from "@/lib/ai-visibility/types";
 
 function formatRunLabel(r: RunSummary) {
@@ -53,7 +54,6 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
   const [tab, setTab] = useState<AiVisibilityTabId>("dashboard");
   const [runView, setRunView] = useState<RunView | "pending">("pending");
   const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [mentionsMode, setMentionsMode] = useState<"current" | "across" | "by-engine">("current");
@@ -88,11 +88,17 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
     void load();
   }, [load]);
 
+  const { start: startJob, running, error: jobError } = useModuleJobRunner({
+    onSettled: async (info) => {
+      if (!info.ok) return;
+      setRunView("combined");
+      await load();
+    },
+  });
+
   useEffect(() => {
-    if (data?.runningRun?.status !== "running" && data?.latestRun?.status !== "running") return;
-    const id = setInterval(() => void load(), 4000);
-    return () => clearInterval(id);
-  }, [data?.latestRun?.status, data?.runningRun?.status, load]);
+    if (jobError) setError(jobError);
+  }, [jobError]);
 
   const isCombined = effectiveRunView === "combined";
   const run = data?.latestRun;
@@ -138,22 +144,16 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
   }
 
   async function runCheck() {
-    setRunning(true);
     setError(null);
     try {
-      const res = await fetch("/api/ai-visibility/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId, maxPrompts: 1 }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Check failed");
-      setRunView("combined");
-      await load();
+      setRunView("pending");
+      await startJob(
+        "/api/ai-visibility/run",
+        { businessId, maxPrompts: 1 },
+        "Check failed"
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Check failed");
-    } finally {
-      setRunning(false);
     }
   }
 

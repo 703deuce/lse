@@ -172,9 +172,16 @@ export async function finalizeRankReady(
   await invalidateWorkspaceCache(supabase, scanBatchId);
 
   if (gridScanAutoEnrichment()) {
-    const { runScanEnrichment } = await import("@/lib/jobs/run-scan-enrichment");
-    void runScanEnrichment(scanBatchId, organizationId).catch((err) => {
-      console.error("[runScanEnrichment] background", scanBatchId, err);
+    const { dispatchFeatureJob } = await import("@/lib/queue/dispatch");
+    await dispatchFeatureJob({
+      jobType: "scan_enrichment",
+      payload: { scanBatchId, organizationId },
+      organizationId,
+      idempotencyKey: `scan-enrichment:${scanBatchId}`,
+      priority: "normal",
+      maxAttempts: 2,
+    }).catch((err) => {
+      console.error("[runScanEnrichment] enqueue failed", scanBatchId, err);
     });
   }
 }

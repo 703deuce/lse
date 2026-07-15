@@ -17,12 +17,30 @@ import {
   scanLeaseTtlMs,
 } from "@/lib/jobs/scan-lease";
 
+/** Outcome of attempting to process a scan batch. */
+export type ProcessScanOutcome = "ran" | "deferred" | "already_done";
+
+const SCAN_ALREADY_DONE = new Set([
+  "ready",
+  "partial",
+  "failed",
+  "enriching",
+  "normalizing",
+]);
+
 /**
  * Process or resume a scan batch.
  * - Fresh: claims `queued` → creates points → runs all cells.
  * - Resume: reclaims stale `dispatching`/`provider_running` → keeps points → skips complete cells.
+ *
+ * @returns `ran` when this invocation owned the lease,
+ * `already_done` when the scan is past map-cell work,
+ * `deferred` when another worker holds the lease.
  */
-export async function processScanBatch(scanBatchId: string, organizationId?: string): Promise<void> {
+export async function processScanBatch(
+  scanBatchId: string,
+  organizationId?: string
+): Promise<ProcessScanOutcome> {
   const supabase = createServiceClient();
   const leaseOwner = newScanLeaseOwner();
 
@@ -35,7 +53,14 @@ export async function processScanBatch(scanBatchId: string, organizationId?: str
   }
 
   if (!batch) {
-    return; // Another worker owns the lease, or scan already finished
+    const { data: current } = await supabase
+      .from("scan_batches")
+      .select("status")
+      .eq("id", scanBatchId)
+      .maybeSingle();
+    const status = String(current?.status ?? "");
+    if (SCAN_ALREADY_DONE.has(status)) return "already_done";
+    return "deferred";
   }
 
   const heartbeatMs = Math.max(15_000, Math.floor(scanLeaseTtlMs() / 3));
@@ -268,6 +293,7 @@ export async function processScanBatch(scanBatchId: string, organizationId?: str
       totalCells,
       successCells,
     });
+    return "ran";
   } catch (err) {
     const message = err instanceof Error ? err.message : "Processing failed";
     await supabase

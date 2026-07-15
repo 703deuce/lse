@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { KeywordBestOpportunityPanel } from "@/components/keyword-tracker/keyword-best-opportunity-panel";
+import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 import {
   KeywordsKpiCard,
   KeywordsMarketBanner,
@@ -175,6 +176,22 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
     void load();
   }, [load]);
 
+  const {
+    start: startJob,
+    running: jobRunning,
+    error: jobError,
+    setError: setJobError,
+  } = useModuleJobRunner({
+    onSettled: async () => {
+      await load();
+      setBusy(null);
+    },
+  });
+
+  useEffect(() => {
+    if (jobError) setError(jobError);
+  }, [jobError]);
+
   async function runAction(action: string, fn: () => Promise<void>) {
     setBusy(action);
     setError(null);
@@ -184,6 +201,17 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
     } catch (e) {
       setError(e instanceof Error ? e.message : "Action failed");
     } finally {
+      setBusy(null);
+    }
+  }
+
+  async function queueKeywordJob(action: "check" | "volume", url: string) {
+    setBusy(action);
+    setError(null);
+    setJobError(null);
+    try {
+      await startJob(url, { businessId }, action === "check" ? "Check failed" : "Volume refresh failed");
+    } catch {
       setBusy(null);
     }
   }
@@ -291,18 +319,8 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
         </button>
         <button
           type="button"
-          disabled={!!busy || !keywords.length}
-          onClick={() =>
-            runAction("check", async () => {
-              const res = await fetch("/api/keywords/check", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ businessId }),
-              });
-              const json = await res.json();
-              if (!res.ok) throw new Error(json.error ?? "Check failed");
-            })
-          }
+          disabled={!!busy || jobRunning || !keywords.length}
+          onClick={() => void queueKeywordJob("check", "/api/keywords/check")}
           className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-[13px] font-medium text-zinc-800 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
         >
           {busy === "check" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
@@ -310,18 +328,8 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
         </button>
         <button
           type="button"
-          disabled={!!busy || !keywords.length || !marketReady}
-          onClick={() =>
-            runAction("volume", async () => {
-              const res = await fetch("/api/keywords/volume", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ businessId }),
-              });
-              const json = await res.json();
-              if (!res.ok) throw new Error(json.error ?? "Volume refresh failed");
-            })
-          }
+          disabled={!!busy || jobRunning || !keywords.length || !marketReady}
+          onClick={() => void queueKeywordJob("volume", "/api/keywords/volume")}
           className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-[13px] font-medium text-zinc-800 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
         >
           {busy === "volume" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}

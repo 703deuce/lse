@@ -278,7 +278,12 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
         if (claimed.channel === "sms" && recipient?.phone) {
           let body = String(claimed.message_body ?? "");
           body = appendSmsOptOut(body);
-          const result = await sendTwilioSms({ toPhone: recipient.phone, body });
+          const result = await sendTwilioSms({
+            toPhone: recipient.phone,
+            body,
+            organizationId: String(campaign.organization_id ?? claimed.organization_id ?? ""),
+            businessId: String(campaign.business_id ?? claimed.business_id ?? ""),
+          });
           ok = result.ok;
           if (result.ok) providerId = result.messageSid;
           else failReason = result.error;
@@ -291,6 +296,8 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
             textBody: String(claimed.message_body ?? ""),
             replyToEmail: buildInboundReplyAddress(String(claimed.id)),
             listUnsubscribeUrl: buildUnsubscribeUrl(String(claimed.id)),
+            organizationId: String(campaign.organization_id ?? claimed.organization_id ?? ""),
+            businessId: String(campaign.business_id ?? claimed.business_id ?? ""),
           });
           ok = result.ok;
           if (result.ok) providerId = result.messageId;

@@ -331,6 +331,8 @@ export async function sendReviewRequestEmail(input: SendReviewEmailInput) {
     textBody: body,
     replyToEmail: resolveReplyToEmail(sendRow.id, business),
     listUnsubscribeUrl: buildUnsubscribeUrl(sendRow.id),
+    organizationId: input.organizationId,
+    businessId: input.businessId,
   });
 
   const now = new Date().toISOString();
@@ -443,7 +445,12 @@ export async function sendReviewRequestSms(input: SendReviewSmsInput) {
     trackingToken,
   });
 
-  const result = await sendTwilioSms({ toPhone: normalized, body });
+  const result = await sendTwilioSms({
+    toPhone: normalized,
+    body,
+    organizationId: input.organizationId,
+    businessId: input.businessId,
+  });
 
   const now = new Date().toISOString();
 

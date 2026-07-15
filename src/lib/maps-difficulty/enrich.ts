@@ -24,6 +24,10 @@ import {
   type MarketScore,
 } from "@/lib/maps-difficulty/score";
 import {
+  fetchWithTimeout,
+  providerTimeoutMs,
+} from "@/lib/providers/fetch-with-timeout";
+import {
   buildCompetitorAuthority,
   isSameAuthorityTarget,
   resolvePageTargetUrl,
@@ -120,7 +124,15 @@ async function sdGet(path: string, params: Record<string, string>): Promise<{ ok
   const url = new URL(`https://api.scrapingdog.com/${path}`);
   url.searchParams.set("api_key", scrapingDogKey());
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  const res = await fetch(url.toString());
+  const res = await fetchWithTimeout(
+    url.toString(),
+    undefined,
+    {
+      provider: "scrapingdog",
+      timeoutMs: providerTimeoutMs("scrapingdog", 45_000),
+      label: `maps-kd:${path}`,
+    }
+  );
   const text = await res.text();
   let body: unknown;
   try {
@@ -372,28 +384,29 @@ function analyzeOnPage(html: string | null, cityToken: string, kwTokens: string[
 // ---------------------------------------------------------------------------
 async function dfsPost<T>(endpoint: string, body: unknown, timeoutMs = 120_000): Promise<T> {
   const { user, pass } = dfsCreds();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(`https://api.dataforseo.com/v3/${endpoint}`, {
+  const res = await fetchWithTimeout(
+    `https://api.dataforseo.com/v3/${endpoint}`,
+    {
       method: "POST",
       headers: {
         Authorization: "Basic " + Buffer.from(`${user}:${pass}`).toString("base64"),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(`DFS HTTP ${res.status}`);
-    const task = data.tasks?.[0];
-    if (task?.status_code && task.status_code >= 40000) {
-      throw new Error(task.status_message ?? `DFS task error ${task.status_code}`);
+    },
+    {
+      provider: "dataforseo",
+      timeoutMs: providerTimeoutMs("dataforseo", timeoutMs),
+      label: `maps-kd:${endpoint}`,
     }
-    return data as T;
-  } finally {
-    clearTimeout(timer);
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(`DFS HTTP ${res.status}`);
+  const task = data.tasks?.[0];
+  if (task?.status_code && task.status_code >= 40000) {
+    throw new Error(task.status_message ?? `DFS task error ${task.status_code}`);
   }
+  return data as T;
 }
 
 interface RefDomainItem {

@@ -25,6 +25,7 @@ import {
 } from "@/components/reviews/review-momentum-insights";
 import { ReputationModuleTabs, type ReputationModuleTabId } from "@/components/reputation/reputation-module-tabs";
 import { ModulePage, ModuleHeader, btnPrimary, btnSecondary, AlertBanner } from "@/components/ui/design-system";
+import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 
 type TabId = Exclude<ReputationModuleTabId, "requests">;
 
@@ -67,8 +68,6 @@ export function ReputationAuditDashboard({ businessId }: { businessId: string })
   const [data, setData] = useState<AuditData | null>(null);
   const [tab, setTab] = useState<TabId>(() => parseTab(searchParams.get("tab")));
   const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [generatingResponses, setGeneratingResponses] = useState(false);
   const tabPanelRef = useRef<HTMLDivElement>(null);
 
@@ -86,18 +85,17 @@ export function ReputationAuditDashboard({ businessId }: { businessId: string })
     [businessId, router, searchParams]
   );
 
-  const load = useCallback(async (opts?: { quiet?: boolean }) => {
-    if (!opts?.quiet) setLoading(true);
-    setError(null);
+  const load = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await fetch(`/api/reputation/${businessId}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to load");
       setData(json);
     } catch (e) {
-      if (!opts?.quiet) setError(e instanceof Error ? e.message : "Load failed");
+      setError(e instanceof Error ? e.message : "Load failed");
     } finally {
-      if (!opts?.quiet) setLoading(false);
+      setLoading(false);
     }
   }, [businessId]);
 
@@ -105,29 +103,24 @@ export function ReputationAuditDashboard({ businessId }: { businessId: string })
     void load();
   }, [load]);
 
-  useEffect(() => {
-    const status = data?.audit?.status;
-    if (status !== "running") return;
-    const id = setInterval(() => void load({ quiet: true }), 4000);
-    return () => clearInterval(id);
-  }, [data?.audit?.status, load]);
+  const {
+    start: startJob,
+    running,
+    error,
+    setError,
+  } = useModuleJobRunner({
+    onSettled: () => load(),
+  });
 
   async function runAudit() {
-    setRunning(true);
-    setError(null);
     try {
-      const res = await fetch("/api/reputation/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId, competitorLimit: 5, lookbackDays: 90 }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Audit failed");
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Audit failed");
-    } finally {
-      setRunning(false);
+      await startJob(
+        "/api/reputation/run",
+        { businessId, competitorLimit: 5, lookbackDays: 90 },
+        "Audit failed"
+      );
+    } catch {
+      /* error already set by runner */
     }
   }
 

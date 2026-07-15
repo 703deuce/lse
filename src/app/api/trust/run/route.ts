@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
-import { runLocalTrustFinder } from "@/lib/local-trust/engine";
 import { PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
+import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 
 export async function POST(request: Request) {
   let reserved = false;
@@ -24,16 +24,45 @@ export async function POST(request: Request) {
     organizationId = auth.organizationId;
     await reserveUsageOrThrow(auth.organizationId, "local_trust_scans_used", 1);
     reserved = true;
-    const result = await runLocalTrustFinder({
-      businessId,
+
+    const job = await dispatchFeatureJob({
+      jobType: "local_trust_run",
+      payload: {
+        businessId,
+        organizationId: auth.organizationId,
+        city,
+        state,
+        county,
+        rescan,
+        reservedUsage: { key: "local_trust_scans_used", amount: 1 },
+      },
       organizationId: auth.organizationId,
-      city,
-      state,
-      county,
-      rescan,
+      businessId,
+      idempotencyKey: `local-trust:${businessId}:${city ?? ""}:${state ?? ""}:${rescan ? "r" : "i"}:${Math.floor(Date.now() / 30_000)}`,
+      priority: "normal",
+      maxAttempts: 2,
     });
 
-    return NextResponse.json(result);
+    if (job.enqueueState === "enqueue_failed") {
+      await releaseUsage(auth.organizationId, "local_trust_scans_used", 1).catch(() => {});
+      reserved = false;
+      return NextResponse.json(
+        { error: "Failed to queue Local Trust run", jobId: job.jobId },
+        { status: 503 }
+      );
+    }
+
+    if (job.reused) {
+      await releaseUsage(auth.organizationId, "local_trust_scans_used", 1).catch(() => {});
+    }
+    reserved = false; // terminal failures release credits in the processor
+    return NextResponse.json({
+      queued: true,
+      status: "queued",
+      jobId: job.jobId,
+      queueDriver: job.driver,
+      reused: job.reused,
+    });
   } catch (err) {
     if (reserved && organizationId) {
       await releaseUsage(organizationId, "local_trust_scans_used", 1).catch(() => {});

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/db/client";
-import { scheduleScanProcessing } from "@/lib/jobs/schedule-scan";
+import { dispatchScanProcessing } from "@/lib/jobs/schedule-scan";
 import { requireScanAccess } from "@/lib/auth/api-auth";
 import {
   gridMapCredits,
@@ -55,9 +55,13 @@ export async function POST(
         return NextResponse.json({ error: error?.message ?? "Rerun failed" }, { status: 500 });
       }
 
-      scheduleScanProcessing(batch.id, access.organizationId);
+      const dispatched = await dispatchScanProcessing({
+        scanBatchId: batch.id,
+        businessId: String(existing.business_id),
+        organizationId: access.organizationId,
+      });
 
-      return NextResponse.json({ scan: batch });
+      return NextResponse.json({ scan: batch, jobId: dispatched.jobId, queueDriver: dispatched.driver });
     } catch (inner) {
       await releaseUsage(access.organizationId, "map_credits_used", creditsNeeded).catch(() => {});
       throw inner;

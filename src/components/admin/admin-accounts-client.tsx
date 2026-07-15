@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { ContentCard } from "@/components/ui/design-system";
 import type { PlanId } from "@/lib/plans";
 
@@ -69,6 +70,12 @@ export function AdminAccountsClient() {
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-zinc-500">
+        <Link href="/admin/ops" className="text-emerald-700 underline">
+          Ops console
+        </Link>{" "}
+        — queues, Redis, job retry/cancel
+      </p>
       {accounts.map((account) => (
         <ContentCard key={account.id}>
           <div className="flex flex-wrap items-start justify-between gap-4">

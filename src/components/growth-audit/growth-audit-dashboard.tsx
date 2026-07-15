@@ -19,6 +19,7 @@ import type { ExtendedModuleStatus, GrowthAuditSections } from "@/lib/growth-aud
 import { ModulePage, AlertBanner } from "@/components/ui/design-system";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 
 const LEGACY_TABS: Record<string, GrowthAuditTabId> = {
   "service-coverage": "coverage",
@@ -88,8 +89,6 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
   const tabParam = searchParams.get("tab");
   const [tab, setTab] = useState<GrowthAuditTabId>(() => resolveTab(tabParam));
   const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [sections, setSections] = useState<GrowthAuditSections | null>(null);
   const [growthScore, setGrowthScore] = useState<number | null>(null);
   const [runStatus, setRunStatus] = useState<string>("none");
@@ -112,7 +111,6 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
       const res = await fetch(`/api/growth-audit/${businessId}`);
       const json = await res.json();
@@ -136,58 +134,60 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
     void load();
   }, [load]);
 
+  const {
+    start: startJob,
+    running: jobRunning,
+    error,
+    setError,
+  } = useModuleJobRunner({
+    onSettled: async () => {
+      await load();
+      setStartedAt((prev) => prev ?? new Date().toISOString());
+    },
+  });
+
+  // Extended phase / page-refresh mid-run: poll lightweight feature status (not full payload).
   useEffect(() => {
-    // core_ready means extended modules were kicked off in the background —
-    // keep polling until complete/failed so the UI does not look stuck.
-    if (
-      runStatus !== "extended_running" &&
-      runStatus !== "running" &&
-      runStatus !== "core_ready"
-    ) {
-      return;
-    }
+    const inProgress =
+      runStatus === "extended_running" ||
+      runStatus === "running" ||
+      runStatus === "core_ready" ||
+      runStatus === "queued";
+    if (!inProgress || jobRunning) return;
     const id = setInterval(async () => {
       try {
         const res = await fetch(`/api/growth-audit/${businessId}/status`);
         const json = await res.json();
-        if (!res.ok) return;
-        if (json.status) {
-          setRunStatus(json.status);
-          setExtended(json.extended ?? {});
-          setProgressStage(json.progressStage);
-          if (json.status === "complete" || json.status === "failed") {
-            void load();
-          }
+        if (!res.ok || !json.status) return;
+        setRunStatus(json.status);
+        setExtended(json.extended ?? {});
+        setProgressStage(json.progressStage);
+        if (json.status === "complete" || json.status === "failed" || json.status === "core_ready") {
+          void load();
         }
       } catch {
         /* soft-fail poll */
       }
-    }, 5000);
+    }, 3000);
     return () => clearInterval(id);
-  }, [runStatus, businessId, load]);
+  }, [runStatus, jobRunning, businessId, load]);
 
   async function runAudit() {
-    setRunning(true);
-    setError(null);
     try {
-      const res = await fetch("/api/growth-audit/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Audit failed");
-      setSections(json.sections);
-      setGrowthScore(json.growthScore);
-      // Poll for background extended modules even though sync response is core_ready.
-      setRunStatus(json.status === "core_ready" ? "extended_running" : json.status);
+      setRunStatus("queued");
       setStartedAt(new Date().toISOString());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Audit failed");
-    } finally {
-      setRunning(false);
+      await startJob("/api/growth-audit/run", { businessId }, "Audit failed");
+    } catch {
+      /* error already set by runner */
     }
   }
+
+  const running =
+    jobRunning ||
+    runStatus === "extended_running" ||
+    runStatus === "running" ||
+    runStatus === "core_ready" ||
+    runStatus === "queued";
 
   if (loading && !sections) {
     return (

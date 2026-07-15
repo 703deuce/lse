@@ -8,6 +8,10 @@ export type TwilioSendParams = {
   body: string;
   /** Public URL for delivery receipts (MessageStatus callbacks). */
   statusCallbackUrl?: string;
+  /** When set, successful sends append a usage_ledger row. */
+  organizationId?: string | null;
+  businessId?: string | null;
+  jobId?: string | null;
 };
 
 export type TwilioSendResult =
@@ -106,7 +110,21 @@ export async function sendTwilioSms(params: TwilioSendParams): Promise<TwilioSen
         },
         body: body.toString(),
       },
-      { provider: "twilio", timeoutMs: providerTimeoutMs("twilio", 20_000), label: "sendSms" }
+      {
+        provider: "twilio",
+        timeoutMs: providerTimeoutMs("twilio", 20_000),
+        label: "sendSms",
+        usage: params.organizationId
+          ? {
+              organizationId: params.organizationId,
+              businessId: params.businessId,
+              jobId: params.jobId,
+              feature: "review_sms",
+              unitType: "message",
+              estimatedCostUsd: 0.0079,
+            }
+          : undefined,
+      }
     );
 
     const json = (await res.json().catch(() => ({}))) as {

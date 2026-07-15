@@ -16,8 +16,8 @@ import { buildOverviewSection } from "@/lib/growth-audit/sections/overview";
 import { computeGrowthScore, deriveStrengthsWeaknesses } from "@/lib/growth-audit/score";
 import { generateGrowthAuditSummary } from "@/lib/growth-audit/ai-summary";
 import { runServiceCoverageAudit } from "@/lib/audit/service-coverage";
-import { runExtendedModulesInBackground } from "@/lib/growth-audit/background";
 import type { GrowthAuditRunRow, GrowthAuditSections, GrowthTask } from "@/lib/growth-audit/types";
+import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 
 export type RunGrowthAuditResult = {
   runId: string;
@@ -174,11 +174,37 @@ export async function runGrowthAudit(params: {
     if (updateError) throw new Error(updateError.message);
 
     if (!params.skipBackground) {
-      void runExtendedModulesInBackground({
-        growthRunId: runId,
-        businessId: params.businessId,
+      const extended = await dispatchFeatureJob({
+        jobType: "growth_audit_extended",
+        payload: {
+          growthRunId: runId,
+          businessId: params.businessId,
+          organizationId: params.organizationId,
+        },
         organizationId: params.organizationId,
+        businessId: params.businessId,
+        idempotencyKey: `growth-extended:${runId}`,
+        priority: "normal",
+        maxAttempts: 2,
       });
+      if (extended.enqueueState === "enqueue_failed") {
+        await supabase
+          .from("growth_audit_runs")
+          .update({
+            status: "failed",
+            error_message: "Extended modules could not be queued — retry the audit",
+            finished_at: new Date().toISOString(),
+            progress_stage: null,
+          })
+          .eq("id", runId);
+        return {
+          runId,
+          status: "failed",
+          growthScore: overview.growthScore,
+          sections,
+          growthPlan: growthPlan.tasks,
+        };
+      }
     }
 
     return {
