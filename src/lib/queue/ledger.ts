@@ -45,9 +45,13 @@ export async function createLedgerJob(input: EnqueueJobInput): Promise<QueueJobR
       idempotency_key: input.idempotencyKey ?? null,
       max_attempts: input.maxAttempts ?? 3,
       scheduled_at: scheduledAt,
+      // enqueue_state stays on legacy enum until migration 045; lifecycle_status carries the platform vocabulary.
       enqueue_state: "pending",
+      lifecycle_status: "pending_enqueue",
       cost_estimate: input.costEstimate ?? null,
       progress_json: {},
+      progress_completed: 0,
+      progress_failed: 0,
     })
     .select("*")
     .single();
@@ -73,6 +77,8 @@ export async function markLedgerEnqueued(
     .update({
       enqueue_state: opts.enqueueState ?? "enqueued",
       queue_job_id: opts.queueJobId ?? jobId,
+      lifecycle_status: "queued",
+      enqueued_at: new Date().toISOString(),
     })
     .eq("id", jobId);
 }
@@ -83,15 +89,19 @@ export async function markLedgerEnqueueFailed(jobId: string, message: string): P
     .from("job_queue")
     .update({
       enqueue_state: "enqueue_failed",
+      lifecycle_status: "enqueue_failed",
       error_message: message,
       error_code: "enqueue_failed",
+      error_class: "enqueue",
+      customer_error: "We could not start this job. It will be retried automatically.",
     })
     .eq("id", jobId);
 }
 
 export async function updateJobProgress(
   jobId: string,
-  progress: Record<string, unknown>
+  progress: Record<string, unknown>,
+  counters?: { total?: number; completed?: number; failed?: number }
 ): Promise<void> {
   const supabase = createServiceClient();
   await supabase
@@ -99,15 +109,77 @@ export async function updateJobProgress(
     .update({
       progress_json: progress,
       heartbeat_at: new Date().toISOString(),
+      ...(counters?.total != null ? { progress_total: counters.total } : {}),
+      ...(counters?.completed != null ? { progress_completed: counters.completed } : {}),
+      ...(counters?.failed != null ? { progress_failed: counters.failed } : {}),
     })
     .eq("id", jobId);
 }
 
-export async function heartbeatJob(jobId: string): Promise<void> {
+export async function heartbeatJob(
+  jobId: string,
+  opts: { workerId?: string; leaseMs?: number } = {}
+): Promise<void> {
+  const supabase = createServiceClient();
+  const leaseMs = opts.leaseMs ?? 60_000;
+  await supabase
+    .from("job_queue")
+    .update({
+      heartbeat_at: new Date().toISOString(),
+      ...(opts.workerId ? { worker_id: opts.workerId, lease_owner: opts.workerId } : {}),
+      lease_expires_at: new Date(Date.now() + leaseMs).toISOString(),
+    })
+    .eq("id", jobId);
+}
+
+/** Conditional cancel — only from non-terminal statuses. */
+export async function cancelLedgerJob(jobId: string): Promise<boolean> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("job_queue")
+    .update({
+      status: "canceled",
+      lifecycle_status: "canceled",
+      canceled_at: new Date().toISOString(),
+      finished_at: new Date().toISOString(),
+    })
+    .eq("id", jobId)
+    .in("status", ["pending", "running"])
+    .select("id")
+    .maybeSingle();
+  return Boolean(data);
+}
+
+/** Re-queue a failed/canceled job for another attempt. */
+export async function retryLedgerJob(jobId: string): Promise<boolean> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("job_queue")
+    .update({
+      status: "pending",
+      lifecycle_status: "queued",
+      enqueue_state: "enqueued",
+      scheduled_at: new Date().toISOString(),
+      error_message: null,
+      finished_at: null,
+      canceled_at: null,
+    })
+    .eq("id", jobId)
+    .in("status", ["failed", "canceled"])
+    .select("id")
+    .maybeSingle();
+  return Boolean(data);
+}
+
+export async function markLifecycle(
+  jobId: string,
+  lifecycle: string,
+  patch: Record<string, unknown> = {}
+): Promise<void> {
   const supabase = createServiceClient();
   await supabase
     .from("job_queue")
-    .update({ heartbeat_at: new Date().toISOString() })
+    .update({ lifecycle_status: lifecycle, ...patch })
     .eq("id", jobId);
 }
 

@@ -5,11 +5,15 @@ import {
   bullmqRequeueLedgerJob,
 } from "@/lib/queue/drivers/bullmq-driver";
 import {
+  cancelLedgerJob,
   createLedgerJob,
   getLedgerJob,
+  heartbeatJob,
   listEnqueueFailedJobs,
   markLedgerEnqueueFailed,
   markLedgerEnqueued,
+  retryLedgerJob,
+  updateJobProgress,
 } from "@/lib/queue/ledger";
 import { jobTypeToQueue } from "@/lib/queue/job-handlers";
 import type {
@@ -58,6 +62,46 @@ export async function enqueueJob(input: EnqueueJobInput): Promise<EnqueueJobResu
 
 export async function getJobStatus(jobId: string): Promise<QueueJobRecord | null> {
   return getLedgerJob(jobId);
+}
+
+export async function cancelJob(jobId: string): Promise<boolean> {
+  return cancelLedgerJob(jobId);
+}
+
+export async function retryJob(jobId: string): Promise<boolean> {
+  const ok = await retryLedgerJob(jobId);
+  if (!ok) return false;
+  if (resolveQueueDriver() === "bullmq" && getRedisUrl()) {
+    const job = await getLedgerJob(jobId);
+    if (job?.queueName) {
+      await bullmqRequeueLedgerJob({
+        id: job.id,
+        queueName: job.queueName,
+        jobType: job.jobType,
+        payload: job.payload,
+        organizationId: job.organizationId,
+        businessId: job.businessId,
+        priority: job.priority,
+        maxAttempts: job.maxAttempts,
+      }).catch(() => {});
+    }
+  }
+  return true;
+}
+
+export async function updateProgress(
+  jobId: string,
+  progress: Record<string, unknown>,
+  counters?: { total?: number; completed?: number; failed?: number }
+): Promise<void> {
+  await updateJobProgress(jobId, progress, counters);
+}
+
+export async function heartbeat(
+  jobId: string,
+  opts?: { workerId?: string; leaseMs?: number }
+): Promise<void> {
+  await heartbeatJob(jobId, opts);
 }
 
 /**

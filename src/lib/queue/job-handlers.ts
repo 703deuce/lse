@@ -50,6 +50,9 @@ export function jobTypeToQueue(jobType: string): QueueName {
     case "maps_difficulty_run":
     case "scan_enrichment":
     case "early_enrichment":
+    case "keyword_check":
+    case "keyword_volume":
+    case "single_point_rank":
       return "maps-scan";
     case "retry_scan_cells":
       return "maps-cell-retry";
@@ -98,6 +101,46 @@ export async function executeJobType(
         const scanBatchId = String(payload.scanBatchId ?? "");
         if (!scanBatchId) return permanent("Missing scanBatchId");
         await runScanEnrichment(scanBatchId, await resolveOrgId(payload));
+        return { ok: true };
+      }
+      case "early_enrichment": {
+        const scanBatchId = String(payload.scanBatchId ?? "");
+        if (!scanBatchId) return permanent("Missing scanBatchId");
+        const { processEarlyEnrichment } = await import("@/lib/jobs/run-early-enrichment");
+        await processEarlyEnrichment(scanBatchId, await resolveOrgId(payload));
+        return { ok: true };
+      }
+      case "keyword_check": {
+        const businessId = String(payload.businessId ?? "");
+        const organizationId = String(payload.organizationId ?? "");
+        if (!businessId || !organizationId) return permanent("keyword_check payload incomplete");
+        const { runKeywordChecks } = await import("@/lib/keyword-tracker/engine");
+        await runKeywordChecks({
+          businessId,
+          organizationId,
+          keywordIds: Array.isArray(payload.keywordIds)
+            ? (payload.keywordIds as string[])
+            : undefined,
+        });
+        return { ok: true };
+      }
+      case "keyword_volume": {
+        const businessId = String(payload.businessId ?? "");
+        const organizationId = String(payload.organizationId ?? "");
+        if (!businessId || !organizationId) return permanent("keyword_volume payload incomplete");
+        const { refreshKeywordVolumes } = await import("@/lib/keyword-tracker/engine");
+        await refreshKeywordVolumes({
+          businessId,
+          organizationId,
+          keywordIds: Array.isArray(payload.keywordIds)
+            ? (payload.keywordIds as string[])
+            : undefined,
+        });
+        return { ok: true };
+      }
+      case "send_notification": {
+        // Placeholder: transactional fan-out will land here; drains currently use specialized job types.
+        logger.info("send_notification_noop", { payloadKeys: Object.keys(payload) });
         return { ok: true };
       }
       case "import_contacts": {
@@ -259,19 +302,32 @@ export async function executeJobType(
         return { ok: true };
       }
       case "maps_difficulty_run": {
-        const { runMapsDifficulty } = await import("@/lib/maps-difficulty/enrich");
+        const { processMapsDifficultyJob } = await import("@/lib/maps-difficulty/run-job");
         const keyword = String(payload.keyword ?? "").trim();
         const lat = Number(payload.lat);
         const lng = Number(payload.lng);
-        if (!keyword || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+        const organizationId = String(payload.organizationId ?? "");
+        if (!keyword || !Number.isFinite(lat) || !Number.isFinite(lng) || !organizationId) {
           return permanent("maps_difficulty payload incomplete");
         }
-        await runMapsDifficulty({
+        await processMapsDifficultyJob({
+          organizationId,
           keyword,
           lat,
           lng,
           label: String(payload.label ?? keyword),
           service: optionalString(payload.service),
+          address: optionalString(payload.address),
+          businessBaseAddress: optionalString(payload.businessBaseAddress),
+          businessBase:
+            payload.businessBase && typeof payload.businessBase === "object"
+              ? (payload.businessBase as {
+                  lat?: number;
+                  lng?: number;
+                  label?: string;
+                  error?: string;
+                })
+              : null,
         });
         return { ok: true };
       }

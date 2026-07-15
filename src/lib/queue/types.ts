@@ -40,7 +40,12 @@ export const PRIORITY_SCORES: Record<JobPriorityClass, number> = {
   lower: 100,
 };
 
-export type EnqueueState = "pending" | "enqueued" | "enqueue_failed" | "skipped";
+export type EnqueueState =
+  | "pending"
+  | "pending_enqueue"
+  | "enqueued"
+  | "enqueue_failed"
+  | "skipped";
 
 export type EnqueueJobInput = {
   queueName: QueueName;

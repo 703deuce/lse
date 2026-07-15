@@ -4,12 +4,23 @@ export {
   enqueueReviewImportJob,
   enqueueScanEnrichmentJob,
   getJobStatus,
+  cancelJob,
+  retryJob,
+  updateProgress,
+  heartbeat,
   recoverPendingEnqueues,
   reconcileLegacyPendingJobs,
   resolveQueueDriver,
 } from "@/lib/queue/service";
 export { dispatchFeatureJob } from "@/lib/queue/dispatch";
 export { jobTypeToQueue } from "@/lib/queue/job-handlers";
+export {
+  JOB_LIFECYCLE,
+  canTransitionLifecycle,
+  deriveLifecycleStatus,
+  isTerminalLifecycle,
+} from "@/lib/platform/job-lifecycle";
+export type { JobLifecycleStatus } from "@/lib/platform/job-lifecycle";
 export {
   getQueueDriverName,
   getRedisUrl,

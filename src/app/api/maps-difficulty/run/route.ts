@@ -1,18 +1,16 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/context";
-import { runMapsDifficulty } from "@/lib/maps-difficulty/enrich";
 import { BUSINESS_BASE_GEOCODE_ERROR, geocodeAddress, geocodeBusinessBase } from "@/lib/maps-difficulty/geocode";
-import { saveRun } from "@/lib/maps-difficulty/store";
-import {
-  computeExpansionReach,
-  competitorsFromKdResult,
-} from "@/lib/maps-difficulty/expansion-reach";
 import { requireInternalMapsDifficulty } from "@/lib/auth/plan-guards";
+import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
 
+/**
+ * Queues Maps Keyword Difficulty (Bright Data / ScrapingDog heavy).
+ * UI should poll job status then reload history — never blocks 300s on the web process.
+ */
 export async function POST(request: Request) {
   try {
     const auth = await requireAuth();
@@ -28,6 +26,8 @@ export async function POST(request: Request) {
       businessBaseAddress?: string;
       businessBaseLat?: number;
       businessBaseLng?: number;
+      /** Escape hatch for local debugging only. */
+      sync?: boolean;
     };
 
     const keyword = body.keyword?.trim();
@@ -50,26 +50,17 @@ export async function POST(request: Request) {
 
     if (!label) label = address || keyword;
 
-    const result = await runMapsDifficulty({
-      keyword,
-      lat,
-      lng,
-      label,
-      service: body.service?.trim() || undefined,
-    });
-
-    let expansionReach = undefined;
-    let expansionError: string | undefined;
+    // Geocode business base while the request is still auth'd / light.
+    let businessBase: Record<string, unknown> | null = null;
     const businessBaseAddress = body.businessBaseAddress?.trim();
     if (businessBaseAddress || (body.businessBaseLat != null && body.businessBaseLng != null)) {
       try {
         let baseLat = typeof body.businessBaseLat === "number" ? body.businessBaseLat : Number(body.businessBaseLat);
         let baseLng = typeof body.businessBaseLng === "number" ? body.businessBaseLng : Number(body.businessBaseLng);
         let baseLabel = businessBaseAddress ?? "";
-
         if (!Number.isFinite(baseLat) || !Number.isFinite(baseLng)) {
           if (!businessBaseAddress) {
-            expansionError = BUSINESS_BASE_GEOCODE_ERROR;
+            businessBase = { error: BUSINESS_BASE_GEOCODE_ERROR };
           } else {
             const geo = await geocodeBusinessBase(businessBaseAddress);
             baseLat = geo.lat;
@@ -77,60 +68,55 @@ export async function POST(request: Request) {
             baseLabel = geo.label;
           }
         }
-
-        if (!expansionError) {
-          const competitors = competitorsFromKdResult(result.score.top3Summary);
-          if (competitors.length === 0) {
-            const id = await saveRun({
-              organizationId: auth.organizationId ?? null,
-              address,
-              businessBaseAddress: businessBaseAddress ?? null,
-              result,
-              expansionReach: undefined,
-            });
-            return NextResponse.json(
-              {
-                ...result,
-                expansionError: "Not enough Maps results were found to calculate Expansion Reach.",
-                id,
-                error: "Not enough Maps results were found to calculate Expansion Reach.",
-              },
-              { status: 400 }
-            );
-          }
-
-          expansionReach = computeExpansionReach({
-            mapsKeywordDifficulty: result.score.mapsKeywordDifficulty,
-            targetLocationLabel: result.cityLabel,
-            searchPoint: result.searchPoint,
-            businessBaseInput: businessBaseAddress ?? baseLabel,
-            businessBaseLabel: baseLabel,
-            businessBaseLat: baseLat,
-            businessBaseLng: baseLng,
-            competitors,
-          });
+        if (!businessBase) {
+          businessBase = { lat: baseLat, lng: baseLng, label: baseLabel };
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : "";
-        if (message === BUSINESS_BASE_GEOCODE_ERROR) {
-          expansionError = message;
-        } else {
-          throw err;
-        }
+        businessBase = {
+          error: err instanceof Error ? err.message : BUSINESS_BASE_GEOCODE_ERROR,
+        };
       }
     }
 
-    const id = await saveRun({
-      organizationId: auth.organizationId ?? null,
-      address,
-      businessBaseAddress: businessBaseAddress ?? null,
-      result,
-      expansionReach,
+    const job = await dispatchFeatureJob({
+      jobType: "maps_difficulty_run",
+      payload: {
+        keyword,
+        lat,
+        lng,
+        label,
+        service: body.service?.trim() || undefined,
+        organizationId: auth.organizationId,
+        address,
+        businessBaseAddress: businessBaseAddress ?? null,
+        businessBase,
+      },
+      organizationId: auth.organizationId,
+      idempotencyKey: `maps-kd:${auth.organizationId}:${keyword}:${lat.toFixed(5)}:${lng.toFixed(5)}:${Math.floor(Date.now() / 60_000)}`,
+      priority: "normal",
+      maxAttempts: 2,
     });
 
-    return NextResponse.json({ ...result, expansionReach, expansionError, id });
+    if (job.enqueueState === "enqueue_failed") {
+      return NextResponse.json(
+        { error: "Failed to queue Maps Difficulty run", jobId: job.jobId },
+        { status: 503 }
+      );
+    }
+
+    return NextResponse.json({
+      queued: true,
+      status: "queued",
+      jobId: job.jobId,
+      queueDriver: job.driver,
+      keyword,
+      lat,
+      lng,
+      label,
+    });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Maps difficulty run failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Maps difficulty failed";
+    const status = message.includes("Authentication") || message.includes("not included") ? 403 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

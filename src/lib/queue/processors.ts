@@ -32,6 +32,7 @@ export async function processQueueJob(
       .from("job_queue")
       .update({
         status: "running",
+        lifecycle_status: "running",
         started_at: new Date().toISOString(),
         heartbeat_at: new Date().toISOString(),
       })
@@ -82,8 +83,10 @@ export async function processQueueJob(
         .from("job_queue")
         .update({
           status: result.permanent ? "failed" : "pending",
+          lifecycle_status: result.permanent ? "permanently_failed" : "retrying",
           error_message: result.error ?? "Job failed",
           error_code: result.permanent ? "unrecoverable" : "retryable",
+          error_class: result.permanent ? "permanent" : "retryable",
           finished_at: result.permanent ? new Date().toISOString() : null,
           scheduled_at: result.permanent
             ? undefined
@@ -113,6 +116,7 @@ async function markLedgerTerminal(
     .from("job_queue")
     .update({
       status,
+      lifecycle_status: status === "completed" ? "completed" : "permanently_failed",
       finished_at: new Date().toISOString(),
       heartbeat_at: new Date().toISOString(),
     })

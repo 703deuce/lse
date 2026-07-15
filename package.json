@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "eslint",
-    "test": "tsx --test src/lib/reputation/foundation.test.ts src/lib/reputation/campaign-claim.test.ts src/lib/reputation/sequence-engine.test.ts src/lib/reputation/unsubscribe.test.ts src/lib/reputation/brevo-events.test.ts src/lib/queue/queue-config.test.ts",
+    "test": "tsx --test src/lib/reputation/foundation.test.ts src/lib/reputation/campaign-claim.test.ts src/lib/reputation/sequence-engine.test.ts src/lib/reputation/unsubscribe.test.ts src/lib/reputation/brevo-events.test.ts src/lib/queue/queue-config.test.ts src/lib/platform/platform.test.ts",
     "worker:maps": "tsx scripts/workers/run-worker.ts maps",
     "worker:messaging": "tsx scripts/workers/run-worker.ts messaging",
     "worker:intelligence": "tsx scripts/workers/run-worker.ts intelligence",
