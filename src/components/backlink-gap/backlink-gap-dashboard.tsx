@@ -62,6 +62,7 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/backlink-gap/${businessId}`);
       const json = await res.json();

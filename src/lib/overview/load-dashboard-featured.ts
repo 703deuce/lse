@@ -143,7 +143,7 @@ export async function loadDashboardFeatured(businessId: string): Promise<Dashboa
     (metricsJson?.trendBuckets90d as Array<{ count: number }> | undefined) ?? [];
   const trend = trendBuckets.length
     ? trendBuckets.slice(0, 6).map((b) => b.count)
-    : [0, 1, 1, 2, 2, target?.reviews_30d ?? 0];
+    : [];
 
   const yourShare = market?.targetSharePct30d ?? 0;
   const top3Reviews = competitors

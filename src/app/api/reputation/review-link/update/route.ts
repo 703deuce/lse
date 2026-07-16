@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { updateReviewLinkSettings, type PosterConfig } from "@/lib/reputation/review-requests";
 
 export async function PATCH(request: Request) {
@@ -26,6 +26,6 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ link });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to update review link";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

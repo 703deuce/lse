@@ -121,14 +121,19 @@ export function isScanMapReady(
   // even if soft-ready already set rank_ready_at / finished_at.
   if (isGridPassStillSettling(batch)) return false;
 
-  // Must have a result row per grid point — same data a hard refresh would load.
-  if (loadedResults < totalPoints) return false;
+  const { completed, total, failed } = cellCounters(batch);
+  // Failed cells never get scan_results rows — count them as settled.
+  const settledResults = loadedResults + Math.max(0, failed);
+  if (settledResults < totalPoints) {
+    // Counters may say the pass finished even when some results are missing.
+    const expected = total > 0 ? Math.max(total, totalPoints) : totalPoints;
+    if (completed < expected) return false;
+  }
 
   // Terminal / near-terminal grid status, or an explicit finish timestamp.
   if (isMapRenderable(status)) return true;
   if (batch.finished_at || batch.rank_ready_at) return true;
 
-  const { completed, total } = cellCounters(batch);
   const expected = total > 0 ? Math.max(total, totalPoints) : totalPoints;
   return completed >= expected;
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { dispatchScanProcessing } from "@/lib/jobs/schedule-scan";
 import { PARITY_TEST_PROFILES } from "@/lib/maps/scan-profiles";
@@ -11,6 +11,7 @@ import {
   releaseUsage,
   reserveUsageOrThrow,
 } from "@/lib/plans";
+import { assertCanEnqueueMapsScan } from "@/lib/queue";
 
 /** Queue 4× 5×5 scans with different device/OS/browser profiles for Local Falcon comparison */
 export async function POST(request: Request) {
@@ -27,6 +28,20 @@ export async function POST(request: Request) {
     const radiusMeters = Number(body.radiusMeters) || DEFAULT_RADIUS_METERS;
     const creditsPerScan = gridMapCredits(gridSize);
     const creditsNeeded = creditsPerScan * PARITY_TEST_PROFILES.length;
+
+    const fairness = await assertCanEnqueueMapsScan({
+      organizationId: auth.organizationId,
+      businessId,
+      scanBatchId: "00000000-0000-0000-0000-000000000000",
+      keyword: "parity-batch",
+      gridSize,
+    });
+    if (!fairness.ok && (fairness.code === "queued_limit" || fairness.code === "active_limit")) {
+      return NextResponse.json(
+        { error: fairness.reason, code: fairness.code },
+        { status: 429 }
+      );
+    }
 
     await reserveUsageOrThrow(auth.organizationId, "map_credits_used", creditsNeeded);
 
@@ -97,7 +112,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
     const message = err instanceof Error ? err.message : "Parity batch failed";
-    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

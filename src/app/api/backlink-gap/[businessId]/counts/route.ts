@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { getCompetitorGapCounts, getLatestBacklinkGapRunId } from "@/lib/backlink-gap/engine";
 import { createServiceClient } from "@/lib/db/client";
 
@@ -31,6 +31,6 @@ export async function GET(
     return NextResponse.json({ counts });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load counts";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

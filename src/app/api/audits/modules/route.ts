@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
+import { idempotencyTimeBucket } from "@/lib/queue/idempotency";
 import { getLatestModuleAudit } from "@/lib/audit/run-audit";
 import { executeAuditModule, isAuditModule } from "@/lib/audit/run-module";
 
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
       organizationId: auth.organizationId,
       businessId,
       relatedResourceId: `${businessId}:${module}`,
-      idempotencyKey: `gbp-audit:${businessId}:${module}:${Math.floor(Date.now() / 30_000)}`,
+      idempotencyKey: `gbp-audit:${businessId}:${module}:${keyword ?? ""}:${idempotencyTimeBucket()}`,
       priority: "normal",
       maxAttempts: 2,
     });
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Audit module failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }
 
@@ -86,6 +87,6 @@ export async function GET(request: Request) {
     return NextResponse.json(row.result_json ?? {});
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load audit";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

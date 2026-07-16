@@ -15,6 +15,7 @@ const LIMITS: Record<string, PlanLimits> = {
   pro: { activePrompts: 5, engines: DEFAULT_ENGINES, schedule: "daily" },
   professional: { activePrompts: 5, engines: DEFAULT_ENGINES, schedule: "daily" },
   agency: { activePrompts: 25, engines: DEFAULT_ENGINES, schedule: "custom" },
+  internal: { activePrompts: 9999, engines: DEFAULT_ENGINES, schedule: "custom" },
 };
 
 export function getPlanLimits(plan: string | null | undefined): PlanLimits {

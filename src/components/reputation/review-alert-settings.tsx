@@ -81,9 +81,9 @@ export function ReviewAlertSettings({ businessId }: { businessId: string }) {
       </div>
       {(
         [
-          ["every_new_review", "Email on every new review"],
-          ["low_rating_only", "Only ratings 1–3 stars"],
-          ["unanswered_only", "Only unanswered reviews"],
+          ["every_new_review", "Enable new-review emails"],
+          ["low_rating_only", "Filter: only ratings 1–3 stars"],
+          ["unanswered_only", "Filter: only unanswered reviews"],
           ["daily_summary", "Daily summary (reserved)"],
           ["weekly_summary", "Weekly summary (reserved)"],
         ] as const

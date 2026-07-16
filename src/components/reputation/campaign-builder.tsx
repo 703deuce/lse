@@ -203,6 +203,7 @@ export function CampaignBuilder({
           headers,
           rows,
           mapping: mappings,
+          channel,
         }),
       });
       const json = await res.json();
@@ -216,7 +217,7 @@ export function CampaignBuilder({
     } finally {
       setBusy(false);
     }
-  }, [businessId, headers, rows, mappings]);
+  }, [businessId, headers, rows, mappings, channel]);
 
   const contactsAsRecipients = useCallback((): ValidatedRecipient[] => {
     let idx = 0;

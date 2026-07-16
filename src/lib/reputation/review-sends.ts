@@ -135,9 +135,14 @@ function templateVars(params: {
   reviewUrl: string;
   serviceType?: string | null;
 }) {
+  const full = params.customerName.trim() || "there";
+  const first = full === "there" ? "there" : full.split(/\s+/)[0] || full;
   return {
-    customer_name: params.customerName,
+    customer_name: full,
+    first_name: first,
+    full_name: full,
     business_name: params.businessName,
+    location_name: params.businessName,
     review_link: params.reviewUrl,
     service_type: params.serviceType?.trim() || "recent project",
   };
@@ -573,28 +578,44 @@ export async function loadReviewRequestStats(businessId: string, organizationId:
   const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
   const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-  const { data: sends } = await supabase
-    .from("review_request_sends")
-    .select("*, review_request_contacts(customer_name)")
-    .eq("business_id", businessId)
-    .order("created_at", { ascending: false })
-    .limit(200);
+  const successStatuses = [...SUCCESSFUL_SEND_STATUSES];
 
-  const { data: events } = await supabase
-    .from("review_request_events")
-    .select("*")
-    .eq("business_id", businessId)
-    .order("created_at", { ascending: false })
-    .limit(50);
+  const base = () =>
+    supabase.from("review_request_sends").select("id", { count: "exact", head: true }).eq("business_id", businessId);
+
+  const [
+    { count: totalSent },
+    { count: emailSent },
+    { count: smsSent },
+    { count: manualSent },
+    { count: failedCount },
+    { count: last7 },
+    { count: last30 },
+    { data: sends },
+    { data: events },
+  ] = await Promise.all([
+    base().in("status", successStatuses),
+    base().in("status", successStatuses).eq("channel", "email"),
+    base().in("status", successStatuses).eq("channel", "sms"),
+    base().in("status", successStatuses).eq("channel", "manual"),
+    base().eq("status", "failed"),
+    base().in("status", successStatuses).gte("sent_at", sevenDaysAgo),
+    base().in("status", successStatuses).gte("sent_at", thirtyDaysAgo),
+    supabase
+      .from("review_request_sends")
+      .select("*, review_request_contacts(customer_name)")
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: false })
+      .limit(25),
+    supabase
+      .from("review_request_events")
+      .select("*")
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
 
   const all = sends ?? [];
-  const success = new Set<string>(SUCCESSFUL_SEND_STATUSES);
-  const sentRows = all.filter((s) => success.has(String(s.status)));
-  const failedRows = all.filter((s) => s.status === "failed");
-
-  const countInRange = (since: string) =>
-    sentRows.filter((s) => (s.sent_at ?? s.created_at) >= since).length;
-
   const replyEvents = (events ?? []).filter((e) => e.event_type === "reply_received");
   const replySendIds = new Set(
     replyEvents.map((e) => e.send_id).filter((id): id is string => Boolean(id))
@@ -654,15 +675,15 @@ export async function loadReviewRequestStats(businessId: string, organizationId:
     .slice(0, 15);
 
   return {
-    total_sent: sentRows.length,
-    email_sent: sentRows.filter((s) => s.channel === "email").length,
-    sms_sent: sentRows.filter((s) => s.channel === "sms").length,
-    manual_sent: sentRows.filter((s) => s.channel === "manual").length,
-    failed: failedRows.length,
+    total_sent: totalSent ?? 0,
+    email_sent: emailSent ?? 0,
+    sms_sent: smsSent ?? 0,
+    manual_sent: manualSent ?? 0,
+    failed: failedCount ?? 0,
     replies: Math.max(storedReplyCount ?? 0, replyEvents.length),
-    last_7_days: countInRange(sevenDaysAgo),
-    last_30_days: countInRange(thirtyDaysAgo),
-    recent_sends: all.slice(0, 25).map((s) => ({
+    last_7_days: last7 ?? 0,
+    last_30_days: last30 ?? 0,
+    recent_sends: all.map((s) => ({
       ...s,
       has_reply: replySendIds.has(s.id),
     })),

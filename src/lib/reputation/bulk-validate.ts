@@ -29,6 +29,8 @@ export type ValidationSummary = {
   skipped: number;
 };
 
+export type ValidationChannel = "sms" | "email" | "both";
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function isValidEmail(email: string): boolean {
@@ -39,9 +41,12 @@ export async function validateBulkRecipients(params: {
   businessId: string;
   rows: MappedRow[];
   duplicateProtectionDays?: number;
+  /** When sms/email-only, suppressions on the other channel do not block readiness. */
+  channel?: ValidationChannel;
 }): Promise<{ summary: ValidationSummary; recipients: ValidatedRecipient[] }> {
   const supabase = createServiceClient();
   const days = params.duplicateProtectionDays ?? 90;
+  const channel: ValidationChannel = params.channel ?? "both";
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
   const { data: recentSends } = await supabase
@@ -129,42 +134,113 @@ export async function validateBulkRecipients(params: {
 
     let status: RecipientStatus = "ready";
     let skip_reason: string | undefined;
+    let outPhone: string | null | undefined = normalized_phone ?? phoneRaw ?? undefined;
+    let outEmail: string | null | undefined = normalized_email ?? emailRaw ?? undefined;
 
-    if (!phoneRaw && !emailRaw) {
-      status = "missing_contact";
-      skip_reason = "No phone or email";
-    } else if (phoneRaw && !normalized_phone && emailRaw && !normalized_email) {
-      status = "invalid_contact";
-      skip_reason = "Invalid phone and email";
-    } else if (phoneRaw && !normalized_phone && !emailRaw) {
-      status = "invalid_contact";
-      skip_reason = "Invalid phone number";
-    } else if (emailRaw && !isValidEmail(emailRaw) && !normalized_phone) {
-      status = "invalid_contact";
-      skip_reason = "Invalid email address";
-    } else {
-      const phoneKey = normalized_phone ? phoneDigitsForMatch(normalized_phone) : null;
-      if (phoneKey && suppressedPhones.has(phoneKey)) {
+    const phoneOk = Boolean(normalized_phone);
+    const emailOk = Boolean(normalized_email);
+    const phoneKey = normalized_phone ? phoneDigitsForMatch(normalized_phone) : null;
+    const phoneSuppressed = Boolean(phoneKey && suppressedPhones.has(phoneKey));
+    const emailSuppressed = Boolean(normalized_email && suppressedEmails.has(normalized_email));
+    const phoneRecent = Boolean(phoneKey && recentPhones.has(phoneKey));
+    const emailRecent = Boolean(normalized_email && recentEmails.has(normalized_email));
+    const phoneDup = Boolean(phoneKey && seenPhones.has(phoneKey));
+    const emailDup = Boolean(normalized_email && seenEmails.has(normalized_email));
+
+    if (channel === "sms") {
+      if (!phoneRaw) {
+        status = "missing_contact";
+        skip_reason = "No phone number";
+      } else if (!normalized_phone) {
+        status = "invalid_contact";
+        skip_reason = "Invalid phone number";
+      } else if (phoneSuppressed) {
         status = "opted_out";
         skip_reason = "Opted out (SMS)";
-      } else if (normalized_email && suppressedEmails.has(normalized_email)) {
-        status = "opted_out";
-        skip_reason = "Opted out (email)";
-      } else if (phoneKey && recentPhones.has(phoneKey)) {
+      } else if (phoneRecent) {
         status = "recently_contacted";
         skip_reason = `Contacted in last ${days} days (phone)`;
-      } else if (normalized_email && recentEmails.has(normalized_email)) {
-        status = "recently_contacted";
-        skip_reason = `Contacted in last ${days} days (email)`;
-      } else if (phoneKey && seenPhones.has(phoneKey)) {
+      } else if (phoneDup) {
         status = "duplicate";
         skip_reason = "Duplicate phone in CSV";
-      } else if (normalized_email && seenEmails.has(normalized_email)) {
+      } else {
+        seenPhones.add(phoneKey!);
+        // Email opt-out / recent email must not block SMS; drop unusable email.
+        if (emailSuppressed || emailRecent || !emailOk) outEmail = undefined;
+      }
+    } else if (channel === "email") {
+      if (!emailRaw) {
+        status = "missing_contact";
+        skip_reason = "No email address";
+      } else if (!normalized_email) {
+        status = "invalid_contact";
+        skip_reason = "Invalid email address";
+      } else if (emailSuppressed) {
+        status = "opted_out";
+        skip_reason = "Opted out (email)";
+      } else if (emailRecent) {
+        status = "recently_contacted";
+        skip_reason = `Contacted in last ${days} days (email)`;
+      } else if (emailDup) {
         status = "duplicate";
         skip_reason = "Duplicate email in CSV";
       } else {
-        if (phoneKey) seenPhones.add(phoneKey);
-        if (normalized_email) seenEmails.add(normalized_email);
+        seenEmails.add(normalized_email);
+        if (phoneSuppressed || phoneRecent || !phoneOk) outPhone = undefined;
+      }
+    } else {
+      // both: ready if at least one channel path works
+      if (!phoneRaw && !emailRaw) {
+        status = "missing_contact";
+        skip_reason = "No phone or email";
+      } else if (phoneRaw && !normalized_phone && emailRaw && !normalized_email) {
+        status = "invalid_contact";
+        skip_reason = "Invalid phone and email";
+      } else if (phoneRaw && !normalized_phone && !emailRaw) {
+        status = "invalid_contact";
+        skip_reason = "Invalid phone number";
+      } else if (emailRaw && !isValidEmail(emailRaw) && !normalized_phone) {
+        status = "invalid_contact";
+        skip_reason = "Invalid email address";
+      } else {
+        const smsReady = phoneOk && !phoneSuppressed && !phoneRecent && !phoneDup;
+        const emailReady = emailOk && !emailSuppressed && !emailRecent && !emailDup;
+
+        if (smsReady || emailReady) {
+          if (smsReady && phoneKey) seenPhones.add(phoneKey);
+          if (emailReady && normalized_email) seenEmails.add(normalized_email);
+          if (!smsReady) outPhone = undefined;
+          if (!emailReady) outEmail = undefined;
+        } else if (
+          (phoneSuppressed || !phoneOk) &&
+          (emailSuppressed || !emailOk) &&
+          (phoneSuppressed || emailSuppressed)
+        ) {
+          status = "opted_out";
+          skip_reason =
+            phoneSuppressed && emailSuppressed
+              ? "Opted out (SMS and email)"
+              : phoneSuppressed
+                ? "Opted out (SMS)"
+                : "Opted out (email)";
+        } else if (phoneRecent || emailRecent) {
+          status = "recently_contacted";
+          skip_reason =
+            phoneRecent && emailRecent
+              ? `Contacted in last ${days} days`
+              : phoneRecent
+                ? `Contacted in last ${days} days (phone)`
+                : `Contacted in last ${days} days (email)`;
+        } else if (phoneDup || emailDup) {
+          status = "duplicate";
+          skip_reason = phoneDup ? "Duplicate phone in CSV" : "Duplicate email in CSV";
+        } else if (phoneSuppressed || emailSuppressed) {
+          status = "opted_out";
+          skip_reason = phoneSuppressed ? "Opted out (SMS)" : "Opted out (email)";
+        } else {
+          status = "invalid_contact";
+          skip_reason = "No usable phone or email";
+        }
       }
     }
 
@@ -175,14 +251,15 @@ export async function validateBulkRecipients(params: {
     else if (status === "recently_contacted") summary.recently_contacted++;
     else if (status === "opted_out") summary.opted_out++;
     else summary.skipped++;
+
     recipients.push({
       ...row,
       status,
       skip_reason,
-      normalized_phone: normalized_phone ?? undefined,
-      normalized_email: normalized_email ?? emailRaw,
-      phone: normalized_phone ?? phoneRaw,
-      email: normalized_email ?? emailRaw,
+      normalized_phone: outPhone && normalized_phone ? normalized_phone : undefined,
+      normalized_email: outEmail && normalized_email ? normalized_email : undefined,
+      phone: outPhone ?? undefined,
+      email: outEmail ?? undefined,
     });
   }
 

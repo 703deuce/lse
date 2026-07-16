@@ -92,25 +92,37 @@ export async function loadRecipientFacts(
     delivered = true;
   }
 
-  let optedOut = false;
+  const now = Date.now();
+  let smsOptedOut = false;
+  let emailOptedOut = false;
   if (recipient.phone) {
     const { data } = await supabase
       .from("review_request_suppression")
-      .select("id")
+      .select("id, expires_at")
       .eq("business_id", businessId)
       .eq("phone", recipient.phone)
-      .limit(1);
-    optedOut = Boolean(data?.length);
+      .limit(5);
+    smsOptedOut = Boolean(
+      (data ?? []).some((s) => !s.expires_at || new Date(String(s.expires_at)).getTime() > now)
+    );
   }
-  if (!optedOut && recipient.email) {
+  if (recipient.email) {
     const { data } = await supabase
       .from("review_request_suppression")
-      .select("id")
+      .select("id, expires_at")
       .eq("business_id", businessId)
       .eq("email", recipient.email.toLowerCase())
-      .limit(1);
-    optedOut = Boolean(data?.length);
+      .limit(5);
+    emailOptedOut = Boolean(
+      (data ?? []).some((s) => !s.expires_at || new Date(String(s.expires_at)).getTime() > now)
+    );
   }
+
+  const hasPhone = Boolean(recipient.phone) && !smsOptedOut;
+  const hasEmail = Boolean(recipient.email) && !emailOptedOut;
+  // Only hard-stop when every available channel is suppressed.
+  const optedOut =
+    (!recipient.phone || smsOptedOut) && (!recipient.email || emailOptedOut);
 
   return {
     delivered,
@@ -118,8 +130,8 @@ export async function loadRecipientFacts(
     replied: Boolean(recipient.replied_at),
     optedOut,
     reviewDetected: Boolean(recipient.review_detected_at),
-    hasPhone: Boolean(recipient.phone),
-    hasEmail: Boolean(recipient.email),
+    hasPhone,
+    hasEmail,
   };
 }
 
@@ -258,8 +270,28 @@ export async function tryAdvanceRecipientAfterSend(params: {
           (campaign.channel as "sms" | "email" | "both") || "sms"
         )
   );
-  const sendIdx = steps.findIndex((s) => s.step_key === params.stepKey);
-  if (sendIdx < 0) return;
+  let sendIdx = steps.findIndex((s) => s.step_key === params.stepKey);
+  if (sendIdx < 0) {
+    // Legacy / edited sequences: fall back to current_step or first send step.
+    const current = Number(recipient.current_step ?? 0);
+    const isSend = (t: string | undefined) => t === "send_sms" || t === "send_email";
+    if (Number.isFinite(current) && isSend(steps[current]?.step_type)) {
+      sendIdx = current;
+    } else {
+      sendIdx = steps.findIndex((s) => isSend(s.step_type));
+    }
+  }
+  if (sendIdx < 0) {
+    await supabase
+      .from("review_request_recipients")
+      .update({
+        workflow_status: "completed",
+        next_action_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", recipient.id);
+    return;
+  }
 
   const nextIdx = indexAfterSend(steps, sendIdx);
   await applyWorkflowFromIndex({
@@ -396,6 +428,66 @@ async function applyWorkflowFromIndex(params: {
     .eq("id", recipient.id);
 }
 
+const SEQUENCE_IN_PROGRESS_STALE_MS = Number(
+  process.env.SEQUENCE_IN_PROGRESS_STALE_MS ?? 15 * 60 * 1000
+);
+
+/**
+ * Reclaim recipients stuck in_progress after a worker died mid-advance.
+ * - If terminal messages exist, advance the sequence.
+ * - If no active queued/sending messages, return to waiting for retry.
+ * - Leave alone when messages are still in flight.
+ */
+async function reclaimStaleSequenceInProgress(
+  supabase: ServiceClient,
+  nowIso: string
+): Promise<void> {
+  const staleBefore = new Date(Date.now() - SEQUENCE_IN_PROGRESS_STALE_MS).toISOString();
+  const { data: stuck } = await supabase
+    .from("review_request_recipients")
+    .select("id")
+    .eq("workflow_status", "in_progress")
+    .lt("updated_at", staleBefore)
+    .limit(50);
+
+  for (const row of stuck ?? []) {
+    const { data: activeMsgs } = await supabase
+      .from("review_request_messages")
+      .select("id")
+      .eq("recipient_id", row.id)
+      .in("status", ["queued", "sending"])
+      .limit(1);
+    if (activeMsgs?.length) continue;
+
+    const { data: terminal } = await supabase
+      .from("review_request_messages")
+      .select("step_key")
+      .eq("recipient_id", row.id)
+      .in("status", ["sent", "delivered", "clicked", "failed", "completed"])
+      .order("updated_at", { ascending: false })
+      .limit(1);
+
+    if (terminal?.[0]?.step_key) {
+      await tryAdvanceRecipientAfterSend({
+        supabase,
+        recipientId: String(row.id),
+        stepKey: String(terminal[0].step_key),
+      }).catch(() => undefined);
+      continue;
+    }
+
+    await supabase
+      .from("review_request_recipients")
+      .update({
+        workflow_status: "waiting",
+        next_action_at: nowIso,
+        updated_at: nowIso,
+      })
+      .eq("id", row.id)
+      .eq("workflow_status", "in_progress");
+  }
+}
+
 /**
  * Claim-lock waiting recipients whose next_action_at has passed, then advance.
  * Overlapping workers use CAS on workflow_status waiting → in_progress.
@@ -403,6 +495,8 @@ async function applyWorkflowFromIndex(params: {
 export async function processSequenceWaits(limit = 50): Promise<number> {
   const supabase = createServiceClient();
   const now = new Date().toISOString();
+
+  await reclaimStaleSequenceInProgress(supabase, now);
 
   const { data: due } = await supabase
     .from("review_request_recipients")

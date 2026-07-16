@@ -50,6 +50,7 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/reviews/${businessId}`);
       const json = await res.json();

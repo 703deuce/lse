@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { loadLatestLocalTrustRun, queryLocalTrustOpportunities } from "@/lib/local-trust/engine";
 import { countMarketAcceptedOpportunities } from "@/lib/local-trust/markets";
 
@@ -39,6 +39,6 @@ export async function GET(
     return NextResponse.json({ ...data, marketTotal });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load local trust data";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

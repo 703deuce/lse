@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import { createServiceClient } from "@/lib/db/client";
 import {
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
     }
     const message = err instanceof Error ? err.message : "Failed to list campaigns";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }
 
@@ -142,6 +142,13 @@ export async function POST(request: Request) {
 
     try {
       const result = await createReviewCampaign(input);
+      if (shouldReserve && result.validCount < readyCount) {
+        await releaseUsage(
+          auth.organizationId,
+          "bulk_review_requests_used",
+          readyCount - result.validCount
+        ).catch(() => undefined);
+      }
       return NextResponse.json(result);
     } catch (createErr) {
       if (shouldReserve) {
@@ -159,6 +166,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
     const message = err instanceof Error ? err.message : "Failed to create campaign";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

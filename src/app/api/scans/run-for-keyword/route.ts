@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { httpStatusForAuthError, requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { dispatchScanProcessing } from "@/lib/jobs/schedule-scan";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
@@ -10,6 +10,7 @@ import {
   releaseUsage,
   reserveUsageOrThrow,
 } from "@/lib/plans";
+import { assertCanEnqueueMapsScan, findDuplicateActiveScan } from "@/lib/queue";
 import { DEFAULT_RADIUS_METERS, MAX_RADIUS_METERS, MIN_RADIUS_METERS } from "@/lib/maps/grid-metrics";
 
 const schema = z.object({
@@ -131,6 +132,38 @@ export async function POST(request: Request) {
       );
     }
 
+    const keywordLabel = String(kwRow.keyword).trim();
+    const duplicate = await findDuplicateActiveScan({
+      businessId,
+      keywordLabel,
+      gridSize,
+      radiusMeters,
+    });
+    if (duplicate) {
+      return NextResponse.json(
+        {
+          error: "An equivalent scan is already queued or running for this keyword and grid.",
+          scan: { id: duplicate.id, status: duplicate.status },
+          duplicate: true,
+        },
+        { status: 409 }
+      );
+    }
+
+    const fairness = await assertCanEnqueueMapsScan({
+      organizationId: auth.organizationId,
+      businessId,
+      scanBatchId: "00000000-0000-0000-0000-000000000000",
+      keyword: keywordLabel,
+      gridSize,
+    });
+    if (!fairness.ok && (fairness.code === "queued_limit" || fairness.code === "active_limit")) {
+      return NextResponse.json(
+        { error: fairness.reason, code: fairness.code },
+        { status: 429 }
+      );
+    }
+
     const creditsNeeded = gridMapCredits(gridSize, uniqueExcluded.length);
     await reserveUsageOrThrow(auth.organizationId, "map_credits_used", creditsNeeded);
 
@@ -156,7 +189,7 @@ export async function POST(request: Request) {
             ...PARITY_SUMMARY,
             scan_profile: { device, os, browser },
             keyword_ids: [resolvedKeywordId],
-            keyword_label: String(kwRow.keyword).trim(),
+            keyword_label: keywordLabel,
             method: "live_parallel",
             ...(uniqueExcluded.length ? { excluded_labels: uniqueExcluded } : {}),
             included_cells: gridSize * gridSize - uniqueExcluded.length,
@@ -191,7 +224,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
     const message = err instanceof Error ? err.message : "Run scan failed";
-    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

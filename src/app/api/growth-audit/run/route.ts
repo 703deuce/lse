@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
+import { idempotencyTimeBucket } from "@/lib/queue/idempotency";
 
 export async function POST(request: Request) {
   let reserved = false;
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
       },
       organizationId: auth.organizationId,
       businessId,
-      idempotencyKey: `growth-audit:${businessId}:${Math.floor(Date.now() / 30_000)}`,
+      idempotencyKey: `growth-audit:${businessId}:${keyword ?? "default"}:${idempotencyTimeBucket()}`,
       priority: "normal",
       maxAttempts: 2,
     });
@@ -68,6 +69,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
     const message = err instanceof Error ? err.message : "Growth audit failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

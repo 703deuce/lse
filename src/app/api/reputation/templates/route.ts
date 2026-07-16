@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import {
   archiveTemplate,
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     }
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed" },
-      { status: 500 }
+      { status: httpStatusForAuthError(err) }
     );
   }
 }
@@ -60,6 +60,12 @@ export async function POST(request: Request) {
           customerName: body.customerName ?? "Test",
           templateId: tpl.id,
         });
+        if (result.ok === false) {
+          return NextResponse.json(
+            { error: result.error ?? "Send failed", send: result },
+            { status: 502 }
+          );
+        }
         return NextResponse.json({ ok: true, send: result });
       }
       if (!body.toEmail) {
@@ -72,6 +78,12 @@ export async function POST(request: Request) {
         customerName: body.customerName ?? "Test",
         templateId: tpl.id,
       });
+      if (result.ok === false) {
+        return NextResponse.json(
+          { error: result.error ?? "Send failed", send: result },
+          { status: 502 }
+        );
+      }
       return NextResponse.json({ ok: true, send: result });
     }
 
@@ -95,7 +107,7 @@ export async function POST(request: Request) {
     }
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed" },
-      { status: 400 }
+      { status: httpStatusForAuthError(err, 400) }
     );
   }
 }
@@ -135,7 +147,7 @@ export async function PATCH(request: Request) {
     }
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed" },
-      { status: 400 }
+      { status: httpStatusForAuthError(err, 400) }
     );
   }
 }

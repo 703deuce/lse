@@ -58,7 +58,9 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/ai-visibility/${businessId}?runId=combined`);
+      const res = await fetch(
+        `/api/ai-visibility/${businessId}?runId=combined&includeArchived=1`
+      );
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to load");
       setData(json);
@@ -135,7 +137,8 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
   const prompts = (data?.prompts ?? []).filter((p) => {
     const q = search.trim().toLowerCase();
     if (q && !p.prompt_text.toLowerCase().includes(q)) return false;
-    if (statusFilter !== "all" && p.status !== statusFilter) return false;
+    if (statusFilter === "all") return p.status !== "archived";
+    if (p.status !== statusFilter) return false;
     return true;
   });
 

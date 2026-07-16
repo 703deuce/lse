@@ -111,6 +111,7 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/growth-audit/${businessId}`);
       const json = await res.json();

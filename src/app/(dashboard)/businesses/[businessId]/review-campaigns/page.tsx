@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireAuth } from "@/lib/auth/context";
+import { getBusiness } from "@/lib/db/queries";
+import { notFound } from "next/navigation";
 import { hasEntitlement } from "@/lib/auth/entitlements";
 import { ReviewCampaignsUpgrade } from "@/components/reputation/review-campaigns-upgrade";
 import { ReviewCampaignsHub } from "@/components/reputation/review-campaigns-hub";
@@ -11,7 +13,10 @@ export default async function ReviewCampaignsPage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
-  const auth = await requireBusinessAccess(businessId);
+  const auth = await requireAuth();
+  const business = await getBusiness(businessId, auth.organizationId);
+  if (!business) notFound();
+
   const allowed = await hasEntitlement(auth.organizationId, "review_campaigns");
 
   if (!allowed) {

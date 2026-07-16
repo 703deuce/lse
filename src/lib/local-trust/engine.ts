@@ -901,10 +901,17 @@ export async function loadLatestLocalTrustRun(
   const { data: run } = await runQuery.order("created_at", { ascending: false }).limit(1).maybeSingle();
 
   if (!run) {
-    const { data: inProgress } = await supabase
+    let inProgressQuery = supabase
       .from("local_trust_runs")
       .select("*")
       .eq("business_id", businessId)
+      .in("status", ["running", "queued", "processing"]);
+
+    if (options?.city && options?.state) {
+      inProgressQuery = inProgressQuery.eq("city", options.city).eq("state", options.state);
+    }
+
+    const { data: inProgress } = await inProgressQuery
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();

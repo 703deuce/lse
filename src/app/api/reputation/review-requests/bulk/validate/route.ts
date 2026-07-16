@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import { applyMapping, type CsvMapTarget } from "@/lib/reputation/bulk-csv";
 import { validateBulkRecipients } from "@/lib/reputation/bulk-validate";
@@ -13,12 +13,14 @@ export async function POST(request: Request) {
       rows,
       mapping,
       duplicateProtectionDays,
+      channel,
     } = body as {
       businessId?: string;
       headers?: string[];
       rows?: string[][];
       mapping?: Record<string, CsvMapTarget>;
       duplicateProtectionDays?: number;
+      channel?: "sms" | "email" | "both";
     };
 
     if (!businessId || !headers?.length || !rows || !mapping) {
@@ -32,6 +34,7 @@ export async function POST(request: Request) {
       businessId,
       rows: mapped,
       duplicateProtectionDays: duplicateProtectionDays ?? 90,
+      channel: channel ?? "both",
     });
 
     return NextResponse.json(result);
@@ -40,6 +43,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
     }
     const message = err instanceof Error ? err.message : "Validation failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

@@ -211,7 +211,10 @@ export async function listBusinessContacts(
     query = query.lt("updated_at", options.cursor);
   }
   if (options?.q?.trim()) {
-    const q = options.q.trim();
+    const q = options.q
+      .trim()
+      .replace(/[%_]/g, (ch) => `\\${ch}`)
+      .replace(/[,()]/g, " ");
     query = query.or(
       `customer_name.ilike.%${q}%,email_normalized.ilike.%${q}%,phone_e164.ilike.%${q}%`
     );

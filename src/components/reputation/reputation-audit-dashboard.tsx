@@ -85,8 +85,20 @@ export function ReputationAuditDashboard({ businessId }: { businessId: string })
     [businessId, router, searchParams]
   );
 
+  const loadRef = useRef<() => Promise<void>>(async () => undefined);
+
+  const {
+    start: startJob,
+    running,
+    error,
+    setError,
+  } = useModuleJobRunner({
+    onSettled: () => loadRef.current(),
+  });
+
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/reputation/${businessId}`);
       const json = await res.json();
@@ -97,20 +109,13 @@ export function ReputationAuditDashboard({ businessId }: { businessId: string })
     } finally {
       setLoading(false);
     }
-  }, [businessId]);
+  }, [businessId, setError]);
+
+  loadRef.current = load;
 
   useEffect(() => {
     void load();
   }, [load]);
-
-  const {
-    start: startJob,
-    running,
-    error,
-    setError,
-  } = useModuleJobRunner({
-    onSettled: () => load(),
-  });
 
   async function runAudit() {
     try {
@@ -137,8 +142,9 @@ export function ReputationAuditDashboard({ businessId }: { businessId: string })
     const unanswered = (data?.targetReviews ?? []).filter((r) => !r.owner_response_present).slice(0, 5);
     if (!unanswered.length) return;
     setGeneratingResponses(true);
+    setError(null);
     try {
-      await fetch("/api/reputation/responses/generate", {
+      const res = await fetch("/api/reputation/responses/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -146,8 +152,15 @@ export function ReputationAuditDashboard({ businessId }: { businessId: string })
           reviewIds: unanswered.map((r) => r.id),
         }),
       });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(typeof json.error === "string" ? json.error : "Failed to generate responses");
+        return;
+      }
       await load();
       handleTabChange("responses");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to generate responses");
     } finally {
       setGeneratingResponses(false);
     }

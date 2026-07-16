@@ -82,6 +82,11 @@ export function AccountPlanUsageCard() {
         <UsageRow label="Growth audits" used={usage.growth_audits_used} limit={plan.limits.growth_audits_month} />
         <UsageRow label="Local Trust scans" used={usage.local_trust_scans_used} limit={plan.limits.local_trust_scans_month} />
         <UsageRow label="Backlink Gap runs" used={usage.backlink_gap_runs_used} limit={plan.limits.backlink_gap_runs_month} />
+        <UsageRow
+          label="AI Visibility runs"
+          used={usage.ai_visibility_runs_used}
+          limit={plan.limits.ai_visibility_runs_month}
+        />
         <UsageRow label="Review emails" used={usage.review_emails_sent} limit={plan.limits.email_review_requests_month} />
         <UsageRow label="SMS messages" used={usage.review_sms_sent} limit={plan.limits.sms_month} />
         <UsageRow label="Bulk review requests" used={usage.bulk_review_requests_used} limit={plan.limits.bulk_review_requests_month} />

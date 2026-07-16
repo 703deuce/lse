@@ -521,3 +521,35 @@ export async function generateResponseDrafts(params: {
 
   return drafts;
 }
+
+/** Generate reply drafts from business_reviews rows (Reviews feed IDs). */
+export async function generateBusinessReviewDrafts(params: {
+  businessId: string;
+  organizationId: string;
+  reviewIds: string[];
+  businessName: string;
+}) {
+  const supabase = createServiceClient();
+  const { data: reviews } = await supabase
+    .from("business_reviews")
+    .select("id, review_text, rating")
+    .eq("business_id", params.businessId)
+    .in("id", params.reviewIds);
+
+  const drafts: Array<{ reviewRecordId: string; draftText: string }> = [];
+
+  for (const r of reviews ?? []) {
+    const draftText =
+      (await generateReviewResponseDraft({
+        businessName: params.businessName,
+        reviewText: String(r.review_text ?? ""),
+        rating: r.rating != null ? Number(r.rating) : null,
+        serviceKeywords: [],
+        organizationId: params.organizationId,
+      })) ?? "Thank you for your review — we appreciate your feedback and look forward to serving you again.";
+
+    drafts.push({ reviewRecordId: r.id as string, draftText });
+  }
+
+  return drafts;
+}

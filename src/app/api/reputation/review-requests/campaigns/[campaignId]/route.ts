@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import {
   getCampaignDetail,
@@ -45,8 +45,7 @@ export async function GET(
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
     }
     const message = err instanceof Error ? err.message : "Failed to load campaign";
-    const statusCode = message.includes("not found") ? 404 : 500;
-    return NextResponse.json({ error: message }, { status: statusCode });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }
 
@@ -144,7 +143,6 @@ export async function PATCH(
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
     const message = err instanceof Error ? err.message : "Failed to update campaign";
-    const statusCode = message.includes("not found") ? 404 : 500;
-    return NextResponse.json({ error: message }, { status: statusCode });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

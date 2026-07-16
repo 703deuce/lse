@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import {
   getNotificationSettings,
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     }
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed" },
-      { status: 500 }
+      { status: httpStatusForAuthError(err) }
     );
   }
 }
@@ -63,7 +63,7 @@ export async function PUT(request: Request) {
     }
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed" },
-      { status: 500 }
+      { status: httpStatusForAuthError(err) }
     );
   }
 }
