@@ -2,8 +2,9 @@ import { createServiceClient } from "@/lib/db/client";
 import { logger } from "@/lib/observability/logger";
 
 /**
- * Apply Twilio MessageStatus (or Brevo-equivalent) onto campaign messages.
- * Idempotent: already-clicked rows keep clicked; delivered upgrades sent.
+ * Apply Twilio MessageStatus (or Brevo-equivalent) onto campaign messages
+ * and one-off review_request_sends. Idempotent: already-clicked rows keep clicked;
+ * delivered upgrades sent.
  */
 export async function applyProviderDeliveryStatus(params: {
   providerMessageId: string;
@@ -21,10 +22,41 @@ export async function applyProviderDeliveryStatus(params: {
     .eq("provider_message_id", sid)
     .maybeSingle();
 
-  if (!message) return false;
+  if (message) {
+    return applyCampaignMessageStatus({
+      messageId: message.id as string,
+      current: String(message.status),
+      normalized,
+      errorCode: params.errorCode,
+    });
+  }
 
+  // Quick Send / one-off rows share the same Twilio/Brevo callbacks.
+  const { data: send } = await supabase
+    .from("review_request_sends")
+    .select("id, status")
+    .eq("provider_message_id", sid)
+    .maybeSingle();
+
+  if (!send) return false;
+
+  return applyOneOffSendStatus({
+    sendId: send.id as string,
+    current: String(send.status),
+    normalized,
+    errorCode: params.errorCode,
+  });
+}
+
+async function applyCampaignMessageStatus(params: {
+  messageId: string;
+  current: string;
+  normalized: string;
+  errorCode?: string | null;
+}): Promise<boolean> {
+  const supabase = createServiceClient();
   const now = new Date().toISOString();
-  const current = String(message.status);
+  const { messageId, current, normalized } = params;
 
   if (normalized === "delivered") {
     if (current === "clicked" || current === "opted_out") return true;
@@ -35,7 +67,7 @@ export async function applyProviderDeliveryStatus(params: {
         delivered_at: now,
         updated_at: now,
       })
-      .eq("id", message.id)
+      .eq("id", messageId)
       .in("status", ["sent", "sending", "delivered"]);
     return true;
   }
@@ -59,10 +91,62 @@ export async function applyProviderDeliveryStatus(params: {
         error_code: params.errorCode ?? null,
         updated_at: now,
       })
-      .eq("id", message.id)
+      .eq("id", messageId)
       .in("status", ["sent", "sending", "queued"]);
     logger.info("campaign_message_provider_failed", {
-      messageId: message.id,
+      messageId,
+      providerStatus: normalized,
+      errorCode: params.errorCode ?? null,
+    });
+    return true;
+  }
+
+  return false;
+}
+
+async function applyOneOffSendStatus(params: {
+  sendId: string;
+  current: string;
+  normalized: string;
+  errorCode?: string | null;
+}): Promise<boolean> {
+  const supabase = createServiceClient();
+  const now = new Date().toISOString();
+  const { sendId, current, normalized } = params;
+
+  if (normalized === "delivered") {
+    if (current === "clicked" || current === "completed") return true;
+    await supabase
+      .from("review_request_sends")
+      .update({
+        status: "delivered",
+        delivered_at: now,
+      })
+      .eq("id", sendId)
+      .in("status", ["queued", "sent", "delivered"]);
+    return true;
+  }
+
+  if (normalized === "sent" || normalized === "queued" || normalized === "accepted") {
+    return true;
+  }
+
+  if (
+    normalized === "failed" ||
+    normalized === "undelivered" ||
+    normalized === "delivery_unknown"
+  ) {
+    if (["clicked", "delivered", "completed"].includes(current)) return true;
+    await supabase
+      .from("review_request_sends")
+      .update({
+        status: "failed",
+        error_message: `provider:${normalized}${params.errorCode ? `:${params.errorCode}` : ""}`,
+      })
+      .eq("id", sendId)
+      .in("status", ["queued", "sent"]);
+    logger.info("review_send_provider_failed", {
+      sendId,
       providerStatus: normalized,
       errorCode: params.errorCode ?? null,
     });

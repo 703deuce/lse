@@ -428,6 +428,9 @@ export function CampaignDetailClient({
                         <p className="mt-1 text-[10px] text-zinc-400">
                           scheduled {m.scheduled_for ? new Date(String(m.scheduled_for)).toLocaleString() : "—"}
                           {m.sent_at ? ` · sent ${new Date(String(m.sent_at)).toLocaleString()}` : ""}
+                          {m.delivered_at
+                            ? ` · delivered ${new Date(String(m.delivered_at)).toLocaleString()}`
+                            : ""}
                           {m.clicked_at
                             ? ` · clicked ${new Date(String(m.clicked_at)).toLocaleString()}`
                             : ""}
@@ -446,6 +449,36 @@ export function CampaignDetailClient({
                     ))}
                     {!((drawer.clicks as unknown[]) ?? []).length && (
                       <li className="text-zinc-400">None</li>
+                    )}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase text-zinc-500">Replies</p>
+                  <ul className="mt-1 space-y-2">
+                    {(
+                      (drawer.replies as Array<Record<string, unknown>>) ?? []
+                    ).map((r) => (
+                      <li key={String(r.id)} className="rounded border border-zinc-100 p-2">
+                        <p className="font-medium capitalize text-zinc-800">
+                          {String(r.channel)} ·{" "}
+                          {r.created_at
+                            ? new Date(String(r.created_at)).toLocaleString()
+                            : "—"}
+                        </p>
+                        {r.from_address ? (
+                          <p className="text-[10px] text-zinc-400">{String(r.from_address)}</p>
+                        ) : null}
+                        <p className="mt-1 whitespace-pre-wrap text-zinc-600">
+                          {String(r.body ?? "").trim() || "(empty)"}
+                        </p>
+                      </li>
+                    ))}
+                    {!((drawer.replies as unknown[]) ?? []).length && (
+                      <li className="text-zinc-400">
+                        {(drawer.recipient as { replied_at?: string | null } | null)?.replied_at
+                          ? "Reply recorded (body unavailable for this older event)."
+                          : "None"}
+                      </li>
                     )}
                   </ul>
                 </div>

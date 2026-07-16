@@ -12,6 +12,7 @@ import {
 import { logger } from "@/lib/observability/logger";
 import { getTwilioSmsWebhookUrl } from "@/lib/app-url";
 import { applyProviderDeliveryStatus } from "@/lib/reputation/delivery-status";
+import { pickLatestSmsBusiness } from "@/lib/reputation/reply-match";
 
 function twilioXml(body = ""): NextResponse {
   return new NextResponse(body ? `<Response><Message>${body}</Message></Response>` : "<Response></Response>", {
@@ -87,84 +88,86 @@ export async function POST(request: Request) {
         skipCampaignReplyState: true,
       });
       const phone = normalizePhoneE164(from);
-      if (isSmsOptOutMessage(body) && phone) {
+      if (phone) {
         const supabase = createServiceClient();
-        // One-off sends
+        const candidates: Array<{
+          businessId: string;
+          organizationId: string;
+          at: string;
+        }> = [];
+
         const { data: recentSend } = await supabase
           .from("review_request_sends")
-          .select("business_id, organization_id")
+          .select("business_id, organization_id, sent_at, created_at")
           .eq("recipient_phone", phone)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
         if (recentSend) {
-          await addSuppression({
-            organizationId: recentSend.organization_id,
-            businessId: recentSend.business_id,
-            phone,
-            reason: "sms_stop",
+          candidates.push({
+            businessId: recentSend.business_id as string,
+            organizationId: recentSend.organization_id as string,
+            at: String(recentSend.sent_at ?? recentSend.created_at),
           });
         }
 
-        // Campaign recipients (STOP often hits campaign SMS, not one-off sends)
         const { data: campaignRecipients } = await supabase
           .from("review_request_recipients")
-          .select("id, business_id, organization_id, campaign_id")
+          .select("id, business_id, organization_id, created_at")
           .eq("phone", phone)
           .order("created_at", { ascending: false })
-          .limit(5);
+          .limit(10);
+
         for (const recip of campaignRecipients ?? []) {
+          const { data: lastMsg } = await supabase
+            .from("review_request_messages")
+            .select("sent_at, created_at")
+            .eq("recipient_id", recip.id)
+            .eq("channel", "sms")
+            .in("status", ["sent", "delivered", "clicked"])
+            .order("sent_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          candidates.push({
+            businessId: recip.business_id as string,
+            organizationId: recip.organization_id as string,
+            at: String(lastMsg?.sent_at ?? lastMsg?.created_at ?? recip.created_at),
+          });
+        }
+
+        // Shared Twilio number: only mute/unmute the business that last messaged this phone.
+        const target = pickLatestSmsBusiness(candidates);
+        if (target && isSmsOptOutMessage(body)) {
           await addSuppression({
-            organizationId: recip.organization_id,
-            businessId: recip.business_id,
+            organizationId: target.organizationId,
+            businessId: target.businessId,
             phone,
             reason: "sms_stop",
           });
-          await supabase
-            .from("review_request_messages")
-            .update({ status: "opted_out", updated_at: new Date().toISOString() })
-            .eq("recipient_id", recip.id)
-            .in("status", ["queued", "sending"]);
-          await supabase
-            .from("review_request_recipients")
-            .update({
-              workflow_status: "opted_out",
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", recip.id);
+          for (const recip of campaignRecipients ?? []) {
+            if (recip.business_id !== target.businessId) continue;
+            await supabase
+              .from("review_request_messages")
+              .update({ status: "opted_out", updated_at: new Date().toISOString() })
+              .eq("recipient_id", recip.id)
+              .in("status", ["queued", "sending"]);
+            await supabase
+              .from("review_request_recipients")
+              .update({
+                workflow_status: "opted_out",
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", recip.id);
+          }
           await supabase
             .from("review_request_contacts")
             .update({ sms_opt_out: true, updated_at: new Date().toISOString() })
-            .eq("business_id", recip.business_id)
+            .eq("business_id", target.businessId)
             .eq("phone_e164", phone);
-        }
-      } else if (isSmsOptInMessage(body) && phone) {
-        const supabase = createServiceClient();
-        // Clear suppression for the businesses that last messaged this phone.
-        const { data: recentSend } = await supabase
-          .from("review_request_sends")
-          .select("business_id, organization_id")
-          .eq("recipient_phone", phone)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (recentSend) {
+        } else if (target && isSmsOptInMessage(body)) {
           await clearSmsSuppression({
-            organizationId: recentSend.organization_id,
-            businessId: recentSend.business_id,
-            phone,
-          });
-        }
-        const { data: campaignRecipients } = await supabase
-          .from("review_request_recipients")
-          .select("business_id, organization_id")
-          .eq("phone", phone)
-          .order("created_at", { ascending: false })
-          .limit(5);
-        for (const recip of campaignRecipients ?? []) {
-          await clearSmsSuppression({
-            organizationId: recip.organization_id,
-            businessId: recip.business_id,
+            organizationId: target.organizationId,
+            businessId: target.businessId,
             phone,
           });
         }
