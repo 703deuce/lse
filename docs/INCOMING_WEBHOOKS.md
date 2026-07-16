@@ -22,15 +22,29 @@ POST /api/integrations/webhooks/incoming/{endpointToken}
 
 ## Create in the app
 
-**Reviews → Integrations**
+**Reviews → Review Triggers** (Automatic Review Triggers)
 
-1. Pick a campaign  
-2. Choose event type (e.g. `service.completed`)  
-3. Start in **test** mode  
-4. Copy the unique URL  
-5. Send a sample event from Zapier/Make  
-6. Confirm the event log  
-7. Promote to **live**
+5-step wizard:
+
+1. Name + Review Campaign  
+2. Trigger event, delay, duplicate window, test mode  
+3. Paste sample JSON → auto-detect field mapping + contact rules  
+4. Security: simple URL token or signed HMAC  
+5. Review → create → copy URL (shown once)
+
+Then send a sample from Zapier/Make, confirm the event log, and promote to **live**.
+
+### Plan quotas
+
+| Plan | Endpoints | Events / month |
+|------|-----------|----------------|
+| Starter | 0 (no campaigns) | 0 |
+| Pro | 5 | 5,000 |
+| Agency | 25 | 50,000 |
+
+### Ambiguous contact matches
+
+If `external_customer_id` points at one contact and phone/email at another, the event is held as `needs_review`. Resolve under **Contact match review** on the Review Triggers page (link to a contact or skip).
 
 ## Canonical payload
 
@@ -75,12 +89,16 @@ Minimum: event id (or auto-derived), event type, email or phone.
 
 ## Deploy
 
-Apply migration **`050_integration_webhooks.sql`**.
+Apply migrations:
+
+- **`050_integration_webhooks.sql`**
+- **`051_webhook_followups.sql`** (contact match review + `needs_review` status)
 
 Optional env:
 
 - `INTEGRATION_SECRET_KEY` — encrypts signing secrets at rest  
 - `WEBHOOK_MAX_BODY_BYTES` — default 128KB  
+- `RETENTION_WEBHOOK_PAYLOAD_DAYS` — scrub payload JSON (default 30); hashes/status kept  
 
 ## Related
 

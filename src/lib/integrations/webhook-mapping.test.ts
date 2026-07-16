@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { applyFieldMapping, isEnrollEventType } from "./webhook-mapping";
+import {
+  applyFieldMapping,
+  detectFieldMapping,
+  isEnrollEventType,
+} from "./webhook-mapping";
 
 describe("webhook field mapping", () => {
   it("reads canonical payload", () => {
@@ -34,5 +38,43 @@ describe("webhook field mapping", () => {
     assert.equal(n.customer.email, "x@y.com");
     assert.equal(n.event_id, "j9");
     assert.equal(n.event_type, "invoice.paid");
+  });
+
+  it("auto-detects mapping from sample CRM JSON", () => {
+    const mapping = detectFieldMapping({
+      data: {
+        clientEmail: "pat@example.com",
+        clientPhone: "+15405551212",
+        clientFirstName: "Pat",
+        clientLastName: "Lee",
+        customerId: "crm_99",
+      },
+      jobId: "job_55",
+      completedAt: "2026-07-16T12:00:00Z",
+    });
+    assert.equal(mapping.email, "data.clientEmail");
+    assert.equal(mapping.phone, "data.clientPhone");
+    assert.equal(mapping.first_name, "data.clientFirstName");
+    assert.equal(mapping.last_name, "data.clientLastName");
+    assert.equal(mapping.external_customer_id, "data.customerId");
+    assert.equal(mapping.event_id, "jobId");
+
+    const n = applyFieldMapping(
+      {
+        data: {
+          clientEmail: "pat@example.com",
+          clientPhone: "+15405551212",
+          clientFirstName: "Pat",
+          clientLastName: "Lee",
+          customerId: "crm_99",
+        },
+        jobId: "job_55",
+      },
+      mapping,
+      { eventType: "service.completed" }
+    );
+    assert.equal(n.customer.email, "pat@example.com");
+    assert.equal(n.customer.external_id, "crm_99");
+    assert.equal(n.event_id, "job_55");
   });
 });

@@ -4,6 +4,10 @@ import { upsertBusinessContact } from "@/lib/reputation/contacts";
 import { contactDisplayName } from "@/lib/automations/contact-payload";
 import type { CanonicalWebhookPayload } from "@/lib/integrations/webhook-mapping";
 import { isEnrollEventType } from "@/lib/integrations/webhook-mapping";
+import {
+  createContactMatchReview,
+  evaluateWebhookContactMatch,
+} from "@/lib/integrations/webhook-contact-match";
 import { logger } from "@/lib/observability/logger";
 
 type ProcessResult = {
@@ -30,6 +34,7 @@ async function claimEvent(eventId: string): Promise<Record<string, unknown> | nu
     "rejected_invalid",
     "rejected_unauthorized",
     "failed_permanent",
+    "needs_review",
   ];
   if (done.includes(String(existing.status))) {
     return { ...existing, __alreadyDone: true };
@@ -114,6 +119,62 @@ export async function processIntegrationWebhookEvent(eventId: string): Promise<P
   };
 
   try {
+    const match = await evaluateWebhookContactMatch({
+      businessId,
+      externalId: contactInput.externalId,
+      phone: contactInput.phone,
+      email: contactInput.email,
+    });
+
+    if (match.kind === "ambiguous") {
+      await createContactMatchReview({
+        organizationId,
+        businessId,
+        endpointId,
+        eventId,
+        reason: match.reason,
+        candidates: match.candidates,
+        normalized,
+      });
+      await finish(eventId, {
+        status: "needs_review",
+        customer_safe_error: match.reason,
+      });
+      await touchEndpoint(endpointId, "success");
+      return { ok: true };
+    }
+
+    const contactMode = String(endpoint.contact_update_mode ?? "upsert");
+    const existingContactId = match.preferredContactId;
+
+    if (contactMode === "create_only" && existingContactId) {
+      await finish(eventId, {
+        status: "ignored_duplicate",
+        contact_id: existingContactId,
+        customer_safe_error: "Contact already exists (create_only mode)",
+      });
+      await touchEndpoint(endpointId, "success");
+      return { ok: true };
+    }
+    if (contactMode === "update_only" && !existingContactId) {
+      await finish(eventId, {
+        status: "rejected_invalid",
+        customer_safe_error: "No existing contact to update (update_only mode)",
+        permanent: true,
+      });
+      await touchEndpoint(endpointId, "failure");
+      return { ok: false, permanent: true, error: "update_only miss" };
+    }
+    if (contactMode === "skip_existing" && existingContactId) {
+      await finish(eventId, {
+        status: "ignored_duplicate",
+        contact_id: existingContactId,
+        customer_safe_error: "Existing contact skipped (skip_existing mode)",
+      });
+      await touchEndpoint(endpointId, "success");
+      return { ok: true };
+    }
+
     // Test mode: upsert contact optionally skipped — evaluate only, no enrollment messages.
     if (endpoint.is_test) {
       const { id: contactId, created } = await upsertBusinessContact({

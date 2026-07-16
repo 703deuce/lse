@@ -14,6 +14,7 @@ import {
   applyFieldMapping,
   isEnrollEventType,
 } from "@/lib/integrations/webhook-mapping";
+import { assertWithinLimit, PlanLimitError } from "@/lib/plans";
 import { logger } from "@/lib/observability/logger";
 import { randomBytes } from "crypto";
 
@@ -100,6 +101,23 @@ export async function ingestIncomingWebhook(params: {
       body: { accepted: false, error: "Too Many Requests", request_id: requestId },
       headers: { "Retry-After": "60" },
     };
+  }
+
+  try {
+    await assertWithinLimit(endpoint.organization_id, "webhook_events_month", 1);
+  } catch (err) {
+    if (err instanceof PlanLimitError) {
+      return {
+        status: 429,
+        body: {
+          accepted: false,
+          error: "Monthly webhook event quota reached for your plan",
+          request_id: requestId,
+        },
+        headers: { "Retry-After": "3600" },
+      };
+    }
+    throw err;
   }
 
   if (endpoint.signature_required) {

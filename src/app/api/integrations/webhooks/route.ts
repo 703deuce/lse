@@ -8,6 +8,8 @@ import {
   listWebhookEndpoints,
 } from "@/lib/integrations/webhook-endpoints";
 import { createServiceClient } from "@/lib/db/client";
+import { assertWithinLimit, PlanLimitError } from "@/lib/plans";
+import type { FieldMapping } from "@/lib/integrations/webhook-mapping";
 
 export async function GET(request: Request) {
   try {
@@ -91,6 +93,10 @@ export async function POST(request: Request) {
       signatureRequired?: boolean;
       sendDelayMinutes?: number;
       duplicateWindowDays?: number;
+      fieldMapping?: FieldMapping;
+      contactUpdateMode?: string;
+      requireEmailConsent?: boolean;
+      requireSmsConsent?: boolean;
     };
     if (!body.businessId || !body.campaignId || !body.name?.trim()) {
       return NextResponse.json(
@@ -101,6 +107,7 @@ export async function POST(request: Request) {
 
     const access = await requireBusinessAccess(body.businessId);
     await requireEntitlement(access.organizationId, "review_campaigns");
+    await assertWithinLimit(access.organizationId, "webhook_endpoints", 1);
     const auth = await requireAuth();
 
     const created = await createWebhookEndpoint({
@@ -114,6 +121,10 @@ export async function POST(request: Request) {
       signatureRequired: body.signatureRequired ?? false,
       sendDelayMinutes: body.sendDelayMinutes ?? 0,
       duplicateWindowDays: body.duplicateWindowDays ?? 90,
+      fieldMapping: body.fieldMapping,
+      contactUpdateMode: body.contactUpdateMode,
+      requireEmailConsent: body.requireEmailConsent,
+      requireSmsConsent: body.requireSmsConsent,
       createdByUserId: auth.userId,
     });
 
@@ -133,6 +144,9 @@ export async function POST(request: Request) {
   } catch (err) {
     if (err instanceof EntitlementError) {
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
+    }
+    if (err instanceof PlanLimitError) {
+      return NextResponse.json({ error: err.message, limit: err.limitKey }, { status: 403 });
     }
     const message = err instanceof Error ? err.message : "Failed to create webhook";
     return NextResponse.json({ error: message }, { status: 500 });

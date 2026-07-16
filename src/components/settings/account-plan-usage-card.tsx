@@ -12,6 +12,8 @@ type UsageResponse = {
   };
   usage: Record<string, number>;
   businessCount: number;
+  webhookEndpoints?: number;
+  webhookEventsMonth?: number;
 };
 
 function UsageRow({ label, used, limit }: { label: string; used: number; limit: number }) {
@@ -83,6 +85,16 @@ export function AccountPlanUsageCard() {
         <UsageRow label="Review emails" used={usage.review_emails_sent} limit={plan.limits.email_review_requests_month} />
         <UsageRow label="SMS messages" used={usage.review_sms_sent} limit={plan.limits.sms_month} />
         <UsageRow label="Bulk review requests" used={usage.bulk_review_requests_used} limit={plan.limits.bulk_review_requests_month} />
+        <UsageRow
+          label="Review trigger endpoints"
+          used={data.webhookEndpoints ?? 0}
+          limit={plan.limits.webhook_endpoints ?? 0}
+        />
+        <UsageRow
+          label="Review trigger events"
+          used={data.webhookEventsMonth ?? 0}
+          limit={plan.limits.webhook_events_month ?? 0}
+        />
       </div>
     </ContentCard>
   );

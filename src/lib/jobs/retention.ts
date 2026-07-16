@@ -7,6 +7,7 @@ export type RetentionResult = {
   jobsDeleted: number;
   workspaceCacheDeleted: number;
   sharesRevoked: number;
+  webhookPayloadsScrubbed: number;
 };
 
 const RETENTION_INTERVAL_MS = Number(process.env.RETENTION_INTERVAL_MS ?? 60 * 60 * 1000);
@@ -26,12 +27,14 @@ export async function runDataRetentionCleanup(): Promise<RetentionResult> {
   const providerRawDays = Number(process.env.RETENTION_PROVIDER_RAW_DAYS ?? 14);
   const jobsDays = Number(process.env.RETENTION_JOBS_DAYS ?? 14);
   const workspaceDays = Number(process.env.RETENTION_WORKSPACE_CACHE_DAYS ?? 7);
+  const webhookPayloadDays = Number(process.env.RETENTION_WEBHOOK_PAYLOAD_DAYS ?? 30);
 
   let telemetryDeleted = 0;
   let providerRunsScrubbed = 0;
   let jobsDeleted = 0;
   let workspaceCacheDeleted = 0;
   let sharesRevoked = 0;
+  let webhookPayloadsScrubbed = 0;
 
   const { data: telemetry } = await supabase
     .from("scan_cell_telemetry")
@@ -71,12 +74,26 @@ export async function runDataRetentionCleanup(): Promise<RetentionResult> {
     .select("id");
   sharesRevoked = shares?.length ?? 0;
 
+  // Keep event hashes/status/ids; scrub bulky payload JSON after retention window.
+  const { data: webhookScrubbed } = await supabase
+    .from("integration_webhook_events")
+    .update({
+      payload_redacted: {},
+      payload_normalized: {},
+      received_headers_redacted: {},
+      updated_at: new Date().toISOString(),
+    })
+    .lt("received_at", daysAgoIso(webhookPayloadDays))
+    .select("id");
+  webhookPayloadsScrubbed = webhookScrubbed?.length ?? 0;
+
   const result = {
     telemetryDeleted,
     providerRunsScrubbed,
     jobsDeleted,
     workspaceCacheDeleted,
     sharesRevoked,
+    webhookPayloadsScrubbed,
   };
 
   logger.info("data_retention_cleanup", result);

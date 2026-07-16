@@ -17,16 +17,32 @@ export async function GET() {
     const plan = await getOrganizationPlan(auth.organizationId);
     const usage = await getCurrentUsage(auth.organizationId);
 
-    const { count: businessCount } = await supabase
-      .from("businesses")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", auth.organizationId);
+    const monthStart = `${usage.periodStart}T00:00:00.000Z`;
+    const [{ count: businessCount }, { count: webhookEndpoints }, { count: webhookEventsMonth }] =
+      await Promise.all([
+        supabase
+          .from("businesses")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", auth.organizationId),
+        supabase
+          .from("integration_webhook_endpoints")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", auth.organizationId)
+          .is("revoked_at", null),
+        supabase
+          .from("integration_webhook_events")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", auth.organizationId)
+          .gte("received_at", monthStart),
+      ]);
 
     return NextResponse.json({
       organization: org,
       plan,
       usage,
       businessCount: businessCount ?? 0,
+      webhookEndpoints: webhookEndpoints ?? 0,
+      webhookEventsMonth: webhookEventsMonth ?? 0,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load account usage";

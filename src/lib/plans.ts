@@ -13,6 +13,10 @@ export type PlanLimits = {
   growth_audits_month: number;
   ai_visibility_runs_month: number;
   users_seats: number;
+  /** Active Automatic Review Trigger endpoints (non-revoked). */
+  webhook_endpoints: number;
+  /** Incoming webhook events accepted per billing month. */
+  webhook_events_month: number;
 };
 
 export type PlanFeatures = {
@@ -55,6 +59,8 @@ export const PLAN_DEFINITIONS: Record<PlanId, PlanDefinition> = {
       growth_audits_month: 5,
       ai_visibility_runs_month: 5,
       users_seats: 1,
+      webhook_endpoints: 0,
+      webhook_events_month: 0,
     },
     features: {
       rank_grid: true,
@@ -87,6 +93,8 @@ export const PLAN_DEFINITIONS: Record<PlanId, PlanDefinition> = {
       growth_audits_month: 20,
       ai_visibility_runs_month: 5,
       users_seats: 3,
+      webhook_endpoints: 5,
+      webhook_events_month: 5000,
     },
     features: {
       rank_grid: true,
@@ -118,6 +126,8 @@ export const PLAN_DEFINITIONS: Record<PlanId, PlanDefinition> = {
       growth_audits_month: 100,
       ai_visibility_runs_month: 25,
       users_seats: 10,
+      webhook_endpoints: 25,
+      webhook_events_month: 50000,
     },
     features: {
       rank_grid: true,
@@ -149,6 +159,8 @@ export const PLAN_DEFINITIONS: Record<PlanId, PlanDefinition> = {
       growth_audits_month: 999999,
       ai_visibility_runs_month: 999999,
       users_seats: 999,
+      webhook_endpoints: 9999,
+      webhook_events_month: 999999,
     },
     features: {
       rank_grid: true,
@@ -290,6 +302,8 @@ export async function assertWithinLimit(
     sms_month: usage.review_sms_sent,
     bulk_review_requests_month: usage.bulk_review_requests_used,
     ai_visibility_runs_month: usage.ai_visibility_runs_used,
+    webhook_endpoints: await countWebhookEndpoints(organizationId),
+    webhook_events_month: await countWebhookEventsThisMonth(organizationId),
   };
 
   const used = usageMap[limitKey] ?? 0;
@@ -307,6 +321,27 @@ async function countBusinesses(organizationId: string): Promise<number> {
     .from("businesses")
     .select("id", { count: "exact", head: true })
     .eq("organization_id", organizationId);
+  return count ?? 0;
+}
+
+async function countWebhookEndpoints(organizationId: string): Promise<number> {
+  const supabase = createServiceClient();
+  const { count } = await supabase
+    .from("integration_webhook_endpoints")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .is("revoked_at", null);
+  return count ?? 0;
+}
+
+async function countWebhookEventsThisMonth(organizationId: string): Promise<number> {
+  const supabase = createServiceClient();
+  const { periodStart } = getCurrentPeriod();
+  const { count } = await supabase
+    .from("integration_webhook_events")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .gte("received_at", `${periodStart}T00:00:00.000Z`);
   return count ?? 0;
 }
 

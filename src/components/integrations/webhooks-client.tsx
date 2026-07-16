@@ -1,9 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Copy, Loader2, Plus, Webhook } from "lucide-react";
 import { ModuleHeader, ModulePage } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
+import {
+  applyFieldMapping,
+  detectFieldMapping,
+  type FieldMapping,
+} from "@/lib/integrations/webhook-mapping";
 
 type EndpointRow = {
   id: string;
@@ -27,6 +32,27 @@ type Metrics = {
   failed: number;
 };
 
+type MatchRow = {
+  id: string;
+  eventId: string;
+  endpointId: string;
+  reason: string;
+  candidates: Array<{
+    id: string;
+    matchVia?: string;
+    customerName?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  }>;
+  incoming: {
+    externalId: string | null;
+    email: string | null;
+    phone: string | null;
+    name: string | null;
+  };
+  createdAt: string;
+};
+
 function MicroStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-[calc(50%-0.25rem)] flex-1 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 sm:min-w-[6.5rem] sm:flex-none">
@@ -36,19 +62,31 @@ function MicroStat({ label, value }: { label: string; value: string }) {
   );
 }
 
+const STEPS = ["Name", "Trigger", "Mapping", "Security", "Activate"] as const;
+
 export function WebhooksClient({ businessId }: { businessId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [endpoints, setEndpoints] = useState<EndpointRow[]>([]);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [campaigns, setCampaigns] = useState<CampaignOpt[]>([]);
+  const [matches, setMatches] = useState<MatchRow[]>([]);
   const [showCreate, setShowCreate] = useState(false);
+  const [wizardStep, setWizardStep] = useState(0);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("Job completed → Review campaign");
   const [campaignId, setCampaignId] = useState("");
   const [eventType, setEventType] = useState("service.completed");
   const [isTest, setIsTest] = useState(true);
   const [delayMinutes, setDelayMinutes] = useState(120);
+  const [duplicateWindowDays, setDuplicateWindowDays] = useState(90);
+  const [contactUpdateMode, setContactUpdateMode] = useState("upsert");
+  const [requireEmailConsent, setRequireEmailConsent] = useState(false);
+  const [requireSmsConsent, setRequireSmsConsent] = useState(false);
+  const [signatureRequired, setSignatureRequired] = useState(false);
+  const [sampleJson, setSampleJson] = useState("");
+  const [sampleError, setSampleError] = useState<string | null>(null);
+  const [fieldMapping, setFieldMapping] = useState<FieldMapping>({});
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -59,18 +97,21 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
     setLoading(true);
     setError(null);
     try {
-      const [wh, camps] = await Promise.all([
+      const [wh, camps, matchRes] = await Promise.all([
         fetch(`/api/integrations/webhooks?businessId=${businessId}`),
         fetch(`/api/reputation/review-requests/campaigns?businessId=${businessId}`),
+        fetch(`/api/integrations/webhooks/matches?businessId=${businessId}`),
       ]);
       const whJson = await wh.json();
       const campJson = await camps.json();
+      const matchJson = await matchRes.json();
       if (!wh.ok) throw new Error(whJson.error || "Failed to load webhooks");
       setEndpoints(whJson.endpoints ?? []);
       setMetrics(whJson.metrics ?? null);
       const list = (campJson.campaigns ?? []) as Array<{ id: string; name: string; status: string }>;
       setCampaigns(list.filter((c) => ["active", "scheduled", "paused", "draft"].includes(c.status)));
       setCampaignId((prev) => prev || list[0]?.id || "");
+      if (matchRes.ok) setMatches(matchJson.matches ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load");
     } finally {
@@ -81,6 +122,51 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const previewNormalized = useMemo(() => {
+    if (!sampleJson.trim()) return null;
+    try {
+      const parsed = JSON.parse(sampleJson) as Record<string, unknown>;
+      return applyFieldMapping(parsed, fieldMapping, { eventType });
+    } catch {
+      return null;
+    }
+  }, [sampleJson, fieldMapping, eventType]);
+
+  function resetWizard() {
+    setWizardStep(0);
+    setName("Job completed → Review campaign");
+    setEventType("service.completed");
+    setIsTest(true);
+    setDelayMinutes(120);
+    setDuplicateWindowDays(90);
+    setContactUpdateMode("upsert");
+    setRequireEmailConsent(false);
+    setRequireSmsConsent(false);
+    setSignatureRequired(false);
+    setSampleJson("");
+    setSampleError(null);
+    setFieldMapping({});
+  }
+
+  function openWizard() {
+    resetWizard();
+    setShowCreate(true);
+  }
+
+  function detectFromSample() {
+    setSampleError(null);
+    try {
+      const parsed = JSON.parse(sampleJson) as unknown;
+      const detected = detectFieldMapping(parsed);
+      setFieldMapping(detected);
+      if (!Object.keys(detected).length) {
+        setSampleError("No obvious contact fields found — map paths manually below.");
+      }
+    } catch {
+      setSampleError("Paste valid JSON from Zapier/Make/n8n.");
+    }
+  }
 
   async function createEndpoint() {
     setCreating(true);
@@ -98,6 +184,12 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
           eventType,
           isTest,
           sendDelayMinutes: delayMinutes,
+          duplicateWindowDays,
+          signatureRequired,
+          fieldMapping,
+          contactUpdateMode,
+          requireEmailConsent,
+          requireSmsConsent,
         }),
       });
       const json = await res.json();
@@ -105,6 +197,7 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
       setCreatedUrl(json.webhookUrl);
       setCreatedSecret(json.signingSecret ?? null);
       setShowCreate(false);
+      resetWizard();
       await load();
       if (json.endpoint?.id) void openDetail(json.endpoint.id);
     } catch (err) {
@@ -153,6 +246,22 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
     }
   }
 
+  async function resolveMatch(matchId: string, action: "link" | "skip", contactId?: string) {
+    setError(null);
+    try {
+      const res = await fetch("/api/integrations/webhooks/matches", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId, matchId, action, contactId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Resolve failed");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Resolve failed");
+    }
+  }
+
   async function copy(text: string) {
     try {
       await navigator.clipboard.writeText(text);
@@ -161,9 +270,17 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
     }
   }
 
+  const canNext =
+    wizardStep === 0
+      ? Boolean(name.trim() && campaignId)
+      : wizardStep === 1
+        ? Boolean(eventType)
+        : true;
+
   const endpoint = detail?.endpoint as Record<string, unknown> | undefined;
   const events = (detail?.events as Array<Record<string, unknown>>) ?? [];
   const sample = detail?.samplePayload as Record<string, unknown> | undefined;
+  const campaignName = campaigns.find((c) => c.id === campaignId)?.name ?? "—";
 
   return (
     <ModulePage>
@@ -174,10 +291,10 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
         actions={
           <button
             type="button"
-            onClick={() => setShowCreate(true)}
+            onClick={openWizard}
             className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-800 hover:bg-zinc-50"
           >
-            <Plus className="h-3.5 w-3.5" /> New webhook
+            <Plus className="h-3.5 w-3.5" /> New trigger
           </button>
         }
       />
@@ -210,72 +327,327 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
 
       {error ? <p className="mb-2 text-[12px] text-red-600">{error}</p> : null}
 
+      {matches.length > 0 ? (
+        <div className="mb-3 rounded-md border border-amber-200 bg-amber-50/60 p-3">
+          <p className="text-[13px] font-semibold text-amber-950">
+            Contact match review ({matches.length})
+          </p>
+          <p className="mt-0.5 text-[11px] text-amber-900/80">
+            These triggers matched more than one contact. Pick the right person before a review request is sent.
+          </p>
+          <ul className="mt-2 space-y-2">
+            {matches.map((m) => (
+              <li key={m.id} className="rounded border border-amber-200 bg-white px-2.5 py-2 text-[11px]">
+                <p className="font-medium text-zinc-900">
+                  {m.incoming.name || m.incoming.email || m.incoming.phone || "Incoming contact"}
+                </p>
+                <p className="text-zinc-600">{m.reason}</p>
+                <p className="mt-0.5 text-zinc-500">
+                  Incoming: {[m.incoming.externalId, m.incoming.email, m.incoming.phone]
+                    .filter(Boolean)
+                    .join(" · ") || "—"}
+                </p>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {(Array.isArray(m.candidates) ? m.candidates : []).map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] hover:bg-zinc-100"
+                      onClick={() => void resolveMatch(m.id, "link", c.id)}
+                    >
+                      Use {c.customerName || c.email || c.phone || c.id.slice(0, 8)}
+                      {c.matchVia ? ` (${c.matchVia})` : ""}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="rounded border border-zinc-200 px-2 py-1 text-[11px] text-zinc-600"
+                    onClick={() => void resolveMatch(m.id, "skip")}
+                  >
+                    Skip
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {showCreate ? (
         <div className="mb-3 rounded-md border border-zinc-200 bg-white p-3">
-          <p className="text-[13px] font-semibold text-zinc-900">Create webhook</p>
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            <label className="block text-[12px] sm:col-span-2">
-              <span className="text-zinc-500">Name</span>
-              <input
-                className="mt-0.5 w-full rounded border border-zinc-200 px-2 py-1.5 text-[13px]"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </label>
-            <label className="block text-[12px]">
-              <span className="text-zinc-500">Campaign</span>
-              <select
-                className="mt-0.5 w-full rounded border border-zinc-200 px-2 py-1.5 text-[13px]"
-                value={campaignId}
-                onChange={(e) => setCampaignId(e.target.value)}
-              >
-                {campaigns.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.status})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-[12px]">
-              <span className="text-zinc-500">Event type</span>
-              <select
-                className="mt-0.5 w-full rounded border border-zinc-200 px-2 py-1.5 text-[13px]"
-                value={eventType}
-                onChange={(e) => setEventType(e.target.value)}
-              >
-                <option value="service.completed">service.completed</option>
-                <option value="appointment.completed">appointment.completed</option>
-                <option value="invoice.paid">invoice.paid</option>
-                <option value="order.fulfilled">order.fulfilled</option>
-                <option value="contact.enroll">contact.enroll</option>
-              </select>
-            </label>
-            <label className="block text-[12px]">
-              <span className="text-zinc-500">Delay (minutes)</span>
-              <input
-                type="number"
-                className="mt-0.5 w-full rounded border border-zinc-200 px-2 py-1.5 text-[13px]"
-                value={delayMinutes}
-                onChange={(e) => setDelayMinutes(Number(e.target.value))}
-              />
-            </label>
-            <label className="flex items-center gap-2 pt-5 text-[12px] text-zinc-700">
-              <input type="checkbox" checked={isTest} onChange={(e) => setIsTest(e.target.checked)} />
-              Start in test mode (no real sends)
-            </label>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[13px] font-semibold text-zinc-900">Create Automatic Review Trigger</p>
+            <p className="text-[11px] text-zinc-500">
+              Step {wizardStep + 1} of {STEPS.length}: {STEPS[wizardStep]}
+            </p>
           </div>
-          <div className="mt-3 flex gap-2">
+          <div className="mt-2 flex gap-1">
+            {STEPS.map((label, i) => (
+              <div
+                key={label}
+                className={cn(
+                  "h-1 flex-1 rounded-full",
+                  i <= wizardStep ? "bg-zinc-900" : "bg-zinc-200"
+                )}
+              />
+            ))}
+          </div>
+
+          {wizardStep === 0 ? (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <label className="block text-[12px] sm:col-span-2">
+                <span className="text-zinc-500">Name</span>
+                <input
+                  className="mt-0.5 w-full rounded border border-zinc-200 px-2 py-1.5 text-[13px]"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </label>
+              <label className="block text-[12px] sm:col-span-2">
+                <span className="text-zinc-500">Review Campaign</span>
+                <select
+                  className="mt-0.5 w-full rounded border border-zinc-200 px-2 py-1.5 text-[13px]"
+                  value={campaignId}
+                  onChange={(e) => setCampaignId(e.target.value)}
+                >
+                  {campaigns.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.status})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          ) : null}
+
+          {wizardStep === 1 ? (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <label className="block text-[12px]">
+                <span className="text-zinc-500">Trigger event</span>
+                <select
+                  className="mt-0.5 w-full rounded border border-zinc-200 px-2 py-1.5 text-[13px]"
+                  value={eventType}
+                  onChange={(e) => setEventType(e.target.value)}
+                >
+                  <option value="service.completed">service.completed</option>
+                  <option value="appointment.completed">appointment.completed</option>
+                  <option value="invoice.paid">invoice.paid</option>
+                  <option value="order.fulfilled">order.fulfilled</option>
+                  <option value="contact.enroll">contact.enroll</option>
+                </select>
+              </label>
+              <label className="block text-[12px]">
+                <span className="text-zinc-500">Send delay (minutes)</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="mt-0.5 w-full rounded border border-zinc-200 px-2 py-1.5 text-[13px]"
+                  value={delayMinutes}
+                  onChange={(e) => setDelayMinutes(Number(e.target.value))}
+                />
+              </label>
+              <label className="block text-[12px]">
+                <span className="text-zinc-500">Duplicate window (days)</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="mt-0.5 w-full rounded border border-zinc-200 px-2 py-1.5 text-[13px]"
+                  value={duplicateWindowDays}
+                  onChange={(e) => setDuplicateWindowDays(Number(e.target.value))}
+                />
+              </label>
+              <label className="flex items-center gap-2 pt-5 text-[12px] text-zinc-700">
+                <input type="checkbox" checked={isTest} onChange={(e) => setIsTest(e.target.checked)} />
+                Start in test mode (no real sends)
+              </label>
+            </div>
+          ) : null}
+
+          {wizardStep === 2 ? (
+            <div className="mt-3 space-y-2">
+              <label className="block text-[12px]">
+                <span className="text-zinc-500">Paste a sample JSON payload (optional)</span>
+                <textarea
+                  className="mt-0.5 h-28 w-full rounded border border-zinc-200 px-2 py-1.5 font-mono text-[11px]"
+                  value={sampleJson}
+                  onChange={(e) => setSampleJson(e.target.value)}
+                  placeholder='{"customer":{"email":"a@b.com","phone":"+1555…"},"event_id":"job_1"}'
+                />
+              </label>
+              <button
+                type="button"
+                onClick={detectFromSample}
+                className="rounded border border-zinc-200 px-2.5 py-1 text-[11px] font-medium text-zinc-800 hover:bg-zinc-50"
+              >
+                Auto-detect field mapping
+              </button>
+              {sampleError ? <p className="text-[11px] text-amber-700">{sampleError}</p> : null}
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(
+                  [
+                    ["email", "Email path"],
+                    ["phone", "Phone path"],
+                    ["first_name", "First name path"],
+                    ["last_name", "Last name path"],
+                    ["name", "Full name path"],
+                    ["external_customer_id", "External customer id path"],
+                    ["event_id", "Event id path"],
+                  ] as Array<[keyof FieldMapping, string]>
+                ).map(([key, label]) => (
+                  <label key={key} className="block text-[12px]">
+                    <span className="text-zinc-500">{label}</span>
+                    <input
+                      className="mt-0.5 w-full rounded border border-zinc-200 px-2 py-1.5 font-mono text-[11px]"
+                      value={fieldMapping[key] ?? ""}
+                      onChange={(e) =>
+                        setFieldMapping((prev) => ({
+                          ...prev,
+                          [key]: e.target.value || undefined,
+                        }))
+                      }
+                      placeholder="e.g. data.client.email"
+                    />
+                  </label>
+                ))}
+              </div>
+              <label className="block text-[12px]">
+                <span className="text-zinc-500">Contact update mode</span>
+                <select
+                  className="mt-0.5 w-full rounded border border-zinc-200 px-2 py-1.5 text-[13px] sm:max-w-xs"
+                  value={contactUpdateMode}
+                  onChange={(e) => setContactUpdateMode(e.target.value)}
+                >
+                  <option value="upsert">Upsert (create or update)</option>
+                  <option value="create_only">Create only</option>
+                  <option value="update_only">Update only</option>
+                  <option value="skip_existing">Skip existing</option>
+                </select>
+              </label>
+              <div className="flex flex-wrap gap-4 text-[12px] text-zinc-700">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={requireEmailConsent}
+                    onChange={(e) => setRequireEmailConsent(e.target.checked)}
+                  />
+                  Require email consent
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={requireSmsConsent}
+                    onChange={(e) => setRequireSmsConsent(e.target.checked)}
+                  />
+                  Require SMS consent
+                </label>
+              </div>
+              {previewNormalized ? (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase text-zinc-500">Preview</p>
+                  <pre className="mt-1 max-h-36 overflow-auto rounded border border-zinc-100 bg-zinc-50 p-2 text-[10px] text-zinc-700">
+                    {JSON.stringify(previewNormalized.customer, null, 2)}
+                  </pre>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {wizardStep === 3 ? (
+            <div className="mt-3 space-y-2 text-[12px]">
+              <label className="flex cursor-pointer items-start gap-2 rounded border border-zinc-200 p-2.5">
+                <input
+                  type="radio"
+                  className="mt-0.5"
+                  checked={!signatureRequired}
+                  onChange={() => setSignatureRequired(false)}
+                />
+                <span>
+                  <span className="font-medium text-zinc-900">Simple URL token</span>
+                  <span className="mt-0.5 block text-zinc-500">
+                    Long unguessable URL. Best for Zapier / Make / n8n.
+                  </span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-2 rounded border border-zinc-200 p-2.5">
+                <input
+                  type="radio"
+                  className="mt-0.5"
+                  checked={signatureRequired}
+                  onChange={() => setSignatureRequired(true)}
+                />
+                <span>
+                  <span className="font-medium text-zinc-900">Signed requests (HMAC)</span>
+                  <span className="mt-0.5 block text-zinc-500">
+                    Require X-LSE-Timestamp + X-LSE-Signature. You&apos;ll get a signing secret once.
+                  </span>
+                </span>
+              </label>
+            </div>
+          ) : null}
+
+          {wizardStep === 4 ? (
+            <div className="mt-3 space-y-1.5 rounded border border-zinc-100 bg-zinc-50 px-3 py-2 text-[12px] text-zinc-700">
+              <p>
+                <span className="text-zinc-500">Name:</span> {name}
+              </p>
+              <p>
+                <span className="text-zinc-500">Campaign:</span> {campaignName}
+              </p>
+              <p>
+                <span className="text-zinc-500">Event:</span> {eventType} · delay {delayMinutes}m ·
+                duplicate {duplicateWindowDays}d
+              </p>
+              <p>
+                <span className="text-zinc-500">Mode:</span> {isTest ? "Test" : "Live"} ·{" "}
+                {signatureRequired ? "Signed" : "Simple URL"} · contacts {contactUpdateMode}
+              </p>
+              <p>
+                <span className="text-zinc-500">Mapped fields:</span>{" "}
+                {Object.keys(fieldMapping).length
+                  ? Object.keys(fieldMapping).join(", ")
+                  : "defaults / aliases"}
+              </p>
+              <p className="pt-1 text-[11px] text-zinc-500">
+                Creating activates the endpoint. Copy the URL on the next screen — it is shown only once.
+              </p>
+            </div>
+          ) : null}
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {wizardStep > 0 ? (
+              <button
+                type="button"
+                onClick={() => setWizardStep((s) => s - 1)}
+                className="rounded-md border border-zinc-200 px-3 py-1.5 text-[12px]"
+              >
+                Back
+              </button>
+            ) : null}
+            {wizardStep < STEPS.length - 1 ? (
+              <button
+                type="button"
+                disabled={!canNext}
+                onClick={() => setWizardStep((s) => s + 1)}
+                className="rounded-md bg-zinc-900 px-3 py-1.5 text-[12px] font-medium text-white disabled:opacity-50"
+              >
+                Continue
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={creating || !campaignId}
+                onClick={() => void createEndpoint()}
+                className="rounded-md bg-zinc-900 px-3 py-1.5 text-[12px] font-medium text-white disabled:opacity-50"
+              >
+                {creating ? "Creating…" : "Create & copy URL"}
+              </button>
+            )}
             <button
               type="button"
-              disabled={creating || !campaignId}
-              onClick={() => void createEndpoint()}
-              className="rounded-md bg-zinc-900 px-3 py-1.5 text-[12px] font-medium text-white disabled:opacity-50"
-            >
-              {creating ? "Creating…" : "Create & copy URL"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowCreate(false)}
+              onClick={() => {
+                setShowCreate(false);
+                resetWizard();
+              }}
               className="rounded-md border border-zinc-200 px-3 py-1.5 text-[12px]"
             >
               Cancel
@@ -349,7 +721,7 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
             ) : (
               <tr>
                 <td colSpan={5} className="px-2.5 py-6 text-center text-zinc-500">
-                  No webhooks yet. Create one to connect Jobber, Stripe, Zapier, Make, or n8n.
+                  No triggers yet. Create one to connect Jobber, Stripe, Zapier, Make, or n8n.
                 </td>
               </tr>
             )}
