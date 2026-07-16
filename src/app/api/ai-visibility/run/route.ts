@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { hasFeature, PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
+import { assertRateLimit } from "@/lib/security/rate-limit";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 
 export async function POST(request: Request) {
   let reserved = false;
@@ -19,6 +21,20 @@ export async function POST(request: Request) {
     }
 
     const auth = await requireBusinessAccess(businessId);
+    const rate = assertRateLimit({
+      key: `ai-visibility:${auth.organizationId}`,
+      maxPerWindow: 30,
+      windowMs: 60_000,
+    });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rate.retryAfterMs / 1000)) },
+        }
+      );
+    }
     if (!(await hasFeature(auth.organizationId, "ai_visibility"))) {
       return NextResponse.json({ error: "AI Visibility is not included in your plan." }, { status: 403 });
     }
@@ -69,7 +85,6 @@ export async function POST(request: Request) {
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
-    const message = err instanceof Error ? err.message : "AI visibility check failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "AI visibility check failed");
   }
 }

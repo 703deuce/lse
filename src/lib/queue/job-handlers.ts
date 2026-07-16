@@ -44,7 +44,7 @@ export type JobHandlerResult = {
 };
 
 const PERMANENT_PATTERN =
-  /not found|required|invalid|access denied|not included|unauthorized|unsupported|disabled|incomplete/i;
+  /not found|required|invalid|access denied|tenant mismatch|not included|unauthorized|unsupported|disabled|incomplete/i;
 
 export function jobTypeToQueue(jobType: string): QueueName {
   switch (jobType) {
@@ -134,6 +134,7 @@ export async function executeJobType(
         const businessId = String(payload.businessId ?? "");
         const organizationId = String(payload.organizationId ?? "");
         if (!businessId || !organizationId) return permanent("keyword_check payload incomplete");
+        await requireBusinessOrg(businessId, organizationId);
         const { runKeywordChecks } = await import("@/lib/keyword-tracker/engine");
         await runKeywordChecks({
           businessId,
@@ -148,6 +149,7 @@ export async function executeJobType(
         const businessId = String(payload.businessId ?? "");
         const organizationId = String(payload.organizationId ?? "");
         if (!businessId || !organizationId) return permanent("keyword_volume payload incomplete");
+        await requireBusinessOrg(businessId, organizationId);
         const { refreshKeywordVolumes } = await import("@/lib/keyword-tracker/engine");
         await refreshKeywordVolumes({
           businessId,
@@ -168,6 +170,7 @@ export async function executeJobType(
           return permanent("send_notification requires toEmail, subject, textBody");
         }
         if (!organizationId) return permanent("send_notification requires organizationId");
+        if (businessId) await requireBusinessOrg(businessId, organizationId);
         const { sendBrevoEmail } = await import("@/lib/reputation/brevo");
         const { isOutboundPaused } = await import("@/lib/auth/entitlements");
         if (await isOutboundPaused(organizationId)) {
@@ -190,11 +193,14 @@ export async function executeJobType(
         if (!uploadId || !businessId || !organizationId) {
           return permanent("import_contacts payload incomplete");
         }
+        await requireBusinessOrg(businessId, organizationId);
         const supabase = createServiceClient();
         const { data: upload } = await supabase
           .from("review_request_uploads")
           .update({ status: "running", started_at: new Date().toISOString() })
           .eq("id", uploadId)
+          .eq("business_id", businessId)
+          .eq("organization_id", organizationId)
           .in("status", ["queued", "running"])
           .select("rows_json, mode")
           .maybeSingle();
@@ -262,6 +268,7 @@ export async function executeJobType(
         const businessId = String(payload.businessId ?? "");
         const organizationId = String(payload.organizationId ?? "");
         if (!businessId || !organizationId) return permanent("local_trust payload incomplete");
+        await requireBusinessOrg(businessId, organizationId);
         await runLocalTrustFinder({
           businessId,
           organizationId,
@@ -276,6 +283,7 @@ export async function executeJobType(
         const businessId = String(payload.businessId ?? "");
         const organizationId = String(payload.organizationId ?? "");
         if (!businessId || !organizationId) return permanent("backlink_gap payload incomplete");
+        await requireBusinessOrg(businessId, organizationId);
         const result = await runBacklinkGap({
           businessId,
           organizationId,
@@ -300,6 +308,7 @@ export async function executeJobType(
         const businessId = String(payload.businessId ?? "");
         const organizationId = String(payload.organizationId ?? "");
         if (!businessId || !organizationId) return permanent("ai_visibility payload incomplete");
+        await requireBusinessOrg(businessId, organizationId);
         await runAiVisibilityCheck({
           businessId,
           organizationId,
@@ -314,6 +323,7 @@ export async function executeJobType(
         const businessId = String(payload.businessId ?? "");
         const organizationId = String(payload.organizationId ?? "");
         if (!businessId || !organizationId) return permanent("citation_audit payload incomplete");
+        await requireBusinessOrg(businessId, organizationId);
         await runCitationAudit({
           businessId,
           organizationId,
@@ -328,6 +338,7 @@ export async function executeJobType(
         const businessId = String(payload.businessId ?? "");
         const organizationId = String(payload.organizationId ?? "");
         if (!businessId || !organizationId) return permanent("reputation_audit payload incomplete");
+        await requireBusinessOrg(businessId, organizationId);
         await runReputationAudit({
           businessId,
           organizationId,
@@ -343,6 +354,7 @@ export async function executeJobType(
         const businessId = String(payload.businessId ?? "");
         const organizationId = String(payload.organizationId ?? "");
         if (!businessId || !organizationId) return permanent("growth_audit payload incomplete");
+        await requireBusinessOrg(businessId, organizationId);
         await runGrowthAudit({
           businessId,
           organizationId,
@@ -359,6 +371,7 @@ export async function executeJobType(
         if (!growthRunId || !businessId || !organizationId) {
           return permanent("growth_audit_extended payload incomplete");
         }
+        await requireBusinessOrg(businessId, organizationId);
         await runExtendedModulesInBackground({ growthRunId, businessId, organizationId });
         return { ok: true };
       }
@@ -366,6 +379,7 @@ export async function executeJobType(
         const businessId = String(payload.businessId ?? "");
         const organizationId = String(payload.organizationId ?? "");
         if (!businessId || !organizationId) return permanent("review_momentum payload incomplete");
+        await requireBusinessOrg(businessId, organizationId);
         await runReviewMomentum({
           businessId,
           organizationId,
@@ -410,6 +424,9 @@ export async function executeJobType(
       case "generate_report": {
         const businessId = String(payload.businessId ?? "");
         if (!businessId) return permanent("generate_report payload incomplete");
+        const organizationId = await resolveOrgId(payload);
+        if (!organizationId) return permanent("generate_report organization not found");
+        await requireBusinessOrg(businessId, organizationId);
         const ledgerJobId =
           typeof payload.ledgerJobId === "string" ? payload.ledgerJobId : undefined;
         const artifactKind = optionalString(payload.artifactKind);
@@ -585,16 +602,48 @@ function optionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.length ? value : undefined;
 }
 
+/**
+ * Resolve organization from the business row in Postgres — never trust payload alone.
+ * When both businessId and organizationId are present, they must match.
+ */
 async function resolveOrgId(payload: JobHandlerPayload): Promise<string | undefined> {
+  if (typeof payload.businessId === "string" && payload.businessId) {
+    const supabase = createServiceClient();
+    const { data: biz } = await supabase
+      .from("businesses")
+      .select("organization_id")
+      .eq("id", payload.businessId)
+      .maybeSingle();
+    const dbOrg = (biz?.organization_id as string | undefined) ?? undefined;
+    if (!dbOrg) return undefined;
+    if (
+      typeof payload.organizationId === "string" &&
+      payload.organizationId &&
+      payload.organizationId !== dbOrg
+    ) {
+      throw new Error("Tenant mismatch: business does not belong to organization");
+    }
+    return dbOrg;
+  }
   if (typeof payload.organizationId === "string" && payload.organizationId) {
     return payload.organizationId;
   }
-  if (typeof payload.businessId !== "string" || !payload.businessId) return undefined;
+  return undefined;
+}
+
+/** Require business∈organization from DB before expensive or side-effecting work. */
+async function requireBusinessOrg(
+  businessId: string,
+  organizationId: string
+): Promise<{ businessId: string; organizationId: string }> {
   const supabase = createServiceClient();
   const { data: biz } = await supabase
     .from("businesses")
-    .select("organization_id")
-    .eq("id", payload.businessId)
+    .select("id, organization_id")
+    .eq("id", businessId)
     .maybeSingle();
-  return (biz?.organization_id as string | undefined) ?? undefined;
+  if (!biz || biz.organization_id !== organizationId) {
+    throw new Error("Tenant mismatch: business does not belong to organization");
+  }
+  return { businessId, organizationId: biz.organization_id as string };
 }

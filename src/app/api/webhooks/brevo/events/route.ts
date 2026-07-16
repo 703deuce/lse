@@ -5,20 +5,14 @@ import {
 } from "@/lib/reputation/brevo-events";
 import { logger } from "@/lib/observability/logger";
 import { claimProviderWebhookEvent } from "@/lib/integrations/provider-webhook-dedupe";
+import { authorizeHeaderSecret } from "@/lib/security/secrets";
 
-function verifyWebhookToken(request: Request): boolean {
+export async function POST(request: Request) {
   const secret =
     process.env.BREVO_EVENTS_WEBHOOK_SECRET?.trim() ||
     process.env.BREVO_INBOUND_WEBHOOK_SECRET?.trim();
-  if (!secret) return process.env.NODE_ENV !== "production";
-  const url = new URL(request.url);
-  const header = request.headers.get("x-brevo-token") ?? request.headers.get("authorization");
-  if (header === secret || header === `Bearer ${secret}`) return true;
-  return url.searchParams.get("token") === secret;
-}
-
-export async function POST(request: Request) {
-  if (!verifyWebhookToken(request)) {
+  const authz = authorizeHeaderSecret(request, secret);
+  if (!authz.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

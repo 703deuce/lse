@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { getDevDefaultAppPath, isDevBypassEnabled } from "@/lib/auth/dev";
 import { REQUEST_ID_HEADER, resolveRequestId } from "@/lib/observability/request-id";
+import { isCsrfExemptPath, isSameOriginMutation } from "@/lib/security/csrf";
 
 const PUBLIC_PREFIXES = [
   "/sign-in",
@@ -46,7 +47,23 @@ export async function middleware(request: NextRequest) {
     return denied;
   }
 
-  if (isPublicPath(pathname) || pathname.startsWith("/api/")) {
+  if (pathname.startsWith("/api/")) {
+    if (
+      !isCsrfExemptPath(pathname) &&
+      !isSameOriginMutation({
+        method: request.method,
+        url: request.url,
+        headers: request.headers,
+      })
+    ) {
+      const denied = NextResponse.json({ error: "Invalid origin" }, { status: 403 });
+      denied.headers.set(REQUEST_ID_HEADER, requestId);
+      return denied;
+    }
+    return nextWithRequestId(request, requestId);
+  }
+
+  if (isPublicPath(pathname)) {
     return nextWithRequestId(request, requestId);
   }
 
