@@ -77,4 +77,13 @@ describe("webhook field mapping", () => {
     assert.equal(n.customer.external_id, "crm_99");
     assert.equal(n.event_id, "job_55");
   });
+
+  it("does not treat bare id as event_id", () => {
+    const n = applyFieldMapping(
+      { id: "contact_1", customer: { email: "a@b.com" } },
+      {},
+      { eventType: "service.completed" }
+    );
+    assert.equal(n.event_id, null);
+  });
 });

@@ -107,13 +107,18 @@ export async function attributeRecentReviewsForBusiness(params: {
             .trim()
             .toLowerCase();
           if (reviewerName && (reviewerName === full || reviewerName === alt) && reviewerName.length > 2) {
-            // Unique name check among campaign recipients
-            const { count } = await supabase
+            // Unique name among campaign recipients (full_name OR first+last).
+            const { data: namePeers } = await supabase
               .from("review_request_recipients")
-              .select("id", { count: "exact", head: true })
+              .select("id, first_name, last_name, full_name")
               .eq("campaign_id", campaign.id)
-              .ilike("full_name", reviewerName);
-            hasApprovedIdentifier = (count ?? 0) <= 1;
+              .limit(500);
+            const matches = (namePeers ?? []).filter((r) => {
+              const f = [r.first_name, r.last_name].filter(Boolean).join(" ").trim().toLowerCase();
+              const a = String(r.full_name ?? "").trim().toLowerCase();
+              return reviewerName === f || reviewerName === a;
+            });
+            hasApprovedIdentifier = matches.length === 1;
           }
         }
 

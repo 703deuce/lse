@@ -54,8 +54,12 @@ export function ReviewRequestRepliesPanel({
   showViewAll?: boolean;
   businessId?: string;
 }) {
-  const [filter, setFilter] = useState<"all" | "replied" | "interested" | "not_interested">("all");
-  const filtered = replies;
+  const [filter, setFilter] = useState<"all" | "email" | "sms">("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const filtered =
+    filter === "all"
+      ? replies
+      : replies.filter((r) => String(r.channel).toLowerCase() === filter);
 
   if (replies.length === 0) {
     return (
@@ -72,9 +76,8 @@ export function ReviewRequestRepliesPanel({
           {(
             [
               { id: "all" as const, label: "All" },
-              { id: "replied" as const, label: "Replied" },
-              { id: "interested" as const, label: "Interested" },
-              { id: "not_interested" as const, label: "Not interested" },
+              { id: "email" as const, label: "Email" },
+              { id: "sms" as const, label: "SMS" },
             ] as const
           ).map((tab) => (
             <button
@@ -121,10 +124,18 @@ export function ReviewRequestRepliesPanel({
                     <span className="shrink-0 text-[10px] text-zinc-400">{timeAgo(reply.created_at)}</span>
                   </div>
                   {reply.reply_body && (
-                    <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-zinc-500">
+                    <p
+                      className={cn(
+                        "mt-0.5 text-xs leading-relaxed text-zinc-500",
+                        expandedId === reply.id ? "whitespace-pre-wrap" : "line-clamp-2"
+                      )}
+                    >
                       {reply.reply_body}
                     </p>
                   )}
+                  {expandedId === reply.id && reply.subject ? (
+                    <p className="mt-1 text-[11px] text-zinc-400">Subject: {reply.subject}</p>
+                  ) : null}
                   <div className="mt-1.5 flex items-center justify-between gap-2">
                     <span
                       className={cn(
@@ -139,8 +150,11 @@ export function ReviewRequestRepliesPanel({
                     <button
                       type="button"
                       className="text-[10px] font-medium text-emerald-700 hover:underline"
+                      onClick={() =>
+                        setExpandedId((id) => (id === reply.id ? null : reply.id))
+                      }
                     >
-                      View
+                      {expandedId === reply.id ? "Hide" : "View"}
                     </button>
                   </div>
                 </div>

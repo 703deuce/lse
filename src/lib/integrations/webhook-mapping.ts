@@ -117,7 +117,7 @@ export function applyFieldMapping(
 
   return {
     event_id:
-      asString(pick(m.event_id, "event_id", "eventId", "id")) ??
+      asString(pick(m.event_id, "event_id", "eventId")) ??
       asString(transactionObj.external_id) ??
       null,
     event_type:
@@ -269,7 +269,7 @@ export function detectFieldMapping(sample: unknown): FieldMapping {
     /client[_-]?id/i,
     /^contact[_-]?id$/i,
   ]);
-  pick("event_id", [/^event[_-]?id$/i, /^id$/i, /job[_-]?id/i, /invoice[_-]?id/i]);
+  pick("event_id", [/^event[_-]?id$/i, /job[_-]?id/i, /invoice[_-]?id/i, /order[_-]?id/i]);
   pick("event_type", [/^event[_-]?type$/i, /^type$/i, /trigger/i]);
   pick("occurred_at", [/occurred/i, /completed[_-]?at/i, /finished[_-]?at/i, /timestamp/i]);
   pick("completed_at", [/completed[_-]?at/i, /finished[_-]?at/i, /service[_-]?date/i]);

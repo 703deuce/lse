@@ -8,6 +8,7 @@ import {
 import { renderTemplate } from "@/lib/reputation/template-vars";
 import { buildTrackingUrl, generateTrackingToken } from "@/lib/reputation/tracking";
 import {
+  defaultReviewRequestSequence,
   indexAfterSend,
   interpretSequenceStep,
   normalizeSequenceSteps,
@@ -32,7 +33,7 @@ async function loadTemplate(
       .eq("id", templateId)
       .eq("business_id", businessId)
       .maybeSingle();
-    if (data) return data;
+    if (data && String(data.channel) === channel) return data;
   }
   const { data } = await supabase
     .from("review_request_templates")
@@ -153,12 +154,12 @@ async function enqueueSendForRecipient(params: {
   if (!link?.review_url) throw new Error("Missing Google review URL");
 
   const business = await getBusiness(businessId, organizationId);
-  const template = await loadTemplate(
-    supabase,
-    businessId,
-    channel,
-    (campaign.template_id as string | null) ?? null
-  );
+  const templateIdForChannel =
+    channel === "email"
+      ? ((campaign.email_template_id as string | null) ??
+        (campaign.template_id as string | null))
+      : ((campaign.template_id as string | null) ?? null);
+  const template = await loadTemplate(supabase, businessId, channel, templateIdForChannel);
 
   const token = generateTrackingToken();
   const trackingUrl = buildTrackingUrl(token);
@@ -250,7 +251,13 @@ export async function tryAdvanceRecipientAfterSend(params: {
     .maybeSingle();
   if (!campaign) return;
 
-  const steps = normalizeSequenceSteps(campaign.sequence_json);
+  const steps = normalizeSequenceSteps(
+    (campaign.sequence_json as SequenceStep[] | null)?.length
+      ? (campaign.sequence_json as SequenceStep[])
+      : defaultReviewRequestSequence(
+          (campaign.channel as "sms" | "email" | "both") || "sms"
+        )
+  );
   const sendIdx = steps.findIndex((s) => s.step_key === params.stepKey);
   if (sendIdx < 0) return;
 
@@ -433,7 +440,13 @@ export async function processSequenceWaits(limit = 50): Promise<number> {
       continue;
     }
 
-    const steps = normalizeSequenceSteps(campaign.sequence_json);
+    const steps = normalizeSequenceSteps(
+      (campaign.sequence_json as SequenceStep[] | null)?.length
+        ? (campaign.sequence_json as SequenceStep[])
+        : defaultReviewRequestSequence(
+            (campaign.channel as "sms" | "email" | "both") || "sms"
+          )
+    );
     // After wait completes, advance past the wait step (or end if wait was last).
     const waitIdx = Number(claimed.current_step ?? 0);
     const waitStep = steps[waitIdx];

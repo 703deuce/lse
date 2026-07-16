@@ -33,13 +33,22 @@ async function reclaimStaleSending(
   const staleBefore = new Date(now.getTime() - SENDING_STALE_MS).toISOString();
 
   // Provider succeeded but DB never flipped to sent — mark sent instead of requeueing
-  // (avoids double-send).
-  await supabase
+  // (avoids double-send), then advance sequence so drips don't stall.
+  const { data: reclaimed } = await supabase
     .from("review_request_messages")
     .update({ status: "sent", sent_at: now.toISOString(), updated_at: now.toISOString() })
     .eq("status", "sending")
     .lt("updated_at", staleBefore)
-    .not("provider_message_id", "is", null);
+    .not("provider_message_id", "is", null)
+    .select("id, recipient_id, step_key");
+
+  for (const msg of reclaimed ?? []) {
+    await tryAdvanceRecipientAfterSend({
+      supabase,
+      recipientId: String(msg.recipient_id),
+      stepKey: String(msg.step_key ?? "initial"),
+    }).catch(() => undefined);
+  }
 
   // Truly abandoned mid-flight with no provider confirmation — safe to retry.
   await supabase
@@ -76,6 +85,15 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
   for (const campaign of campaigns) {
     // Billing / add-on guard — pause outbound rather than send while ineligible.
     if (!(await hasEntitlement(campaign.organization_id, "review_campaigns"))) {
+      await supabase
+        .from("review_request_campaigns")
+        .update({
+          status: "paused",
+          auto_pause_reason: "entitlement_missing",
+          updated_at: now.toISOString(),
+        })
+        .eq("id", campaign.id)
+        .in("status", ["active", "scheduled"]);
       continue;
     }
     if (!(await isBillingHealthy(campaign.organization_id))) {
@@ -224,20 +242,28 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
         if ((channel === "sms" || channel === "both" || !channel) && recipient.phone) {
           const { data } = await supabase
             .from("review_request_suppression")
-            .select("id")
+            .select("id, expires_at")
             .eq("business_id", campaign.business_id)
             .eq("phone", recipient.phone)
-            .limit(1);
-          suppressed = Boolean(data?.length);
+            .limit(5);
+          suppressed = Boolean(
+            (data ?? []).some(
+              (s) => !s.expires_at || new Date(String(s.expires_at)).getTime() > Date.now()
+            )
+          );
         }
         if (!suppressed && (channel === "email" || channel === "both" || !channel) && recipient.email) {
           const { data } = await supabase
             .from("review_request_suppression")
-            .select("id")
+            .select("id, expires_at")
             .eq("business_id", campaign.business_id)
             .eq("email", recipient.email.toLowerCase())
-            .limit(1);
-          suppressed = Boolean(data?.length);
+            .limit(5);
+          suppressed = Boolean(
+            (data ?? []).some(
+              (s) => !s.expires_at || new Date(String(s.expires_at)).getTime() > Date.now()
+            )
+          );
         }
         if (suppressed) {
           await supabase
@@ -276,7 +302,7 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
               updated_at: claimTs,
             })
             .eq("id", campaign.id)
-            .eq("status", "active");
+            .in("status", ["active", "scheduled"]);
           logger.warn("campaign_paused_plan_limit", {
             campaignId: campaign.id,
             businessId: campaign.business_id,

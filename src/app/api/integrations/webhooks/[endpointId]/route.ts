@@ -24,7 +24,7 @@ async function authEndpoint(request: Request, endpointId: string) {
   if (!endpoint) throw new Error("Endpoint not found");
   const endpointBusiness =
     endpoint.business_id ?? endpoint.default_business_id ?? null;
-  if (endpointBusiness && endpointBusiness !== businessId) {
+  if (!endpointBusiness || endpointBusiness !== businessId) {
     throw new Error("Endpoint not found");
   }
   return { access, endpoint, businessId };
@@ -110,7 +110,7 @@ export async function PATCH(
 ) {
   try {
     const { endpointId } = await params;
-    const { access } = await authEndpoint(request, endpointId);
+    const { access, endpoint } = await authEndpoint(request, endpointId);
     const body = (await request.json()) as {
       action?: string;
       name?: string;
@@ -147,6 +147,32 @@ export async function PATCH(
         endpointId,
       });
       return NextResponse.json({ ok: true });
+    }
+
+    // Promoting to live requires a healthy campaign target.
+    if (body.isTest === false) {
+      const campaignId = endpoint.campaign_id ?? endpoint.default_campaign_id;
+      if (!campaignId) {
+        return NextResponse.json(
+          { error: "Assign an active campaign before promoting to live" },
+          { status: 400 }
+        );
+      }
+      const supabase = createServiceClient();
+      const { data: campaign } = await supabase
+        .from("review_request_campaigns")
+        .select("id, status")
+        .eq("id", campaignId)
+        .eq("organization_id", access.organizationId)
+        .maybeSingle();
+      if (!campaign || !["active", "scheduled"].includes(String(campaign.status))) {
+        return NextResponse.json(
+          {
+            error: `Campaign must be active or scheduled before going live (currently ${campaign?.status ?? "missing"}).`,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const updated = await updateWebhookEndpoint({

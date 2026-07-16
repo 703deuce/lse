@@ -101,27 +101,38 @@ export async function applyEmailUnsubscribe(messageId: string): Promise<{
     reason: "email_unsubscribe",
   });
 
-  // Only cancel future/in-flight sends — keep delivered/sent history intact for metrics.
+  // Email unsubscribe must not kill SMS — only cancel email channel queue.
   await supabase
     .from("review_request_messages")
     .update({ status: "opted_out", updated_at: now })
     .eq("recipient_id", message.recipient_id)
+    .eq("channel", "email")
     .in("status", ["queued", "sending"]);
-
-  await supabase
-    .from("review_request_recipients")
-    .update({
-      workflow_status: "opted_out",
-      next_action_at: null,
-      updated_at: now,
-    })
-    .eq("id", message.recipient_id);
 
   await supabase
     .from("review_request_contacts")
     .update({ email_unsubscribed: true, updated_at: now })
     .eq("business_id", message.business_id)
     .eq("email_normalized", email);
+
+  // If SMS still has open work, keep the workflow alive for SMS only.
+  const { count: openSms } = await supabase
+    .from("review_request_messages")
+    .select("id", { count: "exact", head: true })
+    .eq("recipient_id", message.recipient_id)
+    .eq("channel", "sms")
+    .in("status", ["queued", "sending"]);
+
+  if ((openSms ?? 0) === 0) {
+    await supabase
+      .from("review_request_recipients")
+      .update({
+        workflow_status: "opted_out",
+        next_action_at: null,
+        updated_at: now,
+      })
+      .eq("id", message.recipient_id);
+  }
 
   return { ok: true };
 }

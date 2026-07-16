@@ -67,22 +67,19 @@ export async function PATCH(
     await requireEntitlement(auth.organizationId, "review_campaigns");
 
     if (action === "archive") {
+      const campaign = await updateCampaignStatus(
+        campaignId,
+        businessId,
+        "archived",
+        auth.organizationId
+      );
       const supabase = createServiceClient();
-      const { data, error } = await supabase
+      await supabase
         .from("review_request_campaigns")
-        .update({
-          status: "archived",
-          archived_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
+        .update({ archived_at: new Date().toISOString() })
         .eq("id", campaignId)
-        .eq("business_id", businessId)
-        .eq("organization_id", auth.organizationId)
-        .select("*")
-        .maybeSingle();
-      if (error) throw new Error(error.message);
-      if (!data) return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
-      return NextResponse.json({ campaign: data });
+        .eq("business_id", businessId);
+      return NextResponse.json({ campaign: { ...campaign, archived_at: new Date().toISOString() } });
     }
 
     const statusMap: Record<string, CampaignStatus> = {

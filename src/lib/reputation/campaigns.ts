@@ -99,7 +99,8 @@ async function loadTemplate(businessId: string, channel: "sms" | "email", templa
       .eq("id", templateId)
       .eq("business_id", businessId)
       .maybeSingle();
-    if (data) return data;
+    // Never cross channels — SMS id must not render as email body.
+    if (data && String(data.channel) === channel) return data;
   }
   const { data } = await supabase
     .from("review_request_templates")
@@ -187,6 +188,7 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
       status: input.status === "draft" ? "draft" : input.status === "active" ? "active" : "scheduled",
       channel: input.channel,
       template_id: input.templateId ?? null,
+      email_template_id: input.emailTemplateId ?? null,
       daily_send_limit: input.dailySendLimit,
       send_days: input.sendDays,
       send_window_start: input.sendWindowStart,
@@ -562,7 +564,7 @@ export async function getCampaignDetail(
   let recipQuery = supabase
     .from("review_request_recipients")
     .select(
-      "id, first_name, last_name, full_name, phone, email, status, skip_reason, workflow_status, current_step, replied_at, review_detected_at, created_at, updated_at"
+      "id, first_name, last_name, full_name, phone, email, status, skip_reason, workflow_status, current_step, replied_at, review_detected_at, review_attribution, created_at, updated_at"
     )
     .eq("campaign_id", campaignId)
     .eq("business_id", businessId)
@@ -861,9 +863,37 @@ export async function updateCampaignStatus(
   organizationId?: string
 ) {
   const supabase = createServiceClient();
+  const { data: before } = await supabase
+    .from("review_request_campaigns")
+    .select("status, started_at, consent_confirmed, sequence_json, channel")
+    .eq("id", campaignId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (!before) throw new Error("Campaign not found");
+
+  if (status === "active" && before.status === "draft") {
+    if (!before.consent_confirmed) {
+      throw new Error("Consent confirmation is required before starting a campaign.");
+    }
+    const sequence = normalizeSequenceSteps(
+      (before.sequence_json as SequenceStep[] | null)?.length
+        ? (before.sequence_json as SequenceStep[])
+        : defaultReviewRequestSequence(before.channel as CampaignChannel)
+    );
+    const seqErr = validateSequenceForLaunch(sequence);
+    if (seqErr) throw new Error(seqErr);
+  }
+
+  if (status === "active" && before.status === "archived") {
+    throw new Error("Archived campaigns cannot be resumed. Duplicate the campaign instead.");
+  }
+
   const patch: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
-  if (status === "active") patch.started_at = new Date().toISOString();
-  if (status === "completed" || status === "cancelled") {
+  // Only stamp started_at on first activation (preserve attribution window on resume).
+  if (status === "active" && !before.started_at) {
+    patch.started_at = new Date().toISOString();
+  }
+  if (status === "completed" || status === "cancelled" || status === "archived") {
     patch.completed_at = new Date().toISOString();
   }
   let query = supabase
@@ -876,7 +906,7 @@ export async function updateCampaignStatus(
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Campaign not found");
 
-  if (status === "cancelled") {
+  if (status === "cancelled" || status === "archived") {
     const now = new Date().toISOString();
     await supabase
       .from("review_request_messages")
@@ -941,6 +971,7 @@ export async function duplicateCampaign(campaignId: string, businessId: string, 
     name: `${orig.name} (copy)`,
     channel: orig.channel as CampaignChannel,
     templateId: orig.template_id,
+    emailTemplateId: orig.email_template_id ?? null,
     dailySendLimit: orig.daily_send_limit,
     sendDays: orig.send_days as number[],
     sendWindowStart: orig.send_window_start,
@@ -953,6 +984,12 @@ export async function duplicateCampaign(campaignId: string, businessId: string, 
     mapping: (upload?.mapping_json ?? {}) as Record<string, CsvMapTarget>,
     recipients,
     status: "draft",
+    sequence: normalizeSequenceSteps(
+      (orig.sequence_json as SequenceStep[] | null)?.length
+        ? (orig.sequence_json as SequenceStep[])
+        : defaultReviewRequestSequence(orig.channel as CampaignChannel)
+    ),
+    description: orig.description ?? null,
   });
 }
 
