@@ -62,6 +62,10 @@ export async function POST(request: Request) {
       successMode,
       sourceTemplateId,
       sourceTemplateVersion,
+      triggerType,
+      triggerConfig,
+      webhookEndpointId,
+      enrollmentSource,
     } = body as {
       businessId?: string;
       duplicateFrom?: string;
@@ -87,6 +91,10 @@ export async function POST(request: Request) {
       successMode?: CreateCampaignInput["successMode"];
       sourceTemplateId?: string | null;
       sourceTemplateVersion?: string | null;
+      triggerType?: CreateCampaignInput["triggerType"];
+      triggerConfig?: CreateCampaignInput["triggerConfig"];
+      webhookEndpointId?: string | null;
+      enrollmentSource?: CreateCampaignInput["enrollmentSource"];
     };
 
     if (!businessId) {
@@ -150,10 +158,31 @@ export async function POST(request: Request) {
       successMode,
       sourceTemplateId,
       sourceTemplateVersion,
+      triggerType,
+      triggerConfig,
+      webhookEndpointId,
+      enrollmentSource,
     };
 
     try {
       const result = await createReviewCampaign(input);
+      // Wire webhook endpoint → campaign for automatic triggers.
+      if (
+        (triggerType === "webhook" || result.campaign.trigger_type === "webhook") &&
+        webhookEndpointId
+      ) {
+        const supabase = createServiceClient();
+        await supabase
+          .from("integration_webhook_endpoints")
+          .update({
+            campaign_id: result.campaign.id,
+            default_campaign_id: result.campaign.id,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", webhookEndpointId)
+          .eq("business_id", businessId)
+          .eq("organization_id", auth.organizationId);
+      }
       return NextResponse.json(result);
     } catch (createErr) {
       if (shouldReserve) {

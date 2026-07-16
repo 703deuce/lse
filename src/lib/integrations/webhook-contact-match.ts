@@ -449,6 +449,9 @@ export async function resolveContactMatch(params: {
         },
         delayMinutes: Number(endpoint.send_delay_minutes ?? 0),
         duplicateProtectionDays: Number(endpoint.duplicate_window_days ?? 90),
+        enrollmentSource: "webhook",
+        sourceEventId: String(match.event_id),
+        occurredAt: normalized.occurred_at ?? null,
       });
       enrolled = !result.skipped && !result.alreadyEnrolled;
       await supabase

@@ -159,6 +159,7 @@ export async function dispatchAutomationWebhook(params: {
         campaignId,
         contact,
         delayMinutes: Number.isFinite(delayMinutes) ? delayMinutes : 0,
+        enrollmentSource: "api",
       });
       return {
         ok: true,

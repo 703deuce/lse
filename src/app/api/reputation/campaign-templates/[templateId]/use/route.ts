@@ -21,6 +21,9 @@ export async function POST(
       businessId?: string;
       name?: string;
       timezone?: string;
+      triggerType?: "manual" | "webhook" | "api";
+      triggerConfig?: Record<string, unknown>;
+      webhookEndpointId?: string | null;
     };
     if (!body.businessId) {
       return NextResponse.json({ error: "businessId required" }, { status: 400 });
@@ -53,6 +56,7 @@ export async function POST(
       );
     }
 
+    const triggerType = body.triggerType ?? "manual";
     const tz = body.timezone?.trim() || materialized.template.timezoneHint || "America/New_York";
     const result = await createReviewCampaign({
       organizationId: auth.organizationId,
@@ -77,7 +81,31 @@ export async function POST(
       successMode: materialized.successMode,
       sourceTemplateId: materialized.sourceTemplateId,
       sourceTemplateVersion: materialized.sourceTemplateVersion,
+      triggerType,
+      triggerConfig: {
+        eventType:
+          typeof body.triggerConfig?.eventType === "string"
+            ? body.triggerConfig.eventType
+            : "service.completed",
+        endpointId: body.webhookEndpointId ?? null,
+        allowManualEnrollment: true,
+      },
+      webhookEndpointId: body.webhookEndpointId ?? null,
     });
+
+    // Link webhook endpoint → campaign when creating from automatic trigger.
+    if (triggerType === "webhook" && body.webhookEndpointId) {
+      await supabase
+        .from("integration_webhook_endpoints")
+        .update({
+          campaign_id: result.campaign.id,
+          default_campaign_id: result.campaign.id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", body.webhookEndpointId)
+        .eq("business_id", body.businessId)
+        .eq("organization_id", auth.organizationId);
+    }
 
     return NextResponse.json({
       ok: true,

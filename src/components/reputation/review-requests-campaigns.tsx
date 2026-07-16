@@ -24,7 +24,27 @@ type CampaignRow = {
   failed: number;
   clicked: number;
   opted_out: number;
+  trigger_type?: string;
+  trigger_config?: { eventType?: string } | null;
+  enrollments_paused?: boolean;
 };
+
+function triggerBadge(c: CampaignRow) {
+  const t = c.trigger_type ?? "manual";
+  if (t === "webhook") {
+    const ev = c.trigger_config?.eventType || "service.completed";
+    return (
+      <span className="text-[11px] text-zinc-600" title={`Webhook — ${ev}`}>
+        Webhook
+        {c.enrollments_paused ? (
+          <span className="ml-1 text-amber-700">(paused)</span>
+        ) : null}
+      </span>
+    );
+  }
+  if (t === "api") return <span className="text-[11px] text-zinc-600">API</span>;
+  return <span className="text-[11px] text-zinc-600">Manual</span>;
+}
 
 function statusBadge(status: string) {
   const styles: Record<string, string> = {
@@ -152,6 +172,7 @@ export function ReviewRequestsCampaignsTable({
           <thead className="bg-zinc-50 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
             <tr>
               <th className="px-3.5 py-2">Campaign</th>
+              <th className="px-3.5 py-2">Trigger</th>
               <th className="px-3.5 py-2">Status</th>
               <th className="px-3.5 py-2">Channel</th>
               <th className="px-3.5 py-2 text-right">Recipients</th>
@@ -174,6 +195,7 @@ export function ReviewRequestsCampaignsTable({
                     {c.name}
                   </Link>
                 </td>
+                <td className="px-3.5 py-2">{triggerBadge(c)}</td>
                 <td className="px-3.5 py-2">{statusBadge(c.status)}</td>
                 <td className="px-3.5 py-2 capitalize text-zinc-600">{c.channel}</td>
                 <td className="px-3.5 py-2 text-right tabular-nums">{c.recipients_ready}</td>

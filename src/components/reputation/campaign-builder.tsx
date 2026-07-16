@@ -24,6 +24,11 @@ import {
   defaultReviewRequestSequence,
   type SequenceStep,
 } from "@/lib/reputation/sequence-engine";
+import {
+  triggerTimelineLabel,
+  type CampaignTriggerConfig,
+  type CampaignTriggerType,
+} from "@/lib/reputation/campaign-triggers";
 import { cn } from "@/lib/utils";
 
 const BUILDER_STEPS = [
@@ -88,9 +93,15 @@ function StepPill({
 export function CampaignBuilder({
   businessId,
   onComplete,
+  triggerType = "manual",
+  triggerConfig,
+  webhookEndpointId,
 }: {
   businessId: string;
   onComplete?: () => void;
+  triggerType?: CampaignTriggerType;
+  triggerConfig?: CampaignTriggerConfig;
+  webhookEndpointId?: string | null;
 }) {
   const [step, setStep] = useState(0);
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
@@ -243,16 +254,20 @@ export function CampaignBuilder({
       });
   }, [contacts, selectedContactIds, channel]);
 
+  const isAutomatic = triggerType === "webhook" || triggerType === "api";
+
   const canNext = (): boolean => {
     if (step === 0) return name.trim().length > 0;
     if (step === 1) {
+      // Webhook campaigns can activate with an empty audience (events enroll later).
+      if (isAutomatic) return true;
       if (audienceMode === "csv") return recipients.length > 0 && (summary?.ready ?? 0) > 0;
       return readyCount > 0;
     }
     if (step === 2) return Boolean(channel);
     if (step === 3) return sequence.some((s) => s.step_type.startsWith("send_"));
     if (step === 4) return true;
-    if (step === 5) return consent && readyCount > 0;
+    if (step === 5) return consent && (isAutomatic || readyCount > 0);
     return false;
   };
 
@@ -294,6 +309,10 @@ export function CampaignBuilder({
           recipients: payloadRecipients,
           sequence,
           status,
+          triggerType,
+          triggerConfig: triggerConfig ?? { allowManualEnrollment: true },
+          webhookEndpointId: webhookEndpointId ?? null,
+          enrollmentSource: audienceMode === "csv" ? "csv" : "contacts",
         }),
       });
       const json = await res.json();
@@ -386,6 +405,13 @@ export function CampaignBuilder({
 
       {step === 1 && (
         <div className="space-y-2">
+          {isAutomatic ? (
+            <p className="rounded-md border border-sky-100 bg-sky-50 px-2.5 py-2 text-[12px] text-sky-900">
+              This campaign uses an automatic trigger. You can skip audience selection and activate —
+              customers enroll when webhook events arrive. Optional: seed a few contacts below for a
+              test launch.
+            </p>
+          ) : null}
           <div className="flex gap-1">
             {(
               [
@@ -568,13 +594,23 @@ export function CampaignBuilder({
       {step === 3 && (
         <div className="space-y-2">
           <p className="text-[11px] text-zinc-500">
-            Ordered drip: initial send → wait → condition → reminder (max 2 reminders).
+            Timeline: Trigger → Wait → Message → Wait → Reminder → End.
             {channel === "both"
               ? " With SMS + email, each send wave delivers both channels (same step) when contacts exist."
               : channel === "sms"
                 ? " This campaign is SMS-only — email steps are ignored."
                 : " This campaign is email-only — SMS steps are ignored."}
           </p>
+          <div className="rounded-md border border-emerald-200 bg-emerald-50/50 px-2.5 py-2 text-[12px]">
+            <p className="font-semibold text-emerald-900">
+              Trigger · {triggerTimelineLabel(triggerType, triggerConfig)}
+            </p>
+            <p className="mt-0.5 text-[11px] text-emerald-800/80">
+              {isAutomatic
+                ? "Customers enter when this endpoint receives a valid event. Not a message step."
+                : "Contacts enter when selected, imported, or added by staff. Not a message step."}
+            </p>
+          </div>
           <ol className="space-y-1.5">
             {sequence.map((s, i) => (
               <li
@@ -701,10 +737,14 @@ export function CampaignBuilder({
           <div className="rounded-md border border-zinc-100 bg-zinc-50/60 p-2.5 space-y-1">
             <p className="font-semibold text-zinc-900">Review & launch</p>
             <p className="text-zinc-600">
-              <span className="font-medium text-zinc-800">{name}</span> ·{" "}
+              <span className="font-medium text-zinc-800">{name}</span> · Trigger:{" "}
+              {triggerTimelineLabel(triggerType, triggerConfig)} ·{" "}
               {channel === "both" ? "SMS + email" : channel === "sms" ? "SMS only" : "Email only"} ·{" "}
-              {readyCount} recipients · ~{messageEstimate} initial messages · {sequence.length}{" "}
-              sequence steps · ~{businessDays} business day(s) at {dailyLimit}/day
+              {isAutomatic && readyCount === 0
+                ? "no seeded recipients (webhook enrolls later)"
+                : `${readyCount} recipients`}{" "}
+              · ~{messageEstimate} initial messages · {sequence.length} sequence steps · ~
+              {businessDays} business day(s) at {dailyLimit}/day
             </p>
             {channel !== "email" && (
               <p className="text-[11px] text-amber-800">
@@ -785,7 +825,7 @@ export function CampaignBuilder({
               className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
             >
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              Launch campaign
+              {isAutomatic ? "Activate campaign" : "Launch campaign"}
             </button>
           </>
         )}
