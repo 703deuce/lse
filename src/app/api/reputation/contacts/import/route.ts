@@ -50,6 +50,40 @@ export async function GET(request: Request) {
       });
     }
 
+    // Compact single-upload status for adaptive polling (no full history list).
+    if (uploadId) {
+      const { data } = await supabase
+        .from("review_request_uploads")
+        .select(
+          "id, status, imported_rows, skipped_rows, failed_rows, total_rows, started_at, completed_at, created_at"
+        )
+        .eq("id", uploadId)
+        .eq("business_id", businessId)
+        .maybeSingle();
+      if (!data) return NextResponse.json({ error: "Import not found" }, { status: 404 });
+      const completed = Number(data.imported_rows ?? 0);
+      const failed = Number(data.failed_rows ?? 0);
+      const total = Number(data.total_rows ?? 0);
+      const version = Date.parse(String(data.completed_at ?? data.started_at ?? data.created_at ?? 0)) || 0;
+      return NextResponse.json({
+        jobId: data.id,
+        status: data.status,
+        progress: {
+          completed,
+          total,
+          failed,
+        },
+        completedUnits: completed,
+        totalUnits: total,
+        failedUnits: failed,
+        updatedAt: data.completed_at ?? data.started_at ?? data.created_at,
+        version,
+        imported: data.imported_rows,
+        skipped: data.skipped_rows,
+        failed: data.failed_rows,
+      });
+    }
+
     const { data: uploads } = await supabase
       .from("review_request_uploads")
       .select(

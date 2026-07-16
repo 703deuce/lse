@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useActiveJobStatus } from "@/components/jobs/use-active-job-status";
-import type { LightweightJobStatus } from "@/lib/jobs/active-job-status";
+import {
+  isTerminalJobStatus,
+  type LightweightJobStatus,
+} from "@/lib/jobs/active-job-status";
 
 type RunResult = {
   queued?: boolean;
@@ -44,14 +47,9 @@ export function useModuleJobRunner(options: Options = {}) {
 
   useEffect(() => {
     if (!jobId || !status) return;
-    const terminal =
-      status.status === "completed" ||
-      status.status === "failed" ||
-      status.status === "canceled" ||
-      status.status === "cancelled";
-    if (!terminal) return;
+    if (!isTerminalJobStatus(status.status)) return;
 
-    const ok = status.status === "completed";
+    const ok = status.status === "completed" || status.status === "complete";
     if (!ok) {
       setError(status.errorMessage ?? "Job failed");
     }

@@ -171,10 +171,15 @@ describe("schedule jitter", () => {
 describe("active job status helpers", () => {
   it("uses adaptive intervals and terminal detection", () => {
     const start = 1_000_000;
-    assert.equal(nextPollIntervalMs(start, start, start + 5_000), 1500);
-    assert.equal(nextPollIntervalMs(start, start, start + 90_000), 5000);
-    assert.ok(nextPollIntervalMs(start, start - 60_000, start + 200_000) >= 10_000);
+    // Schedule: 2s / 4s / 8s / 15s + jitter — assert bands, not exact ms.
+    const early = nextPollIntervalMs(start, start, start + 5_000);
+    assert.ok(early >= 500 && early <= 3000, `early=${early}`);
+    const mid = nextPollIntervalMs(start, start, start + 45_000);
+    assert.ok(mid >= 500 && mid <= 5500, `mid=${mid}`);
+    const late = nextPollIntervalMs(start, start, start + 200_000);
+    assert.ok(late >= 5000, `late=${late}`);
     assert.equal(isTerminalJobStatus("completed"), true);
+    assert.equal(isTerminalJobStatus("permanently_failed"), true);
     assert.equal(isTerminalJobStatus("provider_running"), false);
     assert.equal(derivePhase("queued"), "queued");
     assert.equal(derivePhase("failed"), "failed");

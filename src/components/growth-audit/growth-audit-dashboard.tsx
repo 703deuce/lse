@@ -20,6 +20,8 @@ import { ModulePage, AlertBanner } from "@/components/ui/design-system";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
+import { useActiveJobStatus } from "@/components/jobs/use-active-job-status";
+import { isTerminalJobStatus } from "@/lib/jobs/active-job-status";
 
 const LEGACY_TABS: Record<string, GrowthAuditTabId> = {
   "service-coverage": "coverage",
@@ -146,31 +148,44 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
     },
   });
 
-  // Extended phase / page-refresh mid-run: poll lightweight feature status (not full payload).
-  useEffect(() => {
-    const inProgress =
-      runStatus === "extended_running" ||
+  // Extended phase / page-refresh mid-run: shared adaptive poller (not full payload).
+  const featureInProgress =
+    !jobRunning &&
+    (runStatus === "extended_running" ||
       runStatus === "running" ||
       runStatus === "core_ready" ||
-      runStatus === "queued";
-    if (!inProgress || jobRunning) return;
-    const id = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/growth-audit/${businessId}/status`);
-        const json = await res.json();
-        if (!res.ok || !json.status) return;
-        setRunStatus(json.status);
-        setExtended(json.extended ?? {});
-        setProgressStage(json.progressStage);
-        if (json.status === "complete" || json.status === "failed" || json.status === "core_ready") {
-          void load();
-        }
-      } catch {
-        /* soft-fail poll */
-      }
-    }, 3000);
-    return () => clearInterval(id);
-  }, [runStatus, jobRunning, businessId, load]);
+      runStatus === "queued");
+
+  const { status: featurePoll } = useActiveJobStatus({
+    statusUrl: featureInProgress ? `/api/growth-audit/${businessId}/status` : null,
+    enabled: featureInProgress,
+    isTerminal: (s) => s === "complete" || s === "failed" || isTerminalJobStatus(s),
+    mapResponse: (json) => ({
+      jobId: String(json.runId ?? businessId),
+      status: String(json.status ?? "unknown"),
+      phase: "active",
+      progress: undefined,
+      updatedAt: (json.finishedAt as string | null) ?? null,
+      errorMessage: null,
+      result: json,
+    }),
+  });
+
+  useEffect(() => {
+    if (!featurePoll?.result || typeof featurePoll.result !== "object") return;
+    const json = featurePoll.result as {
+      status?: string;
+      extended?: ExtendedModuleStatus;
+      progressStage?: string | null;
+    };
+    if (!json.status) return;
+    setRunStatus(json.status);
+    setExtended(json.extended ?? {});
+    setProgressStage(json.progressStage ?? null);
+    if (json.status === "complete" || json.status === "failed" || json.status === "core_ready") {
+      void load();
+    }
+  }, [featurePoll, load]);
 
   async function runAudit() {
     try {

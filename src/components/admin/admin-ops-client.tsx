@@ -113,8 +113,19 @@ export function AdminOpsClient() {
 
   useEffect(() => {
     void refresh();
-    const id = setInterval(() => void loadOverview(), 15_000);
-    return () => clearInterval(id);
+    const tick = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      void loadOverview();
+    };
+    const id = setInterval(tick, 15_000);
+    const onVis = () => {
+      if (document.visibilityState === "visible") void loadOverview();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, [refresh, loadOverview]);
 
   async function act(jobId: string, action: "retry" | "cancel" | "reconcile-mismatch") {

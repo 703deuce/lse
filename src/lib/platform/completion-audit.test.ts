@@ -20,8 +20,11 @@ describe("platform completion audit invariants", () => {
     assert.equal(isTerminalJobStatus("failed"), true);
     assert.equal(isTerminalJobStatus("canceled"), true);
     assert.equal(isTerminalJobStatus("cancelled"), true);
+    assert.equal(isTerminalJobStatus("permanently_failed"), true);
+    assert.equal(isTerminalJobStatus("dead_letter"), true);
     assert.equal(isTerminalJobStatus("running"), false);
     assert.equal(isTerminalJobStatus("queued"), false);
+    assert.equal(isTerminalJobStatus("generating"), false);
   });
 
   it("keeps messaging send types off maps-scan queue", () => {

@@ -16,6 +16,8 @@ import {
   validateMappings,
   type CsvMapTarget,
 } from "@/lib/reputation/bulk-csv";
+import { useActiveJobStatus } from "@/components/jobs/use-active-job-status";
+import { isTerminalJobStatus } from "@/lib/jobs/active-job-status";
 import { cn } from "@/lib/utils";
 
 const STEPS = ["Upload", "Map columns", "Preview", "Import"] as const;
@@ -104,49 +106,59 @@ export function ContactsImportWizard({
     void loadHistory();
   }, [loadHistory]);
 
-  // Poll background import progress while queued/running.
+  const importUploadId = typeof result?.uploadId === "string" ? result.uploadId : null;
+  const importActive =
+    Boolean(importUploadId) &&
+    (result?.status === "queued" || result?.status === "running");
+
+  const { status: importPollStatus } = useActiveJobStatus({
+    statusUrl:
+      importActive && importUploadId
+        ? `/api/reputation/contacts/import?businessId=${encodeURIComponent(businessId)}&uploadId=${encodeURIComponent(importUploadId)}`
+        : null,
+    enabled: importActive,
+    isTerminal: (s) => isTerminalJobStatus(s),
+    mapResponse: (json) => ({
+      jobId: String(json.jobId ?? importUploadId ?? ""),
+      status: String(json.status ?? "unknown"),
+      phase: "active",
+      progress: {
+        completed: Number(json.imported ?? json.completedUnits ?? 0),
+        total: Number(json.totalUnits ?? 0),
+        failed: Number(json.failed ?? json.failedUnits ?? 0),
+      },
+      updatedAt: (json.updatedAt as string | null) ?? null,
+      errorMessage: null,
+      result: {
+        imported: json.imported,
+        skipped: json.skipped,
+        failed: json.failed,
+      },
+    }),
+  });
+
+  // Shared poller → local import result + history refresh on settle.
   useEffect(() => {
-    const uploadId = typeof result?.uploadId === "string" ? result.uploadId : null;
-    const status = String(result?.status ?? "");
-    if (!uploadId || (status !== "queued" && status !== "running")) return;
-
-    let cancelled = false;
-    const tick = async () => {
-      const res = await fetch(`/api/reputation/contacts/import?businessId=${businessId}`);
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || cancelled) return;
-      const rows = (json.imports ?? []) as ImportHistoryRow[];
-      setHistory(rows);
-      const mine = rows.find((h) => h.id === uploadId);
-      if (!mine) return;
-      if (mine.status === "completed" || mine.status === "failed") {
-        setResult({
-          status: mine.status,
-          uploadId: mine.id,
-          imported: mine.imported_rows,
-          skipped: mine.skipped_rows,
-          failed: mine.failed_rows,
-        });
-        onDone?.();
-      } else {
-        setResult((prev) => ({
-          ...(prev ?? {}),
-          status: mine.status,
-          uploadId: mine.id,
-          imported: mine.imported_rows,
-          skipped: mine.skipped_rows,
-          failed: mine.failed_rows,
-        }));
-      }
+    if (!importPollStatus || !importUploadId) return;
+    const s = importPollStatus.status;
+    const detail = (importPollStatus.result ?? {}) as {
+      imported?: number;
+      skipped?: number;
+      failed?: number;
     };
-
-    const id = window.setInterval(() => void tick(), 2000);
-    void tick();
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [businessId, result?.uploadId, result?.status, onDone]);
+    setResult((prev) => ({
+      ...(prev ?? {}),
+      status: s,
+      uploadId: importUploadId,
+      imported: detail.imported ?? importPollStatus.progress?.completed ?? prev?.imported,
+      failed: detail.failed ?? importPollStatus.progress?.failed ?? prev?.failed,
+      skipped: detail.skipped ?? prev?.skipped,
+    }));
+    if (s === "completed" || s === "failed") {
+      void loadHistory();
+      onDone?.();
+    }
+  }, [importPollStatus, importUploadId, loadHistory, onDone]);
 
   const sample = useMemo(() => csvRows.slice(0, 3), [csvRows]);
 
