@@ -14,6 +14,7 @@ import {
   Star,
   TrendingUp,
   Users,
+  Webhook,
 } from "lucide-react";
 
 export type SidebarNavChild = {
@@ -72,6 +73,7 @@ export function buildBusinessSidebarNav(businessId: string): {
         },
         { href: `${base}/contacts`, label: "Contacts", icon: Users },
         { href: `${base}/review-templates`, label: "Templates", icon: FileText },
+        { href: `${base}/integrations`, label: "Integrations", icon: Webhook },
         { href: `${base}/review-settings`, label: "Settings", icon: Settings2 },
       ],
       subLinks: [],

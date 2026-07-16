@@ -65,14 +65,23 @@ and prints the Brevo / Coolify URLs.
 After Coolify has the env + cron, and Twilio/Brevo point at the URLs above,
 campaign callbacks are live — no localhost tunneling required.
 
-## 5. Zapier / Make automation (tenant API keys)
+## 5. Automatic Review Triggers (preferred)
 
-Inbound automation webhook (Jobber, Stripe, Facebook Leads, etc.):
+Unique per-business incoming webhook (Zapier / Make / n8n):
+
+```
+POST https://app.localexpress.com/api/integrations/webhooks/incoming/{endpointToken}
+```
+
+Create under **Reviews → Integrations**. See `docs/INCOMING_WEBHOOKS.md`.
+Requires migration `050_integration_webhooks.sql`.
+
+## 6. Legacy API-key automation
 
 ```
 POST https://app.localexpress.com/api/webhooks/automation
 Authorization: Bearer lse_…
 ```
 
-Create keys in **Settings → Automations**. Full action catalog:
-`docs/AUTOMATION_WEBHOOKS.md`. Requires migration `049_organization_api_keys.sql`.
+Create keys in **Settings → Automations**. Catalog: `docs/AUTOMATION_WEBHOOKS.md`.
+Requires migration `049_organization_api_keys.sql`.

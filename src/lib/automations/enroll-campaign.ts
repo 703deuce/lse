@@ -77,6 +77,8 @@ export async function enrollContactInCampaign(params: {
   contact: AutomationContactInput;
   /** Minutes to delay first message relative to the normal schedule window. */
   delayMinutes?: number;
+  /** Override campaign duplicate_protection_days when set (e.g. webhook endpoint). */
+  duplicateProtectionDays?: number;
 }): Promise<{
   contactId: string;
   recipientId: string;
@@ -131,7 +133,9 @@ export async function enrollContactInCampaign(params: {
         notes: params.contact.notes ?? undefined,
       },
     ],
-    duplicateProtectionDays: Number(campaign.duplicate_protection_days ?? 90),
+    duplicateProtectionDays: Number(
+      params.duplicateProtectionDays ?? campaign.duplicate_protection_days ?? 90
+    ),
   });
   const row = validated[0]!;
   if (row.status !== "ready") {
