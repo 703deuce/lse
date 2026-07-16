@@ -12,6 +12,8 @@ type UsageResponse = {
   };
   usage: Record<string, number>;
   businessCount: number;
+  webhookEndpoints?: number;
+  webhookEventsMonth?: number;
 };
 
 function UsageRow({ label, used, limit }: { label: string; used: number; limit: number }) {

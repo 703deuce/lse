@@ -11,6 +11,14 @@ type Overview = {
   dbLimiter: { inFlight: number; waiting: number; max: number };
   jobCounts: Record<string, number>;
   providers: Array<{ provider: string; circuitOpen: boolean }>;
+  webhooks?: {
+    activeEndpoints: number;
+    events24h: number;
+    eventsMonth: number;
+    failed24h: number;
+    needsReview: number;
+    backlog: number;
+  };
   checkedAt: string;
 };
 
@@ -175,6 +183,23 @@ export function AdminOpsClient() {
             </p>
           </ContentCard>
         </div>
+      )}
+
+      {overview?.webhooks && (
+        <ContentCard>
+          <p className="text-xs uppercase tracking-wide text-zinc-500">
+            Automatic Review Triggers
+          </p>
+          <p className="mt-1 text-sm text-zinc-900">
+            {overview.webhooks.activeEndpoints} active endpoints ·{" "}
+            {overview.webhooks.events24h} events (24h) · {overview.webhooks.eventsMonth} this
+            month
+          </p>
+          <p className="mt-1 text-xs text-zinc-600">
+            failed 24h {overview.webhooks.failed24h} · needs review{" "}
+            {overview.webhooks.needsReview} · backlog {overview.webhooks.backlog}
+          </p>
+        </ContentCard>
       )}
 
       {overview && (

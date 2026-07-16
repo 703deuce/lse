@@ -113,11 +113,19 @@ export async function createWebhookEndpoint(input: {
   sendDelayMinutes?: number;
   duplicateWindowDays?: number;
   fieldMapping?: FieldMapping;
+  contactUpdateMode?: string;
+  requireEmailConsent?: boolean;
+  requireSmsConsent?: boolean;
   createdByUserId?: string | null;
 }): Promise<{ endpoint: WebhookEndpointRow; rawToken: string; signingSecret: string | null }> {
   const supabase = createServiceClient();
   const token = generateEndpointToken();
   const signingSecret = input.signatureRequired ? generateSigningSecret() : null;
+  const mode = ["upsert", "create_only", "update_only", "skip_existing"].includes(
+    String(input.contactUpdateMode ?? "")
+  )
+    ? String(input.contactUpdateMode)
+    : "upsert";
 
   const { data, error } = await supabase
     .from("integration_webhook_endpoints")
@@ -145,6 +153,9 @@ export async function createWebhookEndpoint(input: {
       send_delay_minutes: input.sendDelayMinutes ?? 0,
       duplicate_window_days: input.duplicateWindowDays ?? 90,
       field_mapping: input.fieldMapping ?? {},
+      contact_update_mode: mode,
+      require_email_consent: Boolean(input.requireEmailConsent),
+      require_sms_consent: Boolean(input.requireSmsConsent),
       is_test: input.isTest ?? true,
       is_active: true,
       created_by_user_id: input.createdByUserId ?? null,
