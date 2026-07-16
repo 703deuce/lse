@@ -58,6 +58,10 @@ export async function POST(request: Request) {
       status,
       sequence,
       description,
+      objective,
+      successMode,
+      sourceTemplateId,
+      sourceTemplateVersion,
     } = body as {
       businessId?: string;
       duplicateFrom?: string;
@@ -79,6 +83,10 @@ export async function POST(request: Request) {
       status?: "draft" | "scheduled" | "active";
       sequence?: CreateCampaignInput["sequence"];
       description?: string | null;
+      objective?: CreateCampaignInput["objective"];
+      successMode?: CreateCampaignInput["successMode"];
+      sourceTemplateId?: string | null;
+      sourceTemplateVersion?: string | null;
     };
 
     if (!businessId) {
@@ -138,6 +146,10 @@ export async function POST(request: Request) {
       status: launchStatus,
       sequence,
       description: description ?? null,
+      objective,
+      successMode,
+      sourceTemplateId,
+      sourceTemplateVersion,
     };
 
     try {

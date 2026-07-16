@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, Upload, UserPlus, FileText } from "lucide-react";
 import { ModulePage } from "@/components/ui/design-system";
@@ -8,6 +9,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ReviewRequestsCampaignsTable } from "@/components/reputation/review-requests-campaigns";
 import { ReviewRequestsPanel } from "@/components/reputation/review-requests-panel";
 import { CampaignBuilder } from "@/components/reputation/campaign-builder";
+import { CampaignTemplateGallery } from "@/components/reputation/campaign-template-gallery";
 import { cn } from "@/lib/utils";
 
 type CampaignSummary = {
@@ -30,9 +32,11 @@ function MicroStat({ label, value }: { label: string; value: string }) {
 }
 
 export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
+  const router = useRouter();
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [showBuilder, setShowBuilder] = useState(false);
+  const [showGallery, setShowGallery] = useState(true);
   const [builderTab, setBuilderTab] = useState<"bulk" | "send">("bulk");
   const [tableRefreshKey, setTableRefreshKey] = useState(0);
 
@@ -75,13 +79,24 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
           <button
             type="button"
             onClick={() => {
-              setBuilderTab("bulk");
-              setShowBuilder(true);
+              setShowGallery(true);
+              setShowBuilder(false);
             }}
             className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-emerald-500 sm:flex-none"
           >
             <Plus className="h-3.5 w-3.5" />
-            Create Campaign
+            New from template
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setBuilderTab("bulk");
+              setShowGallery(false);
+              setShowBuilder(true);
+            }}
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50 sm:flex-none"
+          >
+            Custom campaign
           </button>
           <Link
             href={`/businesses/${businessId}/contacts?import=1`}
@@ -123,6 +138,25 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
           </>
         )}
       </div>
+
+      {showGallery && !showBuilder ? (
+        <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-3">
+          <CampaignTemplateGallery
+            businessId={businessId}
+            onCustom={() => {
+              setShowGallery(false);
+              setBuilderTab("bulk");
+              setShowBuilder(true);
+            }}
+            onUsed={(campaignId) => {
+              setShowGallery(false);
+              setTableRefreshKey((k) => k + 1);
+              void load();
+              router.push(`/businesses/${businessId}/review-campaigns/${campaignId}`);
+            }}
+          />
+        </div>
+      ) : null}
 
       <div className="mt-4">
         <ReviewRequestsCampaignsTable businessId={businessId} refreshKey={tableRefreshKey} />

@@ -5,8 +5,9 @@ import {
   ymdInTimeZone,
   type ScheduleConfig,
 } from "@/lib/reputation/campaign-scheduler";
-import { renderTemplate } from "@/lib/reputation/template-vars";
+import { renderStepMessage, buildCampaignTemplateVars } from "@/lib/reputation/campaign-message-copy";
 import { buildTrackingUrl, generateTrackingToken } from "@/lib/reputation/tracking";
+import { buildUnsubscribeUrl } from "@/lib/reputation/unsubscribe";
 import {
   defaultReviewRequestSequence,
   indexAfterSend,
@@ -167,23 +168,29 @@ async function enqueueSendForRecipient(params: {
     (recipient.first_name as string | null)?.trim() ||
     (recipient.full_name as string | null)?.trim()?.split(/\s+/)[0] ||
     "there";
-  const vars = {
-    first_name: first,
-    full_name: (recipient.full_name as string | null) ?? first,
-    customer_name: first,
-    business_name: business?.name ?? "us",
-    review_link: trackingUrl,
-    service_type: (recipient.job_type as string | null) ?? "recent service",
+  const baseVars = {
+    firstName: first,
+    lastName: (recipient.last_name as string | null) ?? null,
+    fullName: (recipient.full_name as string | null) ?? first,
+    businessName: business?.name ?? "us",
+    reviewLink: trackingUrl,
+    serviceType: (recipient.job_type as string | null) ?? "recent service",
+    locationName: (business as { city?: string } | null)?.city ?? null,
+    unsubscribeLink:
+      "Reply STOP to opt out of SMS. Use the email unsubscribe link to stop emails.",
   };
+  const vars = buildCampaignTemplateVars(baseVars);
 
-  let subject: string | null = null;
-  let body: string;
-  if (channel === "sms") {
-    body = renderTemplate(template?.body ?? defaultSmsBody(), vars);
-  } else {
-    subject = renderTemplate(template?.subject ?? defaultEmailSubject(), vars);
-    body = renderTemplate(template?.body ?? defaultEmailBody(), vars);
-  }
+  let { subject, body } = renderStepMessage({
+    step,
+    channel,
+    vars,
+    fallbackSmsBody: defaultSmsBody(),
+    fallbackEmailSubject: defaultEmailSubject(),
+    fallbackEmailBody: defaultEmailBody(),
+    templateSubject: template?.subject ?? null,
+    templateBody: template?.body ?? null,
+  });
 
   const { data: inserted, error } = await supabase
     .from("review_request_messages")
@@ -205,6 +212,28 @@ async function enqueueSendForRecipient(params: {
     })
     .select("id")
     .maybeSingle();
+
+  if (inserted?.id && channel === "email") {
+    const unsub = buildUnsubscribeUrl(String(inserted.id));
+    if (unsub) {
+      const rendered = renderStepMessage({
+        step,
+        channel,
+        vars: buildCampaignTemplateVars({ ...baseVars, unsubscribeLink: unsub }),
+        fallbackSmsBody: defaultSmsBody(),
+        fallbackEmailSubject: defaultEmailSubject(),
+        fallbackEmailBody: defaultEmailBody(),
+        templateSubject: template?.subject ?? null,
+        templateBody: template?.body ?? null,
+      });
+      subject = rendered.subject;
+      body = rendered.body;
+      await supabase
+        .from("review_request_messages")
+        .update({ subject, message_body: body })
+        .eq("id", inserted.id);
+    }
+  }
 
   if (error) {
     // Unique idempotency race — treat as success.
@@ -432,9 +461,14 @@ export async function processSequenceWaits(limit = 50): Promise<number> {
       .in("status", ["active", "scheduled"])
       .maybeSingle();
     if (!campaign) {
+      // Campaign paused/draft/cancelled — clear due clock so we do not reclaim-loop.
       await supabase
         .from("review_request_recipients")
-        .update({ workflow_status: "waiting", updated_at: now })
+        .update({
+          workflow_status: "waiting",
+          next_action_at: null,
+          updated_at: now,
+        })
         .eq("id", claimed.id)
         .eq("workflow_status", "in_progress");
       continue;

@@ -79,8 +79,12 @@ describe("sequence engine", () => {
   it("rejects too many send reminders", () => {
     const steps = [
       ...defaultReviewRequestSequence("sms"),
-      { step_key: "extra", step_type: "send_sms" as const, config: {} },
+      { step_key: "extra1", step_type: "send_sms" as const, config: {} },
+      { step_key: "extra2", step_type: "send_sms" as const, config: {} },
+      { step_key: "extra3", step_type: "send_sms" as const, config: {} },
+      { step_key: "extra4", step_type: "send_sms" as const, config: {} },
     ];
+    // default has 3 sends; +4 = 7 > maxReminders(5)+1
     assert.ok(validateSequenceForLaunch(steps));
   });
 

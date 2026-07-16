@@ -28,12 +28,18 @@ export function validateReviewTemplateLanguage(body: string): string[] {
 
 export const TEMPLATE_TOKENS = [
   "first_name",
+  "last_name",
   "business_name",
   "review_link",
+  "review_button",
   "location_name",
   "full_name",
   "customer_name",
   "service_type",
+  "service_name",
+  "appointment_date",
+  "sender_name",
+  "unsubscribe_link",
 ] as const;
 
 export function findUnknownTemplateTokens(body: string): string[] {
