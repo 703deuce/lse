@@ -14,7 +14,8 @@ import { runReputationAudit } from "@/lib/reputation/engine";
 import { runGrowthAudit } from "@/lib/growth-audit/engine";
 import { runExtendedModulesInBackground } from "@/lib/growth-audit/background";
 import { runReviewMomentum } from "@/lib/reviews/momentum-engine";
-import { processCampaignMessages } from "@/lib/reputation/campaign-processor";
+import { enqueueDueCampaignMessages } from "@/lib/reputation/campaign-processor";
+import { sendCampaignMessageById } from "@/lib/reputation/campaign-message-send";
 import { processNewReviewAlerts } from "@/lib/reputation/review-alerts";
 import {
   runContactImport,
@@ -61,6 +62,10 @@ export function jobTypeToQueue(jobType: string): QueueName {
       return "review-import";
     case "campaign_send_batch":
       return "review-campaign";
+    case "send_campaign_email":
+      return "email-send";
+    case "send_campaign_sms":
+      return "sms-send";
     case "review_alert_scan":
     case "reputation_audit":
     case "review_momentum_run":
@@ -214,9 +219,19 @@ export async function executeJobType(
         return { ok: true };
       }
       case "campaign_send_batch": {
-        const limit = Number(payload.limit ?? 20);
-        await processCampaignMessages(Number.isFinite(limit) ? limit : 20);
+        // Orchestrator only — find due messages and enqueue email/sms jobs.
+        const limit = Number(payload.limit ?? 100);
+        await enqueueDueCampaignMessages(Number.isFinite(limit) ? limit : 100);
         return { ok: true };
+      }
+      case "send_campaign_email":
+      case "send_campaign_sms": {
+        const messageId = String(payload.messageId ?? payload.relatedResourceId ?? "");
+        if (!messageId) return permanent("Missing messageId");
+        const result = await sendCampaignMessageById(messageId);
+        if (result.ok) return { ok: true };
+        if (result.permanent) return permanent(result.error ?? "Send failed permanently");
+        return { ok: false, error: result.error ?? "Send failed" };
       }
       case "review_alert_scan": {
         const limit = Number(payload.limit ?? 15);

@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/context";
 import { isAdminEmail } from "@/lib/auth/admin";
-import { countJobsByStatus } from "@/lib/queue/ledger";
 import {
+  countCampaignMessagePipeline,
+  countJobsByQueueGroup,
+  countJobsByStatus,
+} from "@/lib/queue/ledger";
+import {
+  brevoMaxInFlight,
+  brevoStartRatePerSec,
   brightDataMaxInFlight,
   getQueueDriverName,
   getRedisUrl,
+  twilioMaxInFlight,
+  twilioStartRatePerSec,
 } from "@/lib/queue/config";
 import { getCacheDriverName } from "@/lib/cache/config";
 import { getLockDriverName } from "@/lib/locks";
@@ -95,8 +103,10 @@ export async function GET() {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
-    const [counts, redis, webhooks] = await Promise.all([
+    const [counts, queueGroups, campaignMessages, redis, webhooks] = await Promise.all([
       countJobsByStatus(),
+      countJobsByQueueGroup().catch(() => null),
+      countCampaignMessagePipeline().catch(() => null),
       pingRedis(),
       loadWebhookOpsMetrics().catch(() => null),
     ]);
@@ -114,8 +124,20 @@ export async function GET() {
       brightData: {
         maxInFlight: brightDataMaxInFlight(),
       },
+      messagingLimits: {
+        twilio: {
+          startRatePerSec: twilioStartRatePerSec(),
+          maxInFlight: twilioMaxInFlight(),
+        },
+        brevo: {
+          startRatePerSec: brevoStartRatePerSec(),
+          maxInFlight: brevoMaxInFlight(),
+        },
+      },
       dbLimiter: dbLimiterStats(),
       jobCounts: counts,
+      queueGroups,
+      campaignMessages,
       providers,
       webhooks,
       checkedAt: new Date().toISOString(),

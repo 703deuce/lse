@@ -140,6 +140,8 @@ function jobTypeToSummaryFeature(jobType: string): FeatureSummaryName | null {
     case "growth_audit_extended":
       return "growth_audit";
     case "campaign_send_batch":
+    case "send_campaign_email":
+    case "send_campaign_sms":
       return "reviews_campaign";
     default:
       return null;

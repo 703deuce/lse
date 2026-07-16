@@ -17,6 +17,8 @@ describe("mixed-load queue invariants", () => {
       maps_difficulty_run: "maps-scan",
       keyword_check: "maps-scan",
       campaign_send_batch: "review-campaign",
+      send_campaign_email: "email-send",
+      send_campaign_sms: "sms-send",
       import_contacts: "review-import",
       review_alert_scan: "review-monitor",
       backlink_gap_run: "backlink-gap",

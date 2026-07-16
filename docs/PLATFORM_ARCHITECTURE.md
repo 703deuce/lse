@@ -32,9 +32,11 @@ Physical queue names in code map to worker start commands:
 | --- | --- | --- |
 | maps.manual / maps.scheduled | `maps-scan` | `worker:maps` |
 | maps.retry | `maps-cell-retry` | `worker:maps` |
-| reviews.campaign.* | `review-campaign` | `worker:messaging` |
+| reviews.campaign.drain | `review-campaign` | `worker:messaging` |
+| reviews.campaign.email | `email-send` | `worker:messaging` |
+| reviews.campaign.sms | `sms-send` | `worker:messaging` |
 | contacts.import | `review-import` | `worker:messaging` |
-| reviews.monitor | `review-monitor` | `worker:intelligence` |
+| reviews.monitor | `review-monitor` | `worker:messaging` |
 | backlinks.analysis | `backlink-gap` | `worker:intelligence` |
 | local-trust.discovery | `local-trust` | `worker:intelligence` |
 | ai-visibility | `ai-visibility` | `worker:intelligence` |

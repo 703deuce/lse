@@ -39,13 +39,19 @@ type WorkerProfile = "maps" | "messaging" | "intelligence" | "reports" | "all";
 
 const PROFILE_QUEUES: Record<WorkerProfile, JobQueueName[]> = {
   maps: [JOB_QUEUES.MAPS_SCAN, JOB_QUEUES.MAPS_CELL_RETRY],
+  /**
+   * Messaging: campaign orchestrator + Brevo/Twilio senders + imports/alerts.
+   * Isolated from Maps so a large campaign cannot starve grid scans.
+   */
   messaging: [
     JOB_QUEUES.REVIEW_CAMPAIGN,
+    JOB_QUEUES.EMAIL_SEND,
+    JOB_QUEUES.SMS_SEND,
     JOB_QUEUES.REVIEW_IMPORT,
+    JOB_QUEUES.REVIEW_MONITOR,
     JOB_QUEUES.NOTIFICATIONS,
   ],
   intelligence: [
-    JOB_QUEUES.REVIEW_MONITOR,
     JOB_QUEUES.BACKLINK_GAP,
     JOB_QUEUES.LOCAL_TRUST,
     JOB_QUEUES.AI_VISIBILITY,

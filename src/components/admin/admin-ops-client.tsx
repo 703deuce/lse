@@ -4,12 +4,25 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ContentCard, btnSecondary } from "@/components/ui/design-system";
 
+type QueueGroupCounts = { pending: number; running: number; failed: number };
+
 type Overview = {
   drivers: { queue: string; cache: string; lock: string };
   redis: { configured: boolean; ok: boolean; latencyMs?: number; error?: string };
   brightData: { maxInFlight: number };
+  messagingLimits?: {
+    twilio: { startRatePerSec: number; maxInFlight: number };
+    brevo: { startRatePerSec: number; maxInFlight: number };
+  };
   dbLimiter: { inFlight: number; waiting: number; max: number };
   jobCounts: Record<string, number>;
+  queueGroups?: {
+    maps: QueueGroupCounts;
+    messaging: QueueGroupCounts;
+    reports: QueueGroupCounts;
+    maintenance: QueueGroupCounts;
+  } | null;
+  campaignMessages?: { queued: number; sending: number; failed: number } | null;
   providers: Array<{ provider: string; circuitOpen: boolean }>;
   webhooks?: {
     activeEndpoints: number;
@@ -183,6 +196,44 @@ export function AdminOpsClient() {
             </p>
           </ContentCard>
         </div>
+      )}
+
+      {overview?.queueGroups && (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {(
+            [
+              ["Maps", overview.queueGroups.maps],
+              ["Messaging", overview.queueGroups.messaging],
+              ["Reports", overview.queueGroups.reports],
+              ["Maintenance", overview.queueGroups.maintenance],
+            ] as const
+          ).map(([label, g]) => (
+            <ContentCard key={label}>
+              <p className="text-xs uppercase tracking-wide text-zinc-500">{label}</p>
+              <p className="mt-1 text-sm text-zinc-900">
+                pending {g.pending} · running {g.running} · failed {g.failed}
+              </p>
+            </ContentCard>
+          ))}
+        </div>
+      )}
+
+      {overview?.campaignMessages && (
+        <ContentCard>
+          <p className="text-xs uppercase tracking-wide text-zinc-500">
+            Campaign message pipeline
+          </p>
+          <p className="mt-1 text-sm text-zinc-900">
+            queued {overview.campaignMessages.queued} · sending{" "}
+            {overview.campaignMessages.sending} · failed {overview.campaignMessages.failed}
+          </p>
+          {overview.messagingLimits ? (
+            <p className="mt-1 text-xs text-zinc-600">
+              Twilio ≤{overview.messagingLimits.twilio.startRatePerSec}/s · Brevo ≤
+              {overview.messagingLimits.brevo.startRatePerSec}/s
+            </p>
+          ) : null}
+        </ContentCard>
       )}
 
       {overview?.webhooks && (
