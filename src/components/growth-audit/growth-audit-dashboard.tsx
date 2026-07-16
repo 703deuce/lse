@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { GrowthAuditActionPlanTab } from "@/components/growth-audit/growth-audit-action-plan-tab";
@@ -171,6 +171,7 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
     }),
   });
 
+  const lastFeatureStatus = useRef<string | null>(null);
   useEffect(() => {
     if (!featurePoll?.result || typeof featurePoll.result !== "object") return;
     const json = featurePoll.result as {
@@ -182,7 +183,13 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
     setRunStatus(json.status);
     setExtended(json.extended ?? {});
     setProgressStage(json.progressStage ?? null);
-    if (json.status === "complete" || json.status === "failed" || json.status === "core_ready") {
+    // Reload full audit only when status transitions — not on every poll tick.
+    const prev = lastFeatureStatus.current;
+    lastFeatureStatus.current = json.status;
+    if (
+      prev !== json.status &&
+      (json.status === "complete" || json.status === "failed" || json.status === "core_ready")
+    ) {
       void load();
     }
   }, [featurePoll, load]);

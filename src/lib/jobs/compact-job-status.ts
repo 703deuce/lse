@@ -4,7 +4,9 @@
  */
 
 import { createServiceClient } from "@/lib/db/client";
-import { getCache, tenantCacheKey } from "@/lib/cache";
+import { getCache, getCacheDriverName, tenantCacheKey } from "@/lib/cache";
+import { createMemoryCache } from "@/lib/cache/drivers";
+import type { CacheDriver } from "@/lib/cache/types";
 import {
   derivePhase,
   type CompactJobStatusResponse,
@@ -146,7 +148,18 @@ async function loadCompactFromDb(jobId: string): Promise<CompactJobStatusBundle 
 }
 
 function cacheKeyForJob(jobId: string): string {
+  // Job UUIDs are globally unique; authZ still checks organizationId after read.
   return tenantCacheKey("platform", "job-status", jobId);
+}
+
+/** Memory fallback so status coalescing works even when CACHE_DRIVER=none. */
+let memoryStatusCache: CacheDriver | null = null;
+
+function statusCache(): CacheDriver {
+  const driver = getCacheDriverName();
+  if (driver === "redis" || driver === "memory") return getCache();
+  if (!memoryStatusCache) memoryStatusCache = createMemoryCache();
+  return memoryStatusCache;
 }
 
 /**
@@ -161,7 +174,7 @@ export async function getCompactJobStatus(
 
   const promise = (async (): Promise<CompactJobStatusBundle | null> => {
     try {
-      const cache = getCache();
+      const cache = statusCache();
       const key = cacheKeyForJob(jobId);
       const cached = await cache.get<Omit<CompactJobStatusBundle, "cacheHit">>(key);
       if (cached?.compact?.jobId) {
@@ -175,8 +188,7 @@ export async function getCompactJobStatus(
     if (!loaded) return null;
 
     try {
-      const cache = getCache();
-      await cache.set(
+      await statusCache().set(
         cacheKeyForJob(jobId),
         {
           compact: loaded.compact,

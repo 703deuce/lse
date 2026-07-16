@@ -250,3 +250,29 @@ export async function loadLatestGrowthAudit(businessId: string): Promise<GrowthA
     .maybeSingle();
   return (data as GrowthAuditRunRow) ?? null;
 }
+
+/** Compact fields only — safe for adaptive polling (no sections_json / provider blobs). */
+export async function loadLatestGrowthAuditStatus(businessId: string): Promise<{
+  id: string;
+  status: string;
+  progress_stage: string | null;
+  extended_json: Record<string, unknown> | null;
+  finished_at: string | null;
+} | null> {
+  const supabase = createServiceClient();
+  const cols = "id, status, progress_stage, extended_json, finished_at, created_at";
+  const { data: latest } = await supabase
+    .from("growth_audit_runs")
+    .select(cols)
+    .eq("business_id", businessId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return latest as {
+    id: string;
+    status: string;
+    progress_stage: string | null;
+    extended_json: Record<string, unknown> | null;
+    finished_at: string | null;
+  } | null;
+}

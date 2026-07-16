@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
-import { loadLatestGrowthAudit } from "@/lib/growth-audit/engine";
+import { loadLatestGrowthAuditStatus } from "@/lib/growth-audit/engine";
 
+/**
+ * Compact growth-audit status for adaptive polling.
+ * Must not load sections_json or other heavy audit payloads.
+ */
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ businessId: string }> }
@@ -10,7 +14,7 @@ export async function GET(
     const { businessId } = await params;
     await requireBusinessAccess(businessId);
 
-    const run = await loadLatestGrowthAudit(businessId);
+    const run = await loadLatestGrowthAuditStatus(businessId);
     if (!run) {
       return NextResponse.json({ status: "none" });
     }
@@ -19,7 +23,7 @@ export async function GET(
       runId: run.id,
       status: run.status,
       progressStage: run.progress_stage,
-      extended: run.extended_json,
+      extended: run.extended_json ?? {},
       finishedAt: run.finished_at,
     });
   } catch (err) {

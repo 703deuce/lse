@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -137,6 +137,7 @@ export function ContactsImportWizard({
     }),
   });
 
+  const importSettledRef = useRef<string | null>(null);
   // Shared poller → local import result + history refresh on settle.
   useEffect(() => {
     if (!importPollStatus || !importUploadId) return;
@@ -154,7 +155,11 @@ export function ContactsImportWizard({
       failed: detail.failed ?? importPollStatus.progress?.failed ?? prev?.failed,
       skipped: detail.skipped ?? prev?.skipped,
     }));
-    if (s === "completed" || s === "failed") {
+    if (
+      (s === "completed" || s === "failed") &&
+      importSettledRef.current !== importUploadId
+    ) {
+      importSettledRef.current = importUploadId;
       void loadHistory();
       onDone?.();
     }

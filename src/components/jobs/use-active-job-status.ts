@@ -137,7 +137,7 @@ function defaultMap(json: Record<string, unknown>): LightweightJobStatus {
   };
 }
 
-async function tick(url: string) {
+async function tick(url: string, opts?: { force?: boolean }) {
   const entry = getEntry(url);
   if (entry.refCount <= 0) return;
 
@@ -147,23 +147,33 @@ async function tick(url: string) {
     return;
   }
 
-  if (entry.inFlight) return;
+  if (entry.inFlight) {
+    // Wake/force while a request is open: abort it and retry shortly.
+    if (opts?.force) {
+      entry.abort?.abort();
+      schedule(url, 50);
+    }
+    return;
+  }
   if (entry.status && terminalFor(entry, entry.status.status, {})) return;
 
   entry.inFlight = true;
   entry.abort?.abort();
-  entry.abort = new AbortController();
+  const controller = new AbortController();
+  entry.abort = controller;
   try {
     const headers: Record<string, string> = { Accept: "application/json" };
     if (entry.etag) headers["If-None-Match"] = entry.etag;
 
     const res = await fetch(url, {
-      signal: entry.abort.signal,
+      signal: controller.signal,
       headers,
     });
 
     if (res.status === 304) {
-      schedule(url, nextPollIntervalMs(entry.startedAt, entry.lastChangeAt));
+      if (entry.refCount > 0 && !terminalFor(entry, entry.status?.status ?? "", {})) {
+        schedule(url, nextPollIntervalMs(entry.startedAt, entry.lastChangeAt));
+      }
       return;
     }
 
@@ -173,7 +183,7 @@ async function tick(url: string) {
       if (res.status === 429) {
         const retry =
           typeof json.retryAfterMs === "number" ? json.retryAfterMs : 1000;
-        schedule(url, retry);
+        if (entry.refCount > 0) schedule(url, retry);
         return;
       }
       if (res.status === 401 || res.status === 403 || res.status === 404) {
@@ -205,16 +215,22 @@ async function tick(url: string) {
     if (changed) entry.lastChangeAt = Date.now();
     bump(entry);
 
-    if (!terminalFor(entry, mapped.status, json)) {
+    if (entry.refCount > 0 && !terminalFor(entry, mapped.status, json)) {
       schedule(url, nextPollIntervalMs(entry.startedAt, entry.lastChangeAt));
     }
   } catch (err) {
+    // Aborted because a newer tick/unmount won — do not reschedule here.
     if (err instanceof DOMException && err.name === "AbortError") return;
+    if (controller.signal.aborted) return;
     entry.error = err instanceof Error ? err.message : "Status poll failed";
     bump(entry);
-    schedule(url, nextPollIntervalMs(entry.startedAt, entry.lastChangeAt));
+    if (entry.refCount > 0) {
+      schedule(url, nextPollIntervalMs(entry.startedAt, entry.lastChangeAt));
+    }
   } finally {
-    entry.inFlight = false;
+    if (entry.abort === controller) {
+      entry.inFlight = false;
+    }
   }
 }
 
@@ -235,8 +251,8 @@ function subscribe(
     void tick(url);
     entry.onVis = () => {
       if (document.visibilityState === "visible" && entry.refCount > 0) {
-        // Immediate reconciliation when the tab wakes.
-        void tick(url);
+        // Immediate reconciliation when the tab wakes (force past in-flight).
+        void tick(url, { force: true });
       }
     };
     document.addEventListener("visibilitychange", entry.onVis);
@@ -288,6 +304,7 @@ export function useActiveJobStatus(options: Options): {
   return {
     status: snap.status,
     error: snap.error,
-    isPolling: Boolean(url && snap.status && !terminal),
+    // True from subscribe until terminal — including before the first response.
+    isPolling: Boolean(url && !terminal),
   };
 }
