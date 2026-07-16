@@ -48,7 +48,7 @@ export async function validateBulkRecipients(params: {
     .from("review_request_sends")
     .select("recipient_phone, recipient_email, sent_at")
     .eq("business_id", params.businessId)
-    .eq("status", "sent")
+    .in("status", ["sent", "delivered", "clicked", "completed"])
     .gte("sent_at", since);
 
   const recentPhones = new Set<string>();
@@ -61,7 +61,7 @@ export async function validateBulkRecipients(params: {
     .from("review_request_messages")
     .select("sent_at, recipient_id")
     .eq("business_id", params.businessId)
-    .eq("status", "sent")
+    .in("status", ["sent", "delivered", "clicked"])
     .gte("sent_at", since);
 
   if (recentMessages?.length) {

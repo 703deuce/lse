@@ -3,6 +3,7 @@ import { applyProviderDeliveryStatus } from "@/lib/reputation/delivery-status";
 import { applyEmailUnsubscribe } from "@/lib/reputation/unsubscribe";
 import { addSuppression } from "@/lib/reputation/bulk-validate";
 import { normalizeEmail } from "@/lib/reputation/contacts-normalize";
+import { providerMessageIdVariants } from "@/lib/reputation/provider-ids";
 import { logger } from "@/lib/observability/logger";
 
 /**
@@ -17,7 +18,6 @@ export async function handleBrevoTransactionalEvent(raw: Record<string, unknown>
   const messageId = String(
     raw["message-id"] ?? raw.messageId ?? raw["Message-Id"] ?? raw.tags ?? ""
   ).trim();
-  // Brevo often returns message-id with angle brackets / uuid forms.
   const providerId = messageId.replace(/^<|>$/g, "").trim();
   const email = normalizeEmail(String(raw.email ?? raw.Email ?? ""));
 
@@ -68,11 +68,13 @@ export async function handleBrevoTransactionalEvent(raw: Record<string, unknown>
   if (["unsubscribed", "unsubscribe"].includes(event)) {
     if (providerId) {
       const supabase = createServiceClient();
-      const { data: message } = await supabase
+      const variants = providerMessageIdVariants(providerId);
+      const { data: messages } = await supabase
         .from("review_request_messages")
         .select("id")
-        .eq("provider_message_id", providerId)
-        .maybeSingle();
+        .in("provider_message_id", variants)
+        .limit(1);
+      const message = messages?.[0] ?? null;
       if (message) {
         await applyEmailUnsubscribe(message.id as string);
         return { handled: true, event };
@@ -96,11 +98,13 @@ async function suppressByEmail(
   let businessId: string | null = null;
 
   if (providerMessageId) {
-    const { data: message } = await supabase
+    const variants = providerMessageIdVariants(providerMessageId);
+    const { data: messages } = await supabase
       .from("review_request_messages")
       .select("organization_id, business_id, recipient_id")
-      .eq("provider_message_id", providerMessageId)
-      .maybeSingle();
+      .in("provider_message_id", variants)
+      .limit(1);
+    const message = messages?.[0] ?? null;
     if (message) {
       organizationId = message.organization_id as string;
       businessId = message.business_id as string;
@@ -113,19 +117,60 @@ async function suppressByEmail(
         })
         .eq("id", message.recipient_id);
     }
+
+    if (!businessId) {
+      const { data: sends } = await supabase
+        .from("review_request_sends")
+        .select("organization_id, business_id")
+        .in("provider_message_id", variants)
+        .limit(1);
+      const send = sends?.[0] ?? null;
+      if (send) {
+        organizationId = send.organization_id as string;
+        businessId = send.business_id as string;
+      }
+    }
   }
 
   if (!businessId) {
-    const { data: recip } = await supabase
+    // Prefer one-off send match (scoped by email) over bare recipient scan.
+    const { data: sendByEmail } = await supabase
+      .from("review_request_sends")
+      .select("organization_id, business_id")
+      .eq("recipient_email", email)
+      .order("created_at", { ascending: false })
+      .limit(2);
+    if ((sendByEmail ?? []).length === 1) {
+      organizationId = sendByEmail![0]!.organization_id as string;
+      businessId = sendByEmail![0]!.business_id as string;
+    } else if ((sendByEmail ?? []).length > 1) {
+      const biz = new Set((sendByEmail ?? []).map((s) => s.business_id));
+      if (biz.size === 1) {
+        organizationId = sendByEmail![0]!.organization_id as string;
+        businessId = sendByEmail![0]!.business_id as string;
+      }
+    }
+  }
+
+  if (!businessId) {
+    const { data: recipRows } = await supabase
       .from("review_request_recipients")
       .select("organization_id, business_id")
       .eq("email", email)
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (recip) {
-      organizationId = recip.organization_id as string;
-      businessId = recip.business_id as string;
+      .limit(2);
+    if ((recipRows ?? []).length === 1) {
+      organizationId = recipRows![0]!.organization_id as string;
+      businessId = recipRows![0]!.business_id as string;
+    } else if ((recipRows ?? []).length > 1) {
+      const biz = new Set((recipRows ?? []).map((r) => r.business_id));
+      if (biz.size === 1) {
+        organizationId = recipRows![0]!.organization_id as string;
+        businessId = recipRows![0]!.business_id as string;
+      } else {
+        logger.warn("brevo_suppress_ambiguous_email", { email });
+        return;
+      }
     }
   }
 

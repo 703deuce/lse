@@ -79,7 +79,8 @@ function sendStatusKey(status: string, hasReply?: boolean) {
   if (hasReply) return "sent";
   if (status === "failed") return "failed";
   if (status === "queued" || status === "pending" || status === "sending") return "queued";
-  return status === "sent" ? "sent" : "pending";
+  if (["sent", "delivered", "clicked", "completed"].includes(status)) return "sent";
+  return "pending";
 }
 
 export function ReviewRequestsSendSection({

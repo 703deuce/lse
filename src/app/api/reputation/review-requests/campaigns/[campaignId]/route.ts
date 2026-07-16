@@ -8,6 +8,7 @@ import {
   type CampaignStatus,
 } from "@/lib/reputation/campaigns";
 import { createServiceClient } from "@/lib/db/client";
+import { PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
 
 export async function GET(
   request: Request,
@@ -95,16 +96,55 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
 
-    const campaign = await updateCampaignStatus(
-      campaignId,
-      businessId,
-      status,
-      auth.organizationId
-    );
-    return NextResponse.json({ campaign });
+    const supabase = createServiceClient();
+    const { data: before } = await supabase
+      .from("review_request_campaigns")
+      .select("status")
+      .eq("id", campaignId)
+      .eq("business_id", businessId)
+      .eq("organization_id", auth.organizationId)
+      .maybeSingle();
+    if (!before) {
+      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+    }
+
+    // Draft → active/scheduled launch: reserve bulk quota that was skipped on draft save.
+    let reservedReady = 0;
+    if (status === "active" && before.status === "draft") {
+      const { data: readyRecs } = await supabase
+        .from("review_request_recipients")
+        .select("id")
+        .eq("campaign_id", campaignId)
+        .eq("business_id", businessId)
+        .eq("status", "ready");
+      reservedReady = readyRecs?.length ?? 0;
+      if (reservedReady > 0) {
+        await reserveUsageOrThrow(auth.organizationId, "bulk_review_requests_used", reservedReady);
+      }
+    }
+
+    try {
+      const campaign = await updateCampaignStatus(
+        campaignId,
+        businessId,
+        status,
+        auth.organizationId
+      );
+      return NextResponse.json({ campaign });
+    } catch (updateErr) {
+      if (reservedReady > 0) {
+        await releaseUsage(auth.organizationId, "bulk_review_requests_used", reservedReady).catch(
+          () => undefined
+        );
+      }
+      throw updateErr;
+    }
   } catch (err) {
     if (err instanceof EntitlementError) {
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
+    }
+    if (err instanceof PlanLimitError) {
+      return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
     const message = err instanceof Error ? err.message : "Failed to update campaign";
     const statusCode = message.includes("not found") ? 404 : 500;

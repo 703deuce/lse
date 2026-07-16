@@ -10,6 +10,10 @@ import { renderTemplate } from "@/lib/reputation/template-vars";
 import { sendTwilioSms } from "@/lib/reputation/twilio";
 import { buildTrackingUrl, generateTrackingToken } from "@/lib/reputation/tracking";
 import { buildUnsubscribeUrl } from "@/lib/reputation/unsubscribe";
+import { resolveSmsReplyTargets, type SmsOutboundCandidate } from "@/lib/reputation/reply-match";
+import { storeReviewReply } from "@/lib/reputation/reply-store";
+import { upsertBusinessContact } from "@/lib/reputation/contacts";
+import { SUCCESSFUL_SEND_STATUSES } from "@/lib/reputation/provider-ids";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
@@ -139,34 +143,33 @@ function templateVars(params: {
   };
 }
 
-async function upsertContact(
-  supabase: ServiceClient,
-  params: {
-    organizationId: string;
-    businessId: string;
-    customerName?: string | null;
-    customerEmail?: string | null;
-    customerPhone?: string | null;
-    serviceType?: string | null;
-    notes?: string | null;
+async function upsertContact(params: {
+  organizationId: string;
+  businessId: string;
+  customerName?: string | null;
+  customerEmail?: string | null;
+  customerPhone?: string | null;
+  serviceType?: string | null;
+  notes?: string | null;
+}) {
+  // Skip contact row when neither phone nor email is valid — send paths still work.
+  const phone = params.customerPhone?.trim() || null;
+  const email = params.customerEmail?.trim() || null;
+  if (!phone && !email) return null;
+  try {
+    const { id } = await upsertBusinessContact({
+      organizationId: params.organizationId,
+      businessId: params.businessId,
+      customerName: params.customerName,
+      phone,
+      email,
+      notes: params.notes,
+      source: "quick_send",
+    });
+    return id;
+  } catch {
+    return null;
   }
-) {
-  const { data, error } = await supabase
-    .from("review_request_contacts")
-    .insert({
-      organization_id: params.organizationId,
-      business_id: params.businessId,
-      customer_name: params.customerName ?? null,
-      customer_email: params.customerEmail ?? null,
-      customer_phone: params.customerPhone ?? null,
-      service_type: params.serviceType ?? null,
-      notes: params.notes ?? null,
-    })
-    .select("id")
-    .single();
-
-  if (error) throw new Error(error.message);
-  return data.id as string;
 }
 
 async function insertSend(
@@ -300,7 +303,7 @@ export async function sendReviewRequestEmail(input: SendReviewEmailInput) {
       ? renderTemplate(template.body, vars)
       : `Hi ${input.customerName},\n\nThanks again for choosing ${business.name}. If you have a minute, would you leave us a quick honest Google review?\n\n${trackingUrl}`;
 
-  const contactId = await upsertContact(supabase, {
+  const contactId = await upsertContact({
     organizationId: input.organizationId,
     businessId: input.businessId,
     customerName: input.customerName,
@@ -423,7 +426,7 @@ export async function sendReviewRequestSms(input: SendReviewSmsInput) {
 
   body = appendSmsOptOut(body);
 
-  const contactId = await upsertContact(supabase, {
+  const contactId = await upsertContact({
     organizationId: input.organizationId,
     businessId: input.businessId,
     customerName: input.customerName,
@@ -514,7 +517,7 @@ export async function logManualReviewSend(input: LogManualSendInput) {
   const link = await loadActiveLink(supabase, input.businessId);
   if (!link) throw new Error("Review link missing. Generate review link first.");
 
-  const contactId = await upsertContact(supabase, {
+  const contactId = await upsertContact({
     organizationId: input.organizationId,
     businessId: input.businessId,
     customerName: input.customerName,
@@ -585,7 +588,8 @@ export async function loadReviewRequestStats(businessId: string, organizationId:
     .limit(50);
 
   const all = sends ?? [];
-  const sentRows = all.filter((s) => s.status === "sent");
+  const success = new Set<string>(SUCCESSFUL_SEND_STATUSES);
+  const sentRows = all.filter((s) => success.has(String(s.status)));
   const failedRows = all.filter((s) => s.status === "failed");
 
   const countInRange = (since: string) =>
@@ -596,7 +600,20 @@ export async function loadReviewRequestStats(businessId: string, organizationId:
     replyEvents.map((e) => e.send_id).filter((id): id is string => Boolean(id))
   );
 
-  const recentReplies = replyEvents.slice(0, 15).map((e) => {
+  const { data: replyRows, count: storedReplyCount } = await supabase
+    .from("review_request_replies")
+    .select("id, send_id, channel, body, from_address, created_at, campaign_id, recipient_id", {
+      count: "exact",
+    })
+    .eq("business_id", businessId)
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  for (const r of replyRows ?? []) {
+    if (r.send_id) replySendIds.add(r.send_id as string);
+  }
+
+  const eventReplies = replyEvents.slice(0, 15).map((e) => {
     const meta = (e.metadata ?? {}) as Record<string, unknown>;
     return {
       id: e.id,
@@ -609,8 +626,32 @@ export async function loadReviewRequestStats(businessId: string, organizationId:
       from: (meta.from as string | null) ?? e.customer_email ?? null,
       subject: (meta.subject as string | null) ?? null,
       created_at: e.created_at,
+      source: "one_off" as const,
     };
   });
+
+  const storedReplies = (replyRows ?? []).map((r) => ({
+    id: r.id,
+    send_id: r.send_id,
+    channel: r.channel ?? "sms",
+    customer_name: null as string | null,
+    customer_email: null as string | null,
+    customer_phone: null as string | null,
+    reply_body: String(r.body ?? ""),
+    from: (r.from_address as string | null) ?? null,
+    subject: null as string | null,
+    created_at: r.created_at,
+    source: r.campaign_id ? ("campaign" as const) : ("one_off" as const),
+  }));
+
+  // Prefer durable reply rows; fill with event-only replies not already represented.
+  const seenReplyIds = new Set(storedReplies.map((r) => r.id));
+  const recentReplies = [
+    ...storedReplies,
+    ...eventReplies.filter((e) => !seenReplyIds.has(e.id)),
+  ]
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+    .slice(0, 15);
 
   return {
     total_sent: sentRows.length,
@@ -618,7 +659,7 @@ export async function loadReviewRequestStats(businessId: string, organizationId:
     sms_sent: sentRows.filter((s) => s.channel === "sms").length,
     manual_sent: sentRows.filter((s) => s.channel === "manual").length,
     failed: failedRows.length,
-    replies: replyEvents.length,
+    replies: Math.max(storedReplyCount ?? 0, replyEvents.length),
     last_7_days: countInRange(sevenDaysAgo),
     last_30_days: countInRange(thirtyDaysAgo),
     recent_sends: all.slice(0, 25).map((s) => ({
@@ -643,82 +684,131 @@ export async function handleTwilioSmsReply(params: {
   const fromDigits = phoneDigitsForMatch(params.from);
   const e164 = normalizePhoneE164(params.from);
 
-  // Prefer exact e164 match on one-off sends (indexed), then digit-suffix scan limited to that phone.
-  let match: {
-    id: string;
-    organization_id: string;
-    business_id: string;
-    link_id: string;
-  } | null = null;
-
+  let oneOffCand: SmsOutboundCandidate | null = null;
   if (e164) {
     const { data } = await supabase
       .from("review_request_sends")
-      .select("id, organization_id, business_id, link_id")
+      .select("id, organization_id, business_id, link_id, sent_at, created_at")
       .eq("channel", "sms")
       .eq("recipient_phone", e164)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    match = data;
+    if (data) {
+      oneOffCand = {
+        kind: "one_off",
+        id: data.id as string,
+        organizationId: data.organization_id as string,
+        businessId: data.business_id as string,
+        linkId: data.link_id as string,
+        at: String(data.sent_at ?? data.created_at),
+      };
+    }
   }
 
-  if (!match && fromDigits.length >= 10) {
-    // Narrow by last-10 digits via filter — avoid loading global recent sends.
+  if (!oneOffCand && fromDigits.length >= 10) {
     const { data: candidates } = await supabase
       .from("review_request_sends")
-      .select("id, organization_id, business_id, link_id, recipient_phone")
+      .select("id, organization_id, business_id, link_id, recipient_phone, sent_at, created_at")
       .eq("channel", "sms")
       .ilike("recipient_phone", `%${fromDigits.slice(-10)}`)
       .order("created_at", { ascending: false })
       .limit(20);
-    match =
+    const hit =
       (candidates ?? []).find((s) => {
         if (!s.recipient_phone) return false;
         return phoneDigitsForMatch(s.recipient_phone) === fromDigits;
       }) ?? null;
+    if (hit) {
+      oneOffCand = {
+        kind: "one_off",
+        id: hit.id as string,
+        organizationId: hit.organization_id as string,
+        businessId: hit.business_id as string,
+        linkId: hit.link_id as string,
+        at: String(hit.sent_at ?? hit.created_at),
+      };
+    }
   }
 
-  // Campaign SMS replies — match latest recipient by phone for this tenant phone.
-  let campaignMatch: {
-    id: string;
-    organization_id: string;
-    business_id: string;
-    campaign_id: string;
-  } | null = null;
+  // Prefer latest *sent* campaign SMS for this phone (not merely latest recipient row).
+  let campaignCand: SmsOutboundCandidate | null = null;
   if (e164) {
-    const { data } = await supabase
+    const { data: recipRows } = await supabase
       .from("review_request_recipients")
-      .select("id, organization_id, business_id, campaign_id")
+      .select("id, organization_id, business_id, campaign_id, created_at")
       .eq("phone", e164)
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    campaignMatch = data;
+      .limit(25);
+    const recipIds = (recipRows ?? []).map((r) => r.id as string);
+    if (recipIds.length) {
+      const { data: msgs } = await supabase
+        .from("review_request_messages")
+        .select(
+          "id, organization_id, business_id, campaign_id, recipient_id, sent_at, created_at"
+        )
+        .in("recipient_id", recipIds)
+        .eq("channel", "sms")
+        .in("status", ["sent", "delivered", "clicked"])
+        .order("sent_at", { ascending: false })
+        .limit(1);
+      const msg = msgs?.[0] ?? null;
+      // Only match campaigns that actually sent SMS — never unsent/queued recipients.
+      if (msg) {
+        campaignCand = {
+          kind: "campaign",
+          id: msg.recipient_id as string,
+          messageId: msg.id as string,
+          campaignId: msg.campaign_id as string,
+          organizationId: msg.organization_id as string,
+          businessId: msg.business_id as string,
+          at: String(msg.sent_at ?? msg.created_at),
+        };
+      }
+    }
   }
+
+  const targets = resolveSmsReplyTargets(oneOffCand, campaignCand);
+  const match = targets.oneOff;
+  const campaignMatch = targets.campaign;
 
   if (!match && !campaignMatch) {
     return { matched: false as const };
   }
 
+  const snippet = params.body.trim().slice(0, 280);
+
   if (match) {
-    await insertEvent(supabase, {
-      organizationId: match.organization_id,
-      businessId: match.business_id,
-      linkId: match.link_id,
+    await storeReviewReply({
+      organizationId: match.organizationId,
+      businessId: match.businessId,
       sendId: match.id,
-      eventType: "reply_received",
       channel: "sms",
-      metadata: {
-        replyBody: params.body,
-        twilioMessageSid: params.messageSid ?? null,
-        from: params.from,
-      },
+      body: params.body,
+      fromAddress: params.from,
+      providerSid: params.messageSid ?? null,
+      metadata: { source: "one_off" },
     });
+
+    if (match.linkId) {
+      await insertEvent(supabase, {
+        organizationId: match.organizationId,
+        businessId: match.businessId,
+        linkId: match.linkId,
+        sendId: match.id,
+        eventType: "reply_received",
+        channel: "sms",
+        metadata: {
+          replyBody: params.body,
+          twilioMessageSid: params.messageSid ?? null,
+          from: params.from,
+        },
+      });
+    }
 
     const forwardTo = process.env.REVIEW_REPLY_FORWARD_EMAIL;
     if (forwardTo) {
-      const business = await getBusiness(match.business_id, match.organization_id);
+      const business = await getBusiness(match.businessId, match.organizationId);
       await sendBrevoEmail({
         toEmail: forwardTo,
         subject: `Review request reply${business ? ` — ${business.name}` : ""}`,
@@ -728,31 +818,65 @@ export async function handleTwilioSmsReply(params: {
   }
 
   if (campaignMatch && !params.skipCampaignReplyState) {
-    const snippet = params.body.trim().slice(0, 280);
+    const now = new Date().toISOString();
+    await storeReviewReply({
+      organizationId: campaignMatch.organizationId,
+      businessId: campaignMatch.businessId,
+      campaignId: campaignMatch.campaignId ?? null,
+      recipientId: campaignMatch.id,
+      messageId: campaignMatch.messageId ?? null,
+      channel: "sms",
+      body: params.body,
+      fromAddress: params.from,
+      // Distinct sid key when both one-off + campaign same business would collide.
+      providerSid: match
+        ? params.messageSid
+          ? `${params.messageSid}:campaign`
+          : null
+        : (params.messageSid ?? null),
+      metadata: { source: "campaign" },
+    });
+
     await supabase
       .from("review_request_recipients")
       .update({
-        replied_at: new Date().toISOString(),
+        replied_at: now,
         workflow_status: "stopped",
         next_action_at: null,
-        updated_at: new Date().toISOString(),
+        updated_at: now,
       })
       .eq("id", campaignMatch.id);
-    // Stop queued/sending reminders for this recipient after any reply.
     await supabase
       .from("review_request_messages")
-      .update({ status: "skipped", updated_at: new Date().toISOString() })
+      .update({ status: "skipped", updated_at: now })
       .eq("recipient_id", campaignMatch.id)
       .in("status", ["queued", "sending"]);
-    await supabase
-      .from("review_request_contacts")
-      .update({
-        latest_reply_at: new Date().toISOString(),
-        latest_reply_snippet: snippet,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("business_id", campaignMatch.business_id)
-      .eq("phone_e164", e164);
+    if (e164) {
+      await supabase
+        .from("review_request_contacts")
+        .update({
+          latest_reply_at: now,
+          latest_reply_snippet: snippet,
+          updated_at: now,
+        })
+        .eq("business_id", campaignMatch.businessId)
+        .eq("phone_e164", e164);
+    }
+
+    if (!match) {
+      const forwardTo = process.env.REVIEW_REPLY_FORWARD_EMAIL?.trim();
+      if (forwardTo) {
+        const business = await getBusiness(
+          campaignMatch.businessId,
+          campaignMatch.organizationId
+        );
+        await sendBrevoEmail({
+          toEmail: forwardTo,
+          subject: `Campaign SMS reply${business ? ` — ${business.name}` : ""}`,
+          textBody: `Customer replied to a campaign SMS:\n\n${params.body}\n\nFrom: ${params.from}`,
+        });
+      }
+    }
   }
 
   return {
@@ -795,6 +919,22 @@ export async function handleBrevoInboundEmail(item: BrevoInboundItem) {
     if (campaignMsg) {
       const snippet = (item.replyBody || "").trim().slice(0, 280);
       const now = new Date().toISOString();
+      await storeReviewReply({
+        organizationId: campaignMsg.organization_id as string,
+        businessId: campaignMsg.business_id as string,
+        campaignId: campaignMsg.campaign_id as string,
+        recipientId: campaignMsg.recipient_id as string,
+        messageId: campaignMsg.id as string,
+        channel: "email",
+        body: item.replyBody || "",
+        fromAddress: item.fromEmail ?? null,
+        providerSid: item.uuid ? `brevo:${item.uuid}` : null,
+        metadata: {
+          subject: item.subject,
+          fromName: item.fromName,
+          inReplyTo: item.inReplyTo,
+        },
+      });
       await supabase
         .from("review_request_recipients")
         .update({
@@ -862,6 +1002,22 @@ export async function handleBrevoInboundEmail(item: BrevoInboundItem) {
         .eq("id", match.contact_id)
         .maybeSingle()
     : { data: null };
+
+  await storeReviewReply({
+    organizationId: match.organization_id,
+    businessId: match.business_id,
+    sendId: match.id,
+    channel: "email",
+    body: item.replyBody || "",
+    fromAddress: item.fromEmail ?? match.recipient_email,
+    providerSid: item.uuid ? `brevo:${item.uuid}` : null,
+    metadata: {
+      subject: item.subject,
+      fromName: item.fromName,
+      inReplyTo: item.inReplyTo,
+      source: "one_off",
+    },
+  });
 
   await insertEvent(supabase, {
     organizationId: match.organization_id,
