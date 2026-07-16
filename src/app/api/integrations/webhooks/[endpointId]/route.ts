@@ -22,6 +22,11 @@ async function authEndpoint(request: Request, endpointId: string) {
     endpointId,
   });
   if (!endpoint) throw new Error("Endpoint not found");
+  const endpointBusiness =
+    endpoint.business_id ?? endpoint.default_business_id ?? null;
+  if (endpointBusiness && endpointBusiness !== businessId) {
+    throw new Error("Endpoint not found");
+  }
   return { access, endpoint, businessId };
 }
 

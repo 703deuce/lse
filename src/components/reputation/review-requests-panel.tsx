@@ -9,7 +9,7 @@ import {
   DEFAULT_POSTER_CONFIG,
   POSTER_BRAND_COLORS,
   type PosterConfig,
-} from "@/lib/reputation/review-requests";
+} from "@/lib/reputation/poster-config";
 import { ReviewPosterPreview } from "@/components/reputation/review-poster-preview";
 import { ReviewRequestsSendSection } from "@/components/reputation/review-requests-send-section";
 import { ReviewRequestsBulkWizard } from "@/components/reputation/review-requests-bulk-wizard";
@@ -1023,23 +1023,18 @@ function TrackingSection({
           <ReviewRequestsKpiCard
             label="Requests Sent"
             value={stats.last_30_days}
-            trend="↑ 18%"
-            trendLabel="vs previous 30 days"
             icon={Send}
             iconClass="bg-emerald-50 text-emerald-600"
           />
           <ReviewRequestsKpiCard
             label="Delivery Rate"
             value={deliveryRate}
-            trend="↑ 2.4%"
-            trendLabel="vs previous 30 days"
             icon={Check}
             iconClass="bg-emerald-50 text-emerald-600"
           />
           <ReviewRequestsKpiCard
             label="Sent by Email"
             value={stats.email_sent}
-            trend="↑ 14%"
             sub={pctOfTotal(stats.email_sent, total)}
             icon={Mail}
             iconClass="bg-violet-50 text-violet-600"
@@ -1047,7 +1042,6 @@ function TrackingSection({
           <ReviewRequestsKpiCard
             label="Sent by SMS"
             value={stats.sms_sent}
-            trend="↑ 22%"
             sub={pctOfTotal(stats.sms_sent, total)}
             icon={MessageSquare}
             iconClass="bg-sky-50 text-sky-600"
@@ -1055,16 +1049,13 @@ function TrackingSection({
           <ReviewRequestsKpiCard
             label="Failed"
             value={failed}
-            trend="↓ 25%"
             sub={pctOfTotal(failed, total + failed)}
             icon={X}
             iconClass="bg-red-50 text-red-600"
-            invertTrendColor
           />
           <ReviewRequestsKpiCard
             label="Replies"
             value={stats.replies ?? 0}
-            trend="↑ 12%"
             sub={responseRate(stats.replies ?? 0, total)}
             icon={ArrowLeftRight}
             iconClass="bg-emerald-50 text-emerald-600"

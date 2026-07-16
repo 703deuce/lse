@@ -221,7 +221,11 @@ export function ReviewRequestsBulkWizard({
           filename,
           mapping: mappings,
           recipients,
-          status: asDraft ? "draft" : "active",
+          status: asDraft
+            ? "draft"
+            : startDate && startDate > new Date().toISOString().slice(0, 10)
+              ? "scheduled"
+              : "active",
         }),
       });
       const json = await res.json();
@@ -456,7 +460,13 @@ export function ReviewRequestsBulkWizard({
                 className={rrInputClass}
                 value={[5, 10, 20].includes(dailyLimit) ? String(dailyLimit) : "custom"}
                 onChange={(e) => {
-                  if (e.target.value !== "custom") setDailyLimit(Number(e.target.value));
+                  if (e.target.value === "custom") {
+                    const n = Number(customLimit) || 25;
+                    setDailyLimit(n);
+                    if (!customLimit) setCustomLimit(String(n));
+                  } else {
+                    setDailyLimit(Number(e.target.value));
+                  }
                 }}
               >
                 <option value="5">5/day</option>

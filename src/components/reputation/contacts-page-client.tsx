@@ -42,19 +42,23 @@ export function ContactsPageClient({
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(
-    async (opts?: { reset?: boolean }) => {
+    async (opts?: { reset?: boolean; cursor?: string | null }) => {
       if (!allowed) return;
       setLoading(true);
       setError(null);
       try {
         const params = new URLSearchParams({ businessId, limit: "50" });
         if (q.trim()) params.set("q", q.trim());
-        if (!opts?.reset && cursor) params.set("cursor", cursor);
+        const pageCursor = opts?.reset ? null : (opts?.cursor ?? cursor);
+        if (pageCursor) params.set("cursor", pageCursor);
         const res = await fetch(`/api/reputation/contacts?${params}`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "Failed to load");
-        setItems((prev) => (opts?.reset || !cursor ? json.items ?? [] : [...prev, ...(json.items ?? [])]));
+        setItems((prev) =>
+          opts?.reset || !pageCursor ? json.items ?? [] : [...prev, ...(json.items ?? [])]
+        );
         setNextCursor(json.nextCursor ?? null);
+        if (pageCursor) setCursor(pageCursor);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load");
       } finally {
@@ -289,8 +293,7 @@ export function ContactsPageClient({
           type="button"
           className="mt-2 text-[12px] font-medium text-emerald-700 hover:underline"
           onClick={() => {
-            setCursor(nextCursor);
-            void load();
+            void load({ cursor: nextCursor });
           }}
         >
           Load more

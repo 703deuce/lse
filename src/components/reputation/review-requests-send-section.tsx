@@ -227,8 +227,6 @@ export function ReviewRequestsSendSection({
             label="7 days"
             value={stats.last_7_days}
             sub="Requests sent"
-            trend="↑ 15%"
-            trendLabel="vs prior 7 days"
             icon={Calendar}
             iconClass="bg-emerald-50 text-emerald-600"
           />
@@ -236,15 +234,12 @@ export function ReviewRequestsSendSection({
             label="30 days"
             value={stats.last_30_days}
             sub="Requests sent"
-            trend="↑ 8%"
-            trendLabel="vs prior 30 days"
             icon={Calendar}
             iconClass="bg-emerald-50 text-emerald-600"
           />
           <ReviewRequestsKpiCard
             label="Email"
             value={stats.email_sent}
-            trend="↑ 12%"
             sub={pctOfTotal(stats.email_sent, stats.total_sent)}
             icon={Mail}
             iconClass="bg-violet-50 text-violet-600"
@@ -252,7 +247,6 @@ export function ReviewRequestsSendSection({
           <ReviewRequestsKpiCard
             label="SMS"
             value={stats.sms_sent}
-            trend="↑ 3%"
             sub={pctOfTotal(stats.sms_sent, stats.total_sent)}
             icon={MessageSquare}
             iconClass="bg-sky-50 text-sky-600"
@@ -260,7 +254,6 @@ export function ReviewRequestsSendSection({
           <ReviewRequestsKpiCard
             label="Replies"
             value={stats.replies ?? 0}
-            trend="↑ 9%"
             sub={replyRate(stats.replies ?? 0, stats.total_sent)}
             icon={ArrowLeftRight}
             iconClass="bg-emerald-50 text-emerald-600"
@@ -268,11 +261,9 @@ export function ReviewRequestsSendSection({
           <ReviewRequestsKpiCard
             label="Failed"
             value={stats.failed}
-            trend="↑ 1%"
             sub={failureRate(stats.failed, stats.total_sent + stats.failed)}
             icon={AlertTriangle}
             iconClass="bg-red-50 text-red-600"
-            invertTrendColor
           />
         </KpiRow>
       )}
