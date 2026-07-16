@@ -189,7 +189,16 @@ export function resolveWaveChannels(params: {
   if (campaignChannel === "sms") wanted = wanted.filter((c) => c === "sms");
   if (campaignChannel === "email") wanted = wanted.filter((c) => c === "email");
 
-  return wanted.filter((c) => (c === "sms" ? hasPhone : hasEmail));
+  let reachable = wanted.filter((c) => (c === "sms" ? hasPhone : hasEmail));
+
+  // One-touch / prefer-single: SMS when phone exists, otherwise email (never both).
+  if (step.config.prefer_single === "sms" && reachable.length > 1) {
+    reachable = hasPhone ? ["sms"] : ["email"];
+  } else if (step.config.prefer_single === "email" && reachable.length > 1) {
+    reachable = hasEmail ? ["email"] : ["sms"];
+  }
+
+  return reachable;
 }
 
 /** Default review-request drip (initial + up to two reminders). */
@@ -236,9 +245,10 @@ export function defaultReviewRequestSequence(
 }
 
 export const SEQUENCE_LIMITS = {
-  maxReminders: 2,
+  /** Advanced builders may use up to 5 reminders; system templates stay ≤3 email touches + initial. */
+  maxReminders: 5,
   minWaitHours: 24,
-  maxSteps: 12,
+  maxSteps: 24,
 } as const;
 
 export function findStepIndex(steps: SequenceStep[], stepKey: string): number {
@@ -394,7 +404,7 @@ export function normalizeSequenceSteps(raw: unknown): SequenceStep[] {
   return out.length ? out : defaultReviewRequestSequence();
 }
 
-/** Validate builder sequence: max 2 send reminders after initial, waits ≥ 24h (except minutes in tests). */
+/** Validate builder sequence: max reminders, waits ≥ 24h (short initial delays allowed). */
 export function validateSequenceForLaunch(steps: SequenceStep[]): string | null {
   const sends = steps.filter((s) => s.step_type === "send_sms" || s.step_type === "send_email");
   if (sends.length === 0) return "Sequence needs at least one send step.";
@@ -407,9 +417,16 @@ export function validateSequenceForLaunch(steps: SequenceStep[]): string | null 
     const hours = Number(step.config.hours ?? 0);
     const minutes = Number(step.config.minutes ?? 0);
     if (minutes > 0 && days === 0 && hours === 0) continue; // test/dev short waits
+    // Initial post-service delays (2h / 3h / 4h) are intentional and allowed.
+    if (step.config.allow_short === true || step.config.role === "initial_delay") continue;
     if (days * 24 + hours < SEQUENCE_LIMITS.minWaitHours) {
       return `Wait steps must be at least ${SEQUENCE_LIMITS.minWaitHours} hours.`;
     }
   }
   return null;
+}
+
+/** True when the sequence begins with a wait (post-service delay) before any send. */
+export function sequenceStartsWithWait(steps: SequenceStep[]): boolean {
+  return steps[0]?.step_type === "wait";
 }

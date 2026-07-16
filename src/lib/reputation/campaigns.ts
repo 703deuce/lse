@@ -11,17 +11,24 @@ import {
   ymdInTimeZone,
   type ScheduleConfig,
 } from "@/lib/reputation/campaign-scheduler";
-import { renderTemplate } from "@/lib/reputation/template-vars";
 import { buildTrackingUrl, generateTrackingToken, hashIp } from "@/lib/reputation/tracking";
 import {
   defaultReviewRequestSequence,
   initialSendSteps,
   normalizeSequenceSteps,
   resolveWaveChannels,
+  sequenceStartsWithWait,
   validateSequenceForLaunch,
+  waitDurationMs,
   type SequenceStep,
 } from "@/lib/reputation/sequence-engine";
 import { persistCampaignSteps } from "@/lib/reputation/sequence-runner";
+import {
+  buildCampaignTemplateVars,
+  renderStepMessage,
+} from "@/lib/reputation/campaign-message-copy";
+import type { CampaignSuccessMode } from "@/lib/reputation/campaign-templates";
+import { buildUnsubscribeUrl } from "@/lib/reputation/unsubscribe";
 
 export type CampaignChannel = "sms" | "email" | "both";
 export type CampaignStatus =
@@ -57,6 +64,10 @@ export type CreateCampaignInput = {
   /** Custom drip sequence; defaults to channel-aware review request sequence. */
   sequence?: SequenceStep[];
   description?: string | null;
+  objective?: "request_review" | "reactivation" | "referral_request" | "service_reminder" | "promotional_offer";
+  successMode?: CampaignSuccessMode;
+  sourceTemplateId?: string | null;
+  sourceTemplateVersion?: string | null;
 };
 
 function displayName(r: ValidatedRecipient): string {
@@ -198,7 +209,7 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
       start_date: input.startDate,
       consent_confirmed: input.consentConfirmed,
       started_at: input.status === "active" ? new Date().toISOString() : null,
-      objective: "request_review",
+      objective: input.objective ?? "request_review",
       description: input.description ?? null,
       sequence_json: sequence,
       channel_strategy:
@@ -208,6 +219,9 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
             ? "email_only"
             : "both_same_time",
       terms_acknowledged_at: input.consentConfirmed ? new Date().toISOString() : null,
+      success_mode: input.successMode ?? "click",
+      source_template_id: input.sourceTemplateId ?? null,
+      source_template_version: input.sourceTemplateVersion ?? null,
     })
     .select("*")
     .single();
@@ -257,14 +271,53 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
     next_action_at: r.status === "ready" ? new Date().toISOString() : null,
   }));
 
-  const { data: insertedRecipients, error: recErr } = await supabase
-    .from("review_request_recipients")
-    .insert(recipientRows)
-    .select("id, status, phone, email, first_name, last_name, full_name, job_type");
+  let insertedRecipients: Array<{
+    id: string;
+    status: string;
+    phone: string | null;
+    email: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    full_name: string | null;
+    job_type: string | null;
+  }> = [];
 
-  if (recErr) throw new Error(recErr.message);
+  if (recipientRows.length) {
+    const { data, error: recErr } = await supabase
+      .from("review_request_recipients")
+      .insert(recipientRows)
+      .select("id, status, phone, email, first_name, last_name, full_name, job_type");
+    if (recErr) throw new Error(recErr.message);
+    insertedRecipients = data ?? [];
+  }
 
-  const readyRecipients = (insertedRecipients ?? []).filter((r) => r.status === "ready");
+  const readyRecipients = insertedRecipients.filter((r) => r.status === "ready");
+
+  // Sequences that start with a wait (post-service delay) park recipients in waiting —
+  // the sequence runner enqueues the first send after the delay.
+  if (sequenceStartsWithWait(sequence) && readyRecipients.length) {
+    const delayMs = waitDurationMs(sequence[0]!.config);
+    const nextAt = new Date(Date.now() + delayMs).toISOString();
+    await supabase
+      .from("review_request_recipients")
+      .update({
+        workflow_status: "waiting",
+        current_step: 0,
+        next_action_at: nextAt,
+      })
+      .eq("campaign_id", campaign.id)
+      .eq("status", "ready");
+
+    return {
+      campaign,
+      uploadId: upload?.id,
+      validCount: ready.length,
+      skippedCount: skipped,
+      messageCount: 0,
+      businessDays: estimateBusinessDays(ready.length, input.dailySendLimit),
+      sequenceSteps: sequence.length,
+    };
+  }
 
   // Only enqueue the first contiguous send step(s). Reminders are enqueued by the sequence runner.
   const firstSends = initialSendSteps(sequence);
@@ -272,6 +325,7 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
     recipientId: string;
     channel: "sms" | "email";
     stepKey: string;
+    step: SequenceStep;
   }> = [];
 
   for (const r of readyRecipients) {
@@ -288,7 +342,6 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
     };
 
     if (firstSends.length) {
-      // Only the first wave at create — later reminder waves use the same channel plan.
       const step = firstSends[0]!;
       const wave = resolveWaveChannels({
         campaignChannel: input.channel,
@@ -297,11 +350,26 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
         hasEmail: Boolean(r.email),
       });
       for (const ch of wave) {
-        messageItems.push({ recipientId: r.id as string, channel: ch, stepKey: step.step_key });
+        messageItems.push({
+          recipientId: r.id as string,
+          channel: ch,
+          stepKey: step.step_key,
+          step,
+        });
       }
     } else {
       for (const ch of channelsForRecipient(input.channel, base)) {
-        messageItems.push({ recipientId: r.id as string, channel: ch, stepKey: "initial" });
+        const synthetic: SequenceStep = {
+          step_key: "initial",
+          step_type: ch === "email" ? "send_email" : "send_sms",
+          config: {},
+        };
+        messageItems.push({
+          recipientId: r.id as string,
+          channel: ch,
+          stepKey: "initial",
+          step: synthetic,
+        });
       }
     }
   }
@@ -341,23 +409,29 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
         last_name: recipient.last_name ?? undefined,
         full_name: recipient.full_name ?? undefined,
       });
-      const vars = {
-        first_name: name === "there" ? "there" : name.split(" ")[0] ?? name,
-        full_name: recipient.full_name ?? name,
-        customer_name: name,
-        business_name: business.name,
-        review_link: trackingUrl,
-        service_type: recipient.job_type ?? "recent service",
-      };
+      const first = name === "there" ? "there" : name.split(" ")[0] ?? name;
+      const vars = buildCampaignTemplateVars({
+        firstName: first,
+        lastName: recipient.last_name ?? null,
+        fullName: recipient.full_name ?? name,
+        businessName: business.name,
+        reviewLink: trackingUrl,
+        serviceType: recipient.job_type ?? "recent service",
+        unsubscribeLink:
+          "Reply STOP to opt out of SMS. Use the email unsubscribe link to stop emails.",
+      });
 
-      let subject: string | null = null;
-      let body: string;
-      if (slot.channel === "sms") {
-        body = renderTemplate(smsTemplate?.body ?? defaultSmsBody(), vars);
-      } else {
-        subject = renderTemplate(emailTemplate?.subject ?? defaultEmailSubject(), vars);
-        body = renderTemplate(emailTemplate?.body ?? defaultEmailBody(), vars);
-      }
+      const { subject, body } = renderStepMessage({
+        step: meta.step,
+        channel: slot.channel,
+        vars,
+        fallbackSmsBody: defaultSmsBody(),
+        fallbackEmailSubject: defaultEmailSubject(),
+        fallbackEmailBody: defaultEmailBody(),
+        templateSubject: emailTemplate?.subject ?? null,
+        templateBody:
+          slot.channel === "sms" ? (smsTemplate?.body ?? null) : (emailTemplate?.body ?? null),
+      });
 
       messageRows.push({
         organization_id: input.organizationId,
@@ -378,8 +452,57 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
     }
 
     if (messageRows.length) {
-      const { error: msgErr } = await supabase.from("review_request_messages").insert(messageRows);
+      const { data: insertedMsgs, error: msgErr } = await supabase
+        .from("review_request_messages")
+        .insert(messageRows)
+        .select("id, channel, message_body, subject, tracking_url, recipient_id, step_key");
       if (msgErr) throw new Error(msgErr.message);
+
+      // Patch email bodies with real unsubscribe URLs once message ids exist.
+      for (const msg of insertedMsgs ?? []) {
+        if (msg.channel !== "email") continue;
+        const unsub = buildUnsubscribeUrl(String(msg.id));
+        if (!unsub) continue;
+        const meta = messageItems.find(
+          (m) =>
+            m.recipientId === msg.recipient_id &&
+            m.stepKey === msg.step_key &&
+            m.channel === "email"
+        );
+        if (!meta) continue;
+        const recipient = readyRecipients.find((r) => r.id === msg.recipient_id);
+        if (!recipient) continue;
+        const name = displayName({
+          rowIndex: 0,
+          status: "ready",
+          first_name: recipient.first_name ?? undefined,
+          last_name: recipient.last_name ?? undefined,
+          full_name: recipient.full_name ?? undefined,
+        });
+        const first = name === "there" ? "there" : name.split(" ")[0] ?? name;
+        const rendered = renderStepMessage({
+          step: meta.step,
+          channel: "email",
+          vars: buildCampaignTemplateVars({
+            firstName: first,
+            lastName: recipient.last_name ?? null,
+            fullName: recipient.full_name ?? name,
+            businessName: business.name,
+            reviewLink: String(msg.tracking_url ?? ""),
+            serviceType: recipient.job_type ?? "recent service",
+            unsubscribeLink: unsub,
+          }),
+          fallbackSmsBody: defaultSmsBody(),
+          fallbackEmailSubject: defaultEmailSubject(),
+          fallbackEmailBody: defaultEmailBody(),
+          templateSubject: emailTemplate?.subject ?? null,
+          templateBody: emailTemplate?.body ?? null,
+        });
+        await supabase
+          .from("review_request_messages")
+          .update({ subject: rendered.subject, message_body: rendered.body })
+          .eq("id", msg.id);
+      }
     }
 
     const firstStepIdx = Math.max(
@@ -993,6 +1116,45 @@ export async function duplicateCampaign(campaignId: string, businessId: string, 
   });
 }
 
+/**
+ * Cancel pending messages and mark the recipient complete after a success event
+ * (review-link click by default). Idempotent.
+ */
+export async function completeRecipientOnSuccess(params: {
+  supabase: ReturnType<typeof createServiceClient>;
+  campaignId: string;
+  recipientId: string;
+  reason: "link_clicked" | "review_detected" | "manual";
+}): Promise<void> {
+  const now = new Date().toISOString();
+  await params.supabase
+    .from("review_request_messages")
+    .update({
+      status: "skipped",
+      failed_reason: `stopped:${params.reason}`,
+      updated_at: now,
+    })
+    .eq("campaign_id", params.campaignId)
+    .eq("recipient_id", params.recipientId)
+    .eq("status", "queued");
+
+  await params.supabase
+    .from("review_request_recipients")
+    .update({
+      workflow_status: "completed",
+      next_action_at: null,
+      updated_at: now,
+    })
+    .eq("id", params.recipientId)
+    .eq("campaign_id", params.campaignId)
+    .in("workflow_status", [
+      "pending",
+      "scheduled",
+      "in_progress",
+      "waiting",
+    ]);
+}
+
 export async function recordTrackingClick(params: {
   token: string;
   ip?: string;
@@ -1026,6 +1188,24 @@ export async function recordTrackingClick(params: {
       .eq("id", message.id)
       .in("status", ["sent", "delivered", "sending"])
       .is("clicked_at", null);
+
+    // Default success mode treats click as "acted" — stop reminders immediately.
+    if (message.campaign_id && message.recipient_id) {
+      const { data: campaign } = await supabase
+        .from("review_request_campaigns")
+        .select("success_mode")
+        .eq("id", message.campaign_id)
+        .maybeSingle();
+      const mode = String(campaign?.success_mode ?? "click");
+      if (mode === "click") {
+        await completeRecipientOnSuccess({
+          supabase,
+          campaignId: String(message.campaign_id),
+          recipientId: String(message.recipient_id),
+          reason: "link_clicked",
+        });
+      }
+    }
 
     return message.google_review_url as string;
   }

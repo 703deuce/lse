@@ -286,7 +286,7 @@ export function CampaignBuilder({
           sendWindowStart: "10:00",
           sendWindowEnd: "18:00",
           timezone: "America/New_York",
-          duplicateProtectionDays: 90,
+          duplicateProtectionDays: 60,
           startDate,
           consentConfirmed: consent,
           filename: audienceMode === "csv" ? filename : "contacts.csv",
