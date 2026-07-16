@@ -174,6 +174,15 @@ export async function attributeRecentReviewsForBusiness(params: {
             updated_at: new Date().toISOString(),
           })
           .eq("id", best.recipientId);
+
+        // Confirmed/likely review → stop remaining reminders (all success modes).
+        const { completeRecipientOnSuccess } = await import("@/lib/reputation/campaigns");
+        await completeRecipientOnSuccess({
+          supabase,
+          campaignId: String(campaign.id),
+          recipientId: String(best.recipientId),
+          reason: "review_detected",
+        }).catch(() => undefined);
       }
     }
   }

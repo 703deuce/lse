@@ -420,7 +420,17 @@ export function CampaignDetailClient({
                           {String(m.channel)} · {String(m.status)}
                         </p>
                         {m.failed_reason ? (
-                          <p className="text-red-600">Failure: {String(m.failed_reason)}</p>
+                          <p
+                            className={
+                              String(m.failed_reason).startsWith("stopped:")
+                                ? "text-zinc-500"
+                                : "text-red-600"
+                            }
+                          >
+                            {String(m.failed_reason).startsWith("stopped:")
+                              ? `Stopped: ${String(m.failed_reason).replace(/^stopped:/, "").replace(/_/g, " ")}`
+                              : `Failure: ${String(m.failed_reason)}`}
+                          </p>
                         ) : null}
                         <p className="mt-1 whitespace-pre-wrap text-zinc-600">
                           {String(m.message_body ?? "").slice(0, 280)}

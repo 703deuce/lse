@@ -293,20 +293,33 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
 
   const readyRecipients = insertedRecipients.filter((r) => r.status === "ready");
 
-  // Sequences that start with a wait (post-service delay) park recipients in waiting —
-  // the sequence runner enqueues the first send after the delay.
+  // Sequences that start with a wait (post-service delay):
+  // - draft: keep recipients scheduled (do not start the wait clock — avoids reclaim busy-loop)
+  // - active/scheduled: park in waiting; runner enqueues the first send after the delay
   if (sequenceStartsWithWait(sequence) && readyRecipients.length) {
-    const delayMs = waitDurationMs(sequence[0]!.config);
-    const nextAt = new Date(Date.now() + delayMs).toISOString();
-    await supabase
-      .from("review_request_recipients")
-      .update({
-        workflow_status: "waiting",
-        current_step: 0,
-        next_action_at: nextAt,
-      })
-      .eq("campaign_id", campaign.id)
-      .eq("status", "ready");
+    if (input.status === "draft") {
+      await supabase
+        .from("review_request_recipients")
+        .update({
+          workflow_status: "scheduled",
+          current_step: 0,
+          next_action_at: null,
+        })
+        .eq("campaign_id", campaign.id)
+        .eq("status", "ready");
+    } else {
+      const delayMs = waitDurationMs(sequence[0]!.config);
+      const nextAt = new Date(Date.now() + delayMs).toISOString();
+      await supabase
+        .from("review_request_recipients")
+        .update({
+          workflow_status: "waiting",
+          current_step: 0,
+          next_action_at: nextAt,
+        })
+        .eq("campaign_id", campaign.id)
+        .eq("status", "ready");
+    }
 
     return {
       campaign,
@@ -994,16 +1007,17 @@ export async function updateCampaignStatus(
     .maybeSingle();
   if (!before) throw new Error("Campaign not found");
 
+  let launchSequence: SequenceStep[] | null = null;
   if (status === "active" && before.status === "draft") {
     if (!before.consent_confirmed) {
       throw new Error("Consent confirmation is required before starting a campaign.");
     }
-    const sequence = normalizeSequenceSteps(
+    launchSequence = normalizeSequenceSteps(
       (before.sequence_json as SequenceStep[] | null)?.length
         ? (before.sequence_json as SequenceStep[])
         : defaultReviewRequestSequence(before.channel as CampaignChannel)
     );
-    const seqErr = validateSequenceForLaunch(sequence);
+    const seqErr = validateSequenceForLaunch(launchSequence);
     if (seqErr) throw new Error(seqErr);
   }
 
@@ -1028,6 +1042,29 @@ export async function updateCampaignStatus(
   const { data, error } = await query.select("*").maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Campaign not found");
+
+  // Draft → active with wait-first sequence: start the initial delay clock now.
+  if (
+    status === "active" &&
+    before.status === "draft" &&
+    launchSequence &&
+    sequenceStartsWithWait(launchSequence)
+  ) {
+    const delayMs = waitDurationMs(launchSequence[0]!.config);
+    const nextAt = new Date(Date.now() + delayMs).toISOString();
+    await supabase
+      .from("review_request_recipients")
+      .update({
+        workflow_status: "waiting",
+        current_step: 0,
+        next_action_at: nextAt,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("campaign_id", campaignId)
+      .eq("business_id", businessId)
+      .eq("status", "ready")
+      .in("workflow_status", ["scheduled", "pending", "waiting"]);
+  }
 
   if (status === "cancelled" || status === "archived") {
     const now = new Date().toISOString();
@@ -1113,6 +1150,10 @@ export async function duplicateCampaign(campaignId: string, businessId: string, 
         : defaultReviewRequestSequence(orig.channel as CampaignChannel)
     ),
     description: orig.description ?? null,
+    objective: (orig.objective as CreateCampaignInput["objective"]) ?? "request_review",
+    successMode: (orig.success_mode as CampaignSuccessMode) ?? "click",
+    sourceTemplateId: (orig.source_template_id as string | null) ?? null,
+    sourceTemplateVersion: (orig.source_template_version as string | null) ?? null,
   });
 }
 
@@ -1136,7 +1177,7 @@ export async function completeRecipientOnSuccess(params: {
     })
     .eq("campaign_id", params.campaignId)
     .eq("recipient_id", params.recipientId)
-    .eq("status", "queued");
+    .in("status", ["queued", "sending"]);
 
   await params.supabase
     .from("review_request_recipients")

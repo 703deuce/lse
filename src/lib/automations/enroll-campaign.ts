@@ -8,6 +8,7 @@ import {
 } from "@/lib/reputation/campaign-scheduler";
 import { upsertBusinessContact } from "@/lib/reputation/contacts";
 import { buildTrackingUrl, generateTrackingToken } from "@/lib/reputation/tracking";
+import { buildUnsubscribeUrl } from "@/lib/reputation/unsubscribe";
 import {
   defaultReviewRequestSequence,
   initialSendSteps,
@@ -188,34 +189,25 @@ export async function enrollContactInCampaign(params: {
   const firstSends = initialSendSteps(sequence);
   const step = firstSends[0];
   const startsWithWait = sequenceStartsWithWait(sequence);
-  const channels = step
+  const campaignChannel = campaign.channel as "sms" | "email" | "both";
+  // For wait-first sequences, resolve against the first send step (not the wait).
+  const firstSendStep =
+    step ??
+    sequence.find((s) => s.step_type === "send_sms" || s.step_type === "send_email") ??
+    null;
+  const channels = firstSendStep
     ? resolveWaveChannels({
-        campaignChannel: campaign.channel as "sms" | "email" | "both",
-        step,
+        campaignChannel,
+        step: firstSendStep,
         hasPhone: Boolean(phone),
         hasEmail: Boolean(email),
       })
-    : startsWithWait
-      ? (["sms", "email"] as Array<"sms" | "email">).filter((ch) =>
-          ch === "sms" ? Boolean(phone) : Boolean(email)
-        )
-      : ([
-          ...(campaign.channel !== "email" && phone ? ["sms"] : []),
-          ...(campaign.channel !== "sms" && email ? ["email"] : []),
-        ] as Array<"sms" | "email">);
+    : ([
+        ...(campaignChannel !== "email" && phone ? ["sms"] : []),
+        ...(campaignChannel !== "sms" && email ? ["email"] : []),
+      ] as Array<"sms" | "email">);
 
-  // For wait-first sequences, channel eligibility is checked when the send fires.
-  if (!startsWithWait && !channels.length) {
-    return {
-      contactId,
-      recipientId: "",
-      messageIds: [],
-      alreadyEnrolled: false,
-      skipped: true,
-      skipReason: "No matching channel for contact",
-    };
-  }
-  if (startsWithWait && !phone && !email) {
+  if (!channels.length) {
     return {
       contactId,
       recipientId: "",
@@ -376,8 +368,44 @@ export async function enrollContactInCampaign(params: {
     const { data: insertedMsgs, error: msgErr } = await supabase
       .from("review_request_messages")
       .insert(messageRows)
-      .select("id");
+      .select("id, channel, recipient_id, step_key, tracking_url");
     if (msgErr) throw new Error(msgErr.message);
+
+    for (const msg of insertedMsgs ?? []) {
+      if (msg.channel !== "email") continue;
+      const unsub = buildUnsubscribeUrl(String(msg.id));
+      if (!unsub) continue;
+      const sendStep =
+        step ??
+        ({
+          step_key: String(msg.step_key ?? "initial"),
+          step_type: "send_email",
+          config: {},
+        } as SequenceStep);
+      const rendered = renderStepMessage({
+        step: sendStep,
+        channel: "email",
+        vars: buildCampaignTemplateVars({
+          firstName,
+          lastName: (recipient.last_name as string | null) ?? null,
+          fullName: (recipient.full_name as string | null) ?? firstName,
+          businessName: business.name,
+          reviewLink: String(msg.tracking_url ?? ""),
+          serviceType:
+            (recipient.job_type as string | null) ?? params.contact.jobType ?? "recent service",
+          unsubscribeLink: unsub,
+        }),
+        fallbackSmsBody: defaultSmsBody(),
+        fallbackEmailSubject: defaultEmailSubject(),
+        fallbackEmailBody: defaultEmailBody(),
+        templateSubject: emailTemplate?.subject ?? null,
+        templateBody: emailTemplate?.body ?? null,
+      });
+      await supabase
+        .from("review_request_messages")
+        .update({ subject: rendered.subject, message_body: rendered.body })
+        .eq("id", msg.id);
+    }
 
     const { data: contactRow } = await supabase
       .from("review_request_contacts")

@@ -461,9 +461,14 @@ export async function processSequenceWaits(limit = 50): Promise<number> {
       .in("status", ["active", "scheduled"])
       .maybeSingle();
     if (!campaign) {
+      // Campaign paused/draft/cancelled — clear due clock so we do not reclaim-loop.
       await supabase
         .from("review_request_recipients")
-        .update({ workflow_status: "waiting", updated_at: now })
+        .update({
+          workflow_status: "waiting",
+          next_action_at: null,
+          updated_at: now,
+        })
         .eq("id", claimed.id)
         .eq("workflow_status", "in_progress");
       continue;

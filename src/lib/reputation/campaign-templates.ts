@@ -232,9 +232,9 @@ Thank you for choosing us. If you have a moment, we’d appreciate your honest f
 {{unsubscribe_link}}`;
 
 const DELAYED_1 =
-  "Hi {{first_name}}, we wanted to check in now that you’ve had a little time since your service with {{business_name}}. Would you mind sharing your honest experience? {{review_link}}";
+  "Hi {{first_name}}, we wanted to check in now that you’ve had a little time since your service with {{business_name}}. Would you mind sharing your honest experience? {{review_link}}\nReply STOP to opt out.";
 const DELAYED_2 =
-  "Hi {{first_name}}, just following up in case you didn’t get a chance to leave feedback. We’d appreciate hearing about your experience: {{review_link}}";
+  "Hi {{first_name}}, just following up in case you didn’t get a chance to leave feedback. We’d appreciate hearing about your experience: {{review_link}}\nReply STOP to opt out.";
 
 const REACT_1_SUB = "We’d value your feedback";
 const REACT_1 = `Hi {{first_name}},
@@ -265,22 +265,68 @@ This will be our final reminder. If you have a moment, we’d appreciate your ho
 function messagesFromSequence(sequence: SequenceStep[]): CampaignTemplateMessage[] {
   const out: CampaignTemplateMessage[] = [];
   for (const step of sequence) {
-    if (step.step_type === "send_sms") {
-      out.push({
-        step_key: step.step_key,
-        channel: "sms",
-        body: String(step.config.body ?? ""),
-      });
-    } else if (step.step_type === "send_email") {
+    if (step.step_type !== "send_sms" && step.step_type !== "send_email") continue;
+
+    const smsBody = String(step.config.body ?? "");
+    const emailAlt = String(step.config.email_body ?? "");
+    const subject = String(step.config.subject ?? "");
+
+    if (step.step_type === "send_email") {
       out.push({
         step_key: step.step_key,
         channel: "email",
-        subject: String(step.config.subject ?? ""),
-        body: String(step.config.body ?? ""),
+        subject: subject || undefined,
+        body: smsBody,
+      });
+      continue;
+    }
+
+    // send_sms — may also carry email_body for prefer_single fallbacks
+    if (smsBody) {
+      out.push({ step_key: step.step_key, channel: "sms", body: smsBody });
+    }
+    if (emailAlt) {
+      out.push({
+        step_key: step.step_key,
+        channel: "email",
+        subject: subject || undefined,
+        body: emailAlt,
       });
     }
   }
   return out;
+}
+
+/** Rewrite eligibility gates for a chosen success mode (does not mutate input). */
+export function applySuccessModeToSequence(
+  sequence: SequenceStep[],
+  mode: CampaignSuccessMode
+): SequenceStep[] {
+  if (mode === "click") return structuredClone(sequence) as SequenceStep[];
+  return sequence.map((step) => {
+    if (step.step_type !== "condition") return { ...step, config: { ...step.config } };
+    const thenKey = String(step.config.then ?? "end");
+    const elseKey = String(step.config.else ?? "end");
+    if (mode === "continue_until_confirmed") {
+      return {
+        ...step,
+        config: {
+          all: ["customer_opted_out:false", "review_detected:false", "customer_replied:false"],
+          then: thenKey,
+          else: elseKey,
+        },
+      };
+    }
+    // conservative: ignore click; stop on reply / opt-out / matched review only
+    return {
+      ...step,
+      config: {
+        all: ["customer_opted_out:false", "review_detected:false", "customer_replied:false"],
+        then: thenKey,
+        else: elseKey,
+      },
+    };
+  });
 }
 
 const TEMPLATE_SMS_FIRST: CampaignTemplateDefinition = {
@@ -649,7 +695,7 @@ export function materializeCampaignTemplate(templateId: string): {
   if (!template) return null;
   return {
     template,
-    sequence: structuredClone(template.sequence) as SequenceStep[],
+    sequence: applySuccessModeToSequence(template.sequence, template.successMode),
     channel: template.channel,
     name: template.name,
     description: template.description,

@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  applySuccessModeToSequence,
   CAMPAIGN_SYSTEM_TEMPLATES,
   featuredCampaignTemplate,
   getCampaignSystemTemplate,
@@ -102,5 +103,29 @@ describe("campaign system templates", () => {
     assert.equal(list[0]!.id, "past-customer-reactivation");
     assert.equal(list[0]!.suitableForWebhook, false);
     assert.equal(list[0]!.objective, "reactivation");
+  });
+
+  it("includes STOP language on every SMS body", () => {
+    for (const t of CAMPAIGN_SYSTEM_TEMPLATES) {
+      for (const m of t.messages.filter((x) => x.channel === "sms")) {
+        assert.match(m.body, /STOP/i, `${t.id} ${m.step_key}`);
+      }
+    }
+  });
+
+  it("delayed template previews both SMS and email copy", () => {
+    const t = getCampaignSystemTemplate("delayed-post-completion")!;
+    assert.ok(t.messages.some((m) => m.channel === "sms"));
+    assert.ok(t.messages.some((m) => m.channel === "email"));
+  });
+
+  it("conservative success mode drops click from eligibility gates", () => {
+    const t = getCampaignSystemTemplate("sms-first-quick-request")!;
+    const rewritten = applySuccessModeToSequence(t.sequence, "conservative");
+    const gate = rewritten.find((s) => s.step_type === "condition");
+    assert.ok(gate);
+    const all = gate!.config.all as string[];
+    assert.ok(!all.includes("no_activity"));
+    assert.ok(all.includes("review_detected:false"));
   });
 });
