@@ -82,6 +82,10 @@ describe("queue config", () => {
   it("exposes isolated named queues", () => {
     assert.equal(QUEUE_CONFIGS["maps-scan"].name, "maps-scan");
     assert.equal(QUEUE_CONFIGS["report-generation"].name, "report-generation");
+    assert.equal(QUEUE_CONFIGS["email-send"].name, "email-send");
+    assert.equal(QUEUE_CONFIGS["sms-send"].name, "sms-send");
+    assert.ok(QUEUE_CONFIGS["email-send"].concurrency >= 1);
+    assert.ok(QUEUE_CONFIGS["sms-send"].concurrency >= 1);
     assert.ok(QUEUE_CONFIGS["maps-scan"].concurrency >= 1);
     assert.ok(QUEUE_CONFIGS.notifications.maxAttempts >= 1);
     assert.ok(brightDataFairChunkSize() >= 1);

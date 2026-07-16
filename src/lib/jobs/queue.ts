@@ -176,8 +176,9 @@ async function enqueueRecurringDrains(): Promise<void> {
   const bucket = Math.floor(Date.now() / 60_000);
   await Promise.all([
     dispatchFeatureJob({
+      // Lightweight orchestrator: enqueue due email/sms jobs (workers send).
       jobType: "campaign_send_batch",
-      payload: { limit: 20 },
+      payload: { limit: 100 },
       idempotencyKey: `campaign-drain:${bucket}`,
       priority: "normal",
       maxAttempts: 2,

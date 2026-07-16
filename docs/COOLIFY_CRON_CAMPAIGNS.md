@@ -1,15 +1,39 @@
 # Coolify / Hetzner — Review Campaigns cron
 
 Campaign SMS/email sends do **not** run inside long HTTP browser requests.
-They are drained by the existing job poller:
 
-`GET|POST /api/jobs/process`
+With `QUEUE_DRIVER=bullmq` (recommended once Redis + messaging worker are live):
 
-That route calls `processPendingJobs()` which:
+```
+Cron → POST /api/jobs/process
+     → enqueue campaign_send_batch (orchestrator)
+     → messaging worker finds due messages
+     → enqueue send_campaign_email / send_campaign_sms
+     → messaging worker → Brevo / Twilio
+```
+
+The cron stays lightweight. Twilio/Brevo run only on `npm run worker:messaging`.
+
+`GET|POST /api/jobs/process` still:
 1. Reclaims stale scan / job-queue work
-2. Runs `processCampaignMessages()` (atomic claim → Twilio/Brevo → mark sent)
+2. Enqueues the per-minute campaign drain (idempotent)
 
 On Coolify (Hetzner), schedule an **external cron** (or Coolify Scheduled Task) that hits your public app URL. Do not rely on `node-cron` inside the Next.js process — deploys and restarts would miss ticks.
+
+## Messaging worker (BullMQ)
+
+Deploy a Coolify service with the same image/env as web:
+
+| Field | Value |
+| --- | --- |
+| Name | Messaging Worker |
+| Start command | `npm run worker:messaging` |
+| Domain / port | none |
+| Restart | always |
+
+Required env (same as web): `QUEUE_DRIVER=bullmq`, `REDIS_URL`, Supabase keys, `TWILIO_*`, `BREVO_*`.
+
+Queues consumed: `review-campaign`, `email-send`, `sms-send`, `review-import`, `review-monitor`, `notifications`.
 
 ## 1. Set secrets
 

@@ -23,19 +23,33 @@ Never infer the driver from a successful Redis ping. Misconfiguration with `QUEU
 Canonical names live in `JOB_QUEUES` / `ALL_QUEUE_NAMES` (`src/lib/queue/types.ts`).
 **BullMQ queue names must never contain `:`** — BullMQ uses `:` as an internal Redis key separator.
 
-| Queue name (no colon) | Purpose |
-| --- | --- |
-| `maps-scan` | Parent grid scans |
-| `maps-cell-retry` | Failed-cell retry bursts |
-| `review-campaign` | Campaign sends |
-| `review-import` | Contact / review imports |
-| `review-monitor` | New-review monitoring |
-| `backlink-gap` | Backlink Gap audits |
-| `local-trust` | Local Trust audits |
-| `ai-visibility` | AI Visibility runs |
-| `report-generation` | Report / PDF exports |
-| `notifications` | Transactional notifications |
-| `maintenance` | Retention, reconciliation |
+| Queue name (no colon) | Purpose | Worker |
+| --- | --- | --- |
+| `maps-scan` | Parent grid scans | `worker:maps` |
+| `maps-cell-retry` | Failed-cell retry bursts | `worker:maps` |
+| `review-campaign` | Campaign drain — enqueue due email/sms jobs | `worker:messaging` |
+| `email-send` | Brevo campaign email delivery | `worker:messaging` |
+| `sms-send` | Twilio campaign SMS delivery | `worker:messaging` |
+| `review-import` | Contact CSV / webhook imports | `worker:messaging` |
+| `review-monitor` | New-review monitoring | `worker:messaging` |
+| `backlink-gap` | Backlink Gap audits | `worker:intelligence` |
+| `local-trust` | Local Trust audits | `worker:intelligence` |
+| `ai-visibility` | AI Visibility runs | `worker:intelligence` |
+| `report-generation` | Report / PDF exports | `worker:reports` |
+| `notifications` | Transactional notifications | `worker:messaging` |
+| `maintenance` | Retention, reconciliation | `worker:intelligence` |
+
+### Campaign send path (BullMQ)
+
+```
+Cron /api/jobs/process
+  → campaign_send_batch (review-campaign)
+  → enqueueDueCampaignMessages()
+  → send_campaign_email / send_campaign_sms
+  → claim → provider throttle → Brevo/Twilio → mark sent → advance sequence
+```
+
+Cron must not call providers. The messaging worker owns Twilio/Brevo.
 
 `QUEUE_PREFIX` (default `lse`) is passed as BullMQ's `prefix` option — **not** concatenated into the queue name. Wrong: `new Worker("lse:maps-scan")`. Right: `new Worker("maps-scan", { prefix: "lse" })`.
 
@@ -110,6 +124,17 @@ Cross-tenant limits (Redis-backed when `REDIS_URL` is set):
 - `BRIGHTDATA_GLOBAL_MAX_IN_FLIGHT` (default `250`) — open requests across all workers
 - `BRIGHTDATA_FAIR_CHUNK_SIZE` / `BRIGHTDATA_GRID_BATCH_SIZE` (default `100`) — max cells one scan launches per wave / in-scan `pLimit`
 
+## Messaging provider limits
+
+Same Redis pattern for campaign delivery:
+
+- `TWILIO_GLOBAL_START_RATE_PER_SEC` (default `5`)
+- `TWILIO_GLOBAL_MAX_IN_FLIGHT` (default `20`)
+- `BREVO_GLOBAL_START_RATE_PER_SEC` (default `20`)
+- `BREVO_GLOBAL_MAX_IN_FLIGHT` (default `40`)
+
+BullMQ concurrency defaults: `email-send` = 15, `sms-send` = 10 (env-overridable).
+
 A lone 7×7 (49) or 10×10 (100) starts all cells in one wave. Two simultaneous 7×7s both schedule ~49 workers; the Redis global limiter shares starts/in-flight so neither waits for the other job’s whole grid to finish. Grids larger than 100 cells go in waves of 100.
 
 ## Per-tenant Maps fairness
@@ -143,7 +168,9 @@ All heavy product work is dispatched through `dispatchFeatureJob` / `@/lib/queue
 | --- | --- | --- |
 | Maps scans (+ enrich, difficulty cells via scan) | `process_scan`, `scan_enrichment` | `maps-scan` |
 | Review contact import | `import_contacts` | `review-import` |
-| Review campaign sends | `campaign_send_batch` (cron drain) | `review-campaign` |
+| Review campaign drain | `campaign_send_batch` (cron enqueue) | `review-campaign` |
+| Review campaign email | `send_campaign_email` | `email-send` |
+| Review campaign SMS | `send_campaign_sms` | `sms-send` |
 | New-review alerts | `review_alert_scan` (cron drain) | `review-monitor` |
 | Review momentum | `review_momentum_run` | `review-monitor` |
 | Reputation audit | `reputation_audit` | `review-monitor` |

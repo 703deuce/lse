@@ -360,6 +360,10 @@ function defaultJobTypeForQueue(queueName: QueueName): string {
       return "import_contacts";
     case "review-campaign":
       return "campaign_send_batch";
+    case "email-send":
+      return "send_campaign_email";
+    case "sms-send":
+      return "send_campaign_sms";
     case "review-monitor":
       return "review_alert_scan";
     case "backlink-gap":

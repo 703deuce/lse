@@ -10,6 +10,8 @@ export type QueueName =
   | "maps-scan"
   | "maps-cell-retry"
   | "review-campaign"
+  | "email-send"
+  | "sms-send"
   | "review-import"
   | "review-monitor"
   | "backlink-gap"
@@ -26,7 +28,10 @@ export type JobQueueName = QueueName;
 export const JOB_QUEUES = {
   MAPS_SCAN: "maps-scan",
   MAPS_CELL_RETRY: "maps-cell-retry",
+  /** Orchestrator: find due campaign messages and enqueue email/sms jobs. */
   REVIEW_CAMPAIGN: "review-campaign",
+  EMAIL_SEND: "email-send",
+  SMS_SEND: "sms-send",
   REVIEW_IMPORT: "review-import",
   REVIEW_MONITOR: "review-monitor",
   BACKLINK_GAP: "backlink-gap",
@@ -36,6 +41,22 @@ export const JOB_QUEUES = {
   NOTIFICATIONS: "notifications",
   MAINTENANCE: "maintenance",
 } as const satisfies Record<string, QueueName>;
+
+/** Queues owned by `npm run worker:messaging`. */
+export const MESSAGING_QUEUE_NAMES = [
+  JOB_QUEUES.REVIEW_CAMPAIGN,
+  JOB_QUEUES.EMAIL_SEND,
+  JOB_QUEUES.SMS_SEND,
+  JOB_QUEUES.REVIEW_IMPORT,
+  JOB_QUEUES.REVIEW_MONITOR,
+  JOB_QUEUES.NOTIFICATIONS,
+] as const satisfies readonly QueueName[];
+
+/** Queues owned by `npm run worker:maps`. */
+export const MAPS_QUEUE_NAMES = [
+  JOB_QUEUES.MAPS_SCAN,
+  JOB_QUEUES.MAPS_CELL_RETRY,
+] as const satisfies readonly QueueName[];
 
 export const ALL_QUEUE_NAMES = Object.values(JOB_QUEUES) as QueueName[];
 

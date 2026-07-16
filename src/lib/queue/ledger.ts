@@ -371,6 +371,77 @@ export async function countJobsByStatus(): Promise<Record<string, number>> {
   return counts;
 }
 
+/** Pending/running/failed job counts grouped for admin ops (Maps vs Messaging vs Reports). */
+export async function countJobsByQueueGroup(): Promise<{
+  maps: { pending: number; running: number; failed: number };
+  messaging: { pending: number; running: number; failed: number };
+  reports: { pending: number; running: number; failed: number };
+  maintenance: { pending: number; running: number; failed: number };
+}> {
+  const supabase = createServiceClient();
+  const groups = {
+    maps: ["maps-scan", "maps-cell-retry"],
+    messaging: [
+      "review-campaign",
+      "email-send",
+      "sms-send",
+      "review-import",
+      "review-monitor",
+      "notifications",
+    ],
+    reports: ["report-generation"],
+    maintenance: [
+      "maintenance",
+      "backlink-gap",
+      "local-trust",
+      "ai-visibility",
+    ],
+  } as const;
+
+  async function tally(queues: readonly string[]) {
+    const out = { pending: 0, running: 0, failed: 0 };
+    await Promise.all(
+      (["pending", "running", "failed"] as const).map(async (status) => {
+        const { count } = await supabase
+          .from("job_queue")
+          .select("id", { count: "exact", head: true })
+          .eq("status", status)
+          .in("queue_name", [...queues]);
+        out[status] = count ?? 0;
+      })
+    );
+    return out;
+  }
+
+  const [maps, messaging, reports, maintenance] = await Promise.all([
+    tally(groups.maps),
+    tally(groups.messaging),
+    tally(groups.reports),
+    tally(groups.maintenance),
+  ]);
+  return { maps, messaging, reports, maintenance };
+}
+
+/** Campaign message pipeline depth for admin ops. */
+export async function countCampaignMessagePipeline(): Promise<{
+  queued: number;
+  sending: number;
+  failed: number;
+}> {
+  const supabase = createServiceClient();
+  const out = { queued: 0, sending: 0, failed: 0 };
+  await Promise.all(
+    (["queued", "sending", "failed"] as const).map(async (status) => {
+      const { count } = await supabase
+        .from("review_request_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("status", status);
+      out[status] = count ?? 0;
+    })
+  );
+  return out;
+}
+
 /**
  * Requeue jobs whose lease expired (worker crash) even if started_at is recent.
  * Single conditional update — avoids TOCTOU steal after a heartbeat renews the lease.

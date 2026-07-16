@@ -41,6 +41,30 @@ export function brightDataFairChunkSize(): number {
   return Number.isFinite(n) && n > 0 ? Math.min(n, 100) : 100;
 }
 
+/** Twilio global start rate (SMS API calls/sec across workers). */
+export function twilioStartRatePerSec(): number {
+  const n = Number(process.env.TWILIO_GLOBAL_START_RATE_PER_SEC ?? 5);
+  return Number.isFinite(n) && n > 0 ? n : 5;
+}
+
+/** Twilio global in-flight SMS sends across workers. */
+export function twilioMaxInFlight(): number {
+  const n = Number(process.env.TWILIO_GLOBAL_MAX_IN_FLIGHT ?? 20);
+  return Number.isFinite(n) && n > 0 ? n : 20;
+}
+
+/** Brevo global start rate (email API calls/sec across workers). */
+export function brevoStartRatePerSec(): number {
+  const n = Number(process.env.BREVO_GLOBAL_START_RATE_PER_SEC ?? 20);
+  return Number.isFinite(n) && n > 0 ? n : 20;
+}
+
+/** Brevo global in-flight email sends across workers. */
+export function brevoMaxInFlight(): number {
+  const n = Number(process.env.BREVO_GLOBAL_MAX_IN_FLIGHT ?? 40);
+  return Number.isFinite(n) && n > 0 ? n : 40;
+}
+
 export function maxActiveMapsScansPerOrg(): number {
   const n = Number(process.env.MAX_ACTIVE_MAPS_SCANS_PER_ORG ?? 3);
   return Number.isFinite(n) && n > 0 ? n : 3;
@@ -136,14 +160,36 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
   },
   "review-campaign": {
     name: "review-campaign",
-    concurrency: Number(process.env.QUEUE_CONCURRENCY_REVIEW_CAMPAIGN ?? 5),
+    concurrency: Number(process.env.QUEUE_CONCURRENCY_REVIEW_CAMPAIGN ?? 2),
     limiter: {
-      max: Number(process.env.QUEUE_LIMITER_REVIEW_CAMPAIGN_MAX ?? 60),
+      max: Number(process.env.QUEUE_LIMITER_REVIEW_CAMPAIGN_MAX ?? 30),
+      durationMs: 60_000,
+    },
+    maxAttempts: 3,
+    timeoutMs: 2 * 60_000,
+    description: "Campaign drain — enqueue due email/sms send jobs",
+  },
+  "email-send": {
+    name: "email-send",
+    concurrency: Number(process.env.QUEUE_CONCURRENCY_EMAIL_SEND ?? 15),
+    limiter: {
+      max: Number(process.env.QUEUE_LIMITER_EMAIL_SEND_MAX ?? 120),
       durationMs: 60_000,
     },
     maxAttempts: 5,
-    timeoutMs: 5 * 60_000,
-    description: "SMS/email review request sends",
+    timeoutMs: 2 * 60_000,
+    description: "Brevo campaign email delivery",
+  },
+  "sms-send": {
+    name: "sms-send",
+    concurrency: Number(process.env.QUEUE_CONCURRENCY_SMS_SEND ?? 10),
+    limiter: {
+      max: Number(process.env.QUEUE_LIMITER_SMS_SEND_MAX ?? 60),
+      durationMs: 60_000,
+    },
+    maxAttempts: 5,
+    timeoutMs: 2 * 60_000,
+    description: "Twilio campaign SMS delivery",
   },
   "review-import": {
     name: "review-import",
