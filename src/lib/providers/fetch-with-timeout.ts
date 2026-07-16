@@ -113,6 +113,7 @@ export type FetchUsageContext = {
   unitType?: string;
   estimatedCostUsd?: number | null;
   actualUnits?: number | null;
+  idempotencyKey?: string | null;
 };
 
 export async function fetchWithTimeout(
@@ -164,6 +165,7 @@ export async function fetchWithTimeout(
           unitType: opts.usage.unitType ?? "request",
           estimatedCostUsd: opts.usage.estimatedCostUsd ?? estimateProviderCost(opts.provider),
           actualUnits: opts.usage.actualUnits ?? 1,
+          idempotencyKey: opts.usage.idempotencyKey ?? null,
         });
       }
     }

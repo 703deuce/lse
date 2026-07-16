@@ -474,6 +474,7 @@ export async function executeJobType(
             persist: payload.persist !== false,
             reportId: optionalString(payload.reportId),
             shareToken: optionalString(payload.shareToken),
+            identityKey: optionalString(payload.identityKey),
           });
           if (ledgerJobId) {
             const { updateJobProgress } = await import("@/lib/queue/ledger");
@@ -499,7 +500,8 @@ export async function executeJobType(
                 artifact_status: "failed",
                 error_message: (err instanceof Error ? err.message : String(err)).slice(0, 500),
               })
-              .eq("id", reportId);
+              .eq("id", reportId)
+              .eq("business_id", businessId);
           }
           throw err;
         }

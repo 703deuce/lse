@@ -17,7 +17,7 @@ import { acquireProviderSlot } from "@/lib/queue/provider-limiter";
 import { logger } from "@/lib/observability/logger";
 
 const PERMANENT_FAIL =
-  /missing recipient|invalid.*(phone|email)|not configured|unauthorized|forbidden|opt.?out/i;
+  /missing recipient|invalid.*(phone|email|key)|key not found|not configured|unauthorized|forbidden|unrecognised|api key rejected|opt.?out/i;
 
 export type SendCampaignMessageResult = {
   ok: boolean;
@@ -219,6 +219,7 @@ export async function sendCampaignMessageById(
         body,
         organizationId,
         businessId,
+        idempotencyKey: `twilio:msg:${claimed.id}`,
       });
       ok = result.ok;
       if (result.ok) providerId = result.messageSid;
@@ -234,6 +235,7 @@ export async function sendCampaignMessageById(
         listUnsubscribeUrl: buildUnsubscribeUrl(String(claimed.id)),
         organizationId,
         businessId,
+        idempotencyKey: `brevo:msg:${claimed.id}`,
       });
       ok = result.ok;
       if (result.ok) providerId = result.messageId;

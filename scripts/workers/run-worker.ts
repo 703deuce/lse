@@ -106,6 +106,24 @@ async function main() {
     console.log(
       "[worker] messaging profile — owns campaign email/sms. Keep worker:all for Maps/intelligence (it no longer consumes messaging queues)."
     );
+    // Safe fingerprint only — never log the full Brevo key.
+    const { secretFingerprint, cleanSecret } = await import("../../src/lib/env/secrets");
+    const brevoFp = secretFingerprint(process.env.BREVO_API_KEY);
+    const fromEmail = cleanSecret(process.env.REVIEW_REQUEST_FROM_EMAIL);
+    console.log(
+      `[worker] brevo key present=${brevoFp.present} length=${brevoFp.length} prefix=${brevoFp.prefix} suffix=${brevoFp.suffix} hadWhitespaceOrQuotes=${brevoFp.hadWhitespace} looksLikeXkeysib=${Boolean(
+        cleanSecret(process.env.BREVO_API_KEY)?.startsWith("xkeysib-")
+      )} fromEmailConfigured=${Boolean(fromEmail)}`
+    );
+    if (!brevoFp.present) {
+      console.warn(
+        "[worker] BREVO_API_KEY is missing on this messaging worker — campaign email will fail. Set it on the messaging Coolify service (not only web / worker:all)."
+      );
+    } else if (brevoFp.hadWhitespace) {
+      console.warn(
+        "[worker] BREVO_API_KEY had surrounding whitespace/quotes — cleaned at send time, but fix the Coolify value."
+      );
+    }
   } else if (profile === "all") {
     console.log(
       "[worker] profile=all excludes messaging queues. Run npm run worker:messaging separately for campaign email/sms."

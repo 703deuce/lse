@@ -42,8 +42,9 @@ function formatRunLabel(r: RunSummary) {
 
 function visibilityDelta(trend: VisibilityData["visibilityTrend"]): string | undefined {
   if (trend.length < 2) return undefined;
-  const latest = trend[0]?.visibilityScore ?? 0;
-  const prev = trend[1]?.visibilityScore ?? 0;
+  // Trend is ascending by date — latest points are at the end.
+  const latest = trend[trend.length - 1]?.visibilityScore ?? 0;
+  const prev = trend[trend.length - 2]?.visibilityScore ?? 0;
   const d = latest - prev;
   if (d === 0) return undefined;
   return `${d > 0 ? "▲" : "▼"} ${Math.abs(d)} pts`;

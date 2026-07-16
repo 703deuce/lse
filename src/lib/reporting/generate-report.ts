@@ -32,6 +32,11 @@ export type GenerateReportParams = {
   reportId?: string | null;
   /** Preserve an already-issued share token when filling a generating row. */
   shareToken?: string | null;
+  /**
+   * Stable share identity from create-time. When set (async share flow), must win
+   * over recomputed keys so worker updates don't rewrite competitor:…:default → top-5.
+   */
+  identityKey?: string | null;
 };
 
 export type GenerateReportResult = {
@@ -256,6 +261,9 @@ async function persistReport(params: {
         metadata_json: metadata,
         generated_at: new Date().toISOString(),
         scan_batch_id: scanBatchId,
+        artifact_kind: "html_share",
+        artifact_status: "ready",
+        error_message: null,
       })
       .eq("id", retry.existingReportId)
       .eq("business_id", params.businessId)
@@ -364,7 +372,8 @@ export async function generateTypedReport(
 ): Promise<GenerateReportResult> {
   const payload = await buildTypedReportPayload(params);
   const html = renderReportHtml(payload);
-  const identityKey = reportIdentityKey(payload, params);
+  // Prefer create-time identity (async share) so worker updates keep the same key.
+  const identityKey = params.identityKey?.trim() || reportIdentityKey(payload, params);
 
   if (params.persist === false) {
     return {

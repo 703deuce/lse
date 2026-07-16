@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { getTwilioSmsWebhookUrl } from "@/lib/app-url";
+import { cleanSecret } from "@/lib/env/secrets";
 import { normalizePhoneE164 } from "@/lib/reputation/phone";
 import { fetchWithTimeout, providerTimeoutMs } from "@/lib/providers/fetch-with-timeout";
 
@@ -12,6 +13,8 @@ export type TwilioSendParams = {
   organizationId?: string | null;
   businessId?: string | null;
   jobId?: string | null;
+  /** Stable ledger key so retries do not double-count. */
+  idempotencyKey?: string | null;
 };
 
 export type TwilioSendResult =
@@ -68,10 +71,10 @@ export function verifyTwilioRequestSignature(params: {
  * only predefined template bodies are allowed until the account is upgraded.
  */
 export async function sendTwilioSms(params: TwilioSendParams): Promise<TwilioSendResult> {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const apiKeySid = process.env.TWILIO_API_KEY_SID;
-  const apiKeySecret = process.env.TWILIO_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_FROM_NUMBER;
+  const accountSid = cleanSecret(process.env.TWILIO_ACCOUNT_SID);
+  const apiKeySid = cleanSecret(process.env.TWILIO_API_KEY_SID);
+  const apiKeySecret = cleanSecret(process.env.TWILIO_AUTH_TOKEN);
+  const fromNumber = cleanSecret(process.env.TWILIO_FROM_NUMBER);
   const trialTemplate = process.env.TWILIO_TRIAL_SMS_TEMPLATE?.trim();
 
   if (!accountSid?.startsWith("AC")) {
@@ -122,6 +125,7 @@ export async function sendTwilioSms(params: TwilioSendParams): Promise<TwilioSen
               feature: "review_sms",
               unitType: "message",
               estimatedCostUsd: 0.0079,
+              idempotencyKey: params.idempotencyKey ?? null,
             }
           : undefined,
       }

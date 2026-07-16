@@ -152,21 +152,28 @@ export async function createGeneratingShareRecord(params: {
     .single();
 
   if (error || !data) {
-    // Unique race — fall back to latest matching row.
+    // Unique race — only reuse an in-flight generating row (never failed/stale).
     const { data: raced } = await supabase
       .from("reports")
-      .select("id, share_token")
+      .select("id, share_token, artifact_status, share_expires_at")
       .eq("business_id", params.businessId)
       .eq("metadata_json->>identityKey", params.identityKey)
+      .eq("artifact_status", "generating")
+      .not("share_token", "is", null)
       .order("generated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     if (raced?.id && raced.share_token) {
-      return {
-        reportId: raced.id as string,
-        shareToken: raced.share_token as string,
-        shareUrl: `/reports/share/${raced.share_token}`,
-      };
+      const expiresAt = raced.share_expires_at
+        ? new Date(raced.share_expires_at as string).getTime()
+        : 0;
+      if (Number.isFinite(expiresAt) && expiresAt > Date.now()) {
+        return {
+          reportId: raced.id as string,
+          shareToken: raced.share_token as string,
+          shareUrl: `/reports/share/${raced.share_token}`,
+        };
+      }
     }
     throw new Error(error?.message ?? "Failed to create share record");
   }

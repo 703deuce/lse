@@ -214,6 +214,7 @@ export async function POST(request: Request) {
           persist: true,
           reportId: reusable.reportId,
           shareToken: reusable.shareToken,
+          identityKey,
         },
         organizationId: auth.organizationId,
         businessId: data.businessId,
@@ -270,6 +271,7 @@ export async function POST(request: Request) {
         persist: true,
         reportId: pending.reportId,
         shareToken: pending.shareToken,
+        identityKey,
       },
       organizationId: auth.organizationId,
       businessId: data.businessId,
@@ -280,40 +282,32 @@ export async function POST(request: Request) {
     });
 
     if (job.enqueueState === "enqueue_failed") {
-      stage = "share_sync_fallback";
-      logger.warn("report_export_share_enqueue_failed_sync_fallback", {
+      // Do NOT build HTML in the web request (timeout / crash risk). Leave the
+      // generating row; UI can retry and recoverPendingEnqueues may pick it up.
+      stage = "share_enqueue_failed";
+      logger.warn("report_export_share_enqueue_failed", {
         requestId,
         organizationId,
         businessId,
         reportType,
         reportId: pending.reportId,
         jobId: job.jobId,
+        durationMs: Date.now() - started,
       });
-      const result = await generateTypedReport({
-        businessId: data.businessId,
-        scanBatchId: data.scanBatchId,
-        reportType,
-        keywordId: data.keywordId,
-        locationId: data.locationId,
-        campaignId: data.campaignId,
-        gridSize: data.gridSize,
-        radiusMeters: data.radiusMeters,
-        selectedCompetitorKeys: data.selectedCompetitorKeys,
-        persist: true,
-        reportId: pending.reportId,
-        shareToken: pending.shareToken,
-      });
-      return NextResponse.json({
-        queued: false,
-        status: "ready",
-        reportId: result.reportId ?? pending.reportId,
-        shareUrl: result.shareToken
-          ? `/reports/share/${result.shareToken}`
-          : pending.shareUrl,
-        reportType,
-        fallback: "sync",
-        requestId,
-      });
+      return NextResponse.json(
+        {
+          error:
+            "Report queued but the job broker rejected the enqueue. Retry in a moment — the share record was saved.",
+          queued: false,
+          status: "generating",
+          reportId: pending.reportId,
+          shareUrl: pending.shareUrl,
+          reportType,
+          requestId,
+          stage,
+        },
+        { status: 503 }
+      );
     }
 
     logger.info("report_export_share_queued", {

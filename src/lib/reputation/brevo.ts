@@ -1,5 +1,7 @@
+import { cleanSecret, secretFingerprint } from "@/lib/env/secrets";
 import { fetchWithTimeout, providerTimeoutMs } from "@/lib/providers/fetch-with-timeout";
 import { normalizeProviderMessageId } from "@/lib/reputation/provider-ids";
+import { logger } from "@/lib/observability/logger";
 
 export type BrevoSendParams = {
   toEmail: string;
@@ -15,6 +17,8 @@ export type BrevoSendParams = {
   organizationId?: string | null;
   businessId?: string | null;
   jobId?: string | null;
+  /** Stable ledger key so retries do not double-count. */
+  idempotencyKey?: string | null;
 };
 
 export type BrevoSendResult =
@@ -22,9 +26,10 @@ export type BrevoSendResult =
   | { ok: false; error: string };
 
 export async function sendBrevoEmail(params: BrevoSendParams): Promise<BrevoSendResult> {
-  const apiKey = process.env.BREVO_API_KEY;
-  const fromEmail = process.env.REVIEW_REQUEST_FROM_EMAIL;
-  const defaultFromName = process.env.REVIEW_REQUEST_FROM_NAME ?? "Maps Growth Reviews";
+  const apiKey = cleanSecret(process.env.BREVO_API_KEY);
+  const fromEmail = cleanSecret(process.env.REVIEW_REQUEST_FROM_EMAIL);
+  const defaultFromName =
+    cleanSecret(process.env.REVIEW_REQUEST_FROM_NAME) ?? "Maps Growth Reviews";
   const fromName = params.fromName?.trim() || defaultFromName;
 
   if (!apiKey) return { ok: false, error: "BREVO_API_KEY is not configured" };
@@ -73,21 +78,37 @@ export async function sendBrevoEmail(params: BrevoSendParams): Promise<BrevoSend
               feature: "review_email",
               unitType: "message",
               estimatedCostUsd: 0.001,
+              idempotencyKey: params.idempotencyKey ?? null,
             }
           : undefined,
       }
     );
 
-    const json = (await res.json().catch(() => ({}))) as { messageId?: string; message?: string; code?: string };
+    const json = (await res.json().catch(() => ({}))) as {
+      messageId?: string;
+      message?: string;
+      code?: string;
+    };
 
     if (!res.ok) {
       const detail = json.message ?? json.code ?? res.statusText;
       const detailStr = String(detail);
       if (/key not found|unauthorized|invalid.*key|unrecognised/i.test(detailStr)) {
+        const fp = secretFingerprint(process.env.BREVO_API_KEY);
+        logger.error("brevo_api_key_rejected", {
+          status: res.status,
+          detail: detailStr,
+          keyPresent: fp.present,
+          keyLength: fp.length,
+          keyPrefix: fp.prefix,
+          keySuffix: fp.suffix,
+          keyHadWhitespaceOrQuotes: fp.hadWhitespace,
+          looksLikeBrevoKey: Boolean(apiKey.startsWith("xkeysib-")),
+        });
         return {
           ok: false,
           error:
-            "Brevo API key rejected (Key not found). Set a valid BREVO_API_KEY on the web app and messaging worker, then redeploy. Confirm the sender is verified in Brevo.",
+            "Brevo API key rejected (Key not found). The worker read a BREVO_API_KEY but Brevo did not accept it — often trailing whitespace/quotes in Coolify. Check messaging-worker logs for keyLength/keyHadWhitespaceOrQuotes.",
         };
       }
       return { ok: false, error: `Brevo error: ${detailStr}` };

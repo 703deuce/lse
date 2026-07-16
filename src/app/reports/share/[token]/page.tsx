@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
+/** Stop infinite refresh if the report worker never finishes. */
+const GENERATING_TIMEOUT_MS = 10 * 60 * 1000;
+
 export default async function ShareReportPage({
   params,
 }: {
@@ -15,7 +18,9 @@ export default async function ShareReportPage({
 
   const { data: report } = await supabase
     .from("reports")
-    .select("html_content, share_expires_at, artifact_status, error_message, business_id")
+    .select(
+      "html_content, share_expires_at, artifact_status, error_message, business_id, generated_at"
+    )
     .eq("share_token", token)
     .maybeSingle();
 
@@ -28,22 +33,27 @@ export default async function ShareReportPage({
   }
 
   const status = String(report.artifact_status ?? "ready");
+  const generatedAt = report.generated_at ? new Date(report.generated_at as string).getTime() : NaN;
+  const generatingTooLong =
+    Number.isFinite(generatedAt) && Date.now() - generatedAt > GENERATING_TIMEOUT_MS;
 
   if (!report.html_content) {
-    if (status === "failed") {
+    if (status === "failed" || generatingTooLong) {
       return (
         <main className="flex min-h-dvh items-center justify-center bg-zinc-50 px-6">
           <div className="max-w-md rounded-xl border border-red-200 bg-white p-6 text-center shadow-sm">
             <h1 className="text-lg font-semibold text-zinc-900">Report unavailable</h1>
             <p className="mt-2 text-sm text-zinc-600">
-              Generation failed. Ask the sender to create the shareable report again.
+              {status === "failed"
+                ? "Generation failed. Ask the sender to create the shareable report again."
+                : "Generation timed out. Ask the sender to create the shareable report again."}
             </p>
           </div>
         </main>
       );
     }
 
-    // Generating — auto-refresh until HTML is ready.
+    // Generating — auto-refresh until HTML is ready (capped by GENERATING_TIMEOUT_MS).
     return (
       <main className="flex min-h-dvh items-center justify-center bg-zinc-50 px-6">
         <div className="max-w-md rounded-xl border border-zinc-200 bg-white p-6 text-center shadow-sm">
