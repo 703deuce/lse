@@ -21,6 +21,7 @@ import {
   type ContactImportMode,
   type ContactImportRow,
 } from "@/lib/reputation/contact-import";
+import { processIntegrationWebhookEvent } from "@/lib/integrations/webhook-process";
 import { generateTypedReport } from "@/lib/reporting/generate-report";
 import { releaseUsage } from "@/lib/plans";
 import { logger } from "@/lib/observability/logger";
@@ -56,6 +57,7 @@ export function jobTypeToQueue(jobType: string): QueueName {
     case "retry_scan_cells":
       return "maps-cell-retry";
     case "import_contacts":
+    case "integration_webhook_process":
       return "review-import";
     case "campaign_send_batch":
       return "review-campaign";
@@ -202,6 +204,14 @@ export async function executeJobType(
             .eq("status", "running");
           throw err;
         }
+      }
+      case "integration_webhook_process": {
+        const eventId = String(payload.eventId ?? payload.relatedResourceId ?? "");
+        if (!eventId) return permanent("Missing webhook eventId");
+        const result = await processIntegrationWebhookEvent(eventId);
+        if (!result.ok && result.permanent) return permanent(result.error ?? "Webhook failed");
+        if (!result.ok) return { ok: false, error: result.error ?? "Webhook processing failed" };
+        return { ok: true };
       }
       case "campaign_send_batch": {
         const limit = Number(payload.limit ?? 20);
