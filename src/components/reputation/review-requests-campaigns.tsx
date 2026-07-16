@@ -49,7 +49,13 @@ function statusBadge(status: string) {
   );
 }
 
-export function ReviewRequestsCampaignsTable({ businessId }: { businessId: string }) {
+export function ReviewRequestsCampaignsTable({
+  businessId,
+  refreshKey = 0,
+}: {
+  businessId: string;
+  refreshKey?: number;
+}) {
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [menuId, setMenuId] = useState<string | null>(null);
@@ -57,10 +63,15 @@ export function ReviewRequestsCampaignsTable({ businessId }: { businessId: strin
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/reputation/review-requests/campaigns?businessId=${businessId}`);
       const json = await res.json();
-      if (res.ok) setCampaigns(json.campaigns ?? []);
+      if (!res.ok) throw new Error(json.error || "Failed to load campaigns");
+      setCampaigns(json.campaigns ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load campaigns");
+      setCampaigns([]);
     } finally {
       setLoading(false);
     }
@@ -68,7 +79,7 @@ export function ReviewRequestsCampaignsTable({ businessId }: { businessId: strin
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   async function action(campaignId: string, act: string) {
     setMenuId(null);

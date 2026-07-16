@@ -49,7 +49,13 @@ function encryptionKey(): Buffer {
     process.env.INTEGRATION_SECRET_KEY?.trim() ||
     process.env.CRON_SECRET?.trim() ||
     process.env.EMAIL_UNSUBSCRIBE_SECRET?.trim() ||
-    "dev-integration-secret-key";
+    "";
+  if (!material) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("INTEGRATION_SECRET_KEY is required in production");
+    }
+    return createHash("sha256").update("dev-integration-secret-key").digest();
+  }
   return createHash("sha256").update(material).digest();
 }
 

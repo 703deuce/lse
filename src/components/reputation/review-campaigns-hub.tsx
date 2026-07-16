@@ -34,6 +34,7 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
   const [loading, setLoading] = useState(true);
   const [showBuilder, setShowBuilder] = useState(false);
   const [builderTab, setBuilderTab] = useState<"bulk" | "send">("bulk");
+  const [tableRefreshKey, setTableRefreshKey] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -124,7 +125,7 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
       </div>
 
       <div className="mt-4">
-        <ReviewRequestsCampaignsTable businessId={businessId} />
+        <ReviewRequestsCampaignsTable businessId={businessId} refreshKey={tableRefreshKey} />
       </div>
 
       {showBuilder && (
@@ -174,6 +175,7 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
               businessId={businessId}
               onComplete={() => {
                 setShowBuilder(false);
+                setTableRefreshKey((k) => k + 1);
                 void load();
               }}
             />

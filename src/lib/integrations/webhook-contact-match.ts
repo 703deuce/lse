@@ -271,146 +271,228 @@ export async function resolveContactMatch(params: {
     .eq("id", match.endpoint_id)
     .maybeSingle();
 
-  const { phoneE164, emailNormalized } = contactIdentity({
-    phone: normalized.customer.phone,
-    email: normalized.customer.email,
-  });
-  const display = contactDisplayName({
-    firstName: normalized.customer.first_name,
-    lastName: normalized.customer.last_name,
-    name: normalized.customer.name,
-    phone: normalized.customer.phone,
-    email: normalized.customer.email,
-  });
-
-  // Only attach phone/email when not owned by a different contact (unique constraints).
-  let phoneOk = phoneE164;
-  let emailOk = emailNormalized;
-  if (phoneE164) {
-    const { data: phoneOwner } = await supabase
-      .from("review_request_contacts")
-      .select("id")
-      .eq("business_id", params.businessId)
-      .eq("phone_e164", phoneE164)
-      .neq("id", params.contactId)
-      .maybeSingle();
-    if (phoneOwner) phoneOk = null;
-  }
-  if (emailNormalized) {
-    const { data: emailOwner } = await supabase
-      .from("review_request_contacts")
-      .select("id")
-      .eq("business_id", params.businessId)
-      .eq("email_normalized", emailNormalized)
-      .neq("id", params.contactId)
-      .maybeSingle();
-    if (emailOwner) emailOk = null;
+  async function rollbackMatch(error: string) {
+    await supabase
+      .from("integration_webhook_contact_matches")
+      .update({
+        status: "pending",
+        resolution_contact_id: null,
+        resolved_by_user_id: null,
+        resolved_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", match.id);
+    return { ok: false as const, error };
   }
 
-  let externalOk = normalized.customer.external_id?.trim() || null;
-  if (externalOk) {
-    const { data: extOwner } = await supabase
-      .from("review_request_contacts")
-      .select("id")
-      .eq("business_id", params.businessId)
-      .eq("external_customer_id", externalOk)
-      .neq("id", params.contactId)
-      .maybeSingle();
-    if (extOwner) externalOk = null;
-  }
-
-  const patch: Record<string, unknown> = {
-    first_name: normalized.customer.first_name,
-    last_name: normalized.customer.last_name,
-    customer_name: display,
-    last_service_date:
-      normalized.transaction.completed_at ?? normalized.occurred_at ?? null,
-    source: "webhook_match_resolve",
-    updated_at: now,
-  };
-  if (externalOk) patch.external_customer_id = externalOk;
-  if (phoneOk) {
-    patch.phone_e164 = phoneOk;
-    patch.customer_phone = phoneOk;
-  }
-  if (emailOk) {
-    patch.email_normalized = emailOk;
-    patch.customer_email = emailOk;
-  }
-
-  await supabase
-    .from("review_request_contacts")
-    .update(patch)
-    .eq("id", params.contactId)
-    .eq("business_id", params.businessId);
-
-  const { data: linked } = await supabase
-    .from("review_request_contacts")
-    .select("id, first_name, last_name, customer_name, phone_e164, email_normalized, external_customer_id")
-    .eq("id", params.contactId)
-    .maybeSingle();
-
-  let enrolled = false;
-  const campaignId =
-    endpoint?.campaign_id || endpoint?.default_campaign_id || null;
-
-  if (
-    endpoint &&
-    !endpoint.is_test &&
-    campaignId &&
-    isEnrollEventType(normalized.event_type) &&
-    linked &&
-    (linked.phone_e164 || linked.email_normalized)
-  ) {
-    // Enroll using the linked contact's stored identity to avoid re-matching the other candidate.
-    const result = await enrollContactInCampaign({
-      organizationId: params.organizationId,
-      businessId: params.businessId,
-      campaignId: String(campaignId),
-      preferredContactId: params.contactId,
-      contact: {
-        firstName: linked.first_name,
-        lastName: linked.last_name,
-        name: linked.customer_name,
-        phone: linked.phone_e164,
-        email: linked.email_normalized,
-        externalId: linked.external_customer_id,
-        jobType: normalized.transaction.type,
-        serviceDate: normalized.transaction.completed_at ?? normalized.occurred_at,
-      },
-      delayMinutes: Number(endpoint.send_delay_minutes ?? 0),
-      duplicateProtectionDays: Number(endpoint.duplicate_window_days ?? 90),
-    });
-    enrolled = !result.skipped && !result.alreadyEnrolled;
+  if (!endpoint || endpoint.revoked_at || !endpoint.is_active) {
     await supabase
       .from("integration_webhook_events")
       .update({
-        status: result.skipped
-          ? mapEnrollmentSkipStatus(result.skipReason)
-          : result.alreadyEnrolled
-            ? "ignored_duplicate"
-            : "completed",
-        contact_id: result.contactId || params.contactId,
-        campaign_enrollment_id: result.recipientId || null,
-        customer_safe_error: result.skipReason ?? "Linked after match review",
+        status: "rejected_unauthorized",
+        customer_safe_error: "Endpoint disabled",
         processed_at: now,
         updated_at: now,
       })
       .eq("id", match.event_id);
-  } else {
+    return { ok: true, enrolled: false };
+  }
+
+  if (endpoint.require_email_consent && normalized.consent?.email !== true) {
     await supabase
       .from("integration_webhook_events")
       .update({
-        status: endpoint?.is_test ? "ignored_test" : "completed",
+        status: "rejected_invalid",
+        customer_safe_error: "Email consent required",
         contact_id: params.contactId,
-        customer_safe_error: endpoint?.is_test
-          ? "Test mode after match resolve"
-          : "Contact linked after match review",
         processed_at: now,
         updated_at: now,
       })
       .eq("id", match.event_id);
+    return { ok: true, enrolled: false };
+  }
+  if (endpoint.require_sms_consent && normalized.consent?.sms !== true) {
+    await supabase
+      .from("integration_webhook_events")
+      .update({
+        status: "rejected_invalid",
+        customer_safe_error: "SMS consent required",
+        contact_id: params.contactId,
+        processed_at: now,
+        updated_at: now,
+      })
+      .eq("id", match.event_id);
+    return { ok: true, enrolled: false };
   }
 
-  return { ok: true, enrolled };
+  const contactMode = String(endpoint.contact_update_mode ?? "upsert");
+  if (contactMode === "create_only" || contactMode === "skip_existing") {
+    await supabase
+      .from("integration_webhook_events")
+      .update({
+        status: "ignored_duplicate",
+        contact_id: params.contactId,
+        customer_safe_error: `Contact already exists (${contactMode} mode)`,
+        processed_at: now,
+        updated_at: now,
+      })
+      .eq("id", match.event_id);
+    return { ok: true, enrolled: false };
+  }
+
+  try {
+    const { phoneE164, emailNormalized } = contactIdentity({
+      phone: normalized.customer.phone,
+      email: normalized.customer.email,
+    });
+    const display = contactDisplayName({
+      firstName: normalized.customer.first_name,
+      lastName: normalized.customer.last_name,
+      name: normalized.customer.name,
+      phone: normalized.customer.phone,
+      email: normalized.customer.email,
+    });
+
+    let phoneOk = phoneE164;
+    let emailOk = emailNormalized;
+    if (phoneE164) {
+      const { data: phoneOwner } = await supabase
+        .from("review_request_contacts")
+        .select("id")
+        .eq("business_id", params.businessId)
+        .eq("phone_e164", phoneE164)
+        .neq("id", params.contactId)
+        .maybeSingle();
+      if (phoneOwner) phoneOk = null;
+    }
+    if (emailNormalized) {
+      const { data: emailOwner } = await supabase
+        .from("review_request_contacts")
+        .select("id")
+        .eq("business_id", params.businessId)
+        .eq("email_normalized", emailNormalized)
+        .neq("id", params.contactId)
+        .maybeSingle();
+      if (emailOwner) emailOk = null;
+    }
+
+    let externalOk = normalized.customer.external_id?.trim() || null;
+    if (externalOk) {
+      const { data: extOwner } = await supabase
+        .from("review_request_contacts")
+        .select("id")
+        .eq("business_id", params.businessId)
+        .eq("external_customer_id", externalOk)
+        .neq("id", params.contactId)
+        .maybeSingle();
+      if (extOwner) externalOk = null;
+    }
+
+    const patch: Record<string, unknown> = {
+      first_name: normalized.customer.first_name,
+      last_name: normalized.customer.last_name,
+      customer_name: display,
+      last_service_date:
+        normalized.transaction.completed_at ?? normalized.occurred_at ?? null,
+      source: "webhook_match_resolve",
+      updated_at: now,
+    };
+    if (externalOk) patch.external_customer_id = externalOk;
+    if (phoneOk) {
+      patch.phone_e164 = phoneOk;
+      patch.customer_phone = phoneOk;
+    }
+    if (emailOk) {
+      patch.email_normalized = emailOk;
+      patch.customer_email = emailOk;
+    }
+
+    await supabase
+      .from("review_request_contacts")
+      .update(patch)
+      .eq("id", params.contactId)
+      .eq("business_id", params.businessId);
+
+    const { data: linked } = await supabase
+      .from("review_request_contacts")
+      .select(
+        "id, first_name, last_name, customer_name, phone_e164, email_normalized, external_customer_id"
+      )
+      .eq("id", params.contactId)
+      .maybeSingle();
+
+    let enrolled = false;
+    const campaignId =
+      endpoint.campaign_id || endpoint.default_campaign_id || null;
+
+    if (
+      !endpoint.is_test &&
+      campaignId &&
+      isEnrollEventType(normalized.event_type) &&
+      linked &&
+      (linked.phone_e164 || linked.email_normalized)
+    ) {
+      const result = await enrollContactInCampaign({
+        organizationId: params.organizationId,
+        businessId: params.businessId,
+        campaignId: String(campaignId),
+        preferredContactId: params.contactId,
+        contact: {
+          firstName: linked.first_name,
+          lastName: linked.last_name,
+          name: linked.customer_name,
+          phone: linked.phone_e164,
+          email: linked.email_normalized,
+          externalId: linked.external_customer_id,
+          jobType: normalized.transaction.type,
+          serviceDate: normalized.transaction.completed_at ?? normalized.occurred_at,
+        },
+        delayMinutes: Number(endpoint.send_delay_minutes ?? 0),
+        duplicateProtectionDays: Number(endpoint.duplicate_window_days ?? 90),
+      });
+      enrolled = !result.skipped && !result.alreadyEnrolled;
+      await supabase
+        .from("integration_webhook_events")
+        .update({
+          status: result.skipped
+            ? mapEnrollmentSkipStatus(result.skipReason)
+            : result.alreadyEnrolled
+              ? "ignored_duplicate"
+              : "completed",
+          contact_id: result.contactId || params.contactId,
+          campaign_enrollment_id: result.recipientId || null,
+          customer_safe_error: result.skipReason ?? "Linked after match review",
+          processed_at: now,
+          updated_at: now,
+        })
+        .eq("id", match.event_id);
+    } else {
+      await supabase
+        .from("integration_webhook_events")
+        .update({
+          status: endpoint.is_test ? "ignored_test" : "completed",
+          contact_id: params.contactId,
+          customer_safe_error: endpoint.is_test
+            ? "Test mode after match resolve"
+            : "Contact linked after match review",
+          processed_at: now,
+          updated_at: now,
+        })
+        .eq("id", match.event_id);
+    }
+
+    return { ok: true, enrolled };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await supabase
+      .from("integration_webhook_events")
+      .update({
+        status: "failed_retryable",
+        customer_safe_error: "Match resolve failed; will retry",
+        internal_error: message,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", match.event_id);
+    return rollbackMatch(message);
+  }
 }

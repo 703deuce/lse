@@ -90,6 +90,22 @@ export async function validateBulkRecipients(params: {
     if (s.email) suppressedEmails.add(s.email.toLowerCase());
   }
 
+  // Also honor contact-level opt-out flags (may exist without a suppression row).
+  const { data: optedContacts } = await supabase
+    .from("review_request_contacts")
+    .select("phone_e164, email_normalized, sms_opt_out, email_unsubscribed")
+    .eq("business_id", params.businessId)
+    .or("sms_opt_out.eq.true,email_unsubscribed.eq.true")
+    .limit(5000);
+  for (const c of optedContacts ?? []) {
+    if (c.sms_opt_out && c.phone_e164) {
+      suppressedPhones.add(phoneDigitsForMatch(c.phone_e164));
+    }
+    if (c.email_unsubscribed && c.email_normalized) {
+      suppressedEmails.add(String(c.email_normalized).toLowerCase());
+    }
+  }
+
   const seenPhones = new Set<string>();
   const seenEmails = new Set<string>();
   const recipients: ValidatedRecipient[] = [];

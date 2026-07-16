@@ -81,7 +81,7 @@ export async function dispatchAutomationWebhook(params: {
   }
   const action = rawAction as AutomationAction;
 
-  if (!params.key.scopes.includes("automation") && params.key.scopes.length) {
+  if (!params.key.scopes.includes("automation")) {
     return { ok: false, action, status: 403, error: "API key missing automation scope" };
   }
 

@@ -53,7 +53,7 @@ async function loadTemplate(
       .eq("id", templateId)
       .eq("business_id", businessId)
       .maybeSingle();
-    if (data) return data;
+    if (data && String(data.channel) === channel) return data;
   }
   const { data } = await supabase
     .from("review_request_templates")
@@ -274,7 +274,8 @@ export async function enrollContactInCampaign(params: {
     const emailTemplate = await loadTemplate(
       params.businessId,
       "email",
-      campaign.template_id as string | null
+      (campaign.email_template_id as string | null) ??
+        (campaign.template_id as string | null)
     );
 
     const firstName =
