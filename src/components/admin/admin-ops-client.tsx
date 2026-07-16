@@ -49,6 +49,7 @@ type OpsJob = {
   lifecycleStatus?: string | null;
   relatedResourceId?: string | null;
   relatedScanStatus?: string | null;
+  statusMismatch?: boolean;
 };
 
 type UsageRollup = {
@@ -346,7 +347,7 @@ export function AdminOpsClient() {
               <tr>
                 <th className="py-1.5 pr-3 font-medium">Job</th>
                 <th className="py-1.5 pr-3 font-medium">Job status</th>
-                <th className="py-1.5 pr-3 font-medium">Scan / feature</th>
+                <th className="py-1.5 pr-3 font-medium">Scan status</th>
                 <th className="py-1.5 pr-3 font-medium">Attempts</th>
                 <th className="py-1.5 pr-3 font-medium">Error</th>
                 <th className="py-1.5 font-medium">Actions</th>
@@ -388,7 +389,18 @@ export function AdminOpsClient() {
                         <span className="text-[10px] uppercase tracking-wide text-zinc-400">
                           scan{" "}
                         </span>
-                        {job.relatedScanStatus}
+                        <span
+                          className={
+                            job.statusMismatch ? "font-medium text-amber-700" : undefined
+                          }
+                        >
+                          {job.relatedScanStatus}
+                        </span>
+                        {job.statusMismatch ? (
+                          <div className="mt-0.5 text-[10px] font-medium text-amber-700">
+                            Mismatch — job completed, scan still in flight (cron will requeue)
+                          </div>
+                        ) : null}
                       </div>
                     ) : (
                       <span className="text-zinc-400">—</span>

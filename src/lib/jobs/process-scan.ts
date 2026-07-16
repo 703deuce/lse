@@ -16,6 +16,7 @@ import {
   reclaimStaleScan,
   scanLeaseTtlMs,
 } from "@/lib/jobs/scan-lease";
+import { CELLS_IN_FLIGHT_STATUSES } from "@/lib/scans/status";
 
 /** Outcome of attempting to process a scan batch. */
 export type ProcessScanOutcome = "ran" | "deferred" | "already_done";
@@ -77,6 +78,20 @@ export async function processScanBatch(
       try {
         const { finalizeRankReady } = await import("@/lib/jobs/finalize-scan");
         await finalizeRankReady(scanBatchId, organizationId);
+        const { data: after } = await supabase
+          .from("scan_batches")
+          .select("status, confidence_summary")
+          .eq("id", scanBatchId)
+          .maybeSingle();
+        const afterStatus = String(after?.status ?? "");
+        // Do not ACK the ledger complete while cells/finalize are still in flight.
+        if (CELLS_IN_FLIGHT_STATUSES.has(afterStatus)) return "deferred";
+        if (afterStatus === "rank_ready") {
+          const pass = String(
+            ((after?.confidence_summary as { pass?: unknown } | null)?.pass ?? "") as string
+          );
+          if (pass && pass !== "complete") return "deferred";
+        }
         return "already_done";
       } catch {
         return "deferred";
@@ -102,6 +117,11 @@ export async function processScanBatch(
       .single();
 
     if (!business) throw new Error("Business not found");
+
+    // Cost ledger + plan credits require org — fall back from business when job payload omitted it.
+    const resolvedOrgId =
+      organizationId ||
+      (typeof business.organization_id === "string" ? business.organization_id : undefined);
 
     const { data: keywords } = await supabase
       .from("business_keywords")
@@ -273,7 +293,7 @@ export async function processScanBatch(
       device: (batch.device as string | null) ?? "mobile",
       os: (batch.os as string | null) ?? "android",
       browser: (batch as { browser?: string }).browser ?? "chrome",
-      organizationId,
+      organizationId: resolvedOrgId,
       onLeaseHeartbeat: async () => {
         await extendScanLease(scanBatchId, leaseOwner);
       },
@@ -287,7 +307,7 @@ export async function processScanBatch(
               .single();
             await finalizeRankReady(
               scanBatchId,
-              organizationId,
+              resolvedOrgId,
               Number(progress?.cells_failed ?? 0),
               totalCellsPlanned
             );
@@ -298,7 +318,7 @@ export async function processScanBatch(
     });
 
     if (!rankReadyPromise) {
-      await finalizeRankReady(scanBatchId, organizationId, failedCells, totalCells);
+      await finalizeRankReady(scanBatchId, resolvedOrgId, failedCells, totalCells);
     } else {
       await rankReadyPromise;
     }

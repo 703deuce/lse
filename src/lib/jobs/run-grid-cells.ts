@@ -412,16 +412,20 @@ async function runOneCell(
       invalidateScanGridCache(job.scanBatchId);
 
       // Bill only after validation + durable save (not bare Bright Data HTTP 200).
+      // Idempotent per cell so retries / reclaim do not double-count.
       if (job.organizationId) {
         const { recordUsage } = await import("@/lib/platform/usage-ledger");
         const { estimateProviderCost } = await import("@/lib/providers/fetch-with-timeout");
+        const cost = estimateProviderCost("brightdata");
         await recordUsage({
           organizationId: job.organizationId,
           feature: "maps_grid_cell",
           provider: "brightdata",
           unitType: "request",
-          estimatedCostUsd: estimateProviderCost("brightdata"),
+          estimatedCostUsd: cost,
+          actualCostUsd: cost,
           actualUnits: 1,
+          idempotencyKey: `brightdata:maps_grid_cell:${job.scanBatchId}:${job.point.id}:${job.keyword.id}`,
           metadata: {
             scan_batch_id: job.scanBatchId,
             scan_point_id: job.point.id,
