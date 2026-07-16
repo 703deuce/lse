@@ -98,7 +98,7 @@ export async function GET() {
     const [counts, redis, webhooks] = await Promise.all([
       countJobsByStatus(),
       pingRedis(),
-      loadWebhookOpsMetrics(),
+      loadWebhookOpsMetrics().catch(() => null),
     ]);
     const providers = ["brightdata", "dataforseo", "scrapingdog", "deepseek", "twilio", "brevo"].map(
       (p) => providerHealth(p)
