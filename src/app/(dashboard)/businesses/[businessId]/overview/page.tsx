@@ -20,6 +20,17 @@ function displayNameFromEmail(email: string | null): string {
   return token.charAt(0).toUpperCase() + token.slice(1);
 }
 
+/** Prefer first name → full name → email local-part (never org slug-looking tokens). */
+function greetingNameFromProfile(fullName: string | null | undefined, email: string | null): string {
+  const full = String(fullName ?? "").trim();
+  if (full) {
+    const first = full.split(/\s+/).find(Boolean);
+    if (first) return first;
+    return full;
+  }
+  return displayNameFromEmail(email);
+}
+
 async function resolveDisplayName(
   supabase: ReturnType<typeof createServiceClient>,
   userId: string,
@@ -30,9 +41,10 @@ async function resolveDisplayName(
     .select("full_name, email")
     .eq("id", userId)
     .maybeSingle();
-  const full = String(profile?.full_name ?? "").trim();
-  if (full) return full.split(/\s+/)[0] ?? full;
-  return displayNameFromEmail(email ?? profile?.email ?? null);
+  return greetingNameFromProfile(
+    profile?.full_name as string | null | undefined,
+    email ?? (profile?.email as string | null) ?? null
+  );
 }
 
 export default async function BusinessOverviewPage({

@@ -12,10 +12,14 @@ type KeyRow = {
   createdAt: string;
 };
 
+type LoadState = "loading" | "ready" | "error" | "timeout";
+
+const FETCH_TIMEOUT_MS = 12_000;
+
 export function AutomationApiKeysCard({ businessId }: { businessId: string }) {
   const [keys, setKeys] = useState<KeyRow[]>([]);
   const [webhookUrl, setWebhookUrl] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loadState, setLoadState] = useState<LoadState>("loading");
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("Zapier / Make");
@@ -24,24 +28,30 @@ export function AutomationApiKeysCard({ businessId }: { businessId: string }) {
   const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    setLoadState("loading");
     setError(null);
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 15_000);
+    const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
     try {
       const res = await fetch(`/api/settings/api-keys?businessId=${businessId}`, {
         signal: ctrl.signal,
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Failed to load keys");
-      setKeys(json.keys ?? []);
-      setWebhookUrl(json.webhookUrl ?? "");
+      setKeys(Array.isArray(json.keys) ? json.keys : []);
+      setWebhookUrl(typeof json.webhookUrl === "string" ? json.webhookUrl : "");
+      setLoadState("ready");
     } catch (err) {
-      if (ctrl.signal.aborted) setError("API keys timed out — refresh the page");
-      else setError(err instanceof Error ? err.message : "Failed to load");
+      setKeys([]);
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setLoadState("timeout");
+        setError("Timed out loading API keys.");
+      } else {
+        setLoadState("error");
+        setError(err instanceof Error ? err.message : "Failed to load");
+      }
     } finally {
       clearTimeout(timer);
-      setLoading(false);
     }
   }, [businessId]);
 
@@ -180,11 +190,29 @@ export function AutomationApiKeysCard({ businessId }: { businessId: string }) {
         <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
           Active keys
         </p>
-        {loading ? (
+        {loadState === "loading" ? (
           <p className="mt-2 flex items-center gap-2 text-sm text-zinc-500">
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
           </p>
-        ) : keys.length ? (
+        ) : null}
+
+        {loadState === "error" || loadState === "timeout" ? (
+          <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-sm">
+            <p className="font-medium text-red-800">
+              {loadState === "timeout" ? "Request timed out" : "Could not load API keys"}
+            </p>
+            <p className="mt-1 text-red-700">{error || "Check your session and try again."}</p>
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="mt-2 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm text-red-800 hover:bg-red-50"
+            >
+              Retry
+            </button>
+          </div>
+        ) : null}
+
+        {loadState === "ready" && keys.length ? (
           <ul className="mt-2 divide-y divide-zinc-100 rounded-lg border border-zinc-100">
             {keys.map((k) => (
               <li key={k.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
@@ -208,9 +236,11 @@ export function AutomationApiKeysCard({ businessId }: { businessId: string }) {
               </li>
             ))}
           </ul>
-        ) : (
+        ) : null}
+
+        {loadState === "ready" && !keys.length ? (
           <p className="mt-2 text-sm text-zinc-500">No API keys yet.</p>
-        )}
+        ) : null}
       </div>
 
       <div className="mt-4 rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-[12px] leading-relaxed text-zinc-600">
@@ -231,7 +261,7 @@ export function AutomationApiKeysCard({ businessId }: { businessId: string }) {
         </ol>
       </div>
 
-      {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
+      {error && loadState === "ready" ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
     </section>
   );
 }

@@ -264,7 +264,9 @@ export function buildAggregateMetrics(params: {
   totalEngines: number;
 }): AggregateMetrics {
   const completeRunIds = new Set(
-    params.runs.filter((r) => r.status === "complete").map((r) => r.id)
+    params.runs
+      .filter((r) => r.status === "complete" || r.status === "completed_with_errors")
+      .map((r) => r.id)
   );
   const completeResults = params.engineResults.filter(
     (er) => completeRunIds.has(er.run_id) && er.status === "complete"
@@ -304,7 +306,7 @@ export function buildAggregateMetrics(params: {
   }
 
   const finishedRuns = params.runs
-    .filter((r) => r.status === "complete")
+    .filter((r) => r.status === "complete" || r.status === "completed_with_errors")
     .sort((a, b) => a.created_at.localeCompare(b.created_at));
 
   return {
@@ -333,7 +335,7 @@ export function buildVisibilityTrend(params: {
   engineResultsByRun: Map<string, Array<{ mentions_json?: ExtractedBrandMention[] | null }>>;
 }): VisibilityTrendPoint[] {
   return params.runs
-    .filter((r) => r.status === "complete")
+    .filter((r) => r.status === "complete" || r.status === "completed_with_errors")
     .sort((a, b) => a.created_at.localeCompare(b.created_at))
     .map((run) => ({
       runId: run.id,

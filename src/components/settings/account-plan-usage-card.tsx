@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ContentCard } from "@/components/ui/design-system";
+import { useCallback, useEffect, useState } from "react";
+import { ContentCard, btnSecondary } from "@/components/ui/design-system";
 
 type UsageResponse = {
   organization: { name: string; plan: string; billing_status: string | null } | null;
@@ -36,32 +36,47 @@ function UsageRow({ label, used, limit }: { label: string; used: number; limit: 
 export function AccountPlanUsageCard() {
   const [data, setData] = useState<UsageResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 15_000);
-    fetch("/api/account/usage", { signal: ctrl.signal })
-      .then(async (r) => {
-        const json = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(json.error ?? "Failed to load usage");
-        return json as UsageResponse;
-      })
-      .then(setData)
-      .catch((e) => {
-        if (ctrl.signal.aborted) setError("Plan usage timed out — refresh the page");
-        else setError(e instanceof Error ? e.message : "Failed to load usage");
-      })
-      .finally(() => clearTimeout(timer));
-    return () => {
+    try {
+      const res = await fetch("/api/account/usage", { signal: ctrl.signal });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Failed to load usage");
+      setData(json as UsageResponse);
+    } catch (e) {
+      setData(null);
+      if (ctrl.signal.aborted) setError("Plan usage timed out");
+      else setError(e instanceof Error ? e.message : "Failed to load usage");
+    } finally {
       clearTimeout(timer);
-      ctrl.abort();
-    };
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (loading) {
+    return (
+      <ContentCard>
+        <p className="text-sm text-zinc-500">Loading plan usage…</p>
+      </ContentCard>
+    );
+  }
 
   if (error) {
     return (
       <ContentCard>
         <p className="text-sm text-red-600">{error}</p>
+        <button type="button" className={`${btnSecondary} mt-3`} onClick={() => void load()}>
+          Retry
+        </button>
       </ContentCard>
     );
   }
@@ -69,7 +84,10 @@ export function AccountPlanUsageCard() {
   if (!data) {
     return (
       <ContentCard>
-        <p className="text-sm text-zinc-500">Loading plan usage…</p>
+        <p className="text-sm text-zinc-500">Plan usage unavailable.</p>
+        <button type="button" className={`${btnSecondary} mt-3`} onClick={() => void load()}>
+          Retry
+        </button>
       </ContentCard>
     );
   }

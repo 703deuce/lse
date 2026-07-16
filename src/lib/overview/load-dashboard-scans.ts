@@ -62,6 +62,28 @@ export async function loadDashboardRecentScans(
   const previewBatches = allBatches.slice(0, preview);
   if (!previewBatches.length) return { rows: [], total: 0 };
 
+  const keywordIds = Array.from(
+    new Set(
+      previewBatches
+        .map((b) => {
+          const conf = (b.confidence_summary ?? {}) as { keyword_ids?: string[] };
+          return conf.keyword_ids?.[0] ?? null;
+        })
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+  const keywordById = new Map<string, string>();
+  if (keywordIds.length) {
+    const { data: keywords } = await supabase
+      .from("business_keywords")
+      .select("id, keyword")
+      .eq("business_id", businessId)
+      .in("id", keywordIds);
+    for (const k of keywords ?? []) {
+      keywordById.set(k.id as string, String(k.keyword).trim());
+    }
+  }
+
   const batchIds = previewBatches.map((b) => b.id);
   const { data: pointsData } = await supabase
     .from("scan_points")
@@ -138,7 +160,11 @@ export async function loadDashboardRecentScans(
       keyword_ids?: string[];
     };
     const keywordId = conf.keyword_ids?.[0] ?? null;
-    const keyword = conf.keyword_label ?? null;
+    const label = conf.keyword_label?.trim() || "";
+    const keyword =
+      label ||
+      (keywordId ? keywordById.get(keywordId) : null) ||
+      (keywordId ? "Historical scan" : null);
     const metrics = (batch.aggregate_metrics ?? {}) as {
       averageRank?: number | null;
       top3Cells?: number;

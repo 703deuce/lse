@@ -72,7 +72,9 @@ export function AiVisibilityDashboardTab({
       errorMessage: er?.error_message ?? null,
     };
   });
-  const failedEngines = engineResults.filter((e) => e.status === "failed");
+  const failedEngines = engineResults.filter(
+    (e) => e.status !== "complete" && e.status !== "running"
+  );
 
   const matrixCounts = ALL_ENGINES.map((engine) => {
     const er = engineResults.find((r) => r.engine === engine);

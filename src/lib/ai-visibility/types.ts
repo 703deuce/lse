@@ -46,9 +46,18 @@ export type AiVisibilityPrompt = {
   mention_count?: number | null;
 };
 
+export type EngineResultStatus =
+  | "complete"
+  | "failed"
+  | "skipped"
+  | "rate_limited"
+  | "timed_out"
+  | "provider_failed"
+  | "unsupported";
+
 export type EngineResult = {
   engine: AiEngine;
-  status: "complete" | "failed" | "skipped";
+  status: EngineResultStatus;
   targetMentioned: boolean;
   mentionPosition: number | null;
   competitors: string[];
@@ -57,6 +66,7 @@ export type EngineResult = {
   fanouts: string[];
   answerText: string | null;
   errorMessage?: string;
+  retryAfterMs?: number | null;
 };
 
 export type BrandMention = {

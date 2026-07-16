@@ -83,7 +83,7 @@ export function DashboardRecentScans({
               {rows.map((scan) => (
                 <tr key={scan.id} className="transition-colors hover:bg-zinc-50/50">
                   <td className="px-3.5 py-2 text-[13px] font-medium text-zinc-900">
-                    {scan.keyword ?? "Unknown keyword"}
+                    {scan.keyword ?? "Historical scan"}
                   </td>
                   <td className="whitespace-nowrap px-3.5 py-2 text-[12px] tabular-nums text-zinc-500">
                     {formatScanDate(scan.finishedAt)}

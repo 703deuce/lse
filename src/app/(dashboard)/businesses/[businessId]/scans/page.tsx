@@ -46,7 +46,7 @@ export default async function ScansPage({
     const keyword =
       conf.keyword_label ??
       (keywordId ? keywordById.get(keywordId) : null) ??
-      null;
+      (keywordId || conf.keyword_ids?.length ? "Historical scan" : null);
 
     return {
       id: scan.id as string,

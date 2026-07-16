@@ -457,33 +457,52 @@ export async function executeJobType(
         }
 
         const reportType = optionalString(payload.reportType) ?? "single_scan";
-        const result = await generateTypedReport({
-          businessId,
-          scanBatchId: optionalString(payload.scanBatchId),
-          reportType: reportType as import("@/lib/reporting/types").ReportType,
-          keywordId: optionalString(payload.keywordId),
-          locationId: optionalString(payload.locationId),
-          campaignId: optionalString(payload.campaignId),
-          gridSize: typeof payload.gridSize === "number" ? payload.gridSize : undefined,
-          radiusMeters:
-            typeof payload.radiusMeters === "number" ? payload.radiusMeters : undefined,
-          selectedCompetitorKeys: Array.isArray(payload.selectedCompetitorKeys)
-            ? (payload.selectedCompetitorKeys as string[])
-            : undefined,
-          persist: payload.persist !== false,
-        });
-        if (ledgerJobId) {
-          const { updateJobProgress } = await import("@/lib/queue/ledger");
-          await updateJobProgress(ledgerJobId, {
-            result: {
-              reportId: result.reportId,
-              shareToken: result.shareToken,
-              shareUrl: result.shareToken ? `/reports/share/${result.shareToken}` : null,
-              reportType: result.payload.reportType,
-            },
+        try {
+          const result = await generateTypedReport({
+            businessId,
+            scanBatchId: optionalString(payload.scanBatchId),
+            reportType: reportType as import("@/lib/reporting/types").ReportType,
+            keywordId: optionalString(payload.keywordId),
+            locationId: optionalString(payload.locationId),
+            campaignId: optionalString(payload.campaignId),
+            gridSize: typeof payload.gridSize === "number" ? payload.gridSize : undefined,
+            radiusMeters:
+              typeof payload.radiusMeters === "number" ? payload.radiusMeters : undefined,
+            selectedCompetitorKeys: Array.isArray(payload.selectedCompetitorKeys)
+              ? (payload.selectedCompetitorKeys as string[])
+              : undefined,
+            persist: payload.persist !== false,
+            reportId: optionalString(payload.reportId),
+            shareToken: optionalString(payload.shareToken),
           });
+          if (ledgerJobId) {
+            const { updateJobProgress } = await import("@/lib/queue/ledger");
+            await updateJobProgress(ledgerJobId, {
+              result: {
+                reportId: result.reportId,
+                shareToken: result.shareToken,
+                shareUrl: result.shareToken ? `/reports/share/${result.shareToken}` : null,
+                reportType: result.payload.reportType,
+                status: "ready",
+              },
+            });
+          }
+          return { ok: true };
+        } catch (err) {
+          const reportId = optionalString(payload.reportId);
+          if (reportId) {
+            const { createServiceClient } = await import("@/lib/db/client");
+            const supabase = createServiceClient();
+            await supabase
+              .from("reports")
+              .update({
+                artifact_status: "failed",
+                error_message: (err instanceof Error ? err.message : String(err)).slice(0, 500),
+              })
+              .eq("id", reportId);
+          }
+          throw err;
         }
-        return { ok: true };
       }
       case "gbp_audit_module": {
         const businessId = String(payload.businessId ?? "");

@@ -26,6 +26,10 @@ import { fetchGoogleSerpSnapshot, type MapPackEntry, type OrganicSerpEntry } fro
 import { deduplicateMentionClusters } from "@/lib/providers/deepseek/ai-visibility-mention-dedupe";
 import { matchAiMentionsToGoogleSerp, type SerpMatchRow } from "@/lib/providers/deepseek/ai-visibility-serp-match";
 import { checkAiEngine } from "@/lib/ai-visibility/engines";
+import {
+  classifyEngineFailure,
+  isSuccessfulAiRunStatus,
+} from "@/lib/ai-visibility/engine-status";
 
 async function loadBusinessContext(businessId: string) {
   const supabase = createServiceClient();
@@ -232,10 +236,13 @@ export async function loadAiVisibilityData(businessId: string, selectedRunId?: s
 
   const prompts = promptsRes.data ?? [];
   const allRuns = allRunsRes.data ?? [];
-  const latestComplete = allRuns.find((r) => r.status === "complete") ?? null;
+  const latestComplete =
+    allRuns.find((r) => isSuccessfulAiRunStatus(r.status as string)) ?? null;
   // Prefer a complete run for default view so failed/running blanks don't wipe engine chips.
   const latestRun = latestComplete ?? allRuns[0] ?? null;
-  const completeRuns = allRuns.filter((r) => r.status === "complete");
+  const completeRuns = allRuns.filter((r) =>
+    isSuccessfulAiRunStatus(r.status as string)
+  );
   const recentRuns = completeRuns.slice(0, 50);
 
   const viewRun =
@@ -571,9 +578,10 @@ export async function runAiVisibilityCheck(params: {
             });
 
             if ("error" in raw) {
+              const classified = classifyEngineFailure(raw.error);
               return {
                 engine,
-                status: "failed",
+                status: classified.status,
                 targetMentioned: false,
                 mentionPosition: null,
                 competitors: [],
@@ -582,6 +590,7 @@ export async function runAiVisibilityCheck(params: {
                 fanouts: [],
                 answerText: null,
                 errorMessage: raw.error,
+                retryAfterMs: classified.retryAfterMs,
               };
             }
 
@@ -646,6 +655,19 @@ export async function runAiVisibilityCheck(params: {
     }
 
     const completeResults = allEngineResults.filter((r) => r.status === "complete");
+    const failedResults = allEngineResults.filter((r) => r.status !== "complete");
+
+    if (!completeResults.length) {
+      const sample =
+        failedResults
+          .map((r) => r.errorMessage)
+          .filter(Boolean)
+          .slice(0, 2)
+          .join("; ") || "All AI engines failed";
+      throw new Error(sample);
+    }
+
+    const runStatus = failedResults.length ? "completed_with_errors" : "complete";
     const visibilityScore = computeVisibilityScore({
       engineResults: completeResults.map((r) => ({
         targetMentioned: r.targetMentioned,
@@ -728,10 +750,18 @@ export async function runAiVisibilityCheck(params: {
       });
     }
 
+    const errorMessage =
+      runStatus === "completed_with_errors"
+        ? failedResults
+            .map((r) => `${r.engine}: ${r.errorMessage ?? r.status}`)
+            .slice(0, 5)
+            .join("; ")
+        : null;
+
     const { error: completeError } = await supabase
       .from("ai_visibility_runs")
       .update({
-        status: "complete",
+        status: runStatus,
         prompts_checked: prompts.length,
         engines_checked: allEngineResults.length,
         visibility_score: visibilityScore,
@@ -745,6 +775,7 @@ export async function runAiVisibilityCheck(params: {
         map_pack_json: mapPackJson,
         organic_serp_json: organicSerpJson,
         serp_match_json: serpMatchJson,
+        error_message: errorMessage,
         progress_stage: null,
         finished_at: new Date().toISOString(),
       })
@@ -754,7 +785,7 @@ export async function runAiVisibilityCheck(params: {
 
     return {
       runId,
-      status: "complete",
+      status: runStatus,
       visibilityScore,
       targetMentioned,
       mentionPosition,

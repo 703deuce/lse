@@ -882,13 +882,22 @@ export async function getLocalTrustTypeCounts(
     .sort((a, b) => b.count - a.count);
 }
 
+const LOCAL_TRUST_RUN_FIELDS =
+  "id, organization_id, business_id, status, city, state, county, keyword, scan_type, opportunities_found, high_priority_count, local_relevance_score, easy_wins_count, filtered_out_count, ai_summary, search_queries_json, ai_json, error_message, progress_stage, started_at, finished_at, created_at";
+
+const LOCAL_TRUST_TASK_FIELDS =
+  "id, run_id, organization_id, business_id, opportunity_id, title, description, priority, impact, effort, status, evidence_json, created_at";
+
 export async function loadLatestLocalTrustRun(
   businessId: string,
   options?: { city?: string; state?: string; runId?: string }
 ) {
   const supabase = createServiceClient();
 
-  let runQuery = supabase.from("local_trust_runs").select("*").eq("business_id", businessId);
+  let runQuery = supabase
+    .from("local_trust_runs")
+    .select(LOCAL_TRUST_RUN_FIELDS)
+    .eq("business_id", businessId);
 
   if (options?.runId) {
     runQuery = runQuery.eq("id", options.runId);
@@ -903,7 +912,7 @@ export async function loadLatestLocalTrustRun(
   if (!run) {
     const { data: inProgress } = await supabase
       .from("local_trust_runs")
-      .select("*")
+      .select(LOCAL_TRUST_RUN_FIELDS)
       .eq("business_id", businessId)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -918,7 +927,10 @@ export async function loadLatestLocalTrustRun(
     };
   }
 
-  const { data: tasks } = await supabase.from("local_trust_tasks").select("*").eq("run_id", run.id);
+  const { data: tasks } = await supabase
+    .from("local_trust_tasks")
+    .select(LOCAL_TRUST_TASK_FIELDS)
+    .eq("run_id", run.id);
 
   return {
     run,

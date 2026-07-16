@@ -15,6 +15,40 @@ import {
 /** Cloro sync monitors share plan concurrency — run one at a time across ChatGPT/Perplexity. */
 const cloroLimit = pLimit(1);
 
+function isRateLimitError(message: string): boolean {
+  const msg = message.toLowerCase();
+  return (
+    msg.includes("429") ||
+    msg.includes("rate limit") ||
+    msg.includes("too many requests") ||
+    msg.includes("concurrency")
+  );
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Retry Cloro engines with exponential backoff + jitter on concurrency/rate limits. */
+async function withCloroRetry(
+  fn: () => Promise<{ ok: true; result: CloroMonitorResult } | { ok: false; error: string }>
+): Promise<{ ok: true; result: CloroMonitorResult } | { ok: false; error: string }> {
+  const maxAttempts = 3;
+  let last: { ok: false; error: string } | null = null;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const outcome = await cloroLimit(fn);
+    if (outcome.ok) return outcome;
+    last = outcome;
+    if (!isRateLimitError(outcome.error) || attempt === maxAttempts - 1) {
+      return outcome;
+    }
+    const base = 800 * 2 ** attempt;
+    const jitter = Math.floor(Math.random() * 400);
+    await sleep(base + jitter);
+  }
+  return last ?? { ok: false, error: "Cloro request failed" };
+}
+
 export type EngineCheckResult = CloroMonitorResult | { error: string };
 
 function cloroResult(result: CloroMonitorResult): EngineCheckResult {
@@ -50,7 +84,7 @@ export async function checkAiEngine(params: {
           error: "CLORO_API_KEY not configured — add to .env.local / Coolify and restart",
         };
       }
-      const cloro = await cloroLimit(() =>
+      const cloro = await withCloroRetry(() =>
         cloroMonitorDetailed({
           engine: params.engine,
           prompt: params.prompt,
@@ -128,7 +162,11 @@ export async function checkAiEngine(params: {
           fanouts: claude.result.fanouts,
         });
       }
-      return { error: claude.error };
+      return {
+        error: claude.error.startsWith("Claude")
+          ? claude.error
+          : `Claude provider failed: ${claude.error}`,
+      };
     }
 
     default:

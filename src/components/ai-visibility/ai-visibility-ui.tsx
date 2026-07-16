@@ -128,7 +128,9 @@ export function AiVisibilityViewControls({
   onMentionsModeChange?: (mode: MentionsViewMode) => void;
 }) {
   const isCombined = runView === "combined";
-  const completeRuns = runs.filter((r) => r.status === "complete");
+  const completeRuns = runs.filter(
+    (r) => r.status === "complete" || r.status === "completed_with_errors"
+  );
   const latestId = completeRuns[0]?.id;
 
   const viewButtons =
@@ -457,7 +459,24 @@ export function EngineCoverageRow({
   status?: string | null;
   errorMessage?: string | null;
 }) {
-  const failed = status === "failed";
+  const failed =
+    status != null &&
+    status !== "complete" &&
+    ["failed", "rate_limited", "timed_out", "provider_failed", "unsupported", "skipped"].includes(
+      status
+    );
+  const statusLabel =
+    status === "rate_limited"
+      ? "Rate limited"
+      : status === "timed_out"
+        ? "Timed out"
+        : status === "provider_failed"
+          ? "Provider failed"
+          : status === "unsupported"
+            ? "Unsupported"
+            : status === "skipped"
+              ? "Skipped"
+              : "Failed";
   const pct = failed ? 0 : Math.round((mentioned / total) * 100);
   return (
     <div className="flex items-center gap-3">
@@ -473,7 +492,7 @@ export function EngineCoverageRow({
         <div className="mb-1 flex items-center justify-between text-xs">
           <span className="font-medium text-text">{ENGINE_LABELS[engine]}</span>
           <span className={cn("tabular-nums", failed ? "text-amber-700" : "text-text-muted")}>
-            {failed ? "Failed" : `${mentioned}/${total} (${pct}%)`}
+            {failed ? statusLabel : `${mentioned}/${total} (${pct}%)`}
           </span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100">

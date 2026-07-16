@@ -70,7 +70,9 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
       if (!res.ok) throw new Error(json.error ?? "Failed to load");
 
       if (runView === "pending") {
-        const latest = (json.runs as RunSummary[] | undefined)?.find((r) => r.status === "complete");
+        const latest = (json.runs as RunSummary[] | undefined)?.find(
+          (r) => r.status === "complete" || r.status === "completed_with_errors"
+        );
         // Always leave pending after first settle — empty/failed history still renders the empty CTA.
         setRunView(latest?.id ?? "combined");
       }
@@ -117,7 +119,9 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
   );
 
   const visDelta = visibilityDelta(data?.visibilityTrend ?? []);
-  const completeRuns = (data?.runs ?? []).filter((r) => r.status === "complete");
+  const completeRuns = (data?.runs ?? []).filter(
+    (r) => r.status === "complete" || r.status === "completed_with_errors"
+  );
   const mentionedRuns = completeRuns.filter((r) => r.target_mentioned).length;
   const avgCompanies =
     completeRuns.length > 0

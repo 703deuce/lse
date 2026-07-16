@@ -158,7 +158,7 @@ export async function buildLocationReport(params: {
       keyword_ids?: string[];
     };
     const keywordId = conf.keyword_ids?.[0] ?? null;
-    const keyword = conf.keyword_label?.trim() || "Unknown keyword";
+    const keyword = conf.keyword_label?.trim() || "Historical scan";
     const key = keywordId ?? keyword.toLowerCase();
     const list = byKeyword.get(key) ?? [];
     list.push({

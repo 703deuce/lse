@@ -29,6 +29,8 @@ import {
 import { cn } from "@/lib/utils";
 import type { ReportType } from "@/lib/reporting/types";
 import { ScanExportMenu } from "@/components/reports/scan-export-menu";
+import { useActiveJobStatus } from "@/components/jobs/use-active-job-status";
+import { isTerminalJobStatus } from "@/lib/jobs/active-job-status";
 
 type ScanOption = {
   id: string;
@@ -157,8 +159,45 @@ export function ReportsHub({
   const [busy, setBusy] = useState<"share" | "csv" | "revoke" | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [reportId, setReportId] = useState<string | null>(null);
+  const [shareJobId, setShareJobId] = useState<string | null>(null);
+  const [shareStatus, setShareStatus] = useState<"idle" | "generating" | "ready">("idle");
   const [error, setError] = useState<string | null>(null);
   const requestGen = useRef(0);
+
+  const { status: shareJobStatus, error: sharePollError } = useActiveJobStatus({
+    statusUrl: shareJobId ? `/api/jobs/${shareJobId}/status` : null,
+    enabled: Boolean(shareJobId),
+  });
+
+  useEffect(() => {
+    if (sharePollError) {
+      setError(sharePollError);
+      setBusy(null);
+      setShareJobId(null);
+      setShareStatus("idle");
+    }
+  }, [sharePollError]);
+
+  useEffect(() => {
+    if (!shareJobId || !shareJobStatus) return;
+    if (!isTerminalJobStatus(shareJobStatus.status)) return;
+    if (shareJobStatus.status !== "completed") {
+      setError(shareJobStatus.errorMessage ?? "Report generation failed");
+      setBusy(null);
+      setShareJobId(null);
+      setShareStatus("idle");
+      return;
+    }
+    const result = (shareJobStatus.result ?? null) as {
+      shareUrl?: string | null;
+      reportId?: string | null;
+    } | null;
+    if (result?.shareUrl) setShareUrl(String(result.shareUrl));
+    if (result?.reportId) setReportId(String(result.reportId));
+    setShareStatus("ready");
+    setBusy(null);
+    setShareJobId(null);
+  }, [shareJobId, shareJobStatus]);
 
   const loadScans = useCallback(async () => {
     setLoadingScans(true);
@@ -225,6 +264,8 @@ export function ReportsHub({
     requestGen.current += 1;
     setShareUrl(null);
     setReportId(null);
+    setShareJobId(null);
+    setShareStatus("idle");
   }, [scanId, keywordId, campaignId, activeType]);
 
   async function createReport(format: "share" | "csv") {
@@ -311,13 +352,27 @@ export function ReportsHub({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Export failed");
       if (gen !== requestGen.current) return;
-      setShareUrl(data.shareUrl ?? null);
-      setReportId(data.reportId ?? null);
+
+      if (data.shareUrl) setShareUrl(String(data.shareUrl));
+      if (data.reportId) setReportId(String(data.reportId));
+
+      // Queued: keep "Creating report…" while the report worker fills HTML.
+      if (data.queued && typeof data.jobId === "string") {
+        setShareStatus("generating");
+        setShareJobId(String(data.jobId));
+        // busy cleared when poll settles
+        return;
+      }
+
+      setShareStatus("ready");
+      setBusy(null);
     } catch (err) {
       if (gen !== requestGen.current) return;
       setError(err instanceof Error ? err.message : "Export failed");
+      setShareStatus("idle");
+      setBusy(null);
     } finally {
-      if (gen === requestGen.current) setBusy(null);
+      if (gen === requestGen.current && format === "csv") setBusy(null);
     }
   }
 
@@ -514,6 +569,7 @@ export function ReportsHub({
               type="button"
               disabled={
                 busy != null ||
+                shareStatus === "generating" ||
                 ((activeCard.needsScan || activeType === "trend") && !scanId) ||
                 (activeType === "trend" && !resolvedTrendKeywordId) ||
                 (activeCard.needsCampaign && !campaignId) ||
@@ -522,13 +578,18 @@ export function ReportsHub({
               onClick={() => void createReport("share")}
               className={cn(btnPrimary, "h-9 w-full justify-center px-3 text-[13px]")}
             >
-              {busy === "share" ? (
+              {busy === "share" || shareStatus === "generating" ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <Link2 className="h-3.5 w-3.5" />
               )}
-              Create shareable report
+              {shareStatus === "generating" ? "Creating report…" : "Create shareable report"}
             </button>
+            {shareStatus === "generating" ? (
+              <p className="text-[11px] text-zinc-500">
+                Queued on the report worker. This page stays usable — the share link appears when ready.
+              </p>
+            ) : null}
             <button
               type="button"
               disabled={

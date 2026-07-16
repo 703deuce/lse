@@ -23,7 +23,9 @@ export function AiVisibilityRunHistoryTab({
   visibilityTrend: VisibilityTrendPoint[];
   onSelectRun: (runId: string) => void;
 }) {
-  const completeRuns = runs.filter((r) => r.status === "complete");
+  const completeRuns = runs.filter(
+    (r) => r.status === "complete" || r.status === "completed_with_errors"
+  );
 
   const chartData = [...visibilityTrend]
     .reverse()

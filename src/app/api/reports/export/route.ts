@@ -12,8 +12,15 @@ import {
   trendToCsv,
 } from "@/lib/reporting/csv";
 import { singleScanPointsCsv, singleScanSummaryCsv } from "@/lib/reporting/scan-csv";
+import {
+  createGeneratingShareRecord,
+  findReusableShare,
+  shareIdentityKey,
+} from "@/lib/reporting/share-export";
 import { exportReportSchema } from "@/lib/validation/schemas";
-import { createServiceClient } from "@/lib/db/client";
+import { logger } from "@/lib/observability/logger";
+import type { ReportType } from "@/lib/reporting/types";
+import { randomUUID } from "crypto";
 
 function exportStatus(message: string): number {
   if (message.includes("access denied") || message.includes("Authentication required")) {
@@ -37,37 +44,48 @@ function exportStatus(message: string): number {
 }
 
 export async function POST(request: Request) {
+  const requestId = randomUUID();
+  const started = Date.now();
+  let stage = "parse";
+  let organizationId: string | undefined;
+  let businessId: string | undefined;
+  let reportType: ReportType | undefined;
+
   try {
     const body = await request.json();
     const parsed = exportReportSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+      return NextResponse.json({ error: parsed.error.message, requestId }, { status: 400 });
     }
 
     const data = parsed.data;
-    await requireBusinessAccess(data.businessId);
+    businessId = data.businessId;
+    stage = "auth";
+    const auth = await requireBusinessAccess(data.businessId);
+    organizationId = auth.organizationId;
 
-    const reportType = data.reportType ?? "single_scan";
+    reportType = (data.reportType ?? "single_scan") as ReportType;
     if (
       (reportType === "single_scan" || reportType === "competitor") &&
       !data.scanBatchId
     ) {
       return NextResponse.json(
-        { error: "scanBatchId is required for this report type" },
+        { error: "scanBatchId is required for this report type", requestId },
         { status: 400 }
       );
     }
     if (reportType === "review_campaign" && !data.campaignId) {
       return NextResponse.json(
-        { error: "campaignId is required for review campaign reports" },
+        { error: "campaignId is required for review campaign reports", requestId },
         { status: 400 }
       );
     }
 
     const format = data.format ?? "share";
 
-    // CSV variants stay synchronous.
+    // CSV variants stay synchronous (small payloads).
     if (format === "csv" || format === "summary_csv" || format === "points_csv") {
+      stage = "csv_generate";
       const result = await generateTypedReport({
         businessId: data.businessId,
         scanBatchId: data.scanBatchId,
@@ -85,7 +103,7 @@ export async function POST(request: Request) {
       if (format === "summary_csv") {
         if (payload.reportType !== "single_scan") {
           return NextResponse.json(
-            { error: "Summary CSV is only available for single scan reports" },
+            { error: "Summary CSV is only available for single scan reports", requestId },
             { status: 400 }
           );
         }
@@ -93,7 +111,7 @@ export async function POST(request: Request) {
       } else if (format === "points_csv") {
         if (payload.reportType !== "single_scan") {
           return NextResponse.json(
-            { error: "Data points CSV is only available for single scan reports" },
+            { error: "Data points CSV is only available for single scan reports", requestId },
             { status: 400 }
           );
         }
@@ -107,7 +125,10 @@ export async function POST(request: Request) {
       else if (payload.reportType === "reviews") csv = reviewsToCsv(payload);
       else if (payload.reportType === "review_campaign") csv = reviewCampaignToCsv(payload);
       else {
-        return NextResponse.json({ error: "CSV not available for this report type" }, { status: 400 });
+        return NextResponse.json(
+          { error: "CSV not available for this report type", requestId },
+          { status: 400 }
+        );
       }
       const filename =
         format === "summary_csv"
@@ -115,70 +136,219 @@ export async function POST(request: Request) {
           : format === "points_csv"
             ? "scan-data-points.csv"
             : `${reportType}-report.csv`;
+      logger.info("report_export_csv_ok", {
+        requestId,
+        organizationId,
+        businessId,
+        reportType,
+        durationMs: Date.now() - started,
+      });
       return new NextResponse(csv, {
         status: 200,
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
           "Content-Disposition": `attachment; filename="${filename}"`,
+          "X-Request-Id": requestId,
         },
       });
     }
 
-    // HTML shareable reports: prefer reuse, then generate synchronously.
-    // Async-only share previously crashed the Reports hub when the report worker
-    // was slow/unavailable (endless poll → "This page couldn't load").
-    if (reportType === "single_scan" && data.scanBatchId) {
-      const supabase = createServiceClient();
-      const identityKey = `single_scan:${data.scanBatchId}`;
-      const { data: existing } = await supabase
-        .from("reports")
-        .select("id, share_token, share_expires_at")
-        .eq("business_id", data.businessId)
-        .eq("metadata_json->>reportType", "single_scan")
-        .eq("metadata_json->>identityKey", identityKey)
-        .not("share_token", "is", null)
-        .order("generated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      const expiresAt = existing?.share_expires_at
-        ? new Date(existing.share_expires_at as string).getTime()
-        : 0;
-      if (
-        existing?.share_token &&
-        expiresAt > Date.now() &&
-        typeof existing.share_token === "string"
-      ) {
-        return NextResponse.json({
-          queued: false,
-          reused: true,
-          reportId: existing.id,
-          shareUrl: `/reports/share/${existing.share_token}`,
-          reportType,
-        });
-      }
-    }
-
-    const result = await generateTypedReport({
-      businessId: data.businessId,
-      scanBatchId: data.scanBatchId,
+    // ── HTML shareable report: reuse → enqueue → sync fallback ──
+    stage = "share_identity";
+    const identityKey = shareIdentityKey({
       reportType,
+      scanBatchId: data.scanBatchId,
       keywordId: data.keywordId,
       locationId: data.locationId,
       campaignId: data.campaignId,
       gridSize: data.gridSize,
       radiusMeters: data.radiusMeters,
       selectedCompetitorKeys: data.selectedCompetitorKeys,
-      persist: true,
+    });
+
+    stage = "share_reuse";
+    const reusable = await findReusableShare({
+      businessId: data.businessId,
+      reportType,
+      identityKey,
+    });
+    if (reusable?.status === "ready") {
+      logger.info("report_export_share_reused", {
+        requestId,
+        organizationId,
+        businessId,
+        reportType,
+        reportId: reusable.reportId,
+        status: reusable.status,
+        durationMs: Date.now() - started,
+      });
+      return NextResponse.json({
+        queued: false,
+        reused: true,
+        status: "ready",
+        reportId: reusable.reportId,
+        shareUrl: reusable.shareUrl,
+        reportType,
+        requestId,
+      });
+    }
+
+    // In-flight share: re-dispatch with the same idempotency key so the UI gets a jobId
+    // without creating a duplicate report row.
+    if (reusable?.status === "generating") {
+      stage = "share_reenqueue_inflight";
+      const { dispatchFeatureJob } = await import("@/lib/queue/dispatch");
+      const job = await dispatchFeatureJob({
+        jobType: "generate_report",
+        payload: {
+          businessId: data.businessId,
+          organizationId: auth.organizationId,
+          scanBatchId: data.scanBatchId,
+          reportType,
+          keywordId: data.keywordId,
+          locationId: data.locationId,
+          campaignId: data.campaignId,
+          gridSize: data.gridSize,
+          radiusMeters: data.radiusMeters,
+          selectedCompetitorKeys: data.selectedCompetitorKeys,
+          persist: true,
+          reportId: reusable.reportId,
+          shareToken: reusable.shareToken,
+        },
+        organizationId: auth.organizationId,
+        businessId: data.businessId,
+        relatedResourceId: reusable.reportId,
+        idempotencyKey: `share-html:${data.businessId}:${identityKey}`,
+        priority: "normal",
+        maxAttempts: 3,
+      });
+      logger.info("report_export_share_inflight_reused", {
+        requestId,
+        organizationId,
+        businessId,
+        reportType,
+        reportId: reusable.reportId,
+        jobId: job.jobId,
+        durationMs: Date.now() - started,
+      });
+      return NextResponse.json({
+        queued: true,
+        reused: true,
+        status: "generating",
+        jobId: job.jobId,
+        reportId: reusable.reportId,
+        shareUrl: reusable.shareUrl,
+        reportType,
+        requestId,
+      });
+    }
+
+    stage = "share_create_record";
+    const pending = await createGeneratingShareRecord({
+      businessId: data.businessId,
+      reportType,
+      identityKey,
+      scanBatchId: data.scanBatchId,
+      campaignId: data.campaignId,
+    });
+
+    stage = "share_enqueue";
+    const { dispatchFeatureJob } = await import("@/lib/queue/dispatch");
+    const job = await dispatchFeatureJob({
+      jobType: "generate_report",
+      payload: {
+        businessId: data.businessId,
+        organizationId: auth.organizationId,
+        scanBatchId: data.scanBatchId,
+        reportType,
+        keywordId: data.keywordId,
+        locationId: data.locationId,
+        campaignId: data.campaignId,
+        gridSize: data.gridSize,
+        radiusMeters: data.radiusMeters,
+        selectedCompetitorKeys: data.selectedCompetitorKeys,
+        persist: true,
+        reportId: pending.reportId,
+        shareToken: pending.shareToken,
+      },
+      organizationId: auth.organizationId,
+      businessId: data.businessId,
+      relatedResourceId: pending.reportId,
+      idempotencyKey: `share-html:${data.businessId}:${identityKey}`,
+      priority: "normal",
+      maxAttempts: 3,
+    });
+
+    if (job.enqueueState === "enqueue_failed") {
+      stage = "share_sync_fallback";
+      logger.warn("report_export_share_enqueue_failed_sync_fallback", {
+        requestId,
+        organizationId,
+        businessId,
+        reportType,
+        reportId: pending.reportId,
+        jobId: job.jobId,
+      });
+      const result = await generateTypedReport({
+        businessId: data.businessId,
+        scanBatchId: data.scanBatchId,
+        reportType,
+        keywordId: data.keywordId,
+        locationId: data.locationId,
+        campaignId: data.campaignId,
+        gridSize: data.gridSize,
+        radiusMeters: data.radiusMeters,
+        selectedCompetitorKeys: data.selectedCompetitorKeys,
+        persist: true,
+        reportId: pending.reportId,
+        shareToken: pending.shareToken,
+      });
+      return NextResponse.json({
+        queued: false,
+        status: "ready",
+        reportId: result.reportId ?? pending.reportId,
+        shareUrl: result.shareToken
+          ? `/reports/share/${result.shareToken}`
+          : pending.shareUrl,
+        reportType,
+        fallback: "sync",
+        requestId,
+      });
+    }
+
+    logger.info("report_export_share_queued", {
+      requestId,
+      organizationId,
+      businessId,
+      reportType,
+      reportId: pending.reportId,
+      jobId: job.jobId,
+      durationMs: Date.now() - started,
     });
 
     return NextResponse.json({
-      queued: false,
-      reportId: result.reportId,
-      shareUrl: result.shareToken ? `/reports/share/${result.shareToken}` : null,
+      queued: true,
+      status: "generating",
+      jobId: job.jobId,
+      reportId: pending.reportId,
+      shareUrl: pending.shareUrl,
       reportType,
+      requestId,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Export failed";
-    return NextResponse.json({ error: message }, { status: exportStatus(message) });
+    logger.error("report_export_failed", {
+      requestId,
+      organizationId,
+      businessId,
+      reportType,
+      stage,
+      error: message,
+      durationMs: Date.now() - started,
+    });
+    return NextResponse.json(
+      { error: message, requestId, stage },
+      { status: exportStatus(message) }
+    );
   }
 }

@@ -82,7 +82,15 @@ export async function sendBrevoEmail(params: BrevoSendParams): Promise<BrevoSend
 
     if (!res.ok) {
       const detail = json.message ?? json.code ?? res.statusText;
-      return { ok: false, error: `Brevo error: ${detail}` };
+      const detailStr = String(detail);
+      if (/key not found|unauthorized|invalid.*key|unrecognised/i.test(detailStr)) {
+        return {
+          ok: false,
+          error:
+            "Brevo API key rejected (Key not found). Set a valid BREVO_API_KEY on the web app and messaging worker, then redeploy. Confirm the sender is verified in Brevo.",
+        };
+      }
+      return { ok: false, error: `Brevo error: ${detailStr}` };
     }
 
     const rawId = json.messageId ?? "unknown";

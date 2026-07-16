@@ -28,6 +28,10 @@ export type GenerateReportParams = {
   whiteLabel?: Partial<WhiteLabelConfig>;
   /** When false, build HTML/payload without upserting a shareable report row. */
   persist?: boolean;
+  /** Prefer updating this generating share row (async share flow). */
+  reportId?: string | null;
+  /** Preserve an already-issued share token when filling a generating row. */
+  shareToken?: string | null;
 };
 
 export type GenerateReportResult = {
@@ -162,14 +166,19 @@ async function persistReport(params: {
   html: string;
   payload: AnyReportPayload;
   identityKey: string;
+  reportId?: string | null;
+  preferShareToken?: string | null;
 }): Promise<GenerateReportResult> {
   const supabase = createServiceClient();
   const scanBatchId = persistScanBatchId(params.payload);
-  const { existingReportId, shareToken, shareExpiresAt } = await resolveExistingShare(supabase, {
+  const resolved = await resolveExistingShare(supabase, {
     businessId: params.businessId,
     reportType: params.payload.reportType,
     identityKey: params.identityKey,
   });
+  const existingReportId = params.reportId ?? resolved.existingReportId;
+  const shareToken = params.preferShareToken || resolved.shareToken;
+  const shareExpiresAt = resolved.shareExpiresAt;
 
   // Keep metadata lean — full heatmap cells + HTML already live in html_content.
   // Oversized metadata_json has caused share/export instability on large grids.
@@ -179,9 +188,11 @@ async function persistReport(params: {
     identityKey: params.identityKey,
     payload: slimPayload,
     generatedAt: params.payload.generatedAt,
+    artifactKind: "html_share",
   } satisfies ReportMeta & {
     payload: AnyReportPayload;
     generatedAt: string;
+    artifactKind: string;
   };
 
   if (existingReportId) {
@@ -194,6 +205,9 @@ async function persistReport(params: {
         metadata_json: metadata,
         generated_at: new Date().toISOString(),
         scan_batch_id: scanBatchId,
+        artifact_kind: "html_share",
+        artifact_status: "ready",
+        error_message: null,
       })
       .eq("id", existingReportId)
       .eq("business_id", params.businessId)
@@ -217,6 +231,8 @@ async function persistReport(params: {
       share_expires_at: shareExpiresAt,
       html_content: params.html,
       metadata_json: metadata,
+      artifact_kind: "html_share",
+      artifact_status: "ready",
     })
     .select("id")
     .single();
@@ -364,6 +380,8 @@ export async function generateTypedReport(
     html,
     payload,
     identityKey,
+    reportId: params.reportId,
+    preferShareToken: params.shareToken,
   });
 }
 
