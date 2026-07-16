@@ -1,12 +1,25 @@
 /**
  * BullMQ worker entrypoint.
  *
- * Coolify start commands (examples):
- *   npm run worker:maps
- *   npm run worker:messaging
- *   npm run worker:intelligence
- *   npm run worker:reports
- *   npm run worker:all
+ * Deployment modes (mutually exclusive — pick ONE):
+ *
+ *   A) Single combined worker (small / early servers):
+ *        npm run worker:all
+ *      Do NOT also run worker:maps / messaging / intelligence / reports.
+ *
+ *   B) Split workers (scale / isolation):
+ *        npm run worker:maps
+ *        npm run worker:messaging
+ *        npm run worker:intelligence
+ *        npm run worker:reports
+ *      Do NOT also run worker:all.
+ *
+ * Why messaging queues appear on worker:all:
+ *   Campaign email/sms (email-send, sms-send) are queue jobs. worker:all is a
+ *   convenience profile that consumes every queue so one Coolify service can
+ *   run the whole platform. It is NOT for Quick Send (that stays sync in the
+ *   web request). Running worker:all AND worker:messaging doubles concurrency
+ *   on shared queues (does not usually double-send, but can overload providers).
  *
  * Requires QUEUE_DRIVER=bullmq and REDIS_URL.
  *
