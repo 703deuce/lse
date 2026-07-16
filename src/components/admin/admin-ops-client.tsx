@@ -117,7 +117,7 @@ export function AdminOpsClient() {
     return () => clearInterval(id);
   }, [refresh, loadOverview]);
 
-  async function act(jobId: string, action: "retry" | "cancel") {
+  async function act(jobId: string, action: "retry" | "cancel" | "reconcile-mismatch") {
     setBusyId(jobId);
     setError(null);
     try {
@@ -136,6 +136,25 @@ export function AdminOpsClient() {
     }
   }
 
+  async function reconcileMismatches() {
+    setBusyId("reconcile");
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/ops/jobs/_`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reconcile-mismatch" }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Reconcile failed");
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Reconcile failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -145,9 +164,19 @@ export function AdminOpsClient() {
             Accounts
           </Link>
         </p>
-        <button type="button" className={btnSecondary} onClick={() => void refresh()}>
-          Refresh
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className={btnSecondary}
+            disabled={busyId === "reconcile"}
+            onClick={() => void reconcileMismatches()}
+          >
+            Reconcile job/scan mismatches
+          </button>
+          <button type="button" className={btnSecondary} onClick={() => void refresh()}>
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -398,7 +427,7 @@ export function AdminOpsClient() {
                         </span>
                         {job.statusMismatch ? (
                           <div className="mt-0.5 text-[10px] font-medium text-amber-700">
-                            Mismatch — job completed, scan still in flight (cron will requeue)
+                            Mismatch — job completed, scan still in flight. Use Reconcile or wait for cron.
                           </div>
                         ) : null}
                       </div>

@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
 import type { ReportType } from "@/lib/reporting/types";
+import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 
 type ScanOption = {
   id: string;
@@ -159,6 +160,23 @@ export function ReportsHub({
   const [error, setError] = useState<string | null>(null);
   const requestGen = useRef(0);
 
+  const reportRunner = useModuleJobRunner({
+    onSettled: async ({ ok, status, syncResult }) => {
+      if (!ok) {
+        return;
+      }
+      const result = (status?.result ?? syncResult ?? null) as {
+        shareUrl?: string | null;
+        reportId?: string | null;
+        queued?: boolean;
+      } | null;
+      if (!result) return;
+      // Sync completion (legacy) or worker progress.result
+      if (result.shareUrl) setShareUrl(String(result.shareUrl));
+      if (result.reportId) setReportId(String(result.reportId));
+    },
+  });
+
   const loadScans = useCallback(async () => {
     setLoadingScans(true);
     try {
@@ -226,6 +244,14 @@ export function ReportsHub({
     setReportId(null);
   }, [scanId, keywordId, campaignId, activeType]);
 
+  useEffect(() => {
+    if (reportRunner.error) setError(reportRunner.error);
+  }, [reportRunner.error]);
+
+  useEffect(() => {
+    if (!reportRunner.running && busy === "share") setBusy(null);
+  }, [reportRunner.running, busy]);
+
   async function createReport(format: "share" | "csv") {
     if (!activeCard.available) return;
     if ((activeCard.needsScan || activeType === "trend") && !scanId) {
@@ -285,13 +311,12 @@ export function ReportsHub({
       }
       if (activeType === "review_campaign" && campaignId) body.campaignId = campaignId;
 
-      const res = await fetch("/api/reports/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
       if (format === "csv") {
+        const res = await fetch("/api/reports/export", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
         if (!res.ok) {
           const json = await res.json().catch(() => ({}));
           throw new Error(json.error ?? "CSV export failed");
@@ -307,16 +332,14 @@ export function ReportsHub({
         return;
       }
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Export failed");
-      if (gen !== requestGen.current) return;
-      setShareUrl(data.shareUrl);
-      setReportId(data.reportId ?? null);
+      // HTML: queue generate_report and poll via shared job runner (onSettled sets share URL).
+      await reportRunner.start("/api/reports/export", body, "Export failed");
     } catch (err) {
       if (gen !== requestGen.current) return;
       setError(err instanceof Error ? err.message : "Export failed");
     } finally {
-      if (gen === requestGen.current) setBusy(null);
+      // Share busy clears when reportRunner.running becomes false (effect below).
+      if (gen === requestGen.current && format !== "share") setBusy(null);
     }
   }
 

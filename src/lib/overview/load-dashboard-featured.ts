@@ -119,14 +119,49 @@ function suggestedActionForRow(row: Record<string, unknown>): string | null {
 export async function loadDashboardFeatured(businessId: string): Promise<DashboardFeaturedData> {
   const supabase = createServiceClient();
 
+  const { data: biz } = await supabase
+    .from("businesses")
+    .select("organization_id")
+    .eq("id", businessId)
+    .maybeSingle();
+  const organizationId = (biz?.organization_id as string | undefined) ?? null;
+
+  // Prefer feature_business_summaries when present; fall back to live engines.
+  const { getFeatureSummary } = await import("@/lib/platform/summaries");
+  const [aiSummary, momentumSummary, localSummary, reputationSummary] = organizationId
+    ? await Promise.all([
+        getFeatureSummary({ organizationId, businessId, feature: "ai_visibility" }),
+        getFeatureSummary({ organizationId, businessId, feature: "review_momentum" }),
+        getFeatureSummary({ organizationId, businessId, feature: "local_trust" }),
+        getFeatureSummary({ organizationId, businessId, feature: "reputation" }),
+      ])
+    : [null, null, null, null];
+
   const [reputation, momentum, aiData, localResult, latestReviews, targetRows] = await Promise.all([
-    loadLatestReputationAudit(businessId),
-    loadLatestMomentumRun(businessId),
+    loadLatestReputationAudit(businessId).catch(() => null),
+    loadLatestMomentumRun(businessId).catch(() => null),
     loadAiVisibilityData(businessId).catch(() => null),
-    queryLocalTrustOpportunities({ businessId, page: 1, pageSize: 4 }),
+    queryLocalTrustOpportunities({ businessId, page: 1, pageSize: 4 }).catch(() => ({
+      items: [] as Awaited<ReturnType<typeof queryLocalTrustOpportunities>>["items"],
+      total: 0,
+    })),
     loadLatestDashboardReviews(businessId, 2),
     loadStoredReviews(supabase, { businessId, lookbackDays: 365 }),
   ]);
+
+  // Summary overlay markers (used below when live rows are empty).
+  const summaryAiRun = (aiSummary?.summary?.latestRun ?? null) as {
+    status?: string;
+    finished_at?: string | null;
+    created_at?: string | null;
+    target_mentioned?: boolean;
+    visibility_score?: number | null;
+  } | null;
+  const summaryLocalRun = (localSummary?.summary?.latestRun ?? null) as {
+    opportunities_found?: number | null;
+  } | null;
+  void momentumSummary;
+  void reputationSummary;
 
   const target = momentum?.entities.find((e) => e.entity_type === "target");
   const competitors = momentum?.entities.filter((e) => e.entity_type === "competitor") ?? [];
@@ -208,11 +243,24 @@ export async function loadDashboardFeatured(businessId: string): Promise<Dashboa
 
   const latestRun = aiData?.runs?.find((r) => r.status === "complete") ?? null;
 
+  const aiFromSummary =
+    !latestRun && summaryAiRun && String(summaryAiRun.status ?? "") === "complete"
+      ? summaryAiRun
+      : null;
+
   const ai: DashboardAiVisibility = {
-    hasData: Boolean(latestRun),
-    visibilityScore: latestRun?.visibility_score ?? null,
-    lastRunAt: latestRun?.finished_at ?? latestRun?.created_at ?? null,
-    targetMentioned: Boolean(latestRun?.target_mentioned),
+    hasData: Boolean(latestRun || aiFromSummary),
+    visibilityScore:
+      latestRun?.visibility_score ?? aiFromSummary?.visibility_score ?? null,
+    lastRunAt:
+      latestRun?.finished_at ??
+      latestRun?.created_at ??
+      aiFromSummary?.finished_at ??
+      aiFromSummary?.created_at ??
+      null,
+    targetMentioned: Boolean(
+      latestRun?.target_mentioned ?? aiFromSummary?.target_mentioned
+    ),
     engines: DISPLAY_ENGINES.map((engine) => ({
       engine,
       label: ENGINE_LABELS[engine],
@@ -241,13 +289,18 @@ export async function loadDashboardFeatured(businessId: string): Promise<Dashboa
     domain: (o.domain as string | null) ?? null,
   }));
 
+  const localHasData =
+    localItems.length > 0 || Number(summaryLocalRun?.opportunities_found ?? 0) > 0;
+
   return {
     review,
     ai,
     local: {
-      hasData: localItems.length > 0,
+      hasData: localHasData,
       items: localItems,
-      total: localResult.total ?? localItems.length,
+      total:
+        localResult.total ??
+        (localItems.length || Number(summaryLocalRun?.opportunities_found ?? 0)),
     },
   };
 }

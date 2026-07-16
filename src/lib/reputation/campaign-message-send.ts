@@ -42,6 +42,20 @@ export async function sendCampaignMessageById(
 
   if (!msg) return { ok: false, permanent: true, error: "Message not found" };
 
+  {
+    const orgForPause = String(msg.organization_id ?? "");
+    if (orgForPause) {
+      const { isOutboundPaused } = await import("@/lib/auth/entitlements");
+      if (await isOutboundPaused(orgForPause)) {
+        return {
+          ok: false,
+          permanent: true,
+          error: "Outbound messaging is paused for this organization",
+        };
+      }
+    }
+  }
+
   const status = String(msg.status);
   if (["sent", "delivered", "clicked", "opted_out"].includes(status)) {
     return { ok: true, skipped: true, channel: String(msg.channel ?? "") };

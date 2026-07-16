@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { loadLatestBacklinkGapRun } from "@/lib/backlink-gap/engine";
-import { PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
+import { hasFeature, PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 
 export async function POST(request: Request) {
@@ -24,6 +24,12 @@ export async function POST(request: Request) {
 
     const auth = await requireBusinessAccess(businessId);
     organizationId = auth.organizationId;
+    if (!(await hasFeature(auth.organizationId, "backlink_gap"))) {
+      return NextResponse.json(
+        { error: "Backlink Gap is not included in your plan." },
+        { status: 403 }
+      );
+    }
     const supabase = createServiceClient();
 
     // Cache hits stay synchronous so the UI can render immediately without billing.

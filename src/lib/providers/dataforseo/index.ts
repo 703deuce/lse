@@ -34,9 +34,10 @@ export interface ProviderRunLog {
 }
 
 export async function logProviderRun(log: ProviderRunLog): Promise<void> {
+  let requestHash = "";
   try {
     const supabase = createServiceClient();
-    const requestHash = await hashRequest(log.request);
+    requestHash = await hashRequest(log.request);
     await supabase.from("provider_runs").insert({
       organization_id: log.organizationId ?? null,
       provider: log.provider,
@@ -51,6 +52,32 @@ export async function logProviderRun(log: ProviderRunLog): Promise<void> {
     });
   } catch {
     // Non-blocking audit log
+  }
+
+  // Ledger successful paid provider calls when org is known (idempotent via request hash).
+  if (
+    log.organizationId &&
+    log.statusCode >= 200 &&
+    log.statusCode < 300 &&
+    !["nominatim", "twilio", "brevo"].includes(log.provider)
+  ) {
+    try {
+      const { trackProviderUsage } = await import("@/lib/providers/gateway");
+      const cost =
+        log.costEstimate ??
+        (await import("@/lib/providers/fetch-with-timeout")).estimateProviderCost(log.provider);
+      await trackProviderUsage(log.provider, {
+        organizationId: log.organizationId,
+        feature: `${log.provider}:${log.endpoint}`,
+        unitType: "request",
+        estimatedCostUsd: cost,
+        actualCostUsd: cost,
+        actualUnits: 1,
+        idempotencyKey: `${log.provider}:${log.endpoint}:${log.organizationId}:${requestHash || log.latencyMs}`,
+      });
+    } catch {
+      // Non-blocking ledger
+    }
   }
 }
 

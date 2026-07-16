@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
-import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
+import { EntitlementError, requireCampaignSendAccess } from "@/lib/auth/entitlements";
 import { enrollContactInCampaign } from "@/lib/automations/enroll-campaign";
 import { createServiceClient } from "@/lib/db/client";
 import { parseTriggerConfig } from "@/lib/reputation/campaign-triggers";
@@ -23,7 +23,7 @@ export async function POST(
     }
 
     const auth = await requireBusinessAccess(businessId);
-    await requireEntitlement(auth.organizationId, "review_campaigns");
+    await requireCampaignSendAccess(auth.organizationId);
 
     const supabase = createServiceClient();
     const { data: campaign } = await supabase

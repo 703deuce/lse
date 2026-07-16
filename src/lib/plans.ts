@@ -317,10 +317,12 @@ export async function assertWithinLimit(
 
 async function countBusinesses(organizationId: string): Promise<number> {
   const supabase = createServiceClient();
+  // Manual/untracked audits do not consume plan business slots.
   const { count } = await supabase
     .from("businesses")
     .select("id", { count: "exact", head: true })
-    .eq("organization_id", organizationId);
+    .eq("organization_id", organizationId)
+    .eq("is_tracked", true);
   return count ?? 0;
 }
 

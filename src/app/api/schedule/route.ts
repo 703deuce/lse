@@ -35,9 +35,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { businessId, enabled = true } = body as {
+    const { businessId, enabled = true, action } = body as {
       businessId?: string;
       enabled?: boolean;
+      action?: "enable" | "pause" | "archive";
       gridSize?: number;
       radiusMeters?: number;
     };
@@ -45,6 +46,9 @@ export async function POST(request: Request) {
 
     await requireBusinessAccess(businessId);
     const supabase = createServiceClient();
+
+    const resolvedEnabled =
+      action === "pause" || action === "archive" ? false : action === "enable" ? true : Boolean(enabled);
 
     // Prefer latest usable scan grid/radius so weekly jobs match the user's baseline.
     const { data: latestScan } = await supabase
@@ -73,30 +77,40 @@ export async function POST(request: Request) {
       .limit(1)
       .maybeSingle();
 
+    // Archive: disable and clear next run (SQL due-scan loop only picks enabled).
     if (existing) {
       const { error } = await supabase
         .from("scheduled_scans")
         .update({
-          enabled,
+          enabled: resolvedEnabled,
           grid_size: gridSize,
           radius_meters: radiusMeters,
-          next_run_at: enabled ? new Date(Date.now() + 7 * 86400000).toISOString() : null,
+          next_run_at: resolvedEnabled
+            ? new Date(Date.now() + 7 * 86400000).toISOString()
+            : null,
         })
         .eq("id", existing.id)
         .eq("business_id", businessId);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    } else {
+    } else if (action !== "archive") {
       const { error } = await supabase.from("scheduled_scans").insert({
         business_id: businessId,
-        enabled,
+        enabled: resolvedEnabled,
         grid_size: gridSize,
         radius_meters: radiusMeters,
-        next_run_at: enabled ? new Date(Date.now() + 7 * 86400000).toISOString() : null,
+        next_run_at: resolvedEnabled
+          ? new Date(Date.now() + 7 * 86400000).toISOString()
+          : null,
       });
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ enabled, gridSize, radiusMeters });
+    return NextResponse.json({
+      enabled: resolvedEnabled,
+      action: action ?? (resolvedEnabled ? "enable" : "pause"),
+      gridSize,
+      radiusMeters,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Schedule failed";
     const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;

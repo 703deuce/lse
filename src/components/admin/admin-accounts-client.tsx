@@ -10,6 +10,7 @@ type AdminAccount = {
   name: string;
   plan: string;
   ownerEmail: string | null;
+  outbound_paused?: boolean;
   usage: Record<string, number>;
 };
 
@@ -64,6 +65,21 @@ export function AdminAccountsClient() {
     await load();
   }
 
+  async function toggleOutbound(accountId: string, pause: boolean) {
+    setSavingId(accountId);
+    const res = await fetch(`/api/admin/accounts/${accountId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: pause ? "pause-outbound" : "resume-outbound" }),
+    });
+    setSavingId(null);
+    if (!res.ok) {
+      setError("Failed to update outbound pause");
+      return;
+    }
+    await load();
+  }
+
   if (error) {
     return <ContentCard><p className="text-sm text-red-600">{error}</p></ContentCard>;
   }
@@ -106,6 +122,18 @@ export function AdminAccountsClient() {
                 className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
               >
                 Reset usage
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleOutbound(account.id, !account.outbound_paused)}
+                disabled={savingId === account.id}
+                className={
+                  account.outbound_paused
+                    ? "rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100"
+                    : "rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                }
+              >
+                {account.outbound_paused ? "Resume outbound" : "Pause outbound"}
               </button>
             </div>
           </div>

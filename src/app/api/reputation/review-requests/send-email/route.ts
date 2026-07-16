@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
-import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
+import { EntitlementError, requireCampaignSendAccess } from "@/lib/auth/entitlements";
 import { sendReviewRequestEmail } from "@/lib/reputation/review-sends";
 import { PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
 
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     }
 
     const auth = await requireBusinessAccess(body.businessId);
-    await requireEntitlement(auth.organizationId, "review_campaigns");
+    await requireCampaignSendAccess(auth.organizationId);
     organizationId = auth.organizationId;
     await reserveUsageOrThrow(auth.organizationId, "review_emails_sent", 1);
     reserved = true;

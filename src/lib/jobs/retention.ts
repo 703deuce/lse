@@ -8,6 +8,7 @@ export type RetentionResult = {
   workspaceCacheDeleted: number;
   sharesRevoked: number;
   webhookPayloadsScrubbed: number;
+  providerWebhookEventsDeleted: number;
 };
 
 const RETENTION_INTERVAL_MS = Number(process.env.RETENTION_INTERVAL_MS ?? 60 * 60 * 1000);
@@ -35,6 +36,7 @@ export async function runDataRetentionCleanup(): Promise<RetentionResult> {
   let workspaceCacheDeleted = 0;
   let sharesRevoked = 0;
   let webhookPayloadsScrubbed = 0;
+  let providerWebhookEventsDeleted = 0;
 
   const { data: telemetry } = await supabase
     .from("scan_cell_telemetry")
@@ -89,6 +91,14 @@ export async function runDataRetentionCleanup(): Promise<RetentionResult> {
     .select("id");
   webhookPayloadsScrubbed = webhookScrubbed?.length ?? 0;
 
+  const providerWebhookDays = Number(process.env.RETENTION_PROVIDER_WEBHOOK_DAYS ?? 30);
+  const { data: providerWh } = await supabase
+    .from("provider_webhook_events")
+    .delete()
+    .lt("received_at", daysAgoIso(providerWebhookDays))
+    .select("id");
+  providerWebhookEventsDeleted = providerWh?.length ?? 0;
+
   const result = {
     telemetryDeleted,
     providerRunsScrubbed,
@@ -96,6 +106,7 @@ export async function runDataRetentionCleanup(): Promise<RetentionResult> {
     workspaceCacheDeleted,
     sharesRevoked,
     webhookPayloadsScrubbed,
+    providerWebhookEventsDeleted,
   };
 
   logger.info("data_retention_cleanup", result);

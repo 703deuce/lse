@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { hasFeature } from "@/lib/plans";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 
 export async function POST(request: Request) {
@@ -17,6 +18,12 @@ export async function POST(request: Request) {
     }
 
     const auth = await requireBusinessAccess(businessId);
+    if (!(await hasFeature(auth.organizationId, "review_momentum"))) {
+      return NextResponse.json(
+        { error: "Review Momentum is not included in your plan." },
+        { status: 403 }
+      );
+    }
     const job = await dispatchFeatureJob({
       jobType: "review_momentum_run",
       payload: {

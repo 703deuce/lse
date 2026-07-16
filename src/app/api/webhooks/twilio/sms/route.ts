@@ -13,6 +13,7 @@ import { logger } from "@/lib/observability/logger";
 import { getTwilioSmsWebhookUrl } from "@/lib/app-url";
 import { applyProviderDeliveryStatus } from "@/lib/reputation/delivery-status";
 import { pickLatestSmsBusiness } from "@/lib/reputation/reply-match";
+import { claimProviderWebhookEvent } from "@/lib/integrations/provider-webhook-dedupe";
 
 function twilioXml(body = ""): NextResponse {
   return new NextResponse(body ? `<Response><Message>${body}</Message></Response>` : "<Response></Response>", {
@@ -64,12 +65,27 @@ export async function POST(request: Request) {
 
     // Delivery status callbacks (no inbound SMS body).
     if (messageSid && messageStatus && !body) {
+      const claimed = await claimProviderWebhookEvent({
+        provider: "twilio",
+        idempotencyKey: `twilio:status:${messageSid}:${messageStatus}:${formParams.ErrorCode ?? "ok"}`,
+        meta: { messageSid, messageStatus },
+      });
+      if (!claimed) return twilioXml();
       await applyProviderDeliveryStatus({
         providerMessageId: messageSid,
         status: messageStatus,
         errorCode: formParams.ErrorCode ?? null,
       });
       return twilioXml();
+    }
+
+    if (messageSid) {
+      const claimed = await claimProviderWebhookEvent({
+        provider: "twilio",
+        idempotencyKey: `twilio:inbound:${messageSid}`,
+        meta: { from, messageSid },
+      });
+      if (!claimed) return twilioXml();
     }
 
     if (!from) {
