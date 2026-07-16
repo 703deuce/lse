@@ -13,8 +13,10 @@ import {
 } from "@/lib/jobs/active-job-status";
 
 const CACHE_TTL_MS = 2_000;
+/** Running jobs with heartbeat older than this are surfaced as stalled. */
+const STALE_HEARTBEAT_MS = Number(process.env.JOB_STALE_HEARTBEAT_MS ?? 120_000);
 const STATUS_COLUMNS =
-  "id, job_type, status, enqueue_state, queue_name, organization_id, business_id, progress_json, error_message, scheduled_at, started_at, finished_at, heartbeat_at, created_at";
+  "id, job_type, status, enqueue_state, queue_name, organization_id, business_id, progress_json, progress_version, progress_total, progress_completed, progress_failed, error_message, scheduled_at, started_at, finished_at, heartbeat_at, created_at";
 
 type CompactRow = {
   id: string;
@@ -25,6 +27,10 @@ type CompactRow = {
   organization_id: string | null;
   business_id: string | null;
   progress_json: Record<string, unknown> | null;
+  progress_version?: number | null;
+  progress_total?: number | null;
+  progress_completed?: number | null;
+  progress_failed?: number | null;
   error_message: string | null;
   scheduled_at: string;
   started_at: string | null;
@@ -73,21 +79,18 @@ export function assertJobStatusRateLimit(params: {
   return { ok: true };
 }
 
-function computeVersion(row: CompactRow): number {
-  const stamp =
-    row.heartbeat_at ||
-    row.finished_at ||
-    row.started_at ||
-    row.scheduled_at ||
-    row.created_at ||
-    "";
-  const progress = row.progress_json ?? {};
-  const completed = Number(progress.completed ?? 0);
-  const failed = Number(progress.failed ?? 0);
-  let h = 0;
-  const raw = `${row.id}|${row.status}|${row.enqueue_state}|${stamp}|${completed}|${failed}`;
-  for (let i = 0; i < raw.length; i++) h = (h * 31 + raw.charCodeAt(i)) >>> 0;
-  return h;
+/** Exported for unit tests — running jobs with stale heartbeat are soft-stalled. */
+export function isJobHeartbeatStale(
+  row: { status: string; heartbeat_at?: string | null; started_at?: string | null },
+  now = Date.now(),
+  staleMs = STALE_HEARTBEAT_MS
+): boolean {
+  if (row.status !== "running") return false;
+  const hb = row.heartbeat_at || row.started_at;
+  if (!hb) return true;
+  const ts = new Date(hb).getTime();
+  if (!Number.isFinite(ts)) return true;
+  return now - ts > staleMs;
 }
 
 function rowToCompact(row: CompactRow): CompactJobStatusResponse {
@@ -98,35 +101,45 @@ function rowToCompact(row: CompactRow): CompactJobStatusResponse {
     percent?: number;
     result?: unknown;
   };
-  const completed = progress.completed ?? null;
-  const total = progress.total ?? null;
-  const failed = progress.failed ?? null;
+  const completed = row.progress_completed ?? progress.completed ?? null;
+  const total = row.progress_total ?? progress.total ?? null;
+  const failed = row.progress_failed ?? progress.failed ?? null;
   let percent = progress.percent ?? null;
   if (percent == null && completed != null && total != null && total > 0) {
     percent = Math.round((completed / total) * 100);
   }
   const updatedAt =
     row.heartbeat_at ?? row.finished_at ?? row.started_at ?? row.scheduled_at ?? null;
+  const stalled = isJobHeartbeatStale(row);
+  // Keep DB status (`running`) so existing clients stay compatible; expose `stalled`
+  // as a soft ops/UI signal and map phase to retrying while the lease may recover.
+  const phase = stalled
+    ? "retrying"
+    : derivePhase(row.status, {
+        completed: completed ?? undefined,
+        total: total ?? undefined,
+        failed: failed ?? undefined,
+      });
 
   return {
     jobId: row.id,
     jobType: row.job_type ?? null,
     status: row.status,
-    phase: derivePhase(row.status, {
-      completed: completed ?? undefined,
-      total: total ?? undefined,
-      failed: failed ?? undefined,
-    }),
+    phase,
     progress: percent,
     completedUnits: completed,
     totalUnits: total,
     failedUnits: failed,
     updatedAt,
-    version: computeVersion(row),
-    errorMessage: row.error_message,
+    version: Number(row.progress_version ?? 0),
+    errorMessage: stalled
+      ? row.error_message ||
+        "Worker heartbeat is stale — the job may be recovering automatically."
+      : row.error_message,
     result: progress.result ?? undefined,
     enqueueState: row.enqueue_state,
     queueName: row.queue_name,
+    stalled,
   };
 }
 

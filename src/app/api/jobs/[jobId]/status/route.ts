@@ -63,7 +63,8 @@ export async function GET(
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    const etag = `"${compact.version}"`;
+    // Include stalled so a heartbeat-only stall still busts 304 without a progress bump.
+    const etag = `"v${compact.version}:s${compact.stalled ? 1 : 0}"`;
     const inm = request.headers.get("if-none-match");
     if (inm && inm === etag) {
       return new NextResponse(null, {
@@ -101,6 +102,7 @@ export async function GET(
         errorMessage: compact.errorMessage,
         queueName: compact.queueName,
         enqueueState: compact.enqueueState,
+        stalled: compact.stalled === true,
       },
       {
         headers: {

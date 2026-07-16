@@ -6,7 +6,11 @@ import {
   isTerminalJobStatus,
   nextPollIntervalMs,
 } from "@/lib/jobs/active-job-status";
-import { assertJobStatusRateLimit, resetJobStatusRateLimitsForTests } from "@/lib/jobs/compact-job-status";
+import {
+  assertJobStatusRateLimit,
+  isJobHeartbeatStale,
+  resetJobStatusRateLimitsForTests,
+} from "@/lib/jobs/compact-job-status";
 
 describe("active job polling policy", () => {
   it("stops on terminal ledger and feature statuses", () => {
@@ -48,5 +52,41 @@ describe("active job polling policy", () => {
     assert.equal(assertJobStatusRateLimit({ organizationId: "o1", jobId: "j1" }).ok, true);
     const third = assertJobStatusRateLimit({ organizationId: "o1", jobId: "j1" });
     assert.equal(third.ok, false);
+  });
+
+  it("keeps polling on stalled wire status and detects stale heartbeats", () => {
+    assert.equal(isActiveJobStatus("stalled"), true);
+    assert.equal(isTerminalJobStatus("stalled"), false);
+    const now = Date.now();
+    assert.equal(
+      isJobHeartbeatStale(
+        {
+          status: "running",
+          heartbeat_at: new Date(now - 180_000).toISOString(),
+        },
+        now,
+        120_000
+      ),
+      true
+    );
+    assert.equal(
+      isJobHeartbeatStale(
+        {
+          status: "running",
+          heartbeat_at: new Date(now - 30_000).toISOString(),
+        },
+        now,
+        120_000
+      ),
+      false
+    );
+    assert.equal(
+      isJobHeartbeatStale(
+        { status: "completed", heartbeat_at: new Date(now - 180_000).toISOString() },
+        now,
+        120_000
+      ),
+      false
+    );
   });
 });

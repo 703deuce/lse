@@ -51,6 +51,8 @@ export type CompactJobStatusResponse = {
   result?: unknown;
   enqueueState?: string | null;
   queueName?: string | null;
+  /** True when status=running but heartbeat is older than the stall threshold. */
+  stalled?: boolean;
 };
 
 const TERMINAL = new Set([
@@ -76,6 +78,7 @@ const ACTIVE = new Set([
   "enriching",
   "extended_running",
   "core_ready",
+  "stalled", // keep polling — lease reclaim / recovery may revive it
 ]);
 
 export function isTerminalJobStatus(status: string): boolean {
@@ -158,11 +161,11 @@ export function derivePhase(
   ) {
     return "retrying";
   }
+  if (status === "stalled" || status === "retrying") return "retrying";
   if (
     status === "dispatching" ||
     status === "provider_running" ||
     status === "running" ||
-    status === "retrying" ||
     status === "extended_running" ||
     status === "core_ready"
   ) {
