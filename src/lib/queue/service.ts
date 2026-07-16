@@ -272,9 +272,10 @@ export async function retryJob(jobId: string): Promise<boolean> {
 export async function updateProgress(
   jobId: string,
   progress: Record<string, unknown>,
-  counters?: { total?: number; completed?: number; failed?: number }
+  counters?: { total?: number; completed?: number; failed?: number },
+  options?: { force?: boolean }
 ): Promise<void> {
-  await updateJobProgress(jobId, progress, counters);
+  await updateJobProgress(jobId, progress, counters, options);
 }
 
 export async function heartbeat(

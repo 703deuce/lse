@@ -315,6 +315,16 @@ async function markLedgerTerminal(
   leaseOwner: string
 ): Promise<void> {
   const supabase = createServiceClient();
+  // Optimistic completion: flush 100% progress immediately so the next poll settles.
+  if (status === "completed") {
+    const { updateJobProgress } = await import("@/lib/queue/ledger");
+    await updateJobProgress(
+      ledgerJobId,
+      { completed: 1, total: 1, percent: 100 },
+      { completed: 1, total: 1 },
+      { force: true }
+    ).catch(() => undefined);
+  }
   await supabase
     .from("job_queue")
     .update({

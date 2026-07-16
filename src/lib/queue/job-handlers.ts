@@ -442,16 +442,21 @@ export async function executeJobType(
           }
           if (ledgerJobId) {
             const { updateJobProgress } = await import("@/lib/queue/ledger");
-            await updateJobProgress(ledgerJobId, {
-              result: {
-                reportId: artifact.reportId,
-                kind: artifact.kind,
-                downloadUrl,
-                downloadPath: artifact.downloadPath,
-                reused: artifact.reused,
-                bytes: artifact.bytes,
+            await updateJobProgress(
+              ledgerJobId,
+              {
+                result: {
+                  reportId: artifact.reportId,
+                  kind: artifact.kind,
+                  downloadUrl,
+                  downloadPath: artifact.downloadPath,
+                  reused: artifact.reused,
+                  bytes: artifact.bytes,
+                },
               },
-            });
+              { completed: 1, total: 1 },
+              { force: true }
+            );
           }
           return { ok: true };
         }
@@ -478,15 +483,20 @@ export async function executeJobType(
           });
           if (ledgerJobId) {
             const { updateJobProgress } = await import("@/lib/queue/ledger");
-            await updateJobProgress(ledgerJobId, {
-              result: {
-                reportId: result.reportId,
-                shareToken: result.shareToken,
-                shareUrl: result.shareToken ? `/reports/share/${result.shareToken}` : null,
-                reportType: result.payload.reportType,
-                status: "ready",
+            await updateJobProgress(
+              ledgerJobId,
+              {
+                result: {
+                  reportId: result.reportId,
+                  shareToken: result.shareToken,
+                  shareUrl: result.shareToken ? `/reports/share/${result.shareToken}` : null,
+                  reportType: result.payload.reportType,
+                  status: "ready",
+                },
               },
-            });
+              { completed: 1, total: 1 },
+              { force: true }
+            );
           }
           return { ok: true };
         } catch (err) {
@@ -535,7 +545,12 @@ export async function executeJobType(
           null;
         if (ledgerJobId) {
           const { updateJobProgress } = await import("@/lib/queue/ledger");
-          await updateJobProgress(ledgerJobId, { result, module });
+          await updateJobProgress(
+            ledgerJobId,
+            { result, module },
+            { completed: 1, total: 1 },
+            { force: true }
+          );
           const supabase = createServiceClient();
           await supabase
             .from("job_queue")

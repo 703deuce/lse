@@ -229,10 +229,14 @@ function enqueueProgressWrite(scanBatchId: string, write: () => Promise<void>): 
   return next;
 }
 
-const PROGRESS_FLUSH_MS = Number(process.env.SCAN_PROGRESS_FLUSH_MS ?? 750);
+const PROGRESS_FLUSH_MS = Number(process.env.SCAN_PROGRESS_FLUSH_MS ?? 1000);
+const PROGRESS_UNIT_STEP = Number(process.env.SCAN_PROGRESS_UNIT_STEP ?? 5);
+const PROGRESS_PERCENT_STEP = Number(process.env.SCAN_PROGRESS_PERCENT_STEP ?? 5);
 
 type ProgressThrottleState = {
   lastFlushAt: number;
+  lastFlushedCompleted: number;
+  lastFlushedPercent: number;
   pending: {
     completed: number;
     total: number;
@@ -244,14 +248,34 @@ type ProgressThrottleState = {
 
 const progressThrottleByScan = new Map<string, ProgressThrottleState>();
 
+function cellProgressPercent(completed: number, total: number): number {
+  if (total <= 0) return 0;
+  return Math.round((completed / total) * 100);
+}
+
+function shouldFlushCellProgress(
+  state: ProgressThrottleState,
+  pending: { completed: number; total: number },
+  force: boolean
+): boolean {
+  if (force) return true;
+  if (pending.total > 0 && pending.completed >= pending.total) return true;
+  if (Date.now() - state.lastFlushAt >= PROGRESS_FLUSH_MS) return true;
+  if (pending.completed - state.lastFlushedCompleted >= PROGRESS_UNIT_STEP) return true;
+  const pct = cellProgressPercent(pending.completed, pending.total);
+  if (pct - state.lastFlushedPercent >= PROGRESS_PERCENT_STEP) return true;
+  return false;
+}
+
 async function flushPendingProgress(scanBatchId: string, force = false): Promise<void> {
   const state = progressThrottleByScan.get(scanBatchId);
   if (!state?.pending) return;
-  const due = force || Date.now() - state.lastFlushAt >= PROGRESS_FLUSH_MS;
-  if (!due) return;
+  if (!shouldFlushCellProgress(state, state.pending, force)) return;
   const payload = state.pending;
   state.pending = null;
   state.lastFlushAt = Date.now();
+  state.lastFlushedCompleted = payload.completed;
+  state.lastFlushedPercent = cellProgressPercent(payload.completed, payload.total);
   if (state.flushTimer) {
     clearTimeout(state.flushTimer);
     state.flushTimer = null;
@@ -278,7 +302,13 @@ async function scheduleCellProgress(
 ): Promise<void> {
   let state = progressThrottleByScan.get(scanBatchId);
   if (!state) {
-    state = { lastFlushAt: 0, pending: null, flushTimer: null };
+    state = {
+      lastFlushAt: 0,
+      lastFlushedCompleted: 0,
+      lastFlushedPercent: 0,
+      pending: null,
+      flushTimer: null,
+    };
     progressThrottleByScan.set(scanBatchId, state);
   }
   // Coalesce with max(completed) so a later flush of an older pass cannot shrink progress.
@@ -289,16 +319,12 @@ async function scheduleCellProgress(
     failed,
     extra: extra ?? prev?.extra,
   };
-  if (options?.force) {
-    await flushPendingProgress(scanBatchId, true);
-    return;
-  }
-  const elapsed = Date.now() - state.lastFlushAt;
-  if (elapsed >= PROGRESS_FLUSH_MS) {
+  if (shouldFlushCellProgress(state, state.pending, options?.force === true)) {
     await flushPendingProgress(scanBatchId, true);
     return;
   }
   if (!state.flushTimer) {
+    const elapsed = Date.now() - state.lastFlushAt;
     state.flushTimer = setTimeout(() => {
       void flushPendingProgress(scanBatchId, true).catch((err) => {
         console.warn("[Scan] throttled progress flush failed", scanBatchId, err);

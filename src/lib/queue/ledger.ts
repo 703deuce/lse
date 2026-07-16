@@ -146,19 +146,40 @@ export async function markLedgerEnqueueFailed(jobId: string, message: string): P
 export async function updateJobProgress(
   jobId: string,
   progress: Record<string, unknown>,
-  counters?: { total?: number; completed?: number; failed?: number }
+  counters?: { total?: number; completed?: number; failed?: number },
+  options?: { force?: boolean }
 ): Promise<void> {
+  const { scheduleJobProgressWrite } = await import("@/lib/queue/progress-throttle");
   const supabase = createServiceClient();
-  await supabase
-    .from("job_queue")
-    .update({
-      progress_json: progress,
-      heartbeat_at: new Date().toISOString(),
-      ...(counters?.total != null ? { progress_total: counters.total } : {}),
-      ...(counters?.completed != null ? { progress_completed: counters.completed } : {}),
-      ...(counters?.failed != null ? { progress_failed: counters.failed } : {}),
-    })
-    .eq("id", jobId);
+
+  await scheduleJobProgressWrite(
+    jobId,
+    { progress, counters },
+    async ({ progress: merged, counters: c, version }) => {
+      await supabase
+        .from("job_queue")
+        .update({
+          progress_json: merged,
+          progress_version: version,
+          heartbeat_at: new Date().toISOString(),
+          ...(c?.total != null ? { progress_total: c.total } : {}),
+          ...(c?.completed != null ? { progress_completed: c.completed } : {}),
+          ...(c?.failed != null ? { progress_failed: c.failed } : {}),
+        })
+        .eq("id", jobId);
+    },
+    {
+      force: options?.force === true,
+      seedVersion: async () => {
+        const { data } = await supabase
+          .from("job_queue")
+          .select("progress_version")
+          .eq("id", jobId)
+          .maybeSingle();
+        return Number((data as { progress_version?: number } | null)?.progress_version ?? 0);
+      },
+    }
+  );
 }
 
 export async function heartbeatJob(
