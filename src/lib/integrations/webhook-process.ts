@@ -8,6 +8,7 @@ import {
   createContactMatchReview,
   evaluateWebhookContactMatch,
 } from "@/lib/integrations/webhook-contact-match";
+import { mapEnrollmentSkipStatus } from "@/lib/integrations/webhook-status";
 import { logger } from "@/lib/observability/logger";
 
 type ProcessResult = {
@@ -15,6 +16,33 @@ type ProcessResult = {
   permanent?: boolean;
   error?: string;
 };
+
+const TERMINAL = new Set([
+  "completed",
+  "ignored_duplicate",
+  "ignored_suppressed",
+  "ignored_recently_requested",
+  "ignored_test",
+  "rejected_invalid",
+  "rejected_unauthorized",
+  "failed_permanent",
+  "needs_review",
+]);
+
+const STALE_PROCESSING_MS = Number(process.env.WEBHOOK_STALE_PROCESSING_MS ?? 5 * 60 * 1000);
+
+function isPermanentBusinessError(message: string): boolean {
+  return (
+    /Campaign must be active or scheduled/i.test(message) ||
+    /Generate a review link/i.test(message) ||
+    /Business not found/i.test(message) ||
+    /Campaign not found/i.test(message) ||
+    /Contact requires a valid phone or email/i.test(message) ||
+    /No business configured/i.test(message) ||
+    /Endpoint disabled/i.test(message) ||
+    /consent required/i.test(message)
+  );
+}
 
 async function claimEvent(eventId: string): Promise<Record<string, unknown> | null> {
   const supabase = createServiceClient();
@@ -25,22 +53,34 @@ async function claimEvent(eventId: string): Promise<Record<string, unknown> | nu
     .maybeSingle();
   if (!existing) return null;
 
-  const done = [
-    "completed",
-    "ignored_duplicate",
-    "ignored_suppressed",
-    "ignored_recently_requested",
-    "ignored_test",
-    "rejected_invalid",
-    "rejected_unauthorized",
-    "failed_permanent",
-    "needs_review",
-  ];
-  if (done.includes(String(existing.status))) {
+  if (TERMINAL.has(String(existing.status))) {
     return { ...existing, __alreadyDone: true };
   }
 
   const now = new Date().toISOString();
+  const status = String(existing.status);
+
+  // Reclaim stale processing (worker died mid-flight).
+  if (status === "processing") {
+    const updatedAt = new Date(String(existing.updated_at ?? existing.received_at)).getTime();
+    if (Number.isFinite(updatedAt) && Date.now() - updatedAt < STALE_PROCESSING_MS) {
+      return { __busy: true };
+    }
+    const { data } = await supabase
+      .from("integration_webhook_events")
+      .update({
+        status: "processing",
+        attempt_count: Number(existing.attempt_count ?? 0) + 1,
+        updated_at: now,
+      })
+      .eq("id", eventId)
+      .eq("status", "processing")
+      .lt("updated_at", new Date(Date.now() - STALE_PROCESSING_MS).toISOString())
+      .select("*")
+      .maybeSingle();
+    return (data as Record<string, unknown> | null) ?? { __busy: true };
+  }
+
   const { data } = await supabase
     .from("integration_webhook_events")
     .update({
@@ -64,10 +104,14 @@ export async function processIntegrationWebhookEvent(eventId: string): Promise<P
   const supabase = createServiceClient();
   const claimed = await claimEvent(eventId);
   if (!claimed) {
-    return { ok: true }; // nothing to do / race lost
+    return { ok: false, error: "Failed to claim webhook event" };
   }
   if (claimed.__alreadyDone) {
     return { ok: true };
+  }
+  if (claimed.__busy) {
+    // Another worker holds a fresh processing lock — retry later.
+    return { ok: false, error: "Webhook event still processing" };
   }
 
   const endpointId = claimed.endpoint_id as string;
@@ -104,6 +148,25 @@ export async function processIntegrationWebhookEvent(eventId: string): Promise<P
       permanent: true,
     });
     return { ok: false, permanent: true, error: "Missing business" };
+  }
+
+  if (endpoint.require_email_consent && normalized.consent?.email !== true) {
+    await finish(eventId, {
+      status: "rejected_invalid",
+      customer_safe_error: "Email consent required",
+      permanent: true,
+    });
+    await touchEndpoint(endpointId, "failure");
+    return { ok: false, permanent: true, error: "Email consent required" };
+  }
+  if (endpoint.require_sms_consent && normalized.consent?.sms !== true) {
+    await finish(eventId, {
+      status: "rejected_invalid",
+      customer_safe_error: "SMS consent required",
+      permanent: true,
+    });
+    await touchEndpoint(endpointId, "failure");
+    return { ok: false, permanent: true, error: "SMS consent required" };
   }
 
   const contactInput = {
@@ -180,6 +243,7 @@ export async function processIntegrationWebhookEvent(eventId: string): Promise<P
       const { id: contactId, created } = await upsertBusinessContact({
         organizationId,
         businessId,
+        preferredContactId: existingContactId,
         firstName: contactInput.firstName,
         lastName: contactInput.lastName,
         customerName: contactDisplayName(contactInput),
@@ -206,6 +270,7 @@ export async function processIntegrationWebhookEvent(eventId: string): Promise<P
       const { id: contactId } = await upsertBusinessContact({
         organizationId,
         businessId,
+        preferredContactId: existingContactId,
         firstName: contactInput.firstName,
         lastName: contactInput.lastName,
         customerName: contactDisplayName(contactInput),
@@ -230,19 +295,14 @@ export async function processIntegrationWebhookEvent(eventId: string): Promise<P
       businessId,
       campaignId,
       contact: contactInput,
+      preferredContactId: existingContactId,
       delayMinutes: Number(endpoint.send_delay_minutes ?? 0),
       duplicateProtectionDays: Number(endpoint.duplicate_window_days ?? 90),
     });
 
     if (result.skipped) {
-      const status =
-        result.skipReason?.includes("opt") || result.skipReason?.includes("opted")
-          ? "ignored_suppressed"
-          : result.skipReason?.includes("recent")
-            ? "ignored_recently_requested"
-            : "completed";
       await finish(eventId, {
-        status,
+        status: mapEnrollmentSkipStatus(result.skipReason),
         contact_id: result.contactId || null,
         campaign_enrollment_id: result.recipientId || null,
         customer_safe_error: result.skipReason ?? "Skipped",
@@ -279,8 +339,7 @@ export async function processIntegrationWebhookEvent(eventId: string): Promise<P
     return { ok: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    const permanent =
-      /not found|required|invalid|opted out|must be active|Generate a review link/i.test(message);
+    const permanent = isPermanentBusinessError(message);
     await finish(eventId, {
       status: permanent ? "failed_permanent" : "failed_retryable",
       customer_safe_error: permanent ? message : "Processing failed; will retry",

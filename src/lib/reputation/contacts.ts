@@ -16,6 +16,8 @@ export type ContactInput = {
   tags?: string[];
   source?: string | null;
   externalCustomerId?: string | null;
+  /** When set, update this contact instead of phone/email match. */
+  preferredContactId?: string | null;
   customerDate?: string | null;
   lastServiceDate?: string | null;
   notes?: string | null;
@@ -29,9 +31,21 @@ function displayName(input: ContactInput): string | null {
   return parts.length ? parts.join(" ") : null;
 }
 
+type ExistingContact = {
+  id: string;
+  sms_opt_out?: boolean;
+  email_unsubscribed?: boolean;
+  phone_e164?: string | null;
+  email_normalized?: string | null;
+  external_customer_id?: string | null;
+  customer_name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+};
+
 /**
- * Upsert a contact within a business using phone_e164 / email_normalized uniqueness.
- * Opt-outs are never cleared by import/upsert.
+ * Upsert a contact within a business using preferred id / external id / phone / email.
+ * Opt-outs are never cleared by import/upsert. Missing phone/email fields are not wiped.
  */
 export async function upsertBusinessContact(input: ContactInput): Promise<{ id: string; created: boolean }> {
   const supabase = createServiceClient();
@@ -40,16 +54,39 @@ export async function upsertBusinessContact(input: ContactInput): Promise<{ id: 
     email: input.email,
   });
 
-  if (!phoneE164 && !emailNormalized) {
+  if (!phoneE164 && !emailNormalized && !input.preferredContactId) {
     throw new Error("Contact requires a valid phone or email.");
   }
 
-  let existing: { id: string; sms_opt_out?: boolean; email_unsubscribed?: boolean } | null = null;
+  let existing: ExistingContact | null = null;
+  const selectCols =
+    "id, sms_opt_out, email_unsubscribed, phone_e164, email_normalized, external_customer_id, customer_name, first_name, last_name";
 
-  if (phoneE164) {
+  if (input.preferredContactId) {
     const { data } = await supabase
       .from("review_request_contacts")
-      .select("id, sms_opt_out, email_unsubscribed")
+      .select(selectCols)
+      .eq("business_id", input.businessId)
+      .eq("id", input.preferredContactId)
+      .maybeSingle();
+    existing = data;
+  }
+
+  const externalId = input.externalCustomerId?.trim() || null;
+  if (!existing && externalId) {
+    const { data } = await supabase
+      .from("review_request_contacts")
+      .select(selectCols)
+      .eq("business_id", input.businessId)
+      .eq("external_customer_id", externalId)
+      .maybeSingle();
+    existing = data;
+  }
+
+  if (!existing && phoneE164) {
+    const { data } = await supabase
+      .from("review_request_contacts")
+      .select(selectCols)
       .eq("business_id", input.businessId)
       .eq("phone_e164", phoneE164)
       .maybeSingle();
@@ -58,43 +95,54 @@ export async function upsertBusinessContact(input: ContactInput): Promise<{ id: 
   if (!existing && emailNormalized) {
     const { data } = await supabase
       .from("review_request_contacts")
-      .select("id, sms_opt_out, email_unsubscribed")
+      .select(selectCols)
       .eq("business_id", input.businessId)
       .eq("email_normalized", emailNormalized)
       .maybeSingle();
     existing = data;
   }
 
-  const name = displayName(input);
-  const patch: Record<string, unknown> = {
-    organization_id: input.organizationId,
-    business_id: input.businessId,
-    first_name: input.firstName?.trim() || null,
-    last_name: input.lastName?.trim() || null,
-    customer_name: name,
-    customer_phone: phoneE164 ?? input.phone?.trim() ?? null,
-    customer_email: emailNormalized ?? input.email?.trim() ?? null,
-    phone_e164: phoneE164,
-    email_normalized: emailNormalized,
-    source: input.source ?? null,
-    external_customer_id: input.externalCustomerId ?? null,
-    customer_date: input.customerDate || null,
-    last_service_date: input.lastServiceDate || null,
-    notes: input.notes ?? null,
-    updated_at: new Date().toISOString(),
-  };
-
-  if (input.tags) patch.tags = input.tags;
-  if (input.consentState) {
-    patch.consent_state = input.consentState;
-    patch.consent_source = input.consentSource ?? null;
-    if (input.consentState === "express" || input.consentState === "implied") {
-      patch.consent_at = new Date().toISOString();
-    }
+  if (!existing && !phoneE164 && !emailNormalized) {
+    throw new Error("Contact requires a valid phone or email.");
   }
 
+  const name = displayName(input);
+  const now = new Date().toISOString();
+
   if (existing) {
-    // Never reactivate opted-out contacts via upload/upsert.
+    const patch: Record<string, unknown> = {
+      organization_id: input.organizationId,
+      business_id: input.businessId,
+      updated_at: now,
+    };
+    if (input.firstName !== undefined && input.firstName !== null) {
+      patch.first_name = input.firstName.trim() || null;
+    }
+    if (input.lastName !== undefined && input.lastName !== null) {
+      patch.last_name = input.lastName.trim() || null;
+    }
+    if (name) patch.customer_name = name;
+    if (phoneE164) {
+      patch.phone_e164 = phoneE164;
+      patch.customer_phone = phoneE164;
+    }
+    if (emailNormalized) {
+      patch.email_normalized = emailNormalized;
+      patch.customer_email = emailNormalized;
+    }
+    if (externalId) patch.external_customer_id = externalId;
+    if (input.source) patch.source = input.source;
+    if (input.customerDate) patch.customer_date = input.customerDate;
+    if (input.lastServiceDate) patch.last_service_date = input.lastServiceDate;
+    if (input.notes !== undefined && input.notes !== null) patch.notes = input.notes;
+    if (input.consentState) {
+      patch.consent_state = input.consentState;
+      patch.consent_source = input.consentSource ?? null;
+      if (input.consentState === "express" || input.consentState === "implied") {
+        patch.consent_at = now;
+      }
+    }
+
     await supabase.from("review_request_contacts").update(patch).eq("id", existing.id);
     if (input.tags?.length) {
       const { data: row } = await supabase
@@ -109,13 +157,35 @@ export async function upsertBusinessContact(input: ContactInput): Promise<{ id: 
     return { id: existing.id, created: false };
   }
 
+  const insertPatch: Record<string, unknown> = {
+    organization_id: input.organizationId,
+    business_id: input.businessId,
+    first_name: input.firstName?.trim() || null,
+    last_name: input.lastName?.trim() || null,
+    customer_name: name,
+    customer_phone: phoneE164 ?? input.phone?.trim() ?? null,
+    customer_email: emailNormalized ?? input.email?.trim() ?? null,
+    phone_e164: phoneE164,
+    email_normalized: emailNormalized,
+    source: input.source ?? null,
+    external_customer_id: externalId,
+    customer_date: input.customerDate || null,
+    last_service_date: input.lastServiceDate || null,
+    notes: input.notes ?? null,
+    updated_at: now,
+    consent_state: input.consentState ?? "unknown",
+    tags: input.tags ?? [],
+  };
+  if (input.consentState) {
+    insertPatch.consent_source = input.consentSource ?? null;
+    if (input.consentState === "express" || input.consentState === "implied") {
+      insertPatch.consent_at = now;
+    }
+  }
+
   const { data, error } = await supabase
     .from("review_request_contacts")
-    .insert({
-      ...patch,
-      consent_state: input.consentState ?? "unknown",
-      tags: input.tags ?? [],
-    })
+    .insert(insertPatch)
     .select("id")
     .single();
   if (error) throw new Error(error.message);
@@ -172,8 +242,12 @@ export async function setContactSuppression(params: {
     .maybeSingle();
   if (!contact) throw new Error("Contact not found");
 
-  const smsOptOut = params.smsOptOut ?? Boolean(contact.sms_opt_out);
-  const emailUnsubscribed = params.emailUnsubscribed ?? Boolean(contact.email_unsubscribed);
+  const smsOptOut =
+    params.smsOptOut !== undefined ? params.smsOptOut : Boolean(contact.sms_opt_out);
+  const emailUnsubscribed =
+    params.emailUnsubscribed !== undefined
+      ? params.emailUnsubscribed
+      : Boolean(contact.email_unsubscribed);
   const now = new Date().toISOString();
 
   await supabase
@@ -185,50 +259,54 @@ export async function setContactSuppression(params: {
     })
     .eq("id", contact.id);
 
-  if (smsOptOut && contact.phone_e164) {
-    const { data: existing } = await supabase
-      .from("review_request_suppression")
-      .select("id")
-      .eq("business_id", params.businessId)
-      .eq("phone", contact.phone_e164)
-      .limit(1);
-    if (!existing?.length) {
-      await supabase.from("review_request_suppression").insert({
-        organization_id: params.organizationId,
-        business_id: params.businessId,
-        phone: contact.phone_e164,
-        reason: "manual_sms_opt_out",
-      });
+  if (params.smsOptOut !== undefined) {
+    if (smsOptOut && contact.phone_e164) {
+      const { data: existing } = await supabase
+        .from("review_request_suppression")
+        .select("id")
+        .eq("business_id", params.businessId)
+        .eq("phone", contact.phone_e164)
+        .limit(1);
+      if (!existing?.length) {
+        await supabase.from("review_request_suppression").insert({
+          organization_id: params.organizationId,
+          business_id: params.businessId,
+          phone: contact.phone_e164,
+          reason: "manual_sms_opt_out",
+        });
+      }
+    } else if (!smsOptOut && contact.phone_e164) {
+      await supabase
+        .from("review_request_suppression")
+        .delete()
+        .eq("business_id", params.businessId)
+        .eq("phone", contact.phone_e164);
     }
-  } else if (!smsOptOut && contact.phone_e164) {
-    await supabase
-      .from("review_request_suppression")
-      .delete()
-      .eq("business_id", params.businessId)
-      .eq("phone", contact.phone_e164);
   }
 
-  if (emailUnsubscribed && contact.email_normalized) {
-    const { data: existing } = await supabase
-      .from("review_request_suppression")
-      .select("id")
-      .eq("business_id", params.businessId)
-      .eq("email", contact.email_normalized)
-      .limit(1);
-    if (!existing?.length) {
-      await supabase.from("review_request_suppression").insert({
-        organization_id: params.organizationId,
-        business_id: params.businessId,
-        email: contact.email_normalized,
-        reason: "manual_email_unsubscribe",
-      });
+  if (params.emailUnsubscribed !== undefined) {
+    if (emailUnsubscribed && contact.email_normalized) {
+      const { data: existing } = await supabase
+        .from("review_request_suppression")
+        .select("id")
+        .eq("business_id", params.businessId)
+        .eq("email", contact.email_normalized)
+        .limit(1);
+      if (!existing?.length) {
+        await supabase.from("review_request_suppression").insert({
+          organization_id: params.organizationId,
+          business_id: params.businessId,
+          email: contact.email_normalized,
+          reason: "manual_email_unsubscribe",
+        });
+      }
+    } else if (!emailUnsubscribed && contact.email_normalized) {
+      await supabase
+        .from("review_request_suppression")
+        .delete()
+        .eq("business_id", params.businessId)
+        .eq("email", contact.email_normalized);
     }
-  } else if (!emailUnsubscribed && contact.email_normalized) {
-    await supabase
-      .from("review_request_suppression")
-      .delete()
-      .eq("business_id", params.businessId)
-      .eq("email", contact.email_normalized);
   }
 }
 

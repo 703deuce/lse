@@ -75,6 +75,7 @@ export async function runDataRetentionCleanup(): Promise<RetentionResult> {
   sharesRevoked = shares?.length ?? 0;
 
   // Keep event hashes/status/ids; scrub bulky payload JSON after retention window.
+  // Never scrub open needs_review rows — match resolve still needs payload_normalized.
   const { data: webhookScrubbed } = await supabase
     .from("integration_webhook_events")
     .update({
@@ -84,6 +85,7 @@ export async function runDataRetentionCleanup(): Promise<RetentionResult> {
       updated_at: new Date().toISOString(),
     })
     .lt("received_at", daysAgoIso(webhookPayloadDays))
+    .neq("status", "needs_review")
     .select("id");
   webhookPayloadsScrubbed = webhookScrubbed?.length ?? 0;
 

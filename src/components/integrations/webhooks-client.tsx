@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Copy, Loader2, Plus, Webhook } from "lucide-react";
 import { ModuleHeader, ModulePage } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
@@ -92,6 +92,8 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [resolvingMatchId, setResolvingMatchId] = useState<string | null>(null);
+  const detailRequestRef = useRef(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -108,10 +110,17 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
       if (!wh.ok) throw new Error(whJson.error || "Failed to load webhooks");
       setEndpoints(whJson.endpoints ?? []);
       setMetrics(whJson.metrics ?? null);
+      if (!camps.ok) {
+        throw new Error(campJson.error || "Failed to load campaigns");
+      }
       const list = (campJson.campaigns ?? []) as Array<{ id: string; name: string; status: string }>;
-      setCampaigns(list.filter((c) => ["active", "scheduled", "paused", "draft"].includes(c.status)));
-      setCampaignId((prev) => prev || list[0]?.id || "");
+      const eligible = list.filter((c) => ["active", "scheduled"].includes(c.status));
+      setCampaigns(eligible);
+      setCampaignId((prev) =>
+        prev && eligible.some((c) => c.id === prev) ? prev : eligible[0]?.id || ""
+      );
       if (matchRes.ok) setMatches(matchJson.matches ?? []);
+      else setMatches([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load");
     } finally {
@@ -183,8 +192,10 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
           name,
           eventType,
           isTest,
-          sendDelayMinutes: delayMinutes,
-          duplicateWindowDays,
+          sendDelayMinutes: Number.isFinite(delayMinutes) ? Math.max(0, delayMinutes) : 0,
+          duplicateWindowDays: Number.isFinite(duplicateWindowDays)
+            ? Math.max(0, duplicateWindowDays)
+            : 90,
           signatureRequired,
           fieldMapping,
           contactUpdateMode,
@@ -208,19 +219,25 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
   }
 
   async function openDetail(id: string) {
+    const requestId = ++detailRequestRef.current;
     setSelectedId(id);
     setDetailLoading(true);
+    setDetail(null);
     try {
       const res = await fetch(
         `/api/integrations/webhooks/${id}?businessId=${businessId}`
       );
       const json = await res.json();
+      if (requestId !== detailRequestRef.current) return;
       if (!res.ok) throw new Error(json.error || "Failed to load");
       setDetail(json);
     } catch (err) {
+      if (requestId !== detailRequestRef.current) return;
       setError(err instanceof Error ? err.message : "Failed to load detail");
+      setSelectedId(null);
+      setDetail(null);
     } finally {
-      setDetailLoading(false);
+      if (requestId === detailRequestRef.current) setDetailLoading(false);
     }
   }
 
@@ -240,6 +257,11 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
       if (json.webhookUrl) setCreatedUrl(json.webhookUrl);
       if (json.signingSecret) setCreatedSecret(json.signingSecret);
       await load();
+      if (action === "revoke") {
+        setSelectedId(null);
+        setDetail(null);
+        return;
+      }
       await openDetail(id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
@@ -247,7 +269,9 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
   }
 
   async function resolveMatch(matchId: string, action: "link" | "skip", contactId?: string) {
+    if (resolvingMatchId) return;
     setError(null);
+    setResolvingMatchId(matchId);
     try {
       const res = await fetch("/api/integrations/webhooks/matches", {
         method: "PATCH",
@@ -259,6 +283,8 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Resolve failed");
+    } finally {
+      setResolvingMatchId(null);
     }
   }
 
@@ -352,7 +378,8 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
                     <button
                       key={c.id}
                       type="button"
-                      className="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] hover:bg-zinc-100"
+                      disabled={resolvingMatchId === m.id}
+                      className="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] hover:bg-zinc-100 disabled:opacity-50"
                       onClick={() => void resolveMatch(m.id, "link", c.id)}
                     >
                       Use {c.customerName || c.email || c.phone || c.id.slice(0, 8)}
@@ -361,7 +388,8 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
                   ))}
                   <button
                     type="button"
-                    className="rounded border border-zinc-200 px-2 py-1 text-[11px] text-zinc-600"
+                    disabled={resolvingMatchId === m.id}
+                    className="rounded border border-zinc-200 px-2 py-1 text-[11px] text-zinc-600 disabled:opacity-50"
                     onClick={() => void resolveMatch(m.id, "skip")}
                   >
                     Skip
@@ -788,8 +816,6 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
                     onClick={() => {
                       if (confirm("Revoke this endpoint permanently?")) {
                         void patchAction(selectedId, "revoke");
-                        setSelectedId(null);
-                        setDetail(null);
                       }
                     }}
                   >

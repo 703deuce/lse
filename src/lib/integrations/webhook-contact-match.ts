@@ -8,6 +8,7 @@ import type { CanonicalWebhookPayload } from "@/lib/integrations/webhook-mapping
 import { enrollContactInCampaign } from "@/lib/automations/enroll-campaign";
 import { contactDisplayName } from "@/lib/automations/contact-payload";
 import { isEnrollEventType } from "@/lib/integrations/webhook-mapping";
+import { mapEnrollmentSkipStatus } from "@/lib/integrations/webhook-status";
 
 export type ContactCandidate = {
   id: string;
@@ -173,28 +174,29 @@ export async function resolveContactMatch(params: {
   userId?: string | null;
 }): Promise<{ ok: boolean; enrolled?: boolean; error?: string }> {
   const supabase = createServiceClient();
+  const now = new Date().toISOString();
+
+  // Atomic claim — only one resolver wins.
   const { data: match } = await supabase
     .from("integration_webhook_contact_matches")
-    .select("*")
+    .update({
+      status: params.action === "skip" ? "resolved_skip" : "resolved_link",
+      resolved_by_user_id: params.userId ?? null,
+      resolved_at: now,
+      updated_at: now,
+      ...(params.action === "link" && params.contactId
+        ? { resolution_contact_id: params.contactId }
+        : {}),
+    })
     .eq("id", params.matchId)
     .eq("organization_id", params.organizationId)
     .eq("business_id", params.businessId)
     .eq("status", "pending")
+    .select("*")
     .maybeSingle();
   if (!match) return { ok: false, error: "Match not found or already resolved" };
 
-  const now = new Date().toISOString();
-
   if (params.action === "skip") {
-    await supabase
-      .from("integration_webhook_contact_matches")
-      .update({
-        status: "resolved_skip",
-        resolved_by_user_id: params.userId ?? null,
-        resolved_at: now,
-        updated_at: now,
-      })
-      .eq("id", match.id);
     await supabase
       .from("integration_webhook_events")
       .update({
@@ -208,7 +210,38 @@ export async function resolveContactMatch(params: {
   }
 
   if (!params.contactId) {
+    // Roll claim back to pending if link lacked contactId.
+    await supabase
+      .from("integration_webhook_contact_matches")
+      .update({
+        status: "pending",
+        resolution_contact_id: null,
+        resolved_by_user_id: null,
+        resolved_at: null,
+        updated_at: now,
+      })
+      .eq("id", match.id);
     return { ok: false, error: "contactId required to link" };
+  }
+
+  const candidates = Array.isArray(match.candidate_contact_ids)
+    ? (match.candidate_contact_ids as Array<{ id?: string }>)
+    : [];
+  const allowedIds = new Set(
+    candidates.map((c) => c.id).filter((id): id is string => Boolean(id))
+  );
+  if (allowedIds.size && !allowedIds.has(params.contactId)) {
+    await supabase
+      .from("integration_webhook_contact_matches")
+      .update({
+        status: "pending",
+        resolution_contact_id: null,
+        resolved_by_user_id: null,
+        resolved_at: null,
+        updated_at: now,
+      })
+      .eq("id", match.id);
+    return { ok: false, error: "Contact is not a match candidate" };
   }
 
   const { data: contact } = await supabase
@@ -217,7 +250,19 @@ export async function resolveContactMatch(params: {
     .eq("id", params.contactId)
     .eq("business_id", params.businessId)
     .maybeSingle();
-  if (!contact) return { ok: false, error: "Contact not found" };
+  if (!contact) {
+    await supabase
+      .from("integration_webhook_contact_matches")
+      .update({
+        status: "pending",
+        resolution_contact_id: null,
+        resolved_by_user_id: null,
+        resolved_at: null,
+        updated_at: now,
+      })
+      .eq("id", match.id);
+    return { ok: false, error: "Contact not found" };
+  }
 
   const normalized = match.payload_normalized as CanonicalWebhookPayload;
   const { data: endpoint } = await supabase
@@ -262,16 +307,28 @@ export async function resolveContactMatch(params: {
     if (emailOwner) emailOk = null;
   }
 
+  let externalOk = normalized.customer.external_id?.trim() || null;
+  if (externalOk) {
+    const { data: extOwner } = await supabase
+      .from("review_request_contacts")
+      .select("id")
+      .eq("business_id", params.businessId)
+      .eq("external_customer_id", externalOk)
+      .neq("id", params.contactId)
+      .maybeSingle();
+    if (extOwner) externalOk = null;
+  }
+
   const patch: Record<string, unknown> = {
     first_name: normalized.customer.first_name,
     last_name: normalized.customer.last_name,
     customer_name: display,
-    external_customer_id: normalized.customer.external_id,
     last_service_date:
       normalized.transaction.completed_at ?? normalized.occurred_at ?? null,
     source: "webhook_match_resolve",
     updated_at: now,
   };
+  if (externalOk) patch.external_customer_id = externalOk;
   if (phoneOk) {
     patch.phone_e164 = phoneOk;
     patch.customer_phone = phoneOk;
@@ -310,6 +367,7 @@ export async function resolveContactMatch(params: {
       organizationId: params.organizationId,
       businessId: params.businessId,
       campaignId: String(campaignId),
+      preferredContactId: params.contactId,
       contact: {
         firstName: linked.first_name,
         lastName: linked.last_name,
@@ -328,7 +386,7 @@ export async function resolveContactMatch(params: {
       .from("integration_webhook_events")
       .update({
         status: result.skipped
-          ? "ignored_suppressed"
+          ? mapEnrollmentSkipStatus(result.skipReason)
           : result.alreadyEnrolled
             ? "ignored_duplicate"
             : "completed",
@@ -353,17 +411,6 @@ export async function resolveContactMatch(params: {
       })
       .eq("id", match.event_id);
   }
-
-  await supabase
-    .from("integration_webhook_contact_matches")
-    .update({
-      status: "resolved_link",
-      resolution_contact_id: params.contactId,
-      resolved_by_user_id: params.userId ?? null,
-      resolved_at: now,
-      updated_at: now,
-    })
-    .eq("id", match.id);
 
   return { ok: true, enrolled };
 }

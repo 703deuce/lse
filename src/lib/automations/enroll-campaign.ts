@@ -75,6 +75,8 @@ export async function enrollContactInCampaign(params: {
   businessId: string;
   campaignId: string;
   contact: AutomationContactInput;
+  /** Prefer updating this contact id (webhook clear match). */
+  preferredContactId?: string | null;
   /** Minutes to delay first message relative to the normal schedule window. */
   delayMinutes?: number;
   /** Override campaign duplicate_protection_days when set (e.g. webhook endpoint). */
@@ -106,6 +108,7 @@ export async function enrollContactInCampaign(params: {
   const { id: contactId } = await upsertBusinessContact({
     organizationId: params.organizationId,
     businessId: params.businessId,
+    preferredContactId: params.preferredContactId,
     firstName: params.contact.firstName,
     lastName: params.contact.lastName,
     customerName: contactDisplayName(params.contact),
@@ -214,6 +217,7 @@ export async function enrollContactInCampaign(params: {
   await reserveUsageOrThrow(params.organizationId, "bulk_review_requests_used", 1);
 
   const now = new Date().toISOString();
+  let recipientIdForRollback: string | null = null;
   try {
     const { data: recipient, error: recipErr } = await supabase
       .from("review_request_recipients")
@@ -238,10 +242,17 @@ export async function enrollContactInCampaign(params: {
       .select("id, phone, email, first_name, last_name, full_name, job_type")
       .single();
     if (recipErr) throw new Error(recipErr.message);
+    recipientIdForRollback = recipient.id as string;
 
     const tz = String(campaign.timezone || "America/New_York");
+    const campaignStart = campaign.start_date
+      ? String(campaign.start_date).slice(0, 10)
+      : null;
+    const todayYmd = ymdInTimeZone(new Date(), tz);
+    const startDate =
+      campaignStart && campaignStart > todayYmd ? campaignStart : todayYmd;
     const scheduleConfig: ScheduleConfig = {
-      startDate: ymdInTimeZone(new Date(), tz),
+      startDate,
       dailySendLimit: Number(campaign.daily_send_limit ?? 10),
       sendDays: (campaign.send_days as number[]) ?? [1, 2, 3, 4, 5],
       windowStart: String(campaign.send_window_start ?? "10:00"),
@@ -340,6 +351,16 @@ export async function enrollContactInCampaign(params: {
       alreadyEnrolled: false,
     };
   } catch (err) {
+    if (recipientIdForRollback) {
+      await supabase
+        .from("review_request_messages")
+        .delete()
+        .eq("recipient_id", recipientIdForRollback);
+      await supabase
+        .from("review_request_recipients")
+        .delete()
+        .eq("id", recipientIdForRollback);
+    }
     await releaseUsage(params.organizationId, "bulk_review_requests_used", 1).catch(() => undefined);
     throw err;
   }

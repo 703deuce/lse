@@ -290,8 +290,8 @@ export async function dispatchAutomationWebhook(params: {
           organizationId: params.key.organizationId,
           businessId,
           contactId,
-          smsOptOut: Boolean(phone),
-          emailUnsubscribed: Boolean(email),
+          ...(phone ? { smsOptOut: true } : {}),
+          ...(email ? { emailUnsubscribed: true } : {}),
         });
       }
 

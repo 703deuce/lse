@@ -110,6 +110,26 @@ export async function POST(request: Request) {
     await assertWithinLimit(access.organizationId, "webhook_endpoints", 1);
     const auth = await requireAuth();
 
+    const supabase = createServiceClient();
+    const { data: campaign } = await supabase
+      .from("review_request_campaigns")
+      .select("id, status, business_id")
+      .eq("id", body.campaignId)
+      .eq("business_id", body.businessId)
+      .eq("organization_id", access.organizationId)
+      .maybeSingle();
+    if (!campaign) {
+      return NextResponse.json({ error: "Campaign not found for this business" }, { status: 400 });
+    }
+    if (!["active", "scheduled"].includes(String(campaign.status))) {
+      return NextResponse.json(
+        {
+          error: `Campaign must be active or scheduled (currently ${campaign.status}). Promote the campaign first.`,
+        },
+        { status: 400 }
+      );
+    }
+
     const created = await createWebhookEndpoint({
       organizationId: access.organizationId,
       businessId: body.businessId,
