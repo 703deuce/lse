@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { SetupMap } from "@/components/maps/setup-map";
 import { ScanSetupForm, defaultScanSetupValues } from "@/components/scan/scan-setup-form";
 import { AccountPlanUsageCard } from "@/components/settings/account-plan-usage-card";
+import { AutomationApiKeysCard } from "@/components/settings/automation-api-keys-card";
 
 export function SettingsClient({
   businessId,
@@ -338,6 +339,8 @@ export function SettingsClient({
           {brandError && <p className="text-sm text-red-600">{brandError}</p>}
         </div>
       </section>
+
+      <AutomationApiKeysCard businessId={businessId} />
 
       <section className="mt-8 rounded-xl border border-amber-200 bg-amber-50 p-5">
         <h2 className="font-semibold text-amber-900">Google connected mode</h2>
