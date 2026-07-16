@@ -410,6 +410,52 @@ export async function executeJobType(
       case "generate_report": {
         const businessId = String(payload.businessId ?? "");
         if (!businessId) return permanent("generate_report payload incomplete");
+        const ledgerJobId =
+          typeof payload.ledgerJobId === "string" ? payload.ledgerJobId : undefined;
+        const artifactKind = optionalString(payload.artifactKind);
+
+        // Binary scan artifacts (PDF / map / heatmap / CSV splits)
+        if (artifactKind) {
+          const scanBatchId = optionalString(payload.scanBatchId);
+          if (!scanBatchId) return permanent("scanBatchId required for artifacts");
+          const { generateScanArtifact } = await import(
+            "@/lib/reporting/pdf/generate-scan-artifacts"
+          );
+          const { createSignedArtifactUrl } = await import("@/lib/reporting/artifacts");
+          const limitRaw = payload.competitorLimit;
+          const competitorLimit =
+            limitRaw === "all" || limitRaw === 10 || limitRaw === 20
+              ? limitRaw
+              : 20;
+          const artifact = await generateScanArtifact({
+            businessId,
+            scanBatchId,
+            kind: artifactKind as import("@/lib/reporting/pdf/constants").ReportArtifactKind,
+            competitorLimit,
+            force: payload.force === true,
+          });
+          let downloadUrl: string | null = null;
+          try {
+            downloadUrl = await createSignedArtifactUrl({ path: artifact.storagePath });
+          } catch {
+            downloadUrl = null;
+          }
+          if (ledgerJobId) {
+            const { updateJobProgress } = await import("@/lib/queue/ledger");
+            await updateJobProgress(ledgerJobId, {
+              result: {
+                reportId: artifact.reportId,
+                kind: artifact.kind,
+                downloadUrl,
+                downloadPath: artifact.downloadPath,
+                reused: artifact.reused,
+                bytes: artifact.bytes,
+              },
+            });
+          }
+          return { ok: true };
+        }
+
         const reportType = optionalString(payload.reportType) ?? "single_scan";
         const result = await generateTypedReport({
           businessId,
@@ -426,8 +472,6 @@ export async function executeJobType(
             : undefined,
           persist: payload.persist !== false,
         });
-        const ledgerJobId =
-          typeof payload.ledgerJobId === "string" ? payload.ledgerJobId : undefined;
         if (ledgerJobId) {
           const { updateJobProgress } = await import("@/lib/queue/ledger");
           await updateJobProgress(ledgerJobId, {

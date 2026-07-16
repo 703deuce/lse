@@ -18,29 +18,41 @@ export async function GET() {
     const usage = await getCurrentUsage(auth.organizationId);
 
     const monthStart = `${usage.periodStart}T00:00:00.000Z`;
-    const [{ count: businessCount }, { count: webhookEndpoints }, { count: webhookEventsMonth }] =
-      await Promise.all([
-        supabase
-          .from("businesses")
-          .select("id", { count: "exact", head: true })
-          .eq("organization_id", auth.organizationId),
-        supabase
-          .from("integration_webhook_endpoints")
-          .select("id", { count: "exact", head: true })
-          .eq("organization_id", auth.organizationId)
-          .is("revoked_at", null),
-        supabase
-          .from("integration_webhook_events")
-          .select("id", { count: "exact", head: true })
-          .eq("organization_id", auth.organizationId)
-          .gte("received_at", monthStart),
-      ]);
+    let businessCount = 0;
+    const tracked = await supabase
+      .from("businesses")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", auth.organizationId)
+      .eq("is_tracked", true);
+    if (tracked.error) {
+      // Pre-migration fallback when is_tracked column is not applied yet.
+      const all = await supabase
+        .from("businesses")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", auth.organizationId);
+      businessCount = all.count ?? 0;
+    } else {
+      businessCount = tracked.count ?? 0;
+    }
+
+    const [{ count: webhookEndpoints }, { count: webhookEventsMonth }] = await Promise.all([
+      supabase
+        .from("integration_webhook_endpoints")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", auth.organizationId)
+        .is("revoked_at", null),
+      supabase
+        .from("integration_webhook_events")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", auth.organizationId)
+        .gte("received_at", monthStart),
+    ]);
 
     return NextResponse.json({
       organization: org,
       plan,
       usage,
-      businessCount: businessCount ?? 0,
+      businessCount,
       webhookEndpoints: webhookEndpoints ?? 0,
       webhookEventsMonth: webhookEventsMonth ?? 0,
     });

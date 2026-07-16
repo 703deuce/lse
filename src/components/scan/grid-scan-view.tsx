@@ -67,6 +67,7 @@ import type { MapInteractionMode } from "@/components/maps/scan-map";
 import type { GridCell } from "@/components/maps/scan-map";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { ScanExportMenu } from "@/components/reports/scan-export-menu";
 
 const ScanMap = dynamic(
   () => import("@/components/maps/scan-map").then((m) => m.ScanMap),
@@ -1357,6 +1358,12 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                 />
               </div>
             )}
+
+            {activeScanId && mapReady ? (
+              <section className="mt-3 rounded-lg border border-zinc-200 bg-white p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                <ScanExportMenu businessId={businessId} scanBatchId={activeScanId} />
+              </section>
+            ) : null}
 
             <section className="mt-3 rounded-lg border border-zinc-200 bg-white p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
               <h3 className="mb-2.5 text-[13px] font-semibold text-zinc-900">Run new scan</h3>

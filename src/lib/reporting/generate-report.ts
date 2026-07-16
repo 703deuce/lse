@@ -42,6 +42,30 @@ type ReportMeta = {
   identityKey?: string;
 };
 
+/** Drop bulky fields from metadata_json while keeping KPI/identity useful. */
+function slimReportPayloadForMetadata(payload: AnyReportPayload): AnyReportPayload {
+  if (payload.reportType === "single_scan") {
+    return {
+      ...payload,
+      heatmap: {
+        gridSize: payload.heatmap.gridSize,
+        cells: [],
+      },
+      competitors: payload.competitors.slice(0, 25).map((c) => ({
+        ...c,
+        address: c.address ? c.address.slice(0, 120) : c.address,
+      })),
+    };
+  }
+  if (payload.reportType === "competitor") {
+    return {
+      ...payload,
+      competitors: payload.competitors.slice(0, 40),
+    };
+  }
+  return payload;
+}
+
 function reportIdentityKey(
   payload: AnyReportPayload,
   params: GenerateReportParams
@@ -147,10 +171,13 @@ async function persistReport(params: {
     identityKey: params.identityKey,
   });
 
+  // Keep metadata lean — full heatmap cells + HTML already live in html_content.
+  // Oversized metadata_json has caused share/export instability on large grids.
+  const slimPayload = slimReportPayloadForMetadata(params.payload);
   const metadata = {
     reportType: params.payload.reportType,
     identityKey: params.identityKey,
-    payload: params.payload,
+    payload: slimPayload,
     generatedAt: params.payload.generatedAt,
   } satisfies ReportMeta & {
     payload: AnyReportPayload;

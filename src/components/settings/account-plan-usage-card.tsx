@@ -38,10 +38,24 @@ export function AccountPlanUsageCard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/account/usage")
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Failed to load usage"))))
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15_000);
+    fetch("/api/account/usage", { signal: ctrl.signal })
+      .then(async (r) => {
+        const json = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(json.error ?? "Failed to load usage");
+        return json as UsageResponse;
+      })
       .then(setData)
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load usage"));
+      .catch((e) => {
+        if (ctrl.signal.aborted) setError("Plan usage timed out — refresh the page");
+        else setError(e instanceof Error ? e.message : "Failed to load usage");
+      })
+      .finally(() => clearTimeout(timer));
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
+    };
   }, []);
 
   if (error) {

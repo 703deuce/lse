@@ -26,15 +26,21 @@ export function AutomationApiKeysCard({ businessId }: { businessId: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15_000);
     try {
-      const res = await fetch(`/api/settings/api-keys?businessId=${businessId}`);
+      const res = await fetch(`/api/settings/api-keys?businessId=${businessId}`, {
+        signal: ctrl.signal,
+      });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to load keys");
       setKeys(json.keys ?? []);
       setWebhookUrl(json.webhookUrl ?? "");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load");
+      if (ctrl.signal.aborted) setError("API keys timed out — refresh the page");
+      else setError(err instanceof Error ? err.message : "Failed to load");
     } finally {
+      clearTimeout(timer);
       setLoading(false);
     }
   }, [businessId]);
