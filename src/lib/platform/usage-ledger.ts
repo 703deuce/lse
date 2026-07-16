@@ -16,12 +16,19 @@ export type UsageLedgerEntry = {
   retryCostUsd?: number | null;
   billingPeriod?: string | null;
   metadata?: Record<string, unknown>;
+  /**
+   * When set, duplicate inserts are ignored (unique index on usage_ledger.idempotency_key).
+   * Use stable keys so cell retries / job reclaim do not double-count spend.
+   */
+  idempotencyKey?: string | null;
 };
 
 /** Append a cost/usage row. Best-effort — never throw into feature critical path. */
 export async function recordUsage(entry: UsageLedgerEntry): Promise<void> {
   try {
     const supabase = createServiceClient();
+    const estimated = entry.estimatedCostUsd ?? null;
+    const actual = entry.actualCostUsd ?? estimated;
     const { error } = await supabase.from("usage_ledger").insert({
       organization_id: entry.organizationId,
       business_id: entry.businessId ?? null,
@@ -32,17 +39,24 @@ export async function recordUsage(entry: UsageLedgerEntry): Promise<void> {
       unit_type: entry.unitType,
       estimated_units: entry.estimatedUnits ?? null,
       actual_units: entry.actualUnits ?? null,
-      estimated_cost_usd: entry.estimatedCostUsd ?? null,
-      actual_cost_usd: entry.actualCostUsd ?? null,
+      estimated_cost_usd: estimated,
+      actual_cost_usd: actual,
       retry_cost_usd: entry.retryCostUsd ?? 0,
-      billing_period:
-        entry.billingPeriod ??
-        new Date().toISOString().slice(0, 7), // YYYY-MM
+      billing_period: entry.billingPeriod ?? new Date().toISOString().slice(0, 7),
       metadata: entry.metadata ?? {},
+      idempotency_key: entry.idempotencyKey ?? null,
     });
     if (error) {
-      // Table may not exist until migration 045 is applied.
-      logger.warn("usage_ledger_insert_failed", { error: error.message, feature: entry.feature });
+      // Unique violation = already recorded (idempotent success).
+      if (error.code === "23505" || /duplicate|unique/i.test(error.message)) {
+        return;
+      }
+      // Table may not exist until migration 045/056 is applied.
+      logger.warn("usage_ledger_insert_failed", {
+        error: error.message,
+        feature: entry.feature,
+        provider: entry.provider,
+      });
     }
   } catch (err) {
     logger.warn("usage_ledger_insert_exception", {

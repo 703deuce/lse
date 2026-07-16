@@ -129,24 +129,24 @@ export async function reclaimStaleInFlightScans(limit = 5): Promise<number> {
   const driver = resolveQueueDriver();
   for (const id of ids) {
     console.log(`[Scan] Cron reclaiming stale in-flight scan ${id} (lease TTL ${scanLeaseTtlMs()}ms)`);
+    const supabase = createServiceClient();
+    const { data: batch } = await supabase
+      .from("scan_batches")
+      .select("business_id")
+      .eq("id", id)
+      .maybeSingle();
+    const businessId = batch?.business_id as string | undefined;
+    let organizationId: string | undefined;
+    if (businessId) {
+      const { data: biz } = await supabase
+        .from("businesses")
+        .select("organization_id")
+        .eq("id", businessId)
+        .maybeSingle();
+      organizationId = biz?.organization_id as string | undefined;
+    }
     if (driver === "bullmq") {
       // Re-deliver via queue so a Maps worker resumes; do not monopolize cron/web.
-      const supabase = createServiceClient();
-      const { data: batch } = await supabase
-        .from("scan_batches")
-        .select("business_id")
-        .eq("id", id)
-        .maybeSingle();
-      const businessId = batch?.business_id as string | undefined;
-      let organizationId: string | undefined;
-      if (businessId) {
-        const { data: biz } = await supabase
-          .from("businesses")
-          .select("organization_id")
-          .eq("id", businessId)
-          .maybeSingle();
-        organizationId = biz?.organization_id as string | undefined;
-      }
       if (businessId && organizationId) {
         // Prefer requeueing the existing ledger row (avoids clearing idempotency
         // on enqueue_failed and creating a second live BullMQ job).
@@ -216,7 +216,8 @@ export async function reclaimStaleInFlightScans(limit = 5): Promise<number> {
         logger.warn("scan_reclaim_missing_tenant", { scanBatchId: id });
       }
     } else {
-      scheduleScanProcessing(id);
+      // Database driver — pass org so Bright Data usage_ledger rows are written.
+      scheduleScanProcessing(id, organizationId);
     }
   }
   return ids.length;

@@ -41,6 +41,7 @@ export type ProviderCallContext = {
   estimatedCostUsd?: number | null;
   actualCostUsd?: number | null;
   actualUnits?: number | null;
+  idempotencyKey?: string | null;
 };
 
 export {
@@ -70,6 +71,7 @@ export async function trackProviderUsage(
     estimatedCostUsd: ctx.estimatedCostUsd,
     actualCostUsd: ctx.actualCostUsd,
     actualUnits: ctx.actualUnits ?? 1,
+    idempotencyKey: ctx.idempotencyKey,
   });
 }
 

@@ -276,6 +276,8 @@ export type AdminJobRow = QueueJobRecord & {
   relatedResourceId?: string | null;
   /** For Maps jobs: scan_batches.status when resolvable. */
   relatedScanStatus?: string | null;
+  /** True when ledger is completed but related scan is still in-flight. */
+  statusMismatch?: boolean;
 };
 
 /** Admin ops search — newest first. */
@@ -329,18 +331,33 @@ export async function listJobsForAdmin(
     }
   }
 
+  const inFlightScan = new Set([
+    "queued",
+    "dispatching",
+    "provider_running",
+    "normalizing",
+  ]);
+
   return rows.map((row) => {
     const payload = (row.payload ?? {}) as Record<string, unknown>;
     const relatedResourceId = (row.related_resource_id as string | null) ?? null;
     const scanId =
       (typeof payload.scanBatchId === "string" && payload.scanBatchId) ||
       relatedResourceId;
+    const relatedScanStatus = scanId ? scanStatusById.get(scanId) ?? null : null;
+    const jobStatus = String(row.status ?? "");
+    const statusMismatch = Boolean(
+      jobStatus === "completed" &&
+        relatedScanStatus &&
+        inFlightScan.has(relatedScanStatus)
+    );
     return {
       ...rowToRecord(row),
       lifecycleStatus: (row.lifecycle_status as string | null) ?? null,
       createdAt: String(row.created_at ?? ""),
       relatedResourceId,
-      relatedScanStatus: scanId ? scanStatusById.get(scanId) ?? null : null,
+      relatedScanStatus,
+      statusMismatch,
     };
   });
 }
