@@ -101,7 +101,7 @@ async function reclaimStaleRunningJobs(
  * Job ledger marked completed while the scan batch is still non-terminal
  * (e.g. `normalizing` treated as already_done). Re-enqueue so a worker can finish.
  */
-async function reconcileCompletedMapsJobScanMismatch(limit = 10): Promise<number> {
+export async function reconcileCompletedMapsJobScanMismatch(limit = 10): Promise<number> {
   const supabase = createServiceClient();
   const { data: jobs } = await supabase
     .from("job_queue")
@@ -248,6 +248,19 @@ export async function processPendingJobs(limit = 5): Promise<{
 
   // Campaigns + review alerts go through named queues (messaging / intelligence workers).
   await enqueueRecurringDrains();
+
+  // Scheduled Maps batches are created by SQL; enqueue via platform queue (org + idempotency).
+  const scheduledEnqueued = await import("@/lib/jobs/enqueue-scheduled-scans")
+    .then((m) => m.enqueueDueScheduledScanBatches(20))
+    .catch((err) => {
+      logger.warn("scheduled_scan_discover_failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return 0;
+    });
+  if (scheduledEnqueued > 0) {
+    logger.info("scheduled_scans_enqueued", { count: scheduledEnqueued });
+  }
 
   // BullMQ workers own ledger job execution after handoff.
   if (resolveQueueDriver() === "bullmq") {

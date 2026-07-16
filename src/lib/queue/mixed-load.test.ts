@@ -49,6 +49,22 @@ describe("mixed-load queue invariants", () => {
     assert.equal(typeof assertCanEnqueueMapsScan, "function");
   });
 
+  it("isolates report generation from maps and messaging workers", () => {
+    assert.equal(jobTypeToQueue("generate_report"), "report-generation");
+    assert.notEqual(jobTypeToQueue("generate_report"), "maps-scan");
+    assert.notEqual(jobTypeToQueue("generate_report"), "email-send");
+  });
+
+  it("simulates failure injection: dead_letter can retry, completed cannot", () => {
+    assert.equal(canTransitionLifecycle(JOB_LIFECYCLE.DEAD_LETTER, JOB_LIFECYCLE.QUEUED), true);
+    assert.equal(canTransitionLifecycle(JOB_LIFECYCLE.PERMANENTLY_FAILED, JOB_LIFECYCLE.QUEUED), true);
+    assert.equal(canTransitionLifecycle(JOB_LIFECYCLE.COMPLETED, JOB_LIFECYCLE.QUEUED), false);
+    assert.equal(
+      canTransitionLifecycle(JOB_LIFECYCLE.RUNNING, JOB_LIFECYCLE.PERMANENTLY_FAILED),
+      true
+    );
+  });
+
   it("simulates interleaved org workloads without shared payload identity", () => {
     type FakeJob = {
       id: string;

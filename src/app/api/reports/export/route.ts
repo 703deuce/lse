@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     }
 
     const data = parsed.data;
-    await requireBusinessAccess(data.businessId);
+    const auth = await requireBusinessAccess(data.businessId);
 
     const reportType = data.reportType ?? "single_scan";
     if (
@@ -62,21 +62,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const persist = data.format !== "csv";
-    const result = await generateTypedReport({
-      businessId: data.businessId,
-      scanBatchId: data.scanBatchId,
-      reportType,
-      keywordId: data.keywordId,
-      locationId: data.locationId,
-      campaignId: data.campaignId,
-      gridSize: data.gridSize,
-      radiusMeters: data.radiusMeters,
-      selectedCompetitorKeys: data.selectedCompetitorKeys,
-      persist,
-    });
-
+    // CSV stays synchronous (user waits for download). HTML reports go through the worker.
     if (data.format === "csv") {
+      const result = await generateTypedReport({
+        businessId: data.businessId,
+        scanBatchId: data.scanBatchId,
+        reportType,
+        keywordId: data.keywordId,
+        locationId: data.locationId,
+        campaignId: data.campaignId,
+        gridSize: data.gridSize,
+        radiusMeters: data.radiusMeters,
+        selectedCompetitorKeys: data.selectedCompetitorKeys,
+        persist: false,
+      });
       let csv = "";
       const payload = result.payload;
       if (payload.reportType === "single_scan") csv = singleScanToCsv(payload);
@@ -99,11 +98,41 @@ export async function POST(request: Request) {
       });
     }
 
+    const { dispatchFeatureJob } = await import("@/lib/queue/dispatch");
+    const job = await dispatchFeatureJob({
+      jobType: "generate_report",
+      payload: {
+        businessId: data.businessId,
+        organizationId: auth.organizationId,
+        scanBatchId: data.scanBatchId,
+        reportType,
+        keywordId: data.keywordId,
+        locationId: data.locationId,
+        campaignId: data.campaignId,
+        gridSize: data.gridSize,
+        radiusMeters: data.radiusMeters,
+        selectedCompetitorKeys: data.selectedCompetitorKeys,
+        persist: true,
+      },
+      organizationId: auth.organizationId,
+      businessId: data.businessId,
+      relatedResourceId: data.scanBatchId ?? data.campaignId ?? null,
+      idempotencyKey: `report:${data.businessId}:${reportType}:${data.scanBatchId ?? data.campaignId ?? "na"}:${Math.floor(Date.now() / 30_000)}`,
+      priority: "normal",
+      maxAttempts: 2,
+    });
+
+    if (job.enqueueState === "enqueue_failed") {
+      return NextResponse.json(
+        { error: "Failed to queue report generation", jobId: job.jobId },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json({
-      reportId: result.reportId,
-      shareToken: result.shareToken,
-      shareUrl: `/reports/share/${result.shareToken}`,
-      reportType: result.payload.reportType,
+      queued: true,
+      jobId: job.jobId,
+      reportType,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Export failed";

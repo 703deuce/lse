@@ -18,7 +18,12 @@ export async function POST(request: Request) {
     const data = parsed.data;
     const supabase = createServiceClient();
 
-    await assertWithinLimit(auth.organizationId, "max_businesses", 1);
+    const isTracked = (body as { isTracked?: boolean }).isTracked !== false;
+
+    // Tracked businesses consume plan slots; manual audits may set isTracked: false.
+    if (isTracked) {
+      await assertWithinLimit(auth.organizationId, "max_businesses", 1);
+    }
 
     const { data: business, error } = await supabase
       .from("businesses")
@@ -36,6 +41,8 @@ export async function POST(request: Request) {
         service_area_mode: data.service_area_mode ?? "storefront",
         scan_center_lat: data.scan_center_lat ?? data.lat ?? null,
         scan_center_lng: data.scan_center_lng ?? data.lng ?? null,
+        is_tracked: isTracked,
+        tracking_source: isTracked ? "manual" : "manual",
       })
       .select("*")
       .single();

@@ -20,7 +20,7 @@ export async function listOrganizationsForAdmin() {
   const supabase = createServiceClient();
   const { data: orgs, error } = await supabase
     .from("organizations")
-    .select("id, name, slug, plan, status, billing_status, created_at")
+    .select("id, name, slug, plan, status, billing_status, outbound_paused, created_at")
     .order("created_at", { ascending: false });
 
   if (error) throw new Error(error.message);

@@ -4,6 +4,7 @@ import {
   parseBrevoEventPayload,
 } from "@/lib/reputation/brevo-events";
 import { logger } from "@/lib/observability/logger";
+import { claimProviderWebhookEvent } from "@/lib/integrations/provider-webhook-dedupe";
 
 function verifyWebhookToken(request: Request): boolean {
   const secret =
@@ -26,6 +27,20 @@ export async function POST(request: Request) {
     const events = parseBrevoEventPayload(body);
     let handled = 0;
     for (const event of events) {
+      const messageId = String(event["message-id"] ?? event.messageId ?? "unknown");
+      const eventName = String(event.event ?? event.event_name ?? "event");
+      const eventKey = [
+        messageId,
+        eventName,
+        String(event.date ?? event.ts ?? ""),
+        String(event.email ?? ""),
+      ].join(":");
+      const claimed = await claimProviderWebhookEvent({
+        provider: "brevo",
+        idempotencyKey: `brevo:event:${eventKey}`,
+        meta: { event: eventName, messageId },
+      });
+      if (!claimed) continue;
       const result = await handleBrevoTransactionalEvent(event);
       if (result.handled) handled++;
     }

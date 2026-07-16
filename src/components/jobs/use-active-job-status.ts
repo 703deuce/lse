@@ -109,6 +109,7 @@ async function tick(url: string) {
       status: String(json.status ?? "unknown"),
       phase: derivePhase(String(json.status ?? "unknown"), progress),
       progress,
+      result: json.result ?? progress?.result ?? null,
       updatedAt: (json.updatedAt as string | null) ?? null,
       errorMessage: (json.errorMessage as string | null) ?? null,
     };

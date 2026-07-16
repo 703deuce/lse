@@ -20,7 +20,10 @@ export type LightweightJobStatus = {
     completed?: number;
     total?: number;
     failed?: number;
+    result?: unknown;
   };
+  /** Convenience: progress.result when the status API surfaces it. */
+  result?: unknown;
   updatedAt?: string | null;
   errorMessage?: string | null;
 };

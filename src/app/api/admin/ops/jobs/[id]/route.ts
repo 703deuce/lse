@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/context";
 import { isAdminEmail } from "@/lib/auth/admin";
 import { cancelJob, getJobStatus, retryJob } from "@/lib/queue";
+import { reconcileCompletedMapsJobScanMismatch } from "@/lib/jobs/queue";
 
 export async function GET(
   _request: Request,
@@ -45,6 +46,12 @@ export async function POST(
       const ok = await retryJob(id);
       if (!ok) return NextResponse.json({ error: "Job not retryable" }, { status: 409 });
       return NextResponse.json({ ok: true, action: "retry" });
+    }
+
+    if (action === "reconcile-mismatch") {
+      // id may be "_" for bulk; always runs the same mismatch fixer.
+      const fixed = await reconcileCompletedMapsJobScanMismatch(20);
+      return NextResponse.json({ ok: true, action: "reconcile-mismatch", fixed, jobId: id });
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });

@@ -31,6 +31,18 @@ async function getOrgAddons(organizationId: string): Promise<OrgAddons> {
   return addons;
 }
 
+/** Org-level kill switch for Reputation outbound (campaigns / SMS / email). */
+export async function isOutboundPaused(organizationId: string): Promise<boolean> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("organizations")
+    .select("outbound_paused, status")
+    .eq("id", organizationId)
+    .maybeSingle();
+  if (String(data?.status ?? "active") === "suspended") return true;
+  return Boolean(data?.outbound_paused);
+}
+
 export async function getOrgBillingStatus(
   organizationId: string
 ): Promise<string> {
@@ -90,9 +102,15 @@ export async function requireEntitlement(
   }
 }
 
-/** Outbound campaign sending requires the add-on AND healthy billing. */
+/** Outbound campaign sending requires the add-on, healthy billing, and not paused. */
 export async function requireCampaignSendAccess(organizationId: string): Promise<void> {
   await requireEntitlement(organizationId, "review_campaigns");
+  if (await isOutboundPaused(organizationId)) {
+    throw new EntitlementError(
+      "Outbound messaging is paused for this organization.",
+      "outbound_paused"
+    );
+  }
   if (!(await isBillingHealthy(organizationId))) {
     throw new EntitlementError(
       "Billing is inactive. Campaign sending is paused until payment is restored.",

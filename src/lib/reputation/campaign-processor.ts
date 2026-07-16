@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/db/client";
-import { isBillingHealthy, hasEntitlement } from "@/lib/auth/entitlements";
+import { isBillingHealthy, hasEntitlement, isOutboundPaused } from "@/lib/auth/entitlements";
 import {
   campaignImmediateSendEnabled,
   countSentTodayInTz,
@@ -99,6 +99,18 @@ export async function enqueueDueCampaignMessages(limit = 100): Promise<number> {
         .update({
           status: "paused",
           auto_pause_reason: "billing_inactive",
+          updated_at: now.toISOString(),
+        })
+        .eq("id", campaign.id)
+        .in("status", ["active", "scheduled"]);
+      continue;
+    }
+    if (await isOutboundPaused(campaign.organization_id)) {
+      await supabase
+        .from("review_request_campaigns")
+        .update({
+          status: "paused",
+          auto_pause_reason: "outbound_paused",
           updated_at: now.toISOString(),
         })
         .eq("id", campaign.id)

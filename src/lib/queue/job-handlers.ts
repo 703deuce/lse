@@ -159,8 +159,28 @@ export async function executeJobType(
         return { ok: true };
       }
       case "send_notification": {
-        // Placeholder: transactional fan-out will land here; drains currently use specialized job types.
-        logger.info("send_notification_noop", { payloadKeys: Object.keys(payload) });
+        const toEmail = String(payload.toEmail ?? payload.to ?? "");
+        const subject = String(payload.subject ?? "");
+        const textBody = String(payload.textBody ?? payload.body ?? "");
+        const organizationId = String(payload.organizationId ?? "");
+        const businessId = optionalString(payload.businessId);
+        if (!toEmail || !subject || !textBody) {
+          return permanent("send_notification requires toEmail, subject, textBody");
+        }
+        if (!organizationId) return permanent("send_notification requires organizationId");
+        const { sendBrevoEmail } = await import("@/lib/reputation/brevo");
+        const { isOutboundPaused } = await import("@/lib/auth/entitlements");
+        if (await isOutboundPaused(organizationId)) {
+          return permanent("Outbound messaging paused for organization");
+        }
+        const result = await sendBrevoEmail({
+          toEmail,
+          subject,
+          textBody,
+          organizationId,
+          businessId: businessId ?? undefined,
+        });
+        if (!result.ok) return { ok: false, error: result.error ?? "Notification send failed" };
         return { ok: true };
       }
       case "import_contacts": {
@@ -391,7 +411,7 @@ export async function executeJobType(
         const businessId = String(payload.businessId ?? "");
         if (!businessId) return permanent("generate_report payload incomplete");
         const reportType = optionalString(payload.reportType) ?? "single_scan";
-        await generateTypedReport({
+        const result = await generateTypedReport({
           businessId,
           scanBatchId: optionalString(payload.scanBatchId),
           reportType: reportType as import("@/lib/reporting/types").ReportType,
@@ -406,6 +426,19 @@ export async function executeJobType(
             : undefined,
           persist: payload.persist !== false,
         });
+        const ledgerJobId =
+          typeof payload.ledgerJobId === "string" ? payload.ledgerJobId : undefined;
+        if (ledgerJobId) {
+          const { updateJobProgress } = await import("@/lib/queue/ledger");
+          await updateJobProgress(ledgerJobId, {
+            result: {
+              reportId: result.reportId,
+              shareToken: result.shareToken,
+              shareUrl: result.shareToken ? `/reports/share/${result.shareToken}` : null,
+              reportType: result.payload.reportType,
+            },
+          });
+        }
         return { ok: true };
       }
       case "gbp_audit_module": {

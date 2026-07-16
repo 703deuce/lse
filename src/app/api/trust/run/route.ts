@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
-import { PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
+import { hasFeature, PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 
 export async function POST(request: Request) {
@@ -22,6 +22,12 @@ export async function POST(request: Request) {
 
     const auth = await requireBusinessAccess(businessId);
     organizationId = auth.organizationId;
+    if (!(await hasFeature(auth.organizationId, "local_trust"))) {
+      return NextResponse.json(
+        { error: "Local Trust is not included in your plan." },
+        { status: 403 }
+      );
+    }
     await reserveUsageOrThrow(auth.organizationId, "local_trust_scans_used", 1);
     reserved = true;
 
