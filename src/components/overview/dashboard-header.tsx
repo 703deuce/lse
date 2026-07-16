@@ -34,7 +34,7 @@ export function DashboardHeader({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <h1 className={cn(pageTitleClass, "text-[1.35rem] font-semibold")}>
-            {greeting}, {userName}
+            {greeting}, {userName.trim() || "there"}
           </h1>
           <p className={cn(pageSubtitleClass, "mt-1 text-[13px] text-zinc-500")}>
             Performance snapshot for{" "}

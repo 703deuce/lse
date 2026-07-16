@@ -344,7 +344,7 @@ async function fetchScanGridData(
     supabase
       .from("businesses")
       .select(
-        "name, cid, place_id, lat, lng, scan_center_lat, scan_center_lng, address_text, primary_category, phone, website_url"
+        "id, organization_id, name, cid, place_id, lat, lng, scan_center_lat, scan_center_lng, address_text, primary_category, phone, website_url"
       )
       .eq("id", businessId)
       .single(),

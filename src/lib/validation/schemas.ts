@@ -92,7 +92,10 @@ export const exportReportSchema = z.object({
   gridSize: z.number().int().positive().optional().nullable(),
   radiusMeters: z.number().positive().optional().nullable(),
   selectedCompetitorKeys: z.array(z.string()).optional(),
-  format: z.enum(["share", "csv"]).optional().default("share"),
+  format: z
+    .enum(["share", "csv", "summary_csv", "points_csv"])
+    .optional()
+    .default("share"),
 });
 
 const reportLogoUrlSchema = z

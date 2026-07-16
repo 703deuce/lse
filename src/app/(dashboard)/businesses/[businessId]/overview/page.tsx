@@ -20,6 +20,21 @@ function displayNameFromEmail(email: string | null): string {
   return token.charAt(0).toUpperCase() + token.slice(1);
 }
 
+async function resolveDisplayName(
+  supabase: ReturnType<typeof createServiceClient>,
+  userId: string,
+  email: string | null
+): Promise<string> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, email")
+    .eq("id", userId)
+    .maybeSingle();
+  const full = String(profile?.full_name ?? "").trim();
+  if (full) return full.split(/\s+/)[0] ?? full;
+  return displayNameFromEmail(email ?? profile?.email ?? null);
+}
+
 export default async function BusinessOverviewPage({
   params,
 }: {
@@ -31,11 +46,14 @@ export default async function BusinessOverviewPage({
   if (!business) notFound();
 
   const supabase = createServiceClient();
-  const { data: businesses } = await supabase
-    .from("businesses")
-    .select("id, name")
-    .eq("organization_id", auth.organizationId)
-    .order("name");
+  const [{ data: businesses }, displayName] = await Promise.all([
+    supabase
+      .from("businesses")
+      .select("id, name")
+      .eq("organization_id", auth.organizationId)
+      .order("name"),
+    resolveDisplayName(supabase, auth.userId, auth.email),
+  ]);
 
   const [recentScans, featured] = await Promise.all([
     loadDashboardRecentScans(businessId, { preview: 3 }),
@@ -45,7 +63,7 @@ export default async function BusinessOverviewPage({
   return (
     <ModulePage wide>
       <DashboardHeader
-        userName={displayNameFromEmail(auth.email)}
+        userName={displayName}
         businessId={businessId}
         businessName={business.name}
         businesses={(businesses ?? []).map((b) => ({
