@@ -2,30 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/db/client";
 import { processProviderTaskResult } from "@/lib/jobs/process-scan";
 import { finalizeRankReady } from "@/lib/jobs/finalize-scan";
-
-function authorizeWebhook(request: Request): NextResponse | null {
-  const secret = process.env.DATAFORSEO_WEBHOOK_SECRET?.trim();
-  if (process.env.NODE_ENV === "production") {
-    if (!secret) {
-      return NextResponse.json(
-        { error: "DATAFORSEO_WEBHOOK_SECRET is not configured" },
-        { status: 503 }
-      );
-    }
-  } else if (!secret) {
-    // Local/dev: allow unauthenticated for legacy DFS testing when unset.
-    return null;
-  }
-
-  const header =
-    request.headers.get("x-webhook-secret")?.trim() ||
-    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
-  const urlToken = new URL(request.url).searchParams.get("token")?.trim();
-  if (header !== secret && urlToken !== secret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  return null;
-}
+import { authorizeHeaderSecret } from "@/lib/security/secrets";
 
 async function markProviderTaskFailed(tag: string, statusCode: number): Promise<void> {
   const supabase = createServiceClient();
@@ -59,8 +36,10 @@ async function markProviderTaskFailed(tag: string, statusCode: number): Promise<
 }
 
 export async function POST(request: Request) {
-  const denied = authorizeWebhook(request);
-  if (denied) return denied;
+  const authz = authorizeHeaderSecret(request, process.env.DATAFORSEO_WEBHOOK_SECRET);
+  if (!authz.ok) {
+    return NextResponse.json({ error: authz.error }, { status: authz.status });
+  }
 
   try {
     const body = await request.json();
@@ -106,7 +85,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ received: true, processed: tasks.length });
   } catch (err) {
-    console.error("DataForSEO webhook error:", err);
-    return NextResponse.json({ received: true, error: String(err) });
+    console.error(
+      "DataForSEO webhook error:",
+      err instanceof Error ? err.message : "failed"
+    );
+    return NextResponse.json({ received: true, error: "Webhook processing failed" });
   }
 }

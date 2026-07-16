@@ -315,21 +315,11 @@ function extractTag(html: string, tag: string): string[] {
 
 async function fetchHtml(website: string): Promise<string | null> {
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15000);
-    const res = await fetch(website, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36",
-        Accept: "text/html",
-      },
-      signal: controller.signal,
-      redirect: "follow",
-    });
-    clearTimeout(timer);
+    const { safeFetchWebsite } = await import("@/lib/validation/ssrf");
+    const res = await safeFetchWebsite(website, 15000);
     if (res.ok) {
       const html = await res.text();
-      if (html && html.length > 500) return html;
+      if (html && html.length > 500) return html.slice(0, 2_000_000);
     }
   } catch {
     /* fall through */

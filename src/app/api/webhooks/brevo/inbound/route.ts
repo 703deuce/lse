@@ -2,17 +2,15 @@ import { NextResponse } from "next/server";
 import { parseBrevoInboundPayload } from "@/lib/reputation/inbound-reply";
 import { handleBrevoInboundEmail } from "@/lib/reputation/review-sends";
 import { claimProviderWebhookEvent } from "@/lib/integrations/provider-webhook-dedupe";
-
-function verifyWebhookToken(request: Request): boolean {
-  const secret = process.env.BREVO_INBOUND_WEBHOOK_SECRET?.trim();
-  // Fail closed in production when the secret is missing.
-  if (!secret) return process.env.NODE_ENV !== "production";
-  const url = new URL(request.url);
-  return url.searchParams.get("token") === secret;
-}
+import { authorizeHeaderSecret } from "@/lib/security/secrets";
+import { logger } from "@/lib/observability/logger";
 
 export async function POST(request: Request) {
-  if (!verifyWebhookToken(request)) {
+  const authz = authorizeHeaderSecret(
+    request,
+    process.env.BREVO_INBOUND_WEBHOOK_SECRET
+  );
+  if (!authz.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -39,7 +37,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, processed: results.length, results });
   } catch (err) {
-    console.error("[brevo/inbound webhook]", err);
+    logger.error("brevo_inbound_webhook_error", {
+      error: err instanceof Error ? err.message : String(err),
+    });
     return NextResponse.json({ ok: true, processed: 0 });
   }
 }

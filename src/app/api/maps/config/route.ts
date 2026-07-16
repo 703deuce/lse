@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
-import { getGoogleMapsApiKey } from "@/lib/maps/google-maps-key";
+import { getBrowserGoogleMapsApiKey } from "@/lib/maps/google-maps-key";
 
 export const dynamic = "force-dynamic";
 
-/** Exposes the browser Maps JS key from Coolify `MAPS` (and aliases) at request time. */
+/** Exposes only the browser-safe Maps JS key (NEXT_PUBLIC_*). */
 export async function GET() {
-  const apiKey = getGoogleMapsApiKey();
+  const apiKey = getBrowserGoogleMapsApiKey();
   if (!apiKey) {
     return NextResponse.json(
-      { error: "Google Maps API key is not configured (set MAPS in Coolify)." },
+      {
+        error:
+          "Google Maps browser API key is not configured (set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY or NEXT_PUBLIC_MAPS).",
+      },
       { status: 503 }
     );
   }

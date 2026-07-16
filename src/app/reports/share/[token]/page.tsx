@@ -78,7 +78,7 @@ export default async function ShareReportPage({
       title="Shared report"
       className="h-dvh w-full border-0 bg-white"
       srcDoc={report.html_content}
-      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+      sandbox="allow-popups allow-popups-to-escape-sandbox"
     />
   );
 }
