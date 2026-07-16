@@ -22,7 +22,14 @@ On Coolify (Hetzner), schedule an **external cron** (or Coolify Scheduled Task) 
 
 ## Messaging worker (BullMQ)
 
-Deploy a Coolify service with the same image/env as web:
+**Do not run this alongside `worker:all`.** Pick one mode:
+
+| Mode | What to run |
+| --- | --- |
+| Combined (recommended on small servers) | Only `npm run worker:all`. Keep Messaging Worker **stopped**. |
+| Split | `worker:maps` + `worker:messaging` + `worker:intelligence` + `worker:reports`. Stop `worker:all`. |
+
+When you want the split Messaging Worker:
 
 | Field | Value |
 | --- | --- |
@@ -34,6 +41,8 @@ Deploy a Coolify service with the same image/env as web:
 Required env (same as web): `QUEUE_DRIVER=bullmq`, `REDIS_URL`, Supabase keys, `TWILIO_*`, `BREVO_*`.
 
 Queues consumed: `review-campaign`, `email-send`, `sms-send`, `review-import`, `review-monitor`, `notifications`.
+
+Quick Send (one-off SMS/email in the UI) does **not** use these queues — it sends inside the web request. Campaign bulk/drip sends do.
 
 ## 1. Set secrets
 
