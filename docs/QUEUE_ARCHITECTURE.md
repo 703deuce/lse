@@ -79,21 +79,21 @@ With web on `database` and workers crash-looping before this fix, there are norm
 
 ## Coolify services
 
-### Deployment modes (pick one — never mix)
+### Deployment modes
 
 | Mode | Coolify services | When |
 | --- | --- | --- |
-| **Combined** | Web + **one** Worker (`npm run worker:all`) | Small servers / early launch (e.g. 4 GB). Keep Messaging Worker configured but **stopped**. |
-| **Split** | Web + `worker:maps` + `worker:messaging` + `worker:intelligence` + `worker:reports` | Independent scaling. **Stop** `worker:all`. |
+| **Messaging split (recommended now)** | Web + `worker:messaging` + `worker:all` | Campaign email/sms on the messaging worker; Maps/intelligence/reports stay on `worker:all`. |
+| **Full split (later)** | Web + `worker:maps` + `worker:messaging` + `worker:intelligence` + `worker:reports` | Independent scaling. **Stop** `worker:all`. |
 
-`worker:all` includes campaign `email-send` / `sms-send` on purpose so a single worker can send campaigns. That is **not** Quick Send (Quick Send stays synchronous in the web app). Running `worker:all` **and** `worker:messaging` does not usually double-send (BullMQ gives each job to one consumer) but **adds concurrency** (e.g. email 15+15) and can overload Twilio/Brevo/DB.
+`worker:all` **excludes** messaging queues (`review-campaign`, `email-send`, `sms-send`, `review-import`, `review-monitor`, `notifications`). You **must** run `npm run worker:messaging` for campaign delivery. Quick Send stays synchronous in the web app and does not use these queues.
 
 | Service | Start command |
 | --- | --- |
 | Web | `npm run start` |
-| Combined worker | `npm run worker:all` *(or)* |
-| Maps worker | `npm run worker:maps` |
-| Messaging worker | `npm run worker:messaging` |
+| Messaging worker | `npm run worker:messaging` ← **required for campaigns** |
+| Combined non-messaging | `npm run worker:all` (Maps + intelligence + reports) |
+| Maps worker | `npm run worker:maps` (later, instead of all) |
 | Intelligence worker | `npm run worker:intelligence` |
 | Report worker | `npm run worker:reports` |
 | Redis | Coolify managed Redis → set private `REDIS_URL` |

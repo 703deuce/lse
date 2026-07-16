@@ -1,25 +1,21 @@
 /**
  * BullMQ worker entrypoint.
  *
- * Deployment modes (mutually exclusive — pick ONE):
+ * Recommended Coolify layout (messaging split now; Maps split later):
  *
- *   A) Single combined worker (small / early servers):
- *        npm run worker:all
- *      Do NOT also run worker:maps / messaging / intelligence / reports.
+ *   npm run worker:messaging   ← REQUIRED for campaign email/sms (Brevo/Twilio)
+ *   npm run worker:all         ← Maps + intelligence + reports (excludes messaging)
  *
- *   B) Split workers (scale / isolation):
- *        npm run worker:maps
- *        npm run worker:messaging
- *        npm run worker:intelligence
- *        npm run worker:reports
- *      Do NOT also run worker:all.
+ * Later, replace worker:all with:
+ *   npm run worker:maps
+ *   npm run worker:intelligence
+ *   npm run worker:reports
  *
- * Why messaging queues appear on worker:all:
- *   Campaign email/sms (email-send, sms-send) are queue jobs. worker:all is a
- *   convenience profile that consumes every queue so one Coolify service can
- *   run the whole platform. It is NOT for Quick Send (that stays sync in the
- *   web request). Running worker:all AND worker:messaging doubles concurrency
- *   on shared queues (does not usually double-send, but can overload providers).
+ * Why messaging is NOT on worker:all:
+ *   Campaign sends were moved to dedicated email-send / sms-send queues so a
+ *   Messaging Worker can own them without doubling concurrency against a
+ *   combined worker. Quick Send (one-off UI) stays synchronous in the web app
+ *   and does not use these queues.
  *
  * Requires QUEUE_DRIVER=bullmq and REDIS_URL.
  *
@@ -30,6 +26,7 @@
 import { DelayedError, Worker, UnrecoverableError } from "bullmq";
 import {
   JOB_QUEUES,
+  MESSAGING_QUEUE_NAMES,
   type JobQueueName,
   type QueueName,
 } from "../../src/lib/queue/types";
@@ -50,11 +47,18 @@ import { recoverPendingEnqueues } from "../../src/lib/queue/service";
 
 type WorkerProfile = "maps" | "messaging" | "intelligence" | "reports" | "all";
 
+const MESSAGING_SET = new Set<string>(MESSAGING_QUEUE_NAMES);
+
+/** Everything except messaging — safe to run alongside worker:messaging. */
+function nonMessagingQueues(): QueueName[] {
+  return listRegisteredQueueNames().filter((q) => !MESSAGING_SET.has(q));
+}
+
 const PROFILE_QUEUES: Record<WorkerProfile, JobQueueName[]> = {
   maps: [JOB_QUEUES.MAPS_SCAN, JOB_QUEUES.MAPS_CELL_RETRY],
   /**
-   * Messaging: campaign orchestrator + Brevo/Twilio senders + imports/alerts.
-   * Isolated from Maps so a large campaign cannot starve grid scans.
+   * Campaign orchestrator + Brevo/Twilio senders + imports/alerts.
+   * Required for review campaign delivery. Do not also consume these on worker:all.
    */
   messaging: [
     JOB_QUEUES.REVIEW_CAMPAIGN,
@@ -71,7 +75,7 @@ const PROFILE_QUEUES: Record<WorkerProfile, JobQueueName[]> = {
     JOB_QUEUES.MAINTENANCE,
   ],
   reports: [JOB_QUEUES.REPORT_GENERATION],
-  all: [...listRegisteredQueueNames()] as QueueName[],
+  all: nonMessagingQueues(),
 };
 
 async function main() {
@@ -97,6 +101,17 @@ async function main() {
     assertValidBullmqQueueName(queueName);
   }
 
+  console.log(`[worker] profile=${profile}`);
+  if (profile === "messaging") {
+    console.log(
+      "[worker] messaging profile — owns campaign email/sms. Keep worker:all for Maps/intelligence (it no longer consumes messaging queues)."
+    );
+  } else if (profile === "all") {
+    console.log(
+      "[worker] profile=all excludes messaging queues. Run npm run worker:messaging separately for campaign email/sms."
+    );
+  }
+
   const recovered = await recoverPendingEnqueues(100);
   if (recovered > 0) {
     console.log(`[worker] recovered ${recovered} pending enqueue(s)`);
@@ -105,6 +120,11 @@ async function main() {
   const connection = getBullmqConnectionOptions(config.redisUrl, "worker");
   const queues = PROFILE_QUEUES[profile];
   const workers: Worker[] = [];
+
+  if (!queues.length) {
+    console.error(`[worker] profile=${profile} has no queues — refusing to start`);
+    process.exit(1);
+  }
 
   for (const queueName of queues) {
     const settings = config.queues[queueName];
