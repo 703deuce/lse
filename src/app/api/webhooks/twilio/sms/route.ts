@@ -80,13 +80,7 @@ export async function POST(request: Request) {
     }
 
     if (isSmsOptOutMessage(body) || isSmsOptInMessage(body)) {
-      // Do not treat STOP/START as a normal reply (avoids setting replied_at).
-      await handleTwilioSmsReply({
-        from,
-        body,
-        messageSid,
-        skipCampaignReplyState: true,
-      });
+      // Apply STOP/START first so a reply-store failure cannot leave someone subscribed.
       const phone = normalizePhoneE164(from);
       if (phone) {
         const supabase = createServiceClient();
@@ -128,10 +122,11 @@ export async function POST(request: Request) {
             .order("sent_at", { ascending: false })
             .limit(1)
             .maybeSingle();
+          if (!lastMsg) continue;
           candidates.push({
             businessId: recip.business_id as string,
             organizationId: recip.organization_id as string,
-            at: String(lastMsg?.sent_at ?? lastMsg?.created_at ?? recip.created_at),
+            at: String(lastMsg.sent_at ?? lastMsg.created_at),
           });
         }
 
@@ -172,6 +167,21 @@ export async function POST(request: Request) {
           });
         }
       }
+
+      // Best-effort activity log — must not block opt-out.
+      try {
+        await handleTwilioSmsReply({
+          from,
+          body,
+          messageSid,
+          skipCampaignReplyState: true,
+        });
+      } catch (logErr) {
+        logger.warn("twilio_stop_reply_log_failed", {
+          error: logErr instanceof Error ? logErr.message : String(logErr),
+        });
+      }
+
       const reply = isSmsOptOutMessage(body)
         ? "You have been unsubscribed from review request messages."
         : "You have been resubscribed to review request messages.";

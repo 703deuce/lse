@@ -101,11 +101,12 @@ export async function applyEmailUnsubscribe(messageId: string): Promise<{
     reason: "email_unsubscribe",
   });
 
+  // Only cancel future/in-flight sends — keep delivered/sent history intact for metrics.
   await supabase
     .from("review_request_messages")
     .update({ status: "opted_out", updated_at: now })
     .eq("recipient_id", message.recipient_id)
-    .in("status", ["queued", "sending", "sent", "delivered"]);
+    .in("status", ["queued", "sending"]);
 
   await supabase
     .from("review_request_recipients")

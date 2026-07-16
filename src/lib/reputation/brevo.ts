@@ -1,4 +1,5 @@
 import { fetchWithTimeout, providerTimeoutMs } from "@/lib/providers/fetch-with-timeout";
+import { normalizeProviderMessageId } from "@/lib/reputation/provider-ids";
 
 export type BrevoSendParams = {
   toEmail: string;
@@ -84,7 +85,8 @@ export async function sendBrevoEmail(params: BrevoSendParams): Promise<BrevoSend
       return { ok: false, error: `Brevo error: ${detail}` };
     }
 
-    return { ok: true, messageId: json.messageId ?? "unknown" };
+    const rawId = json.messageId ?? "unknown";
+    return { ok: true, messageId: normalizeProviderMessageId(rawId) || rawId };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Brevo request failed" };
   }

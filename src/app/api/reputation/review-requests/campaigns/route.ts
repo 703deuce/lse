@@ -99,27 +99,9 @@ export async function POST(request: Request) {
       if (!sourceCampaign) {
         return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
       }
-      const { data: peekRecs } = await supabase
-        .from("review_request_recipients")
-        .select("status")
-        .eq("campaign_id", duplicateFrom)
-        .eq("business_id", businessId);
-      const readyCount = (peekRecs ?? []).filter((r) => r.status === "ready").length;
-
-      if (readyCount > 0) {
-        await reserveUsageOrThrow(auth.organizationId, "bulk_review_requests_used", readyCount);
-      }
-      try {
-        const result = await duplicateCampaign(duplicateFrom, businessId, auth.organizationId);
-        return NextResponse.json(result);
-      } catch (dupErr) {
-        if (readyCount > 0) {
-          await releaseUsage(auth.organizationId, "bulk_review_requests_used", readyCount).catch(
-            () => undefined
-          );
-        }
-        throw dupErr;
-      }
+      // Duplicates are drafts — do not burn bulk quota until launch.
+      const result = await duplicateCampaign(duplicateFrom, businessId, auth.organizationId);
+      return NextResponse.json(result);
     }
 
     if (!name || !recipients || !mapping) {
@@ -127,8 +109,11 @@ export async function POST(request: Request) {
     }
 
     const tz = timezone ?? "America/New_York";
+    const launchStatus = status ?? "active";
     const readyCount = recipients.filter((r) => r.status === "ready").length;
-    if (readyCount > 0) {
+    // Reserve bulk quota only when launching (not draft saves).
+    const shouldReserve = launchStatus !== "draft" && readyCount > 0;
+    if (shouldReserve) {
       await reserveUsageOrThrow(auth.organizationId, "bulk_review_requests_used", readyCount);
     }
 
@@ -150,7 +135,7 @@ export async function POST(request: Request) {
       filename,
       mapping,
       recipients,
-      status: status ?? "active",
+      status: launchStatus,
       sequence,
       description: description ?? null,
     };
@@ -159,7 +144,7 @@ export async function POST(request: Request) {
       const result = await createReviewCampaign(input);
       return NextResponse.json(result);
     } catch (createErr) {
-      if (readyCount > 0) {
+      if (shouldReserve) {
         await releaseUsage(auth.organizationId, "bulk_review_requests_used", readyCount).catch(
           () => undefined
         );

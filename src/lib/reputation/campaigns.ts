@@ -1,7 +1,10 @@
 import { createServiceClient } from "@/lib/db/client";
 import { getBusiness } from "@/lib/db/queries";
 import type { CsvMapTarget } from "@/lib/reputation/bulk-csv";
-import type { ValidatedRecipient } from "@/lib/reputation/bulk-validate";
+import {
+  validateBulkRecipients,
+  type ValidatedRecipient,
+} from "@/lib/reputation/bulk-validate";
 import {
   buildMessageSchedule,
   estimateBusinessDays,
@@ -144,8 +147,36 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
   }
 
   const googleReviewUrl = await loadGoogleReviewUrl(input.businessId);
-  const ready = input.recipients.filter((r) => r.status === "ready");
-  const skipped = input.recipients.length - ready.length;
+
+  // Server-side revalidation — never trust client "ready" for opt-out / recent contact.
+  const { recipients: validatedRecipients } = await validateBulkRecipients({
+    businessId: input.businessId,
+    rows: input.recipients.map((r, i) => ({
+      rowIndex: r.rowIndex ?? i,
+      first_name: r.first_name,
+      last_name: r.last_name,
+      full_name: r.full_name,
+      phone: r.phone,
+      email: r.email,
+      service_date: r.service_date,
+      job_type: r.job_type,
+      city: r.city,
+      notes: r.notes,
+    })),
+    duplicateProtectionDays: input.duplicateProtectionDays,
+  });
+  // Preserve client skip reasons only when server also marks non-ready with a looser status.
+  const recipients: ValidatedRecipient[] = validatedRecipients.map((v, i) => {
+    const client = input.recipients[i];
+    if (v.status === "ready" && client && client.status !== "ready" && client.status !== "duplicate") {
+      // Client marked opted_out / invalid etc. — keep the stricter client skip.
+      return { ...v, status: client.status, skip_reason: client.skip_reason ?? v.skip_reason };
+    }
+    return v;
+  });
+
+  const ready = recipients.filter((r) => r.status === "ready");
+  const skipped = recipients.length - ready.length;
 
   const { data: campaign, error: campErr } = await supabase
     .from("review_request_campaigns")
@@ -203,7 +234,7 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
     .select("id")
     .single();
 
-  const recipientRows = input.recipients.map((r) => ({
+  const recipientRows = recipients.map((r) => ({
     organization_id: input.organizationId,
     business_id: input.businessId,
     campaign_id: campaign.id,
@@ -211,8 +242,8 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
     first_name: r.first_name ?? null,
     last_name: r.last_name ?? null,
     full_name: r.full_name ?? null,
-    phone: r.phone ?? null,
-    email: r.email ?? null,
+    phone: r.normalized_phone ?? r.phone ?? null,
+    email: r.normalized_email ?? r.email ?? null,
     service_date: r.service_date ?? null,
     job_type: r.job_type ?? null,
     city: r.city ?? null,
@@ -844,6 +875,27 @@ export async function updateCampaignStatus(
   const { data, error } = await query.select("*").maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Campaign not found");
+
+  if (status === "cancelled") {
+    const now = new Date().toISOString();
+    await supabase
+      .from("review_request_messages")
+      .update({ status: "skipped", updated_at: now })
+      .eq("campaign_id", campaignId)
+      .eq("business_id", businessId)
+      .in("status", ["queued", "sending"]);
+    await supabase
+      .from("review_request_recipients")
+      .update({
+        workflow_status: "stopped",
+        next_action_at: null,
+        updated_at: now,
+      })
+      .eq("campaign_id", campaignId)
+      .eq("business_id", businessId)
+      .in("workflow_status", ["pending", "scheduled", "in_progress", "waiting"]);
+  }
+
   return data;
 }
 
@@ -950,13 +1002,15 @@ export async function recordTrackingClick(params: {
   if (!send?.review_url) return null;
 
   const now = new Date().toISOString();
+  const wasAlreadyClicked = send.status === "clicked";
   await supabase
     .from("review_request_sends")
     .update({ status: "clicked", clicked_at: now })
     .eq("id", send.id)
     .in("status", ["queued", "sent", "delivered"]);
 
-  if (send.link_id) {
+  // One click event per send — avoid spam on repeat opens.
+  if (send.link_id && !wasAlreadyClicked) {
     await supabase.from("review_request_events").insert({
       organization_id: send.organization_id,
       business_id: send.business_id,

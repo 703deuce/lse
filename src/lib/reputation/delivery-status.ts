@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/db/client";
 import { logger } from "@/lib/observability/logger";
+import { providerMessageIdVariants } from "@/lib/reputation/provider-ids";
 
 /**
  * Apply Twilio MessageStatus (or Brevo-equivalent) onto campaign messages
@@ -16,11 +17,14 @@ export async function applyProviderDeliveryStatus(params: {
 
   const normalized = params.status.trim().toLowerCase();
   const supabase = createServiceClient();
-  const { data: message } = await supabase
+  const variants = providerMessageIdVariants(sid);
+
+  const { data: messages } = await supabase
     .from("review_request_messages")
     .select("id, status")
-    .eq("provider_message_id", sid)
-    .maybeSingle();
+    .in("provider_message_id", variants)
+    .limit(1);
+  const message = messages?.[0] ?? null;
 
   if (message) {
     return applyCampaignMessageStatus({
@@ -31,12 +35,12 @@ export async function applyProviderDeliveryStatus(params: {
     });
   }
 
-  // Quick Send / one-off rows share the same Twilio/Brevo callbacks.
-  const { data: send } = await supabase
+  const { data: sends } = await supabase
     .from("review_request_sends")
     .select("id, status")
-    .eq("provider_message_id", sid)
-    .maybeSingle();
+    .in("provider_message_id", variants)
+    .limit(1);
+  const send = sends?.[0] ?? null;
 
   if (!send) return false;
 

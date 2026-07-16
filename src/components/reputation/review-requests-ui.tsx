@@ -76,18 +76,24 @@ export function statusPill(status: string, hasReply?: boolean) {
   }
   const styles: Record<string, { pill: string; dot: string }> = {
     sent: { pill: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100", dot: "bg-emerald-500" },
+    delivered: { pill: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100", dot: "bg-emerald-500" },
+    clicked: { pill: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100", dot: "bg-emerald-500" },
+    completed: { pill: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100", dot: "bg-emerald-500" },
     failed: { pill: "bg-red-50 text-red-700 ring-1 ring-red-100", dot: "bg-red-500" },
     pending: { pill: "bg-amber-50 text-amber-700 ring-1 ring-amber-100", dot: "bg-amber-500" },
     queued: { pill: "bg-amber-50 text-amber-700 ring-1 ring-amber-100", dot: "bg-amber-500" },
   };
   const labels: Record<string, string> = {
     sent: "Sent",
+    delivered: "Delivered",
+    clicked: "Clicked",
+    completed: "Completed",
     failed: "Failed",
     pending: "Pending",
     queued: "Queued",
   };
   const key = status in styles ? status : "pending";
-  const s = styles[key];
+  const s = styles[key]!;
   return (
     <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold", s.pill)}>
       <span className={cn("h-1.5 w-1.5 rounded-full", s.dot)} />

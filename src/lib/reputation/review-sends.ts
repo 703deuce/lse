@@ -12,6 +12,8 @@ import { buildTrackingUrl, generateTrackingToken } from "@/lib/reputation/tracki
 import { buildUnsubscribeUrl } from "@/lib/reputation/unsubscribe";
 import { resolveSmsReplyTargets, type SmsOutboundCandidate } from "@/lib/reputation/reply-match";
 import { storeReviewReply } from "@/lib/reputation/reply-store";
+import { upsertBusinessContact } from "@/lib/reputation/contacts";
+import { SUCCESSFUL_SEND_STATUSES } from "@/lib/reputation/provider-ids";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
@@ -141,34 +143,33 @@ function templateVars(params: {
   };
 }
 
-async function upsertContact(
-  supabase: ServiceClient,
-  params: {
-    organizationId: string;
-    businessId: string;
-    customerName?: string | null;
-    customerEmail?: string | null;
-    customerPhone?: string | null;
-    serviceType?: string | null;
-    notes?: string | null;
+async function upsertContact(params: {
+  organizationId: string;
+  businessId: string;
+  customerName?: string | null;
+  customerEmail?: string | null;
+  customerPhone?: string | null;
+  serviceType?: string | null;
+  notes?: string | null;
+}) {
+  // Skip contact row when neither phone nor email is valid — send paths still work.
+  const phone = params.customerPhone?.trim() || null;
+  const email = params.customerEmail?.trim() || null;
+  if (!phone && !email) return null;
+  try {
+    const { id } = await upsertBusinessContact({
+      organizationId: params.organizationId,
+      businessId: params.businessId,
+      customerName: params.customerName,
+      phone,
+      email,
+      notes: params.notes,
+      source: "quick_send",
+    });
+    return id;
+  } catch {
+    return null;
   }
-) {
-  const { data, error } = await supabase
-    .from("review_request_contacts")
-    .insert({
-      organization_id: params.organizationId,
-      business_id: params.businessId,
-      customer_name: params.customerName ?? null,
-      customer_email: params.customerEmail ?? null,
-      customer_phone: params.customerPhone ?? null,
-      service_type: params.serviceType ?? null,
-      notes: params.notes ?? null,
-    })
-    .select("id")
-    .single();
-
-  if (error) throw new Error(error.message);
-  return data.id as string;
 }
 
 async function insertSend(
@@ -302,7 +303,7 @@ export async function sendReviewRequestEmail(input: SendReviewEmailInput) {
       ? renderTemplate(template.body, vars)
       : `Hi ${input.customerName},\n\nThanks again for choosing ${business.name}. If you have a minute, would you leave us a quick honest Google review?\n\n${trackingUrl}`;
 
-  const contactId = await upsertContact(supabase, {
+  const contactId = await upsertContact({
     organizationId: input.organizationId,
     businessId: input.businessId,
     customerName: input.customerName,
@@ -425,7 +426,7 @@ export async function sendReviewRequestSms(input: SendReviewSmsInput) {
 
   body = appendSmsOptOut(body);
 
-  const contactId = await upsertContact(supabase, {
+  const contactId = await upsertContact({
     organizationId: input.organizationId,
     businessId: input.businessId,
     customerName: input.customerName,
@@ -516,7 +517,7 @@ export async function logManualReviewSend(input: LogManualSendInput) {
   const link = await loadActiveLink(supabase, input.businessId);
   if (!link) throw new Error("Review link missing. Generate review link first.");
 
-  const contactId = await upsertContact(supabase, {
+  const contactId = await upsertContact({
     organizationId: input.organizationId,
     businessId: input.businessId,
     customerName: input.customerName,
@@ -587,7 +588,8 @@ export async function loadReviewRequestStats(businessId: string, organizationId:
     .limit(50);
 
   const all = sends ?? [];
-  const sentRows = all.filter((s) => s.status === "sent");
+  const success = new Set<string>(SUCCESSFUL_SEND_STATUSES);
+  const sentRows = all.filter((s) => success.has(String(s.status)));
   const failedRows = all.filter((s) => s.status === "failed");
 
   const countInRange = (since: string) =>
@@ -598,7 +600,20 @@ export async function loadReviewRequestStats(businessId: string, organizationId:
     replyEvents.map((e) => e.send_id).filter((id): id is string => Boolean(id))
   );
 
-  const recentReplies = replyEvents.slice(0, 15).map((e) => {
+  const { data: replyRows, count: storedReplyCount } = await supabase
+    .from("review_request_replies")
+    .select("id, send_id, channel, body, from_address, created_at, campaign_id, recipient_id", {
+      count: "exact",
+    })
+    .eq("business_id", businessId)
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  for (const r of replyRows ?? []) {
+    if (r.send_id) replySendIds.add(r.send_id as string);
+  }
+
+  const eventReplies = replyEvents.slice(0, 15).map((e) => {
     const meta = (e.metadata ?? {}) as Record<string, unknown>;
     return {
       id: e.id,
@@ -611,8 +626,32 @@ export async function loadReviewRequestStats(businessId: string, organizationId:
       from: (meta.from as string | null) ?? e.customer_email ?? null,
       subject: (meta.subject as string | null) ?? null,
       created_at: e.created_at,
+      source: "one_off" as const,
     };
   });
+
+  const storedReplies = (replyRows ?? []).map((r) => ({
+    id: r.id,
+    send_id: r.send_id,
+    channel: r.channel ?? "sms",
+    customer_name: null as string | null,
+    customer_email: null as string | null,
+    customer_phone: null as string | null,
+    reply_body: String(r.body ?? ""),
+    from: (r.from_address as string | null) ?? null,
+    subject: null as string | null,
+    created_at: r.created_at,
+    source: r.campaign_id ? ("campaign" as const) : ("one_off" as const),
+  }));
+
+  // Prefer durable reply rows; fill with event-only replies not already represented.
+  const seenReplyIds = new Set(storedReplies.map((r) => r.id));
+  const recentReplies = [
+    ...storedReplies,
+    ...eventReplies.filter((e) => !seenReplyIds.has(e.id)),
+  ]
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+    .slice(0, 15);
 
   return {
     total_sent: sentRows.length,
@@ -620,7 +659,7 @@ export async function loadReviewRequestStats(businessId: string, organizationId:
     sms_sent: sentRows.filter((s) => s.channel === "sms").length,
     manual_sent: sentRows.filter((s) => s.channel === "manual").length,
     failed: failedRows.length,
-    replies: replyEvents.length,
+    replies: Math.max(storedReplyCount ?? 0, replyEvents.length),
     last_7_days: countInRange(sevenDaysAgo),
     last_30_days: countInRange(thirtyDaysAgo),
     recent_sends: all.slice(0, 25).map((s) => ({
@@ -714,6 +753,7 @@ export async function handleTwilioSmsReply(params: {
         .order("sent_at", { ascending: false })
         .limit(1);
       const msg = msgs?.[0] ?? null;
+      // Only match campaigns that actually sent SMS — never unsent/queued recipients.
       if (msg) {
         campaignCand = {
           kind: "campaign",
@@ -723,16 +763,6 @@ export async function handleTwilioSmsReply(params: {
           organizationId: msg.organization_id as string,
           businessId: msg.business_id as string,
           at: String(msg.sent_at ?? msg.created_at),
-        };
-      } else {
-        const recip = recipRows![0]!;
-        campaignCand = {
-          kind: "campaign",
-          id: recip.id as string,
-          campaignId: recip.campaign_id as string,
-          organizationId: recip.organization_id as string,
-          businessId: recip.business_id as string,
-          at: String(recip.created_at),
         };
       }
     }
