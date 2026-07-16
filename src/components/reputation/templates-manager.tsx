@@ -157,7 +157,9 @@ export function TemplatesManager({ businessId }: { businessId: string }) {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Test send failed");
+      if (!res.ok || json.send?.ok === false) {
+        throw new Error(json.error || json.send?.error || "Test send failed");
+      }
       setMsg("Test send queued/sent");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Test send failed");

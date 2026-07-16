@@ -73,104 +73,123 @@ export async function upsertNotificationSettings(params: {
 
 /**
  * Scan recent business_reviews and email configured recipients for new alerts.
- * Idempotent via review_notification_events.event_key.
+ * Idempotent via review_notification_events.event_key — claim the key before send.
  */
-export async function processNewReviewAlerts(limitBusinesses = 20): Promise<number> {
+export async function processNewReviewAlerts(pageSize = 100): Promise<number> {
   const supabase = createServiceClient();
   const since = new Date(Date.now() - 48 * 3600_000).toISOString();
 
-  const { data: settingsRows } = await supabase
-    .from("review_notification_settings")
-    .select("*")
-    .eq("every_new_review", true)
-    .limit(limitBusinesses);
-
-  if (!settingsRows?.length) return 0;
-
   let sent = 0;
-  for (const settings of settingsRows) {
-    const recipients = Array.isArray(settings.email_recipients)
-      ? (settings.email_recipients as string[]).map(String).filter((e) => e.includes("@"))
-      : [];
-    if (!recipients.length) continue;
+  let offset = 0;
 
-    const { data: reviews } = await supabase
-      .from("business_reviews")
-      .select("id, reviewer_name, rating, review_text, review_date, owner_response_text, created_at")
-      .eq("business_id", settings.business_id)
-      .gte("created_at", since)
-      .order("created_at", { ascending: false })
-      .limit(15);
+  for (;;) {
+    const { data: settingsRows } = await supabase
+      .from("review_notification_settings")
+      .select("*")
+      .or("every_new_review.eq.true,low_rating_only.eq.true,unanswered_only.eq.true")
+      .range(offset, offset + pageSize - 1);
 
-    for (const review of reviews ?? []) {
-      const rating = review.rating != null ? Number(review.rating) : null;
-      if (settings.low_rating_only && (rating == null || rating > 3)) continue;
-      if (settings.unanswered_only && review.owner_response_text) continue;
+    if (!settingsRows?.length) break;
 
-      const eventKey = `new_review:${review.id}`;
-      const { data: existing } = await supabase
-        .from("review_notification_events")
-        .select("id")
+    for (const settings of settingsRows) {
+      const recipients = Array.isArray(settings.email_recipients)
+        ? (settings.email_recipients as string[]).map(String).filter((e) => e.includes("@"))
+        : [];
+      if (!recipients.length) continue;
+
+      const { data: reviews } = await supabase
+        .from("business_reviews")
+        .select("id, reviewer_name, rating, review_text, review_date, owner_response_text, created_at")
         .eq("business_id", settings.business_id)
-        .eq("event_key", eventKey)
-        .maybeSingle();
-      if (existing) continue;
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .limit(15);
 
-      const { data: business } = await supabase
-        .from("businesses")
-        .select("name")
-        .eq("id", settings.business_id)
-        .maybeSingle();
-
-      const subject = `New ${rating != null ? `${rating}★ ` : ""}review${business?.name ? ` — ${business.name}` : ""}`;
-      const body = [
-        `A new Google review was detected${business?.name ? ` for ${business.name}` : ""}.`,
-        "",
-        `Reviewer: ${review.reviewer_name || "Anonymous"}`,
-        rating != null ? `Rating: ${rating}` : null,
-        review.review_date ? `Date: ${review.review_date}` : null,
-        "",
-        review.review_text || "(no text)",
-        "",
-        "Attribution is confirmed only when tracking evidence matches — see Campaigns for honest labels.",
-      ]
-        .filter(Boolean)
-        .join("\n");
-
-      let allOk = true;
-      for (const to of recipients) {
-        const result = await sendBrevoEmail({
-          toEmail: to,
-          subject,
-          textBody: body,
-          organizationId: String(settings.organization_id ?? ""),
-          businessId: String(settings.business_id ?? ""),
-        });
-        if (!result.ok) {
-          allOk = false;
-          logger.warn("review_alert_send_failed", { to, error: result.error });
+      for (const review of reviews ?? []) {
+        const rating = review.rating != null ? Number(review.rating) : null;
+        if (settings.low_rating_only && (rating == null || rating > 3)) continue;
+        if (settings.unanswered_only && review.owner_response_text) continue;
+        // every_new_review alone: notify all; low/unanswered filters already applied above.
+        // If only low_rating_only / unanswered_only are on (every_new_review false), still alert matching reviews.
+        if (
+          !settings.every_new_review &&
+          !settings.low_rating_only &&
+          !settings.unanswered_only
+        ) {
+          continue;
         }
-      }
 
-      if (!allOk) continue;
+        const eventKey = `new_review:${review.id}`;
 
-      const { error } = await supabase.from("review_notification_events").insert({
-        organization_id: settings.organization_id,
-        business_id: settings.business_id,
-        event_key: eventKey,
-        event_type: "new_review",
-        payload_json: {
-          review_id: review.id,
-          rating,
-          reviewer_name: review.reviewer_name,
-        },
-      });
-      if (error) {
-        logger.warn("review_alert_event_insert_failed", { error: error.message });
-        continue;
+        // Claim event_key first to prevent double-email races.
+        const { data: claimed, error: claimError } = await supabase
+          .from("review_notification_events")
+          .insert({
+            organization_id: settings.organization_id,
+            business_id: settings.business_id,
+            event_key: eventKey,
+            event_type: "new_review",
+            payload_json: {
+              review_id: review.id,
+              rating,
+              reviewer_name: review.reviewer_name,
+            },
+          })
+          .select("id")
+          .maybeSingle();
+
+        if (claimError || !claimed) {
+          // Unique constraint → already claimed / sent.
+          continue;
+        }
+
+        const { data: business } = await supabase
+          .from("businesses")
+          .select("name")
+          .eq("id", settings.business_id)
+          .maybeSingle();
+
+        const subject = `New ${rating != null ? `${rating}★ ` : ""}review${business?.name ? ` — ${business.name}` : ""}`;
+        const body = [
+          `A new Google review was detected${business?.name ? ` for ${business.name}` : ""}.`,
+          "",
+          `Reviewer: ${review.reviewer_name || "Anonymous"}`,
+          rating != null ? `Rating: ${rating}` : null,
+          review.review_date ? `Date: ${review.review_date}` : null,
+          "",
+          review.review_text || "(no text)",
+          "",
+          "Attribution is confirmed only when tracking evidence matches — see Campaigns for honest labels.",
+        ]
+          .filter(Boolean)
+          .join("\n");
+
+        let allOk = true;
+        for (const to of recipients) {
+          const result = await sendBrevoEmail({
+            toEmail: to,
+            subject,
+            textBody: body,
+            organizationId: String(settings.organization_id ?? ""),
+            businessId: String(settings.business_id ?? ""),
+          });
+          if (!result.ok) {
+            allOk = false;
+            logger.warn("review_alert_send_failed", { to, error: result.error });
+          }
+        }
+
+        if (!allOk) {
+          // Allow retry on next run.
+          await supabase.from("review_notification_events").delete().eq("id", claimed.id);
+          continue;
+        }
+        sent++;
       }
-      sent++;
     }
+
+    if (settingsRows.length < pageSize) break;
+    offset += pageSize;
   }
 
   return sent;

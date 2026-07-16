@@ -6,6 +6,16 @@ import {
   getDevAuthContext,
 } from "@/lib/auth/dev";
 
+/** Map auth/tenant errors to HTTP status (avoid 500 for access denied). */
+export function httpStatusForAuthError(err: unknown, fallback = 500): number {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (/authentication required|not authenticated|unauthoriz/i.test(msg)) return 401;
+  if (/access denied|access required|forbidden|Admin access/i.test(msg)) return 403;
+  if (/not found/i.test(msg)) return 404;
+  if (/required/i.test(msg) && /businessId|scanId|campaign/i.test(msg)) return 400;
+  return fallback;
+}
+
 export async function requireBusinessAccess(businessId: string): Promise<{
   userId: string;
   organizationId: string;

@@ -1,4 +1,7 @@
 import { BusinessModuleShell } from "@/components/dashboard/business-module-shell";
+import { requireAuth } from "@/lib/auth/context";
+import { getBusiness } from "@/lib/db/queries";
+import { notFound } from "next/navigation";
 
 export default async function ProgressPage({
   params,
@@ -6,6 +9,9 @@ export default async function ProgressPage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
+  const auth = await requireAuth();
+  const business = await getBusiness(businessId, auth.organizationId);
+  if (!business) notFound();
 
   return (
     <BusinessModuleShell

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import {
   generateAndSaveTemplates,
@@ -41,6 +41,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
     }
     const message = err instanceof Error ? err.message : "Failed to generate templates";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

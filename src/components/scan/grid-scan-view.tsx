@@ -137,6 +137,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
   const [timelineMode, setTimelineMode] = useState<TimelineMode>("target");
   const [timelineCompetitorKey, setTimelineCompetitorKey] = useState<string | null>(null);
   const toolbarRef = useRef<GridToolbarHandle>(null);
+  const scanSwitchRequestRef = useRef(0);
   const [toolbarRunning, setToolbarRunning] = useState(false);
   const [locationId, setLocationId] = useState<string | null>(null);
   const [locationCenter, setLocationCenter] = useState<[number, number] | null>(null);
@@ -198,8 +199,9 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
       if (scanDataCache.has(key)) return;
       const params = resolvedKw ? `?keywordId=${resolvedKw}` : "";
       void fetch(`/api/scans/${scanId}/status${params}`)
-        .then((res) => res.json())
-        .then((json: ScanViewData) => {
+        .then(async (res) => {
+          const json = await res.json();
+          if (!res.ok) return;
           scanDataCache.set(key, json);
         })
         .catch(() => undefined);
@@ -216,6 +218,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
       setCompareOpen(false);
       const cacheKey = scanCacheKey(nextScanId, resolvedKeywordId);
       const cached = scanDataCache.get(cacheKey);
+      const requestId = ++scanSwitchRequestRef.current;
       if (cached) {
         setData(cached);
         setTimelineFetching(false);
@@ -224,13 +227,21 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
         setData(null);
         const params = resolvedKeywordId ? `?keywordId=${resolvedKeywordId}` : "";
         void fetch(`/api/scans/${nextScanId}/status${params}`)
-          .then((res) => res.json())
-          .then((json: ScanViewData) => {
+          .then(async (res) => {
+            const json = await res.json();
+            if (requestId !== scanSwitchRequestRef.current) return;
+            if (!res.ok) {
+              setTimelineFetching(false);
+              return;
+            }
             scanDataCache.set(cacheKey, json);
             setData(json);
             setTimelineFetching(false);
           })
-          .catch(() => setTimelineFetching(false));
+          .catch(() => {
+            if (requestId !== scanSwitchRequestRef.current) return;
+            setTimelineFetching(false);
+          });
       }
       setActiveScanId(nextScanId);
       replaceGridUrl(nextScanId, nextKeywordId);

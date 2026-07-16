@@ -136,6 +136,7 @@ export function ReviewRequestsBulkWizard({
           headers,
           rows,
           mapping: mappings,
+          channel,
           duplicateProtectionDays: bypassRecentContact ? 0 : undefined,
         }),
       });
@@ -170,6 +171,7 @@ export function ReviewRequestsBulkWizard({
           headers,
           rows,
           mapping: mappings,
+          channel,
           duplicateProtectionDays: 0,
         }),
       });

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { httpStatusForAuthError, requireBusinessAccess } from "@/lib/auth/api-auth";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
+import { idempotencyTimeBucket, payloadIdKey } from "@/lib/queue/idempotency";
 
 export async function POST(request: Request) {
   try {
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
       },
       organizationId: auth.organizationId,
       businessId,
-      idempotencyKey: `keyword-volume:${businessId}:${Math.floor(Date.now() / 30_000)}`,
+      idempotencyKey: `keyword-volume:${businessId}:${payloadIdKey(keywordIds)}:${idempotencyTimeBucket()}`,
       priority: "normal",
       maxAttempts: 2,
     });
@@ -41,6 +42,6 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Volume refresh failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

@@ -98,6 +98,7 @@ export function MapsAuditWorkspace({ businessId }: { businessId: string }) {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const [wsRes, auditRes] = await Promise.all([
         fetch(`/api/workspace/${businessId}`),
@@ -226,6 +227,7 @@ export function MapsAuditWorkspace({ businessId }: { businessId: string }) {
 
   async function runFullAudit() {
     setAuditRunning(true);
+    setError(null);
     try {
       const res = await fetch("/api/growth-audit/run", {
         method: "POST",
@@ -249,7 +251,7 @@ export function MapsAuditWorkspace({ businessId }: { businessId: string }) {
     );
   }
 
-  if (error || !data) {
+  if (!data) {
     return <p className="text-red-600">{error ?? "No data"}</p>;
   }
 
@@ -269,6 +271,9 @@ export function MapsAuditWorkspace({ businessId }: { businessId: string }) {
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
+      {error ? (
+        <p className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{error}</p>
+      ) : null}
       <div className="flex flex-wrap items-center gap-3 border-b border-border bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="rounded-lg bg-surface-subtle px-3 py-1.5 text-sm dark:bg-zinc-900">
           <span className="text-text-muted">Keyword:</span> {data.keyword?.trim() || "—"}

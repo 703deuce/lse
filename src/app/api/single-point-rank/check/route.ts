@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { fetchMapsResults } from "@/lib/keyword-tracker/rank-check";
 import { extractTopCompetitors } from "@/lib/providers/dataforseo";
@@ -107,6 +107,6 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Rank check failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

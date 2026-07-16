@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { loadLatestBacklinkGapRun } from "@/lib/backlink-gap/engine";
 import { PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
+import { idempotencyTimeBucket, payloadIdKey } from "@/lib/queue/idempotency";
 
 export async function POST(request: Request) {
   let reserved = false;
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
       },
       organizationId: auth.organizationId,
       businessId,
-      idempotencyKey: `backlink-gap:${businessId}:${forceRefresh ? "force" : "n"}:${Math.floor(Date.now() / 30_000)}`,
+      idempotencyKey: `backlink-gap:${businessId}:${forceRefresh ? "force" : "n"}:${payloadIdKey(selectedCompetitorIds)}:${idempotencyTimeBucket()}`,
       priority: "normal",
       maxAttempts: 2,
     });
@@ -103,6 +104,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
     const message = err instanceof Error ? err.message : "Backlink gap analysis failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

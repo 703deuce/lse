@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
+import { idempotencyTimeBucket } from "@/lib/queue/idempotency";
 
 export async function POST(request: Request) {
   try {
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
       },
       organizationId: auth.organizationId,
       businessId,
-      idempotencyKey: `reputation-audit:${businessId}:${Math.floor(Date.now() / 30_000)}`,
+      idempotencyKey: `reputation-audit:${businessId}:${forceRefresh ? "f" : "n"}:${competitorLimit ?? "d"}:${lookbackDays ?? "d"}:${idempotencyTimeBucket()}`,
       priority: "normal",
       maxAttempts: 2,
     });
@@ -48,6 +49,6 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Reputation audit failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

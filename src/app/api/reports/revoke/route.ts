@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { revokeReportSchema } from "@/lib/validation/schemas";
 
@@ -38,10 +38,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, reportId: data.id });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Revoke failed";
-    const status =
-      message.includes("access denied") || message.includes("Authentication required")
-        ? 403
-        : 500;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

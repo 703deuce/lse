@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { getBacklinkGapAnalytics } from "@/lib/backlink-gap/engine";
 
 export async function GET(
@@ -14,6 +14,6 @@ export async function GET(
     return NextResponse.json(stats ?? {});
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load stats";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

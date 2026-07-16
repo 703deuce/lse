@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import {
   listBusinessContacts,
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
     }
     const message = err instanceof Error ? err.message : "Failed to list contacts";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }
 
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
     }
     const message = err instanceof Error ? err.message : "Failed to save contact";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err, 400) });
   }
 }
 
@@ -104,6 +104,7 @@ export async function PATCH(request: Request) {
     const result = await upsertBusinessContact({
       organizationId: auth.organizationId,
       businessId,
+      preferredContactId: contactId,
       firstName: body.firstName,
       lastName: body.lastName,
       customerName: body.customerName,
@@ -118,6 +119,6 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
     }
     const message = err instanceof Error ? err.message : "Failed to update contact";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err, 400) });
   }
 }

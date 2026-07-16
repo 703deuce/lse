@@ -163,11 +163,12 @@ export async function runGrowthAudit(params: {
     const { error: updateError } = await supabase
       .from("growth_audit_runs")
       .update({
-        status: "core_ready",
+        status: params.skipBackground ? "complete" : "core_ready",
         growth_score: overview.growthScore,
         sections_json: sections,
         growth_plan_json: growthPlan.tasks,
         progress_stage: params.skipBackground ? null : "Starting extended modules",
+        finished_at: params.skipBackground ? new Date().toISOString() : null,
       })
       .eq("id", runId);
 
@@ -209,7 +210,7 @@ export async function runGrowthAudit(params: {
 
     return {
       runId,
-      status: "core_ready",
+      status: params.skipBackground ? "complete" : "core_ready",
       growthScore: overview.growthScore,
       sections,
       growthPlan: growthPlan.tasks,
@@ -229,6 +230,17 @@ export async function runGrowthAudit(params: {
 
 export async function loadLatestGrowthAudit(businessId: string): Promise<GrowthAuditRunRow | null> {
   const supabase = createServiceClient();
+  // Prefer in-flight runs so a new audit is visible while older complete results exist.
+  const { data: active } = await supabase
+    .from("growth_audit_runs")
+    .select("*")
+    .eq("business_id", businessId)
+    .in("status", ["queued", "running", "core_ready", "extended_running"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (active) return active as GrowthAuditRunRow;
+
   // Prefer newest usable audit (has sections). A failed/blank latest must not hide prior good runs.
   const { data: usable } = await supabase
     .from("growth_audit_runs")
@@ -240,6 +252,18 @@ export async function loadLatestGrowthAudit(businessId: string): Promise<GrowthA
     .limit(1)
     .maybeSingle();
   if (usable) return usable as GrowthAuditRunRow;
+
+  // Failed run that still has core sections — better than hiding it entirely.
+  const { data: failedWithSections } = await supabase
+    .from("growth_audit_runs")
+    .select("*")
+    .eq("business_id", businessId)
+    .eq("status", "failed")
+    .not("sections_json", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (failedWithSections) return failedWithSections as GrowthAuditRunRow;
 
   const { data } = await supabase
     .from("growth_audit_runs")

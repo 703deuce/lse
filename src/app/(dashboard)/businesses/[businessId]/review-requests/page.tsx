@@ -1,6 +1,9 @@
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { ReviewRequestsDashboard } from "@/components/reputation/review-requests-dashboard";
+import { requireAuth } from "@/lib/auth/context";
+import { getBusiness } from "@/lib/db/queries";
+import { notFound } from "next/navigation";
 
 /** Review Requests kit (poster, templates, quick send, tracking). Campaigns are nested nav. */
 export default async function ReviewRequestsPage({
@@ -9,6 +12,9 @@ export default async function ReviewRequestsPage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
+  const auth = await requireAuth();
+  const business = await getBusiness(businessId, auth.organizationId);
+  if (!business) notFound();
 
   return (
     <Suspense

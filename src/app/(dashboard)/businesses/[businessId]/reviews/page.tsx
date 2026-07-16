@@ -1,6 +1,9 @@
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { ReviewsDashboard } from "@/components/reviews/reviews-dashboard";
+import { requireAuth } from "@/lib/auth/context";
+import { getBusiness } from "@/lib/db/queries";
+import { notFound } from "next/navigation";
 
 export default async function ReviewsPage({
   params,
@@ -8,6 +11,9 @@ export default async function ReviewsPage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
+  const auth = await requireAuth();
+  const business = await getBusiness(businessId, auth.organizationId);
+  if (!business) notFound();
 
   return (
     <Suspense

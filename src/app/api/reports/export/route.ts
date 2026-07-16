@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { appUrl } from "@/lib/app-url";
 import { generateTypedReport } from "@/lib/reporting/generate-report";
 import {
   competitorsToCsv,
@@ -102,7 +103,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       reportId: result.reportId,
       shareToken: result.shareToken,
-      shareUrl: `/reports/share/${result.shareToken}`,
+      shareUrl: appUrl(`/reports/share/${result.shareToken}`),
       reportType: result.payload.reportType,
     });
   } catch (err) {

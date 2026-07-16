@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { loadLatestReputationAudit } from "@/lib/reputation/engine";
 import { fallbackReputationTasks } from "@/lib/providers/deepseek/reputation";
 import { createServiceClient } from "@/lib/db/client";
@@ -51,6 +51,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ created: inserted?.length ?? 0, tasks: inserted });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to create tasks";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

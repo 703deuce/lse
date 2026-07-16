@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 
 export async function GET(
@@ -54,6 +54,6 @@ export async function GET(
     return NextResponse.json({ checks: data ?? [] });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load checks";
-    return NextResponse.json({ error: message }, { status: 403 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

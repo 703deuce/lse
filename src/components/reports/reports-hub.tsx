@@ -310,7 +310,12 @@ export function ReportsHub({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Export failed");
       if (gen !== requestGen.current) return;
-      setShareUrl(data.shareUrl);
+      const rawShareUrl = typeof data.shareUrl === "string" ? data.shareUrl : null;
+      const absoluteShareUrl =
+        rawShareUrl && rawShareUrl.startsWith("/")
+          ? `${window.location.origin}${rawShareUrl}`
+          : rawShareUrl;
+      setShareUrl(absoluteShareUrl);
       setReportId(data.reportId ?? null);
     } catch (err) {
       if (gen !== requestGen.current) return;

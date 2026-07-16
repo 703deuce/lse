@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import { sendReviewRequestSms } from "@/lib/reputation/review-sends";
 import { PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
@@ -62,14 +62,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
     const message = err instanceof Error ? err.message : "SMS send failed";
-    const status =
+    const status = httpStatusForAuthError(
+      err,
       message.includes("Review link missing") ||
-      message.includes("phone") ||
-      message.includes("opted out") ||
-      message.includes("access denied") ||
-      message.includes("not found")
+        message.includes("phone") ||
+        message.includes("opted out")
         ? 400
-        : 500;
+        : 500
+    );
     return NextResponse.json({ error: message }, { status });
   }
 }

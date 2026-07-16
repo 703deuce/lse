@@ -44,6 +44,15 @@ describe("idempotent job reuse", () => {
   });
 });
 
+describe("payloadIdKey", () => {
+  it("returns all for empty input and sorts ids", async () => {
+    const { payloadIdKey } = await import("@/lib/queue/idempotency");
+    assert.equal(payloadIdKey(), "all");
+    assert.equal(payloadIdKey([]), "all");
+    assert.equal(payloadIdKey(["b", "a"]), "a,b");
+  });
+});
+
 describe("job deferred error", () => {
   it("marks deferred errors distinctly from permanent failures", async () => {
     const { JobDeferredError, isDeferredError } = await import("@/lib/queue/errors");

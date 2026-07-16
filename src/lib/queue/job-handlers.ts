@@ -129,15 +129,24 @@ export async function executeJobType(
         const businessId = String(payload.businessId ?? "");
         const organizationId = String(payload.organizationId ?? "");
         if (!businessId || !organizationId) return permanent("keyword_check payload incomplete");
-        const { runKeywordChecks } = await import("@/lib/keyword-tracker/engine");
-        await runKeywordChecks({
-          businessId,
-          organizationId,
-          keywordIds: Array.isArray(payload.keywordIds)
-            ? (payload.keywordIds as string[])
-            : undefined,
-        });
-        return { ok: true };
+        try {
+          const { runKeywordChecks } = await import("@/lib/keyword-tracker/engine");
+          await runKeywordChecks({
+            businessId,
+            organizationId,
+            keywordIds: Array.isArray(payload.keywordIds)
+              ? (payload.keywordIds as string[])
+              : undefined,
+          });
+          // Success: reservedUsage already charged at enqueue time.
+          return { ok: true };
+        } catch (err) {
+          // Terminal handler failures release via processor when permanent;
+          // mark "No active keywords" as permanent so credits are refunded.
+          const message = err instanceof Error ? err.message : String(err);
+          if (/no active keywords/i.test(message)) return permanent(message);
+          throw err;
+        }
       }
       case "keyword_volume": {
         const businessId = String(payload.businessId ?? "");
@@ -219,8 +228,8 @@ export async function executeJobType(
         return { ok: true };
       }
       case "review_alert_scan": {
-        const limit = Number(payload.limit ?? 15);
-        await processNewReviewAlerts(Number.isFinite(limit) ? limit : 15);
+        const limit = Number(payload.limit ?? 100);
+        await processNewReviewAlerts(Number.isFinite(limit) ? limit : 100);
         return { ok: true };
       }
       case "local_trust_run": {

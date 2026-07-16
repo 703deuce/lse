@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import { createServiceClient } from "@/lib/db/client";
 import {
@@ -199,6 +199,6 @@ export async function PATCH(
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
     }
     const message = err instanceof Error ? err.message : "Failed to update endpoint";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

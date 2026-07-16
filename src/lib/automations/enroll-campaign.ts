@@ -139,6 +139,7 @@ export async function enrollContactInCampaign(params: {
     duplicateProtectionDays: Number(
       params.duplicateProtectionDays ?? campaign.duplicate_protection_days ?? 90
     ),
+    channel: (campaign.channel as "sms" | "email" | "both") ?? "both",
   });
   const row = validated[0]!;
   if (row.status !== "ready") {

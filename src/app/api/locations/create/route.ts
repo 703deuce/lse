@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessAccess, httpStatusForAuthError } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 
 const schema = z.object({
@@ -50,6 +50,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ location: row });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Create location failed";
-    return NextResponse.json({ error: message }, { status: 403 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

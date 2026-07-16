@@ -98,7 +98,14 @@ export async function ensurePrimaryPrompt(params: {
 
   const competitors = await loadCompetitorsForBusiness(params.businessId);
   if (existingPrimary) {
-    await supabase.from("ai_visibility_prompts").delete().eq("business_id", params.businessId);
+    await supabase
+      .from("ai_visibility_prompts")
+      .update({
+        is_primary: false,
+        status: "archived",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existingPrimary.id);
   }
 
   const primaryPromptText = buildPrimaryPrompt({
@@ -120,28 +127,39 @@ export async function ensurePrimaryPrompt(params: {
     engines: DEFAULT_ENGINES,
   });
 
-  const fallbackSuggested = fallbackSuggestedPrompts({
-    category: ctx.category,
-    city: ctx.city,
-    state: ctx.state,
-    services: ctx.services,
-  });
+  // Replace suggested rows when regenerating; on first create, seed suggestions.
+  if (params.regenerate || !existingPrimary) {
+    if (params.regenerate) {
+      await supabase
+        .from("ai_visibility_prompts")
+        .delete()
+        .eq("business_id", params.businessId)
+        .eq("status", "suggested");
+    }
 
-  const suggestedRows = fallbackSuggested.map((s) => ({
-    organization_id: params.organizationId,
-    business_id: params.businessId,
-    prompt_text: s.prompt,
-    status: "suggested",
-    is_primary: false,
-    category: s.category,
-    intent_type: s.intent_type,
-    opportunity_score: s.opportunity_score,
-    reason: s.reason,
-    engines: DEFAULT_ENGINES,
-  }));
+    const fallbackSuggested = fallbackSuggestedPrompts({
+      category: ctx.category,
+      city: ctx.city,
+      state: ctx.state,
+      services: ctx.services,
+    });
 
-  if (suggestedRows.length) {
-    await supabase.from("ai_visibility_prompts").insert(suggestedRows);
+    const suggestedRows = fallbackSuggested.map((s) => ({
+      organization_id: params.organizationId,
+      business_id: params.businessId,
+      prompt_text: s.prompt,
+      status: "suggested",
+      is_primary: false,
+      category: s.category,
+      intent_type: s.intent_type,
+      opportunity_score: s.opportunity_score,
+      reason: s.reason,
+      engines: DEFAULT_ENGINES,
+    }));
+
+    if (suggestedRows.length) {
+      await supabase.from("ai_visibility_prompts").insert(suggestedRows);
+    }
   }
 
   void enrichSuggestionsWithAi({
@@ -204,19 +222,28 @@ async function enrichSuggestionsWithAi(params: {
   );
 }
 
-export async function loadAiVisibilityData(businessId: string, selectedRunId?: string | null) {
+export async function loadAiVisibilityData(
+  businessId: string,
+  selectedRunId?: string | null,
+  options?: { includeArchived?: boolean }
+) {
   const supabase = createServiceClient();
   const ctx = await loadBusinessContext(businessId);
   const limits = getPlanLimits(ctx.plan);
 
+  let promptsQuery = supabase
+    .from("ai_visibility_prompts")
+    .select("*")
+    .eq("business_id", businessId);
+  if (!options?.includeArchived) {
+    promptsQuery = promptsQuery.neq("status", "archived");
+  }
+  promptsQuery = promptsQuery
+    .order("is_primary", { ascending: false })
+    .order("opportunity_score", { ascending: false });
+
   const [promptsRes, allRunsRes, activeCountRes] = await Promise.all([
-    supabase
-      .from("ai_visibility_prompts")
-      .select("*")
-      .eq("business_id", businessId)
-      .neq("status", "archived")
-      .order("is_primary", { ascending: false })
-      .order("opportunity_score", { ascending: false }),
+    promptsQuery,
     supabase
       .from("ai_visibility_runs")
       .select("*")

@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { httpStatusForAuthError, requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
-import { generateResponseDrafts, loadLatestReputationAudit } from "@/lib/reputation/engine";
+import {
+  generateBusinessReviewDrafts,
+  generateResponseDrafts,
+  loadLatestReputationAudit,
+} from "@/lib/reputation/engine";
 
 export async function POST(request: Request) {
   try {
@@ -13,25 +17,43 @@ export async function POST(request: Request) {
     }
 
     const auth = await requireBusinessAccess(businessId);
+    const supabase = createServiceClient();
+    const { data: business } = await supabase.from("businesses").select("name").eq("id", businessId).single();
+    const businessName = business?.name ?? "Business";
+
+    // Prefer business_reviews (Reviews feed) when IDs match those rows.
+    const { data: feedReviews } = await supabase
+      .from("business_reviews")
+      .select("id")
+      .eq("business_id", businessId)
+      .in("id", reviewIds);
+
+    if (feedReviews?.length) {
+      const drafts = await generateBusinessReviewDrafts({
+        businessId,
+        organizationId: auth.organizationId,
+        reviewIds: feedReviews.map((r) => r.id as string),
+        businessName,
+      });
+      return NextResponse.json({ drafts });
+    }
+
     const latest = await loadLatestReputationAudit(businessId);
     if (!latest?.audit) {
       return NextResponse.json({ error: "No reputation audit found" }, { status: 400 });
     }
-
-    const supabase = createServiceClient();
-    const { data: business } = await supabase.from("businesses").select("name").eq("id", businessId).single();
 
     const drafts = await generateResponseDrafts({
       auditId: latest.audit.id as string,
       businessId,
       organizationId: auth.organizationId,
       reviewRecordIds: reviewIds,
-      businessName: business?.name ?? "Business",
+      businessName,
     });
 
     return NextResponse.json({ drafts });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to generate responses";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: httpStatusForAuthError(err) });
   }
 }

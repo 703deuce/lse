@@ -165,6 +165,7 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
       notes: r.notes,
     })),
     duplicateProtectionDays: input.duplicateProtectionDays,
+    channel: input.channel,
   });
   // Preserve client skip reasons only when server also marks non-ready with a looser status.
   const recipients: ValidatedRecipient[] = validatedRecipients.map((v, i) => {
