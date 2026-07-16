@@ -29,9 +29,14 @@ export const WEBHOOK_PATHS = {
   twilioSms: "/api/webhooks/twilio/sms",
   brevoInbound: "/api/webhooks/brevo/inbound",
   brevoEvents: "/api/webhooks/brevo/events",
+  automation: "/api/webhooks/automation",
   jobsProcess: "/api/jobs/process",
   unsubscribe: "/api/reputation/unsubscribe",
 } as const;
+
+export function getAutomationWebhookUrl(): string {
+  return appUrl(WEBHOOK_PATHS.automation);
+}
 
 export function getTwilioSmsWebhookUrl(): string {
   return (
