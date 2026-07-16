@@ -184,20 +184,23 @@ export async function processCampaignMessages(limit = 20): Promise<number> {
         .select("id", { count: "exact", head: true })
         .eq("campaign_id", campaign.id)
         .in("workflow_status", ["waiting", "in_progress", "scheduled"]);
-      // Keep campaigns wired to Automatic Review Triggers alive for future enrollments.
+      // Keep automatic (webhook/api) campaigns alive for future enrollments even when empty.
+      const isAutomaticTrigger =
+        campaign.trigger_type === "webhook" || campaign.trigger_type === "api";
       const { count: triggerLinks } = await supabase
         .from("integration_webhook_endpoints")
         .select("id", { count: "exact", head: true })
         .or(`campaign_id.eq.${campaign.id},default_campaign_id.eq.${campaign.id}`)
         .eq("is_active", true)
         .is("revoked_at", null);
-      if (count === 0 && (waitingCount ?? 0) === 0 && (triggerLinks ?? 0) === 0) {
+      const keepAlive = isAutomaticTrigger || (triggerLinks ?? 0) > 0;
+      if (count === 0 && (waitingCount ?? 0) === 0 && !keepAlive) {
         await supabase
           .from("review_request_campaigns")
           .update({ status: "completed", completed_at: now.toISOString() })
           .eq("id", campaign.id)
           .in("status", ["active", "scheduled"]);
-      } else if (count === 0 && (waitingCount ?? 0) === 0 && (triggerLinks ?? 0) > 0) {
+      } else if (count === 0 && (waitingCount ?? 0) === 0 && keepAlive) {
         // Evergreen trigger target — stay active; still attribute recent reviews.
         await attributeRecentReviewsForBusiness({
           businessId: campaign.business_id,

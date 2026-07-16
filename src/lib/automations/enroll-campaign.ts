@@ -27,6 +27,8 @@ import {
   contactDisplayName,
   type AutomationContactInput,
 } from "@/lib/automations/contact-payload";
+import type { EnrollmentSource } from "@/lib/reputation/campaign-triggers";
+
 function defaultSmsBody(): string {
   return "Hi {{first_name}}, thanks for choosing {{business_name}}. Would you be willing to share your honest feedback on Google? {{review_link}} Reply STOP to opt out.";
 }
@@ -72,8 +74,9 @@ async function loadTemplate(
 }
 
 /**
- * Upsert a contact and enroll them into an existing active/scheduled campaign.
- * Idempotent when the same phone/email is already a ready recipient on that campaign.
+ * Shared campaign enrollment engine.
+ * Manual, CSV, webhook, API, and future Zapier/Make paths must call this.
+ * Idempotent on open recipient match and on source_event_id when provided.
  */
 export async function enrollContactInCampaign(params: {
   organizationId: string;
@@ -86,6 +89,16 @@ export async function enrollContactInCampaign(params: {
   delayMinutes?: number;
   /** Override campaign duplicate_protection_days when set (e.g. webhook endpoint). */
   duplicateProtectionDays?: number;
+  /** How this contact entered the campaign. */
+  enrollmentSource?: EnrollmentSource;
+  /** Webhook event id for idempotent retries. */
+  sourceEventId?: string | null;
+  /** Optional campaign run (manual launch wave). */
+  campaignRunId?: string | null;
+  /** When the source event occurred (defaults to now). */
+  occurredAt?: string | Date | null;
+  /** Allow enroll while campaign status is paused but enrollments not paused (manual add). */
+  allowWhilePaused?: boolean;
 }): Promise<{
   contactId: string;
   recipientId: string;
@@ -106,9 +119,49 @@ export async function enrollContactInCampaign(params: {
     .eq("organization_id", params.organizationId)
     .maybeSingle();
   if (!campaign) throw new Error("Campaign not found");
-  if (!["active", "scheduled"].includes(String(campaign.status))) {
-    throw new Error(`Campaign must be active or scheduled (currently ${campaign.status})`);
+
+  const status = String(campaign.status);
+  const enrollmentsPaused = Boolean(campaign.enrollments_paused);
+  if (enrollmentsPaused) {
+    return {
+      contactId: "",
+      recipientId: "",
+      messageIds: [],
+      alreadyEnrolled: false,
+      skipped: true,
+      skipReason: "New enrollments paused for this campaign",
+    };
   }
+
+  const statusOk =
+    ["active", "scheduled"].includes(status) ||
+    (params.allowWhilePaused && status === "paused");
+  if (!statusOk) {
+    throw new Error(`Campaign must be active or scheduled (currently ${status})`);
+  }
+
+  // Idempotent: same webhook/API event must not enroll twice.
+  if (params.sourceEventId) {
+    const { data: byEvent } = await supabase
+      .from("review_request_recipients")
+      .select("id, contact_id")
+      .eq("campaign_id", params.campaignId)
+      .eq("source_event_id", params.sourceEventId)
+      .maybeSingle();
+    if (byEvent) {
+      return {
+        contactId: String(byEvent.contact_id ?? ""),
+        recipientId: byEvent.id as string,
+        messageIds: [],
+        alreadyEnrolled: true,
+      };
+    }
+  }
+
+  const enrollmentSource: EnrollmentSource = params.enrollmentSource ?? "manual";
+  const occurredAtIso = params.occurredAt
+    ? new Date(params.occurredAt).toISOString()
+    : new Date().toISOString();
 
   const { id: contactId } = await upsertBusinessContact({
     organizationId: params.organizationId,
@@ -257,10 +310,37 @@ export async function enrollContactInCampaign(params: {
         workflow_status: startsWithWait ? "waiting" : "in_progress",
         current_step: 0,
         next_action_at: nextAt,
+        enrollment_source: enrollmentSource,
+        source_event_id: params.sourceEventId ?? null,
+        campaign_run_id: params.campaignRunId ?? null,
+        enrolled_at: now,
+        occurred_at: occurredAtIso,
       })
       .select("id, phone, email, first_name, last_name, full_name, job_type")
       .single();
-    if (recipErr) throw new Error(recipErr.message);
+    if (recipErr) {
+      // Unique source_event_id race → treat as already enrolled.
+      if (
+        params.sourceEventId &&
+        (recipErr.code === "23505" || /source_event/i.test(recipErr.message))
+      ) {
+        await releaseUsage(params.organizationId, "bulk_review_requests_used", 1).catch(
+          () => undefined
+        );
+        const { data: existingEv } = await supabase
+          .from("review_request_recipients")
+          .select("id, contact_id")
+          .eq("source_event_id", params.sourceEventId)
+          .maybeSingle();
+        return {
+          contactId: String(existingEv?.contact_id ?? contactId),
+          recipientId: String(existingEv?.id ?? ""),
+          messageIds: [],
+          alreadyEnrolled: true,
+        };
+      }
+      throw new Error(recipErr.message);
+    }
     recipientIdForRollback = recipient.id as string;
 
     if (startsWithWait) {

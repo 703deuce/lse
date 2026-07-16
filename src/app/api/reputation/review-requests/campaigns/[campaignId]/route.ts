@@ -82,6 +82,63 @@ export async function PATCH(
       return NextResponse.json({ campaign: { ...campaign, archived_at: new Date().toISOString() } });
     }
 
+    // Pause/resume new enrollments without stopping in-flight sending.
+    if (action === "pause_enrollments" || action === "resume_enrollments") {
+      const supabase = createServiceClient();
+      const { data: campaign, error } = await supabase
+        .from("review_request_campaigns")
+        .update({
+          enrollments_paused: action === "pause_enrollments",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", campaignId)
+        .eq("business_id", businessId)
+        .eq("organization_id", auth.organizationId)
+        .select("*")
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!campaign) return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+      return NextResponse.json({ campaign });
+    }
+
+    // Attach / update trigger config (e.g. link webhook after draft).
+    if (action === "set_trigger") {
+      const supabase = createServiceClient();
+      const triggerType = body.triggerType as string | undefined;
+      const triggerConfig = body.triggerConfig as Record<string, unknown> | undefined;
+      const webhookEndpointId = body.webhookEndpointId as string | null | undefined;
+      const { data: campaign, error } = await supabase
+        .from("review_request_campaigns")
+        .update({
+          ...(triggerType ? { trigger_type: triggerType } : {}),
+          ...(triggerConfig ? { trigger_config: triggerConfig } : {}),
+          ...(webhookEndpointId !== undefined
+            ? { webhook_endpoint_id: webhookEndpointId }
+            : {}),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", campaignId)
+        .eq("business_id", businessId)
+        .eq("organization_id", auth.organizationId)
+        .select("*")
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!campaign) return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+      if (webhookEndpointId && (triggerType === "webhook" || campaign.trigger_type === "webhook")) {
+        await supabase
+          .from("integration_webhook_endpoints")
+          .update({
+            campaign_id: campaignId,
+            default_campaign_id: campaignId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", webhookEndpointId)
+          .eq("business_id", businessId)
+          .eq("organization_id", auth.organizationId);
+      }
+      return NextResponse.json({ campaign });
+    }
+
     const statusMap: Record<string, CampaignStatus> = {
       pause: "paused",
       resume: "active",

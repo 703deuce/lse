@@ -28,6 +28,13 @@ import {
   renderStepMessage,
 } from "@/lib/reputation/campaign-message-copy";
 import type { CampaignSuccessMode } from "@/lib/reputation/campaign-templates";
+import {
+  normalizeTriggerType,
+  parseTriggerConfig,
+  type CampaignTriggerConfig,
+  type CampaignTriggerType,
+  type EnrollmentSource,
+} from "@/lib/reputation/campaign-triggers";
 import { buildUnsubscribeUrl } from "@/lib/reputation/unsubscribe";
 
 export type CampaignChannel = "sms" | "email" | "both";
@@ -68,6 +75,12 @@ export type CreateCampaignInput = {
   successMode?: CampaignSuccessMode;
   sourceTemplateId?: string | null;
   sourceTemplateVersion?: string | null;
+  /** How customers primarily enter this campaign. */
+  triggerType?: CampaignTriggerType;
+  triggerConfig?: CampaignTriggerConfig;
+  webhookEndpointId?: string | null;
+  /** Enrollment source stamped on recipients created in this launch. */
+  enrollmentSource?: EnrollmentSource;
 };
 
 function displayName(r: ValidatedRecipient): string {
@@ -222,6 +235,10 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
       success_mode: input.successMode ?? "click",
       source_template_id: input.sourceTemplateId ?? null,
       source_template_version: input.sourceTemplateVersion ?? null,
+      trigger_type: normalizeTriggerType(input.triggerType ?? "manual"),
+      trigger_config: parseTriggerConfig(input.triggerConfig ?? {}),
+      webhook_endpoint_id: input.webhookEndpointId ?? null,
+      enrollments_paused: false,
     })
     .select("*")
     .single();
@@ -250,6 +267,38 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
     .select("id")
     .single();
 
+  const enrollmentSource: EnrollmentSource =
+    input.enrollmentSource ??
+    (input.filename && input.filename !== "contacts.csv" && input.filename !== "template-draft.csv"
+      ? "csv"
+      : input.filename === "contacts.csv"
+        ? "contacts"
+        : "manual");
+
+  let campaignRunId: string | null = null;
+  if (ready.length > 0 || input.status !== "draft") {
+    const runStatus =
+      input.status === "draft" ? "draft" : input.status === "scheduled" ? "scheduled" : "running";
+    const { data: run } = await supabase
+      .from("review_campaign_runs")
+      .insert({
+        organization_id: input.organizationId,
+        business_id: input.businessId,
+        campaign_id: campaign.id,
+        source: enrollmentSource,
+        status: runStatus,
+        upload_id: upload?.id ?? null,
+        started_at: new Date().toISOString(),
+        recipient_count: recipients.length,
+        eligible_count: ready.length,
+        skipped_count: skipped,
+      })
+      .select("id")
+      .maybeSingle();
+    campaignRunId = (run?.id as string | undefined) ?? null;
+  }
+
+  const nowIso = new Date().toISOString();
   const recipientRows = recipients.map((r) => ({
     organization_id: input.organizationId,
     business_id: input.businessId,
@@ -268,7 +317,11 @@ export async function createReviewCampaign(input: CreateCampaignInput) {
     skip_reason: r.skip_reason ?? null,
     workflow_status: r.status === "ready" ? "scheduled" : "stopped",
     current_step: 0,
-    next_action_at: r.status === "ready" ? new Date().toISOString() : null,
+    next_action_at: r.status === "ready" ? nowIso : null,
+    enrollment_source: enrollmentSource,
+    campaign_run_id: campaignRunId,
+    enrolled_at: r.status === "ready" ? nowIso : null,
+    occurred_at: r.status === "ready" ? nowIso : null,
   }));
 
   let insertedRecipients: Array<{
@@ -1154,6 +1207,10 @@ export async function duplicateCampaign(campaignId: string, businessId: string, 
     successMode: (orig.success_mode as CampaignSuccessMode) ?? "click",
     sourceTemplateId: (orig.source_template_id as string | null) ?? null,
     sourceTemplateVersion: (orig.source_template_version as string | null) ?? null,
+    triggerType: normalizeTriggerType(orig.trigger_type),
+    triggerConfig: parseTriggerConfig(orig.trigger_config),
+    // Do not copy endpoint binding — user re-links after activate.
+    webhookEndpointId: null,
   });
 }
 

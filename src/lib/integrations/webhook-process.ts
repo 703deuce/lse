@@ -298,6 +298,9 @@ export async function processIntegrationWebhookEvent(eventId: string): Promise<P
       preferredContactId: existingContactId,
       delayMinutes: Number(endpoint.send_delay_minutes ?? 0),
       duplicateProtectionDays: Number(endpoint.duplicate_window_days ?? 90),
+      enrollmentSource: "webhook",
+      sourceEventId: eventId,
+      occurredAt: (claimed.occurred_at as string | null) ?? (claimed.created_at as string | null),
     });
 
     if (result.skipped) {

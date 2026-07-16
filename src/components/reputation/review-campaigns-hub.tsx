@@ -8,8 +8,7 @@ import { ModulePage } from "@/components/ui/design-system";
 import { PageHeader } from "@/components/ui/page-header";
 import { ReviewRequestsCampaignsTable } from "@/components/reputation/review-requests-campaigns";
 import { ReviewRequestsPanel } from "@/components/reputation/review-requests-panel";
-import { CampaignBuilder } from "@/components/reputation/campaign-builder";
-import { CampaignTemplateGallery } from "@/components/reputation/campaign-template-gallery";
+import { CampaignCreateWizard } from "@/components/reputation/campaign-create-wizard";
 import { cn } from "@/lib/utils";
 
 type CampaignSummary = {
@@ -20,6 +19,7 @@ type CampaignSummary = {
   clicked: number;
   opted_out: number;
   reviews_detected?: number | null;
+  trigger_type?: string;
 };
 
 function MicroStat({ label, value }: { label: string; value: string }) {
@@ -35,9 +35,8 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
   const router = useRouter();
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showBuilder, setShowBuilder] = useState(false);
-  const [showGallery, setShowGallery] = useState(true);
-  const [builderTab, setBuilderTab] = useState<"bulk" | "send">("bulk");
+  const [showWizard, setShowWizard] = useState(false);
+  const [showQuickSend, setShowQuickSend] = useState(false);
   const [tableRefreshKey, setTableRefreshKey] = useState(0);
 
   const load = useCallback(async () => {
@@ -65,7 +64,9 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
     const clickRate = delivered > 0 ? Math.round((clicked / delivered) * 100) : 0;
     const optRate = sent > 0 ? Math.round((opted / sent) * 100) : 0;
     const reviews = campaigns.reduce((n, c) => n + (c.reviews_detected ?? 0), 0);
-    return { active, sent, deliveryRate, clickRate, optRate, reviews };
+    const automatic = campaigns.filter((c) => c.trigger_type === "webhook" || c.trigger_type === "api")
+      .length;
+    return { active, sent, deliveryRate, clickRate, optRate, reviews, automatic };
   }, [campaigns]);
 
   return (
@@ -73,30 +74,29 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <PageHeader
           title="Review Campaigns"
-          subtitle="Request honest reviews by SMS and email. Tracking shows delivery and clicks — not guaranteed review attribution."
+          subtitle="Choose how customers enter — manually or via webhook — then run one shared sequence engine."
         />
         <div className="flex w-full flex-wrap gap-1.5 sm:w-auto">
           <button
             type="button"
             onClick={() => {
-              setShowGallery(true);
-              setShowBuilder(false);
+              setShowWizard(true);
+              setShowQuickSend(false);
             }}
             className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-emerald-500 sm:flex-none"
           >
             <Plus className="h-3.5 w-3.5" />
-            New from template
+            New campaign
           </button>
           <button
             type="button"
             onClick={() => {
-              setBuilderTab("bulk");
-              setShowGallery(false);
-              setShowBuilder(true);
+              setShowQuickSend(true);
+              setShowWizard(false);
             }}
             className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50 sm:flex-none"
           >
-            Custom campaign
+            Quick Send
           </button>
           <Link
             href={`/businesses/${businessId}/contacts?import=1`}
@@ -130,94 +130,51 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
         ) : (
           <>
             <MicroStat label="Active campaigns" value={String(stats.active)} />
+            <MicroStat label="Automatic triggers" value={String(stats.automatic)} />
             <MicroStat label="Requests sent" value={String(stats.sent)} />
             <MicroStat label="Delivery rate" value={`${stats.deliveryRate}%`} />
             <MicroStat label="Click rate" value={`${stats.clickRate}%`} />
-            <MicroStat label="Opt-out rate" value={`${stats.optRate}%`} />
             <MicroStat label="Likely/confirmed reviews" value={String(stats.reviews)} />
           </>
         )}
       </div>
 
-      {showGallery && !showBuilder ? (
+      {showWizard ? (
         <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-3">
-          <CampaignTemplateGallery
+          <CampaignCreateWizard
             businessId={businessId}
-            onCustom={() => {
-              setShowGallery(false);
-              setBuilderTab("bulk");
-              setShowBuilder(true);
-            }}
-            onUsed={(campaignId) => {
-              setShowGallery(false);
+            onCancel={() => setShowWizard(false)}
+            onComplete={(campaignId) => {
+              setShowWizard(false);
               setTableRefreshKey((k) => k + 1);
               void load();
-              router.push(`/businesses/${businessId}/review-campaigns/${campaignId}`);
+              if (campaignId) {
+                router.push(`/businesses/${businessId}/review-campaigns/${campaignId}`);
+              }
             }}
           />
+        </div>
+      ) : null}
+
+      {showQuickSend ? (
+        <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[13px] font-semibold text-zinc-900">Quick Send</p>
+            <button
+              type="button"
+              onClick={() => setShowQuickSend(false)}
+              className={cn("text-[12px] font-medium text-zinc-500 hover:text-zinc-800")}
+            >
+              Close
+            </button>
+          </div>
+          <ReviewRequestsPanel businessId={businessId} section="send" hideSubTabs />
         </div>
       ) : null}
 
       <div className="mt-4">
         <ReviewRequestsCampaignsTable businessId={businessId} refreshKey={tableRefreshKey} />
       </div>
-
-      {showBuilder && (
-        <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-3">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <div>
-              <p className="text-[13px] font-semibold text-zinc-900">Campaign builder</p>
-              <p className="text-[11px] text-zinc-500">
-                Details → audience → channel → sequence → content → launch confirmation.
-              </p>
-            </div>
-            <div className="flex gap-1">
-              {(
-                [
-                  ["bulk", "Campaign"],
-                  ["send", "Quick Send"],
-                ] as const
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setBuilderTab(id)}
-                  className={cn(
-                    "rounded-md px-2.5 py-1 text-[12px] font-medium",
-                    builderTab === id
-                      ? "bg-emerald-50 text-emerald-800"
-                      : "text-zinc-600 hover:bg-zinc-50"
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowBuilder(false);
-                  void load();
-                }}
-                className="text-[12px] font-medium text-zinc-500 hover:text-zinc-800"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-          {builderTab === "bulk" ? (
-            <CampaignBuilder
-              businessId={businessId}
-              onComplete={() => {
-                setShowBuilder(false);
-                setTableRefreshKey((k) => k + 1);
-                void load();
-              }}
-            />
-          ) : (
-            <ReviewRequestsPanel businessId={businessId} section="send" hideSubTabs />
-          )}
-        </div>
-      )}
     </ModulePage>
   );
 }

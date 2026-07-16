@@ -7,6 +7,11 @@ import type {
   CampaignTemplateDefinition,
   CampaignTemplateFilter,
 } from "@/lib/reputation/campaign-templates";
+import {
+  recommendedTemplateIdsForTrigger,
+  type CampaignTriggerConfig,
+  type CampaignTriggerType,
+} from "@/lib/reputation/campaign-triggers";
 
 const FILTER_CHIPS: Array<{ id: CampaignTemplateFilter | "all"; label: string }> = [
   { id: "all", label: "All" },
@@ -38,10 +43,16 @@ export function CampaignTemplateGallery({
   businessId,
   onUsed,
   onCustom,
+  triggerType = "manual",
+  triggerConfig,
+  webhookEndpointId,
 }: {
   businessId: string;
   onUsed?: (campaignId: string) => void;
   onCustom?: () => void;
+  triggerType?: CampaignTriggerType;
+  triggerConfig?: CampaignTriggerConfig;
+  webhookEndpointId?: string | null;
 }) {
   const [templates, setTemplates] = useState<CampaignTemplateDefinition[]>([]);
   const [featuredId, setFeaturedId] = useState<string | null>(null);
@@ -50,6 +61,12 @@ export function CampaignTemplateGallery({
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+
+  const recommendedIds = useMemo(
+    () => recommendedTemplateIdsForTrigger(triggerType),
+    [triggerType]
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,9 +89,18 @@ export function CampaignTemplateGallery({
   }, [load]);
 
   const visible = useMemo(() => {
-    if (filter === "all") return templates;
-    return templates.filter((t) => t.filters.includes(filter));
-  }, [templates, filter]);
+    let list = templates;
+    if (!showAll && recommendedIds.length) {
+      const preferred = recommendedIds
+        .map((id) => list.find((t) => t.id === id))
+        .filter(Boolean) as CampaignTemplateDefinition[];
+      const rest = list.filter((t) => !recommendedIds.includes(t.id));
+      list = [...preferred, ...rest];
+      // Default view: recommended first; still show all unless filter set
+    }
+    if (filter === "all") return list;
+    return list.filter((t) => t.filters.includes(filter));
+  }, [templates, filter, showAll, recommendedIds]);
 
   const preview = previewId ? templates.find((t) => t.id === previewId) : null;
 
@@ -85,7 +111,12 @@ export function CampaignTemplateGallery({
       const res = await fetch(`/api/reputation/campaign-templates/${templateId}/use`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId }),
+        body: JSON.stringify({
+          businessId,
+          triggerType,
+          triggerConfig,
+          webhookEndpointId: webhookEndpointId ?? null,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Could not create draft");
@@ -105,18 +136,31 @@ export function CampaignTemplateGallery({
           <p className="text-[13px] font-semibold text-zinc-900">Campaign templates</p>
           <p className="text-[11px] text-zinc-500">
             Start from a proven short sequence. Copies into an editable draft — system templates never
-            change under you.
+            change under you. Recommended for{" "}
+            <span className="font-medium text-zinc-700">
+              {triggerType === "webhook" ? "automatic / webhook" : "manual / CSV"}
+            </span>{" "}
+            triggers first.
           </p>
         </div>
-        {onCustom ? (
+        <div className="flex gap-1.5">
           <button
             type="button"
-            onClick={onCustom}
+            onClick={() => setShowAll((v) => !v)}
             className="rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
           >
-            Build custom
+            {showAll ? "Show recommended first" : "Browse all"}
           </button>
-        ) : null}
+          {onCustom ? (
+            <button
+              type="button"
+              onClick={onCustom}
+              className="rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              Build custom
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-1">
@@ -161,6 +205,11 @@ export function CampaignTemplateGallery({
                     {featured ? (
                       <span className="inline-flex items-center gap-0.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
                         <Sparkles className="h-3 w-3" /> Featured
+                      </span>
+                    ) : null}
+                    {recommendedIds.includes(t.id) ? (
+                      <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800">
+                        Recommended
                       </span>
                     ) : null}
                     {channelChips(t).map((c) => (

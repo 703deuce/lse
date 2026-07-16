@@ -2,10 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Pause, Play, X } from "lucide-react";
+import { ArrowLeft, Loader2, Pause, Play, UserPlus, Webhook, X } from "lucide-react";
 import { ModulePage } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
 import { attributionDisplayLabel, type AttributionLevel } from "@/lib/reputation/contacts-normalize";
+import {
+  parseTriggerConfig,
+  triggerLabel,
+  triggerTimelineLabel,
+  type CampaignTriggerType,
+} from "@/lib/reputation/campaign-triggers";
 
 type Metrics = {
   queued: number;
@@ -78,6 +84,15 @@ export function CampaignDetailClient({
   const [drawerId, setDrawerId] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<Record<string, unknown> | null>(null);
   const [drawerLoading, setDrawerLoading] = useState(false);
+  const [showEnroll, setShowEnroll] = useState(false);
+  const [enrollBusy, setEnrollBusy] = useState(false);
+  const [enrollForm, setEnrollForm] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+  });
+  const [enrollResult, setEnrollResult] = useState<string | null>(null);
 
   const load = useCallback(
     async (opts?: { append?: boolean; cursor?: string | null; status?: string }) => {
@@ -146,9 +161,64 @@ export function CampaignDetailClient({
     await load();
   }
 
+  async function enrollManual() {
+    setEnrollBusy(true);
+    setEnrollResult(null);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/reputation/review-requests/campaigns/${campaignId}/enroll`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            businessId,
+            firstName: enrollForm.firstName || undefined,
+            lastName: enrollForm.lastName || undefined,
+            phone: enrollForm.phone || undefined,
+            email: enrollForm.email || undefined,
+          }),
+        }
+      );
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof json.error === "string" ? json.error : "Enroll failed");
+      if (json.skipped) {
+        setEnrollResult(`Skipped: ${json.skipReason ?? "not eligible"}`);
+      } else if (json.alreadyEnrolled) {
+        setEnrollResult("Already enrolled (duplicate protection).");
+      } else {
+        setEnrollResult("Enrolled — first step scheduled.");
+        setEnrollForm({ firstName: "", lastName: "", phone: "", email: "" });
+        await load();
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Enroll failed");
+    } finally {
+      setEnrollBusy(false);
+    }
+  }
+
   const status = String(campaign?.status ?? "");
   const name = String(campaign?.name ?? "Campaign");
   const autoPause = campaign?.auto_pause_reason ? String(campaign.auto_pause_reason) : null;
+  const triggerType = (String(campaign?.trigger_type ?? "manual") || "manual") as CampaignTriggerType;
+  const triggerConfig = parseTriggerConfig(campaign?.trigger_config);
+  const enrollmentsPaused = Boolean(campaign?.enrollments_paused);
+  const isAutomatic = triggerType === "webhook" || triggerType === "api";
+  const sequenceJson = Array.isArray(campaign?.sequence_json)
+    ? (campaign?.sequence_json as Array<{ step_key?: string; step_type?: string }>)
+    : [];
+  const timelineBits = [
+    triggerTimelineLabel(triggerType, triggerConfig),
+    ...sequenceJson.map((s) => {
+      if (s.step_type === "wait") return "Wait";
+      if (s.step_type === "send_sms") return "SMS";
+      if (s.step_type === "send_email") return "Email";
+      if (s.step_type === "condition") return "Check";
+      if (s.step_type === "end") return "End";
+      return s.step_key || "Step";
+    }),
+  ];
 
   return (
     <ModulePage>
@@ -164,17 +234,60 @@ export function CampaignDetailClient({
           <h1 className="mt-1 text-xl font-bold tracking-tight text-zinc-900">{name}</h1>
           <p className="mt-0.5 text-[13px] text-zinc-600">
             Status: <span className="font-medium capitalize text-zinc-800">{status || "—"}</span>
-            {autoPause ? ` · Paused: ${autoPause}` : ""}
+            {enrollmentsPaused ? " · New enrollments paused" : ""}
+            {autoPause ? ` · Sending paused: ${autoPause}` : ""}
+          </p>
+          <p className="mt-1 inline-flex items-center gap-1.5 text-[12px] font-medium text-zinc-700">
+            {isAutomatic ? <Webhook className="h-3.5 w-3.5 text-emerald-600" /> : <UserPlus className="h-3.5 w-3.5 text-emerald-600" />}
+            Trigger: {triggerLabel(triggerType, triggerConfig)}
+          </p>
+          <p
+            className="mt-1 max-w-2xl truncate text-[10px] text-zinc-500"
+            title={timelineBits.join(" → ")}
+          >
+            {timelineBits.join(" → ")}
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
+          {isAutomatic && (
+            <Link
+              href={`/businesses/${businessId}/integrations`}
+              className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium"
+            >
+              <Webhook className="h-3.5 w-3.5" /> View integration
+            </Link>
+          )}
+          {(status === "active" || status === "scheduled") &&
+            (triggerConfig.allowManualEnrollment !== false) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEnroll(true);
+                  setEnrollResult(null);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium"
+              >
+                <UserPlus className="h-3.5 w-3.5" /> Add contact
+              </button>
+            )}
+          {status === "active" && (
+            <button
+              type="button"
+              onClick={() =>
+                void action(enrollmentsPaused ? "resume_enrollments" : "pause_enrollments")
+              }
+              className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium"
+            >
+              {enrollmentsPaused ? "Resume enrollments" : "Pause new enrollments"}
+            </button>
+          )}
           {status === "active" && (
             <button
               type="button"
               onClick={() => void action("pause")}
               className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium"
             >
-              <Pause className="h-3.5 w-3.5" /> Pause
+              <Pause className="h-3.5 w-3.5" /> Pause all sending
             </button>
           )}
           {(status === "paused" || status === "draft") && (
@@ -183,7 +296,7 @@ export function CampaignDetailClient({
               onClick={() => void action(status === "draft" ? "start" : "resume")}
               className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white"
             >
-              <Play className="h-3.5 w-3.5" /> {status === "draft" ? "Start" : "Resume"}
+              <Play className="h-3.5 w-3.5" /> {status === "draft" ? "Activate / Launch" : "Resume sending"}
             </button>
           )}
           {!["completed", "cancelled", "archived"].includes(status) && (
@@ -197,6 +310,14 @@ export function CampaignDetailClient({
           )}
         </div>
       </div>
+
+      {isAutomatic ? (
+        <p className="mt-2 rounded-md border border-sky-100 bg-sky-50 px-2.5 py-1.5 text-[11px] text-sky-900">
+          Automatic campaigns stay <strong>active</strong> after current recipients finish so new webhook
+          events can keep enrolling. Use “Pause new enrollments” to stop intake without cancelling
+          in-flight sequences.
+        </p>
+      ) : null}
 
       {error && <p className="mt-2 text-[12px] text-red-600">{error}</p>}
 
@@ -366,6 +487,71 @@ export function CampaignDetailClient({
           </ul>
         </div>
       </div>
+
+      {showEnroll && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-md rounded-lg border border-zinc-200 bg-white p-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[14px] font-semibold text-zinc-900">Add contact manually</h2>
+              <button
+                type="button"
+                className="text-[12px] text-zinc-500"
+                onClick={() => setShowEnroll(false)}
+              >
+                Close
+              </button>
+            </div>
+            <p className="mt-1 text-[11px] text-zinc-500">
+              Uses the same enrollment engine as CSV and webhooks (consent, suppression, cooldown,
+              duplicates).
+            </p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {(
+                [
+                  ["firstName", "First name"],
+                  ["lastName", "Last name"],
+                  ["phone", "Phone"],
+                  ["email", "Email"],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key} className="block text-[12px] font-medium text-zinc-700">
+                  {label}
+                  <input
+                    className="mt-1 w-full rounded-md border border-zinc-200 px-2 py-1.5 text-[13px]"
+                    value={enrollForm[key]}
+                    onChange={(e) =>
+                      setEnrollForm((f) => ({ ...f, [key]: e.target.value }))
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+            {enrollResult ? (
+              <p className="mt-2 text-[12px] text-emerald-700">{enrollResult}</p>
+            ) : null}
+            <div className="mt-3 flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-[12px]"
+                onClick={() => setShowEnroll(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={
+                  enrollBusy || (!enrollForm.phone.trim() && !enrollForm.email.trim())
+                }
+                onClick={() => void enrollManual()}
+                className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
+              >
+                {enrollBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                Enroll
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {drawerId && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/20">
