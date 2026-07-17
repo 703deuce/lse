@@ -1177,7 +1177,7 @@ export async function runGridCellsLive(params: {
   let remainingJobs = failedFromPrimary;
   let failedCells = remainingJobs.length;
 
-  // ---- Multi-provider recovery (Bright Data → DataForSEO → ScrapingDog) ----
+  // ---- Multi-provider recovery (Bright Data → ScrapingDog → DataForSEO) ----
   if (remainingJobs.length > 0) {
     const primaryOutcomes = allTimings.map((t) => ({
       success: t.success,
@@ -1403,9 +1403,9 @@ export async function runGridCellsLive(params: {
             : "")
       );
       const stage =
-        secondaryPlan.usable[0] === "scrapingdog"
-          ? ("fallback_scrapingdog" as const)
-          : ("fallback_dataforseo" as const);
+        secondaryPlan.usable[0] === "dataforseo"
+          ? ("fallback_dataforseo" as const)
+          : ("fallback_scrapingdog" as const);
       await scheduleCellProgress(
         params.scanBatchId,
         completedOffset,

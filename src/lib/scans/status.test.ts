@@ -51,7 +51,7 @@ describe("scan map ready / retry pin settle", () => {
       cells_total: 49,
       confidence_summary: {
         pass: "fallback-secondary",
-        recovery_stage: "fallback_dataforseo",
+        recovery_stage: "fallback_scrapingdog",
       },
     };
     assert.equal(isScanMapReady(batch, 33, 49), false);

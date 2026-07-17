@@ -236,29 +236,30 @@ export function scanProgressMessage(batch: {
     if (stage === "testing_provider_recovery") {
       return "Testing provider recovery…";
     }
-    if (stage === "fallback_dataforseo") {
-      return total > 0
-        ? `Completing unresolved points with DataForSEO… ${completed} / ${total}`
-        : "Completing unresolved points with DataForSEO…";
-    }
     if (stage === "fallback_scrapingdog") {
       return total > 0
         ? `Completing remaining points with ScrapingDog… ${completed} / ${total}`
         : "Completing remaining points with ScrapingDog…";
     }
+    if (stage === "fallback_dataforseo") {
+      return total > 0
+        ? `Completing unresolved points with DataForSEO… ${completed} / ${total}`
+        : "Completing unresolved points with DataForSEO…";
+    }
     if (pass === "fallback-secondary" || conf.secondary_fallback_attempted) {
       const ready = Array.isArray(conf.fallback_ready_providers)
         ? (conf.fallback_ready_providers as string[])
         : [];
-      if (ready.includes("dataforseo") || stage === "fallback_dataforseo") {
-        return total > 0
-          ? `Completing unresolved points with DataForSEO… ${completed} / ${total}`
-          : "Completing unresolved points with DataForSEO…";
-      }
+      // Prefer first-in-chain messaging (ScrapingDog → DataForSEO).
       if (ready.includes("scrapingdog") || stage === "fallback_scrapingdog") {
         return total > 0
           ? `Completing remaining points with ScrapingDog… ${completed} / ${total}`
           : "Completing remaining points with ScrapingDog…";
+      }
+      if (ready.includes("dataforseo") || stage === "fallback_dataforseo") {
+        return total > 0
+          ? `Completing unresolved points with DataForSEO… ${completed} / ${total}`
+          : "Completing unresolved points with DataForSEO…";
       }
       return total > 0
         ? `Trying backup Maps providers… ${completed} / ${total}`

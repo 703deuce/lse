@@ -152,7 +152,7 @@ export async function resolveUsableMapsProviders(
 }
 
 export function logMapsProviderAvailability(context: string): void {
-  for (const provider of ["brightdata", "dataforseo", "scrapingdog"] as MapsProviderId[]) {
+  for (const provider of ["brightdata", "scrapingdog", "dataforseo"] as MapsProviderId[]) {
     const a = describeMapsProviderAvailability(provider);
     if (a.enabled) {
       console.log(`[MapsProviders] ${context} ${provider}=ready`);
@@ -348,10 +348,11 @@ export function brightDataOnlyProviders(): MapsProviderId[] {
 
 /** Secondary fallbacks after Bright Data is exhausted or circuit-open. */
 export function secondaryFallbackProviders(): MapsProviderId[] {
-  return ["dataforseo", "scrapingdog"];
+  // ScrapingDog first (fast Maps GET), DataForSEO second.
+  return ["scrapingdog", "dataforseo"];
 }
 
 /** Full chain when a cell should try everything remaining. */
 export function fullFallbackProviders(): MapsProviderId[] {
-  return ["brightdata", "dataforseo", "scrapingdog"];
+  return ["brightdata", "scrapingdog", "dataforseo"];
 }

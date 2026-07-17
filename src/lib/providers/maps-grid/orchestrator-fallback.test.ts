@@ -44,7 +44,7 @@ describe("fetchMapsCell secondary attempt records", () => {
     }
   });
 
-  it("records DataForSEO + ScrapingDog attempts even when credentials are missing", async () => {
+  it("records ScrapingDog + DataForSEO attempts even when credentials are missing", async () => {
     const result = await fetchMapsCell({
       keyword: "plumber",
       lat: 30.27,
@@ -53,7 +53,7 @@ describe("fetchMapsCell secondary attempt records", () => {
       os: "android",
       browser: "chrome",
       depth: 20,
-      providers: ["dataforseo", "scrapingdog"],
+      providers: ["scrapingdog", "dataforseo"],
       gridLabel: "A1",
     });
 
@@ -61,8 +61,15 @@ describe("fetchMapsCell secondary attempt records", () => {
     assert.equal(result.attempts.length, 2);
     assert.deepEqual(
       result.attempts.map((a) => a.provider),
-      ["dataforseo", "scrapingdog"]
+      ["scrapingdog", "dataforseo"]
     );
     assert.ok(result.attempts.every((a) => a.category === "provider_unavailable"));
+  });
+});
+
+describe("secondaryFallbackProviders order", () => {
+  it("tries ScrapingDog before DataForSEO after Bright Data", async () => {
+    const { secondaryFallbackProviders } = await import("@/lib/providers/maps-grid/orchestrator");
+    assert.deepEqual(secondaryFallbackProviders(), ["scrapingdog", "dataforseo"]);
   });
 });
