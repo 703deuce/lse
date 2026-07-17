@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { httpErrorFromException } from "@/lib/security/http-errors";
 import { cancelJob, getJobStatus, retryJob } from "@/lib/queue";
 import { reconcileCompletedMapsJobScanMismatch } from "@/lib/jobs/queue";
+import { requestAuditMeta, writeSecurityAuditEvent } from "@/lib/security/audit-log";
 
 export async function GET(
   _request: Request,
@@ -32,12 +33,32 @@ export async function POST(
     if (action === "cancel") {
       const ok = await cancelJob(id);
       if (!ok) return NextResponse.json({ error: "Job not cancelable" }, { status: 409 });
+      await writeSecurityAuditEvent({
+        action: "admin.job_action",
+        organizationId: auth.organizationId,
+        actorUserId: auth.userId,
+        actorEmail: auth.email,
+        resourceType: "job_queue",
+        resourceId: id,
+        meta: { action: "cancel" },
+        ...requestAuditMeta(request),
+      });
       return NextResponse.json({ ok: true, action: "cancel" });
     }
 
     if (action === "retry") {
       const ok = await retryJob(id);
       if (!ok) return NextResponse.json({ error: "Job not retryable" }, { status: 409 });
+      await writeSecurityAuditEvent({
+        action: "admin.job_action",
+        organizationId: auth.organizationId,
+        actorUserId: auth.userId,
+        actorEmail: auth.email,
+        resourceType: "job_queue",
+        resourceId: id,
+        meta: { action: "retry" },
+        ...requestAuditMeta(request),
+      });
       return NextResponse.json({ ok: true, action: "retry" });
     }
 

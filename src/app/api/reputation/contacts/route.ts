@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { httpErrorFromException } from "@/lib/security/http-errors";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import {
@@ -16,6 +17,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "businessId required" }, { status: 400 });
     }
     const auth = await requireBusinessAccess(businessId);
+    await requireOrganizationPermission("contacts.export", auth.organizationId);
     await requireEntitlement(auth.organizationId, "review_campaigns");
     const cursor = url.searchParams.get("cursor");
     const q = url.searchParams.get("q") ?? undefined;

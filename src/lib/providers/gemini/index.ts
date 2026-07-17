@@ -1,4 +1,5 @@
 import { logProviderRun } from "@/lib/providers/dataforseo";
+import { wrapUntrustedContext } from "@/lib/security/prompt-guard";
 
 export interface GroundedResearchResult {
   answer: string;
@@ -22,7 +23,7 @@ export async function groundedResearch(params: {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: params.question }] }],
+        contents: [{ parts: [{ text: wrapUntrustedContext("RESEARCH_QUESTION", params.question) }] }],
         tools: [{ googleSearch: {} }],
       }),
     });

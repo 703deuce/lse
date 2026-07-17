@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { httpErrorFromException } from "@/lib/security/http-errors";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
+import { requireRecentAuth } from "@/lib/auth/reauth";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
-import { EntitlementError, requireCampaignSendAccess } from "@/lib/auth/entitlements";
+import { requireCampaignSendAccess } from "@/lib/auth/entitlements";
 import { enrollContactInCampaign } from "@/lib/automations/enroll-campaign";
 import { createServiceClient } from "@/lib/db/client";
 import { parseTriggerConfig } from "@/lib/reputation/campaign-triggers";
-import { PlanLimitError } from "@/lib/plans";
+import { requestAuditMeta, writeSecurityAuditEvent } from "@/lib/security/audit-log";
 
 /**
  * Manually enroll one contact into a campaign (works for manual and webhook campaigns).
@@ -24,6 +26,8 @@ export async function POST(
     }
 
     const auth = await requireBusinessAccess(businessId);
+    const permAuth = await requireOrganizationPermission("campaign.send", auth.organizationId);
+    await requireRecentAuth();
     await requireCampaignSendAccess(auth.organizationId);
 
     const supabase = createServiceClient();
@@ -67,17 +71,20 @@ export async function POST(
       allowWhilePaused: false,
     });
 
+    const auditMeta = requestAuditMeta(request);
+    await writeSecurityAuditEvent({
+      action: "campaign.send",
+      organizationId: auth.organizationId,
+      actorUserId: permAuth.userId,
+      actorEmail: permAuth.email,
+      resourceType: "review_request_campaign",
+      resourceId: campaignId,
+      meta: { enrollmentSource: "manual", contactId: result.contactId ?? null },
+      ...auditMeta,
+    });
+
     return NextResponse.json(result);
   } catch (err) {
-    if (err instanceof EntitlementError) {
-      return NextResponse.json(
-        { error: err.message, entitlement: err.entitlement },
-        { status: 403 }
-      );
-    }
-    if (err instanceof PlanLimitError) {
-      return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
-    }
     return httpErrorFromException(err, "Enrollment failed");
   }
 }

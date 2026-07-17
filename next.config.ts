@@ -19,7 +19,8 @@ const securityHeaders = [
       "form-action 'self'",
       "object-src 'none'",
       // Next.js + inline styles used across the app; tighten later with nonces.
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com https://maps.gstatic.com",
+      // unsafe-eval removed — re-add only if a runtime dependency requires eval().
+      "script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://maps.gstatic.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data: https://fonts.gstatic.com",

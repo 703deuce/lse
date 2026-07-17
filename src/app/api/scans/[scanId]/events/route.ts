@@ -19,9 +19,9 @@ export async function GET(
   try {
     await requireScanAccess(scanId);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Access denied";
-    return new Response(JSON.stringify({ error: message }), {
-      status: 403,
+    const res = httpErrorFromException(err, "Access denied");
+    return new Response(await res.text(), {
+      status: res.status,
       headers: { "Content-Type": "application/json" },
     });
   }

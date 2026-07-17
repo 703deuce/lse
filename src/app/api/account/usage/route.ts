@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { httpErrorFromException } from "@/lib/security/http-errors";
-import { requireAuth } from "@/lib/auth/context";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
 import { createServiceClient } from "@/lib/db/client";
 import { getCurrentUsage, getOrganizationPlan } from "@/lib/plans";
 
 export async function GET() {
   try {
-    const auth = await requireAuth();
+    const auth = await requireOrganizationPermission("billing.read");
     const supabase = createServiceClient();
 
     const { data: org } = await supabase

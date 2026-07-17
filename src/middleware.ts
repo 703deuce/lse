@@ -48,6 +48,18 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith("/api/")) {
+    // Reject oversized bodies early (ASVS input size control). Imports allow up to ~2MB.
+    const contentLength = Number(request.headers.get("content-length") ?? 0);
+    const maxBody =
+      pathname.startsWith("/api/reputation/contacts/import") ||
+      pathname.startsWith("/api/vision/")
+        ? 6_000_000
+        : 2_000_000;
+    if (Number.isFinite(contentLength) && contentLength > maxBody) {
+      const denied = NextResponse.json({ error: "Payload too large" }, { status: 413 });
+      denied.headers.set(REQUEST_ID_HEADER, requestId);
+      return denied;
+    }
     if (
       !isCsrfExemptPath(pathname) &&
       !isSameOriginMutation({

@@ -12,6 +12,7 @@ import {
   reserveUsageOrThrow,
 } from "@/lib/plans";
 import { DEFAULT_RADIUS_METERS, MAX_RADIUS_METERS, MIN_RADIUS_METERS } from "@/lib/maps/grid-metrics";
+import { assertRateLimit } from "@/lib/security/rate-limit";
 
 const schema = z.object({
   businessId: z.string().uuid(),
@@ -72,6 +73,20 @@ export async function POST(request: Request) {
       excludedLabels = [],
     } = parsed.data;
     const auth = await requireBusinessAccess(businessId);
+    const rate = assertRateLimit({
+      key: `scans-run-for-keyword:${auth.organizationId}`,
+      maxPerWindow: 25,
+      windowMs: 60_000,
+    });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rate.retryAfterMs / 1000)) },
+        }
+      );
+    }
     const supabase = createServiceClient();
 
     let resolvedKeywordId = keywordId;

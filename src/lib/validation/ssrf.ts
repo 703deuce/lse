@@ -133,3 +133,32 @@ export async function safeFetchWebsite(url: string, timeoutMs = 10000): Promise<
   }
   return res;
 }
+
+/** Read response body with a hard byte cap (stream-safe for SSRF fetches). */
+export async function safeReadText(
+  res: Response,
+  maxBytes = MAX_RESPONSE_BYTES
+): Promise<string> {
+  const reader = res.body?.getReader();
+  if (!reader) {
+    const text = await res.text();
+    if (Buffer.byteLength(text, "utf8") > maxBytes) {
+      throw new Error("Response too large");
+    }
+    return text;
+  }
+
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => {});
+      throw new Error("Response too large");
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}

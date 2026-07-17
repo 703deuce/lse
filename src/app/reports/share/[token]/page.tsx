@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { hashShareToken } from "@/lib/reporting/share-token";
 import { assertRateLimit } from "@/lib/security/rate-limit";
+import { writeSecurityAuditEvent } from "@/lib/security/audit-log";
 import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
@@ -43,11 +44,11 @@ export default async function ShareReportPage({
   const supabase = createServiceClient();
   const tokenHash = hashShareToken(token);
 
-  // Prefer hash lookup; fall back to legacy plaintext column during migration.
+  // Prefer hash lookup; fall back to legacy plaintext only when hash column is null.
   let { data: report } = await supabase
     .from("reports")
     .select(
-      "html_content, share_expires_at, artifact_status, error_message, business_id, generated_at"
+      "id, html_content, share_expires_at, artifact_status, error_message, business_id, generated_at, share_token_hash"
     )
     .eq("share_token_hash", tokenHash)
     .maybeSingle();
@@ -56,14 +57,35 @@ export default async function ShareReportPage({
     const legacy = await supabase
       .from("reports")
       .select(
-        "html_content, share_expires_at, artifact_status, error_message, business_id, generated_at"
+        "id, html_content, share_expires_at, artifact_status, error_message, business_id, generated_at, share_token_hash"
       )
       .eq("share_token", token)
+      .is("share_token_hash", null)
       .maybeSingle();
     report = legacy.data;
   }
 
   if (!report) notFound();
+
+  void (async () => {
+    try {
+      const { data: biz } = await supabase
+        .from("businesses")
+        .select("organization_id")
+        .eq("id", report!.business_id)
+        .maybeSingle();
+      await writeSecurityAuditEvent({
+        action: "report.share.view",
+        organizationId: biz?.organization_id ?? null,
+        resourceType: "report",
+        resourceId: report!.id as string,
+        ip,
+        userAgent: hdrs.get("user-agent"),
+      });
+    } catch {
+      /* best-effort */
+    }
+  })();
 
   if (report.share_expires_at) {
     const expires = new Date(report.share_expires_at).getTime();

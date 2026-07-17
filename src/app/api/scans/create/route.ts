@@ -13,6 +13,7 @@ import {
   reserveUsageOrThrow,
 } from "@/lib/plans";
 import { assertCanEnqueueMapsScan, findDuplicateActiveScan } from "@/lib/queue";
+import { assertRateLimit } from "@/lib/security/rate-limit";
 
 const PARITY_SUMMARY = {
   search_engine: LOCAL_FALCON_PARITY.searchEngine,
@@ -42,6 +43,20 @@ export async function POST(request: Request) {
 
     const { businessId, gridSize, radiusMeters, device, os, browser, parityLabel, centerLat: bodyLat, centerLng: bodyLng, centerLabel: bodyLabel } = parsed.data;
     const auth = await requireBusinessAccess(businessId);
+    const rate = assertRateLimit({
+      key: `scans-create:${auth.organizationId}`,
+      maxPerWindow: 25,
+      windowMs: 60_000,
+    });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rate.retryAfterMs / 1000)) },
+        }
+      );
+    }
     const supabase = createServiceClient();
 
     const [{ data: business }, { data: primaryKw }, { data: latestScan }, { count: keywordCount }] =

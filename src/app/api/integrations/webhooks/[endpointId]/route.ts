@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { httpErrorFromException } from "@/lib/security/http-errors";
+import { httpErrorFromException, httpEntitlementError } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
-import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
+import { requireRecentAuth } from "@/lib/auth/reauth";
+import { requireEntitlement } from "@/lib/auth/entitlements";
 import { createServiceClient } from "@/lib/db/client";
 import {
   buildIncomingWebhookUrl,
@@ -11,6 +13,7 @@ import {
   rotateSigningSecret,
   updateWebhookEndpoint,
 } from "@/lib/integrations/webhook-endpoints";
+import { requestAuditMeta, writeSecurityAuditEvent } from "@/lib/security/audit-log";
 
 async function authEndpoint(request: Request, endpointId: string) {
   const url = new URL(request.url);
@@ -96,13 +99,17 @@ export async function GET(
       webhookUrlHint: `…/api/integrations/webhooks/incoming/lsewh_…${endpoint.endpoint_token_last_four}`,
     });
   } catch (err) {
-    if (err instanceof EntitlementError) {
-      return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
-    }
-    const message = err instanceof Error ? err.message : "Failed to load endpoint";
+    const ent = httpEntitlementError(err);
+    if (ent) return ent;
+    const message = err instanceof Error ? err.message : "";
     const status = message.includes("not found") ? 404 : message.includes("required") ? 400 : 500;
-    if (status === 500) return httpErrorFromException(err, "Failed to load endpoint");
-    return NextResponse.json({ error: message }, { status });
+    if (status !== 500) {
+      return NextResponse.json(
+        { error: status === 404 ? "Not found" : message.includes("required") ? message : "Bad request" },
+        { status }
+      );
+    }
+    return httpErrorFromException(err, "Failed to load endpoint");
   }
 }
 
@@ -113,6 +120,12 @@ export async function PATCH(
   try {
     const { endpointId } = await params;
     const { access, endpoint } = await authEndpoint(request, endpointId);
+    await requireRecentAuth();
+    const permAuth = await requireOrganizationPermission(
+      "integration.manage",
+      access.organizationId
+    );
+    const auditMeta = requestAuditMeta(request);
     const body = (await request.json()) as {
       action?: string;
       name?: string;
@@ -127,6 +140,16 @@ export async function PATCH(
         organizationId: access.organizationId,
         endpointId,
       });
+      await writeSecurityAuditEvent({
+        action: "integration.webhook.rotate",
+        organizationId: access.organizationId,
+        actorUserId: permAuth.userId,
+        actorEmail: permAuth.email,
+        resourceType: "integration_webhook_endpoint",
+        resourceId: endpointId,
+        meta: { kind: "url" },
+        ...auditMeta,
+      });
       return NextResponse.json({
         webhookUrl: buildIncomingWebhookUrl(rotated.rawToken),
         rawToken: rotated.rawToken,
@@ -138,6 +161,16 @@ export async function PATCH(
         organizationId: access.organizationId,
         endpointId,
       });
+      await writeSecurityAuditEvent({
+        action: "integration.webhook.rotate",
+        organizationId: access.organizationId,
+        actorUserId: permAuth.userId,
+        actorEmail: permAuth.email,
+        resourceType: "integration_webhook_endpoint",
+        resourceId: endpointId,
+        meta: { kind: "secret" },
+        ...auditMeta,
+      });
       return NextResponse.json({
         signingSecret: rotated.signingSecret,
         warning: "Copy the signing secret now — it will not be shown again.",
@@ -147,6 +180,15 @@ export async function PATCH(
       await revokeWebhookEndpoint({
         organizationId: access.organizationId,
         endpointId,
+      });
+      await writeSecurityAuditEvent({
+        action: "integration.webhook.delete",
+        organizationId: access.organizationId,
+        actorUserId: permAuth.userId,
+        actorEmail: permAuth.email,
+        resourceType: "integration_webhook_endpoint",
+        resourceId: endpointId,
+        ...auditMeta,
       });
       return NextResponse.json({ ok: true });
     }
@@ -197,9 +239,38 @@ export async function PATCH(
       },
     });
   } catch (err) {
-    if (err instanceof EntitlementError) {
-      return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
-    }
     return httpErrorFromException(err, "Failed to update endpoint");
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ endpointId: string }> }
+) {
+  try {
+    const { endpointId } = await params;
+    const { access } = await authEndpoint(request, endpointId);
+    await requireRecentAuth();
+    const permAuth = await requireOrganizationPermission(
+      "integration.manage",
+      access.organizationId
+    );
+    await revokeWebhookEndpoint({
+      organizationId: access.organizationId,
+      endpointId,
+    });
+    const auditMeta = requestAuditMeta(request);
+    await writeSecurityAuditEvent({
+      action: "integration.webhook.delete",
+      organizationId: access.organizationId,
+      actorUserId: permAuth.userId,
+      actorEmail: permAuth.email,
+      resourceType: "integration_webhook_endpoint",
+      resourceId: endpointId,
+      ...auditMeta,
+    });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return httpErrorFromException(err, "Failed to delete endpoint");
   }
 }

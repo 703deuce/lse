@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/db/client";
 import { assertScanBelongsToBusiness } from "@/lib/db/queries";
 import { dispatchScanProcessing } from "@/lib/jobs/schedule-scan";
 import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
+import { assertRateLimit } from "@/lib/security/rate-limit";
 
 /**
  * Re-process / finalize audit for a scan via the queue — never runs Bright Data
@@ -56,6 +57,21 @@ export async function POST(request: Request) {
 
     if (!biz?.organization_id) {
       return NextResponse.json({ error: "Business organization not found" }, { status: 404 });
+    }
+
+    const rate = assertRateLimit({
+      key: `audits-run:${biz.organization_id}`,
+      maxPerWindow: 25,
+      windowMs: 60_000,
+    });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rate.retryAfterMs / 1000)) },
+        }
+      );
     }
 
     const dispatched = await dispatchScanProcessing({

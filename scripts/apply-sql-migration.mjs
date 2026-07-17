@@ -22,7 +22,11 @@ if (!url) {
 }
 
 const { default: pg } = await import("pg");
-const client = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
+const allowInsecureSsl = process.env.ALLOW_INSECURE_DB_SSL === "true";
+const client = new pg.Client({
+  connectionString: url,
+  ssl: { rejectUnauthorized: !allowInsecureSsl },
+});
 await client.connect();
 try {
   await client.query(sql);

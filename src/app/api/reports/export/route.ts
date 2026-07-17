@@ -69,6 +69,8 @@ export async function POST(request: Request) {
     organizationId = auth.organizationId;
 
     reportType = (data.reportType ?? "single_scan") as ReportType;
+    await requireOrganizationPermission("report.create", auth.organizationId);
+
     if (
       (reportType === "single_scan" || reportType === "competitor") &&
       !data.scanBatchId

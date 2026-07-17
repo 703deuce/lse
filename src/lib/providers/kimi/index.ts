@@ -1,4 +1,5 @@
 import { logProviderRun } from "@/lib/providers/dataforseo";
+import { wrapUntrustedContext } from "@/lib/security/prompt-guard";
 
 const BASE_URL = "https://api.moonshot.cn/v1";
 
@@ -24,7 +25,7 @@ export async function analyzeScreenshot(params: {
           {
             role: "user",
             content: [
-              { type: "text", text: params.prompt },
+              { type: "text", text: wrapUntrustedContext("USER_PROMPT", params.prompt) },
               {
                 type: "image_url",
                 image_url: { url: `data:image/png;base64,${params.imageBase64}` },

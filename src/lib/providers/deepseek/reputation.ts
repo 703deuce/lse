@@ -1,4 +1,5 @@
 import { logProviderRun } from "@/lib/providers/dataforseo";
+import { wrapUntrustedContext } from "@/lib/security/prompt-guard";
 
 const BASE_URL = "https://api.deepseek.com/v1";
 
@@ -101,7 +102,7 @@ Return JSON only: {"draft_text":"..."}`;
             role: "user",
             content: JSON.stringify({
               businessName: params.businessName,
-              reviewText: params.reviewText,
+              reviewText: wrapUntrustedContext("REVIEW_TEXT", params.reviewText),
               rating: params.rating,
               serviceKeywords: params.serviceKeywords ?? [],
             }),

@@ -6,6 +6,7 @@ import {
   generateAndSaveTemplates,
   loadReviewRequestKit,
 } from "@/lib/reputation/review-requests";
+import { assertRateLimit } from "@/lib/security/rate-limit";
 
 export async function POST(request: Request) {
   try {
@@ -18,6 +19,20 @@ export async function POST(request: Request) {
 
     const auth = await requireBusinessAccess(businessId);
     await requireEntitlement(auth.organizationId, "review_campaigns");
+    const rate = assertRateLimit({
+      key: `reputation-templates:${auth.organizationId}`,
+      maxPerWindow: 25,
+      windowMs: 60_000,
+    });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rate.retryAfterMs / 1000)) },
+        }
+      );
+    }
     const kit = await loadReviewRequestKit(businessId, auth.organizationId);
 
     if (!kit.link?.review_url) {

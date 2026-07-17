@@ -3,6 +3,7 @@ import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { generateResponseDrafts, loadLatestReputationAudit } from "@/lib/reputation/engine";
+import { assertRateLimit } from "@/lib/security/rate-limit";
 
 export async function POST(request: Request) {
   try {
@@ -14,6 +15,20 @@ export async function POST(request: Request) {
     }
 
     const auth = await requireBusinessAccess(businessId);
+    const rate = assertRateLimit({
+      key: `reputation-responses:${auth.organizationId}`,
+      maxPerWindow: 25,
+      windowMs: 60_000,
+    });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rate.retryAfterMs / 1000)) },
+        }
+      );
+    }
     const latest = await loadLatestReputationAudit(businessId);
     if (!latest?.audit) {
       return NextResponse.json({ error: "No reputation audit found" }, { status: 400 });

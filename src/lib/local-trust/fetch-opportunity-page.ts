@@ -1,6 +1,6 @@
 import * as cheerio from "cheerio";
 import { scrapeWebsite } from "@/lib/providers/scrapingdog";
-import { safeFetchWebsite } from "@/lib/validation/ssrf";
+import { safeFetchWebsite, safeReadText } from "@/lib/validation/ssrf";
 
 export type FetchedOpportunityPage = {
   url: string;
@@ -78,7 +78,7 @@ export async function fetchOpportunityPage(
   let html = "";
   try {
     const res = await safeFetchWebsite(url, 15000);
-    html = await res.text();
+    html = await safeReadText(res);
   } catch {
     try {
       html = await scrapeWebsite({ url, organizationId });

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireAuth } from "@/lib/auth/context";
+import { assertRateLimit } from "@/lib/security/rate-limit";
 import { BUSINESS_BASE_GEOCODE_ERROR, geocodeAddress, geocodeBusinessBase } from "@/lib/maps-difficulty/geocode";
 import { requireInternalMapsDifficulty } from "@/lib/auth/plan-guards";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
@@ -16,6 +17,21 @@ export async function POST(request: Request) {
   try {
     const auth = await requireAuth();
     await requireInternalMapsDifficulty(auth.organizationId);
+
+    const rate = assertRateLimit({
+      key: `maps-difficulty:${auth.organizationId}`,
+      maxPerWindow: 10,
+      windowMs: 60_000,
+    });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rate.retryAfterMs / 1000)) },
+        }
+      );
+    }
 
     const body = (await request.json()) as {
       keyword?: string;
@@ -72,10 +88,8 @@ export async function POST(request: Request) {
         if (!businessBase) {
           businessBase = { lat: baseLat, lng: baseLng, label: baseLabel };
         }
-      } catch (err) {
-        businessBase = {
-          error: err instanceof Error ? err.message : BUSINESS_BASE_GEOCODE_ERROR,
-        };
+      } catch {
+        businessBase = { error: BUSINESS_BASE_GEOCODE_ERROR };
       }
     }
 

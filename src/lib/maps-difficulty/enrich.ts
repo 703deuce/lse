@@ -315,10 +315,10 @@ function extractTag(html: string, tag: string): string[] {
 
 async function fetchHtml(website: string): Promise<string | null> {
   try {
-    const { safeFetchWebsite } = await import("@/lib/validation/ssrf");
+    const { safeFetchWebsite, safeReadText } = await import("@/lib/validation/ssrf");
     const res = await safeFetchWebsite(website, 15000);
     if (res.ok) {
-      const html = await res.text();
+      const html = await safeReadText(res);
       if (html && html.length > 500) return html.slice(0, 2_000_000);
     }
   } catch {

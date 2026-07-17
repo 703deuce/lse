@@ -1,10 +1,32 @@
 import { NextResponse } from "next/server";
+import { EntitlementError } from "@/lib/auth/entitlements";
+import { PlanLimitError } from "@/lib/plans";
+
+/** Structured 402/403 for plan limits and entitlements — never leak provider/DB internals. */
+export function httpEntitlementError(err: unknown): NextResponse | null {
+  if (err instanceof PlanLimitError) {
+    return NextResponse.json(
+      { error: err.message, limitKey: err.limitKey },
+      { status: 402 }
+    );
+  }
+  if (err instanceof EntitlementError) {
+    return NextResponse.json(
+      { error: err.message, entitlement: err.entitlement },
+      { status: 403 }
+    );
+  }
+  return null;
+}
 
 /** Map auth/access exceptions to safe HTTP responses (no stack/provider leakage). */
 export function httpErrorFromException(
   err: unknown,
   fallbackMessage = "Request could not be completed"
 ): NextResponse {
+  const entitlement = httpEntitlementError(err);
+  if (entitlement) return entitlement;
+
   const message = err instanceof Error ? err.message : String(err);
   const code =
     err && typeof err === "object" && "code" in err

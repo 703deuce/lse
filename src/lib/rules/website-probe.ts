@@ -1,4 +1,4 @@
-import { safeFetchWebsite } from "@/lib/validation/ssrf";
+import { safeFetchWebsite, safeReadText } from "@/lib/validation/ssrf";
 
 export interface WebsiteProbeResult {
   title: string | null;
@@ -13,7 +13,7 @@ export async function probeWebsite(
 ): Promise<WebsiteProbeResult | null> {
   try {
     const res = await safeFetchWebsite(url);
-    const html = await res.text();
+    const html = await safeReadText(res);
     const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
     const h1Match = html.match(/<h1[^>]*>([^<]*)<\/h1>/i);
     const title = titleMatch?.[1]?.trim() ?? null;
