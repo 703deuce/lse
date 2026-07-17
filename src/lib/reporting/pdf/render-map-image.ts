@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { rankHex } from "@/lib/maps/colors";
+import { rankHex, rankTextColor } from "@/lib/maps/colors";
 import {
   apiKeySuffix,
   getGoogleMapsApiKey,
@@ -7,6 +7,7 @@ import {
 } from "@/lib/maps/google-maps-key";
 import { logger } from "@/lib/observability/logger";
 import { gridPointSpacingMeters, latLngToPixel, zoomForRadiusMeters } from "@/lib/reporting/pdf/mercator";
+import { rankLabel, svgDigitLabel } from "@/lib/reporting/pdf/svg-digits";
 
 export type MapCellPin = {
   lat: number;
@@ -36,11 +37,12 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
 function svgBubble(rank: number | null, cx: number, cy: number, r: number): string {
   const color = rankHex(rank);
   const { r: red, g, b } = hexToRgb(color);
-  // ASCII only — Helvetica/PDF paths choke on some unicode glyphs.
-  const text = rank == null || rank > 20 ? "-" : String(Math.round(rank));
-  const fontSize = text.length > 2 ? r * 0.85 : r * 1.05;
+  const text = rankLabel(rank);
+  // Path digits — do not use <text>; Coolify/workers often lack SVG fonts.
+  const ink = rankTextColor(color);
+  const digitSize = text.length > 1 ? r * 1.05 : r * 1.25;
   return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="rgb(${red},${g},${b})" stroke="#fff" stroke-width="2"/>
-    <text x="${cx}" y="${cy + fontSize * 0.35}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="${fontSize}" font-weight="700" fill="#fff">${text}</text>`;
+    ${svgDigitLabel({ text, cx, cy, size: digitSize, color: ink })}`;
 }
 
 async function blankMapBase(width: number, height: number): Promise<Buffer> {
@@ -229,11 +231,18 @@ export async function renderScanMapPng(params: {
 
   const spacing = Math.round(gridPointSpacingMeters(params.gridSize, params.radiusMeters));
   const legendY = height - 36;
+  // Swatch + path digits only (no <text> — missing fonts on workers strip labels).
   const legend = `
-    <rect x="16" y="${legendY - 22}" width="460" height="48" rx="8" fill="rgba(255,255,255,0.92)" stroke="#e4e4e7"/>
-    <text x="28" y="${legendY}" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3f3f46">
-      Rank 1-3 / 4-10 / 11-20 / not found · Pin spacing ~${spacing}m · Map data (c) Google
-    </text>`;
+    <rect x="16" y="${legendY - 22}" width="300" height="48" rx="8" fill="rgba(255,255,255,0.92)" stroke="#e4e4e7"/>
+    <circle cx="40" cy="${legendY - 2}" r="10" fill="#0B7A29" stroke="#fff" stroke-width="1.5"/>
+    ${svgDigitLabel({ text: "1", cx: 40, cy: legendY - 2, size: 11, color: "#ffffff" })}
+    <circle cx="78" cy="${legendY - 2}" r="10" fill="#EAA92B" stroke="#fff" stroke-width="1.5"/>
+    ${svgDigitLabel({ text: "8", cx: 78, cy: legendY - 2, size: 11, color: "#111827" })}
+    <circle cx="116" cy="${legendY - 2}" r="10" fill="#A81810" stroke="#fff" stroke-width="1.5"/>
+    ${svgDigitLabel({ text: "20", cx: 116, cy: legendY - 2, size: 10, color: "#ffffff" })}
+    <circle cx="154" cy="${legendY - 2}" r="10" fill="#71717a" stroke="#fff" stroke-width="1.5"/>
+    ${svgDigitLabel({ text: "-", cx: 154, cy: legendY - 2, size: 11, color: "#ffffff" })}
+    ${svgDigitLabel({ text: String(Math.min(spacing, 9999)), cx: 230, cy: legendY - 2, size: 11, color: "#3f3f46" })}`;
 
   const overlay = Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
     ${bubbles}
