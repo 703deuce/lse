@@ -828,6 +828,18 @@ function failedJobsFromPass(jobs: GridCellJob[], results: GridCellRunResult[]): 
   return jobs.filter((job) => !succeeded.has(`${job.point.id}:${job.keyword.id}`));
 }
 
+function jobKey(job: Pick<GridCellJob, "point" | "keyword">): string {
+  return `${job.point.id}:${job.keyword.id}`;
+}
+
+/** Union unresolved sets — never drop in-memory failures just because a DB read looked empty/stale. */
+export function mergeUnresolvedJobs(a: GridCellJob[], b: GridCellJob[]): GridCellJob[] {
+  const map = new Map<string, GridCellJob>();
+  for (const job of a) map.set(jobKey(job), job);
+  for (const job of b) map.set(jobKey(job), job);
+  return [...map.values()];
+}
+
 /** Re-read incomplete cells from DB so fallback cannot be skipped due to in-memory drift. */
 async function loadIncompleteJobsFromDb(
   scanBatchId: string,
@@ -837,12 +849,34 @@ async function loadIncompleteJobsFromDb(
   const supabase = createServiceClient();
   const pointIds = [...new Set(jobs.map((j) => j.point.id))];
   if (!pointIds.length) return [];
-  const { data: savedResults } = await supabase
-    .from("scan_results")
-    .select("scan_point_id, keyword_id, target_found, top_competitors_json")
-    .in("scan_point_id", pointIds);
+
+  // Chunk .in() filters — PostgREST URL limits can silently truncate large grids.
+  const savedResults: Array<{
+    scan_point_id: string;
+    keyword_id: string;
+    target_found: boolean;
+    top_competitors_json: unknown;
+  }> = [];
+  const chunkSize = 100;
+  for (let i = 0; i < pointIds.length; i += chunkSize) {
+    const chunk = pointIds.slice(i, i + chunkSize);
+    const { data, error } = await supabase
+      .from("scan_results")
+      .select("scan_point_id, keyword_id, target_found, top_competitors_json")
+      .in("scan_point_id", chunk);
+    if (error) {
+      console.error(
+        `[Scan] loadIncompleteJobsFromDb query failed scan=${scanBatchId}:`,
+        error.message
+      );
+      // Fail open — treat all jobs as incomplete so secondary fallback still runs.
+      return jobs;
+    }
+    if (data?.length) savedResults.push(...(data as typeof savedResults));
+  }
+
   return jobs.filter((job) => {
-    const row = (savedResults ?? []).find(
+    const row = savedResults.find(
       (r) => r.scan_point_id === job.point.id && r.keyword_id === job.keyword.id
     );
     return !validateStoredCellResult(row, depth).complete;
@@ -893,12 +927,14 @@ async function runIntegrityPass(params: {
     `[Scan] Integrity retry for ${incompleteJobs.length} sparse/incomplete cells (concurrency=${params.concurrency})`
   );
   // Prefer secondaries here — Bright Data already had primary + recovery chances.
+  // Always pass the full chain (not a pre-filtered usable list) so each provider
+  // records an attempt even when credentials are missing on this worker.
   const integrityProviders = mapsFallbackEnabled()
     ? [...secondaryFallbackProviders(), ...brightDataOnlyProviders()]
     : brightDataOnlyProviders();
   const integrityPlan = await resolveUsableMapsProviders(integrityProviders);
   console.log(
-    `[Scan] Integrity providers usable=${integrityPlan.usable.join(",") || "none"}` +
+    `[Scan] Integrity providers chain=${integrityProviders.join("→")} ready=${integrityPlan.usable.join(",") || "none"}` +
       (integrityPlan.skipped.length
         ? ` skipped=${integrityPlan.skipped.map((s) => `${s.provider}:${s.skipReason}`).join(",")}`
         : "")
@@ -912,7 +948,7 @@ async function runIntegrityPass(params: {
     concurrency: Math.min(params.concurrency, isolatedRetryConcurrency(incompleteJobs.length) || params.concurrency),
     totalCells: params.totalCells,
     passLabel: "integrity",
-    providers: integrityPlan.usable.length ? integrityPlan.usable : brightDataOnlyProviders(),
+    providers: integrityProviders,
     allowTransientRetry: true,
     scanRetryRound: 5,
     recoveryStage: "finalizing",
@@ -1341,119 +1377,142 @@ export async function runGridCellsLive(params: {
     }
   }
 
-  // Secondary fallback ALWAYS keys off DB incomplete cells after Bright Data phases.
-  // Never skip this just because in-memory remainingJobs was empty/desynced.
+  // Secondary fallback MUST run for every unresolved cell after Bright Data phases.
+  // Union in-memory failures with a full-grid DB incompleteness check so neither
+  // desync nor a partial PostgREST read can skip DataForSEO/ScrapingDog.
   {
-    const dbIncomplete = await loadIncompleteJobsFromDb(params.scanBatchId, jobs, depth);
-    if (dbIncomplete.length !== remainingJobs.length) {
+    const memoryUnresolved = remainingJobs;
+    const dbIncomplete = await loadIncompleteJobsFromDb(params.scanBatchId, allJobs, depth);
+    remainingJobs = mergeUnresolvedJobs(memoryUnresolved, dbIncomplete);
+    failedCells = remainingJobs.length;
+    if (memoryUnresolved.length !== dbIncomplete.length || dbIncomplete.length !== remainingJobs.length) {
       console.warn(
-        `[Scan] Unresolved sync: in-memory=${remainingJobs.length} db_incomplete=${dbIncomplete.length} — using DB set`
+        `[Scan] Unresolved sync: in-memory=${memoryUnresolved.length} db_incomplete=${dbIncomplete.length} union=${remainingJobs.length}`
       );
     }
-    remainingJobs = dbIncomplete;
-    failedCells = remainingJobs.length;
 
     if (remainingJobs.length > 0 && mapsFallbackEnabled()) {
-      const secondaryPlan = await resolveUsableMapsProviders(secondaryFallbackProviders());
+      const secondaryProviders = secondaryFallbackProviders();
+      const secondaryPlan = await resolveUsableMapsProviders(secondaryProviders);
+      const skipSummary = secondaryPlan.skipped
+        .map((s) => `${s.provider}:${s.skipReason}${s.detail ? `(${s.detail})` : ""}`)
+        .join(" | ");
+      // Never skip the pass itself — even with zero "usable" providers we still
+      // enter the cell loop so telemetry records provider_unavailable attempts
+      // instead of silently finishing after Bright Data backup.
       if (!secondaryPlan.usable.length) {
-        const skipSummary = secondaryPlan.skipped
-          .map((s) => `${s.provider}:${s.skipReason}${s.detail ? `(${s.detail})` : ""}`)
-          .join(" | ");
         console.error(
-          `[Scan] SECONDARY FALLBACK SKIPPED for ${remainingJobs.length} unresolved cells — no usable providers. ${skipSummary}`
-        );
-        await scheduleCellProgress(
-          params.scanBatchId,
-          completedOffset,
-          totalCells,
-          remainingJobs.length,
-          {
-            pass: "fallback-skipped",
-            recovery_stage: "completed_with_unresolved",
-            fallback_skipped: true,
-            fallback_skipped_reason: skipSummary || "no_secondary_providers",
-            unresolved_after_brightdata: remainingJobs.length,
-          },
-          { force: true }
-        );
-      } else {
-        console.log(
-          `[Scan] Secondary fallback START for ${remainingJobs.length} cells via ${secondaryPlan.usable.join(" → ")}` +
-            (secondaryPlan.skipped.length
-              ? ` (skipped: ${secondaryPlan.skipped.map((s) => `${s.provider}:${s.skipReason}`).join(", ")})`
-              : "")
-        );
-        const stage =
-          secondaryPlan.usable[0] === "scrapingdog"
-            ? ("fallback_scrapingdog" as const)
-            : ("fallback_dataforseo" as const);
-        await scheduleCellProgress(
-          params.scanBatchId,
-          completedOffset,
-          totalCells,
-          remainingJobs.length,
-          {
-            pass: "fallback-secondary",
-            recovery_stage: stage,
-            fallback_providers: secondaryPlan.usable,
-            fallback_skipped_providers: secondaryPlan.skipped.map((s) => ({
-              provider: s.provider,
-              reason: s.skipReason,
-              detail: s.detail,
-            })),
-            unresolved_after_brightdata: remainingJobs.length,
-          },
-          { force: true }
-        );
-        const fallbackPass = await runJobsWithConcurrency(remainingJobs, {
-          scanBatchId: params.scanBatchId,
-          depth,
-          timeoutMs,
-          maxAttempts: 1,
-          concurrency: Math.min(remainingJobs.length, 8),
-          totalCells,
-          passLabel: "fallback-secondary",
-          providers: secondaryPlan.usable,
-          allowTransientRetry: true,
-          scanRetryRound: 4,
-          recoveryStage: stage,
-          completedOffset,
-          updateProgress: true,
-          onCellSettled,
-          organizationId: params.organizationId,
-        });
-        allTimings.push(...fallbackPass.timings);
-        completedOffset += fallbackPass.successCount;
-        remainingJobs = failedJobsFromPass(remainingJobs, fallbackPass.results);
-        failedCells = remainingJobs.length;
-        console.log(
-          `[Scan] Secondary fallback FINISHED: recovered=${fallbackPass.successCount} still_unresolved=${remainingJobs.length}`
+          `[Scan] Secondary fallback providers unavailable for ${remainingJobs.length} cells — still running pass for diagnostics. ${skipSummary}`
         );
       }
-    } else if (remainingJobs.length > 0 && maxRounds > 1) {
-      const delay = isolatedRetryDelayMs();
-      await sleep(delay);
-      const pass = await runJobsWithConcurrency(remainingJobs, {
+      console.log(
+        `[Scan] Secondary fallback START for ${remainingJobs.length} cells via ${secondaryProviders.join(" → ")}` +
+          (secondaryPlan.usable.length
+            ? ` (ready: ${secondaryPlan.usable.join(" → ")})`
+            : " (ready: none)") +
+          (secondaryPlan.skipped.length
+            ? ` (skipped: ${secondaryPlan.skipped.map((s) => `${s.provider}:${s.skipReason}`).join(", ")})`
+            : "")
+      );
+      const stage =
+        secondaryPlan.usable[0] === "scrapingdog"
+          ? ("fallback_scrapingdog" as const)
+          : ("fallback_dataforseo" as const);
+      await scheduleCellProgress(
+        params.scanBatchId,
+        completedOffset,
+        totalCells,
+        remainingJobs.length,
+        {
+          pass: "fallback-secondary",
+          recovery_stage: stage,
+          secondary_fallback_attempted: true,
+          fallback_providers: secondaryProviders,
+          fallback_ready_providers: secondaryPlan.usable,
+          fallback_skipped_providers: secondaryPlan.skipped.map((s) => ({
+            provider: s.provider,
+            reason: s.skipReason,
+            detail: s.detail,
+          })),
+          ...(skipSummary
+            ? {
+                fallback_skipped: secondaryPlan.usable.length === 0,
+                fallback_skipped_reason: skipSummary,
+              }
+            : {}),
+          unresolved_after_brightdata: remainingJobs.length,
+        },
+        { force: true }
+      );
+      const fallbackPass = await runJobsWithConcurrency(remainingJobs, {
         scanBatchId: params.scanBatchId,
         depth,
         timeoutMs,
         maxAttempts: 1,
-        concurrency: isolatedRetryConcurrency(remainingJobs.length),
+        concurrency: Math.min(remainingJobs.length, 8),
         totalCells,
-        passLabel: "bd-legacy-retry",
-        providers: brightDataOnlyProviders(),
-        allowTransientRetry: false,
-        scanRetryRound: 1,
-        recoveryStage: "scanning_brightdata",
+        passLabel: "fallback-secondary",
+        // Full secondary chain every time — orchestrator records per-provider skips.
+        providers: secondaryProviders,
+        allowTransientRetry: true,
+        scanRetryRound: 4,
+        recoveryStage: stage,
         completedOffset,
         updateProgress: true,
         onCellSettled,
         organizationId: params.organizationId,
       });
-      allTimings.push(...pass.timings);
-      completedOffset += pass.successCount;
-      remainingJobs = failedJobsFromPass(remainingJobs, pass.results);
+      allTimings.push(...fallbackPass.timings);
+      completedOffset += fallbackPass.successCount;
+      remainingJobs = failedJobsFromPass(remainingJobs, fallbackPass.results);
       failedCells = remainingJobs.length;
+      console.log(
+        `[Scan] Secondary fallback FINISHED: recovered=${fallbackPass.successCount} still_unresolved=${remainingJobs.length}`
+      );
+    } else if (remainingJobs.length > 0 && !mapsFallbackEnabled()) {
+      console.error(
+        `[Scan] SECONDARY FALLBACK DISABLED (MAPS_GRID_FALLBACK_ENABLED=false) — ${remainingJobs.length} cells left unresolved after Bright Data`
+      );
+      await scheduleCellProgress(
+        params.scanBatchId,
+        completedOffset,
+        totalCells,
+        remainingJobs.length,
+        {
+          pass: "fallback-skipped",
+          recovery_stage: "completed_with_unresolved",
+          secondary_fallback_attempted: false,
+          fallback_skipped: true,
+          fallback_skipped_reason: "MAPS_GRID_FALLBACK_ENABLED is false",
+          unresolved_after_brightdata: remainingJobs.length,
+        },
+        { force: true }
+      );
+      if (maxRounds > 1) {
+        const delay = isolatedRetryDelayMs();
+        await sleep(delay);
+        const pass = await runJobsWithConcurrency(remainingJobs, {
+          scanBatchId: params.scanBatchId,
+          depth,
+          timeoutMs,
+          maxAttempts: 1,
+          concurrency: isolatedRetryConcurrency(remainingJobs.length),
+          totalCells,
+          passLabel: "bd-legacy-retry",
+          providers: brightDataOnlyProviders(),
+          allowTransientRetry: false,
+          scanRetryRound: 1,
+          recoveryStage: "scanning_brightdata",
+          completedOffset,
+          updateProgress: true,
+          onCellSettled,
+          organizationId: params.organizationId,
+        });
+        allTimings.push(...pass.timings);
+        completedOffset += pass.successCount;
+        remainingJobs = failedJobsFromPass(remainingJobs, pass.results);
+        failedCells = remainingJobs.length;
+      }
     } else if (remainingJobs.length === 0) {
       console.log("[Scan] No incomplete cells after Bright Data — secondary fallback not needed");
     }

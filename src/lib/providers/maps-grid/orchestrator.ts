@@ -167,10 +167,18 @@ export function logMapsProviderAvailability(context: string): void {
 /**
  * Fetch a single grid cell through the supplied provider sequence.
  * Never overwrites success — returns on first valid item list.
+ *
+ * Walks the caller-supplied provider list in order. Providers that are disabled /
+ * missing credentials / circuit-open still emit a failed attempt so scans cannot
+ * "finish after Bright Data" with zero secondary attempt records.
  */
 export async function fetchMapsCell(params: FetchMapsCellParams): Promise<MapsCellFetchResult> {
   const resolved = await resolveUsableMapsProviders(params.providers);
-  const providers = resolved.usable;
+  const usable = new Set(resolved.usable);
+  const skippedByProvider = new Map(
+    resolved.skipped.map((s) => [s.provider, s] as const)
+  );
+  const providers = params.providers;
   const attempts: MapsProviderAttempt[] = [];
   const maxAttempts = maxTotalProviderAttemptsPerCell();
   let attemptBudget = 0;
@@ -178,19 +186,16 @@ export async function fetchMapsCell(params: FetchMapsCellParams): Promise<MapsCe
   let fallbackReason: string | null = null;
 
   if (!providers.length) {
-    const skipSummary = resolved.skipped
-      .map((s) => `${s.provider}:${s.skipReason ?? "skipped"}`)
-      .join(", ");
     return {
       ok: false,
       unresolvedReason: "provider_unresolved",
       primaryProvider,
       finalProvider: null,
       fallbackUsed: false,
-      fallbackReason: `no_providers_available:${skipSummary || "none"}`,
+      fallbackReason: "no_providers_requested",
       attempts,
       lastCategory: "provider_unavailable",
-      lastErrorMessage: `No Maps providers available for this cell (${skipSummary || "none configured"})`,
+      lastErrorMessage: "No Maps providers requested for this cell",
       providerLatencyMs: 0,
     };
   }
@@ -199,6 +204,26 @@ export async function fetchMapsCell(params: FetchMapsCellParams): Promise<MapsCe
     const provider = providers[i];
     if (i > 0) {
       fallbackReason = fallbackReason ?? `fallback_after_${attempts[attempts.length - 1]?.category ?? "failure"}`;
+    }
+
+    if (!usable.has(provider)) {
+      const skipped = skippedByProvider.get(provider);
+      const detail =
+        skipped?.detail ??
+        skipped?.skipReason ??
+        "provider unavailable";
+      console.warn(
+        `[MapsFallback] grid=${params.gridLabel ?? "?"} provider=${provider} SKIPPED reason=${skipped?.skipReason ?? "unavailable"} detail=${detail}`
+      );
+      attempts.push({
+        provider,
+        attemptNumber: 1,
+        success: false,
+        category: "provider_unavailable",
+        latencyMs: 0,
+        errorMessage: detail,
+      });
+      continue;
     }
 
     const maxTries =
@@ -296,6 +321,8 @@ export async function fetchMapsCell(params: FetchMapsCellParams): Promise<MapsCe
   }
 
   const last = attempts[attempts.length - 1];
+  const skipOnly =
+    attempts.length > 0 && attempts.every((a) => a.category === "provider_unavailable");
   return {
     ok: false,
     unresolvedReason: "provider_unresolved",
@@ -305,7 +332,11 @@ export async function fetchMapsCell(params: FetchMapsCellParams): Promise<MapsCe
     fallbackReason: fallbackReason ?? last?.category ?? "all_providers_failed",
     attempts,
     lastCategory: last?.category ?? "unknown",
-    lastErrorMessage: last?.errorMessage ?? "All Maps providers failed for this cell",
+    lastErrorMessage: skipOnly
+      ? `No Maps providers available for this cell (${attempts
+          .map((a) => `${a.provider}:${a.errorMessage ?? "unavailable"}`)
+          .join(", ")})`
+      : (last?.errorMessage ?? "All Maps providers failed for this cell"),
     providerLatencyMs: attempts.reduce((s, a) => s + a.latencyMs, 0),
   };
 }

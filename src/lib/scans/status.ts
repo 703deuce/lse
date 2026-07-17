@@ -239,6 +239,24 @@ export function scanProgressMessage(batch: {
         ? `Completing remaining points with ScrapingDog… ${completed} / ${total}`
         : "Completing remaining points with ScrapingDog…";
     }
+    if (pass === "fallback-secondary" || conf.secondary_fallback_attempted) {
+      const ready = Array.isArray(conf.fallback_ready_providers)
+        ? (conf.fallback_ready_providers as string[])
+        : [];
+      if (ready.includes("dataforseo") || stage === "fallback_dataforseo") {
+        return total > 0
+          ? `Completing unresolved points with DataForSEO… ${completed} / ${total}`
+          : "Completing unresolved points with DataForSEO…";
+      }
+      if (ready.includes("scrapingdog") || stage === "fallback_scrapingdog") {
+        return total > 0
+          ? `Completing remaining points with ScrapingDog… ${completed} / ${total}`
+          : "Completing remaining points with ScrapingDog…";
+      }
+      return total > 0
+        ? `Trying backup Maps providers… ${completed} / ${total}`
+        : "Trying backup Maps providers…";
+    }
     if (pass === "fallback-skipped" || conf.fallback_skipped) {
       return total > 0
         ? `Scan finishing with unresolved points… ${completed} / ${total}`

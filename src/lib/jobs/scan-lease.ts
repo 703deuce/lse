@@ -48,6 +48,9 @@ export async function claimQueuedScan(
 /**
  * Reclaim a stuck dispatching/provider_running scan whose lease expired
  * (or never got a lease — e.g. pre-migration crash).
+ *
+ * Also reclaims soft-ready `rank_ready` scans whose pass is not yet `complete`
+ * (secondary DataForSEO/ScrapingDog fallback still owed) when the lease is stale.
  */
 export async function reclaimStaleScan(
   scanBatchId: string,
@@ -91,12 +94,57 @@ export async function reclaimStaleScan(
     .select("*")
     .maybeSingle();
 
-  return (unleashed as ClaimedBatch | null) ?? null;
+  if (unleashed) return unleashed as ClaimedBatch;
+
+  // Soft-ready promoted early while Bright Data backup / secondary fallback still
+  // owed work. If the worker died after rank_ready, resume instead of ACK-done.
+  const { data: softReady } = await supabase
+    .from("scan_batches")
+    .select("id, status, confidence_summary, lease_expires_at, lease_owner")
+    .eq("id", scanBatchId)
+    .eq("status", "rank_ready")
+    .maybeSingle();
+
+  if (!softReady) return null;
+
+  const pass = String(
+    ((softReady.confidence_summary as { pass?: unknown } | null)?.pass ?? "") as string
+  );
+  if (!pass || pass === "complete") return null;
+
+  const leaseExpired =
+    !softReady.lease_expires_at ||
+    new Date(String(softReady.lease_expires_at)).getTime() < now.getTime();
+  if (!leaseExpired) return null;
+
+  const { data: reclaimedSoft } = await supabase
+    .from("scan_batches")
+    .update({
+      status: "provider_running",
+      lease_owner: leaseOwner,
+      lease_expires_at: leaseExpiryIso(now),
+      heartbeat_at: nowIso,
+      error_message: null,
+    })
+    .eq("id", scanBatchId)
+    .eq("status", "rank_ready")
+    .select("*")
+    .maybeSingle();
+
+  if (reclaimedSoft) {
+    console.log(
+      `[Scan] Reclaimed unfinished soft-ready scan ${scanBatchId} (pass=${pass}) for secondary/resume`
+    );
+  }
+  return (reclaimedSoft as ClaimedBatch | null) ?? null;
 }
 
 export async function extendScanLease(scanBatchId: string, leaseOwner: string): Promise<boolean> {
   const supabase = createServiceClient();
   const now = new Date();
+  // Include rank_ready: soft-ready can promote before trailing secondary
+  // fallbacks (DataForSEO/ScrapingDog) finish. Losing the lease mid-fallback
+  // let another worker treat the scan as done and skip remaining providers.
   const { data } = await supabase
     .from("scan_batches")
     .update({
@@ -105,7 +153,7 @@ export async function extendScanLease(scanBatchId: string, leaseOwner: string): 
     })
     .eq("id", scanBatchId)
     .eq("lease_owner", leaseOwner)
-    .in("status", ["dispatching", "provider_running", "normalizing"])
+    .in("status", ["dispatching", "provider_running", "normalizing", "rank_ready"])
     .select("id")
     .maybeSingle();
   return !!data;
