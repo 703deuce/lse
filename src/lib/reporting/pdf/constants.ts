@@ -1,5 +1,5 @@
 /** Bump when PDF layout or metric packaging changes (forces new artifact version). */
-export const SINGLE_SCAN_PDF_TEMPLATE_VERSION = "single-scan-pdf-v2";
+export const SINGLE_SCAN_PDF_TEMPLATE_VERSION = "single-scan-pdf-v3";
 
 /** Expected physical page count for the dedicated single-scan print template. */
 export const SINGLE_SCAN_PDF_EXPECTED_PAGES = 4;

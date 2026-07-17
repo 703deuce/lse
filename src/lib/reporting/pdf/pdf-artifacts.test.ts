@@ -180,7 +180,7 @@ describe("scan PDF artifacts", () => {
     ]);
     assert.equal(artifactContentType("pdf"), "application/pdf");
     assert.equal(artifactFileExtension("map_png"), "png");
-    assert.equal(SINGLE_SCAN_PDF_TEMPLATE_VERSION, "single-scan-pdf-v2");
+    assert.equal(SINGLE_SCAN_PDF_TEMPLATE_VERSION, "single-scan-pdf-v3");
     assert.equal(SINGLE_SCAN_PDF_EXPECTED_PAGES, 4);
     assert.ok(MIN_MAP_IMAGE_BYTES >= 1000);
   });
@@ -202,7 +202,7 @@ describe("scan PDF artifacts", () => {
     });
     assert.equal(a, b);
     assert.match(a, /pdf:single_scan:scan-1/);
-    assert.match(a, /single-scan-pdf-v2/);
+    assert.match(a, /single-scan-pdf-v3/);
   });
 
   it("computes pin spacing and zoom for common grids", () => {
