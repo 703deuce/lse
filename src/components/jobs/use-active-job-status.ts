@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import {
   compactToLightweight,
   derivePhase,
@@ -50,6 +50,9 @@ type CacheEntry = {
 
 const cache = new Map<string, CacheEntry>();
 const emptySnapshot: Snapshot = { version: 0, status: null, error: null };
+
+/** Stable no-op subscribe for disabled polling (must keep referential identity). */
+const subscribeDisabled = () => () => {};
 
 function getEntry(url: string): CacheEntry {
   let entry = cache.get(url);
@@ -263,20 +266,15 @@ async function tick(url: string, opts?: { force?: boolean }) {
   }
 }
 
-function subscribe(
-  url: string,
-  onStoreChange: () => void,
-  options: Pick<Options, "isTerminal" | "mapResponse">
-) {
+function subscribeToUrl(url: string, onStoreChange: () => void) {
   const entry = getEntry(url);
-  entry.isTerminal = options.isTerminal;
-  entry.mapResponse = options.mapResponse;
   entry.listeners.add(onStoreChange);
   entry.refCount += 1;
   if (entry.refCount === 1) {
     entry.startedAt = Date.now();
     entry.lastChangeAt = Date.now();
     entry.etag = null;
+    entry.notFoundCount = 0;
     void tick(url);
     entry.onVis = () => {
       if (document.visibilityState === "visible" && entry.refCount > 0) {
@@ -310,22 +308,46 @@ export function useActiveJobStatus(options: Options): {
 } {
   const enabled = options.enabled !== false && Boolean(options.statusUrl);
   const url = enabled ? options.statusUrl! : null;
-  const isTerminal = options.isTerminal;
-  const mapResponse = options.mapResponse;
 
-  // getSnapshot MUST return a stable reference unless the store changed.
-  // Returning a fresh `{...}` object every call trips React #185
-  // ("Maximum update depth exceeded") as soon as Run starts polling.
-  const snap = useSyncExternalStore(
-    (onChange) =>
-      url ? subscribe(url, onChange, { isTerminal, mapResponse }) : () => {},
-    () => (url ? getEntry(url).snapshot : emptySnapshot),
-    () => emptySnapshot
+  // Keep latest adapters on the cache entry without changing subscribe identity.
+  // Inline isTerminal/mapResponse from parents used to force re-subscribe every
+  // render → cache delete → new snapshot → React #185 (max update depth).
+  const isTerminalRef = useRef(options.isTerminal);
+  const mapResponseRef = useRef(options.mapResponse);
+  isTerminalRef.current = options.isTerminal;
+  mapResponseRef.current = options.mapResponse;
+
+  useEffect(() => {
+    if (!url) return;
+    const entry = getEntry(url);
+    entry.isTerminal = isTerminalRef.current;
+    entry.mapResponse = mapResponseRef.current;
+  }, [url, options.isTerminal, options.mapResponse]);
+
+  // subscribe/getSnapshot identities must only change when the URL changes.
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      if (!url) return subscribeDisabled();
+      const entry = getEntry(url);
+      entry.isTerminal = isTerminalRef.current;
+      entry.mapResponse = mapResponseRef.current;
+      return subscribeToUrl(url, onChange);
+    },
+    [url]
   );
 
+  const getSnapshot = useCallback(() => {
+    if (!url) return emptySnapshot;
+    return getEntry(url).snapshot;
+  }, [url]);
+
+  const getServerSnapshot = useCallback(() => emptySnapshot, []);
+
+  const snap = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
   const terminal = snap.status
-    ? isTerminal
-      ? isTerminal(snap.status.status, {})
+    ? options.isTerminal
+      ? options.isTerminal(snap.status.status, {})
       : isTerminalJobStatus(snap.status.status)
     : false;
 
