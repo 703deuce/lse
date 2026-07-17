@@ -43,7 +43,7 @@ export function GridRankLegend({
                 : "text-text-muted hover:text-text"
             )}
           >
-            Local Falcon
+            Gradient
           </button>
         </div>
       )}

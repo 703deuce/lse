@@ -136,8 +136,9 @@ export function GridCompareView({
   useCompareActive(true);
   const [mode, setMode] = useState<CompareMode>(initialMode);
   const [scans, setScans] = useState<ScanOption[]>([]);
-  const [scanAId, setScanAId] = useState(currentScanId);
-  const [scanBId, setScanBId] = useState("");
+  // A = baseline (earlier), B = current (later). Opened scan is always Current.
+  const [scanAId, setScanAId] = useState("");
+  const [scanBId, setScanBId] = useState(currentScanId);
   const [competitorScanId, setCompetitorScanId] = useState(currentScanId);
   const [competitorKey, setCompetitorKey] = useState(initialCompetitorKey ?? "");
   const [data, setData] = useState<CompareData | null>(null);
@@ -161,6 +162,12 @@ export function GridCompareView({
     entitiesProp.filter((e) => !e.isTarget);
 
   useEffect(() => {
+    setScanBId(currentScanId);
+    setCompetitorScanId(currentScanId);
+    setScanAId("");
+  }, [currentScanId]);
+
+  useEffect(() => {
     async function loadScans() {
       const res = await fetch(`/api/businesses/${businessId}/scans`);
       if (!res.ok) return;
@@ -173,14 +180,21 @@ export function GridCompareView({
           keyword: s.keyword,
         })
       );
-      setScans(options);
-      if (options.length > 1 && !scanBId) {
-        const other = options.find((o) => o.id !== currentScanId);
-        if (other) setScanBId(other.id);
-      }
+      // Newest first for the dropdown; baseline = next-older than the open scan.
+      const sorted = [...options].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setScans(sorted);
+      setScanBId(currentScanId);
+      const currentIdx = sorted.findIndex((o) => o.id === currentScanId);
+      const baseline =
+        currentIdx >= 0 && currentIdx < sorted.length - 1
+          ? sorted[currentIdx + 1]
+          : sorted.find((o) => o.id !== currentScanId);
+      if (baseline) setScanAId(baseline.id);
     }
     void loadScans();
-  }, [businessId, currentScanId, scanBId]);
+  }, [businessId, currentScanId]);
 
   useEffect(() => {
     const firstCompetitor =
