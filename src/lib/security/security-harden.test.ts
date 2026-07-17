@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { isPrivateIp } from "@/lib/validation/ssrf";
 import { authorizeBearerSecret, safeEqualSecret } from "@/lib/security/secrets";
-import { isCsrfExemptPath, isSameOriginMutation } from "@/lib/security/csrf";
+import {
+  evaluateSameOriginMutation,
+  getAllowedOrigins,
+  isCsrfExemptPath,
+  isSameOriginMutation,
+  normalizeOrigin,
+  originFromForwardedHeaders,
+} from "@/lib/security/csrf";
 import { escapeCsv } from "@/lib/reporting/metrics";
 import {
   assertRateLimit,
@@ -63,42 +70,189 @@ describe("ASVS code hardenings", () => {
   });
 
   it("enforces same-origin for mutating API calls", () => {
-    assert.equal(isCsrfExemptPath("/api/webhooks/brevo/events"), true);
-    assert.equal(
-      isCsrfExemptPath("/api/integrations/webhooks/incoming/lsewh_test"),
-      true
-    );
-    assert.equal(isCsrfExemptPath("/api/jobs/process"), true);
-    assert.equal(isCsrfExemptPath("/api/scans/create"), false);
-    assert.equal(
-      isSameOriginMutation({
-        method: "POST",
-        url: "https://app.example/api/scans/create",
-        headers: { get: (n) => (n === "origin" ? "https://evil.example" : null) },
-      }),
-      false
-    );
-    assert.equal(
-      isSameOriginMutation({
-        method: "POST",
-        url: "https://app.example/api/scans/create",
-        headers: { get: (n) => (n === "origin" ? "https://app.example" : null) },
-      }),
-      true
-    );
-    assert.equal(
-      isSameOriginMutation({
-        method: "POST",
-        url: "https://app.example/api/scans/create",
-        headers: {
+    const prevApp = process.env.APP_URL;
+    const prevPublic = process.env.NEXT_PUBLIC_APP_URL;
+    const prevAllowed = process.env.ALLOWED_ORIGINS;
+    process.env.APP_URL = "https://app.example";
+    process.env.NEXT_PUBLIC_APP_URL = "https://app.example";
+    delete process.env.ALLOWED_ORIGINS;
+    try {
+      assert.equal(isCsrfExemptPath("/api/webhooks/brevo/events"), true);
+      assert.equal(
+        isCsrfExemptPath("/api/integrations/webhooks/incoming/lsewh_test"),
+        true
+      );
+      assert.equal(isCsrfExemptPath("/api/jobs/process"), true);
+      assert.equal(isCsrfExemptPath("/api/scans/create"), false);
+      assert.equal(
+        isSameOriginMutation({
+          method: "POST",
+          url: "https://app.example/api/scans/create",
+          headers: { get: (n) => (n === "origin" ? "https://evil.example" : null) },
+        }),
+        false
+      );
+      assert.equal(
+        isSameOriginMutation({
+          method: "POST",
+          url: "https://app.example/api/scans/create",
+          headers: { get: (n) => (n === "origin" ? "https://app.example" : null) },
+        }),
+        true
+      );
+      assert.equal(
+        isSameOriginMutation({
+          method: "POST",
+          url: "https://app.example/api/scans/create",
+          headers: {
+            get: (n) => {
+              if (n === "cookie") return "session=abc";
+              return null;
+            },
+          },
+        }),
+        false
+      );
+    } finally {
+      if (prevApp === undefined) delete process.env.APP_URL;
+      else process.env.APP_URL = prevApp;
+      if (prevPublic === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
+      else process.env.NEXT_PUBLIC_APP_URL = prevPublic;
+      if (prevAllowed === undefined) delete process.env.ALLOWED_ORIGINS;
+      else process.env.ALLOWED_ORIGINS = prevAllowed;
+    }
+  });
+
+  it("allows Coolify production origin even when request.url is localhost", () => {
+    const prevApp = process.env.APP_URL;
+    const prevPublic = process.env.NEXT_PUBLIC_APP_URL;
+    const prevAllowed = process.env.ALLOWED_ORIGINS;
+    const prevNode = process.env.NODE_ENV;
+    process.env.APP_URL = "https://app.localseoexpress.com";
+    process.env.NEXT_PUBLIC_APP_URL = "https://app.localseoexpress.com";
+    process.env.ALLOWED_ORIGINS = "https://app.localseoexpress.com";
+    process.env.NODE_ENV = "production";
+    try {
+      assert.equal(normalizeOrigin("https://app.localseoexpress.com/"), "https://app.localseoexpress.com");
+      assert.equal(normalizeOrigin("https://app.localseoexpress.com:443"), "https://app.localseoexpress.com");
+      assert.ok(getAllowedOrigins().includes("https://app.localseoexpress.com"));
+
+      // Valid browser origin behind Traefik (internal request.url is localhost)
+      assert.equal(
+        isSameOriginMutation({
+          method: "POST",
+          url: "http://localhost:3000/api/scans/create",
+          headers: {
+            get: (n) => {
+              if (n === "origin") return "https://app.localseoexpress.com";
+              if (n === "x-forwarded-host") return "app.localseoexpress.com";
+              if (n === "x-forwarded-proto") return "https";
+              if (n === "cookie") return "sb-access-token=x";
+              return null;
+            },
+          },
+        }),
+        true
+      );
+
+      // http (not https) production origin rejected
+      assert.equal(
+        isSameOriginMutation({
+          method: "POST",
+          url: "http://localhost:3000/api/scans/create",
+          headers: {
+            get: (n) => {
+              if (n === "origin") return "http://app.localseoexpress.com";
+              if (n === "x-forwarded-host") return "app.localseoexpress.com";
+              if (n === "x-forwarded-proto") return "https";
+              return null;
+            },
+          },
+        }),
+        false
+      );
+
+      // evil.com rejected
+      assert.equal(
+        isSameOriginMutation({
+          method: "POST",
+          url: "http://localhost:3000/api/scans/create",
+          headers: { get: (n) => (n === "origin" ? "https://evil.com" : null) },
+        }),
+        false
+      );
+
+      // suffix / subdomain confusion rejected (exact match only)
+      assert.equal(
+        isSameOriginMutation({
+          method: "POST",
+          url: "http://localhost:3000/api/scans/create",
+          headers: {
+            get: (n) => (n === "origin" ? "https://app.localseoexpress.com.evil.com" : null),
+          },
+        }),
+        false
+      );
+
+      // Spoofed forwarded host must NOT expand allowlist
+      assert.equal(
+        isSameOriginMutation({
+          method: "POST",
+          url: "http://localhost:3000/api/scans/create",
+          headers: {
+            get: (n) => {
+              if (n === "origin") return "https://evil.com";
+              if (n === "x-forwarded-host") return "evil.com";
+              if (n === "x-forwarded-proto") return "https";
+              return null;
+            },
+          },
+        }),
+        false
+      );
+      assert.equal(
+        originFromForwardedHeaders({
           get: (n) => {
-            if (n === "cookie") return "session=abc";
+            if (n === "x-forwarded-host") return "evil.com";
+            if (n === "x-forwarded-proto") return "https";
             return null;
           },
-        },
-      }),
-      false
-    );
+        }),
+        "https://evil.com"
+      );
+      assert.equal(
+        getAllowedOrigins().includes("https://evil.com"),
+        false
+      );
+
+      // Absent Origin for server-to-server (no cookies) allowed
+      assert.equal(
+        isSameOriginMutation({
+          method: "POST",
+          url: "http://localhost:3000/api/jobs/process",
+          headers: { get: () => null },
+        }),
+        true
+      );
+
+      const denied = evaluateSameOriginMutation({
+        method: "POST",
+        url: "http://localhost:3000/api/scans/create",
+        headers: { get: (n) => (n === "origin" ? "https://evil.com" : null) },
+      });
+      assert.equal(denied.ok, false);
+      assert.equal(denied.diagnostics.reason, "origin_not_allowlisted");
+      assert.equal(denied.diagnostics.canonicalOrigin, "https://app.localseoexpress.com");
+      assert.equal(denied.diagnostics.requestHost, "localhost:3000");
+    } finally {
+      if (prevApp === undefined) delete process.env.APP_URL;
+      else process.env.APP_URL = prevApp;
+      if (prevPublic === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
+      else process.env.NEXT_PUBLIC_APP_URL = prevPublic;
+      if (prevAllowed === undefined) delete process.env.ALLOWED_ORIGINS;
+      else process.env.ALLOWED_ORIGINS = prevAllowed;
+      process.env.NODE_ENV = prevNode;
+    }
   });
 
   it("neutralizes CSV formula injection", () => {

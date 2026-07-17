@@ -5,7 +5,8 @@
 export const PRODUCTION_APP_URL = "https://app.localexpress.com";
 
 export function getAppBaseUrl(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  const fromEnv =
+    process.env.APP_URL?.trim() || process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (fromEnv) return fromEnv.replace(/\/$/, "");
 
   const vercel = process.env.VERCEL_URL?.trim();

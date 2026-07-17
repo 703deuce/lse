@@ -3,17 +3,6 @@ import { isDevBypassEnabled } from "@/lib/auth/dev";
 
 const DEFAULT_MAX_AGE_MS = Number(process.env.SENSITIVE_REAUTH_MAX_AGE_MS ?? 60 * 60 * 1000);
 
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
-  try {
-    const parts = token.split(".");
-    if (parts.length < 2) return null;
-    const json = Buffer.from(parts[1], "base64url").toString("utf8");
-    return JSON.parse(json) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
 /** Testable reauth decision from JWT claims (auth_time only; iat-only without AAL2 rejected). */
 export function evaluateRecentAuthFromPayload(
   payload: Record<string, unknown> | null,
@@ -48,6 +37,9 @@ export function evaluateRecentAuthFromPayload(
  * Require a fresh interactive authentication for sensitive mutations.
  * Uses JWT `auth_time` only — never `iat`, which rotates on token refresh
  * and would bypass step-up reauthentication.
+ *
+ * Uses `getUser()` (server-validated) then `getClaims()` for JWT claims —
+ * never trusts `getSession().user`.
  */
 export async function requireRecentAuth(
   maxAgeMs = DEFAULT_MAX_AGE_MS
@@ -58,13 +50,16 @@ export async function requireRecentAuth(
 
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.access_token) {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+  if (error || !user) {
     throw new Error("Authentication required");
   }
 
-  const payload = decodeJwtPayload(session.access_token);
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const payload = (claimsData?.claims ?? null) as Record<string, unknown> | null;
+
   const decision = evaluateRecentAuthFromPayload(payload, maxAgeMs);
   if (!decision.ok) {
     const err = new Error("Reauthentication required");
