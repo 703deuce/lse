@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     const auth = await requireAuth();
     await requireInternalMapsDifficulty(auth.organizationId);
 
-    const rate = assertRateLimit({
+    const rate = await assertRateLimit({
       key: `maps-difficulty:${auth.organizationId}`,
       maxPerWindow: 10,
       windowMs: 60_000,

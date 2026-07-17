@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
     const auth = await requireBusinessAccess(businessId);
     await requireEntitlement(auth.organizationId, "review_campaigns");
-    const rate = assertRateLimit({
+    const rate = await assertRateLimit({
       key: `reputation-templates:${auth.organizationId}`,
       maxPerWindow: 25,
       windowMs: 60_000,

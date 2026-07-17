@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Business organization not found" }, { status: 404 });
     }
 
-    const rate = assertRateLimit({
+    const rate = await assertRateLimit({
       key: `audits-run:${biz.organization_id}`,
       maxPerWindow: 25,
       windowMs: 60_000,

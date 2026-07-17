@@ -30,6 +30,20 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
+      - name: Client bundle secret scan
+        run: node scripts/check-client-bundle-secrets.mjs
+
+      - name: Security static checks
+        run: node scripts/security-static-checks.mjs
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+        continue-on-error: true
+
       - name: npm audit (critical)
         run: npm audit --audit-level=critical
 

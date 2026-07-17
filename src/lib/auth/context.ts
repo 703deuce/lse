@@ -8,6 +8,10 @@ import {
   getOrganizationIdForUser,
 } from "@/lib/auth/onboarding";
 import { getDevAuthContext, isDevBypassEnabled, isDevMockAuthEnabled } from "@/lib/auth/dev";
+import {
+  isOrganizationAccessBlocked,
+  loadOrganizationGateStatus,
+} from "@/lib/auth/org-status";
 
 export interface AuthContext {
   userId: string;
@@ -65,6 +69,16 @@ export async function getAuthContext(): Promise<AuthContext> {
   let organizationId = await getOrganizationIdForUser(user.id);
   if (!organizationId) {
     organizationId = await ensureUserOrganization(user);
+  }
+
+  const orgGate = await loadOrganizationGateStatus(organizationId);
+  if (!orgGate || isOrganizationAccessBlocked(orgGate.status)) {
+    return {
+      userId: "",
+      organizationId: "",
+      email: null,
+      isAuthenticated: false,
+    };
   }
 
   return {

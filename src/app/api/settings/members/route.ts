@@ -70,13 +70,7 @@ export async function POST(request: Request) {
       .eq("email", email)
       .maybeSingle();
     if (!profile?.id) {
-      return NextResponse.json(
-        {
-          error:
-            "No account found for that email. Ask them to sign in once, then invite again.",
-        },
-        { status: 404 }
-      );
+      return NextResponse.json({ ok: true, pending: true });
     }
 
     const { error } = await supabase.from("organization_members").upsert(
@@ -155,6 +149,12 @@ export async function PATCH(request: Request) {
       meta: { role: parsed.data.role },
       ...meta,
     });
+
+    try {
+      await supabase.auth.admin.signOut(parsed.data.userId, "global");
+    } catch {
+      /* admin API may be unavailable in some environments */
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {

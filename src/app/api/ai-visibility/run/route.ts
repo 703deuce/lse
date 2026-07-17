@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     }
 
     const auth = await requireBusinessAccess(businessId);
-    const rate = assertRateLimit({
+    const rate = await assertRateLimit({
       key: `ai-visibility:${auth.organizationId}`,
       maxPerWindow: 30,
       windowMs: 60_000,

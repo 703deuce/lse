@@ -7,6 +7,9 @@ import {
   type CompetitorLimit,
   type ReportArtifactKind,
 } from "@/lib/reporting/pdf/constants";
+import { assertSafeArtifactStoragePath } from "@/lib/reporting/artifact-path";
+
+export { assertSafeArtifactStoragePath } from "@/lib/reporting/artifact-path";
 
 const REPORTS_BUCKET = "reports";
 
@@ -99,6 +102,7 @@ export async function createSignedArtifactUrl(params: {
   path: string;
   expiresInSeconds?: number;
 }): Promise<string> {
+  assertSafeArtifactStoragePath(params.path);
   const { data, error } = await supabaseAdmin.storage
     .from(REPORTS_BUCKET)
     .createSignedUrl(params.path, params.expiresInSeconds ?? 600);

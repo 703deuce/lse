@@ -20,6 +20,7 @@ import { getLockDriverName } from "@/lib/locks";
 import { providerHealth } from "@/lib/providers/gateway";
 import { dbLimiterStats } from "@/lib/platform/db-limiter";
 import { createServiceClient } from "@/lib/db/client";
+import { loadSecurityIndicators } from "@/lib/security/ops-indicators";
 
 async function loadWebhookOpsMetrics() {
   const supabase = createServiceClient();
@@ -100,12 +101,17 @@ export async function GET() {
   try {
     const auth = await requirePlatformAdmin();
 
-    const [counts, queueGroups, campaignMessages, redis, webhooks] = await Promise.all([
+    const [counts, queueGroups, campaignMessages, redis, webhooks, securityIndicators] =
+      await Promise.all([
       countJobsByStatus(),
       countJobsByQueueGroup().catch(() => null),
       countCampaignMessagePipeline().catch(() => null),
       pingRedis(),
       loadWebhookOpsMetrics().catch(() => null),
+      loadSecurityIndicators().catch(() => ({
+        crossTenantDeniedLastHour: 0,
+        webhookVerifyFailedLastHour: 0,
+      })),
     ]);
     const providers = ["brightdata", "dataforseo", "scrapingdog", "deepseek", "twilio", "brevo"].map(
       (p) => providerHealth(p)
@@ -137,6 +143,7 @@ export async function GET() {
       campaignMessages,
       providers,
       webhooks,
+      securityIndicators,
       checkedAt: new Date().toISOString(),
     });
   } catch (err) {

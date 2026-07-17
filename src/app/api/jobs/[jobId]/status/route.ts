@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireAuth } from "@/lib/auth/context";
 import { isDevBypassEnabled } from "@/lib/auth/dev";
-import { isAdminEmail } from "@/lib/auth/admin";
+import { requirePlatformAdmin } from "@/lib/auth/admin";
 import {
   assertJobStatusRateLimit,
   getCompactJobStatus,
@@ -24,9 +24,8 @@ export async function GET(
     }
 
     const auth = await requireAuth();
-    const isAdmin = isAdminEmail(auth.email);
 
-    const rate = assertJobStatusRateLimit({
+    const rate = await assertJobStatusRateLimit({
       organizationId: auth.organizationId || "anon",
       jobId,
       maxPerWindow: 2,
@@ -53,15 +52,13 @@ export async function GET(
     const { compact, organizationId } = bundle;
 
     if (!organizationId) {
-      if (!isAdmin && !isDevBypassEnabled()) {
+      if (!isDevBypassEnabled()) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
-    } else if (
-      organizationId !== auth.organizationId &&
-      !isAdmin &&
-      !isDevBypassEnabled()
-    ) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    } else if (organizationId !== auth.organizationId) {
+      if (!isDevBypassEnabled()) {
+        await requirePlatformAdmin();
+      }
     }
 
     // Include stalled so a heartbeat-only stall still busts 304 without a progress bump.

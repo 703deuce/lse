@@ -84,6 +84,17 @@ export async function generateScanArtifact(params: {
   competitorLimit?: CompetitorLimit;
   force?: boolean;
 }): Promise<GenerateScanArtifactResult> {
+  const { withReportGenerationTimeout } = await import("@/lib/reporting/report-timeout");
+  return withReportGenerationTimeout(() => generateScanArtifactInner(params));
+}
+
+async function generateScanArtifactInner(params: {
+  businessId: string;
+  scanBatchId: string;
+  kind: ReportArtifactKind;
+  competitorLimit?: CompetitorLimit;
+  force?: boolean;
+}): Promise<GenerateScanArtifactResult> {
   const started = Date.now();
   const supabase = createServiceClient();
   const gridData = await loadScanGridData(supabase, params.scanBatchId);
