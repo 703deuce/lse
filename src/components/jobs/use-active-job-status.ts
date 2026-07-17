@@ -40,6 +40,8 @@ type CacheEntry = Snapshot & {
   refCount: number;
   onVis: (() => void) | null;
   etag: string | null;
+  /** Consecutive 404s before we treat the job as missing (enqueue race). */
+  notFoundCount: number;
   isTerminal: Options["isTerminal"];
   mapResponse: Options["mapResponse"];
 };
@@ -63,6 +65,7 @@ function getEntry(url: string): CacheEntry {
       refCount: 0,
       onVis: null,
       etag: null,
+      notFoundCount: 0,
       isTerminal: undefined,
       mapResponse: undefined,
     };
@@ -186,7 +189,25 @@ async function tick(url: string, opts?: { force?: boolean }) {
         if (entry.refCount > 0) schedule(url, retry);
         return;
       }
-      if (res.status === 401 || res.status === 403 || res.status === 404) {
+      if (res.status === 401 || res.status === 403) {
+        entry.error = message;
+        entry.status = {
+          jobId: String(json.jobId ?? url),
+          status: "failed",
+          phase: "failed",
+          errorMessage: message,
+        };
+        bump(entry);
+        return;
+      }
+      // 404 right after enqueue is often a brief race (ledger row not visible yet)
+      // or a schema-lag select failure — retry before killing the Run UI.
+      if (res.status === 404) {
+        entry.notFoundCount += 1;
+        if (entry.notFoundCount < 5 && entry.refCount > 0) {
+          schedule(url, 400 * entry.notFoundCount);
+          return;
+        }
         entry.error = message;
         entry.status = {
           jobId: String(json.jobId ?? url),
@@ -212,6 +233,7 @@ async function tick(url: string, opts?: { force?: boolean }) {
 
     entry.status = mapped;
     entry.error = null;
+    entry.notFoundCount = 0;
     if (changed) entry.lastChangeAt = Date.now();
     bump(entry);
 

@@ -1,8 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
-import { requireAuth } from "@/lib/auth/context";
+import { requireBusinessPage } from "@/lib/auth/require-business-page";
 import { getBusiness } from "@/lib/db/queries";
-import { notFound } from "next/navigation";
 
 export async function BusinessModuleShell({
   businessId,
@@ -15,9 +15,12 @@ export async function BusinessModuleShell({
   subtitle?: string;
   children: React.ReactNode;
 }) {
-  const auth = await requireAuth();
+  // Redirect on auth/access failures — do not throw or notFound().
+  // Throwing "Authentication required" after a flaky org-gate lookup used to
+  // render Next's dead "page cannot load / reload" state while workers kept going.
+  const auth = await requireBusinessPage(businessId);
   const business = await getBusiness(businessId, auth.organizationId);
-  if (!business) notFound();
+  if (!business) redirect("/businesses?error=access_denied");
 
   return (
     <>

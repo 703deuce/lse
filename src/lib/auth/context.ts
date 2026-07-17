@@ -12,6 +12,7 @@ import {
   isOrganizationAccessBlocked,
   loadOrganizationGateStatus,
 } from "@/lib/auth/org-status";
+import { logger } from "@/lib/observability/logger";
 
 export interface AuthContext {
   userId: string;
@@ -72,9 +73,13 @@ export async function getAuthContext(): Promise<AuthContext> {
   }
 
   const orgGate = await loadOrganizationGateStatus(organizationId);
-  if (!orgGate || isOrganizationAccessBlocked(orgGate.status)) {
-    // Clear the session so middleware does not bounce /sign-in → /businesses
-    // while app guards treat the user as unauthenticated (redirect loop).
+  // Only sign out when we *know* the org is deleted/suspended.
+  // A failed org lookup (missing column, schema lag, transient DB error) used to
+  // return null here and wipe the session — workers kept running, but the UI
+  // crashed into "page cannot load / reload / go back" and the user couldn't see results.
+  if (!orgGate) {
+    logger.warn("org_gate_lookup_failed_keeping_session", { organizationId, userId: user.id });
+  } else if (isOrganizationAccessBlocked(orgGate.status)) {
     try {
       await supabase.auth.signOut();
     } catch {
