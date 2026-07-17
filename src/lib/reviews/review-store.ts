@@ -143,6 +143,9 @@ export async function upsertReviews(
     : "competitor_id,source_provider,source_review_id";
 
   // Chunk to keep payloads bounded on large syncs.
+  // Requires non-partial unique indexes (migration 064). Partial indexes from
+  // 027 are invisible to PostgREST ON CONFLICT and fail with:
+  // "there is no unique or exclusion constraint matching the ON CONFLICT specification".
   const chunkSize = 200;
   for (let i = 0; i < rows.length; i += chunkSize) {
     const chunk = rows.slice(i, i + chunkSize);
@@ -150,7 +153,17 @@ export async function upsertReviews(
       onConflict,
       ignoreDuplicates: false,
     });
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (/no unique or exclusion constraint matching the ON CONFLICT/i.test(error.message)) {
+        await upsertReviewsRowByRow(supabase, chunk, {
+          businessId: params.businessId,
+          competitorId: params.competitorId,
+          provider: params.provider,
+        });
+        continue;
+      }
+      throw new Error(error.message);
+    }
   }
 
   const updated = rows.filter((r) => existingSet.has(r.source_review_id)).length;
@@ -183,6 +196,62 @@ export async function upsertReviews(
   });
 
   return { inserted, updated };
+}
+
+type ReviewUpsertRow = {
+  organization_id: string;
+  business_id: string | null;
+  competitor_id: string | null;
+  source_provider: string;
+  source_review_id: string;
+  reviewer_name: string | null;
+  rating: number | null;
+  review_text: string | null;
+  review_date: string | null;
+  relative_date_text: string | null;
+  owner_response_text: string | null;
+  review_url: string | null;
+  raw_json: Record<string, unknown>;
+  updated_at: string;
+};
+
+/**
+ * Fallback when the DB still has partial unique indexes (pre-064) that PostgREST
+ * cannot target with ON CONFLICT. Match by natural key and update or insert.
+ */
+async function upsertReviewsRowByRow(
+  supabase: Supabase,
+  rows: ReviewUpsertRow[],
+  params: {
+    businessId?: string | null;
+    competitorId?: string | null;
+    provider: string;
+  }
+): Promise<void> {
+  for (const row of rows) {
+    let existingQuery = supabase
+      .from("business_reviews")
+      .select("id")
+      .eq("source_provider", params.provider)
+      .eq("source_review_id", row.source_review_id)
+      .limit(1);
+    if (params.businessId) existingQuery = existingQuery.eq("business_id", params.businessId);
+    else existingQuery = existingQuery.eq("competitor_id", params.competitorId!);
+
+    const { data: existing, error: selectError } = await existingQuery.maybeSingle();
+    if (selectError) throw new Error(selectError.message);
+
+    if (existing?.id) {
+      const { error } = await supabase
+        .from("business_reviews")
+        .update(row)
+        .eq("id", existing.id);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabase.from("business_reviews").insert(row);
+      if (error) throw new Error(error.message);
+    }
+  }
 }
 
 async function updateSyncState(
@@ -225,7 +294,28 @@ async function updateSyncState(
     onConflict: conflictCol,
     ignoreDuplicates: false,
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (/no unique or exclusion constraint matching the ON CONFLICT/i.test(error.message)) {
+      // Pre-064 partial unique indexes — update-or-insert by entity id.
+      let existingQuery = supabase.from("review_sync_state").select("id");
+      if (params.businessId) existingQuery = existingQuery.eq("business_id", params.businessId);
+      else existingQuery = existingQuery.eq("competitor_id", params.competitorId!);
+      const { data: existingRow, error: selectError } = await existingQuery.maybeSingle();
+      if (selectError) throw new Error(selectError.message);
+      if (existingRow?.id) {
+        const { error: updateError } = await supabase
+          .from("review_sync_state")
+          .update(row)
+          .eq("id", existingRow.id);
+        if (updateError) throw new Error(updateError.message);
+      } else {
+        const { error: insertError } = await supabase.from("review_sync_state").insert(row);
+        if (insertError) throw new Error(insertError.message);
+      }
+      return;
+    }
+    throw new Error(error.message);
+  }
 }
 
 export async function loadStoredReviews(
