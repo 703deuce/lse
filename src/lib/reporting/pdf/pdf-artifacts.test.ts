@@ -153,6 +153,22 @@ async function syntheticMapPng(width = 1280, height = 1280): Promise<Buffer> {
     .toBuffer();
 }
 
+/** PDFKit encodes Helvetica text as hex TJ chunks — decode for assertions. */
+function pdfDecodedText(buffer: Buffer): string {
+  const latin = buffer.toString("latin1");
+  const parts: string[] = [];
+  for (const match of latin.matchAll(/<([0-9A-Fa-f]+)>/g)) {
+    const hex = match[1];
+    if (hex.length % 2 !== 0) continue;
+    let out = "";
+    for (let i = 0; i < hex.length; i += 2) {
+      out += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16));
+    }
+    parts.push(out);
+  }
+  return parts.join("");
+}
+
 describe("scan PDF artifacts", () => {
   it("exposes all download kinds with content types", () => {
     assert.deepEqual([...REPORT_ARTIFACT_KINDS], [
@@ -251,11 +267,12 @@ describe("scan PDF artifacts", () => {
         );
         assert.equal(countPdfPages(result.buffer), SINGLE_SCAN_PDF_EXPECTED_PAGES);
         assert.ok(result.buffer.byteLength > 5_000);
-        // No emoji / icon-font markers in the PDF stream.
-        const latin = result.buffer.toString("latin1");
-        assert.doesNotMatch(latin, /★|✓|✔|📍|🔥/);
-        assert.match(latin, /\[YOU\]/);
-        assert.match(latin, /Map data \(c\) Google/);
+        const decoded = pdfDecodedText(result.buffer);
+        assert.doesNotMatch(decoded, /★|✓|✔|📍|🔥/);
+        assert.match(decoded, /\[YOU\]/);
+        assert.match(decoded, /Map data \(c\) Google/);
+        assert.match(decoded, /Page 1 of 4/);
+        assert.match(decoded, /Page 4 of 4/);
       }
     }
   });

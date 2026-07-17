@@ -179,6 +179,11 @@ async function generateScanArtifactInner(params: {
       }));
 
       // PDF + map_png require a real Static Maps base — never ship gray placeholders.
+      // Portrait PDF map page uses a taller aspect so the image fills most of the sheet.
+      const mapDims =
+        params.kind === "pdf"
+          ? { width: 1024, height: 1280 }
+          : { width: 1280, height: 1280 };
       const mapResult = await renderScanMapPng({
         centerLat,
         centerLng,
@@ -186,6 +191,8 @@ async function generateScanArtifactInner(params: {
         gridSize: payload.parameters.gridSize,
         pins,
         requireRealMap: true,
+        width: mapDims.width,
+        height: mapDims.height,
       });
 
       if (mapResult.mapSource !== "google_static") {

@@ -65,13 +65,24 @@ async function fetchStaticMapBase(params: {
   height: number;
   withStyle: boolean;
 }): Promise<{ ok: true; buffer: Buffer } | { ok: false; status: number; body: string }> {
+  // Static Maps allows max 640px per side; scale=2 doubles the returned pixels.
+  // Preserve the requested aspect ratio inside that budget (no stretch-to-square).
+  const maxSide = 640;
+  const aspect = params.width / Math.max(1, params.height);
+  let reqW: number;
+  let reqH: number;
+  if (aspect >= 1) {
+    reqW = maxSide;
+    reqH = Math.max(1, Math.round(maxSide / aspect));
+  } else {
+    reqH = maxSide;
+    reqW = Math.max(1, Math.round(maxSide * aspect));
+  }
+
   const url = new URL("https://maps.googleapis.com/maps/api/staticmap");
   url.searchParams.set("center", `${params.centerLat},${params.centerLng}`);
   url.searchParams.set("zoom", String(params.zoom));
-  url.searchParams.set(
-    "size",
-    `${Math.min(params.width, 640)}x${Math.min(params.height, 640)}`
-  );
+  url.searchParams.set("size", `${reqW}x${reqH}`);
   url.searchParams.set("scale", "2");
   url.searchParams.set("maptype", "roadmap");
   if (params.withStyle) {

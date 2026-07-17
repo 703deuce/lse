@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import sharp from "sharp";
 import {
   SINGLE_SCAN_PDF_EXPECTED_PAGES,
   type CompetitorLimit,
@@ -107,12 +108,12 @@ function kpiBox(
 ) {
   doc.save();
   doc.roundedRect(x, y, w, h, 5).fillAndStroke("#fafafa", "#e4e4e7");
-  doc.fillColor("#71717a").fontSize(8).font("Helvetica").text(label, x + 8, y + 8, {
-    width: w - 16,
+  doc.fillColor("#71717a").fontSize(9).font("Helvetica").text(label, x + 10, y + 10, {
+    width: w - 20,
     lineBreak: false,
   });
-  doc.fillColor("#18181b").fontSize(15).font("Helvetica-Bold").text(value, x + 8, y + 24, {
-    width: w - 16,
+  doc.fillColor("#18181b").fontSize(18).font("Helvetica-Bold").text(value, x + 10, y + 28, {
+    width: w - 20,
     lineBreak: false,
   });
   doc.restore();
@@ -167,6 +168,8 @@ export async function renderSingleScanPdfDetailed(params: {
     margins: { ...PAGE_MARGINS },
     autoFirstPage: true,
     bufferPages: true,
+    // Keep content streams readable for page-count / attribution verification.
+    compress: false,
     info: {
       Title: `Local Rank Scan Report - ${payload.business.name}`,
       Author: payload.whiteLabel.companyName || "Local SEO Express",
@@ -187,21 +190,21 @@ export async function renderSingleScanPdfDetailed(params: {
 
   // ── Page 1: Overview ─────────────────────────────────────────────
   drawHeader(doc, payload, "Overview");
-  doc.y = contentTop + 8;
-  doc.fillColor("#18181b").fontSize(18).font("Helvetica-Bold").text("Local Rank Scan Report", 36, doc.y, {
+  doc.y = contentTop + 10;
+  doc.fillColor("#18181b").fontSize(20).font("Helvetica-Bold").text("Local Rank Scan Report", 36, doc.y, {
     width: doc.page.width - 72,
     lineBreak: false,
   });
-  doc.y += 22;
-  doc.fontSize(11).font("Helvetica-Bold").fillColor("#18181b").text(payload.business.name, {
+  doc.y += 26;
+  doc.fontSize(13).font("Helvetica-Bold").fillColor("#18181b").text(payload.business.name, {
     width: doc.page.width - 72,
   });
   if (payload.business.address) {
-    doc.fontSize(9).font("Helvetica").fillColor("#52525b").text(payload.business.address, {
+    doc.fontSize(10).font("Helvetica").fillColor("#52525b").text(payload.business.address, {
       width: doc.page.width - 72,
     });
   }
-  doc.moveDown(0.45);
+  doc.moveDown(0.55);
 
   const metaLeft = [
     ["Keyword", payload.parameters.keyword],
@@ -217,18 +220,18 @@ export async function renderSingleScanPdfDetailed(params: {
   ] as const;
 
   const metaY = doc.y;
-  doc.fontSize(9).fillColor("#3f3f46");
+  doc.fontSize(10).fillColor("#3f3f46");
   metaLeft.forEach((row, i) => {
-    const y = metaY + i * 15;
+    const y = metaY + i * 17;
     doc.font("Helvetica-Bold").text(`${row[0]}: `, 36, y, { continued: true, lineBreak: false });
     doc.font("Helvetica").text(String(row[1]).slice(0, 48), { lineBreak: false });
   });
   metaRight.forEach((row, i) => {
-    const y = metaY + i * 15;
+    const y = metaY + i * 17;
     doc.font("Helvetica-Bold").text(`${row[0]}: `, 318, y, { continued: true, lineBreak: false });
     doc.font("Helvetica").text(String(row[1]).slice(0, 48), { lineBreak: false });
   });
-  doc.y = metaY + metaLeft.length * 15 + 14;
+  doc.y = metaY + metaLeft.length * 17 + 18;
 
   const boxes: Array<[string, string]> = [
     ["ARP", fmt(k.arp)],
@@ -241,7 +244,7 @@ export async function renderSingleScanPdfDetailed(params: {
     ["Worst rank", k.worstRank != null ? String(k.worstRank) : "-"],
   ];
   const boxW = (doc.page.width - 72 - 30) / 4;
-  const boxH = 52;
+  const boxH = 64;
   const gap = 10;
   let bx = 36;
   let by = doc.y;
@@ -253,30 +256,30 @@ export async function renderSingleScanPdfDetailed(params: {
     kpiBox(doc, bx, by, boxW, boxH, b[0], b[1]);
     bx += boxW + gap;
   });
-  doc.y = by + boxH + 18;
+  doc.y = by + boxH + 22;
 
-  doc.fillColor("#18181b").fontSize(11).font("Helvetica-Bold").text("Coverage snapshot", 36, doc.y);
-  doc.moveDown(0.35);
-  doc.font("Helvetica").fontSize(10).fillColor("#3f3f46");
+  doc.fillColor("#18181b").fontSize(12).font("Helvetica-Bold").text("Coverage snapshot", 36, doc.y);
+  doc.moveDown(0.4);
+  doc.font("Helvetica").fontSize(11).fillColor("#3f3f46");
   const top3Cells = Math.round((k.top3Pct / 100) * k.totalCells);
   const top10Cells = Math.round((k.top10Pct / 100) * k.totalCells);
   const notFoundCells = Math.round((k.notFoundPct / 100) * k.totalCells);
   doc.text(
     `Found in ${k.foundCells} of ${k.totalCells} cells. Top 3: ${top3Cells} · Top 10: ${top10Cells} · Not found: ${notFoundCells}.`
   );
-  doc.moveDown(0.6);
+  doc.moveDown(0.75);
 
-  doc.fillColor("#18181b").fontSize(11).font("Helvetica-Bold").text("Rank distribution");
-  doc.moveDown(0.35);
+  doc.fillColor("#18181b").fontSize(12).font("Helvetica-Bold").text("Rank distribution");
+  doc.moveDown(0.45);
   const maxBucket = Math.max(1, ...payload.rankDistribution.map((d) => d.count));
   let barY = doc.y;
   for (const bucket of payload.rankDistribution) {
     const barW = ((doc.page.width - 200) * bucket.count) / maxBucket;
-    doc.font("Helvetica").fontSize(9).fillColor("#3f3f46");
+    doc.font("Helvetica").fontSize(10).fillColor("#3f3f46");
     doc.text(bucket.label, 36, barY, { width: 90, lineBreak: false });
-    doc.roundedRect(136, barY, Math.max(4, barW), 11, 3).fill("#059669");
-    doc.fillColor("#18181b").text(String(bucket.count), 146 + barW, barY, { lineBreak: false });
-    barY += 18;
+    doc.roundedRect(136, barY, Math.max(4, barW), 14, 3).fill("#059669");
+    doc.fillColor("#18181b").text(String(bucket.count), 146 + barW, barY + 1, { lineBreak: false });
+    barY += 22;
   }
   doc.y = barY + 8;
 
@@ -286,26 +289,34 @@ export async function renderSingleScanPdfDetailed(params: {
   doc.addPage({ size: "LETTER", layout: "portrait", margins: { ...PAGE_MARGINS } });
   pageNum = 2;
   drawHeader(doc, payload, "Rank grid map");
-  doc.y = contentTop + 6;
-  doc.fillColor("#18181b").fontSize(14).font("Helvetica-Bold").text("Rank-grid map", 36, doc.y, {
+  // Compact chrome so the map can use ~80% of page height.
+  doc.y = contentTop + 4;
+  doc.fillColor("#18181b").fontSize(12).font("Helvetica-Bold").text("Rank-grid map", 36, doc.y, {
     lineBreak: false,
   });
-  doc.y += 18;
+  doc.y += 15;
   doc.fontSize(8).font("Helvetica").fillColor("#52525b");
   doc.text(
     `${payload.parameters.gridSize}x${payload.parameters.gridSize} grid · ${Math.round(payload.parameters.radiusMeters)} m radius · ~${spacing} m pin spacing · Map data (c) Google`,
     { width: doc.page.width - 72, lineBreak: false }
   );
-  doc.y += 14;
+  doc.y += 10;
 
   const mapTop = doc.y;
   const mapMaxW = doc.page.width - 72;
-  const mapMaxH = doc.page.height - mapTop - footerReserve - 8;
-  doc.image(params.mapPng, 36, mapTop, {
-    fit: [mapMaxW, mapMaxH],
-    align: "center",
-    valign: "top",
-  });
+  const mapMaxH = doc.page.height - mapTop - footerReserve - 6;
+  const mapMeta = await sharp(params.mapPng).metadata();
+  const srcW = mapMeta.width || mapMaxW;
+  const srcH = mapMeta.height || mapMaxH;
+  const aspect = srcW / Math.max(1, srcH);
+  let drawW = mapMaxW;
+  let drawH = drawW / aspect;
+  if (drawH > mapMaxH) {
+    drawH = mapMaxH;
+    drawW = drawH * aspect;
+  }
+  const mapX = 36 + (mapMaxW - drawW) / 2;
+  doc.image(params.mapPng, mapX, mapTop, { width: drawW, height: drawH });
   drawFooter(doc, payload, params.reportId, pageNum, pageCount);
 
   // ── Page 3: Performance (two columns, no overlap) ────────────────
@@ -357,12 +368,12 @@ export async function renderSingleScanPdfDetailed(params: {
 
   // Right column
   let rightY = sectionTop;
-  doc.fontSize(10).font("Helvetica-Bold").fillColor("#18181b").text("Heatmap", rightX, rightY);
+  doc.fontSize(11).font("Helvetica-Bold").fillColor("#18181b").text("Heatmap", rightX, rightY);
   rightY += 14;
   if (params.heatmapPng) {
-    const heatSize = Math.min(colW, 240);
+    const heatSize = Math.min(colW, 300);
     doc.image(params.heatmapPng, rightX, rightY, { fit: [heatSize, heatSize] });
-    rightY += heatSize + 12;
+    rightY += heatSize + 14;
   } else {
     doc.font("Helvetica").fontSize(9).fillColor("#71717a").text("Heatmap unavailable", rightX, rightY);
     rightY += 20;
