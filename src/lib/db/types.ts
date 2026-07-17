@@ -156,6 +156,8 @@ export interface BusinessRow {
   service_area_mode: string;
   scan_center_lat: number | null;
   scan_center_lng: number | null;
+  /** Private app-only address used when the public GBP listing has none. */
+  scan_center_label: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -174,6 +176,7 @@ export interface BusinessInsert {
   service_area_mode?: string;
   scan_center_lat?: number | null;
   scan_center_lng?: number | null;
+  scan_center_label?: string | null;
 }
 
 export interface BusinessKeywordRow {

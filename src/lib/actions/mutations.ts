@@ -24,6 +24,7 @@ export async function updateBusinessSettings(
     radius_meters?: number;
     scan_center_lat?: number;
     scan_center_lng?: number;
+    scan_center_label?: string | null;
   }
 ) {
   await requireBusinessAccess(businessId);

@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       await Promise.all([
         supabase
           .from("businesses")
-          .select("scan_center_lat, scan_center_lng, lat, lng, address_text")
+          .select("scan_center_lat, scan_center_lng, scan_center_label, lat, lng, address_text")
           .eq("id", businessId)
           .maybeSingle(),
         supabase
@@ -103,6 +103,7 @@ export async function POST(request: Request) {
       null;
     const centerLabel =
       bodyLabel?.trim() ||
+      business?.scan_center_label ||
       business?.address_text ||
       latestScan?.center_label ||
       null;
@@ -112,6 +113,18 @@ export async function POST(request: Request) {
         { error: "Set a scan center before running a grid scan." },
         { status: 400 }
       );
+    }
+
+    // Persist explicit center so service-area businesses keep their private address.
+    if (bodyLat != null && bodyLng != null) {
+      await supabase
+        .from("businesses")
+        .update({
+          scan_center_lat: centerLat,
+          scan_center_lng: centerLng,
+          ...(centerLabel ? { scan_center_label: centerLabel } : {}),
+        })
+        .eq("id", businessId);
     }
     if (!keywordCount) {
       return NextResponse.json(

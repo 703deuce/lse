@@ -27,7 +27,7 @@ export async function GET(
 
       const { data: business } = await supabase
         .from("businesses")
-        .select("name, address_text, lat, lng, scan_center_lat, scan_center_lng")
+        .select("name, address_text, scan_center_label, lat, lng, scan_center_lat, scan_center_lng")
         .eq("id", businessId)
         .single();
 
@@ -35,7 +35,7 @@ export async function GET(
         businessLocation: {
           id: null,
           name: "Business location",
-          address: business?.address_text ?? null,
+          address: business?.scan_center_label ?? business?.address_text ?? null,
           lat: business?.scan_center_lat ?? business?.lat ?? 0,
           lng: business?.scan_center_lng ?? business?.lng ?? 0,
         },

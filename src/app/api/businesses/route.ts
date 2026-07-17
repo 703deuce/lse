@@ -15,7 +15,7 @@ export async function GET() {
     // breaks the locations hub with "column businesses.city does not exist".
     const { data, error } = await supabase
       .from("businesses")
-      .select("id, name, address_text, primary_category, is_tracked, created_at")
+      .select("id, name, address_text, scan_center_label, primary_category, is_tracked, created_at")
       .eq("organization_id", auth.organizationId)
       .order("name", { ascending: true });
 

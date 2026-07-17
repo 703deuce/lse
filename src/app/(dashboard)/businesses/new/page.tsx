@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Search } from "lucide-react";
+import { ArrowLeft, Loader2, MapPin, Search } from "lucide-react";
 
 interface Candidate {
   name: string;
@@ -20,13 +20,24 @@ interface Candidate {
   source: string;
 }
 
+function listingNeedsPrivateScanCenter(listing: Candidate): boolean {
+  return !listing.address?.trim();
+}
+
 export default function NewBusinessPage() {
   const router = useRouter();
   const [step, setStep] = useState<"search" | "select" | "setup">("search");
   const [loading, setLoading] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selected, setSelected] = useState<Candidate | null>(null);
+  const [privateAddress, setPrivateAddress] = useState("");
+  const [scanCenter, setScanCenter] = useState<{
+    lat: number;
+    lng: number;
+    label: string;
+  } | null>(null);
   const [form, setForm] = useState({
     name: "",
     city: "",
@@ -63,8 +74,51 @@ export default function NewBusinessPage() {
     }
   }
 
+  async function verifyPrivateAddress() {
+    const q = privateAddress.trim();
+    if (!q) {
+      setError("Enter a street address, or a city and state, for your private scan center.");
+      return;
+    }
+    setGeocoding(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/scans/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: q }),
+      });
+      const json = (await res.json()) as {
+        error?: string;
+        lat?: number;
+        lng?: number;
+        label?: string;
+        displayName?: string;
+      };
+      if (!res.ok) throw new Error(json.error ?? "Could not find that location");
+      if (json.lat == null || json.lng == null) throw new Error("Could not find that location");
+      setScanCenter({
+        lat: json.lat,
+        lng: json.lng,
+        label: json.displayName ?? json.label ?? q,
+      });
+    } catch (err) {
+      setScanCenter(null);
+      setError(err instanceof Error ? err.message : "Could not find that location");
+    } finally {
+      setGeocoding(false);
+    }
+  }
+
   async function handleCreate() {
     if (!selected) return;
+
+    const needsPrivate = listingNeedsPrivateScanCenter(selected);
+    if (needsPrivate && !scanCenter) {
+      setError("Verify a private scan-center address before saving.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -75,15 +129,16 @@ export default function NewBusinessPage() {
           name: selected.name,
           website_url: selected.website ?? form.website,
           phone: selected.phone,
-          address_text: selected.address,
-          lat: selected.lat,
-          lng: selected.lng,
+          address_text: selected.address?.trim() || null,
+          lat: selected.lat ?? scanCenter?.lat ?? null,
+          lng: selected.lng ?? scanCenter?.lng ?? null,
           place_id: selected.place_id,
           cid: selected.cid,
           primary_category: selected.category,
           service_area_mode: form.service_area_mode,
-          scan_center_lat: selected.lat,
-          scan_center_lng: selected.lng,
+          scan_center_lat: scanCenter?.lat ?? selected.lat ?? null,
+          scan_center_lng: scanCenter?.lng ?? selected.lng ?? null,
+          scan_center_label: scanCenter?.label ?? selected.address?.trim() ?? null,
           keyword: form.keyword || form.name,
           city: form.city,
         }),
@@ -105,6 +160,13 @@ export default function NewBusinessPage() {
       setLoading(false);
     }
   }
+
+  const needsPrivateAddress = selected ? listingNeedsPrivateScanCenter(selected) : false;
+  const canSave =
+    !!selected &&
+    !loading &&
+    !geocoding &&
+    (!needsPrivateAddress || !!scanCenter);
 
   return (
     <div className="mx-auto w-full max-w-2xl">
@@ -195,12 +257,20 @@ export default function NewBusinessPage() {
                 type="button"
                 onClick={() => {
                   setSelected(c);
+                  setScanCenter(null);
+                  setPrivateAddress(form.city.trim());
+                  setError(null);
+                  if (listingNeedsPrivateScanCenter(c) && form.service_area_mode === "storefront") {
+                    setForm((prev) => ({ ...prev, service_area_mode: "service_area" }));
+                  }
                   setStep("setup");
                 }}
                 className="w-full rounded-xl border border-zinc-200 bg-white p-4 text-left hover:border-emerald-500 dark:border-zinc-800 dark:bg-zinc-950"
               >
                 <p className="font-medium">{c.name}</p>
-                <p className="text-sm text-zinc-500">{c.address}</p>
+                <p className="text-sm text-zinc-500">
+                  {c.address?.trim() || "No public address (service-area listing)"}
+                </p>
                 <div className="mt-2 flex gap-3 text-xs text-zinc-400">
                   {c.category && <span>{c.category}</span>}
                   {c.rating != null && <span>★ {c.rating} ({c.review_count} reviews)</span>}
@@ -215,20 +285,91 @@ export default function NewBusinessPage() {
         )}
 
         {step === "setup" && selected && (
-          <div className="mt-8">
+          <div className="mt-8 space-y-4">
             <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
               <p className="font-medium">{selected.name}</p>
-              <p className="text-sm text-zinc-500">{selected.address}</p>
+              <p className="text-sm text-zinc-500">
+                {selected.address?.trim() || "No public address on Google"}
+              </p>
             </div>
-            <button
-              type="button"
-              onClick={handleCreate}
-              disabled={loading}
-              className="mt-6 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-            >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              Save & continue
-            </button>
+
+            {needsPrivateAddress ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/30">
+                <div className="flex items-start gap-2">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                      Add a private scan-center address
+                    </p>
+                    <p className="mt-1 text-sm leading-relaxed text-amber-800 dark:text-amber-200/90">
+                      Service-area listings hide the street address on Google. Maps Rank Tracker needs
+                      a private center so grids land in the right market. Saved in your account — you
+                      won&apos;t re-enter it every scan.
+                    </p>
+                    <label className="mt-3 block text-sm font-medium text-amber-950 dark:text-amber-100">
+                      Private address
+                      <input
+                        className="mt-1 w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-zinc-900 dark:border-amber-800 dark:bg-zinc-900 dark:text-zinc-100"
+                        placeholder='e.g. "123 Main St, Woodbridge, VA" or "Woodbridge, VA"'
+                        value={privateAddress}
+                        onChange={(e) => {
+                          setPrivateAddress(e.target.value);
+                          setScanCenter(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            void verifyPrivateAddress();
+                          }
+                        }}
+                      />
+                    </label>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={geocoding || !privateAddress.trim()}
+                        onClick={() => void verifyPrivateAddress()}
+                        className="inline-flex items-center gap-2 rounded-lg bg-amber-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-50 dark:bg-amber-700"
+                      >
+                        {geocoding ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Search className="h-4 w-4" />
+                        )}
+                        Verify address
+                      </button>
+                      {scanCenter ? (
+                        <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                          Ready · {scanCenter.label}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handleCreate}
+                disabled={!canSave}
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                Save & continue
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setStep("select");
+                  setError(null);
+                }}
+                className="text-sm text-zinc-500 hover:underline"
+              >
+                Pick a different listing
+              </button>
+            </div>
           </div>
         )}
     </div>

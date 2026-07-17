@@ -213,7 +213,7 @@ export async function loadLocationScanSummaries(
 ): Promise<LocationScanSummary[]> {
   const { data: business } = await supabase
     .from("businesses")
-    .select("name, address_text, lat, lng, scan_center_lat, scan_center_lng")
+    .select("name, address_text, scan_center_label, lat, lng, scan_center_lat, scan_center_lng")
     .eq("id", businessId)
     .single();
 
@@ -247,7 +247,10 @@ export async function loadLocationScanSummaries(
   summaries.push({
     id: null,
     name: "Business location",
-    address: (business?.address_text as string | null) ?? null,
+    address:
+      ((business?.scan_center_label as string | null) ??
+        (business?.address_text as string | null) ??
+        null),
     city: null,
     state: null,
     lat: bizLat,

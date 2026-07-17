@@ -22,6 +22,8 @@ export const createBusinessSchema = z.object({
   service_area_mode: z.enum(["storefront", "service_area"]).optional(),
   scan_center_lat: z.number().nullable().optional(),
   scan_center_lng: z.number().nullable().optional(),
+  /** Private scan-center address (service-area / hidden GBP address). */
+  scan_center_label: z.string().max(240).nullable().optional(),
   keyword: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),

@@ -26,6 +26,29 @@ export async function POST(request: Request) {
       await assertWithinLimit(auth.organizationId, "max_businesses", 1);
     }
 
+    const publicAddress = data.address_text?.trim() || null;
+    const scanCenterLabel = data.scan_center_label?.trim() || null;
+    const scanCenterLat = data.scan_center_lat ?? data.lat ?? null;
+    const scanCenterLng = data.scan_center_lng ?? data.lng ?? null;
+    const hasUsableScanCenter =
+      scanCenterLat != null &&
+      scanCenterLng != null &&
+      Number.isFinite(Number(scanCenterLat)) &&
+      Number.isFinite(Number(scanCenterLng)) &&
+      !(Number(scanCenterLat) === 0 && Number(scanCenterLng) === 0);
+
+    // Service-area / hidden-address listings must save a private scan center
+    // so Maps grids have a real pin without re-entering every scan.
+    if (!publicAddress && (!scanCenterLabel || !hasUsableScanCenter)) {
+      return NextResponse.json(
+        {
+          error:
+            "This listing has no public address. Add a private scan-center address before saving.",
+        },
+        { status: 400 }
+      );
+    }
+
     const { data: business, error } = await supabase
       .from("businesses")
       .insert({
@@ -33,15 +56,16 @@ export async function POST(request: Request) {
         name: data.name,
         website_url: data.website_url ?? null,
         phone: data.phone ?? null,
-        address_text: data.address_text ?? null,
+        address_text: publicAddress,
         lat: data.lat ?? null,
         lng: data.lng ?? null,
         place_id: data.place_id ?? null,
         cid: data.cid ?? null,
         primary_category: data.primary_category ?? null,
         service_area_mode: data.service_area_mode ?? "storefront",
-        scan_center_lat: data.scan_center_lat ?? data.lat ?? null,
-        scan_center_lng: data.scan_center_lng ?? data.lng ?? null,
+        scan_center_lat: scanCenterLat,
+        scan_center_lng: scanCenterLng,
+        scan_center_label: scanCenterLabel ?? publicAddress,
         is_tracked: isTracked,
         tracking_source: isTracked ? "manual" : "manual",
       })
@@ -52,12 +76,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error?.message ?? "Create failed" }, { status: 500 });
     }
 
-    if (business.lat && business.lng) {
-      await setBusinessGeom(business.id, business.lng, business.lat);
+    const geomLat = business.scan_center_lat ?? business.lat;
+    const geomLng = business.scan_center_lng ?? business.lng;
+    if (geomLat && geomLng) {
+      await setBusinessGeom(business.id, geomLng, geomLat);
     }
 
     if (data.keyword) {
-      const fromAddress = parseUsAddressCityState(data.address_text);
+      const fromAddress = parseUsAddressCityState(scanCenterLabel ?? publicAddress);
       const { error: keywordError } = await supabase.from("business_keywords").insert({
         business_id: business.id,
         keyword: data.keyword.trim(),

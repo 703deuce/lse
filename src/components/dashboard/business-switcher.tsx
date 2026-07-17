@@ -10,8 +10,13 @@ type BusinessRow = {
   id: string;
   name: string;
   address_text?: string | null;
+  scan_center_label?: string | null;
   is_tracked?: boolean | null;
 };
+
+function locationLine(b: BusinessRow): string | null {
+  return b.address_text?.trim() || b.scan_center_label?.trim() || null;
+}
 
 /**
  * In-sidebar location switcher. Each business keeps its own scans, keywords,
@@ -125,9 +130,9 @@ export function BusinessSwitcher({
             >
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">{b.name}</span>
-                {b.address_text ? (
+                {locationLine(b) ? (
                   <span className="mt-0.5 block truncate text-[11px] text-zinc-500">
-                    {b.address_text}
+                    {locationLine(b)}
                   </span>
                 ) : null}
               </span>

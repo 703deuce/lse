@@ -117,14 +117,17 @@ export async function POST(request: Request) {
 
     const { data: business } = await supabase
       .from("businesses")
-      .select("scan_center_lat, scan_center_lng, lat, lng, address_text")
+      .select("scan_center_lat, scan_center_lng, scan_center_label, lat, lng, address_text")
       .eq("id", businessId)
       .maybeSingle();
 
     const resolvedCenterLat = centerLat ?? business?.scan_center_lat ?? business?.lat ?? null;
     const resolvedCenterLng = centerLng ?? business?.scan_center_lng ?? business?.lng ?? null;
     const resolvedCenterLabel =
-      centerLabel?.trim() || business?.address_text || null;
+      centerLabel?.trim() ||
+      business?.scan_center_label ||
+      business?.address_text ||
+      null;
 
     if (
       resolvedCenterLat == null ||
@@ -137,6 +140,18 @@ export async function POST(request: Request) {
         { error: "Set a scan center before running a grid scan." },
         { status: 400 }
       );
+    }
+
+    // Persist explicit center (including first private address for service-area listings).
+    if (centerLat != null && centerLng != null) {
+      await supabase
+        .from("businesses")
+        .update({
+          scan_center_lat: resolvedCenterLat,
+          scan_center_lng: resolvedCenterLng,
+          ...(resolvedCenterLabel ? { scan_center_label: resolvedCenterLabel } : {}),
+        })
+        .eq("id", businessId);
     }
 
     const uniqueExcluded = [...new Set(excludedLabels.map((l) => l.trim().toUpperCase()).filter(Boolean))];

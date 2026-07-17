@@ -10,9 +10,14 @@ type BusinessRow = {
   id: string;
   name: string;
   address_text?: string | null;
+  scan_center_label?: string | null;
   primary_category?: string | null;
   is_tracked?: boolean | null;
 };
+
+function locationSubtitle(b: BusinessRow): string {
+  return b.address_text?.trim() || b.scan_center_label?.trim() || b.primary_category || "—";
+}
 
 export function BusinessesHub({
   accessMessage,
@@ -176,7 +181,7 @@ export function BusinessesHub({
                   <Link href={`/businesses/${b.id}/overview`} className="min-w-0 flex-1">
                     <h3 className="font-semibold text-zinc-900 hover:text-emerald-700">{b.name}</h3>
                     <p className="mt-1 text-sm text-zinc-500">
-                      {b.address_text ?? b.primary_category ?? "—"}
+                      {locationSubtitle(b)}
                     </p>
                     {b.primary_category ? (
                       <span className="mt-3 inline-block rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
@@ -227,7 +232,7 @@ export function BusinessesHub({
                   >
                     <Link href={`/businesses/${b.id}/overview`} className="min-w-0">
                       <h3 className="font-medium text-zinc-800 hover:text-emerald-700">{b.name}</h3>
-                      <p className="mt-1 text-sm text-zinc-500">{b.address_text ?? "—"}</p>
+                      <p className="mt-1 text-sm text-zinc-500">{locationSubtitle(b)}</p>
                     </Link>
                     <button
                       type="button"

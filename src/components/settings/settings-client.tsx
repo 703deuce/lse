@@ -21,6 +21,7 @@ export function SettingsClient({
     website_url: string | null;
     scan_center_lat: number | null;
     scan_center_lng: number | null;
+    scan_center_label?: string | null;
     lat: number | null;
     lng: number | null;
   };
@@ -30,12 +31,16 @@ export function SettingsClient({
     business.scan_center_lat ?? business.lat ?? 40.7128,
     business.scan_center_lng ?? business.lng ?? -74.006,
   ]);
+  const [scanCenterLabel, setScanCenterLabel] = useState(
+    (business.scan_center_label ?? business.address_text ?? "").trim()
+  );
   const [weeklyEnabled, setWeeklyEnabled] = useState(initialWeeklyEnabled);
   const [weeklySaving, setWeeklySaving] = useState(false);
   const [weeklyError, setWeeklyError] = useState<string | null>(null);
   const [centerSaving, setCenterSaving] = useState(false);
   const [centerSaved, setCenterSaved] = useState(false);
   const [centerError, setCenterError] = useState<string | null>(null);
+  const [geocodingCenter, setGeocodingCenter] = useState(false);
   const [scanDefaults, setScanDefaults] = useState(() =>
     defaultScanSetupValues(
       business.scan_center_lat ?? business.lat ?? 40.7128,
@@ -97,21 +102,61 @@ export function SettingsClient({
     };
   }, []);
 
-  async function saveCenter(next: [number, number] = center) {
+  async function saveCenter(
+    next: [number, number] = center,
+    label: string = scanCenterLabel
+  ) {
     setCenterSaving(true);
     setCenterError(null);
     setCenterSaved(false);
     try {
+      const trimmed = label.trim();
       await updateBusinessSettings(businessId, {
         scan_center_lat: next[0],
         scan_center_lng: next[1],
+        scan_center_label: trimmed || null,
       });
+      setScanCenterLabel(trimmed);
       setCenterSaved(true);
       setTimeout(() => setCenterSaved(false), 2000);
     } catch (err) {
       setCenterError(err instanceof Error ? err.message : "Failed to save scan center");
     } finally {
       setCenterSaving(false);
+    }
+  }
+
+  async function geocodeAndSaveCenter() {
+    const q = scanCenterLabel.trim();
+    if (!q) {
+      setCenterError("Enter a street address, or a city and state.");
+      return;
+    }
+    setGeocodingCenter(true);
+    setCenterError(null);
+    try {
+      const res = await fetch("/api/scans/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: q }),
+      });
+      const json = (await res.json()) as {
+        error?: string;
+        lat?: number;
+        lng?: number;
+        label?: string;
+        displayName?: string;
+      };
+      if (!res.ok) throw new Error(json.error ?? "Could not find that location");
+      if (json.lat == null || json.lng == null) throw new Error("Could not find that location");
+      const label = json.displayName ?? json.label ?? q;
+      setCenter([json.lat, json.lng]);
+      setScanCenterLabel(label);
+      await saveCenter([json.lat, json.lng], label);
+    } catch (err) {
+      setCenterError(err instanceof Error ? err.message : "Could not find that location");
+    } finally {
+      setGeocodingCenter(false);
     }
   }
 
@@ -197,8 +242,14 @@ export function SettingsClient({
               <dd className="text-right font-medium text-zinc-900">{business.name}</dd>
             </div>
             <div className="flex items-baseline justify-between gap-4">
-              <dt className="shrink-0 text-zinc-500">Address</dt>
+              <dt className="shrink-0 text-zinc-500">Public address</dt>
               <dd className="text-right font-medium text-zinc-900">{business.address_text ?? "—"}</dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="shrink-0 text-zinc-500">Scan center</dt>
+              <dd className="text-right font-medium text-zinc-900">
+                {scanCenterLabel || "—"}
+              </dd>
             </div>
             <div className="flex items-baseline justify-between gap-4">
               <dt className="shrink-0 text-zinc-500">Mode</dt>
@@ -212,8 +263,29 @@ export function SettingsClient({
         </section>
 
         <section>
-          <h2 className="font-semibold">Scan center</h2>
-          <p className="mt-1 text-sm text-zinc-500">Click map to move center for service-area audits</p>
+          <h2 className="font-semibold">Private scan center</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Used for Maps grids. For service-area listings with no public Google address, set this
+            once — it stays on the location.
+          </p>
+          <label className="mt-4 block text-sm">
+            <span className="text-zinc-500">Address or city &amp; state</span>
+            <input
+              className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              value={scanCenterLabel}
+              onChange={(e) => {
+                setScanCenterLabel(e.target.value);
+                setCenterSaved(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void geocodeAndSaveCenter();
+                }
+              }}
+              placeholder='e.g. "Woodbridge, VA" or full street address'
+            />
+          </label>
           <div className="mt-4">
             <SetupMap
               center={center}
@@ -226,11 +298,19 @@ export function SettingsClient({
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => void saveCenter()}
-              disabled={centerSaving}
+              onClick={() => void geocodeAndSaveCenter()}
+              disabled={centerSaving || geocodingCenter || !scanCenterLabel.trim()}
               className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm transition hover:bg-zinc-50 disabled:opacity-60"
             >
-              {centerSaving ? "Saving…" : "Save scan center"}
+              {geocodingCenter ? "Looking up…" : "Lookup & save address"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void saveCenter()}
+              disabled={centerSaving || geocodingCenter}
+              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm transition hover:bg-zinc-50 disabled:opacity-60"
+            >
+              {centerSaving ? "Saving…" : "Save map pin"}
             </button>
             {centerSaved && <p className="text-sm text-emerald-600">Saved</p>}
             {centerError && <p className="text-sm text-red-600">{centerError}</p>}

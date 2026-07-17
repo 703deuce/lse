@@ -21,6 +21,7 @@ import {
 } from "@/lib/maps/grid-metrics";
 import { DEFAULT_SCAN_PROFILE } from "@/lib/maps/scan-profiles";
 import { RadiusMilesField } from "@/components/scan/radius-miles-field";
+import { updateBusinessSettings } from "@/lib/actions/mutations";
 import { cn } from "@/lib/utils";
 import type { KeywordOption, ScanListItem } from "@/components/scan/scans-hub-types";
 
@@ -67,7 +68,7 @@ export function ScanSetupStudio({
   businessName?: string;
 }) {
   const router = useRouter();
-  const accountAddress = (defaultAddress ?? "").trim();
+  const [accountAddress, setAccountAddress] = useState((defaultAddress ?? "").trim());
   const [openSection, setOpenSection] = useState<"location" | "keywords" | "general">("location");
   const [keywordFilter, setKeywordFilter] = useState<string>("all");
   const [selectedKeywordId, setSelectedKeywordId] = useState(
@@ -77,6 +78,8 @@ export function ScanSetupStudio({
   const [radiusMeters, setRadiusMeters] = useState(DEFAULT_RADIUS_METERS);
   const [centerLat, setCenterLat] = useState(defaultCenterLat);
   const [centerLng, setCenterLng] = useState(defaultCenterLng);
+  const [defaultLat, setDefaultLat] = useState(defaultCenterLat);
+  const [defaultLng, setDefaultLng] = useState(defaultCenterLng);
   const [locationLabel, setLocationLabel] = useState(accountAddress || "Account location");
   const [locationQuery, setLocationQuery] = useState(accountAddress);
   const [usingAccountLocation, setUsingAccountLocation] = useState(true);
@@ -93,12 +96,16 @@ export function ScanSetupStudio({
   }, [gridSize, radiusMeters, centerLat, centerLng]);
 
   useEffect(() => {
+    const nextAddress = (defaultAddress ?? "").trim();
+    setAccountAddress(nextAddress);
+    setDefaultLat(defaultCenterLat);
+    setDefaultLng(defaultCenterLng);
     setCenterLat(defaultCenterLat);
     setCenterLng(defaultCenterLng);
-    setLocationLabel(accountAddress || "Account location");
-    setLocationQuery(accountAddress);
+    setLocationLabel(nextAddress || "Account location");
+    setLocationQuery(nextAddress);
     setUsingAccountLocation(true);
-  }, [defaultCenterLat, defaultCenterLng, accountAddress]);
+  }, [defaultCenterLat, defaultCenterLng, defaultAddress]);
 
   const totalPoints = gridSize * gridSize;
   const includedCount = totalPoints - excludedLabels.size;
@@ -120,8 +127,8 @@ export function ScanSetupStudio({
   }
 
   function resetToAccountLocation() {
-    setCenterLat(defaultCenterLat);
-    setCenterLng(defaultCenterLng);
+    setCenterLat(defaultLat);
+    setCenterLng(defaultLng);
     setLocationLabel(accountAddress || "Account location");
     setLocationQuery(accountAddress);
     setUsingAccountLocation(true);
@@ -156,10 +163,21 @@ export function ScanSetupStudio({
       };
       if (!res.ok) throw new Error(json.error ?? "Could not find that location");
       if (json.lat == null || json.lng == null) throw new Error("Could not find that location");
+      const label = json.displayName ?? json.label ?? q;
       setCenterLat(json.lat);
       setCenterLng(json.lng);
-      setLocationLabel(json.displayName ?? json.label ?? q);
-      setUsingAccountLocation(false);
+      setLocationLabel(label);
+      // Persist as the location's private scan center so service-area businesses
+      // don't re-enter this on every scan.
+      await updateBusinessSettings(businessId, {
+        scan_center_lat: json.lat,
+        scan_center_lng: json.lng,
+        scan_center_label: label,
+      });
+      setAccountAddress(label);
+      setDefaultLat(json.lat);
+      setDefaultLng(json.lng);
+      setUsingAccountLocation(true);
       setOpenSection("general");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not find that location");
@@ -281,11 +299,20 @@ export function ScanSetupStudio({
                 {locationLabel}
               </p>
               <p className="mt-0.5 text-[11px] text-zinc-500">
-                {usingAccountLocation
-                  ? "Using your account address (default)"
-                  : "Custom location for this scan only"}
+                {accountAddress
+                  ? usingAccountLocation
+                    ? "Using your saved scan-center address"
+                    : "Updating saved scan center"
+                  : "No saved address yet — add one below (common for service-area listings)"}
               </p>
             </div>
+
+            {!accountAddress ? (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] leading-relaxed text-amber-900">
+                This location has no public Google address. Set a private scan center once — we save
+                it on the location so you don&apos;t re-enter it every scan.
+              </p>
+            ) : null}
 
             <label className={fieldLabel}>
               Address or city &amp; state
@@ -304,8 +331,7 @@ export function ScanSetupStudio({
               />
             </label>
             <p className="text-[11px] leading-relaxed text-zinc-500">
-              Type an address or city and state — we set the map pin automatically. You do not need
-              latitude or longitude.
+              Type an address or city and state — we set the map pin and save it to this location.
             </p>
             <div className="flex flex-wrap gap-2">
               <button
