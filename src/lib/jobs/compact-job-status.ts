@@ -18,6 +18,10 @@ const STALE_HEARTBEAT_MS = Number(process.env.JOB_STALE_HEARTBEAT_MS ?? 120_000)
 const STATUS_COLUMNS =
   "id, job_type, status, enqueue_state, queue_name, organization_id, business_id, progress_json, progress_version, progress_total, progress_completed, progress_failed, error_message, scheduled_at, started_at, finished_at, heartbeat_at, created_at";
 
+/** Fallback when migration 060 (progress_version) is not applied yet. */
+const STATUS_COLUMNS_LEGACY =
+  "id, job_type, status, enqueue_state, queue_name, organization_id, business_id, progress_json, progress_total, progress_completed, progress_failed, error_message, scheduled_at, started_at, finished_at, heartbeat_at, created_at";
+
 type CompactRow = {
   id: string;
   job_type: string;
@@ -145,12 +149,29 @@ function rowToCompact(row: CompactRow): CompactJobStatusResponse {
 
 async function loadCompactFromDb(jobId: string): Promise<CompactJobStatusBundle | null> {
   const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const primary = await supabase
     .from("job_queue")
     .select(STATUS_COLUMNS)
     .eq("id", jobId)
     .maybeSingle();
-  if (error || !data) return null;
+
+  let data = primary.data;
+  if (!primary.error && data) {
+    // happy path
+  } else if (primary.error) {
+    // Schema lag: progress_version missing → entire select failed → UI got 404
+    // "Job not found" while the worker was still processing the job.
+    const legacy = await supabase
+      .from("job_queue")
+      .select(STATUS_COLUMNS_LEGACY)
+      .eq("id", jobId)
+      .maybeSingle();
+    if (legacy.error || !legacy.data) return null;
+    data = legacy.data;
+  } else {
+    return null;
+  }
+
   const row = data as unknown as CompactRow;
   return {
     compact: rowToCompact(row),
