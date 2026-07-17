@@ -5,7 +5,7 @@ import { httpErrorFromException } from "@/lib/security/http-errors";
 
 export const dynamic = "force-dynamic";
 
-/** Exposes only the browser-safe Maps JS key (NEXT_PUBLIC_*). */
+/** Exposes the Maps JS key from server env (MAPS / NEXT_PUBLIC_*) to authenticated clients. */
 export async function GET() {
   try {
     await requireAuth();
@@ -14,7 +14,7 @@ export async function GET() {
       return NextResponse.json(
         {
           error:
-            "Google Maps browser API key is not configured (set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY or NEXT_PUBLIC_MAPS).",
+            "Google Maps browser API key is not configured (set MAPS, NEXT_PUBLIC_MAPS, or NEXT_PUBLIC_GOOGLE_MAPS_API_KEY).",
         },
         { status: 503 }
       );
