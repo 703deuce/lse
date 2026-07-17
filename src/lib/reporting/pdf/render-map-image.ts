@@ -1,6 +1,7 @@
 import sharp from "sharp";
 import { rankHex } from "@/lib/maps/colors";
 import { getGoogleMapsApiKey } from "@/lib/maps/google-maps-key";
+import { logger } from "@/lib/observability/logger";
 import { gridPointSpacingMeters, latLngToPixel, zoomForRadiusMeters } from "@/lib/reporting/pdf/mercator";
 
 export type MapCellPin = {
@@ -28,8 +29,24 @@ function svgBubble(rank: number | null, cx: number, cy: number, r: number): stri
     <text x="${cx}" y="${cy + fontSize * 0.35}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="${fontSize}" font-weight="700" fill="#fff">${text}</text>`;
 }
 
+async function blankMapBase(width: number, height: number): Promise<Buffer> {
+  return sharp({
+    create: {
+      width,
+      height,
+      channels: 3,
+      background: { r: 241, g: 245, b: 249 },
+    },
+  })
+    .png()
+    .toBuffer();
+}
+
 /**
  * Build a high-res map PNG: Google Static Maps base + rank bubbles composited via sharp.
+ *
+ * Static Maps is a server-side API. Browser keys restricted by HTTP referrer will
+ * return 403 here — we fall back to a blank canvas so PDF/map exports still succeed.
  */
 export async function renderScanMapPng(params: {
   centerLat: number;
@@ -43,7 +60,11 @@ export async function renderScanMapPng(params: {
   const width = params.width ?? 1280;
   const height = params.height ?? 1280;
   const zoom = zoomForRadiusMeters(params.radiusMeters, width);
-  const apiKey = getGoogleMapsApiKey();
+  // Prefer a dedicated server Static Maps key when present (IP-restricted / unrestricted).
+  const apiKey =
+    process.env.GOOGLE_MAPS_STATIC_API_KEY?.trim() ||
+    process.env.STATIC_MAPS_API_KEY?.trim() ||
+    getGoogleMapsApiKey();
 
   let base: Buffer;
   if (apiKey) {
@@ -55,24 +76,31 @@ export async function renderScanMapPng(params: {
     url.searchParams.set("maptype", "roadmap");
     url.searchParams.set("style", "feature:poi|visibility:off");
     url.searchParams.set("key", apiKey);
-    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(25_000) });
-    if (!res.ok) {
-      throw new Error(`Google Static Maps HTTP ${res.status}`);
+    try {
+      const res = await fetch(url.toString(), { signal: AbortSignal.timeout(25_000) });
+      if (!res.ok) {
+        const body = (await res.text().catch(() => "")).slice(0, 200);
+        logger.warn("static_maps_http_fallback", {
+          status: res.status,
+          body,
+          hint:
+            res.status === 403
+              ? "Enable Maps Static API and use a server key (IP-restricted or unrestricted). HTTP-referrer browser keys return 403 from workers."
+              : "Static Maps request failed; using blank map background",
+        });
+        base = await blankMapBase(width, height);
+      } else {
+        base = Buffer.from(await res.arrayBuffer());
+        base = await sharp(base).resize(width, height, { fit: "fill" }).png().toBuffer();
+      }
+    } catch (err) {
+      logger.warn("static_maps_fetch_fallback", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      base = await blankMapBase(width, height);
     }
-    base = Buffer.from(await res.arrayBuffer());
-    base = await sharp(base).resize(width, height, { fit: "fill" }).png().toBuffer();
   } else {
-    // Fallback canvas when Maps key is missing — light grid background.
-    base = await sharp({
-      create: {
-        width,
-        height,
-        channels: 3,
-        background: { r: 241, g: 245, b: 249 },
-      },
-    })
-      .png()
-      .toBuffer();
+    base = await blankMapBase(width, height);
   }
 
   const bubbleR = Math.max(10, Math.min(22, Math.floor(width / (params.gridSize * 2.8))));
