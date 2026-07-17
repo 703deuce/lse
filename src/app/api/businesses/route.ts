@@ -11,11 +11,11 @@ export async function GET() {
     const supabase = createServiceClient();
     const plan = await getOrganizationPlan(auth.organizationId);
 
+    // city/state live on business_keywords, not businesses — selecting them
+    // breaks the locations hub with "column businesses.city does not exist".
     const { data, error } = await supabase
       .from("businesses")
-      .select(
-        "id, name, address_text, primary_category, is_tracked, city, state, created_at"
-      )
+      .select("id, name, address_text, primary_category, is_tracked, created_at")
       .eq("organization_id", auth.organizationId)
       .order("name", { ascending: true });
 
