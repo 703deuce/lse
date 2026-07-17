@@ -1,6 +1,10 @@
 import sharp from "sharp";
 import { rankHex } from "@/lib/maps/colors";
-import { getGoogleMapsApiKey } from "@/lib/maps/google-maps-key";
+import {
+  apiKeySuffix,
+  getGoogleMapsApiKey,
+  getGoogleMapsApiKeySource,
+} from "@/lib/maps/google-maps-key";
 import { logger } from "@/lib/observability/logger";
 import { gridPointSpacingMeters, latLngToPixel, zoomForRadiusMeters } from "@/lib/reporting/pdf/mercator";
 
@@ -42,11 +46,52 @@ async function blankMapBase(width: number, height: number): Promise<Buffer> {
     .toBuffer();
 }
 
+async function fetchStaticMapBase(params: {
+  apiKey: string;
+  centerLat: number;
+  centerLng: number;
+  zoom: number;
+  width: number;
+  height: number;
+  withStyle: boolean;
+}): Promise<{ ok: true; buffer: Buffer } | { ok: false; status: number; body: string }> {
+  const url = new URL("https://maps.googleapis.com/maps/api/staticmap");
+  url.searchParams.set("center", `${params.centerLat},${params.centerLng}`);
+  url.searchParams.set("zoom", String(params.zoom));
+  url.searchParams.set(
+    "size",
+    `${Math.min(params.width, 640)}x${Math.min(params.height, 640)}`
+  );
+  url.searchParams.set("scale", "2");
+  url.searchParams.set("maptype", "roadmap");
+  if (params.withStyle) {
+    url.searchParams.set("style", "feature:poi|visibility:off");
+  }
+  url.searchParams.set("key", params.apiKey);
+
+  const res = await fetch(url.toString(), {
+    signal: AbortSignal.timeout(25_000),
+    // Avoid sending a spoofed/odd Referer from the runtime.
+    headers: { Accept: "image/*" },
+    redirect: "follow",
+  });
+  if (!res.ok) {
+    const body = (await res.text().catch(() => "")).slice(0, 300);
+    return { ok: false, status: res.status, body };
+  }
+  const raw = Buffer.from(await res.arrayBuffer());
+  const buffer = await sharp(raw)
+    .resize(params.width, params.height, { fit: "fill" })
+    .png()
+    .toBuffer();
+  return { ok: true, buffer };
+}
+
 /**
  * Build a high-res map PNG: Google Static Maps base + rank bubbles composited via sharp.
  *
- * Static Maps is a server-side API. Browser keys restricted by HTTP referrer will
- * return 403 here — we fall back to a blank canvas so PDF/map exports still succeed.
+ * If the browser Static Maps URL works but the worker gets 403, the worker is usually
+ * using a different/malformed key — we log key source + last-4 (never the full key).
  */
 export async function renderScanMapPng(params: {
   centerLat: number;
@@ -60,46 +105,65 @@ export async function renderScanMapPng(params: {
   const width = params.width ?? 1280;
   const height = params.height ?? 1280;
   const zoom = zoomForRadiusMeters(params.radiusMeters, width);
-  // Prefer a dedicated server Static Maps key when present (IP-restricted / unrestricted).
-  const apiKey =
-    process.env.GOOGLE_MAPS_STATIC_API_KEY?.trim() ||
-    process.env.STATIC_MAPS_API_KEY?.trim() ||
-    getGoogleMapsApiKey();
+  const apiKey = getGoogleMapsApiKey();
+  const keySource = getGoogleMapsApiKeySource();
 
   let base: Buffer;
   if (apiKey) {
-    const url = new URL("https://maps.googleapis.com/maps/api/staticmap");
-    url.searchParams.set("center", `${params.centerLat},${params.centerLng}`);
-    url.searchParams.set("zoom", String(zoom));
-    url.searchParams.set("size", `${Math.min(width, 640)}x${Math.min(height, 640)}`);
-    url.searchParams.set("scale", "2");
-    url.searchParams.set("maptype", "roadmap");
-    url.searchParams.set("style", "feature:poi|visibility:off");
-    url.searchParams.set("key", apiKey);
     try {
-      const res = await fetch(url.toString(), { signal: AbortSignal.timeout(25_000) });
-      if (!res.ok) {
-        const body = (await res.text().catch(() => "")).slice(0, 200);
+      // Match the simple browser test URL first (no style) — then try styled.
+      let result = await fetchStaticMapBase({
+        apiKey,
+        centerLat: params.centerLat,
+        centerLng: params.centerLng,
+        zoom,
+        width,
+        height,
+        withStyle: false,
+      });
+      if (!result.ok) {
+        logger.warn("static_maps_http_retry_styled", {
+          status: result.status,
+          body: result.body,
+          keySource,
+          keySuffix: apiKeySuffix(apiKey),
+        });
+        result = await fetchStaticMapBase({
+          apiKey,
+          centerLat: params.centerLat,
+          centerLng: params.centerLng,
+          zoom,
+          width,
+          height,
+          withStyle: true,
+        });
+      }
+      if (!result.ok) {
         logger.warn("static_maps_http_fallback", {
-          status: res.status,
-          body,
+          status: result.status,
+          body: result.body,
+          keySource,
+          keySuffix: apiKeySuffix(apiKey),
           hint:
-            res.status === 403
-              ? "Enable Maps Static API and use a server key (IP-restricted or unrestricted). HTTP-referrer browser keys return 403 from workers."
-              : "Static Maps request failed; using blank map background",
+            "Browser Static Maps URL works but worker got 403 → compare keySuffix to the last 4 chars of Coolify MAPS on this worker service.",
         });
         base = await blankMapBase(width, height);
       } else {
-        base = Buffer.from(await res.arrayBuffer());
-        base = await sharp(base).resize(width, height, { fit: "fill" }).png().toBuffer();
+        base = result.buffer;
       }
     } catch (err) {
       logger.warn("static_maps_fetch_fallback", {
         error: err instanceof Error ? err.message : String(err),
+        keySource,
+        keySuffix: apiKeySuffix(apiKey),
       });
       base = await blankMapBase(width, height);
     }
   } else {
+    logger.warn("static_maps_missing_key", {
+      keySource,
+      hint: "No MAPS / GOOGLE_MAPS_STATIC_API_KEY visible to this worker process",
+    });
     base = await blankMapBase(width, height);
   }
 
@@ -122,7 +186,6 @@ export async function renderScanMapPng(params: {
     })
     .join("\n");
 
-  // Center marker
   const centerPx = latLngToPixel(
     params.centerLat,
     params.centerLng,
