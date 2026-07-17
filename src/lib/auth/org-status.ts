@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/db/client";
+import { logger } from "@/lib/observability/logger";
 
 export type OrganizationGateStatus = {
   status: string;
@@ -11,6 +12,16 @@ const OUTBOUND_JOB_TYPES = new Set([
   "campaign_send_batch",
   "import_contacts",
 ]);
+
+export class OrganizationEnqueueError extends Error {
+  readonly code: "org_required" | "org_lookup_failed" | "org_blocked";
+
+  constructor(code: OrganizationEnqueueError["code"], message: string) {
+    super(message);
+    this.name = "OrganizationEnqueueError";
+    this.code = code;
+  }
+}
 
 export function isOrganizationAccessBlocked(status: string | null | undefined): boolean {
   const normalized = String(status ?? "active").toLowerCase();
@@ -31,20 +42,58 @@ export function isOrganizationEnqueueBlocked(
   return false;
 }
 
+/**
+ * Load org kill-switch / status for enqueue gates.
+ * Tolerates missing `outbound_paused` when migration 057 is not applied yet —
+ * previously that PostgREST error was treated as "org not found" and every
+ * module Run button returned HTTP 404.
+ */
 export async function loadOrganizationGateStatus(
   organizationId: string
 ): Promise<OrganizationGateStatus | null> {
   const supabase = createServiceClient();
-  const { data } = await supabase
+  const primary = await supabase
     .from("organizations")
     .select("status, outbound_paused")
     .eq("id", organizationId)
     .maybeSingle();
-  if (!data) return null;
-  return {
-    status: String(data.status ?? "active"),
-    outboundPaused: Boolean(data.outbound_paused),
-  };
+
+  if (!primary.error && primary.data) {
+    return {
+      status: String(primary.data.status ?? "active"),
+      outboundPaused: Boolean(primary.data.outbound_paused),
+    };
+  }
+
+  // Column missing / schema lag: fall back to status-only.
+  if (primary.error) {
+    logger.warn("org_gate_status_select_failed", {
+      organizationId,
+      error: primary.error.message,
+      code: primary.error.code,
+    });
+    const fallback = await supabase
+      .from("organizations")
+      .select("status")
+      .eq("id", organizationId)
+      .maybeSingle();
+    if (!fallback.error && fallback.data) {
+      return {
+        status: String(fallback.data.status ?? "active"),
+        outboundPaused: false,
+      };
+    }
+    if (fallback.error) {
+      logger.warn("org_gate_status_fallback_failed", {
+        organizationId,
+        error: fallback.error.message,
+        code: fallback.error.code,
+      });
+    }
+    return null;
+  }
+
+  return null;
 }
 
 export async function assertOrganizationCanEnqueue(
@@ -54,15 +103,23 @@ export async function assertOrganizationCanEnqueue(
   if (!organizationId) {
     // Fail closed for outbound / tenant-sensitive enqueue paths.
     if (isOutboundJobType(jobType)) {
-      throw new Error("Organization required");
+      throw new OrganizationEnqueueError("org_required", "Organization required");
     }
     return;
   }
   const org = await loadOrganizationGateStatus(organizationId);
   if (!org) {
-    throw new Error("Organization not found");
+    // Do NOT use the words "not found" — httpErrorFromException maps that to
+    // a blank-looking HTTP 404 on every module Run button.
+    throw new OrganizationEnqueueError(
+      "org_lookup_failed",
+      "Could not verify organization status for job queue. Apply pending DB migrations (organizations.outbound_paused) and retry."
+    );
   }
   if (isOrganizationEnqueueBlocked(org, jobType)) {
-    throw new Error("Organization access denied");
+    throw new OrganizationEnqueueError(
+      "org_blocked",
+      "Organization access denied"
+    );
   }
 }

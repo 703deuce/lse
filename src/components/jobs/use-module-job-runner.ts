@@ -89,11 +89,21 @@ export function useModuleJobRunner(options: Options = {}) {
               : `${failMessage} (HTTP ${res.status})`
         );
       }
-      const json = (await res.json()) as RunResult & { error?: string };
+      const json = (await res.json()) as RunResult & { error?: string; code?: string };
       if (!res.ok) {
         if (res.status === 403 && /invalid origin/i.test(String(json.error ?? ""))) {
           throw new Error(
             "Request blocked by security (invalid origin). Open the app at https://app.localseoexpress.com (not the raw server IP) and confirm APP_URL / ALLOWED_ORIGINS match that host."
+          );
+        }
+        if (
+          res.status === 404 ||
+          json.code === "org_lookup_failed" ||
+          /organization/i.test(String(json.error ?? ""))
+        ) {
+          throw new Error(
+            json.error ??
+              "Could not start this job (security/org check failed). The worker never received it — check Coolify DB migrations and APP_URL, then retry."
           );
         }
         throw new Error(json.error ?? failMessage);
