@@ -4,6 +4,7 @@ import { aggregateCompetitors } from "@/lib/maps/grid";
 import { enrichTargetBusiness, enrichCompetitor } from "@/lib/jobs/enrich-competitors";
 import { SCAN_RESULT_COMPETITOR_COLUMNS } from "@/lib/maps/scan-result-columns";
 import { mergeScanConfidenceSummary } from "@/lib/jobs/merge-confidence-summary";
+import { gridScanAutoEnrichmentEnabled } from "@/lib/jobs/grid-scan-enrichment-flag";
 
 /** Start lightweight enrichment once enough rank cells exist — does not block the scan. */
 export const EARLY_ENRICHMENT_MIN_CELLS = 17;
@@ -13,6 +14,7 @@ const inFlight = new Set<string>();
 
 /**
  * Phase 2 (early) — enrich target + emerging top competitors after ~15–20 cells.
+ * Disabled unless GRID_SCAN_AUTO_ENRICHMENT=true (same gate as post-scan enrichment).
  * Rank scan keeps priority; this runs on a low-concurrency background queue.
  *
  * Claims via early_enrichment_started column (migration 032) so parallel workers
@@ -22,6 +24,8 @@ export async function maybeStartEarlyEnrichment(
   scanBatchId: string,
   organizationId?: string
 ): Promise<void> {
+  // Default OFF — Bright Data already returns ranks/ratings/review counts for the grid.
+  if (!gridScanAutoEnrichmentEnabled()) return;
   if (inFlight.has(scanBatchId)) return;
 
   const supabase = createServiceClient();
@@ -112,6 +116,12 @@ export async function processEarlyEnrichment(
 }
 
 async function runEarlyEnrichment(scanBatchId: string, organizationId?: string): Promise<void> {
+  // No-op stale queue jobs left over from before auto-enrichment was disabled.
+  if (!gridScanAutoEnrichmentEnabled()) {
+    console.log("[EarlyEnrichment] skipped — GRID_SCAN_AUTO_ENRICHMENT is not true", scanBatchId);
+    return;
+  }
+
   const supabase = createServiceClient();
 
   const { data: batch } = await supabase
