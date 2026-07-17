@@ -71,6 +71,7 @@ function patchGrowthAuditPreviewFetch() {
 export default function GrowthAuditPreviewPage() {
   const [ready, setReady] = useState(false);
   const [tab, setTab] = useState<GrowthAuditTabId>("overview");
+  const [running, setRunning] = useState(false);
   const sections = growthAuditPreviewSections;
   const score = sections.overview.growthScore;
 
@@ -79,6 +80,19 @@ export default function GrowthAuditPreviewPage() {
     setReady(true);
   }, []);
 
+  async function runAudit() {
+    setRunning(true);
+    try {
+      await fetch("/api/growth-audit/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId: GROWTH_AUDIT_PREVIEW_BUSINESS_ID }),
+      });
+    } finally {
+      setRunning(false);
+    }
+  }
+
   if (!ready) return null;
 
   return (
@@ -86,8 +100,8 @@ export default function GrowthAuditPreviewPage() {
       <ModulePage wide>
         <GrowthAuditHeader
           startedAt={growthAuditPreviewApi.run.startedAt}
-          running={false}
-          onRun={() => undefined}
+          running={running}
+          onRun={() => void runAudit()}
         />
         <GrowthAuditTabs tab={tab} onTabChange={setTab} />
 

@@ -84,11 +84,20 @@ export function useModuleJobRunner(options: Options = {}) {
         throw new Error(
           res.status === 404
             ? `Run API not found (${url}). Redeploy the web app so this route exists.`
-            : `${failMessage} (HTTP ${res.status})`
+            : res.status === 403
+              ? "Request blocked by security (invalid origin). Open the app at https://app.localseoexpress.com (not the raw server IP) and confirm APP_URL / ALLOWED_ORIGINS match that host."
+              : `${failMessage} (HTTP ${res.status})`
         );
       }
       const json = (await res.json()) as RunResult & { error?: string };
-      if (!res.ok) throw new Error(json.error ?? failMessage);
+      if (!res.ok) {
+        if (res.status === 403 && /invalid origin/i.test(String(json.error ?? ""))) {
+          throw new Error(
+            "Request blocked by security (invalid origin). Open the app at https://app.localseoexpress.com (not the raw server IP) and confirm APP_URL / ALLOWED_ORIGINS match that host."
+          );
+        }
+        throw new Error(json.error ?? failMessage);
+      }
 
       if (json.queued && typeof json.jobId === "string") {
         setJobId(json.jobId);

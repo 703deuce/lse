@@ -1,8 +1,19 @@
 /**
  * Public app origin used for webhooks, tracked links, and unsubscribe URLs.
  * Production default is the live Coolify host once DNS is pointed there.
+ *
+ * NOTE: This must match the real public hostname. A wrong default (e.g. the
+ * legacy typo `app.localexpress.com`) causes CSRF middleware to reject every
+ * cookie-authenticated Run/POST from the browser when APP_URL is unset.
  */
-export const PRODUCTION_APP_URL = "https://app.localexpress.com";
+export const PRODUCTION_APP_URL = "https://app.localseoexpress.com";
+
+/** Known public origins always accepted in production (env may be mis-set). */
+export const BUILTIN_PRODUCTION_ORIGINS = [
+  "https://app.localseoexpress.com",
+  // Legacy hostname that appears in older Coolify / webhook docs.
+  "https://app.localexpress.com",
+] as const;
 
 export function getAppBaseUrl(): string {
   const fromEnv =

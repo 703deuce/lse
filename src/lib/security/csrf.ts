@@ -7,7 +7,7 @@
  * (APP_URL / NEXT_PUBLIC_APP_URL / ALLOWED_ORIGINS), never to the container URL.
  */
 
-import { getAppBaseUrl } from "@/lib/app-url";
+import { BUILTIN_PRODUCTION_ORIGINS, getAppBaseUrl } from "@/lib/app-url";
 
 export type CsrfRequestLike = {
   method: string;
@@ -97,6 +97,14 @@ export function getAllowedOrigins(): string[] {
     /* ignore */
   }
 
+  // Belt-and-suspenders: if Coolify only set the legacy typo host (or left
+  // APP_URL empty), browser posts from the live domain must still work.
+  if (process.env.NODE_ENV === "production") {
+    for (const origin of BUILTIN_PRODUCTION_ORIGINS) {
+      add(origin);
+    }
+  }
+
   if (process.env.NODE_ENV !== "production") {
     add("http://localhost:3000");
     add("http://127.0.0.1:3000");
@@ -133,6 +141,16 @@ export function isMutatingMethod(method: string): boolean {
   const m = method.toUpperCase();
   return m === "POST" || m === "PUT" || m === "PATCH" || m === "DELETE";
 }
+
+/** Module dashboard Run buttons — cookie-authenticated POSTs that must pass CSRF. */
+export const MODULE_RUN_ENDPOINTS = [
+  "/api/reviews/momentum/run",
+  "/api/trust/run",
+  "/api/growth-audit/run",
+  "/api/backlink-gap/run",
+  "/api/keywords/check",
+  "/api/scans/run-for-keyword",
+] as const;
 
 /** Paths that authenticate via shared secret / signature — skip browser CSRF. */
 export function isCsrfExemptPath(pathname: string): boolean {
