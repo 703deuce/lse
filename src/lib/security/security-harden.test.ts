@@ -38,7 +38,11 @@ import {
   isOrganizationEnqueueBlocked,
 } from "@/lib/auth/org-status";
 import { mergeCookieOptions, supabaseCookieOptions } from "@/lib/supabase/cookie-options";
-import { getBrowserGoogleMapsApiKey } from "@/lib/maps/google-maps-key";
+import {
+  apiKeySuffix,
+  cleanApiKey,
+  getBrowserGoogleMapsApiKey,
+} from "@/lib/maps/google-maps-key";
 
 describe("ASVS code hardenings", () => {
   it("blocks private and metadata IPs for SSRF", () => {
@@ -461,14 +465,20 @@ describe("ASVS code hardenings", () => {
       NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
       GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
       GOOGLE_MAPS_KEY: process.env.GOOGLE_MAPS_KEY,
+      GOOGLE_MAPS_STATIC_API_KEY: process.env.GOOGLE_MAPS_STATIC_API_KEY,
+      STATIC_MAPS_API_KEY: process.env.STATIC_MAPS_API_KEY,
     };
     delete process.env.NEXT_PUBLIC_MAPS;
     delete process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
     delete process.env.GOOGLE_MAPS_API_KEY;
     delete process.env.GOOGLE_MAPS_KEY;
-    process.env.MAPS = "coolify-maps-js-key";
+    delete process.env.GOOGLE_MAPS_STATIC_API_KEY;
+    delete process.env.STATIC_MAPS_API_KEY;
+    process.env.MAPS = '"coolify-maps-js-key"';
     try {
+      assert.equal(cleanApiKey('"AIzaQuoted"'), "AIzaQuoted");
       assert.equal(getBrowserGoogleMapsApiKey(), "coolify-maps-js-key");
+      assert.equal(apiKeySuffix("AIzaSyTestKeyXX"), "eyXX");
     } finally {
       for (const [k, v] of Object.entries(prev)) {
         if (v === undefined) delete process.env[k];
