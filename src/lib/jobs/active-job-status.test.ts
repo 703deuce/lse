@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import {
   applyPollJitter,
@@ -52,6 +54,21 @@ describe("active job polling policy", () => {
     assert.equal(assertJobStatusRateLimit({ organizationId: "o1", jobId: "j1" }).ok, true);
     const third = assertJobStatusRateLimit({ organizationId: "o1", jobId: "j1" });
     assert.equal(third.ok, false);
+  });
+
+  it("keeps useSyncExternalStore snapshots referentially stable", () => {
+    // Regression for React #185 (Maximum update depth exceeded): getSnapshot
+    // must not allocate a new object on every call while polling after Run.
+    const src = readFileSync(
+      join(process.cwd(), "src/components/jobs/use-active-job-status.ts"),
+      "utf8"
+    );
+    assert.match(src, /getEntry\(url\)\.snapshot/);
+    assert.doesNotMatch(
+      src,
+      /return \{\s*version:\s*e\.version/,
+      "getSnapshot must not rebuild a fresh object each read"
+    );
   });
 
   it("keeps polling on stalled wire status and detects stale heartbeats", () => {
