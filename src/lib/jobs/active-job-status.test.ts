@@ -56,18 +56,22 @@ describe("active job polling policy", () => {
     assert.equal(third.ok, false);
   });
 
-  it("keeps useSyncExternalStore snapshots referentially stable", () => {
-    // Regression for React #185 (Maximum update depth exceeded): getSnapshot
-    // must not allocate a new object on every call while polling after Run.
+  it("keeps useSyncExternalStore subscribe/snapshot stable across renders", () => {
+    // Regression for React #185 (Maximum update depth exceeded):
+    // 1) getSnapshot must not allocate a new object every read
+    // 2) subscribe must be useCallback'd on url only — a fresh subscribe
+    //    each render re-subscribes, deletes the cache entry, and loops.
     const src = readFileSync(
       join(process.cwd(), "src/components/jobs/use-active-job-status.ts"),
       "utf8"
     );
     assert.match(src, /getEntry\(url\)\.snapshot/);
+    assert.match(src, /useCallback\(/);
+    assert.match(src, /subscribeToUrl/);
     assert.doesNotMatch(
       src,
-      /return \{\s*version:\s*e\.version/,
-      "getSnapshot must not rebuild a fresh object each read"
+      /useSyncExternalStore\(\s*\(onChange\)\s*=>/,
+      "subscribe must not be an inline arrow passed to useSyncExternalStore"
     );
   });
 

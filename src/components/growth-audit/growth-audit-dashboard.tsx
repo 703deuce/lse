@@ -180,16 +180,15 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
       progressStage?: string | null;
     };
     if (!json.status) return;
+    // Only write state when the feature status actually changes — avoid
+    // re-render churn from new result object identities on every poll.
+    const prev = lastFeatureStatus.current;
+    if (prev === json.status) return;
+    lastFeatureStatus.current = json.status;
     setRunStatus(json.status);
     setExtended(json.extended ?? {});
     setProgressStage(json.progressStage ?? null);
-    // Reload full audit only when status transitions — not on every poll tick.
-    const prev = lastFeatureStatus.current;
-    lastFeatureStatus.current = json.status;
-    if (
-      prev !== json.status &&
-      (json.status === "complete" || json.status === "failed" || json.status === "core_ready")
-    ) {
+    if (json.status === "complete" || json.status === "failed" || json.status === "core_ready") {
       void load();
     }
   }, [featurePoll, load]);
