@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SidebarUserMenu } from "@/components/auth/sidebar-user-menu";
+import { BusinessSwitcher } from "@/components/dashboard/business-switcher";
 import {
   buildBusinessSidebarNav,
   isSidebarHrefActive,
@@ -210,25 +211,20 @@ export function DashboardSidebarPanel({
             <p className="text-[11px] text-slate-400">Local SEO Platform</p>
           </div>
         </div>
-        {businessId && (
-          staticLinks ? (
+        {businessId &&
+          (staticLinks ? (
             <div className="mx-1 mt-2.5 flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-slate-300">
               <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-              <span className="min-w-0 flex-1 truncate">{businessName ?? "Select business…"}</span>
+              <span className="min-w-0 flex-1 truncate">{businessName ?? "Select location…"}</span>
               <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
             </div>
           ) : (
-            <Link
-              href="/businesses"
-              className="mx-1 mt-2.5 flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/10"
-              onClick={() => onNavigate?.()}
-            >
-              <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-              <span className="min-w-0 flex-1 truncate">{businessName ?? "Select business…"}</span>
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-            </Link>
-          )
-        )}
+            <BusinessSwitcher
+              businessId={businessId}
+              businessName={businessName}
+              onNavigate={onNavigate}
+            />
+          ))}
       </div>
       <nav className="flex-1 space-y-0.5 overflow-y-auto overscroll-contain p-2.5" suppressHydrationWarning>
         {!businessId &&

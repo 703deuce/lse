@@ -109,7 +109,7 @@ export function AccountPlanUsageCard() {
       </div>
 
       <div className="space-y-4">
-        <UsageRow label="Businesses" used={data.businessCount} limit={plan.limits.max_businesses} />
+        <UsageRow label="Locations" used={data.businessCount} limit={plan.limits.max_businesses} />
         <UsageRow label="Map credits" used={usage.map_credits_used} limit={plan.limits.map_credits_month} />
         <UsageRow label="Growth audits" used={usage.growth_audits_used} limit={plan.limits.growth_audits_month} />
         <UsageRow label="Local Trust scans" used={usage.local_trust_scans_used} limit={plan.limits.local_trust_scans_month} />
