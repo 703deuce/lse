@@ -15,6 +15,15 @@ export type MapCellPin = {
   label?: string;
 };
 
+export type RenderMapResult = {
+  buffer: Buffer;
+  mapSource: "google_static" | "blank_fallback";
+  width: number;
+  height: number;
+  bytes: number;
+  generationMs: number;
+};
+
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const h = hex.replace("#", "");
   return {
@@ -27,7 +36,8 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
 function svgBubble(rank: number | null, cx: number, cy: number, r: number): string {
   const color = rankHex(rank);
   const { r: red, g, b } = hexToRgb(color);
-  const text = rank == null || rank > 20 ? "—" : String(Math.round(rank));
+  // ASCII only — Helvetica/PDF paths choke on some unicode glyphs.
+  const text = rank == null || rank > 20 ? "-" : String(Math.round(rank));
   const fontSize = text.length > 2 ? r * 0.85 : r * 1.05;
   return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="rgb(${red},${g},${b})" stroke="#fff" stroke-width="2"/>
     <text x="${cx}" y="${cy + fontSize * 0.35}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="${fontSize}" font-weight="700" fill="#fff">${text}</text>`;
@@ -71,7 +81,6 @@ async function fetchStaticMapBase(params: {
 
   const res = await fetch(url.toString(), {
     signal: AbortSignal.timeout(25_000),
-    // Avoid sending a spoofed/odd Referer from the runtime.
     headers: { Accept: "image/*" },
     redirect: "follow",
   });
@@ -89,9 +98,7 @@ async function fetchStaticMapBase(params: {
 
 /**
  * Build a high-res map PNG: Google Static Maps base + rank bubbles composited via sharp.
- *
- * If the browser Static Maps URL works but the worker gets 403, the worker is usually
- * using a different/malformed key — we log key source + last-4 (never the full key).
+ * When `requireRealMap` is true, Static Maps failure throws (no silent gray PDF maps).
  */
 export async function renderScanMapPng(params: {
   centerLat: number;
@@ -101,17 +108,30 @@ export async function renderScanMapPng(params: {
   pins: MapCellPin[];
   width?: number;
   height?: number;
-}): Promise<Buffer> {
+  /** When true, do not fall back to a blank gray base — fail the export. */
+  requireRealMap?: boolean;
+}): Promise<RenderMapResult> {
+  const started = Date.now();
   const width = params.width ?? 1280;
   const height = params.height ?? 1280;
   const zoom = zoomForRadiusMeters(params.radiusMeters, width);
   const apiKey = getGoogleMapsApiKey();
   const keySource = getGoogleMapsApiKeySource();
+  const requireRealMap = Boolean(params.requireRealMap);
 
   let base: Buffer;
-  if (apiKey) {
+  let mapSource: RenderMapResult["mapSource"] = "blank_fallback";
+
+  if (!apiKey) {
+    logger.warn("static_maps_missing_key", { keySource });
+    if (requireRealMap) {
+      throw new Error(
+        "Google Static Maps key is not configured on this worker (set MAPS or GOOGLE_MAPS_STATIC_API_KEY). PDF/map exports require a real map image."
+      );
+    }
+    base = await blankMapBase(width, height);
+  } else {
     try {
-      // Match the simple browser test URL first (no style) — then try styled.
       let result = await fetchStaticMapBase({
         apiKey,
         centerLat: params.centerLat,
@@ -144,14 +164,19 @@ export async function renderScanMapPng(params: {
           body: result.body,
           keySource,
           keySuffix: apiKeySuffix(apiKey),
-          hint:
-            "Browser Static Maps URL works but worker got 403 → compare keySuffix to the last 4 chars of Coolify MAPS on this worker service.",
         });
+        if (requireRealMap) {
+          throw new Error(
+            `Google Static Maps failed (HTTP ${result.status}). ${result.body.slice(0, 180)} Ensure Maps Static API is allowed on this key (API restrictions).`
+          );
+        }
         base = await blankMapBase(width, height);
       } else {
         base = result.buffer;
+        mapSource = "google_static";
       }
     } catch (err) {
+      if (requireRealMap) throw err;
       logger.warn("static_maps_fetch_fallback", {
         error: err instanceof Error ? err.message : String(err),
         keySource,
@@ -159,12 +184,6 @@ export async function renderScanMapPng(params: {
       });
       base = await blankMapBase(width, height);
     }
-  } else {
-    logger.warn("static_maps_missing_key", {
-      keySource,
-      hint: "No MAPS / GOOGLE_MAPS_STATIC_API_KEY visible to this worker process",
-    });
-    base = await blankMapBase(width, height);
   }
 
   const bubbleR = Math.max(10, Math.min(22, Math.floor(width / (params.gridSize * 2.8))));
@@ -200,9 +219,9 @@ export async function renderScanMapPng(params: {
   const spacing = Math.round(gridPointSpacingMeters(params.gridSize, params.radiusMeters));
   const legendY = height - 36;
   const legend = `
-    <rect x="16" y="${legendY - 22}" width="420" height="48" rx="8" fill="rgba(255,255,255,0.92)" stroke="#e4e4e7"/>
+    <rect x="16" y="${legendY - 22}" width="460" height="48" rx="8" fill="rgba(255,255,255,0.92)" stroke="#e4e4e7"/>
     <text x="28" y="${legendY}" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3f3f46">
-      Rank: 1–3 · 4–10 · 11–20 · Not found · Pin spacing ~${spacing}m · Map data © Google
+      Rank 1-3 / 4-10 / 11-20 / not found · Pin spacing ~${spacing}m · Map data (c) Google
     </text>`;
 
   const overlay = Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
@@ -211,8 +230,28 @@ export async function renderScanMapPng(params: {
     ${legend}
   </svg>`);
 
-  return sharp(base)
+  const buffer = await sharp(base)
     .composite([{ input: overlay, top: 0, left: 0 }])
     .png()
     .toBuffer();
+
+  const generationMs = Date.now() - started;
+  logger.info("scan_map_image_ready", {
+    map_source: mapSource,
+    map_image_bytes: buffer.byteLength,
+    map_width: width,
+    map_height: height,
+    map_generation_ms: generationMs,
+    keySource,
+    keySuffix: apiKey ? apiKeySuffix(apiKey) : null,
+  });
+
+  return {
+    buffer,
+    mapSource,
+    width,
+    height,
+    bytes: buffer.byteLength,
+    generationMs,
+  };
 }
