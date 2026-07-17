@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import {
   OrganizationEnqueueError,
@@ -61,6 +63,32 @@ describe("organization enqueue gate", () => {
       () => assertOrganizationCanEnqueue(null, "send_campaign_email"),
       (err: unknown) =>
         err instanceof OrganizationEnqueueError && err.code === "org_required"
+    );
+  });
+
+  it("keeps org kill-switch out of session auth (pre-ASVS model)", () => {
+    // Regression: 60c882d/b77273a wired loadOrganizationGateStatus into
+    // getAuthContext and signed users out on lookup miss — modules died,
+    // workers kept going. Reports "worked" after a different fix (reauth /
+    // downloads). Session auth must stay user + membership only.
+    const contextSrc = readFileSync(
+      join(process.cwd(), "src/lib/auth/context.ts"),
+      "utf8"
+    );
+    // Strip block/line comments so docstrings may name the forbidden API.
+    const codeOnly = contextSrc
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+    assert.match(codeOnly, /getOrganizationIdForUser/);
+    assert.doesNotMatch(
+      codeOnly,
+      /loadOrganizationGateStatus/,
+      "getAuthContext must not call loadOrganizationGateStatus"
+    );
+    assert.doesNotMatch(
+      codeOnly,
+      /\.signOut\s*\(/,
+      "getAuthContext must not sign users out"
     );
   });
 });
