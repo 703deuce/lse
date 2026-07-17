@@ -405,6 +405,23 @@ describe("ASVS code hardenings", () => {
 
     const authTime = evaluateRecentAuthFromPayload({ auth_time: nowSec - 60 });
     assert.equal(authTime.ok, true);
+
+    // Supabase password/OAuth sessions expose amr[].timestamp, not always auth_time.
+    const amr = evaluateRecentAuthFromPayload({
+      aal: "aal1",
+      iat: nowSec,
+      amr: [{ method: "password", timestamp: nowSec - 30 }],
+    });
+    assert.equal(amr.ok, true);
+
+    const amrStale = evaluateRecentAuthFromPayload(
+      {
+        aal: "aal1",
+        amr: [{ method: "password", timestamp: nowSec - 7200 }],
+      },
+      60 * 60 * 1000
+    );
+    assert.equal(amrStale.ok, false);
   });
 
   it("rejects artifact storage path traversal", () => {
