@@ -1,8 +1,7 @@
-import { GridScanView } from "@/components/scan/grid-scan-view";
-import { requireAuth } from "@/lib/auth/context";
-import { createServiceClient } from "@/lib/db/client";
-import { getBusiness } from "@/lib/db/queries";
 import { notFound } from "next/navigation";
+import { requireBusinessPageData } from "@/lib/auth/require-business-page";
+import { GridScanView } from "@/components/scan/grid-scan-view";
+import { createServiceClient } from "@/lib/db/client";
 
 export default async function GridScanPage({
   params,
@@ -10,9 +9,7 @@ export default async function GridScanPage({
   params: Promise<{ businessId: string; scanId: string }>;
 }) {
   const { businessId, scanId } = await params;
-  const auth = await requireAuth();
-  const business = await getBusiness(businessId, auth.organizationId);
-  if (!business) notFound();
+  await requireBusinessPageData(businessId);
 
   const supabase = createServiceClient();
   const { data: batch } = await supabase

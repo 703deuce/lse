@@ -1,11 +1,10 @@
+import { requireBusinessPageData } from "@/lib/auth/require-business-page";
 import { PageHeader } from "@/components/ui/page-header";
-import { requireAuth } from "@/lib/auth/context";
-import { getBusiness, getLatestScan } from "@/lib/db/queries";
+import { getLatestScan } from "@/lib/db/queries";
 import { createServiceClient } from "@/lib/db/client";
 import { aggregateCompetitors } from "@/lib/maps/grid";
 import { enrichTargetBusiness } from "@/lib/jobs/enrich-competitors";
 import { CompetitorComparison } from "@/components/audit/competitor-comparison";
-import { notFound } from "next/navigation";
 
 function normName(name: string | null | undefined): string {
   return (name ?? "").trim().toLowerCase().replace(/\s+/g, " ");
@@ -17,9 +16,7 @@ export default async function CompetitorsPage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
-  const auth = await requireAuth();
-  const business = await getBusiness(businessId, auth.organizationId);
-  if (!business) notFound();
+  const { business, organizationId } = await requireBusinessPageData(businessId);
 
   const latestScan = await getLatestScan(businessId);
   const supabase = createServiceClient();
@@ -55,7 +52,7 @@ export default async function CompetitorsPage({
     state: primaryKw?.state,
     lat: business.scan_center_lat ?? business.lat,
     lng: business.scan_center_lng ?? business.lng,
-    organizationId: auth.organizationId,
+    organizationId,
   });
 
   const { data: snapshots } = latestScan

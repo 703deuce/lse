@@ -1,7 +1,6 @@
 import { ReportsHub } from "@/components/reports/reports-hub";
-import { requireAuth } from "@/lib/auth/context";
-import { getBusiness, getLatestScan } from "@/lib/db/queries";
-import { notFound } from "next/navigation";
+import { requireBusinessPageData } from "@/lib/auth/require-business-page";
+import { getLatestScan } from "@/lib/db/queries";
 
 export default async function ReportsPage({
   params,
@@ -9,9 +8,7 @@ export default async function ReportsPage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
-  const auth = await requireAuth();
-  const business = await getBusiness(businessId, auth.organizationId);
-  if (!business) notFound();
+  await requireBusinessPageData(businessId);
   const latestScan = await getLatestScan(businessId);
 
   return <ReportsHub businessId={businessId} latestScanId={latestScan?.id ?? null} />;

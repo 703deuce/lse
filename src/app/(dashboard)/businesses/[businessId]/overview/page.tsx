@@ -1,7 +1,5 @@
-import { requireAuth } from "@/lib/auth/context";
-import { getBusiness } from "@/lib/db/queries";
+import { requireBusinessPageData } from "@/lib/auth/require-business-page";
 import { createServiceClient } from "@/lib/db/client";
-import { notFound } from "next/navigation";
 import { DashboardHeader } from "@/components/overview/dashboard-header";
 import { DashboardQuickActions } from "@/components/overview/dashboard-quick-actions";
 import { DashboardRecentScans } from "@/components/overview/dashboard-recent-scans";
@@ -53,9 +51,8 @@ export default async function BusinessOverviewPage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
-  const auth = await requireAuth();
-  const business = await getBusiness(businessId, auth.organizationId);
-  if (!business) notFound();
+  const auth = await requireBusinessPageData(businessId);
+  const business = auth.business;
 
   const supabase = createServiceClient();
   const [{ data: businesses }, displayName] = await Promise.all([

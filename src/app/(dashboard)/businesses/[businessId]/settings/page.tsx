@@ -1,7 +1,5 @@
-import { requireAuth } from "@/lib/auth/context";
-import { getBusiness } from "@/lib/db/queries";
+import { requireBusinessPageData } from "@/lib/auth/require-business-page";
 import { SettingsClient } from "@/components/settings/settings-client";
-import { notFound } from "next/navigation";
 
 export default async function SettingsPage({
   params,
@@ -9,9 +7,7 @@ export default async function SettingsPage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
-  const auth = await requireAuth();
-  const business = await getBusiness(businessId, auth.organizationId);
-  if (!business) notFound();
+  const { business } = await requireBusinessPageData(businessId);
 
   return <SettingsClient businessId={businessId} business={business} />;
 }

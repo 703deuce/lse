@@ -1,7 +1,5 @@
+import { requireBusinessPageData } from "@/lib/auth/require-business-page";
 import { AiVisibilityPromptsPage } from "@/components/ai-visibility/ai-visibility-prompts-page";
-import { requireAuth } from "@/lib/auth/context";
-import { getBusiness } from "@/lib/db/queries";
-import { notFound } from "next/navigation";
 
 export default async function AiVisibilityPromptsRoute({
   params,
@@ -9,9 +7,7 @@ export default async function AiVisibilityPromptsRoute({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
-  const auth = await requireAuth();
-  const business = await getBusiness(businessId, auth.organizationId);
-  if (!business) notFound();
+  await requireBusinessPageData(businessId);
 
   return <AiVisibilityPromptsPage businessId={businessId} />;
 }
