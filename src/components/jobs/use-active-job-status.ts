@@ -30,7 +30,9 @@ type Snapshot = {
   error: string | null;
 };
 
-type CacheEntry = Snapshot & {
+type CacheEntry = {
+  /** Stable snapshot reference — replaced only in bump() for useSyncExternalStore. */
+  snapshot: Snapshot;
   listeners: Set<() => void>;
   inFlight: boolean;
   abort: AbortController | null;
@@ -53,9 +55,7 @@ function getEntry(url: string): CacheEntry {
   let entry = cache.get(url);
   if (!entry) {
     entry = {
-      version: 0,
-      status: null,
-      error: null,
+      snapshot: { version: 0, status: null, error: null },
       listeners: new Set(),
       inFlight: false,
       abort: null,
@@ -74,8 +74,12 @@ function getEntry(url: string): CacheEntry {
   return entry;
 }
 
-function bump(entry: CacheEntry) {
-  entry.version += 1;
+function bump(entry: CacheEntry, next?: Partial<Pick<Snapshot, "status" | "error">>) {
+  entry.snapshot = {
+    version: entry.snapshot.version + 1,
+    status: next && "status" in next ? (next.status ?? null) : entry.snapshot.status,
+    error: next && "error" in next ? (next.error ?? null) : entry.snapshot.error,
+  };
   for (const l of entry.listeners) l();
 }
 
@@ -158,7 +162,8 @@ async function tick(url: string, opts?: { force?: boolean }) {
     }
     return;
   }
-  if (entry.status && terminalFor(entry, entry.status.status, {})) return;
+  const current = entry.snapshot.status;
+  if (current && terminalFor(entry, current.status, {})) return;
 
   entry.inFlight = true;
   entry.abort?.abort();
@@ -174,7 +179,7 @@ async function tick(url: string, opts?: { force?: boolean }) {
     });
 
     if (res.status === 304) {
-      if (entry.refCount > 0 && !terminalFor(entry, entry.status?.status ?? "", {})) {
+      if (entry.refCount > 0 && !terminalFor(entry, entry.snapshot.status?.status ?? "", {})) {
         schedule(url, nextPollIntervalMs(entry.startedAt, entry.lastChangeAt));
       }
       return;
@@ -190,14 +195,15 @@ async function tick(url: string, opts?: { force?: boolean }) {
         return;
       }
       if (res.status === 401 || res.status === 403) {
-        entry.error = message;
-        entry.status = {
-          jobId: String(json.jobId ?? url),
-          status: "failed",
-          phase: "failed",
-          errorMessage: message,
-        };
-        bump(entry);
+        bump(entry, {
+          error: message,
+          status: {
+            jobId: String(json.jobId ?? url),
+            status: "failed",
+            phase: "failed",
+            errorMessage: message,
+          },
+        });
         return;
       }
       // 404 right after enqueue is often a brief race (ledger row not visible yet)
@@ -208,14 +214,15 @@ async function tick(url: string, opts?: { force?: boolean }) {
           schedule(url, 400 * entry.notFoundCount);
           return;
         }
-        entry.error = message;
-        entry.status = {
-          jobId: String(json.jobId ?? url),
-          status: "failed",
-          phase: "failed",
-          errorMessage: message,
-        };
-        bump(entry);
+        bump(entry, {
+          error: message,
+          status: {
+            jobId: String(json.jobId ?? url),
+            status: "failed",
+            phase: "failed",
+            errorMessage: message,
+          },
+        });
         return;
       }
       throw new Error(message);
@@ -225,17 +232,16 @@ async function tick(url: string, opts?: { force?: boolean }) {
     if (etag) entry.etag = etag;
 
     const mapped = entry.mapResponse ? entry.mapResponse(json) : defaultMap(json);
+    const prev = entry.snapshot.status;
     const changed =
-      mapped.status !== entry.status?.status ||
-      mapped.updatedAt !== entry.status?.updatedAt ||
-      mapped.version !== entry.status?.version ||
-      mapped.progress?.completed !== entry.status?.progress?.completed;
+      mapped.status !== prev?.status ||
+      mapped.updatedAt !== prev?.updatedAt ||
+      mapped.version !== prev?.version ||
+      mapped.progress?.completed !== prev?.progress?.completed;
 
-    entry.status = mapped;
-    entry.error = null;
     entry.notFoundCount = 0;
     if (changed) entry.lastChangeAt = Date.now();
-    bump(entry);
+    bump(entry, { status: mapped, error: null });
 
     if (entry.refCount > 0 && !terminalFor(entry, mapped.status, json)) {
       schedule(url, nextPollIntervalMs(entry.startedAt, entry.lastChangeAt));
@@ -244,8 +250,9 @@ async function tick(url: string, opts?: { force?: boolean }) {
     // Aborted because a newer tick/unmount won — do not reschedule here.
     if (err instanceof DOMException && err.name === "AbortError") return;
     if (controller.signal.aborted) return;
-    entry.error = err instanceof Error ? err.message : "Status poll failed";
-    bump(entry);
+    bump(entry, {
+      error: err instanceof Error ? err.message : "Status poll failed",
+    });
     if (entry.refCount > 0) {
       schedule(url, nextPollIntervalMs(entry.startedAt, entry.lastChangeAt));
     }
@@ -306,14 +313,13 @@ export function useActiveJobStatus(options: Options): {
   const isTerminal = options.isTerminal;
   const mapResponse = options.mapResponse;
 
+  // getSnapshot MUST return a stable reference unless the store changed.
+  // Returning a fresh `{...}` object every call trips React #185
+  // ("Maximum update depth exceeded") as soon as Run starts polling.
   const snap = useSyncExternalStore(
     (onChange) =>
       url ? subscribe(url, onChange, { isTerminal, mapResponse }) : () => {},
-    () => {
-      if (!url) return emptySnapshot;
-      const e = getEntry(url);
-      return { version: e.version, status: e.status, error: e.error };
-    },
+    () => (url ? getEntry(url).snapshot : emptySnapshot),
     () => emptySnapshot
   );
 
