@@ -14,7 +14,12 @@ type AdminAccount = {
   usage: Record<string, number>;
 };
 
-const PLAN_OPTIONS: PlanId[] = ["starter", "pro", "agency", "internal"];
+const PLAN_OPTIONS: { id: PlanId; label: string }[] = [
+  { id: "starter", label: "starter (5 locations)" },
+  { id: "pro", label: "pro (10 locations)" },
+  { id: "agency", label: "agency (20 locations)" },
+  { id: "internal", label: "internal (unlimited — testing)" },
+];
 
 export function AdminAccountsClient() {
   const [accounts, setAccounts] = useState<AdminAccount[]>([]);
@@ -90,7 +95,9 @@ export function AdminAccountsClient() {
         <Link href="/admin/ops" className="text-emerald-700 underline">
           Ops console
         </Link>{" "}
-        — queues, Redis, job retry/cancel
+        — queues, Redis, job retry/cancel. To test multi-location yourself, set your org plan to{" "}
+        <strong className="font-medium text-zinc-700">agency</strong> (20 locations) or{" "}
+        <strong className="font-medium text-zinc-700">internal</strong> (unlimited).
       </p>
       {accounts.map((account) => (
         <ContentCard key={account.id}>
@@ -110,8 +117,8 @@ export function AdminAccountsClient() {
                 className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
               >
                 {PLAN_OPTIONS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
+                  <option key={p.id} value={p.id}>
+                    {p.label}
                   </option>
                 ))}
               </select>

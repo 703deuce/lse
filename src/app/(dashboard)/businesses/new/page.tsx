@@ -89,7 +89,15 @@ export default function NewBusinessPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Create failed");
+      if (!res.ok) {
+        if (res.status === 402 || /max businesses|plan limit/i.test(String(data.error ?? ""))) {
+          throw new Error(
+            data.error ??
+              "Location limit reached for your plan. Archive a location or upgrade to add another."
+          );
+        }
+        throw new Error(data.error ?? "Create failed");
+      }
       router.push(`/businesses/${data.business.id}/overview`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Create failed");
@@ -104,8 +112,11 @@ export default function NewBusinessPage() {
           <ArrowLeft className="h-4 w-4" /> Back
         </Link>
 
-        <h1 className="text-2xl font-bold">Add a business</h1>
-        <p className="mt-1 text-sm text-zinc-500">Find your Google listing and set up tracking</p>
+        <h1 className="text-2xl font-bold">Add a location</h1>
+        <p className="mt-1 text-sm text-zinc-500">
+          Find your Google listing. This location gets its own scans, keywords, and module history —
+          separate from your other businesses.
+        </p>
 
         {error && (
           <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">

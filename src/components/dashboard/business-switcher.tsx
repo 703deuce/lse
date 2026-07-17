@@ -1,0 +1,194 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { Building2, Check, ChevronDown, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+type BusinessRow = {
+  id: string;
+  name: string;
+  address_text?: string | null;
+  is_tracked?: boolean | null;
+};
+
+/**
+ * In-sidebar location switcher. Each business keeps its own scans, keywords,
+ * backlinks, etc. — switching only changes which silo the URL points at.
+ */
+export function BusinessSwitcher({
+  businessId,
+  businessName,
+  onNavigate,
+}: {
+  businessId: string;
+  businessName?: string | null;
+  onNavigate?: () => void;
+}) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState<BusinessRow[]>([]);
+  const [trackedCount, setTrackedCount] = useState(0);
+  const [maxBusinesses, setMaxBusinesses] = useState<number | null>(null);
+  const [canAdd, setCanAdd] = useState(true);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/businesses")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (cancelled || !json) return;
+        setRows((json.businesses as BusinessRow[]) ?? []);
+        setTrackedCount(Number(json.trackedCount ?? 0));
+        setMaxBusinesses(
+          typeof json.maxBusinesses === "number" ? json.maxBusinesses : null
+        );
+        setCanAdd(Boolean(json.canAdd));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [businessId]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  function switchTo(nextId: string) {
+    setOpen(false);
+    onNavigate?.();
+    if (nextId === businessId) return;
+    // Keep the user on the same module path under the other location silo.
+    const nextPath = pathname.replace(
+      /^\/businesses\/[^/]+/,
+      `/businesses/${nextId}`
+    );
+    router.push(nextPath.startsWith(`/businesses/${nextId}`) ? nextPath : `/businesses/${nextId}/overview`);
+  }
+
+  const label = businessName ?? rows.find((b) => b.id === businessId)?.name ?? "Select location…";
+  const tracked = rows.filter((b) => b.is_tracked !== false);
+  const archived = rows.filter((b) => b.is_tracked === false);
+
+  return (
+    <div ref={rootRef} className="relative mx-1 mt-2.5">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2 rounded-md border border-white/10 bg-white/5 px-2.5 py-1.5 text-left text-xs font-medium text-slate-300 hover:bg-white/10"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+      >
+        <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+        <span className="min-w-0 flex-1 truncate">{label}</span>
+        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-slate-400 transition", open && "rotate-180")} />
+      </button>
+
+      {open ? (
+        <div
+          className="absolute left-0 right-0 z-50 mt-1 max-h-72 overflow-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg"
+          role="listbox"
+        >
+          {maxBusinesses != null ? (
+            <p className="border-b border-zinc-100 px-3 py-1.5 text-[11px] text-zinc-500">
+              Locations {trackedCount} / {maxBusinesses}
+            </p>
+          ) : null}
+
+          {tracked.map((b) => (
+            <button
+              key={b.id}
+              type="button"
+              role="option"
+              aria-selected={b.id === businessId}
+              onClick={() => switchTo(b.id)}
+              className={cn(
+                "flex w-full items-start gap-2 px-3 py-2 text-left text-xs hover:bg-zinc-50",
+                b.id === businessId ? "bg-emerald-50 text-emerald-900" : "text-zinc-800"
+              )}
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium">{b.name}</span>
+                {b.address_text ? (
+                  <span className="mt-0.5 block truncate text-[11px] text-zinc-500">
+                    {b.address_text}
+                  </span>
+                ) : null}
+              </span>
+              {b.id === businessId ? <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" /> : null}
+            </button>
+          ))}
+
+          {archived.length > 0 ? (
+            <>
+              <p className="border-t border-zinc-100 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                Archived
+              </p>
+              {archived.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  role="option"
+                  aria-selected={b.id === businessId}
+                  onClick={() => switchTo(b.id)}
+                  className="flex w-full items-start gap-2 px-3 py-2 text-left text-xs text-zinc-600 hover:bg-zinc-50"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{b.name}</span>
+                    <span className="mt-0.5 block text-[11px] text-zinc-400">History kept</span>
+                  </span>
+                </button>
+              ))}
+            </>
+          ) : null}
+
+          <div className="border-t border-zinc-100 p-1">
+            {canAdd ? (
+              <Link
+                href="/businesses/new"
+                onClick={() => {
+                  setOpen(false);
+                  onNavigate?.();
+                }}
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add location
+              </Link>
+            ) : (
+              <p className="px-2 py-1.5 text-[11px] text-zinc-500">
+                Location limit reached. Upgrade your plan to add more.
+              </p>
+            )}
+            <Link
+              href="/businesses"
+              onClick={() => {
+                setOpen(false);
+                onNavigate?.();
+              }}
+              className="mt-0.5 flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+            >
+              Manage locations
+            </Link>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}

@@ -49,7 +49,7 @@ export const PLAN_DEFINITIONS: Record<PlanId, PlanDefinition> = {
     name: "Starter",
     priceLabel: "$29/mo",
     limits: {
-      max_businesses: 1,
+      max_businesses: 5,
       map_credits_month: 5000,
       bulk_review_requests_month: 250,
       sms_month: 0,
@@ -83,7 +83,7 @@ export const PLAN_DEFINITIONS: Record<PlanId, PlanDefinition> = {
     name: "Pro",
     priceLabel: "$79/mo",
     limits: {
-      max_businesses: 1,
+      max_businesses: 10,
       map_credits_month: 15000,
       bulk_review_requests_month: 1000,
       sms_month: 100,
@@ -116,7 +116,7 @@ export const PLAN_DEFINITIONS: Record<PlanId, PlanDefinition> = {
     name: "Agency",
     priceLabel: "$199/mo",
     limits: {
-      max_businesses: 10,
+      max_businesses: 20,
       map_credits_month: 50000,
       bulk_review_requests_month: 5000,
       sms_month: 500,
