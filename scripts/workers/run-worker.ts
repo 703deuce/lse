@@ -139,6 +139,23 @@ async function main() {
     console.log(`[worker] recovered ${recovered} pending enqueue(s)`);
   }
 
+  // Soft-validate telemetry schema so missing failure_category columns are
+  // detected once at boot (and inserts degrade gracefully) instead of per cell.
+  if (profile === "maps" || profile === "all") {
+    try {
+      const { validateScanCellTelemetrySchema } = await import(
+        "../../src/lib/jobs/scan-cell-telemetry"
+      );
+      await validateScanCellTelemetrySchema();
+      console.log("[worker] scan_cell_telemetry schema probe complete");
+    } catch (err) {
+      console.warn(
+        "[worker] scan_cell_telemetry schema probe skipped:",
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
   const connection = getBullmqConnectionOptions(config.redisUrl, "worker");
   const queues = PROFILE_QUEUES[profile];
   const workers: Worker[] = [];

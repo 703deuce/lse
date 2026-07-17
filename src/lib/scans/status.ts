@@ -67,7 +67,7 @@ export function isGridPassStillSettling(batch: {
 }): boolean {
   const pass = String((batch.confidence_summary as { pass?: unknown } | null)?.pass ?? "");
   if (!pass || pass === "complete") return false;
-  return /^(primary|retry|integrity)/i.test(pass);
+  return /^(primary|retry|integrity|bd-|fallback)/i.test(pass);
 }
 
 /**
@@ -222,14 +222,38 @@ export function scanProgressMessage(batch: {
     if (total > 0 && completed >= total) {
       return "Creating your map…";
     }
-    if (pass.startsWith("retry") || pass === "integrity") {
+    const stage = String(conf.recovery_stage ?? "");
+    if (stage === "brightdata_degraded") {
+      return "Bright Data temporarily degraded — recovering…";
+    }
+    if (stage === "testing_provider_recovery") {
+      return "Testing provider recovery…";
+    }
+    if (stage === "fallback_dataforseo") {
+      return total > 0
+        ? `Completing unresolved points with DataForSEO… ${completed} / ${total}`
+        : "Completing unresolved points with DataForSEO…";
+    }
+    if (stage === "fallback_scrapingdog") {
+      return total > 0
+        ? `Completing remaining points with ScrapingDog… ${completed} / ${total}`
+        : "Completing remaining points with ScrapingDog…";
+    }
+    if (
+      pass.startsWith("retry") ||
+      pass === "integrity" ||
+      pass.includes("recovery") ||
+      pass.includes("fallback") ||
+      pass.includes("half-open") ||
+      pass.includes("bd-")
+    ) {
       return total > 0
         ? `Retrying remaining locations… ${completed} / ${total} ready`
         : "Retrying remaining locations…";
     }
     return total > 0
-      ? `Scanning ${completed} / ${total} locations…`
-      : "Scanning locations…";
+      ? `Scanning with Bright Data… ${completed} / ${total}`
+      : "Scanning with Bright Data…";
   }
 
   if (batch.status === "normalizing") {

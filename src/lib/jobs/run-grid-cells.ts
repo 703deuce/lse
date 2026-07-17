@@ -3,13 +3,6 @@ import { createServiceClient } from "@/lib/db/client";
 import { extractTopCompetitors, type MapsLiveResult } from "@/lib/providers/dataforseo";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
 import { matchTargetInResults } from "@/lib/providers/dataforseo/match-target";
-import { mapsGridCell } from "@/lib/providers/brightdata";
-import {
-  BrightDataMapsFailure,
-  diagnosticsForStorage,
-  failureFromUnknownError,
-  logBrightDataFailureDiagnostics,
-} from "@/lib/providers/brightdata/failure-diagnostics";
 import {
   elapsedSec,
   logCellPhaseTimings,
@@ -20,17 +13,41 @@ import { saveCellTelemetry } from "@/lib/jobs/scan-cell-telemetry";
 import { refreshScanAggregateMetrics } from "@/lib/jobs/refresh-scan-metrics";
 import { mergeScanConfidenceSummary } from "@/lib/jobs/merge-confidence-summary";
 import {
-  isRetryableCellSerpError,
   validateLiveCellSerp,
   validateStoredCellResult,
 } from "@/lib/maps/cell-result-integrity";
 import { invalidateScanGridCache } from "@/lib/maps/scan-queries";
-import { acquireBrightDataSlot, fairChunkSize } from "@/lib/queue/bright-data-limiter";
+import { fairChunkSize } from "@/lib/queue/bright-data-limiter";
 import { withDbLimit } from "@/lib/platform/db-limiter";
 import {
   EARLY_ENRICHMENT_MIN_CELLS,
   maybeStartEarlyEnrichment,
 } from "@/lib/jobs/run-early-enrichment";
+import {
+  brightDataNormalCellTimeoutMs,
+  brightDataHalfOpenConcurrency,
+  brightDataHalfOpenRampConcurrency,
+  mapsFallbackEnabled,
+} from "@/lib/providers/maps-grid/config";
+import {
+  analyzePrimaryWave,
+  degradedRecoveryDelayMs,
+  isolatedRetryConcurrency,
+  isolatedRetryDelayMs,
+  probesRecovered,
+  selectProbeJobs,
+} from "@/lib/providers/maps-grid/batch-recovery";
+import {
+  brightDataOnlyProviders,
+  fetchMapsCell,
+  secondaryFallbackProviders,
+} from "@/lib/providers/maps-grid/orchestrator";
+import type { MapsFailureCategory } from "@/lib/providers/maps-grid/failure-categories";
+import type { MapsProviderId, MapsRecoveryStage } from "@/lib/providers/maps-grid/types";
+import {
+  recordMapsProviderAttempt,
+  setMapsProviderCircuit,
+} from "@/lib/queue/maps-provider-circuit";
 
 /** Default wave size — overridden by BRIGHTDATA_GRID_BATCH_SIZE / FAIR_CHUNK (max 100). */
 const BRIGHTDATA_GRID_BATCH_SIZE = 100;
@@ -69,9 +86,9 @@ export function mapsGridCellTimeoutMs(): number {
   const n = Number(
     process.env.BRIGHTDATA_GRID_CELL_TIMEOUT_MS ??
       process.env.BRIGHTDATA_BURST_CELL_TIMEOUT_MS ??
-      45000
+      brightDataNormalCellTimeoutMs()
   );
-  return Number.isFinite(n) && n > 0 ? n : 45000;
+  return Number.isFinite(n) && n > 0 ? n : brightDataNormalCellTimeoutMs();
 }
 
 export function mapsGridMaxRetryRounds(): number {
@@ -98,36 +115,6 @@ function parityDebug(): boolean {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Cell timeout after ${ms}ms (${label})`)), ms);
-    promise
-      .then((v) => {
-        clearTimeout(timer);
-        resolve(v);
-      })
-      .catch((e) => {
-        clearTimeout(timer);
-        reject(e);
-      });
-  });
-}
-
-function isRetryableError(err: Error): boolean {
-  const msg = err.message.toLowerCase();
-  return (
-    isRetryableCellSerpError(msg) ||
-    msg.includes("timeout") ||
-    msg.includes("429") ||
-    msg.includes("rate") ||
-    msg.includes("throttl") ||
-    msg.includes("no map results") ||
-    msg.includes("empty") ||
-    msg.includes("502") ||
-    msg.includes("503")
-  );
 }
 
 export type GridCellJob = {
@@ -161,6 +148,9 @@ export type GridCellRunResult = {
   gridLabel: string;
   timings?: CellPhaseTimings;
   timedOut?: boolean;
+  failureCategory?: MapsFailureCategory;
+  finalProvider?: MapsProviderId | null;
+  unresolved?: boolean;
 };
 
 async function saveCellProgress(
@@ -198,7 +188,7 @@ async function saveCellProgress(
 
     const { failed_point_ids: _ignored, ...restExtra } = extra ?? {};
     const patch: Record<string, unknown> = {
-      provider: "brightdata",
+      provider: (extra?.final_provider as string | undefined) ?? "brightdata",
       method: "live_parallel",
       completed_cells: safeCompleted,
       total_cells: safeTotal,
@@ -343,9 +333,11 @@ async function runOneCell(
   job: GridCellJob,
   depth: number,
   timeoutMs: number,
-  maxAttempts: number,
+  _maxAttempts: number,
   passLabel: string,
-  concurrency: number
+  concurrency: number,
+  providers: MapsProviderId[],
+  options?: { allowTransientRetry?: boolean; scanRetryRound?: number }
 ): Promise<GridCellRunResult> {
   const supabase = createServiceClient();
   const kw = job.keyword.keyword.trim();
@@ -353,220 +345,261 @@ async function runOneCell(
   const lng = job.point.lng;
   const locationCoordinate = `${lat},${lng},${LOCAL_FALCON_PARITY.locationZoom}`;
   const cellStarted = performance.now();
-  let apiSec = 0;
   let matchingSec = 0;
   let dbSaveSec = 0;
-  let attemptsUsed = 0;
-  let timedOut = false;
 
-  let lastError: Error | null = null;
-  let lastFailureCategory: string | null = null;
-  let lastProviderDiagnostics: Record<string, unknown> | null = null;
+  const device = job.device === "mobile" ? "mobile" : "desktop";
+  const os = (
+    ["android", "ios", "windows", "macos"].includes(job.os)
+      ? job.os
+      : job.device === "mobile"
+        ? "android"
+        : "windows"
+  ) as "android" | "ios" | "windows" | "macos";
+  const browser = job.browser === "firefox" ? "firefox" : "chrome";
 
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    attemptsUsed = attempt + 1;
-    if (attempt > 0) await sleep(1500 * Math.pow(2, attempt - 1));
+  const apiStart = performance.now();
+  const fetched = await fetchMapsCell({
+    keyword: kw,
+    lat,
+    lng,
+    device,
+    os,
+    browser,
+    depth,
+    organizationId: job.organizationId,
+    providers,
+    allowTransientRetry: options?.allowTransientRetry,
+  });
+  const apiSec = elapsedSec(apiStart);
+  const attemptsUsed = Math.max(1, fetched.attempts.length);
 
-    try {
-      const apiStart = performance.now();
-      let live;
-      try {
-        // Global start-rate + in-flight limiter (Redis when configured, else in-process).
-        const slot = await acquireBrightDataSlot(timeoutMs + 15_000);
-        try {
-          live = await withTimeout(
-            mapsGridCell({
-              keyword: kw,
-              lat,
-              lng,
-              device: job.device === "mobile" ? "mobile" : "desktop",
-              os: (["android", "ios", "windows", "macos"].includes(job.os)
-                ? job.os
-                : job.device === "mobile"
-                  ? "android"
-                  : "windows") as "android" | "ios" | "windows" | "macos",
-              browser: job.browser === "firefox" ? "firefox" : "chrome",
-              depth,
-              organizationId: job.organizationId,
-            }),
-            timeoutMs,
-            job.point.grid_label
-          );
-        } finally {
-          await slot.release();
-        }
-      } finally {
-        // Always record wall time spent waiting on the provider path — including failures.
-        apiSec = elapsedSec(apiStart);
-      }
+  // Record Bright Data outcomes into the distributed degradation window.
+  for (const attempt of fetched.attempts) {
+    if (attempt.provider === "brightdata") {
+      await recordMapsProviderAttempt({
+        provider: "brightdata",
+        success: attempt.success,
+        category: attempt.category,
+      }).catch(() => undefined);
+    }
+  }
 
-      const items = live.items as MapsLiveResult[];
-      const targetInput = {
-        cid: job.business.cid,
-        place_id: job.business.place_id,
-        name: job.business.name,
-        address: job.business.address_text,
-        phone: job.business.phone,
-        website_url: job.business.website_url,
-      };
-      const serpValidation = validateLiveCellSerp(items, targetInput, depth);
-      if (!serpValidation.complete) {
-        throw new BrightDataMapsFailure(
-          {
-            category: serpValidation.category ?? "sparse_maps_results",
-            organicCount: items.length,
-            latencyMs: Math.round(apiSec * 1000),
-            providerErrorMessage: serpValidation.reason ?? "Incomplete map results for this cell",
-          },
-          serpValidation.reason ?? "Incomplete map results for this cell"
-        );
-      }
-
-      const matchStart = performance.now();
-      const match = matchTargetInResults(items, targetInput, items.length);
-      matchingSec = elapsedSec(matchStart);
-
-      if (parityDebug()) {
-        console.log("[GridParity]", {
-          gridLabel: job.point.grid_label,
-          attempt: attempt + 1,
-          request: live.request,
-          itemCount: items.length,
-          targetRank: match.rank,
-          matchReason: match.matchReason,
-        });
-      }
-
-      const dbStart = performance.now();
-      const resultPayload = {
-        scan_point_id: job.point.id,
-        keyword_id: job.keyword.id,
-        target_rank: match.rank,
-        target_found: match.found,
-        check_url: null,
-        source_timestamp: live.timestamp,
-        confidence: match.matchReason,
-        top_competitors_json: extractTopCompetitors(items),
-        provider_request_json: live.request as unknown as Record<string, unknown>,
-      };
-      // Unique (scan_point_id, keyword_id) makes retries idempotent — no delete+insert race.
-      const { error: upsertError } = await supabase.from("scan_results").upsert(resultPayload, {
-        onConflict: "scan_point_id,keyword_id",
-        ignoreDuplicates: false,
-      });
-      if (upsertError) throw new Error(upsertError.message);
-      dbSaveSec = elapsedSec(dbStart);
-      invalidateScanGridCache(job.scanBatchId);
-
-      // Bill only after validation + durable save (not bare Bright Data HTTP 200).
-      // Idempotent per cell so retries / reclaim do not double-count.
-      if (job.organizationId) {
-        const { recordUsage } = await import("@/lib/platform/usage-ledger");
-        const { estimateProviderCost } = await import("@/lib/providers/fetch-with-timeout");
-        const cost = estimateProviderCost("brightdata");
-        await recordUsage({
-          organizationId: job.organizationId,
-          feature: "maps_grid_cell",
-          provider: "brightdata",
-          unitType: "request",
-          estimatedCostUsd: cost,
-          actualCostUsd: cost,
-          actualUnits: 1,
-          idempotencyKey: `brightdata:maps_grid_cell:${job.scanBatchId}:${job.point.id}:${job.keyword.id}`,
-          metadata: {
-            scan_batch_id: job.scanBatchId,
-            scan_point_id: job.point.id,
-            keyword_id: job.keyword.id,
-            pass: passLabel,
-          },
-        }).catch(() => {});
-      }
-
+  if (fetched.ok) {
+    const items = fetched.items as MapsLiveResult[];
+    const targetInput = {
+      cid: job.business.cid,
+      place_id: job.business.place_id,
+      name: job.business.name,
+      address: job.business.address_text,
+      phone: job.business.phone,
+      website_url: job.business.website_url,
+    };
+    const serpValidation = validateLiveCellSerp(items, targetInput, depth);
+    if (!serpValidation.complete) {
+      const category = (serpValidation.category ?? "sparse_maps_results") as MapsFailureCategory;
       const totalSec = elapsedSec(cellStarted);
       const timings: CellPhaseTimings = {
         gridLabel: job.point.grid_label,
         apiSec,
-        matchingSec,
-        dbSaveSec,
+        matchingSec: 0,
+        dbSaveSec: 0,
         progressSec: 0,
         totalSec,
-        success: true,
+        success: false,
         attempts: attemptsUsed,
+        failureCategory: category,
       };
-
       void saveCellTelemetry({
         scanBatchId: job.scanBatchId,
         scanPointId: job.point.id,
         keywordId: job.keyword.id,
         gridLabel: job.point.grid_label,
+        provider: fetched.finalProvider,
         concurrency,
         apiLatencyMs: apiSec * 1000,
-        matchingMs: matchingSec * 1000,
-        dbSaveMs: dbSaveSec * 1000,
+        matchingMs: 0,
+        dbSaveMs: 0,
         totalMs: totalSec * 1000,
         attempts: attemptsUsed,
-        success: true,
+        success: false,
         timedOut: false,
+        errorMessage: serpValidation.reason,
+        failureCategory: category,
+        providerDiagnostics: {
+          scanRetryRound: options?.scanRetryRound ?? 0,
+          providerAttempt: attemptsUsed,
+          attempts: fetched.attempts,
+        },
         distanceFromCenterM: job.point.distance_from_center_m,
         lat,
         lng,
         passLabel,
       });
-
       return {
-        success: true,
+        success: false,
         pointId: job.point.id,
         keywordId: job.keyword.id,
         gridLabel: job.point.grid_label,
         timings,
+        failureCategory: category,
+        finalProvider: fetched.finalProvider,
+        unresolved: false,
       };
-    } catch (err) {
-      const mapped = failureFromUnknownError(err, {
-        latencyMs: Math.round(apiSec * 1000),
-      });
-      lastError = mapped;
-      lastFailureCategory = mapped.category;
-      lastProviderDiagnostics = {
-        ...diagnosticsForStorage(mapped.diagnostics),
-        attempt: attempt + 1,
-        concurrency,
-        grid_label: job.point.grid_label,
-        pass_label: passLabel,
-      };
-      timedOut =
-        mapped.category === "provider_timeout" ||
-        mapped.category === "capacity_timeout" ||
-        mapped.message.toLowerCase().includes("timeout");
-      logBrightDataFailureDiagnostics(
-        `cell grid=${job.point.grid_label} attempt=${attempt + 1}/${maxAttempts}`,
-        mapped.diagnostics
-      );
-      if (!isRetryableError(mapped) || attempt >= maxAttempts - 1) break;
-      console.warn(
-        `[Scan] Cell retry grid=${job.point.grid_label} attempt=${attempt + 1}/${maxAttempts}` +
-          ` category=${mapped.category}:`,
-        mapped.message
-      );
     }
+
+    const matchStart = performance.now();
+    const match = matchTargetInResults(items, targetInput, items.length);
+    matchingSec = elapsedSec(matchStart);
+
+    if (parityDebug()) {
+      console.log("[GridParity]", {
+        gridLabel: job.point.grid_label,
+        request: fetched.request,
+        itemCount: items.length,
+        targetRank: match.rank,
+        matchReason: match.matchReason,
+        finalProvider: fetched.finalProvider,
+      });
+    }
+
+    const dbStart = performance.now();
+    const resultPayload = {
+      scan_point_id: job.point.id,
+      keyword_id: job.keyword.id,
+      target_rank: match.rank,
+      target_found: match.found,
+      check_url: null,
+      source_timestamp: fetched.timestamp,
+      confidence: match.matchReason,
+      top_competitors_json: extractTopCompetitors(items),
+      provider_request_json: {
+        ...fetched.request,
+        _cell_meta: {
+          primary_provider: fetched.primaryProvider,
+          final_provider: fetched.finalProvider,
+          fallback_used: fetched.fallbackUsed,
+          fallback_reason: fetched.fallbackReason,
+          provider_latency_ms: fetched.providerLatencyMs,
+          pass: passLabel,
+          timeout_ms: timeoutMs,
+        },
+      } as Record<string, unknown>,
+    };
+    const { error: upsertError } = await supabase.from("scan_results").upsert(resultPayload, {
+      onConflict: "scan_point_id,keyword_id",
+      ignoreDuplicates: false,
+    });
+    if (upsertError) {
+      console.error(`[Scan] Upsert failed grid=${job.point.grid_label}:`, upsertError.message);
+      return {
+        success: false,
+        pointId: job.point.id,
+        keywordId: job.keyword.id,
+        gridLabel: job.point.grid_label,
+        failureCategory: "permanent_error",
+        finalProvider: fetched.finalProvider,
+      };
+    }
+    dbSaveSec = elapsedSec(dbStart);
+    invalidateScanGridCache(job.scanBatchId);
+
+    if (job.organizationId) {
+      const { recordUsage } = await import("@/lib/platform/usage-ledger");
+      const { estimateProviderCost } = await import("@/lib/providers/fetch-with-timeout");
+      // Record real cost for every paid attempt; customer map_credits stay at the scan reservation.
+      for (const attempt of fetched.attempts) {
+        const cost = estimateProviderCost(attempt.provider);
+        await recordUsage({
+          organizationId: job.organizationId,
+          feature: "maps_grid_cell_attempt",
+          provider: attempt.provider,
+          unitType: "request",
+          estimatedCostUsd: cost,
+          actualCostUsd: cost,
+          actualUnits: 1,
+          idempotencyKey: `${attempt.provider}:maps_grid_cell:${job.scanBatchId}:${job.point.id}:${job.keyword.id}:a${attempt.attemptNumber}:${passLabel}`,
+          metadata: {
+            scan_batch_id: job.scanBatchId,
+            scan_point_id: job.point.id,
+            keyword_id: job.keyword.id,
+            pass: passLabel,
+            success: attempt.success,
+            failure_category: attempt.category,
+            fallback_reason: fetched.fallbackReason,
+          },
+        }).catch(() => {});
+      }
+    }
+
+    const totalSec = elapsedSec(cellStarted);
+    const timings: CellPhaseTimings = {
+      gridLabel: job.point.grid_label,
+      apiSec,
+      matchingSec,
+      dbSaveSec,
+      progressSec: 0,
+      totalSec,
+      success: true,
+      attempts: attemptsUsed,
+    };
+
+    void saveCellTelemetry({
+      scanBatchId: job.scanBatchId,
+      scanPointId: job.point.id,
+      keywordId: job.keyword.id,
+      gridLabel: job.point.grid_label,
+      provider: fetched.finalProvider,
+      concurrency,
+      apiLatencyMs: apiSec * 1000,
+      matchingMs: matchingSec * 1000,
+      dbSaveMs: dbSaveSec * 1000,
+      totalMs: totalSec * 1000,
+      attempts: attemptsUsed,
+      success: true,
+      timedOut: false,
+      providerDiagnostics: {
+        scanRetryRound: options?.scanRetryRound ?? 0,
+        providerAttempt: attemptsUsed,
+        final_provider: fetched.finalProvider,
+        fallback_used: fetched.fallbackUsed,
+      },
+      distanceFromCenterM: job.point.distance_from_center_m,
+      lat,
+      lng,
+      passLabel,
+    });
+
+    return {
+      success: true,
+      pointId: job.point.id,
+      keywordId: job.keyword.id,
+      gridLabel: job.point.grid_label,
+      timings,
+      finalProvider: fetched.finalProvider,
+    };
   }
 
+  const lastCategory = fetched.lastCategory;
+  const timedOut =
+    lastCategory === "provider_timeout" || lastCategory === "capacity_timeout";
   console.error(
-    `[Scan] Cell failed grid=${job.point.grid_label} keyword="${kw}" coord=${locationCoordinate}` +
-      ` category=${lastFailureCategory ?? "unknown"} apiSec=${apiSec}:`,
-    lastError?.message
+    `[Scan] Cell unresolved grid=${job.point.grid_label} keyword="${kw}" coord=${locationCoordinate}` +
+      ` category=${lastCategory} apiSec=${apiSec} providers=${providers.join("→")}:`,
+    fetched.lastErrorMessage
   );
 
   const totalSec = elapsedSec(cellStarted);
   const timings: CellPhaseTimings = {
     gridLabel: job.point.grid_label,
     apiSec,
-    matchingSec,
-    dbSaveSec,
+    matchingSec: 0,
+    dbSaveSec: 0,
     progressSec: 0,
     totalSec,
     success: false,
     attempts: attemptsUsed,
-    failureCategory: lastFailureCategory,
+    failureCategory: lastCategory,
   };
 
   void saveCellTelemetry({
@@ -574,17 +607,24 @@ async function runOneCell(
     scanPointId: job.point.id,
     keywordId: job.keyword.id,
     gridLabel: job.point.grid_label,
+    provider: fetched.finalProvider ?? providers[0] ?? "brightdata",
     concurrency,
     apiLatencyMs: apiSec * 1000,
-    matchingMs: matchingSec * 1000,
-    dbSaveMs: dbSaveSec * 1000,
+    matchingMs: 0,
+    dbSaveMs: 0,
     totalMs: totalSec * 1000,
     attempts: attemptsUsed,
     success: false,
     timedOut,
-    errorMessage: lastError?.message,
-    failureCategory: lastFailureCategory,
-    providerDiagnostics: lastProviderDiagnostics,
+    errorMessage: fetched.lastErrorMessage,
+    failureCategory: lastCategory,
+    providerDiagnostics: {
+      unresolved_reason: fetched.unresolvedReason,
+      scanRetryRound: options?.scanRetryRound ?? 0,
+      providerAttempt: attemptsUsed,
+      attempts: fetched.attempts,
+      fallback_reason: fetched.fallbackReason,
+    },
     distanceFromCenterM: job.point.distance_from_center_m,
     lat,
     lng,
@@ -598,6 +638,9 @@ async function runOneCell(
     gridLabel: job.point.grid_label,
     timings,
     timedOut,
+    failureCategory: lastCategory,
+    finalProvider: fetched.finalProvider,
+    unresolved: true,
   };
 }
 
@@ -611,6 +654,10 @@ async function runJobsWithConcurrency(
     concurrency: number;
     totalCells: number;
     passLabel: string;
+    providers?: MapsProviderId[];
+    allowTransientRetry?: boolean;
+    scanRetryRound?: number;
+    recoveryStage?: MapsRecoveryStage;
     completedOffset?: number;
     softReadyMinSuccess?: number;
     onSoftReady?: () => Promise<void>;
@@ -627,6 +674,7 @@ async function runJobsWithConcurrency(
   const limit = pLimit(params.concurrency);
   const completedOffset = params.completedOffset ?? 0;
   const updateProgress = params.updateProgress !== false;
+  const providers = params.providers ?? brightDataOnlyProviders();
   let completed = 0;
   let successCount = 0;
   let failedCells = 0;
@@ -662,7 +710,12 @@ async function runJobsWithConcurrency(
           params.timeoutMs,
           params.maxAttempts,
           params.passLabel,
-          params.concurrency
+          params.concurrency,
+          providers,
+          {
+            allowTransientRetry: params.allowTransientRetry,
+            scanRetryRound: params.scanRetryRound,
+          }
         );
         completed++;
         if (result.success) {
@@ -685,7 +738,12 @@ async function runJobsWithConcurrency(
             Math.min(completedOffset + successCount, params.totalCells),
             params.totalCells,
             failedCells,
-            { pass: params.passLabel, failed_point_ids: [...new Set(failedPointIds)] }
+            {
+              pass: params.passLabel,
+              failed_point_ids: [...new Set(failedPointIds)],
+              ...(params.recoveryStage ? { recovery_stage: params.recoveryStage } : {}),
+              providers: providers.join(","),
+            }
           );
         }
         const progressSec = elapsedSec(progressStart);
@@ -708,7 +766,12 @@ async function runJobsWithConcurrency(
       Math.min(completedOffset + successCount, params.totalCells),
       params.totalCells,
       failedCells,
-      { pass: params.passLabel, failed_point_ids: [...new Set(failedPointIds)] },
+      {
+        pass: params.passLabel,
+        failed_point_ids: [...new Set(failedPointIds)],
+        ...(params.recoveryStage ? { recovery_stage: params.recoveryStage } : {}),
+        providers: providers.join(","),
+      },
       { force: true }
     );
   }
@@ -805,9 +868,15 @@ async function runIntegrityPass(params: {
     depth: params.depth,
     timeoutMs: params.timeoutMs,
     maxAttempts: params.maxAttempts,
-    concurrency: params.concurrency,
+    concurrency: Math.min(params.concurrency, isolatedRetryConcurrency(incompleteJobs.length) || params.concurrency),
     totalCells: params.totalCells,
     passLabel: "integrity",
+    providers: mapsFallbackEnabled()
+      ? [...brightDataOnlyProviders(), ...secondaryFallbackProviders()]
+      : brightDataOnlyProviders(),
+    allowTransientRetry: true,
+    scanRetryRound: 5,
+    recoveryStage: "finalizing",
     completedOffset: Math.max(0, params.totalCells - incompleteJobs.length),
     updateProgress: true,
     onCellSettled: params.onCellSettled,
@@ -1024,6 +1093,10 @@ export async function runGridCellsLive(params: {
       concurrency: mapsGridConcurrency(chunk.length),
       totalCells,
       passLabel,
+      providers: brightDataOnlyProviders(),
+      allowTransientRetry: false,
+      scanRetryRound: 0,
+      recoveryStage: "scanning_brightdata",
       completedOffset,
       updateProgress: true,
       softReadyMinSuccess: allowMidPrimarySoftReady ? softMin : undefined,
@@ -1040,35 +1113,252 @@ export async function runGridCellsLive(params: {
   let remainingJobs = failedFromPrimary;
   let failedCells = remainingJobs.length;
 
-  for (let round = 2; round <= maxRounds && remainingJobs.length > 0; round++) {
-    if (retryDelayMs > 0) {
-      await sleep(retryDelayMs);
-    }
-    const passLabel = `retry-${round - 1}`;
-    console.log(
-      `[Scan] Retry round ${round - 1}/${maxRounds - 1}: ${remainingJobs.length} failed cells`
+  // ---- Multi-provider recovery (Bright Data → DataForSEO → ScrapingDog) ----
+  if (remainingJobs.length > 0) {
+    const primaryOutcomes = allTimings.map((t) => ({
+      success: t.success,
+      category: (t.failureCategory as MapsFailureCategory | undefined) ??
+        (t.success ? ("success" as const) : ("unknown" as const)),
+    }));
+    // Prefer per-result categories from the failed job set when available.
+    const waveAnalysis = analyzePrimaryWave(
+      failedFromPrimary.length + (jobs.length - failedFromPrimary.length) > 0
+        ? [
+            ...Array.from({ length: Math.max(0, jobs.length - failedFromPrimary.length) }, () => ({
+              success: true as const,
+              category: "success" as MapsFailureCategory,
+            })),
+            ...failedFromPrimary.map((job) => {
+              const r = allTimings.find((t) => t.gridLabel === job.point.grid_label && !t.success);
+              return {
+                success: false as const,
+                category: (r?.failureCategory as MapsFailureCategory | undefined) ?? "http_504",
+              };
+            }),
+          ]
+        : primaryOutcomes
     );
-    // Offset = cells already successful; retries fill the gap instead of sitting at 100%.
-    const retryOffset = completedOffset;
-    const pass = await runJobsWithConcurrency(remainingJobs, {
-      scanBatchId: params.scanBatchId,
-      depth,
-      timeoutMs,
-      maxAttempts: 1,
-      concurrency: mapsGridConcurrency(remainingJobs.length),
-      totalCells,
-      passLabel,
-      completedOffset: retryOffset,
-      updateProgress: true,
-      onCellSettled,
-      organizationId: params.organizationId,
+
+    console.log("[Scan] Primary wave analysis:", {
+      mode: waveAnalysis.mode,
+      failures: remainingJobs.length,
+      attempted: jobs.length,
+      degradationPercent: Math.round(waveAnalysis.percent),
     });
-    allTimings.push(...pass.timings);
-    completedOffset += pass.successCount;
-    remainingJobs = failedJobsFromPass(remainingJobs, pass.results);
-    failedCells = remainingJobs.length;
-    if (remainingJobs.length > 0 && round < maxRounds) {
-      console.log(`[Scan] ${remainingJobs.length} cells still failing after ${passLabel}`);
+
+    if (waveAnalysis.mode === "isolated") {
+      const delay = isolatedRetryDelayMs();
+      console.log(
+        `[Scan] Isolated Bright Data recovery: ${remainingJobs.length} cells after ${delay}ms (concurrency≤${isolatedRetryConcurrency(remainingJobs.length)})`
+      );
+      await sleep(delay);
+      await scheduleCellProgress(
+        params.scanBatchId,
+        completedOffset,
+        totalCells,
+        remainingJobs.length,
+        { pass: "bd-isolated-recovery", recovery_stage: "scanning_brightdata" },
+        { force: true }
+      );
+      const pass = await runJobsWithConcurrency(remainingJobs, {
+        scanBatchId: params.scanBatchId,
+        depth,
+        timeoutMs,
+        maxAttempts: 1,
+        concurrency: isolatedRetryConcurrency(remainingJobs.length),
+        totalCells,
+        passLabel: "bd-isolated-recovery",
+        providers: brightDataOnlyProviders(),
+        allowTransientRetry: false,
+        scanRetryRound: 1,
+        recoveryStage: "scanning_brightdata",
+        completedOffset,
+        updateProgress: true,
+        onCellSettled,
+        organizationId: params.organizationId,
+      });
+      allTimings.push(...pass.timings);
+      completedOffset += pass.successCount;
+      remainingJobs = failedJobsFromPass(remainingJobs, pass.results);
+      failedCells = remainingJobs.length;
+    } else if (waveAnalysis.mode === "degraded") {
+      await setMapsProviderCircuit(
+        "brightdata",
+        "degraded",
+        `${waveAnalysis.degradationCount}/${waveAnalysis.attemptCount} degradation failures`
+      );
+      const delay = degradedRecoveryDelayMs();
+      console.log(
+        `[Scan] Bright Data degraded — waiting ${delay}ms then probing ${Math.min(3, remainingJobs.length)} cells`
+      );
+      await scheduleCellProgress(
+        params.scanBatchId,
+        completedOffset,
+        totalCells,
+        remainingJobs.length,
+        { pass: "bd-degraded", recovery_stage: "brightdata_degraded" },
+        { force: true }
+      );
+      await sleep(delay);
+
+      const probes = selectProbeJobs(remainingJobs);
+      await scheduleCellProgress(
+        params.scanBatchId,
+        completedOffset,
+        totalCells,
+        remainingJobs.length,
+        { pass: "bd-probes", recovery_stage: "testing_provider_recovery" },
+        { force: true }
+      );
+      const probePass = await runJobsWithConcurrency(probes, {
+        scanBatchId: params.scanBatchId,
+        depth,
+        timeoutMs,
+        maxAttempts: 1,
+        concurrency: Math.min(2, probes.length),
+        totalCells,
+        passLabel: "bd-probes",
+        providers: brightDataOnlyProviders(),
+        allowTransientRetry: false,
+        scanRetryRound: 1,
+        recoveryStage: "testing_provider_recovery",
+        completedOffset,
+        updateProgress: true,
+        onCellSettled,
+        organizationId: params.organizationId,
+      });
+      allTimings.push(...probePass.timings);
+      completedOffset += probePass.successCount;
+      remainingJobs = remainingJobs.filter(
+        (job) =>
+          !probePass.results.some(
+            (r) => r.success && r.pointId === job.point.id && r.keywordId === job.keyword.id
+          )
+      );
+      failedCells = remainingJobs.length;
+
+      if (probesRecovered(probePass.successCount) && remainingJobs.length > 0) {
+        await setMapsProviderCircuit("brightdata", "half_open", "probes recovered");
+        console.log(
+          `[Scan] Bright Data probes recovered — resuming ${remainingJobs.length} cells at concurrency ${brightDataHalfOpenConcurrency()}`
+        );
+        const halfOpenPass = await runJobsWithConcurrency(remainingJobs, {
+          scanBatchId: params.scanBatchId,
+          depth,
+          timeoutMs,
+          maxAttempts: 1,
+          concurrency: Math.min(brightDataHalfOpenConcurrency(), remainingJobs.length),
+          totalCells,
+          passLabel: "bd-half-open",
+          providers: brightDataOnlyProviders(),
+          allowTransientRetry: false,
+          scanRetryRound: 2,
+          recoveryStage: "scanning_brightdata",
+          completedOffset,
+          updateProgress: true,
+          onCellSettled,
+          organizationId: params.organizationId,
+        });
+        allTimings.push(...halfOpenPass.timings);
+        completedOffset += halfOpenPass.successCount;
+        remainingJobs = failedJobsFromPass(remainingJobs, halfOpenPass.results);
+        failedCells = remainingJobs.length;
+
+        // Optional ramp if healthy.
+        if (remainingJobs.length > 0 && halfOpenPass.successCount >= Math.ceil(halfOpenPass.results.length * 0.7)) {
+          const rampPass = await runJobsWithConcurrency(remainingJobs, {
+            scanBatchId: params.scanBatchId,
+            depth,
+            timeoutMs,
+            maxAttempts: 1,
+            concurrency: Math.min(brightDataHalfOpenRampConcurrency(), remainingJobs.length),
+            totalCells,
+            passLabel: "bd-half-open-ramp",
+            providers: brightDataOnlyProviders(),
+            allowTransientRetry: false,
+            scanRetryRound: 3,
+            recoveryStage: "scanning_brightdata",
+            completedOffset,
+            updateProgress: true,
+            onCellSettled,
+            organizationId: params.organizationId,
+          });
+          allTimings.push(...rampPass.timings);
+          completedOffset += rampPass.successCount;
+          remainingJobs = failedJobsFromPass(remainingJobs, rampPass.results);
+          failedCells = remainingJobs.length;
+        }
+
+        if (remainingJobs.length === 0) {
+          await setMapsProviderCircuit("brightdata", "closed", "half-open recovered all cells");
+        } else {
+          await setMapsProviderCircuit("brightdata", "open", "half-open still failing — fallback");
+        }
+      } else if (remainingJobs.length > 0) {
+        await setMapsProviderCircuit("brightdata", "open", "probes failed — fallback");
+        console.log("[Scan] Bright Data probes failed — switching to secondary providers");
+      }
+    }
+
+    // Secondary fallbacks for anything still unresolved.
+    if (remainingJobs.length > 0 && mapsFallbackEnabled()) {
+      console.log(
+        `[Scan] Secondary fallback for ${remainingJobs.length} cells (DataForSEO → ScrapingDog)`
+      );
+      await scheduleCellProgress(
+        params.scanBatchId,
+        completedOffset,
+        totalCells,
+        remainingJobs.length,
+        { pass: "fallback-secondary", recovery_stage: "fallback_dataforseo" },
+        { force: true }
+      );
+      const fallbackPass = await runJobsWithConcurrency(remainingJobs, {
+        scanBatchId: params.scanBatchId,
+        depth,
+        timeoutMs,
+        maxAttempts: 1,
+        concurrency: Math.min(remainingJobs.length, 8),
+        totalCells,
+        passLabel: "fallback-secondary",
+        providers: secondaryFallbackProviders(),
+        allowTransientRetry: true,
+        scanRetryRound: 4,
+        recoveryStage: "fallback_dataforseo",
+        completedOffset,
+        updateProgress: true,
+        onCellSettled,
+        organizationId: params.organizationId,
+      });
+      allTimings.push(...fallbackPass.timings);
+      completedOffset += fallbackPass.successCount;
+      remainingJobs = failedJobsFromPass(remainingJobs, fallbackPass.results);
+      failedCells = remainingJobs.length;
+    } else if (remainingJobs.length > 0 && maxRounds > 1) {
+      // Fallback disabled — keep a single legacy-style BD retry with jitter (not 1s storm).
+      const delay = isolatedRetryDelayMs();
+      await sleep(delay);
+      const pass = await runJobsWithConcurrency(remainingJobs, {
+        scanBatchId: params.scanBatchId,
+        depth,
+        timeoutMs,
+        maxAttempts: 1,
+        concurrency: isolatedRetryConcurrency(remainingJobs.length),
+        totalCells,
+        passLabel: "bd-legacy-retry",
+        providers: brightDataOnlyProviders(),
+        allowTransientRetry: false,
+        scanRetryRound: 1,
+        recoveryStage: "scanning_brightdata",
+        completedOffset,
+        updateProgress: true,
+        onCellSettled,
+        organizationId: params.organizationId,
+      });
+      allTimings.push(...pass.timings);
+      completedOffset += pass.successCount;
+      remainingJobs = failedJobsFromPass(remainingJobs, pass.results);
+      failedCells = remainingJobs.length;
     }
   }
 
@@ -1100,6 +1390,9 @@ export async function runGridCellsLive(params: {
       pass: "complete",
       method: params.resume ? "live_parallel_resume" : "live_parallel",
       failed_point_ids: failedPointIds,
+      unresolved_point_ids: failedPointIds,
+      recovery_stage: failedCells > 0 ? "completed_with_unresolved" : "completed",
+      provider_unresolved: failedCells > 0,
     },
     { force: true }
   );
