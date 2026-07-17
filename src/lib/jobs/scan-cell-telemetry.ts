@@ -15,6 +15,8 @@ export type CellTelemetryRow = {
   success: boolean;
   timedOut: boolean;
   errorMessage?: string | null;
+  failureCategory?: string | null;
+  providerDiagnostics?: Record<string, unknown> | null;
   distanceFromCenterM?: number | null;
   lat: number;
   lng: number;
@@ -38,6 +40,8 @@ export async function saveCellTelemetry(row: CellTelemetryRow): Promise<void> {
     success: row.success,
     timed_out: row.timedOut,
     error_message: row.errorMessage ?? null,
+    failure_category: row.failureCategory ?? null,
+    provider_diagnostics: row.providerDiagnostics ?? null,
     distance_from_center_m: row.distanceFromCenterM ?? null,
     lat: row.lat,
     lng: row.lng,

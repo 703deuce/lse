@@ -4,9 +4,19 @@ import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
 import type { ScanDeviceProfile } from "@/lib/maps/scan-profiles";
 import { buildBrightDataMapsUrl } from "@/lib/providers/brightdata/url";
 import {
+  BrightDataMapsFailure,
+  classifyBrightDataMapsResponse,
+  diagnosticsForStorage,
+  extractBrightDataRequestId,
+  humanMessageForCategory,
+  logBrightDataFailureDiagnostics,
+  redactProviderText,
+} from "@/lib/providers/brightdata/failure-diagnostics";
+import {
   estimateProviderCost,
   fetchWithTimeout,
   providerTimeoutMs,
+  ProviderTimeoutError,
 } from "@/lib/providers/fetch-with-timeout";
 
 function getApiKey(): string {
@@ -34,16 +44,6 @@ async function resolveBrightDataZone(): Promise<string> {
   throw new Error(
     "BRIGHTDATA_ZONE is required — create a SERP API zone at https://brightdata.com/cp/zones (residential proxy returns HTML, not ranked Maps JSON)"
   );
-}
-
-function getZone(): string {
-  const zone = process.env.BRIGHTDATA_ZONE ?? process.env.BRIGHTDATA_SERP_ZONE;
-  if (!zone?.trim()) {
-    throw new Error(
-      "BRIGHTDATA_ZONE is required — set in .env.local or create a SERP API zone at https://brightdata.com/cp/zones"
-    );
-  }
-  return zone.trim();
 }
 
 export type BrightDataOrganicItem = {
@@ -98,7 +98,6 @@ async function logBrightDataRun(params: {
     return null;
   }
 }
-
 
 function parseBrightDataBody(text: string): BrightDataOrganicItem[] {
   let data: unknown;
@@ -158,33 +157,6 @@ export async function mapsSearchAtCoordinate(params: {
     data_format: "parsed_light" as const,
   };
 
-  const res = await fetchWithTimeout(
-    "https://api.brightdata.com/request",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${getApiKey()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestBody),
-    },
-    {
-      provider: "brightdata",
-      timeoutMs: providerTimeoutMs("brightdata", 45_000),
-      label: "mapsSearchAtCoordinate",
-    }
-  );
-
-  const text = await res.text();
-  const latencyMs = Date.now() - start;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    parsed = { raw: text.slice(0, 2000) };
-  }
-
-  const costEstimate = estimateProviderCost("brightdata");
   const requestForLog = {
     ...requestBody,
     keyword: params.keyword,
@@ -192,33 +164,112 @@ export async function mapsSearchAtCoordinate(params: {
     lng: params.lng,
     zoom,
   };
+
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(
+      "https://api.brightdata.com/request",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getApiKey()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      },
+      {
+        provider: "brightdata",
+        timeoutMs: providerTimeoutMs("brightdata", 45_000),
+        label: "mapsSearchAtCoordinate",
+      }
+    );
+  } catch (err) {
+    const latencyMs = Date.now() - start;
+    if (err instanceof ProviderTimeoutError) {
+      const failure = new BrightDataMapsFailure(
+        {
+          category: "provider_timeout",
+          latencyMs,
+          zone,
+          providerErrorMessage: err.message,
+        },
+        err.message
+      );
+      logBrightDataFailureDiagnostics("mapsSearchAtCoordinate", failure.diagnostics);
+      await logBrightDataRun({
+        organizationId: params.organizationId,
+        endpoint: "request",
+        request: requestForLog,
+        response: diagnosticsForStorage(failure.diagnostics),
+        statusCode: 0,
+        latencyMs,
+      });
+      throw failure;
+    }
+    throw err;
+  }
+
+  const text = await res.text();
+  const latencyMs = Date.now() - start;
+  const requestId = extractBrightDataRequestId(res.headers);
+  const contentType = res.headers.get("content-type");
+  const items = res.ok ? parseBrightDataBody(text) : [];
+  const costEstimate = estimateProviderCost("brightdata");
+
+  if (!res.ok || !items.length) {
+    const diagnostics = classifyBrightDataMapsResponse({
+      httpStatus: res.status,
+      contentType,
+      bodyText: text,
+      latencyMs,
+      zone,
+      requestId,
+      organicCount: items.length,
+    });
+    const failure = new BrightDataMapsFailure(
+      diagnostics,
+      humanMessageForCategory(diagnostics.category, {
+        status: res.status,
+        detail: diagnostics.providerErrorMessage ?? undefined,
+        zone,
+        organicCount: items.length,
+      })
+    );
+    logBrightDataFailureDiagnostics("mapsSearchAtCoordinate", failure.diagnostics);
+    // Store redacted diagnostics only — never dump full provider bodies on failure.
+    await logBrightDataRun({
+      organizationId: params.organizationId,
+      endpoint: "request",
+      request: requestForLog,
+      response: diagnosticsForStorage(failure.diagnostics),
+      statusCode: res.status,
+      latencyMs,
+      costEstimate,
+    });
+    throw failure;
+  }
+
+  // Success: keep a compact summary in provider_runs (titles/ids only, truncated).
+  const successSummary = {
+    organic_count: items.length,
+    request_id: requestId,
+    content_type: contentType,
+    sample: items.slice(0, 3).map((item) => ({
+      rank: item.global_rank ?? item.rank ?? null,
+      title: item.title ? redactProviderText(String(item.title), 80) : null,
+      map_id: item.map_id ?? null,
+    })),
+  };
+
   const requestHash = await logBrightDataRun({
     organizationId: params.organizationId,
     endpoint: "request",
     request: requestForLog,
-    response: parsed,
+    response: successSummary,
     statusCode: res.status,
     latencyMs,
     costEstimate,
   });
-
-  if (!res.ok) {
-    const detail = typeof parsed === "object" && parsed && "error" in parsed
-      ? String((parsed as { error?: string }).error)
-      : text.slice(0, 300);
-    throw new Error(`Bright Data SERP HTTP ${res.status}: ${detail}`);
-  }
-
-  const items = parseBrightDataBody(text);
-  if (!items.length) {
-    const preview = text.slice(0, 200);
-    const needsSerp = preview.startsWith("<!") || preview.startsWith("{");
-    throw new Error(
-      needsSerp
-        ? `Bright Data zone "${zone}" returned HTML, not ranked Maps JSON — create a SERP API zone at https://brightdata.com/cp/zones`
-        : "Bright Data returned no map results for this cell"
-    );
-  }
 
   // Usage is recorded by the caller after SERP validation + upsert so incomplete
   // responses that throw post-parse are not billed (retries would double-charge).
@@ -227,6 +278,17 @@ export async function mapsSearchAtCoordinate(params: {
 
   return items;
 }
+
+export {
+  BrightDataMapsFailure,
+  classifyBrightDataMapsResponse,
+  diagnosticsForStorage,
+  humanMessageForCategory,
+} from "@/lib/providers/brightdata/failure-diagnostics";
+export type {
+  BrightDataFailureCategory,
+  BrightDataFailureDiagnostics,
+} from "@/lib/providers/brightdata/failure-diagnostics";
 
 export {
   buildBrightDataMapsGridRequest,

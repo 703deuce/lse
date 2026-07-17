@@ -3,6 +3,10 @@ import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
 import type { ScanDeviceProfile } from "@/lib/maps/scan-profiles";
 import { mapsSearchAtCoordinate, type BrightDataOrganicItem } from "@/lib/providers/brightdata/index";
 import {
+  BrightDataMapsFailure,
+  humanMessageForCategory,
+} from "@/lib/providers/brightdata/failure-diagnostics";
+import {
   buildBrightDataMapsUrl,
   formatMapsCoordinate,
 } from "@/lib/providers/brightdata/url";
@@ -145,7 +149,14 @@ export async function mapsGridCell(params: {
 
   const items = normalizeBrightDataResults(raw, depth);
   if (!items.length) {
-    throw new Error("Bright Data returned no map results for this cell");
+    throw new BrightDataMapsFailure(
+      {
+        category: "empty_maps_results",
+        organicCount: 0,
+        providerErrorMessage: "normalizeBrightDataResults yielded zero items",
+      },
+      humanMessageForCategory("empty_maps_results")
+    );
   }
 
   return {

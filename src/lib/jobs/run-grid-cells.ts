@@ -5,6 +5,12 @@ import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
 import { matchTargetInResults } from "@/lib/providers/dataforseo/match-target";
 import { mapsGridCell } from "@/lib/providers/brightdata";
 import {
+  BrightDataMapsFailure,
+  diagnosticsForStorage,
+  failureFromUnknownError,
+  logBrightDataFailureDiagnostics,
+} from "@/lib/providers/brightdata/failure-diagnostics";
+import {
   elapsedSec,
   logCellPhaseTimings,
   softReadyMinSuccess,
@@ -354,38 +360,45 @@ async function runOneCell(
   let timedOut = false;
 
   let lastError: Error | null = null;
+  let lastFailureCategory: string | null = null;
+  let lastProviderDiagnostics: Record<string, unknown> | null = null;
+
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     attemptsUsed = attempt + 1;
     if (attempt > 0) await sleep(1500 * Math.pow(2, attempt - 1));
 
     try {
       const apiStart = performance.now();
-      // Global start-rate + in-flight limiter (Redis when configured, else in-process).
-      const slot = await acquireBrightDataSlot(timeoutMs + 15_000);
       let live;
       try {
-        live = await withTimeout(
-          mapsGridCell({
-            keyword: kw,
-            lat,
-            lng,
-            device: job.device === "mobile" ? "mobile" : "desktop",
-            os: (["android", "ios", "windows", "macos"].includes(job.os)
-              ? job.os
-              : job.device === "mobile"
-                ? "android"
-                : "windows") as "android" | "ios" | "windows" | "macos",
-            browser: job.browser === "firefox" ? "firefox" : "chrome",
-            depth,
-            organizationId: job.organizationId,
-          }),
-          timeoutMs,
-          job.point.grid_label
-        );
+        // Global start-rate + in-flight limiter (Redis when configured, else in-process).
+        const slot = await acquireBrightDataSlot(timeoutMs + 15_000);
+        try {
+          live = await withTimeout(
+            mapsGridCell({
+              keyword: kw,
+              lat,
+              lng,
+              device: job.device === "mobile" ? "mobile" : "desktop",
+              os: (["android", "ios", "windows", "macos"].includes(job.os)
+                ? job.os
+                : job.device === "mobile"
+                  ? "android"
+                  : "windows") as "android" | "ios" | "windows" | "macos",
+              browser: job.browser === "firefox" ? "firefox" : "chrome",
+              depth,
+              organizationId: job.organizationId,
+            }),
+            timeoutMs,
+            job.point.grid_label
+          );
+        } finally {
+          await slot.release();
+        }
       } finally {
-        await slot.release();
+        // Always record wall time spent waiting on the provider path — including failures.
+        apiSec = elapsedSec(apiStart);
       }
-      apiSec = elapsedSec(apiStart);
 
       const items = live.items as MapsLiveResult[];
       const targetInput = {
@@ -398,7 +411,15 @@ async function runOneCell(
       };
       const serpValidation = validateLiveCellSerp(items, targetInput, depth);
       if (!serpValidation.complete) {
-        throw new Error(serpValidation.reason ?? "Incomplete map results for this cell");
+        throw new BrightDataMapsFailure(
+          {
+            category: serpValidation.category ?? "sparse_maps_results",
+            organicCount: items.length,
+            latencyMs: Math.round(apiSec * 1000),
+            providerErrorMessage: serpValidation.reason ?? "Incomplete map results for this cell",
+          },
+          serpValidation.reason ?? "Incomplete map results for this cell"
+        );
       }
 
       const matchStart = performance.now();
@@ -500,18 +521,38 @@ async function runOneCell(
         timings,
       };
     } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      timedOut = lastError.message.toLowerCase().includes("timeout");
-      if (!isRetryableError(lastError) || attempt >= maxAttempts - 1) break;
+      const mapped = failureFromUnknownError(err, {
+        latencyMs: Math.round(apiSec * 1000),
+      });
+      lastError = mapped;
+      lastFailureCategory = mapped.category;
+      lastProviderDiagnostics = {
+        ...diagnosticsForStorage(mapped.diagnostics),
+        attempt: attempt + 1,
+        concurrency,
+        grid_label: job.point.grid_label,
+        pass_label: passLabel,
+      };
+      timedOut =
+        mapped.category === "provider_timeout" ||
+        mapped.category === "capacity_timeout" ||
+        mapped.message.toLowerCase().includes("timeout");
+      logBrightDataFailureDiagnostics(
+        `cell grid=${job.point.grid_label} attempt=${attempt + 1}/${maxAttempts}`,
+        mapped.diagnostics
+      );
+      if (!isRetryableError(mapped) || attempt >= maxAttempts - 1) break;
       console.warn(
-        `[Scan] Cell retry grid=${job.point.grid_label} attempt=${attempt + 1}/${maxAttempts}:`,
-        lastError.message
+        `[Scan] Cell retry grid=${job.point.grid_label} attempt=${attempt + 1}/${maxAttempts}` +
+          ` category=${mapped.category}:`,
+        mapped.message
       );
     }
   }
 
   console.error(
-    `[Scan] Cell failed grid=${job.point.grid_label} keyword="${kw}" coord=${locationCoordinate}:`,
+    `[Scan] Cell failed grid=${job.point.grid_label} keyword="${kw}" coord=${locationCoordinate}` +
+      ` category=${lastFailureCategory ?? "unknown"} apiSec=${apiSec}:`,
     lastError?.message
   );
 
@@ -525,6 +566,7 @@ async function runOneCell(
     totalSec,
     success: false,
     attempts: attemptsUsed,
+    failureCategory: lastFailureCategory,
   };
 
   void saveCellTelemetry({
@@ -541,6 +583,8 @@ async function runOneCell(
     success: false,
     timedOut,
     errorMessage: lastError?.message,
+    failureCategory: lastFailureCategory,
+    providerDiagnostics: lastProviderDiagnostics,
     distanceFromCenterM: job.point.distance_from_center_m,
     lat,
     lng,

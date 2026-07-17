@@ -11,6 +11,7 @@ export type CellPhaseTimings = {
   totalSec: number;
   success: boolean;
   attempts: number;
+  failureCategory?: string | null;
 };
 
 function avg(nums: number[]): number {
@@ -34,7 +35,8 @@ export function logCellPhaseTimings(
     console.log(
       `[ScanBenchmark] ${t.gridLabel} | Bright Data API: ${t.apiSec}s | matching: ${t.matchingSec}s | db: ${t.dbSaveSec}s | progress: ${t.progressSec}s | total: ${t.totalSec}s` +
         (t.attempts > 1 ? ` | attempts=${t.attempts}` : "") +
-        (t.success ? "" : " | FAILED")
+        (t.success ? "" : " | FAILED") +
+        (!t.success && t.failureCategory ? ` | category=${t.failureCategory}` : "")
     );
   }
 

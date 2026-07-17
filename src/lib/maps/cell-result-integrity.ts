@@ -8,6 +8,8 @@ import type { ScanResultRow } from "@/lib/db/types";
 export type CellSerpValidation = {
   complete: boolean;
   reason?: string;
+  /** Normalized provider/SERP failure category when incomplete. */
+  category?: "empty_maps_results" | "sparse_maps_results";
 };
 
 export function minCellSerpResults(depth = 20): number {
@@ -27,7 +29,11 @@ export function validateLiveCellSerp(
 ): CellSerpValidation {
   const min = minCellSerpResults(depth);
   if (!items.length) {
-    return { complete: false, reason: "Bright Data returned no map results for this cell" };
+    return {
+      complete: false,
+      reason: "Bright Data returned no map results for this cell",
+      category: "empty_maps_results",
+    };
   }
   if (items.length < min) {
     const targetOnly =
@@ -38,6 +44,7 @@ export function validateLiveCellSerp(
       reason: targetOnly
         ? `target-only SERP: only your listing returned (need ${min})`
         : `sparse SERP: ${items.length} results returned (need ${min})`,
+      category: "sparse_maps_results",
     };
   }
   return { complete: true };
