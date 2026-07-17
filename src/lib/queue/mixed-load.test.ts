@@ -21,6 +21,8 @@ describe("mixed-load queue invariants", () => {
       send_campaign_sms: "sms-send",
       import_contacts: "review-import",
       review_alert_scan: "review-monitor",
+      review_momentum_run: "maintenance",
+      reputation_audit: "maintenance",
       backlink_gap_run: "backlink-gap",
       local_trust_run: "local-trust",
       ai_visibility_run: "ai-visibility",
@@ -53,6 +55,12 @@ describe("mixed-load queue invariants", () => {
     assert.equal(jobTypeToQueue("generate_report"), "report-generation");
     assert.notEqual(jobTypeToQueue("generate_report"), "maps-scan");
     assert.notEqual(jobTypeToQueue("generate_report"), "email-send");
+  });
+
+  it("keeps Review Momentum on worker:all (maintenance), not messaging-only review-monitor", () => {
+    assert.equal(jobTypeToQueue("review_momentum_run"), "maintenance");
+    assert.equal(jobTypeToQueue("reputation_audit"), "maintenance");
+    assert.equal(jobTypeToQueue("review_alert_scan"), "review-monitor");
   });
 
   it("simulates failure injection: dead_letter can retry, completed cannot", () => {

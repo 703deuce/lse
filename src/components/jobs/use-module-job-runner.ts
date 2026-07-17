@@ -79,6 +79,14 @@ export function useModuleJobRunner(options: Options = {}) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        throw new Error(
+          res.status === 404
+            ? `Run API not found (${url}). Redeploy the web app so this route exists.`
+            : `${failMessage} (HTTP ${res.status})`
+        );
+      }
       const json = (await res.json()) as RunResult & { error?: string };
       if (!res.ok) throw new Error(json.error ?? failMessage);
 

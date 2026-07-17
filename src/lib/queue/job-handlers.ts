@@ -68,8 +68,7 @@ export function jobTypeToQueue(jobType: string): QueueName {
     case "send_campaign_sms":
       return "sms-send";
     case "review_alert_scan":
-    case "reputation_audit":
-    case "review_momentum_run":
+      // Alert scans stay on the messaging worker (paired with campaign/import traffic).
       return "review-monitor";
     case "backlink_gap_run":
       return "backlink-gap";
@@ -81,6 +80,11 @@ export function jobTypeToQueue(jobType: string): QueueName {
       return "report-generation";
     case "send_notification":
       return "notifications";
+    // Heavy analysis jobs must run on worker:all / worker:intelligence.
+    // They previously sat on review-monitor (messaging-only), so clicks queued
+    // work that never appeared in the "all workers" Coolify logs.
+    case "review_momentum_run":
+    case "reputation_audit":
     case "citation_audit":
     case "growth_audit_run":
     case "growth_audit_extended":
