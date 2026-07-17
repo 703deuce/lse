@@ -54,6 +54,61 @@ const CASES = [
     apiPath: "/api/scans/run-for-keyword",
     waitFor: /Run \d+×\d+ scan/,
   },
+  {
+    path: "/dev/module-run-harness",
+    button: "Run Citation Audit",
+    apiPath: "/api/citations/run",
+    waitFor: "Run Citation Audit",
+    beforeClick: async (page) => {
+      await page.getByRole("button", { name: "Citations", exact: true }).click();
+    },
+  },
+  {
+    path: "/dev/module-run-harness",
+    button: "Run Reputation Audit",
+    apiPath: "/api/reputation/run",
+    waitFor: "Reputation",
+    beforeClick: async (page) => {
+      await page.getByRole("button", { name: "Reputation", exact: true }).click();
+      await page.getByRole("button", { name: "Run Reputation Audit" }).waitFor({ state: "visible", timeout: 30_000 });
+    },
+  },
+  {
+    path: "/dev/module-run-harness",
+    button: "Run Check",
+    apiPath: "/api/ai-visibility/run",
+    waitFor: "AI Visibility",
+    beforeClick: async (page) => {
+      await page.getByRole("button", { name: "AI Visibility", exact: true }).click();
+      const runBtn = page.getByRole("button", { name: "Run Check" });
+      await runBtn.waitFor({ state: "visible", timeout: 30_000 });
+      await page.waitForFunction(
+        () => {
+          const btn = [...document.querySelectorAll("button")].find((b) =>
+            (b.textContent ?? "").includes("Run Check")
+          );
+          return btn instanceof HTMLButtonElement && !btn.disabled;
+        },
+        undefined,
+        { timeout: 30_000 }
+      );
+    },
+  },
+  {
+    path: "/dev/module-run-harness",
+    button: "Run difficulty analysis",
+    apiPath: "/api/maps-difficulty/run",
+    waitFor: "Maps Difficulty",
+    beforeClick: async (page) => {
+      await page.getByRole("button", { name: "Maps Difficulty", exact: true }).click();
+      await page.getByText("Keyword", { exact: true }).waitFor({ timeout: 30_000 });
+      await page.locator('input[placeholder*="junk removal"]').fill("plumber woodbridge va");
+      await page.locator('input[placeholder*="Woodbridge"]').first().fill("Woodbridge, VA");
+      await page.getByRole("button", { name: "Find" }).click();
+      await page.waitForTimeout(800);
+      await page.getByRole("button", { name: "Run difficulty analysis" }).waitFor({ state: "visible", timeout: 30_000 });
+    },
+  },
 ];
 
 async function installFetchRecorder(page) {
@@ -125,11 +180,15 @@ async function main() {
       process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || "/usr/local/bin/google-chrome",
   });
 
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-
   try {
     for (const spec of CASES) {
-      await verifyCase(page, spec);
+      // Fresh page per module avoids leftover job-poll / disabled-button state.
+      const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+      try {
+        await verifyCase(page, spec);
+      } finally {
+        await page.close();
+      }
     }
     console.log("\nAll module Run buttons verified.");
   } finally {

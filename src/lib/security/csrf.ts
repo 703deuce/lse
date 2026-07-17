@@ -148,8 +148,13 @@ export const MODULE_RUN_ENDPOINTS = [
   "/api/trust/run",
   "/api/growth-audit/run",
   "/api/backlink-gap/run",
+  "/api/ai-visibility/run",
+  "/api/citations/run",
+  "/api/reputation/run",
   "/api/keywords/check",
+  "/api/maps-difficulty/run",
   "/api/scans/run-for-keyword",
+  "/api/audits/run",
 ] as const;
 
 /** Paths that authenticate via shared secret / signature — skip browser CSRF. */
