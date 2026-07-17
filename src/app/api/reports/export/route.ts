@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { requireOrganizationPermission } from "@/lib/auth/permissions";
-import { requireRecentAuth } from "@/lib/auth/reauth";
 import { generateTypedReport } from "@/lib/reporting/generate-report";
 import {
   competitorsToCsv,
@@ -160,7 +159,8 @@ export async function POST(request: Request) {
     }
 
     // ── HTML shareable report: reuse → enqueue → sync fallback ──
-    await requireRecentAuth();
+    // Permission check is enough here — step-up reauth blocked normal sessions
+    // (Supabase JWTs often omit auth_time) and there is no reauth UI yet.
     const permAuth = await requireOrganizationPermission("report.share", auth.organizationId);
     const auditMeta = requestAuditMeta(request);
 

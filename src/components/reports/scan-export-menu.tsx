@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useActiveJobStatus } from "@/components/jobs/use-active-job-status";
 import { isTerminalJobStatus } from "@/lib/jobs/active-job-status";
 import type { ReportArtifactKind } from "@/lib/reporting/pdf/constants";
+import { artifactFileExtension } from "@/lib/reporting/pdf/constants";
 
 type Props = {
   businessId: string;
@@ -25,6 +26,24 @@ const ITEMS: Array<{
   { kind: "summary_csv", label: "Download Scan Summary CSV", icon: Download },
   { kind: "points_csv", label: "Download Data Points CSV", icon: Download },
 ];
+
+async function downloadSameOrigin(path: string, filename: string) {
+  const res = await fetch(path, { credentials: "same-origin" });
+  if (!res.ok) {
+    const json = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(json.error ?? `Download failed (${res.status})`);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 export function ScanExportMenu({ businessId, scanBatchId, className }: Props) {
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +64,7 @@ export function ScanExportMenu({ businessId, scanBatchId, className }: Props) {
   }, [pollError]);
 
   useEffect(() => {
-    if (!jobId || !status) return;
+    if (!jobId || !status || !busyKind) return;
     if (!isTerminalJobStatus(status.status)) return;
     if (status.status !== "completed") {
       setError(status.errorMessage ?? "Export failed");
@@ -54,15 +73,26 @@ export function ScanExportMenu({ businessId, scanBatchId, className }: Props) {
       return;
     }
     const result = (status.result ?? null) as {
-      downloadUrl?: string | null;
       downloadPath?: string | null;
+      reportId?: string | null;
     } | null;
-    const url = result?.downloadUrl || result?.downloadPath;
-    if (url) window.location.href = String(url);
-    else setError("Export completed but no download URL was returned");
-    setBusyKind(null);
-    setJobId(null);
-  }, [jobId, status]);
+    const path =
+      result?.downloadPath ||
+      (result?.reportId ? `/api/reports/artifacts/${result.reportId}/download` : null);
+    if (!path) {
+      setError("Export completed but no download path was returned");
+      setBusyKind(null);
+      setJobId(null);
+      return;
+    }
+    const kind = busyKind;
+    void downloadSameOrigin(path, `scan-export.${artifactFileExtension(kind)}`)
+      .catch((e) => setError(e instanceof Error ? e.message : "Download failed"))
+      .finally(() => {
+        setBusyKind(null);
+        setJobId(null);
+      });
+  }, [jobId, status, busyKind]);
 
   async function download(kind: ReportArtifactKind) {
     setError(null);
@@ -81,13 +111,15 @@ export function ScanExportMenu({ businessId, scanBatchId, className }: Props) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Export failed");
 
-      if (json.downloadUrl) {
-        window.location.href = String(json.downloadUrl);
-        setBusyKind(null);
-        return;
-      }
-      if (json.downloadPath && !json.queued) {
-        window.location.href = String(json.downloadPath);
+      // Always prefer same-origin downloadPath — never navigate to external signed URLs.
+      const path =
+        (typeof json.downloadPath === "string" && json.downloadPath) ||
+        (typeof json.reportId === "string"
+          ? `/api/reports/artifacts/${json.reportId}/download`
+          : null);
+
+      if (path && !json.queued) {
+        await downloadSameOrigin(path, `scan-export.${artifactFileExtension(kind)}`);
         setBusyKind(null);
         return;
       }
