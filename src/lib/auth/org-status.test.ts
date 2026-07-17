@@ -66,6 +66,22 @@ describe("organization enqueue gate", () => {
     );
   });
 
+  it("page auth helpers redirect instead of throwing into global-error", () => {
+    // Next builtin global-error says: "This page couldn’t load" +
+    // "Reload to try again, or go back." That is what users reported.
+    const requirePage = readFileSync(
+      join(process.cwd(), "src/lib/auth/require-business-page.ts"),
+      "utf8"
+    );
+    assert.match(requirePage, /redirect\("\/sign-in"\)/);
+    assert.match(requirePage, /requireBusinessPageData/);
+    const contextSrc = readFileSync(
+      join(process.cwd(), "src/lib/auth/context.ts"),
+      "utf8"
+    );
+    assert.match(contextSrc, /export async function requirePageAuth/);
+  });
+
   it("keeps org kill-switch out of session auth (pre-ASVS model)", () => {
     // Regression: 60c882d/b77273a wired loadOrganizationGateStatus into
     // getAuthContext and signed users out on lookup miss — modules died,

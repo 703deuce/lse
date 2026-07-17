@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Plus, MapPin } from "lucide-react";
-import { requireAuth } from "@/lib/auth/context";
+import { requirePageAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -9,7 +9,7 @@ export default async function BusinessesPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const auth = await requireAuth();
+  const auth = await requirePageAuth();
   const supabase = createServiceClient();
   const { error } = await searchParams;
 

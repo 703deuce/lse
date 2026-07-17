@@ -1,7 +1,6 @@
-import { requireAuth } from "@/lib/auth/context";
-import { getBusiness, getBusinessKeywords } from "@/lib/db/queries";
+import { requireBusinessPageData } from "@/lib/auth/require-business-page";
+import { getBusinessKeywords } from "@/lib/db/queries";
 import { MapsAuditWorkspace } from "@/components/workspace/maps-audit-workspace";
-import { notFound } from "next/navigation";
 
 export default async function WorkspacePage({
   params,
@@ -9,9 +8,7 @@ export default async function WorkspacePage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
-  const auth = await requireAuth();
-  const business = await getBusiness(businessId, auth.organizationId);
-  if (!business) notFound();
+  const { business } = await requireBusinessPageData(businessId);
 
   const keywords = await getBusinessKeywords(businessId);
   const primaryKw = keywords.find((k) => k.is_primary) ?? keywords[0];

@@ -1,11 +1,11 @@
 import { PageHeader } from "@/components/ui/page-header";
-import { requireAuth } from "@/lib/auth/context";
+import { requirePageAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
 import type { BusinessRow } from "@/lib/db/types";
 import Link from "next/link";
 
 export default async function AgencyClientsPage() {
-  const auth = await requireAuth();
+  const auth = await requirePageAuth();
   const supabase = createServiceClient();
 
   const { data } = await supabase

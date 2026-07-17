@@ -88,10 +88,28 @@ export async function getAuthContext(): Promise<AuthContext> {
   };
 }
 
+/**
+ * For API routes / server helpers that map errors to HTTP responses.
+ * Do NOT call this from `page.tsx` / layouts — an uncaught throw becomes
+ * Next's builtin global-error: "This page couldn’t load / Reload to try again".
+ */
 export async function requireAuth(): Promise<AuthContext> {
   const ctx = await getAuthContext();
   if (!ctx.isAuthenticated) {
     throw new Error("Authentication required");
+  }
+  return ctx;
+}
+
+/**
+ * For RSC pages and layouts. Redirects instead of throwing so the UI never
+ * falls through to Next's "This page couldn’t load" screen.
+ */
+export async function requirePageAuth(): Promise<AuthContext> {
+  const { redirect } = await import("next/navigation");
+  const ctx = await getAuthContext();
+  if (!ctx.isAuthenticated) {
+    redirect("/sign-in");
   }
   return ctx;
 }
