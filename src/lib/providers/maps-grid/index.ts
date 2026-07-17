@@ -7,4 +7,8 @@ export {
   brightDataOnlyProviders,
   secondaryFallbackProviders,
   fullFallbackProviders,
+  describeMapsProviderAvailability,
+  resolveUsableMapsProviders,
+  logMapsProviderAvailability,
 } from "@/lib/providers/maps-grid/orchestrator";
+export type { MapsProviderAvailability, MapsProviderSkipReason } from "@/lib/providers/maps-grid/orchestrator";

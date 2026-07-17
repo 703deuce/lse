@@ -40,6 +40,8 @@ import {
 import {
   brightDataOnlyProviders,
   fetchMapsCell,
+  logMapsProviderAvailability,
+  resolveUsableMapsProviders,
   secondaryFallbackProviders,
 } from "@/lib/providers/maps-grid/orchestrator";
 import type { MapsFailureCategory } from "@/lib/providers/maps-grid/failure-categories";
@@ -863,6 +865,18 @@ async function runIntegrityPass(params: {
   console.log(
     `[Scan] Integrity retry for ${incompleteJobs.length} sparse/incomplete cells (concurrency=${params.concurrency})`
   );
+  // Prefer secondaries here — Bright Data already had primary + recovery chances.
+  const integrityProviders = mapsFallbackEnabled()
+    ? [...secondaryFallbackProviders(), ...brightDataOnlyProviders()]
+    : brightDataOnlyProviders();
+  const integrityPlan = await resolveUsableMapsProviders(integrityProviders);
+  console.log(
+    `[Scan] Integrity providers usable=${integrityPlan.usable.join(",") || "none"}` +
+      (integrityPlan.skipped.length
+        ? ` skipped=${integrityPlan.skipped.map((s) => `${s.provider}:${s.skipReason}`).join(",")}`
+        : "")
+  );
+
   const integrityPass = await runJobsWithConcurrency(incompleteJobs, {
     scanBatchId: params.scanBatchId,
     depth: params.depth,
@@ -871,9 +885,7 @@ async function runIntegrityPass(params: {
     concurrency: Math.min(params.concurrency, isolatedRetryConcurrency(incompleteJobs.length) || params.concurrency),
     totalCells: params.totalCells,
     passLabel: "integrity",
-    providers: mapsFallbackEnabled()
-      ? [...brightDataOnlyProviders(), ...secondaryFallbackProviders()]
-      : brightDataOnlyProviders(),
+    providers: integrityPlan.usable.length ? integrityPlan.usable : brightDataOnlyProviders(),
     allowTransientRetry: true,
     scanRetryRound: 5,
     recoveryStage: "finalizing",
@@ -1011,6 +1023,7 @@ export async function runGridCellsLive(params: {
     browser: params.browser,
     uniqueCoordinates: new Set(allJobs.map((j) => `${j.point.lat},${j.point.lng}`)).size,
   });
+  logMapsProviderAvailability(`scan=${params.scanBatchId}`);
 
   const allTimings: CellPhaseTimings[] = [];
   const scanWallStart = performance.now();
@@ -1302,38 +1315,81 @@ export async function runGridCellsLive(params: {
 
     // Secondary fallbacks for anything still unresolved.
     if (remainingJobs.length > 0 && mapsFallbackEnabled()) {
-      console.log(
-        `[Scan] Secondary fallback for ${remainingJobs.length} cells (DataForSEO → ScrapingDog)`
-      );
-      await scheduleCellProgress(
-        params.scanBatchId,
-        completedOffset,
-        totalCells,
-        remainingJobs.length,
-        { pass: "fallback-secondary", recovery_stage: "fallback_dataforseo" },
-        { force: true }
-      );
-      const fallbackPass = await runJobsWithConcurrency(remainingJobs, {
-        scanBatchId: params.scanBatchId,
-        depth,
-        timeoutMs,
-        maxAttempts: 1,
-        concurrency: Math.min(remainingJobs.length, 8),
-        totalCells,
-        passLabel: "fallback-secondary",
-        providers: secondaryFallbackProviders(),
-        allowTransientRetry: true,
-        scanRetryRound: 4,
-        recoveryStage: "fallback_dataforseo",
-        completedOffset,
-        updateProgress: true,
-        onCellSettled,
-        organizationId: params.organizationId,
-      });
-      allTimings.push(...fallbackPass.timings);
-      completedOffset += fallbackPass.successCount;
-      remainingJobs = failedJobsFromPass(remainingJobs, fallbackPass.results);
-      failedCells = remainingJobs.length;
+      const secondaryPlan = await resolveUsableMapsProviders(secondaryFallbackProviders());
+      if (!secondaryPlan.usable.length) {
+        const skipSummary = secondaryPlan.skipped
+          .map((s) => `${s.provider}:${s.skipReason}${s.detail ? `(${s.detail})` : ""}`)
+          .join(" | ");
+        console.error(
+          `[Scan] SECONDARY FALLBACK SKIPPED for ${remainingJobs.length} unresolved cells — no usable providers. ${skipSummary}`
+        );
+        await scheduleCellProgress(
+          params.scanBatchId,
+          completedOffset,
+          totalCells,
+          remainingJobs.length,
+          {
+            pass: "fallback-skipped",
+            recovery_stage: "completed_with_unresolved",
+            fallback_skipped: true,
+            fallback_skipped_reason: skipSummary || "no_secondary_providers",
+            unresolved_after_brightdata: remainingJobs.length,
+          },
+          { force: true }
+        );
+      } else {
+        console.log(
+          `[Scan] Secondary fallback for ${remainingJobs.length} cells via ${secondaryPlan.usable.join(" → ")}` +
+            (secondaryPlan.skipped.length
+              ? ` (skipped: ${secondaryPlan.skipped.map((s) => `${s.provider}:${s.skipReason}`).join(", ")})`
+              : "")
+        );
+        const stage =
+          secondaryPlan.usable[0] === "scrapingdog"
+            ? ("fallback_scrapingdog" as const)
+            : ("fallback_dataforseo" as const);
+        await scheduleCellProgress(
+          params.scanBatchId,
+          completedOffset,
+          totalCells,
+          remainingJobs.length,
+          {
+            pass: "fallback-secondary",
+            recovery_stage: stage,
+            fallback_providers: secondaryPlan.usable,
+            fallback_skipped_providers: secondaryPlan.skipped.map((s) => ({
+              provider: s.provider,
+              reason: s.skipReason,
+              detail: s.detail,
+            })),
+          },
+          { force: true }
+        );
+        const fallbackPass = await runJobsWithConcurrency(remainingJobs, {
+          scanBatchId: params.scanBatchId,
+          depth,
+          timeoutMs,
+          maxAttempts: 1,
+          concurrency: Math.min(remainingJobs.length, 8),
+          totalCells,
+          passLabel: "fallback-secondary",
+          providers: secondaryPlan.usable,
+          allowTransientRetry: true,
+          scanRetryRound: 4,
+          recoveryStage: stage,
+          completedOffset,
+          updateProgress: true,
+          onCellSettled,
+          organizationId: params.organizationId,
+        });
+        allTimings.push(...fallbackPass.timings);
+        completedOffset += fallbackPass.successCount;
+        remainingJobs = failedJobsFromPass(remainingJobs, fallbackPass.results);
+        failedCells = remainingJobs.length;
+        console.log(
+          `[Scan] Secondary fallback finished: recovered=${fallbackPass.successCount} still_unresolved=${remainingJobs.length}`
+        );
+      }
     } else if (remainingJobs.length > 0 && maxRounds > 1) {
       // Fallback disabled — keep a single legacy-style BD retry with jitter (not 1s storm).
       const delay = isolatedRetryDelayMs();

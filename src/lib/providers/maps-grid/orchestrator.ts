@@ -39,28 +39,119 @@ export type FetchMapsCellParams = {
   allowTransientRetry?: boolean;
 };
 
-function providerEnabled(provider: MapsProviderId): boolean {
-  if (provider === "brightdata") return true;
+export type MapsProviderSkipReason =
+  | "fallback_disabled"
+  | "provider_disabled"
+  | "missing_credentials"
+  | "circuit_open";
+
+export type MapsProviderAvailability = {
+  provider: MapsProviderId;
+  enabled: boolean;
+  skipReason?: MapsProviderSkipReason;
+  detail?: string;
+};
+
+export function describeMapsProviderAvailability(
+  provider: MapsProviderId
+): MapsProviderAvailability {
+  if (provider === "brightdata") {
+    return { provider, enabled: true };
+  }
+  if (!mapsFallbackEnabled()) {
+    return {
+      provider,
+      enabled: false,
+      skipReason: "fallback_disabled",
+      detail: "MAPS_GRID_FALLBACK_ENABLED is false",
+    };
+  }
   if (provider === "dataforseo") {
-    return mapsFallbackEnabled() && dataForSeoMapsEnabled() && hasDataForSeoCredentials();
+    if (!dataForSeoMapsEnabled()) {
+      return {
+        provider,
+        enabled: false,
+        skipReason: "provider_disabled",
+        detail: "DATAFORSEO_MAPS_ENABLED is false",
+      };
+    }
+    if (!hasDataForSeoCredentials()) {
+      return {
+        provider,
+        enabled: false,
+        skipReason: "missing_credentials",
+        detail:
+          "DATAFORSEO_USERNAME / DATAFORSEO_PASSWORD missing on this process (maps worker needs them)",
+      };
+    }
+    return { provider, enabled: true };
   }
   if (provider === "scrapingdog") {
-    return mapsFallbackEnabled() && scrapingDogMapsEnabled() && hasScrapingDogCredentials();
+    if (!scrapingDogMapsEnabled()) {
+      return {
+        provider,
+        enabled: false,
+        skipReason: "provider_disabled",
+        detail: "SCRAPINGDOG_MAPS_ENABLED is false",
+      };
+    }
+    if (!hasScrapingDogCredentials()) {
+      return {
+        provider,
+        enabled: false,
+        skipReason: "missing_credentials",
+        detail:
+          "SCRAPINGDOG_API_KEY missing on this process (maps worker needs it)",
+      };
+    }
+    return { provider, enabled: true };
   }
-  return false;
+  return { provider, enabled: false, skipReason: "provider_disabled", detail: "unknown provider" };
 }
 
-async function filterProviders(providers: MapsProviderId[]): Promise<MapsProviderId[]> {
-  const out: MapsProviderId[] = [];
+/** Resolve which of the requested providers can actually run right now. */
+export async function resolveUsableMapsProviders(
+  providers: MapsProviderId[]
+): Promise<{
+  usable: MapsProviderId[];
+  skipped: MapsProviderAvailability[];
+}> {
+  const skipped: MapsProviderAvailability[] = [];
+  const usable: MapsProviderId[] = [];
   for (const p of providers) {
-    if (!providerEnabled(p)) continue;
+    const availability = describeMapsProviderAvailability(p);
+    if (!availability.enabled) {
+      skipped.push(availability);
+      continue;
+    }
     if (p === "brightdata") {
       const circuit = await getMapsProviderCircuit("brightdata");
-      if (circuit.state === "open") continue;
+      if (circuit.state === "open") {
+        skipped.push({
+          provider: p,
+          enabled: false,
+          skipReason: "circuit_open",
+          detail: circuit.reason ?? "Bright Data circuit open",
+        });
+        continue;
+      }
     }
-    out.push(p);
+    usable.push(p);
   }
-  return out;
+  return { usable, skipped };
+}
+
+export function logMapsProviderAvailability(context: string): void {
+  for (const provider of ["brightdata", "dataforseo", "scrapingdog"] as MapsProviderId[]) {
+    const a = describeMapsProviderAvailability(provider);
+    if (a.enabled) {
+      console.log(`[MapsProviders] ${context} ${provider}=ready`);
+    } else {
+      console.warn(
+        `[MapsProviders] ${context} ${provider}=SKIPPED reason=${a.skipReason} detail=${a.detail ?? ""}`
+      );
+    }
+  }
 }
 
 /**
@@ -68,7 +159,8 @@ async function filterProviders(providers: MapsProviderId[]): Promise<MapsProvide
  * Never overwrites success — returns on first valid item list.
  */
 export async function fetchMapsCell(params: FetchMapsCellParams): Promise<MapsCellFetchResult> {
-  const providers = await filterProviders(params.providers);
+  const resolved = await resolveUsableMapsProviders(params.providers);
+  const providers = resolved.usable;
   const attempts: MapsProviderAttempt[] = [];
   const maxAttempts = maxTotalProviderAttemptsPerCell();
   let attemptBudget = 0;
@@ -76,16 +168,19 @@ export async function fetchMapsCell(params: FetchMapsCellParams): Promise<MapsCe
   let fallbackReason: string | null = null;
 
   if (!providers.length) {
+    const skipSummary = resolved.skipped
+      .map((s) => `${s.provider}:${s.skipReason ?? "skipped"}`)
+      .join(", ");
     return {
       ok: false,
       unresolvedReason: "provider_unresolved",
       primaryProvider,
       finalProvider: null,
       fallbackUsed: false,
-      fallbackReason: "no_providers_available",
+      fallbackReason: `no_providers_available:${skipSummary || "none"}`,
       attempts,
       lastCategory: "provider_unavailable",
-      lastErrorMessage: "No Maps providers available for this cell",
+      lastErrorMessage: `No Maps providers available for this cell (${skipSummary || "none configured"})`,
       providerLatencyMs: 0,
     };
   }

@@ -239,6 +239,11 @@ export function scanProgressMessage(batch: {
         ? `Completing remaining points with ScrapingDog… ${completed} / ${total}`
         : "Completing remaining points with ScrapingDog…";
     }
+    if (pass === "fallback-skipped" || conf.fallback_skipped) {
+      return total > 0
+        ? `Scan finishing with unresolved points… ${completed} / ${total}`
+        : "Scan finishing with unresolved points…";
+    }
     if (
       pass.startsWith("retry") ||
       pass === "integrity" ||

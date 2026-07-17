@@ -154,6 +154,17 @@ async function main() {
         err instanceof Error ? err.message : err
       );
     }
+    try {
+      const { logMapsProviderAvailability } = await import(
+        "../../src/lib/providers/maps-grid/orchestrator"
+      );
+      logMapsProviderAvailability("worker-boot");
+    } catch (err) {
+      console.warn(
+        "[worker] maps provider availability probe skipped:",
+        err instanceof Error ? err.message : err
+      );
+    }
   }
 
   const connection = getBullmqConnectionOptions(config.redisUrl, "worker");
