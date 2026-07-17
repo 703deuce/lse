@@ -10,13 +10,15 @@ import {
 } from "@/lib/reporting/artifacts";
 import {
   artifactContentType,
+  MIN_MAP_IMAGE_BYTES,
+  SINGLE_SCAN_PDF_EXPECTED_PAGES,
   SINGLE_SCAN_PDF_TEMPLATE_VERSION,
   type CompetitorLimit,
   type ReportArtifactKind,
 } from "@/lib/reporting/pdf/constants";
 import { renderHeatmapGridPng } from "@/lib/reporting/pdf/render-heatmap-image";
 import { renderScanMapPng } from "@/lib/reporting/pdf/render-map-image";
-import { renderSingleScanPdf } from "@/lib/reporting/pdf/render-single-scan-pdf";
+import { renderSingleScanPdfDetailed } from "@/lib/reporting/pdf/render-single-scan-pdf";
 import { singleScanPointsCsv, singleScanSummaryCsv } from "@/lib/reporting/scan-csv";
 import { loadScanGridData } from "@/lib/maps/scan-queries";
 import { logger } from "@/lib/observability/logger";
@@ -162,46 +164,93 @@ async function generateScanArtifactInner(params: {
       buffer = Buffer.from(singleScanSummaryCsv(payload), "utf8");
     } else if (params.kind === "points_csv") {
       buffer = Buffer.from(singleScanPointsCsv(payload), "utf8");
+    } else if (params.kind === "heatmap_png") {
+      // Heatmap is grid-only — do not call Google Static Maps.
+      buffer = await renderHeatmapGridPng({
+        gridSize: payload.parameters.gridSize,
+        cells: payload.heatmap.cells,
+      });
     } else {
-      if (params.kind === "heatmap_png") {
-        // Heatmap is grid-only — do not call Google Static Maps.
-        buffer = await renderHeatmapGridPng({
+      const rankByLabel = new Map(payload.heatmap.cells.map((c) => [c.label, c.rank]));
+      const pins = gridData.points.map((p) => ({
+        lat: p.lat,
+        lng: p.lng,
+        rank: rankByLabel.get(p.grid_label) ?? null,
+      }));
+
+      // PDF + map_png require a real Static Maps base — never ship gray placeholders.
+      // Portrait PDF map page uses a taller aspect so the image fills most of the sheet.
+      const mapDims =
+        params.kind === "pdf"
+          ? { width: 1024, height: 1280 }
+          : { width: 1280, height: 1280 };
+      const mapResult = await renderScanMapPng({
+        centerLat,
+        centerLng,
+        radiusMeters: payload.parameters.radiusMeters,
+        gridSize: payload.parameters.gridSize,
+        pins,
+        requireRealMap: true,
+        width: mapDims.width,
+        height: mapDims.height,
+      });
+
+      if (mapResult.mapSource !== "google_static") {
+        throw new Error(
+          `Map image source was ${mapResult.mapSource}; PDF/map exports require google_static.`
+        );
+      }
+      if (mapResult.bytes < MIN_MAP_IMAGE_BYTES) {
+        throw new Error(
+          `Map image too small (${mapResult.bytes} bytes < ${MIN_MAP_IMAGE_BYTES}). Static map likely failed.`
+        );
+      }
+
+      logger.info("scan_map_export_metrics", {
+        reportId,
+        kind: params.kind,
+        map_source: mapResult.mapSource,
+        map_image_bytes: mapResult.bytes,
+        map_width: mapResult.width,
+        map_height: mapResult.height,
+        map_generation_ms: mapResult.generationMs,
+      });
+
+      if (params.kind === "map_png") {
+        buffer = mapResult.buffer;
+      } else {
+        const heatmapPng = await renderHeatmapGridPng({
           gridSize: payload.parameters.gridSize,
           cells: payload.heatmap.cells,
         });
-      } else {
-        const rankByLabel = new Map(payload.heatmap.cells.map((c) => [c.label, c.rank]));
-        const pins = gridData.points.map((p) => ({
-          lat: p.lat,
-          lng: p.lng,
-          rank: rankByLabel.get(p.grid_label) ?? null,
-        }));
-
-        const mapPng = await renderScanMapPng({
+        const pdfResult = await renderSingleScanPdfDetailed({
+          payload,
+          mapPng: mapResult.buffer,
+          heatmapPng,
+          reportId,
+          competitorLimit: params.competitorLimit ?? 20,
           centerLat,
           centerLng,
-          radiusMeters: payload.parameters.radiusMeters,
-          gridSize: payload.parameters.gridSize,
-          pins,
         });
 
-        if (params.kind === "map_png") {
-          buffer = mapPng;
-        } else {
-          const heatmapPng = await renderHeatmapGridPng({
-            gridSize: payload.parameters.gridSize,
-            cells: payload.heatmap.cells,
-          });
-          buffer = await renderSingleScanPdf({
-            payload,
-            mapPng,
-            heatmapPng,
-            reportId,
-            competitorLimit: params.competitorLimit ?? 20,
-            centerLat,
-            centerLng,
-          });
+        logger.info("scan_pdf_export_metrics", {
+          reportId,
+          map_source: mapResult.mapSource,
+          map_image_bytes: mapResult.bytes,
+          map_width: mapResult.width,
+          map_height: mapResult.height,
+          map_generation_ms: mapResult.generationMs,
+          pdf_pages_expected: pdfResult.pdfPagesExpected,
+          pdf_pages_actual: pdfResult.pdfPagesActual,
+        });
+
+        if (pdfResult.pdfPagesActual !== SINGLE_SCAN_PDF_EXPECTED_PAGES) {
+          throw new Error(
+            `PDF page count mismatch: expected ${SINGLE_SCAN_PDF_EXPECTED_PAGES}, got ${pdfResult.pdfPagesActual}. Header/footer likely created extra pages.`
+          );
         }
+
+        buffer = pdfResult.buffer;
       }
     }
 

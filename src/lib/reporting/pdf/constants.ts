@@ -1,5 +1,11 @@
 /** Bump when PDF layout or metric packaging changes (forces new artifact version). */
-export const SINGLE_SCAN_PDF_TEMPLATE_VERSION = "single-scan-pdf-v1";
+export const SINGLE_SCAN_PDF_TEMPLATE_VERSION = "single-scan-pdf-v2";
+
+/** Expected physical page count for the dedicated single-scan print template. */
+export const SINGLE_SCAN_PDF_EXPECTED_PAGES = 4;
+
+/** Reject map images smaller than this (silent gray placeholders are typically tiny). */
+export const MIN_MAP_IMAGE_BYTES = 8_000;
 
 export const REPORT_ARTIFACT_KINDS = [
   "pdf",
