@@ -19,7 +19,7 @@ const importContactsPayloadSchema = z
     uploadId: uuid,
     businessId: uuid,
     organizationId: uuid,
-    mode: z.enum(["update", "skip_existing", "replace"]).optional(),
+    mode: z.enum(["create", "update", "skip"]).optional(),
   })
   .passthrough();
 

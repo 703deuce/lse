@@ -21,6 +21,7 @@ export function isMutatingMethod(method: string): boolean {
 export function isCsrfExemptPath(pathname: string): boolean {
   return (
     pathname.startsWith("/api/webhooks/") ||
+    pathname.startsWith("/api/integrations/webhooks/incoming/") ||
     pathname === "/api/jobs/process" ||
     pathname.startsWith("/api/automations/") ||
     pathname.startsWith("/auth/")

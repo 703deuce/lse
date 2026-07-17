@@ -51,7 +51,13 @@ export async function assertOrganizationCanEnqueue(
   organizationId: string | null | undefined,
   jobType?: string | null
 ): Promise<void> {
-  if (!organizationId) return;
+  if (!organizationId) {
+    // Fail closed for outbound / tenant-sensitive enqueue paths.
+    if (isOutboundJobType(jobType)) {
+      throw new Error("Organization required");
+    }
+    return;
+  }
   const org = await loadOrganizationGateStatus(organizationId);
   if (!org) {
     throw new Error("Organization not found");

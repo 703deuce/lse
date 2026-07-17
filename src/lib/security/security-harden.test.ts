@@ -64,6 +64,10 @@ describe("ASVS code hardenings", () => {
 
   it("enforces same-origin for mutating API calls", () => {
     assert.equal(isCsrfExemptPath("/api/webhooks/brevo/events"), true);
+    assert.equal(
+      isCsrfExemptPath("/api/integrations/webhooks/incoming/lsewh_test"),
+      true
+    );
     assert.equal(isCsrfExemptPath("/api/jobs/process"), true);
     assert.equal(isCsrfExemptPath("/api/scans/create"), false);
     assert.equal(
@@ -133,7 +137,11 @@ describe("ASVS code hardenings", () => {
   it("maps org roles to permissions", () => {
     assert.equal(roleHasPermission("owner", "org.delete"), true);
     assert.equal(roleHasPermission("admin", "report.share"), true);
-    assert.equal(roleHasPermission("member", "report.share"), false);
+    assert.equal(roleHasPermission("member", "report.share"), true);
+    assert.equal(roleHasPermission("member", "campaign.send"), true);
+    assert.equal(roleHasPermission("member", "billing.read"), true);
+    assert.equal(roleHasPermission("member", "contacts.read"), true);
+    assert.equal(roleHasPermission("readonly", "contacts.read"), false);
     assert.equal(roleHasPermission("readonly", "business.read"), true);
     assert.equal(roleHasPermission("readonly", "scan.run"), false);
   });
@@ -162,6 +170,20 @@ describe("ASVS code hardenings", () => {
       scanBatchId: "00000000-0000-4000-8000-000000000001",
     });
     assert.equal(good.ok, true);
+    const importOk = parseJobPayload("import_contacts", {
+      uploadId: "00000000-0000-4000-8000-000000000001",
+      businessId: "00000000-0000-4000-8000-000000000002",
+      organizationId: "00000000-0000-4000-8000-000000000003",
+      mode: "create",
+    });
+    assert.equal(importOk.ok, true);
+    const importBadMode = parseJobPayload("import_contacts", {
+      uploadId: "00000000-0000-4000-8000-000000000001",
+      businessId: "00000000-0000-4000-8000-000000000002",
+      organizationId: "00000000-0000-4000-8000-000000000003",
+      mode: "skip_existing",
+    });
+    assert.equal(importBadMode.ok, false);
   });
 
   it("redacts secrets from log payloads", async () => {
@@ -266,11 +288,13 @@ describe("ASVS code hardenings", () => {
     try {
       const opts = supabaseCookieOptions();
       assert.equal(opts.secure, true);
-      assert.equal(opts.httpOnly, true);
+      // Auth cookies must stay JS-readable for @supabase/ssr browser clients.
+      assert.equal(opts.httpOnly, false);
       assert.equal(opts.sameSite, "lax");
-      const merged = mergeCookieOptions({ path: "/custom" });
+      const merged = mergeCookieOptions({ path: "/custom", httpOnly: true });
       assert.equal(merged.secure, true);
       assert.equal(merged.path, "/custom");
+      assert.equal(merged.httpOnly, true);
     } finally {
       process.env.NODE_ENV = prev;
     }

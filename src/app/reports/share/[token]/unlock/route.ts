@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { createServiceClient } from "@/lib/db/client";
 import { hashShareToken } from "@/lib/reporting/share-token";
 import {
@@ -54,8 +53,8 @@ export async function POST(
 
   const hashForCookie = String(report.share_token_hash ?? tokenHash);
   const cookieName = shareUnlockCookieName(hashForCookie);
-  const cookieStore = await cookies();
-  cookieStore.set(
+  const response = NextResponse.redirect(new URL(`/reports/share/${token}`, request.url));
+  response.cookies.set(
     cookieName,
     "1",
     mergeCookieOptions({
@@ -66,6 +65,5 @@ export async function POST(
       maxAge: SHARE_UNLOCK_COOKIE_MAX_AGE_SEC,
     })
   );
-
-  return NextResponse.redirect(new URL(`/reports/share/${token}`, request.url));
+  return response;
 }

@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { isDevBypassEnabled } from "@/lib/auth/dev";
 
-const DEFAULT_MAX_AGE_MS = Number(process.env.SENSITIVE_REAUTH_MAX_AGE_MS ?? 15 * 60 * 1000);
+const DEFAULT_MAX_AGE_MS = Number(process.env.SENSITIVE_REAUTH_MAX_AGE_MS ?? 60 * 60 * 1000);
 
 function decodeJwtPayload(token: string): Record<string, unknown> | null {
   try {
