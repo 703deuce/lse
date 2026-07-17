@@ -32,6 +32,21 @@ export type MapsLiveRequestPayload = {
   };
 };
 
+/** DataForSEO docs: max 7 decimal digits for lat/lng in location_coordinate. */
+function roundCoord(n: number): number {
+  return Math.round(n * 1e7) / 1e7;
+}
+
+/**
+ * DataForSEO Maps Live Advanced requires:
+ *   location_coordinate = "latitude,longitude,zoom" with zoom like `17z`
+ * (see docs.dataforseo.com serp/google/maps/live/advanced).
+ */
+export function formatMapsLocationCoordinate(lat: number, lng: number, zoom: number): string {
+  const z = Number.isFinite(zoom) ? Math.min(21, Math.max(3, Math.round(zoom))) : 17;
+  return `${roundCoord(lat)},${roundCoord(lng)},${z}z`;
+}
+
 export function buildMapsLiveRequest(params: {
   keyword: string;
   lat: number;
@@ -48,10 +63,12 @@ export function buildMapsLiveRequest(params: {
   const zoom = params.zoom ?? LOCAL_FALCON_PARITY.locationZoom;
   const depth = Math.min(params.depth ?? mapsDepthDefault(), 100);
   const keyword = params.keyword.trim();
+  const lat = roundCoord(params.lat);
+  const lng = roundCoord(params.lng);
 
   return {
     keyword,
-    location_coordinate: `${params.lat},${params.lng},${zoom}`,
+    location_coordinate: formatMapsLocationCoordinate(lat, lng, zoom),
     language_code: params.languageCode ?? LOCAL_FALCON_PARITY.languageCode ?? MAPS_LANGUAGE,
     device: params.profile.device,
     os: params.profile.os,
@@ -62,8 +79,8 @@ export function buildMapsLiveRequest(params: {
     _meta: {
       endpoint: MAPS_LIVE_ENDPOINT,
       search_engine: LOCAL_FALCON_PARITY.searchEngine,
-      lat: params.lat,
-      lng: params.lng,
+      lat,
+      lng,
       zoom,
       personalization: "none",
       browser: params.profile.browser,

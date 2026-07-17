@@ -117,9 +117,16 @@ export function isScanMapReady(
   if (totalPoints <= 0) return false;
   if (areCellsInFlight(status)) return false;
 
-  // Retries/integrity can still overwrite ranks — do not freeze the map pins yet
-  // even if soft-ready already set rank_ready_at / finished_at.
+  // Retries/integrity/secondary fallback can still overwrite ranks — keep the
+  // wait screen up. Do not reveal pins from soft-ready timestamps alone.
   if (isGridPassStillSettling(batch)) return false;
+
+  const pass = String(
+    ((batch.confidence_summary as { pass?: unknown } | null)?.pass ?? "") as string
+  );
+  // Product rule: wait UI → map only after the runner writes pass=complete.
+  // Legacy rows without `pass` still reveal when finished + all results present.
+  if (pass && pass !== "complete") return false;
 
   // Must have a result row per grid point — same data a hard refresh would load.
   if (loadedResults < totalPoints) return false;

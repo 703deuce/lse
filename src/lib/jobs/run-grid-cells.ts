@@ -6,7 +6,6 @@ import { matchTargetInResults } from "@/lib/providers/dataforseo/match-target";
 import {
   elapsedSec,
   logCellPhaseTimings,
-  softReadyMinSuccess,
   type CellPhaseTimings,
 } from "@/lib/jobs/scan-cell-benchmark";
 import { saveCellTelemetry } from "@/lib/jobs/scan-cell-telemetry";
@@ -1090,14 +1089,11 @@ export async function runGridCellsLive(params: {
 
   const allTimings: CellPhaseTimings[] = [];
   const scanWallStart = performance.now();
-  let rankReadyStarted = false;
   let rankReadyPromise: Promise<void> | null = null;
-  const softMin = softReadyMinSuccess(totalCells);
 
   const onSoftReady = async () => {
     if (!params.onSoftReady) return;
     if (!rankReadyPromise) {
-      rankReadyStarted = true;
       rankReadyPromise = params.onSoftReady();
     }
     await rankReadyPromise;
@@ -1112,10 +1108,8 @@ export async function runGridCellsLive(params: {
     }
   };
 
-  // Already past soft-ready threshold from prior progress — promote immediately.
-  if (alreadyComplete >= softMin && params.onSoftReady) {
-    await onSoftReady();
-  }
+  // Never soft-ready / finalize before the full grid settles (BD + secondaries +
+  // integrity). Wait UI holds; map reveals only after pass=complete.
 
   if (jobs.length === 0) {
     const integrity = await runIntegrityPass({
@@ -1156,11 +1150,6 @@ export async function runGridCellsLive(params: {
     console.log(
       `[Scan] Primary batch ${batchIndex + 1}/${primaryChunks.length}: ${chunk.length} cells`
     );
-    // When trailing=0 (softMin===totalCells), never soft-ready mid-primary —
-    // retries/integrity can still rewrite ranks after all cells "settle".
-    // Soft-ready fires only after the complete pass (below) so pins stay fresh.
-    const allowMidPrimarySoftReady =
-      !rankReadyStarted && softMin < totalCells && softMin > 0;
     const pass = await runJobsWithConcurrency(chunk, {
       scanBatchId: params.scanBatchId,
       depth,
@@ -1175,8 +1164,7 @@ export async function runGridCellsLive(params: {
       recoveryStage: "scanning_brightdata",
       completedOffset,
       updateProgress: true,
-      softReadyMinSuccess: allowMidPrimarySoftReady ? softMin : undefined,
-      onSoftReady: allowMidPrimarySoftReady ? onSoftReady : undefined,
+      // No mid-primary soft-ready — map waits until pass=complete after integrity.
       onCellSettled,
       organizationId: params.organizationId,
     });

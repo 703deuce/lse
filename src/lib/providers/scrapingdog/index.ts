@@ -184,8 +184,12 @@ export async function mapsSearchAtCoordinate(params: {
 }): Promise<MapsSearchResult[]> {
   const queryParams: Record<string, string> = { query: params.query.trim() };
   if (params.lat != null && params.lng != null) {
+    // ScrapingDog docs: ll=@lat,lng,zoomz — not DataForSEO's location_coordinate.
     const zoom = params.zoom ?? 17;
-    queryParams.ll = `@${params.lat},${params.lng},${zoom}z`;
+    const z = Number.isFinite(zoom) ? Math.min(30, Math.max(3, zoom)) : 17;
+    const lat = Math.round(params.lat * 1e7) / 1e7;
+    const lng = Math.round(params.lng * 1e7) / 1e7;
+    queryParams.ll = `@${lat},${lng},${z}z`;
   }
   if (params.domain) queryParams.domain = params.domain;
   if (params.language) queryParams.language = params.language;

@@ -32,6 +32,14 @@ export type MapsGridRequest = {
   };
 };
 
+/** ScrapingDog docs: ll=@latitude,longitude,zoomz (e.g. @40.74,-74.00,15.1z). */
+function formatScrapingDogLl(lat: number, lng: number, zoom: number): string {
+  const z = Number.isFinite(zoom) ? Math.min(30, Math.max(3, zoom)) : 17;
+  const latR = Math.round(lat * 1e7) / 1e7;
+  const lngR = Math.round(lng * 1e7) / 1e7;
+  return `@${latR},${lngR},${z}z`;
+}
+
 export function buildMapsGridRequest(params: {
   keyword: string;
   lat: number;
@@ -49,7 +57,7 @@ export function buildMapsGridRequest(params: {
   return {
     endpoint: "https://api.scrapingdog.com/google_maps",
     query: kw,
-    ll: `@${params.lat},${params.lng},${zoom}z`,
+    ll: formatScrapingDogLl(params.lat, params.lng, zoom),
     domain: LOCAL_FALCON_PARITY.seDomain,
     language: LOCAL_FALCON_PARITY.languageCode,
     country: LOCAL_FALCON_PARITY.countryCode.toLowerCase(),
@@ -62,7 +70,7 @@ export function buildMapsGridRequest(params: {
       provider: "scrapingdog",
       location_zoom: zoom,
       scan_profile: { device: params.device, os: params.os, browser: params.browser },
-      note: "ScrapingDog has no device param; profile stored for Local Falcon parity metadata",
+      note: "ScrapingDog google_maps uses query+ll (not DataForSEO location_coordinate)",
     },
   };
 }

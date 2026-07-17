@@ -41,4 +41,20 @@ describe("scan map ready / retry pin settle", () => {
     assert.equal(isGridPassStillSettling({ confidence_summary: {} }), false);
     assert.equal(isGridPassStillSettling({ confidence_summary: { pass: "complete" } }), false);
   });
+
+  it("keeps wait UI up during secondary fallback even if rank_ready timestamps exist", () => {
+    const batch = {
+      status: "rank_ready",
+      rank_ready_at: new Date().toISOString(),
+      finished_at: new Date().toISOString(),
+      cells_completed: 33,
+      cells_total: 49,
+      confidence_summary: {
+        pass: "fallback-secondary",
+        recovery_stage: "fallback_dataforseo",
+      },
+    };
+    assert.equal(isScanMapReady(batch, 33, 49), false);
+    assert.equal(shouldPollUntilMapReady(batch, 33, 49), true);
+  });
 });

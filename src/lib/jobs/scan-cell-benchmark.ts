@@ -72,13 +72,12 @@ export function mapsConcurrencyForCellCount(totalCells: number): number {
 }
 
 /**
- * Min successful cells before soft rank_ready.
- * Default trailing=0: wait until every cell settles (incl. retries) before rank_ready.
- * Set GRID_SOFT_READY_TRAILING (e.g. 3) only if you want an early map again.
+ * Soft rank_ready threshold.
+ *
+ * Product rule: wait UI holds until the full grid (incl. BD backup + secondary
+ * fallbacks + integrity) finishes — no progressive bubble map. Always require
+ * every cell to settle before rank_ready. GRID_SOFT_READY_TRAILING is ignored.
  */
 export function softReadyMinSuccess(totalCells: number): number {
-  const trailing = Number(process.env.GRID_SOFT_READY_TRAILING ?? 0);
-  const maxTrailing = Number.isFinite(trailing) && trailing >= 0 ? Math.min(trailing, 10) : 0;
-  if (maxTrailing === 0 || totalCells <= maxTrailing + 1) return totalCells;
-  return totalCells - maxTrailing;
+  return Math.max(0, totalCells);
 }

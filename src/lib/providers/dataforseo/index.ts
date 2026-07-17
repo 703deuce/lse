@@ -417,7 +417,7 @@ export async function taskPostMaps(params: {
   const payload = params.tasks.map((t) => {
     const task: Record<string, unknown> = {
       keyword: t.keyword,
-      location_coordinate: `${t.lat},${t.lng},14`,
+      location_coordinate: `${Math.round(t.lat * 1e7) / 1e7},${Math.round(t.lng * 1e7) / 1e7},14z`,
       language_code: "en",
       device: "desktop",
       os: "windows",
