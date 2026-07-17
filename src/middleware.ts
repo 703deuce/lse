@@ -2,8 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { getDevDefaultAppPath, isDevBypassEnabled } from "@/lib/auth/dev";
 import { REQUEST_ID_HEADER, resolveRequestId } from "@/lib/observability/request-id";
-import { isCsrfExemptPath, isSameOriginMutation } from "@/lib/security/csrf";
+import { evaluateSameOriginMutation, isCsrfExemptPath } from "@/lib/security/csrf";
 import { assertRateLimit } from "@/lib/security/rate-limit";
+import { logger } from "@/lib/observability/logger";
 import { mergeCookieOptions } from "@/lib/supabase/cookie-options";
 
 const PUBLIC_PREFIXES = [
@@ -62,17 +63,30 @@ export async function middleware(request: NextRequest) {
       denied.headers.set(REQUEST_ID_HEADER, requestId);
       return denied;
     }
-    if (
-      !isCsrfExemptPath(pathname) &&
-      !isSameOriginMutation({
+    if (!isCsrfExemptPath(pathname)) {
+      const decision = evaluateSameOriginMutation({
         method: request.method,
         url: request.url,
         headers: request.headers,
-      })
-    ) {
-      const denied = NextResponse.json({ error: "Invalid origin" }, { status: 403 });
-      denied.headers.set(REQUEST_ID_HEADER, requestId);
-      return denied;
+      });
+      if (!decision.ok) {
+        const d = decision.diagnostics;
+        logger.warn("csrf_origin_rejected", {
+          requestId,
+          origin: d.origin,
+          refererOrigin: d.refererOrigin,
+          expected: d.canonicalOrigin,
+          allowedOrigins: d.allowedOrigins,
+          requestHost: d.requestHost,
+          forwardedHost: d.forwardedHost,
+          forwardedProto: d.forwardedProto,
+          path: d.path || pathname,
+          reason: d.reason,
+        });
+        const denied = NextResponse.json({ error: "Invalid origin" }, { status: 403 });
+        denied.headers.set(REQUEST_ID_HEADER, requestId);
+        return denied;
+      }
     }
     return nextWithRequestId(request, requestId);
   }
