@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import {
@@ -56,8 +57,6 @@ export async function GET(request: Request) {
       keyword: { id: kwRow.id, keyword: String(kwRow.keyword).trim() },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Latest scan lookup failed";
-    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Latest scan lookup failed");
   }
 }

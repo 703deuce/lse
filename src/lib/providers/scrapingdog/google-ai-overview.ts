@@ -173,12 +173,26 @@ async function fetchAiOverviewByGoogleUrl(fetchUrl: string, organizationId?: str
   return data;
 }
 
+function assertScrapingDogHost(rawUrl: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error("Invalid ScrapingDog link");
+  }
+  if (parsed.protocol !== "https:") throw new Error("Invalid ScrapingDog link");
+  const host = parsed.hostname.toLowerCase();
+  if (host !== "api.scrapingdog.com" && host !== "scrapingdog.com" && !host.endsWith(".scrapingdog.com")) {
+    throw new Error("ScrapingDog link host not allowed");
+  }
+}
+
 async function fetchAiOverviewByScrapingDogLink(
   scrapingdogLink: string,
   organizationId?: string
 ): Promise<Record<string, unknown>> {
   const start = Date.now();
-  // scrapingdog_link already includes api_key + url — call it as-is.
+  assertScrapingDogHost(scrapingdogLink);
   const res = await fetch(scrapingdogLink, {
     headers: { Accept: "application/json" },
     cache: "no-store",

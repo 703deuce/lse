@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireAuth } from "@/lib/auth/context";
 import { requireInternalMapsDifficulty } from "@/lib/auth/plan-guards";
 import { BUSINESS_BASE_GEOCODE_ERROR, geocodeBusinessBase } from "@/lib/maps-difficulty/geocode";
@@ -90,8 +91,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ expansionReach, kdResult: kd });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Expansion Reach calculation failed";
-    const status = message === BUSINESS_BASE_GEOCODE_ERROR ? 400 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Expansion Reach calculation failed");
   }
 }

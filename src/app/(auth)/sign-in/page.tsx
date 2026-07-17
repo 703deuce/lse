@@ -9,7 +9,12 @@ export default async function SignInPage({
 }) {
   const params = await searchParams;
   const devBypass = isDevBypassEnabled();
-  const devHref = params.next?.startsWith("/") ? params.next : getDevDefaultAppPath();
+  const rawNext = params.next ?? "";
+  const safeNext =
+    rawNext.startsWith("/") && !rawNext.startsWith("//") && !rawNext.includes("\\")
+      ? rawNext
+      : null;
+  const devHref = safeNext ?? getDevDefaultAppPath();
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg p-8">

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireScanAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import {
@@ -85,8 +86,6 @@ export async function GET(
           : undefined,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Cell fetch failed";
-    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Cell fetch failed");
   }
 }

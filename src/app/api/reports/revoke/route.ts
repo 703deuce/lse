@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
+import { requireRecentAuth } from "@/lib/auth/reauth";
 import { createServiceClient } from "@/lib/db/client";
+import { httpErrorFromException } from "@/lib/security/http-errors";
+import { requestAuditMeta, writeSecurityAuditEvent } from "@/lib/security/audit-log";
 import { revokeReportSchema } from "@/lib/validation/schemas";
 
 export async function POST(request: Request) {
@@ -11,14 +15,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: parsed.error.message }, { status: 400 });
     }
 
+    await requireRecentAuth();
     const { businessId, reportId } = parsed.data;
-    await requireBusinessAccess(businessId);
+    const access = await requireBusinessAccess(businessId);
+    const auth = await requireOrganizationPermission("report.share", access.organizationId);
     const supabase = createServiceClient();
 
     const { data, error } = await supabase
       .from("reports")
       .update({
         share_token: null,
+        share_token_hash: null,
         share_expires_at: new Date().toISOString(),
         html_content: null,
         metadata_json: {},
@@ -29,19 +36,25 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return httpErrorFromException(error, "Revoke failed");
     }
     if (!data) {
       return NextResponse.json({ error: "Report not found or access denied" }, { status: 404 });
     }
 
+    const meta = requestAuditMeta(request);
+    await writeSecurityAuditEvent({
+      action: "report.share.revoke",
+      organizationId: access.organizationId,
+      actorUserId: auth.userId,
+      actorEmail: auth.email,
+      resourceType: "report",
+      resourceId: data.id,
+      ...meta,
+    });
+
     return NextResponse.json({ ok: true, reportId: data.id });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Revoke failed";
-    const status =
-      message.includes("access denied") || message.includes("Authentication required")
-        ? 403
-        : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Revoke failed");
   }
 }

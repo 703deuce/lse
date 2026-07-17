@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireAuth } from "@/lib/auth/context";
 import { BUSINESS_BASE_GEOCODE_ERROR, geocodeAddress, geocodeBusinessBase } from "@/lib/maps-difficulty/geocode";
 import { requireInternalMapsDifficulty } from "@/lib/auth/plan-guards";
@@ -115,8 +116,6 @@ export async function POST(request: Request) {
       label,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Maps difficulty failed";
-    const status = message.includes("Authentication") || message.includes("not included") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Maps difficulty failed");
   }
 }

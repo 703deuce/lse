@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
+import { requireRecentAuth } from "@/lib/auth/reauth";
 import { generateTypedReport } from "@/lib/reporting/generate-report";
 import {
   competitorsToCsv,
@@ -19,6 +21,8 @@ import {
 } from "@/lib/reporting/share-export";
 import { exportReportSchema } from "@/lib/validation/schemas";
 import { logger } from "@/lib/observability/logger";
+import { httpErrorFromException } from "@/lib/security/http-errors";
+import { requestAuditMeta, writeSecurityAuditEvent } from "@/lib/security/audit-log";
 import type { ReportType } from "@/lib/reporting/types";
 import { randomUUID } from "crypto";
 
@@ -154,6 +158,10 @@ export async function POST(request: Request) {
     }
 
     // ── HTML shareable report: reuse → enqueue → sync fallback ──
+    await requireRecentAuth();
+    const permAuth = await requireOrganizationPermission("report.share", auth.organizationId);
+    const auditMeta = requestAuditMeta(request);
+
     stage = "share_identity";
     const identityKey = shareIdentityKey({
       reportType,
@@ -253,6 +261,16 @@ export async function POST(request: Request) {
       campaignId: data.campaignId,
     });
 
+    await writeSecurityAuditEvent({
+      action: "report.share.create",
+      organizationId: auth.organizationId,
+      actorUserId: permAuth.userId,
+      actorEmail: permAuth.email,
+      resourceType: "report",
+      resourceId: pending.reportId,
+      ...auditMeta,
+    });
+
     stage = "share_enqueue";
     const { dispatchFeatureJob } = await import("@/lib/queue/dispatch");
     const job = await dispatchFeatureJob({
@@ -330,19 +348,21 @@ export async function POST(request: Request) {
       requestId,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Export failed";
     logger.error("report_export_failed", {
       requestId,
       organizationId,
       businessId,
       reportType,
       stage,
-      error: message,
+      error: err instanceof Error ? err.message : String(err),
       durationMs: Date.now() - started,
     });
-    return NextResponse.json(
-      { error: message, requestId, stage },
-      { status: exportStatus(message) }
-    );
+    if (err instanceof Error) {
+      const status = exportStatus(err.message);
+      if (status !== 500) {
+        return NextResponse.json({ error: err.message, requestId, stage }, { status });
+      }
+    }
+    return httpErrorFromException(err, "Export failed");
   }
 }

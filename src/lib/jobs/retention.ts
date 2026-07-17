@@ -9,6 +9,8 @@ export type RetentionResult = {
   sharesRevoked: number;
   webhookPayloadsScrubbed: number;
   providerWebhookEventsDeleted: number;
+  replyBodiesScrubbed: number;
+  contactsScrubbed: number;
 };
 
 const RETENTION_INTERVAL_MS = Number(process.env.RETENTION_INTERVAL_MS ?? 60 * 60 * 1000);
@@ -28,6 +30,53 @@ export async function runDataRetentionCleanup(): Promise<RetentionResult> {
   const providerRawDays = Number(process.env.RETENTION_PROVIDER_RAW_DAYS ?? 14);
   const jobsDays = Number(process.env.RETENTION_JOBS_DAYS ?? 14);
   const workspaceDays = Number(process.env.RETENTION_WORKSPACE_CACHE_DAYS ?? 7);
+  const contactMessageDays = Number(process.env.RETENTION_CONTACT_MESSAGE_DAYS ?? 365);
+  let replyBodiesScrubbed = 0;
+  let contactsScrubbed = 0;
+
+  try {
+    const { data: replies } = await supabase
+      .from("review_request_replies")
+      .update({ body: "", metadata: {} })
+      .lt("created_at", daysAgoIso(contactMessageDays))
+      .neq("body", "")
+      .select("id");
+    replyBodiesScrubbed = replies?.length ?? 0;
+  } catch (err) {
+    logger.warn("data_retention_reply_scrub_failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  try {
+    const { data: contacts } = await supabase
+      .from("review_request_contacts")
+      .update({
+        customer_name: null,
+        first_name: null,
+        last_name: null,
+        customer_email: null,
+        customer_phone: null,
+        phone_e164: null,
+        email_normalized: null,
+        notes: null,
+        latest_reply_snippet: null,
+        external_customer_id: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("consent_state", "revoked")
+      .lt("updated_at", daysAgoIso(contactMessageDays))
+      .or(
+        "customer_name.not.is.null,customer_email.not.is.null,customer_phone.not.is.null,notes.not.is.null,latest_reply_snippet.not.is.null"
+      )
+      .select("id");
+    contactsScrubbed = contacts?.length ?? 0;
+  } catch (err) {
+    logger.warn("data_retention_contact_scrub_failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   const webhookPayloadDays = Number(process.env.RETENTION_WEBHOOK_PAYLOAD_DAYS ?? 30);
 
   let telemetryDeleted = 0;
@@ -70,7 +119,7 @@ export async function runDataRetentionCleanup(): Promise<RetentionResult> {
 
   const { data: shares } = await supabase
     .from("reports")
-    .update({ share_token: null })
+    .update({ share_token: null, share_token_hash: null })
     .not("share_token", "is", null)
     .lt("share_expires_at", new Date().toISOString())
     .select("id");
@@ -107,6 +156,8 @@ export async function runDataRetentionCleanup(): Promise<RetentionResult> {
     sharesRevoked,
     webhookPayloadsScrubbed,
     providerWebhookEventsDeleted,
+    replyBodiesScrubbed,
+    contactsScrubbed,
   };
 
   logger.info("data_retention_cleanup", result);

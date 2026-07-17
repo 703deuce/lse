@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireAuth } from "@/lib/auth/context";
 import { requireInternalMapsDifficulty } from "@/lib/auth/plan-guards";
 import { listRuns } from "@/lib/maps-difficulty/store";
@@ -13,7 +14,6 @@ export async function GET() {
     const runs = await listRuns(auth.organizationId ?? null);
     return NextResponse.json({ runs });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load history";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Failed to load history");
   }
 }

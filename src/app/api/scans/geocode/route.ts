@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireAuth } from "@/lib/auth/context";
 import { geocodeAddress } from "@/lib/maps-difficulty/geocode";
 
@@ -20,7 +21,6 @@ export async function POST(request: Request) {
     const geo = await geocodeAddress(address);
     return NextResponse.json(geo);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Geocoding failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Geocoding failed");
   }
 }

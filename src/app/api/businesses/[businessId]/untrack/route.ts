@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 
@@ -44,9 +45,6 @@ export async function POST(
 
     return NextResponse.json({ ok: true, businessId, isTracked: false });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Untrack failed";
-    const status =
-      message.includes("access denied") || message.includes("not found") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Untrack failed");
   }
 }

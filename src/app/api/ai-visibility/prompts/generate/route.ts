@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { ensurePrimaryPrompt } from "@/lib/ai-visibility/engine";
 
@@ -36,7 +37,6 @@ export async function POST(request: Request) {
       promptCount: 1,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to generate prompts";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Failed to generate prompts");
   }
 }

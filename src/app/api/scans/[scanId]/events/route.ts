@@ -1,4 +1,5 @@
 import { requireScanAccess } from "@/lib/auth/api-auth";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { createServiceClient } from "@/lib/db/client";
 import { SCAN_POLL_STATUSES } from "@/lib/scans/status";
 

@@ -6,7 +6,25 @@ export function httpErrorFromException(
   fallbackMessage = "Request could not be completed"
 ): NextResponse {
   const message = err instanceof Error ? err.message : String(err);
+  const code =
+    err && typeof err === "object" && "code" in err
+      ? String((err as { code?: string }).code ?? "")
+      : "";
   const lower = message.toLowerCase();
+
+  if (code === "reauth_required" || lower.includes("reauthentication required")) {
+    return NextResponse.json(
+      { error: "Reauthentication required", code: "reauth_required" },
+      { status: 401 }
+    );
+  }
+
+  if (code === "mfa_required" || lower.includes("mfa required")) {
+    return NextResponse.json(
+      { error: "MFA required", code: "mfa_required" },
+      { status: 401 }
+    );
+  }
 
   if (
     lower.includes("authentication required") ||
@@ -14,6 +32,10 @@ export function httpErrorFromException(
     lower.includes("unauthorized")
   ) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
+  if (lower.includes("admin access required")) {
+    return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }
 
   if (

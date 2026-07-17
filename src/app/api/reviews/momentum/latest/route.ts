@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { loadLatestMomentumRun } from "@/lib/reviews/momentum-engine";
@@ -36,8 +37,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ ...data, campaignAttribution });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load momentum report";
-    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Failed to load momentum report");
   }
 }

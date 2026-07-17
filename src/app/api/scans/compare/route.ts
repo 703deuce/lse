@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireScanAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { loadScanGridData } from "@/lib/maps/scan-queries";
@@ -70,8 +71,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json(payload);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Compare failed";
-    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Compare failed");
   }
 }

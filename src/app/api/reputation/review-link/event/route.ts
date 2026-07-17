@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { logReviewRequestEvent } from "@/lib/reputation/review-requests";
 
@@ -47,7 +48,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ event });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to log event";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Failed to log event");
   }
 }

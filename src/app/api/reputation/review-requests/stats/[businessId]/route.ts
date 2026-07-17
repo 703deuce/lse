@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { loadReviewRequestStats } from "@/lib/reputation/review-sends";
 
@@ -12,7 +13,6 @@ export async function GET(
     const stats = await loadReviewRequestStats(businessId, auth.organizationId);
     return NextResponse.json(stats);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load stats";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Failed to load stats");
   }
 }

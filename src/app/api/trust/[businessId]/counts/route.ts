@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { getLocalTrustTypeCounts } from "@/lib/local-trust/engine";
 
@@ -22,7 +23,6 @@ export async function GET(
     );
     return NextResponse.json({ counts });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load counts";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Failed to load counts");
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import {
@@ -19,10 +20,7 @@ export async function GET(request: Request) {
     if (err instanceof EntitlementError) {
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
     }
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed" },
-      { status: 500 }
-    );
+    return httpErrorFromException(err, "Failed");
   }
 }
 
@@ -61,9 +59,6 @@ export async function PUT(request: Request) {
     if (err instanceof EntitlementError) {
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
     }
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed" },
-      { status: 500 }
-    );
+    return httpErrorFromException(err, "Failed");
   }
 }

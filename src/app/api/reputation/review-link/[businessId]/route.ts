@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { isDevPreviewBusiness } from "@/lib/auth/dev";
 
 export async function GET(
@@ -21,7 +22,6 @@ export async function GET(
     const data = await loadReviewRequestKit(businessId, auth.organizationId);
     return NextResponse.json(data);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load review request kit";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Failed to load review request kit");
   }
 }

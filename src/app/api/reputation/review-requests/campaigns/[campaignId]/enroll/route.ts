@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { EntitlementError, requireCampaignSendAccess } from "@/lib/auth/entitlements";
 import { enrollContactInCampaign } from "@/lib/automations/enroll-campaign";
@@ -77,8 +78,6 @@ export async function POST(
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
-    const message = err instanceof Error ? err.message : "Enrollment failed";
-    const status = /must be active|paused/i.test(message) ? 409 : 400;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Enrollment failed");
   }
 }

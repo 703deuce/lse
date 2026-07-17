@@ -28,6 +28,15 @@ export async function requireBusinessAccess(businessId: string): Promise<{
     .maybeSingle();
 
   if (!business) {
+    const { writeSecurityAuditEvent } = await import("@/lib/security/audit-log");
+    await writeSecurityAuditEvent({
+      action: "cross_tenant_denied",
+      organizationId: auth.organizationId,
+      actorUserId: auth.userId,
+      actorEmail: auth.email,
+      resourceType: "business",
+      resourceId: businessId,
+    });
     throw new Error("Business not found or access denied");
   }
 

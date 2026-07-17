@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 
@@ -53,7 +54,6 @@ export async function POST(request: Request) {
       created: true,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to add keyword";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Failed to add keyword");
   }
 }

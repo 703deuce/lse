@@ -1,12 +1,14 @@
-import { requireAuth } from "@/lib/auth/context";
-import { isAdminEmail } from "@/lib/auth/admin";
+import { requirePlatformAdmin } from "@/lib/auth/admin";
 import { AdminOpsClient } from "@/components/admin/admin-ops-client";
 import { ModuleHeader, ModulePage } from "@/components/ui/design-system";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
 export default async function AdminOpsPage() {
-  const auth = await requireAuth();
-  if (!isAdminEmail(auth.email)) notFound();
+  try {
+    await requirePlatformAdmin();
+  } catch {
+    redirect("/");
+  }
 
   return (
     <ModulePage wide>

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { deactivateKeyword } from "@/lib/keyword-tracker/engine";
 
@@ -15,7 +16,6 @@ export async function POST(request: Request) {
     await deactivateKeyword(keywordId, businessId);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to remove keyword";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Failed to remove keyword");
   }
 }

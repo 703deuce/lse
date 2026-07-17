@@ -26,6 +26,7 @@ import { processIntegrationWebhookEvent } from "@/lib/integrations/webhook-proce
 import { generateTypedReport } from "@/lib/reporting/generate-report";
 import { releaseUsage } from "@/lib/plans";
 import { logger } from "@/lib/observability/logger";
+import { parseJobPayload } from "@/lib/queue/payload-schemas";
 import type { QueueName } from "@/lib/queue/types";
 
 export type JobHandlerPayload = Record<string, unknown> & {
@@ -94,6 +95,12 @@ export async function executeJobType(
   jobType: string,
   payload: JobHandlerPayload
 ): Promise<JobHandlerResult> {
+  const validated = parseJobPayload(jobType, payload);
+  if (!validated.ok) {
+    return permanent(validated.error);
+  }
+  payload = validated.data as JobHandlerPayload;
+
   try {
     switch (jobType) {
       case "process_scan":

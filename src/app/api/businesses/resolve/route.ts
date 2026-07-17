@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireAuth } from "@/lib/auth/context";
 import { resolveBusinessSchema } from "@/lib/validation/schemas";
 import { myBusinessInfo } from "@/lib/providers/dataforseo";
@@ -71,7 +72,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ candidates });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Resolve failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Resolve failed");
   }
 }

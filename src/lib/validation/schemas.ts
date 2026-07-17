@@ -106,8 +106,8 @@ const reportLogoUrlSchema = z
       v === "" ||
       /^https?:\/\//i.test(v) ||
       v.startsWith("/") ||
-      /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/i.test(v),
-    "logoUrl must be an http(s) URL, site-relative path, or data:image… base64"
+      /^data:image\/(png|jpeg|jpg|gif|webp);base64,/i.test(v),
+    "logoUrl must be an http(s) URL, site-relative path, or data:image (no SVG) base64"
   );
 
 export const reportBrandingSchema = z.object({

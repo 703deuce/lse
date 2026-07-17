@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
-import { createServiceClient } from "@/lib/db/client";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
+import { requireRecentAuth } from "@/lib/auth/reauth";
 import type { CsvMapTarget } from "@/lib/reputation/bulk-csv";
+import { MAX_CSV_BYTES } from "@/lib/reputation/bulk-csv";
 import {
   errorReportToCsv,
   mappedRowsToImportRows,
@@ -12,6 +14,9 @@ import {
   type ContactImportRow,
 } from "@/lib/reputation/contact-import";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
+import { httpErrorFromException } from "@/lib/security/http-errors";
+import { requestAuditMeta, writeSecurityAuditEvent } from "@/lib/security/audit-log";
+import { createServiceClient } from "@/lib/db/client";
 
 const SYNC_ROW_LIMIT = 200;
 const MAX_ROWS = 5000;
@@ -98,14 +103,20 @@ export async function GET(request: Request) {
     if (err instanceof EntitlementError) {
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
     }
-    const message = err instanceof Error ? err.message : "Failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Import request failed");
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const rawBody = await request.text();
+    if (Buffer.byteLength(rawBody, "utf8") > MAX_CSV_BYTES) {
+      return NextResponse.json(
+        { error: `Import payload exceeds maximum size of ${MAX_CSV_BYTES} bytes` },
+        { status: 400 }
+      );
+    }
+    const body = JSON.parse(rawBody) as Record<string, unknown>;
     const businessId = body.businessId as string | undefined;
     const action = (body.action as string | undefined) ?? "import";
     const mode = (body.mode as ContactImportMode | undefined) ?? "update";
@@ -116,12 +127,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "businessId required" }, { status: 400 });
     }
 
-    const auth = await requireBusinessAccess(businessId);
-    await requireEntitlement(auth.organizationId, "review_campaigns");
+    const access = await requireBusinessAccess(businessId);
+    await requireEntitlement(access.organizationId, "review_campaigns");
+    const permAuth = await requireOrganizationPermission("contacts.import", access.organizationId);
 
-    let rows: ContactImportRow[] = Array.isArray(body.rows) ? body.rows : [];
+    let rows: ContactImportRow[] = Array.isArray(body.rows) ? (body.rows as ContactImportRow[]) : [];
     if ((!rows.length || action === "preview") && Array.isArray(body.csvRows) && Array.isArray(body.headers)) {
-      rows = mappedRowsToImportRows(body.headers, body.csvRows, mapping);
+      rows = mappedRowsToImportRows(
+        body.headers as string[],
+        body.csvRows as string[][],
+        mapping
+      );
     }
 
     if (!rows.length) {
@@ -146,7 +162,7 @@ export async function POST(request: Request) {
     const { data: upload, error: uploadErr } = await supabase
       .from("review_request_uploads")
       .insert({
-        organization_id: auth.organizationId,
+        organization_id: access.organizationId,
         business_id: businessId,
         filename,
         total_rows: rows.length,
@@ -154,12 +170,24 @@ export async function POST(request: Request) {
         status: useBackground ? "queued" : "running",
         mode,
         started_at: startedAt,
-        uploaded_by: auth.userId,
+        uploaded_by: access.userId,
         rows_json: useBackground ? rows : null,
       })
       .select("id")
       .single();
     if (uploadErr) throw new Error(uploadErr.message);
+
+    const meta = requestAuditMeta(request);
+    await writeSecurityAuditEvent({
+      action: "contacts.import",
+      organizationId: access.organizationId,
+      actorUserId: permAuth.userId,
+      actorEmail: permAuth.email,
+      resourceType: "review_request_upload",
+      resourceId: upload.id,
+      meta: { rowCount: rows.length, mode, background: useBackground },
+      ...meta,
+    });
 
     if (useBackground) {
       const job = await dispatchFeatureJob({
@@ -167,10 +195,10 @@ export async function POST(request: Request) {
         payload: {
           uploadId: upload.id,
           businessId,
-          organizationId: auth.organizationId,
+          organizationId: access.organizationId,
           mode,
         },
-        organizationId: auth.organizationId,
+        organizationId: access.organizationId,
         businessId,
         idempotencyKey: `review-import:${upload.id}`,
         priority: "normal",
@@ -187,12 +215,12 @@ export async function POST(request: Request) {
     }
 
     const result = await runContactImport({
-      organizationId: auth.organizationId,
+      organizationId: access.organizationId,
       businessId,
       uploadId: upload.id,
       mode,
       rows,
-      userId: auth.userId,
+      userId: access.userId,
     });
 
     return NextResponse.json({
@@ -206,7 +234,6 @@ export async function POST(request: Request) {
     if (err instanceof EntitlementError) {
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
     }
-    const message = err instanceof Error ? err.message : "Import failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Import failed");
   }
 }

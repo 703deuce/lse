@@ -1,17 +1,23 @@
 /**
  * Structured JSON logger — console only (no Sentry / third-party crash reporters).
+ * Sensitive keys are redacted before emit.
  */
+
+import { redactForLogs } from "@/lib/security/redact";
 
 export type LogFields = Record<string, unknown>;
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 
 function emit(level: LogLevel, msg: string, fields?: LogFields) {
+  const safeFields = fields
+    ? (redactForLogs(fields) as LogFields)
+    : undefined;
   const payload = {
     ts: new Date().toISOString(),
     level,
     msg,
-    ...fields,
+    ...safeFields,
   };
   const line = JSON.stringify(payload);
   if (level === "error") console.error(line);

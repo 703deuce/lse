@@ -1,5 +1,5 @@
-import { randomBytes } from "crypto";
 import { createServiceClient } from "@/lib/db/client";
+import { generateShareToken, hashShareToken } from "@/lib/reporting/share-token";
 import type { ReportType } from "@/lib/reporting/types";
 
 /** Stable identity for share reuse / idempotent enqueue (no time bucket). */
@@ -103,7 +103,8 @@ export async function createGeneratingShareRecord(params: {
   campaignId?: string | null;
 }): Promise<{ reportId: string; shareToken: string; shareUrl: string }> {
   const supabase = createServiceClient();
-  const shareToken = randomBytes(16).toString("hex");
+  const shareToken = generateShareToken();
+  const shareTokenHash = hashShareToken(shareToken);
   const shareExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
 
   // Reuse an in-flight generating row for the same identity (idempotent double-click).
@@ -137,6 +138,7 @@ export async function createGeneratingShareRecord(params: {
       business_id: params.businessId,
       scan_batch_id: scanBatchId,
       share_token: shareToken,
+      share_token_hash: shareTokenHash,
       share_expires_at: shareExpiresAt,
       html_content: null,
       artifact_kind: "html_share",

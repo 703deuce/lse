@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireAuth } from "@/lib/auth/context";
 import { isDevBypassEnabled } from "@/lib/auth/dev";
 import { isAdminEmail } from "@/lib/auth/admin";
@@ -113,13 +114,6 @@ export async function GET(
       }
     );
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Status failed";
-    const status =
-      message.includes("not authenticated") ||
-      message.includes("Unauthorized") ||
-      message.includes("Authentication required")
-        ? 401
-        : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Status failed");
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
@@ -26,9 +27,7 @@ export async function GET(request: Request) {
       radiusMeters: data?.radius_meters ?? null,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Schedule fetch failed";
-    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Schedule fetch failed");
   }
 }
 
@@ -112,8 +111,6 @@ export async function POST(request: Request) {
       radiusMeters,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Schedule failed";
-    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Schedule failed");
   }
 }

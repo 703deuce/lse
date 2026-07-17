@@ -1,10 +1,18 @@
 import { createServiceClient } from "@/lib/db/client";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { hashShareToken } from "@/lib/reporting/share-token";
+import { assertRateLimit } from "@/lib/security/rate-limit";
+import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
 /** Stop infinite refresh if the report worker never finishes. */
 const GENERATING_TIMEOUT_MS = 10 * 60 * 1000;
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false, nocache: true },
+};
 
 export default async function ShareReportPage({
   params,
@@ -12,19 +20,49 @@ export default async function ShareReportPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  if (!token || token.length < 16) notFound();
+  if (!token || token.length < 16 || token.length > 128) notFound();
+
+  const hdrs = await headers();
+  const ip =
+    hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    hdrs.get("x-real-ip") ??
+    "unknown";
+  const rate = assertRateLimit({
+    key: `share:${ip}`,
+    maxPerWindow: 60,
+    windowMs: 60_000,
+  });
+  if (!rate.ok) {
+    return (
+      <main className="flex min-h-dvh items-center justify-center bg-zinc-50 px-6">
+        <p className="text-sm text-zinc-600">Too many requests. Try again shortly.</p>
+      </main>
+    );
+  }
 
   const supabase = createServiceClient();
+  const tokenHash = hashShareToken(token);
 
-  const { data: report } = await supabase
+  // Prefer hash lookup; fall back to legacy plaintext column during migration.
+  let { data: report } = await supabase
     .from("reports")
     .select(
       "html_content, share_expires_at, artifact_status, error_message, business_id, generated_at"
     )
-    .eq("share_token", token)
+    .eq("share_token_hash", tokenHash)
     .maybeSingle();
 
-  // Revoked / unknown token — never leak existence details.
+  if (!report) {
+    const legacy = await supabase
+      .from("reports")
+      .select(
+        "html_content, share_expires_at, artifact_status, error_message, business_id, generated_at"
+      )
+      .eq("share_token", token)
+      .maybeSingle();
+    report = legacy.data;
+  }
+
   if (!report) notFound();
 
   if (report.share_expires_at) {
@@ -52,8 +90,6 @@ export default async function ShareReportPage({
         </main>
       );
     }
-
-    // Generating — auto-refresh until HTML is ready (capped by GENERATING_TIMEOUT_MS).
     return (
       <main className="flex min-h-dvh items-center justify-center bg-zinc-50 px-6">
         <div className="max-w-md rounded-xl border border-zinc-200 bg-white p-6 text-center shadow-sm">
@@ -72,13 +108,13 @@ export default async function ShareReportPage({
     );
   }
 
-  // Isolate full report document in an iframe so nested <html> never breaks the app shell.
   return (
     <iframe
       title="Shared report"
       className="h-dvh w-full border-0 bg-white"
       srcDoc={report.html_content}
       sandbox="allow-popups allow-popups-to-escape-sandbox"
+      referrerPolicy="no-referrer"
     />
   );
 }

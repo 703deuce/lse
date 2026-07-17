@@ -1,6 +1,6 @@
+import { requirePlatformAdmin } from "@/lib/auth/admin";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/context";
-import { isAdminEmail } from "@/lib/auth/admin";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { createServiceClient } from "@/lib/db/client";
 
 /**
@@ -9,10 +9,7 @@ import { createServiceClient } from "@/lib/db/client";
  */
 export async function GET(request: Request) {
   try {
-    const auth = await requireAuth();
-    if (!isAdminEmail(auth.email)) {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
-    }
+    const auth = await requirePlatformAdmin();
 
     const url = new URL(request.url);
     const organizationId = url.searchParams.get("organizationId");
@@ -86,7 +83,6 @@ export async function GET(request: Request) {
       recent: rows.slice(0, 25),
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load usage";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err);
   }
 }

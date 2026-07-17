@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import {
   artifactIdentityKey,
@@ -133,11 +134,6 @@ export async function POST(request: Request) {
       identityKey,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Artifact request failed";
-    const status =
-      message.includes("access denied") || message.includes("Authentication")
-        ? 403
-        : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Artifact request failed");
   }
 }

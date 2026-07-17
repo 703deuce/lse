@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { createSignedArtifactUrl } from "@/lib/reporting/artifacts";
@@ -39,11 +40,6 @@ export async function GET(
 
     return NextResponse.redirect(signedUrl, 302);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Download failed";
-    const status =
-      message.includes("access denied") || message.includes("Authentication")
-        ? 403
-        : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Download failed");
   }
 }
