@@ -163,42 +163,45 @@ async function generateScanArtifactInner(params: {
     } else if (params.kind === "points_csv") {
       buffer = Buffer.from(singleScanPointsCsv(payload), "utf8");
     } else {
-      const rankByLabel = new Map(payload.heatmap.cells.map((c) => [c.label, c.rank]));
-      const pins = gridData.points.map((p) => ({
-        lat: p.lat,
-        lng: p.lng,
-        rank: rankByLabel.get(p.grid_label) ?? null,
-      }));
-
-      const mapPng = await renderScanMapPng({
-        centerLat,
-        centerLng,
-        radiusMeters: payload.parameters.radiusMeters,
-        gridSize: payload.parameters.gridSize,
-        pins,
-      });
-
-      if (params.kind === "map_png") {
-        buffer = mapPng;
-      } else if (params.kind === "heatmap_png") {
+      if (params.kind === "heatmap_png") {
+        // Heatmap is grid-only — do not call Google Static Maps.
         buffer = await renderHeatmapGridPng({
           gridSize: payload.parameters.gridSize,
           cells: payload.heatmap.cells,
         });
       } else {
-        const heatmapPng = await renderHeatmapGridPng({
-          gridSize: payload.parameters.gridSize,
-          cells: payload.heatmap.cells,
-        });
-        buffer = await renderSingleScanPdf({
-          payload,
-          mapPng,
-          heatmapPng,
-          reportId,
-          competitorLimit: params.competitorLimit ?? 20,
+        const rankByLabel = new Map(payload.heatmap.cells.map((c) => [c.label, c.rank]));
+        const pins = gridData.points.map((p) => ({
+          lat: p.lat,
+          lng: p.lng,
+          rank: rankByLabel.get(p.grid_label) ?? null,
+        }));
+
+        const mapPng = await renderScanMapPng({
           centerLat,
           centerLng,
+          radiusMeters: payload.parameters.radiusMeters,
+          gridSize: payload.parameters.gridSize,
+          pins,
         });
+
+        if (params.kind === "map_png") {
+          buffer = mapPng;
+        } else {
+          const heatmapPng = await renderHeatmapGridPng({
+            gridSize: payload.parameters.gridSize,
+            cells: payload.heatmap.cells,
+          });
+          buffer = await renderSingleScanPdf({
+            payload,
+            mapPng,
+            heatmapPng,
+            reportId,
+            competitorLimit: params.competitorLimit ?? 20,
+            centerLat,
+            centerLng,
+          });
+        }
       }
     }
 
