@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireAuth } from "@/lib/auth/context";
 import {
   loadOrganizationReportBranding,
@@ -12,10 +13,7 @@ export async function GET() {
     const branding = await loadOrganizationReportBranding(auth.organizationId);
     return NextResponse.json({ branding });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load branding";
-    const status =
-      message.includes("Authentication required") || message.includes("access") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Failed to load branding");
   }
 }
 
@@ -54,13 +52,6 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({ branding });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to update branding";
-    const status =
-      message.includes("Authentication required") || message.includes("access")
-        ? 403
-        : message.includes("hex") || message.includes("accentColor")
-          ? 400
-          : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Failed to update branding");
   }
 }

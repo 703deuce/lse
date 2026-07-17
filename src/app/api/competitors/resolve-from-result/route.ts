@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { z } from "zod";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
@@ -77,7 +78,6 @@ export async function POST(request: Request) {
       name: competitor?.name ?? raw.name ?? "Unknown business",
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Resolve failed";
-    return NextResponse.json({ error: message }, { status: 403 });
+    return httpErrorFromException(err, "Resolve failed");
   }
 }

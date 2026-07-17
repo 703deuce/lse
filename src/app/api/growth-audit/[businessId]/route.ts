@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { loadLatestGrowthAudit } from "@/lib/growth-audit/engine";
 
@@ -30,7 +31,6 @@ export async function GET(
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load audit";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Failed to load audit");
   }
 }

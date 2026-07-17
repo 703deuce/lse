@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { z } from "zod";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
@@ -51,8 +52,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ location: row });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Update location failed";
-    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Update location failed");
   }
 }

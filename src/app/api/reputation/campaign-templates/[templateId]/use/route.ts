@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import { createServiceClient } from "@/lib/db/client";
@@ -123,9 +124,6 @@ export async function POST(
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
-    const message = err instanceof Error ? err.message : "Failed to use template";
-    const status =
-      /access denied|not found/i.test(message) ? 403 : /auth/i.test(message) ? 401 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Failed to use template");
   }
 }

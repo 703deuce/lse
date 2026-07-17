@@ -1,6 +1,6 @@
+import { requirePlatformAdmin } from "@/lib/auth/admin";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/context";
-import { isAdminEmail } from "@/lib/auth/admin";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import {
   countCampaignMessagePipeline,
   countJobsByQueueGroup,
@@ -98,10 +98,7 @@ async function pingRedis(): Promise<{ configured: boolean; ok: boolean; latencyM
 
 export async function GET() {
   try {
-    const auth = await requireAuth();
-    if (!isAdminEmail(auth.email)) {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
-    }
+    const auth = await requirePlatformAdmin();
 
     const [counts, queueGroups, campaignMessages, redis, webhooks] = await Promise.all([
       countJobsByStatus(),
@@ -143,7 +140,6 @@ export async function GET() {
       checkedAt: new Date().toISOString(),
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load ops overview";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err);
   }
 }

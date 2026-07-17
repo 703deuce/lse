@@ -11,6 +11,7 @@ import {
 import {
   CSV_TEMPLATE_HEADERS,
   MAP_TARGET_LABELS,
+  MAX_CSV_BYTES,
   buildSuggestedMappings,
   parseCsv,
   validateMappings,
@@ -169,6 +170,10 @@ export function ContactsImportWizard({
 
   const onFile = useCallback((file: File) => {
     setError(null);
+    if (file.size > MAX_CSV_BYTES) {
+      setError(`File exceeds the ${Math.round(MAX_CSV_BYTES / 1_000_000)}MB import limit.`);
+      return;
+    }
     setFilename(file.name);
     const reader = new FileReader();
     reader.onload = () => {

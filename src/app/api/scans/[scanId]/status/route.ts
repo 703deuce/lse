@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { createServiceClient } from "@/lib/db/client";
 import { requireScanAccess } from "@/lib/auth/api-auth";
 import { kickQueuedScanIfNeeded } from "@/lib/jobs/schedule-scan";
@@ -159,8 +160,6 @@ export async function GET(
       priorMetrics: priorBatch?.aggregate_metrics ?? null,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Status fetch failed";
-    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Status fetch failed");
   }
 }

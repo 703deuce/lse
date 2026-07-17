@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   return handle(request);
 }
 
-/** Coolify may schedule GET; still requires Bearer CRON_SECRET. */
-export async function GET(request: Request) {
-  return handle(request);
+/** Mutations must use POST — reject GET to avoid accidental crawler triggers. */
+export async function GET() {
+  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
 }

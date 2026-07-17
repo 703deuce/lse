@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createCitationTasksFromAudit, loadLatestCitationAudit } from "@/lib/citations/engine";
 
@@ -24,7 +25,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ created: tasks.length, tasks });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to create tasks";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Failed to create tasks");
   }
 }

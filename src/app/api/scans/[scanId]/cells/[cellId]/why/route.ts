@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireScanAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { loadScanGridDataForCell } from "@/lib/maps/scan-queries";
@@ -57,8 +58,6 @@ export async function GET(
 
     return NextResponse.json(why);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Why analysis failed";
-    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Why analysis failed");
   }
 }

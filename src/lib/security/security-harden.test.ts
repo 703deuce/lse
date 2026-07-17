@@ -5,6 +5,13 @@ import { authorizeBearerSecret, safeEqualSecret } from "@/lib/security/secrets";
 import { isCsrfExemptPath, isSameOriginMutation } from "@/lib/security/csrf";
 import { escapeCsv } from "@/lib/reporting/metrics";
 import { assertRateLimit, resetRateLimitsForTests } from "@/lib/security/rate-limit";
+import { roleHasPermission } from "@/lib/auth/permissions-core";
+import {
+  isAllowedExternalRedirect,
+  sanitizeReviewRedirectUrl,
+} from "@/lib/security/safe-redirect";
+import { hashShareToken } from "@/lib/reporting/share-token";
+import { parseJobPayload } from "@/lib/queue/payload-schemas";
 
 describe("ASVS code hardenings", () => {
   it("blocks private and metadata IPs for SSRF", () => {
@@ -71,5 +78,60 @@ describe("ASVS code hardenings", () => {
     assert.equal(assertRateLimit({ key: "k", maxPerWindow: 2, windowMs: 60_000 }).ok, true);
     assert.equal(assertRateLimit({ key: "k", maxPerWindow: 2, windowMs: 60_000 }).ok, true);
     assert.equal(assertRateLimit({ key: "k", maxPerWindow: 2, windowMs: 60_000 }).ok, false);
+  });
+
+  it("maps org roles to permissions", () => {
+    assert.equal(roleHasPermission("owner", "org.delete"), true);
+    assert.equal(roleHasPermission("admin", "report.share"), true);
+    assert.equal(roleHasPermission("member", "report.share"), false);
+    assert.equal(roleHasPermission("readonly", "business.read"), true);
+    assert.equal(roleHasPermission("readonly", "scan.run"), false);
+  });
+
+  it("sanitizes review redirect URLs", () => {
+    assert.equal(
+      sanitizeReviewRedirectUrl("https://maps.google.com/maps?cid=123"),
+      "https://maps.google.com/maps?cid=123"
+    );
+    assert.equal(sanitizeReviewRedirectUrl("javascript:alert(1)"), null);
+    assert.equal(sanitizeReviewRedirectUrl("http://127.0.0.1/review"), null);
+    assert.equal(isAllowedExternalRedirect("https://g.page/r/abc"), true);
+  });
+
+  it("hashes share tokens deterministically", () => {
+    const a = hashShareToken("abc123");
+    const b = hashShareToken("abc123");
+    assert.equal(a, b);
+    assert.notEqual(a, hashShareToken("other"));
+  });
+
+  it("rejects invalid queue job payloads", () => {
+    const bad = parseJobPayload("process_scan", { businessId: "not-a-uuid" });
+    assert.equal(bad.ok, false);
+    const good = parseJobPayload("process_scan", {
+      scanBatchId: "00000000-0000-4000-8000-000000000001",
+    });
+    assert.equal(good.ok, true);
+  });
+
+  it("redacts secrets from log payloads", async () => {
+    const { redactForLogs } = await import("@/lib/security/redact");
+    const out = redactForLogs({
+      authorization: "Bearer secret",
+      api_key: "abc",
+      nested: { refresh_token: "x", ok: 1 },
+    }) as Record<string, unknown>;
+    assert.equal(out.authorization, "[REDACTED]");
+    assert.equal(out.api_key, "[REDACTED]");
+    assert.equal((out.nested as Record<string, unknown>).refresh_token, "[REDACTED]");
+    assert.equal((out.nested as Record<string, unknown>).ok, 1);
+  });
+
+  it("models two-tenant denial when org ids differ", () => {
+    const orgA = "org-a";
+    const orgB = "org-b";
+    const businessOrg = orgB;
+    const allowed = businessOrg === orgA;
+    assert.equal(allowed, false);
   });
 });

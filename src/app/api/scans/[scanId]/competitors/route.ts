@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireScanAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import {
@@ -80,8 +81,7 @@ export async function GET(
         : null,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Competitors fetch failed";
-    return NextResponse.json({ error: message }, { status: 403 });
+    return httpErrorFromException(err, "Competitors fetch failed");
   }
 }
 
@@ -137,7 +137,6 @@ export async function POST(
       })),
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Competitors list failed";
-    return NextResponse.json({ error: message }, { status: 403 });
+    return httpErrorFromException(err, "Competitors list failed");
   }
 }

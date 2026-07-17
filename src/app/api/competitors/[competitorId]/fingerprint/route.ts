@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { buildFingerprintArtifact } from "@/lib/maps/workspace-artifacts";
@@ -113,7 +114,6 @@ export async function GET(
 
     return NextResponse.json(fingerprint);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Fingerprint failed";
-    return NextResponse.json({ error: message }, { status: 403 });
+    return httpErrorFromException(err, "Fingerprint failed");
   }
 }

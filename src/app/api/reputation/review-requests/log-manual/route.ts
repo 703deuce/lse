@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { logManualReviewSend } from "@/lib/reputation/review-sends";
 
@@ -32,8 +33,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, send });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Manual log failed";
-    const status = message.includes("Review link missing") ? 400 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Manual log failed");
   }
 }

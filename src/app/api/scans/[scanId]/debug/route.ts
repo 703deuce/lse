@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireScanAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { buildBrightDataMapsGridRequest, mapsGridDepth } from "@/lib/providers/brightdata/maps-grid";
@@ -105,8 +106,6 @@ export async function GET(
       cells,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Debug fetch failed";
-    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Debug fetch failed");
   }
 }

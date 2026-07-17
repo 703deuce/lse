@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
 import { getCurrentUsage, getOrganizationPlan } from "@/lib/plans";
@@ -57,7 +58,6 @@ export async function GET() {
       webhookEventsMonth: webhookEventsMonth ?? 0,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load account usage";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Failed to load account usage");
   }
 }

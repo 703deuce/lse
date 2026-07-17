@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireAuth } from "@/lib/auth/context";
 import {
   listCampaignSystemTemplates,
@@ -38,8 +39,6 @@ export async function GET(request: Request) {
       featuredId: templates.find((t) => t.featured)?.id ?? "sms-email-follow-up",
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to list templates";
-    const status = /auth/i.test(message) ? 401 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Failed to list templates");
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { hasFeature, PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
@@ -73,7 +74,6 @@ export async function POST(request: Request) {
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
-    const message = err instanceof Error ? err.message : "Growth audit failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Growth audit failed");
   }
 }

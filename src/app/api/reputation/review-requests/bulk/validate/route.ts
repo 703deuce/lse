@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import { applyMapping, type CsvMapTarget } from "@/lib/reputation/bulk-csv";
@@ -39,7 +40,6 @@ export async function POST(request: Request) {
     if (err instanceof EntitlementError) {
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
     }
-    const message = err instanceof Error ? err.message : "Validation failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Validation failed");
   }
 }

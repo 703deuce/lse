@@ -1,14 +1,11 @@
+import { requirePlatformAdmin } from "@/lib/auth/admin";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/context";
-import { isAdminEmail } from "@/lib/auth/admin";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { listJobsForAdmin } from "@/lib/queue/ledger";
 
 export async function GET(request: Request) {
   try {
-    const auth = await requireAuth();
-    if (!isAdminEmail(auth.email)) {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
-    }
+    const auth = await requirePlatformAdmin();
 
     const url = new URL(request.url);
     const jobs = await listJobsForAdmin({
@@ -21,7 +18,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ jobs });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to list jobs";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err);
   }
 }

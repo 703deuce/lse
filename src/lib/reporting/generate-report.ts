@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { generateShareToken, hashShareToken } from "@/lib/reporting/share-token";
 import { createServiceClient } from "@/lib/db/client";
 import { buildCompetitorReport } from "@/lib/reporting/build-competitor";
 import { buildKeywordReport } from "@/lib/reporting/build-keyword";
@@ -157,7 +157,7 @@ async function resolveExistingShare(
   const shareToken =
     matched?.share_token && !existingExpired
       ? (matched.share_token as string)
-      : randomBytes(16).toString("hex");
+      : generateShareToken();
 
   return {
     existingReportId: (matched?.id as string | undefined) ?? null,
@@ -205,6 +205,7 @@ async function persistReport(params: {
       .from("reports")
       .update({
         share_token: shareToken,
+        share_token_hash: hashShareToken(shareToken),
         share_expires_at: shareExpiresAt,
         html_content: params.html,
         metadata_json: metadata,
@@ -233,6 +234,7 @@ async function persistReport(params: {
       business_id: params.businessId,
       scan_batch_id: scanBatchId,
       share_token: shareToken,
+        share_token_hash: hashShareToken(shareToken),
       share_expires_at: shareExpiresAt,
       html_content: params.html,
       metadata_json: metadata,

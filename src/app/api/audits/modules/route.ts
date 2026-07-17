@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 import { getLatestModuleAudit } from "@/lib/audit/run-audit";
@@ -66,8 +67,7 @@ export async function POST(request: Request) {
       queueDriver: job.driver,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Audit module failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Audit module failed");
   }
 }
 
@@ -85,7 +85,6 @@ export async function GET(request: Request) {
     if (!row) return NextResponse.json({ error: "No audit result yet" }, { status: 404 });
     return NextResponse.json(row.result_json ?? {});
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load audit";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Failed to load audit");
   }
 }

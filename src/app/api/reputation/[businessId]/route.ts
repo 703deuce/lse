@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { loadLatestReputationAudit } from "@/lib/reputation/engine";
 
@@ -22,7 +23,6 @@ export async function GET(
     }
     return NextResponse.json(data);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load reputation audit";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Failed to load reputation audit");
   }
 }

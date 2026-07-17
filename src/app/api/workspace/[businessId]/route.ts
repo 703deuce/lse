@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { loadGbpProfile, loadCompetitorsForBusiness } from "@/lib/audit/run-audit";
@@ -69,7 +70,6 @@ export async function GET(
       center: [biz.scan_center_lat ?? biz.lat ?? 38.65, biz.scan_center_lng ?? biz.lng ?? -77.28],
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load workspace";
-    return NextResponse.json({ error: message }, { status: 403 });
+    return httpErrorFromException(err, "Failed to load workspace");
   }
 }

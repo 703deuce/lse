@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { dispatchScanProcessing } from "@/lib/jobs/schedule-scan";
@@ -190,8 +191,6 @@ export async function POST(request: Request) {
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
-    const message = err instanceof Error ? err.message : "Scan create failed";
-    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Scan create failed");
   }
 }

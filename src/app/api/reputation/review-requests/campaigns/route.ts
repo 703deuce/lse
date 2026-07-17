@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
+import { requireRecentAuth } from "@/lib/auth/reauth";
 import { createServiceClient } from "@/lib/db/client";
 import {
   createReviewCampaign,
@@ -13,6 +15,8 @@ import type { CsvMapTarget } from "@/lib/reputation/bulk-csv";
 import type { ValidatedRecipient } from "@/lib/reputation/bulk-validate";
 import { PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
 import { ymdInTimeZone } from "@/lib/reputation/campaign-scheduler";
+import { httpErrorFromException } from "@/lib/security/http-errors";
+import { requestAuditMeta, writeSecurityAuditEvent } from "@/lib/security/audit-log";
 
 export async function GET(request: Request) {
   try {
@@ -29,8 +33,7 @@ export async function GET(request: Request) {
     if (err instanceof EntitlementError) {
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
     }
-    const message = err instanceof Error ? err.message : "Failed to list campaigns";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Failed to list campaigns");
   }
 }
 
@@ -127,6 +130,11 @@ export async function POST(request: Request) {
     const tz = timezone ?? "America/New_York";
     const launchStatus = status ?? "active";
     const readyCount = recipients.filter((r) => r.status === "ready").length;
+    let permAuth: Awaited<ReturnType<typeof requireOrganizationPermission>> | null = null;
+    if (launchStatus === "active" || launchStatus === "scheduled") {
+      await requireRecentAuth();
+      permAuth = await requireOrganizationPermission("campaign.send", auth.organizationId);
+    }
     // Reserve bulk quota only when launching (not draft saves).
     const shouldReserve = launchStatus !== "draft" && readyCount > 0;
     if (shouldReserve) {
@@ -183,6 +191,19 @@ export async function POST(request: Request) {
           .eq("business_id", businessId)
           .eq("organization_id", auth.organizationId);
       }
+      if (permAuth && (launchStatus === "active" || launchStatus === "scheduled")) {
+        const meta = requestAuditMeta(request);
+        await writeSecurityAuditEvent({
+          action: "campaign.launch",
+          organizationId: auth.organizationId,
+          actorUserId: permAuth.userId,
+          actorEmail: permAuth.email,
+          resourceType: "review_request_campaign",
+          resourceId: result.campaign.id,
+          meta: { status: launchStatus, readyCount },
+          ...meta,
+        });
+      }
       return NextResponse.json(result);
     } catch (createErr) {
       if (shouldReserve) {
@@ -199,7 +220,6 @@ export async function POST(request: Request) {
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
-    const message = err instanceof Error ? err.message : "Failed to create campaign";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Failed to create campaign");
   }
 }

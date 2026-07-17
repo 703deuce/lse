@@ -1,24 +1,24 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/context";
-import { isAdminEmail } from "@/lib/auth/admin";
+import { requirePlatformAdmin } from "@/lib/auth/admin";
+import { requireRecentAuth } from "@/lib/auth/reauth";
 import { createServiceClient } from "@/lib/db/client";
 import { type PlanId, resetOrganizationUsage, setOrganizationPlan } from "@/lib/plans";
+import { httpErrorFromException } from "@/lib/security/http-errors";
+import { requestAuditMeta, writeSecurityAuditEvent } from "@/lib/security/audit-log";
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAuth();
-    if (!isAdminEmail(auth.email)) {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
-    }
-
+    await requireRecentAuth();
+    const auth = await requirePlatformAdmin();
     const { id } = await params;
     const body = (await request.json()) as {
       planId?: PlanId;
       outboundPaused?: boolean;
     };
+    const meta = requestAuditMeta(request);
 
     if (typeof body.outboundPaused === "boolean") {
       const supabase = createServiceClient();
@@ -27,8 +27,18 @@ export async function PATCH(
         .update({ outbound_paused: body.outboundPaused })
         .eq("id", id);
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: "Request could not be completed" }, { status: 500 });
       }
+      await writeSecurityAuditEvent({
+        action: "admin.outbound_pause",
+        organizationId: id,
+        actorUserId: auth.userId,
+        actorEmail: auth.email,
+        resourceType: "organization",
+        resourceId: id,
+        meta: { outboundPaused: body.outboundPaused },
+        ...meta,
+      });
       return NextResponse.json({ ok: true, outboundPaused: body.outboundPaused });
     }
 
@@ -37,10 +47,19 @@ export async function PATCH(
     }
 
     await setOrganizationPlan(id, body.planId);
+    await writeSecurityAuditEvent({
+      action: "admin.plan_change",
+      organizationId: id,
+      actorUserId: auth.userId,
+      actorEmail: auth.email,
+      resourceType: "organization",
+      resourceId: id,
+      meta: { planId: body.planId },
+      ...meta,
+    });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to update plan";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err);
   }
 }
 
@@ -49,39 +68,51 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAuth();
-    if (!isAdminEmail(auth.email)) {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
-    }
-
+    await requireRecentAuth();
+    const auth = await requirePlatformAdmin();
     const { id } = await params;
     const body = (await request.json()) as { action?: string };
-    if (body.action === "pause-outbound") {
-      const supabase = createServiceClient();
+    const meta = requestAuditMeta(request);
+    const supabase = createServiceClient();
+
+    if (body.action === "pause-outbound" || body.action === "resume-outbound") {
+      const paused = body.action === "pause-outbound";
       const { error } = await supabase
         .from("organizations")
-        .update({ outbound_paused: true })
+        .update({ outbound_paused: paused })
         .eq("id", id);
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ ok: true, outboundPaused: true });
-    }
-    if (body.action === "resume-outbound") {
-      const supabase = createServiceClient();
-      const { error } = await supabase
-        .from("organizations")
-        .update({ outbound_paused: false })
-        .eq("id", id);
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ ok: true, outboundPaused: false });
+      if (error) {
+        return NextResponse.json({ error: "Request could not be completed" }, { status: 500 });
+      }
+      await writeSecurityAuditEvent({
+        action: "admin.outbound_pause",
+        organizationId: id,
+        actorUserId: auth.userId,
+        actorEmail: auth.email,
+        resourceType: "organization",
+        resourceId: id,
+        meta: { outboundPaused: paused },
+        ...meta,
+      });
+      return NextResponse.json({ ok: true, outboundPaused: paused });
     }
     if (body.action !== "reset-usage") {
       return NextResponse.json({ error: "Unsupported action" }, { status: 400 });
     }
 
     await resetOrganizationUsage(id);
+    await writeSecurityAuditEvent({
+      action: "admin.plan_change",
+      organizationId: id,
+      actorUserId: auth.userId,
+      actorEmail: auth.email,
+      resourceType: "organization",
+      resourceId: id,
+      meta: { action: "reset-usage" },
+      ...meta,
+    });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to reset usage";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err);
   }
 }

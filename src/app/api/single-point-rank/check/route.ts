@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { z } from "zod";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
@@ -106,7 +107,6 @@ export async function POST(request: Request) {
       provider,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Rank check failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Rank check failed");
   }
 }

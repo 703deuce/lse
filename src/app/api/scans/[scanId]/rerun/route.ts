@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { createServiceClient } from "@/lib/db/client";
 import { dispatchScanProcessing } from "@/lib/jobs/schedule-scan";
 import { requireScanAccess } from "@/lib/auth/api-auth";
@@ -70,8 +71,6 @@ export async function POST(
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
-    const message = err instanceof Error ? err.message : "Rerun failed";
-    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Rerun failed");
   }
 }

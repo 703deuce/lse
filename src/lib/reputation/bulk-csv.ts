@@ -1,3 +1,14 @@
+export const MAX_CSV_BYTES = 2_000_000;
+export const MAX_CSV_COLUMNS = 40;
+export const MAX_CELL_CHARS = 2000;
+
+export class CsvParseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CsvParseError";
+  }
+}
+
 export type CsvMapTarget =
   | "ignore"
   | "first_name"
@@ -47,6 +58,11 @@ export function autoDetectMapping(header: string): CsvMapTarget {
 }
 
 export function parseCsv(text: string): { headers: string[]; rows: string[][] } {
+  const byteLength = Buffer.byteLength(text, "utf8");
+  if (byteLength > MAX_CSV_BYTES) {
+    throw new CsvParseError(`CSV exceeds maximum size of ${MAX_CSV_BYTES} bytes`);
+  }
+
   const lines: string[] = [];
   let current = "";
   let inQuotes = false;
@@ -100,6 +116,16 @@ export function parseCsv(text: string): { headers: string[]; rows: string[][] } 
 
   if (!parsed.length) return { headers: [], rows: [] };
   const headers = parsed[0].map((h) => h.replace(/^\uFEFF/, ""));
+  if (headers.length > MAX_CSV_COLUMNS) {
+    throw new CsvParseError(`CSV exceeds maximum of ${MAX_CSV_COLUMNS} columns`);
+  }
+  for (const row of parsed) {
+    for (const cell of row) {
+      if (cell.length > MAX_CELL_CHARS) {
+        throw new CsvParseError(`CSV cell exceeds maximum of ${MAX_CELL_CHARS} characters`);
+      }
+    }
+  }
   const rows = parsed.slice(1);
   return { headers, rows };
 }

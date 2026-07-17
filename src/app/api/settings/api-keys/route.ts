@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/context";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
+import { requireRecentAuth } from "@/lib/auth/reauth";
 import {
   createOrganizationApiKey,
   listOrganizationApiKeys,
   revokeOrganizationApiKey,
 } from "@/lib/auth/api-keys";
 import { appUrl } from "@/lib/app-url";
+import { httpErrorFromException } from "@/lib/security/http-errors";
+import { requestAuditMeta, writeSecurityAuditEvent } from "@/lib/security/audit-log";
 
 export async function GET(request: Request) {
   try {
@@ -16,15 +20,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "businessId required" }, { status: 400 });
     }
     const access = await requireBusinessAccess(businessId);
+    await requireOrganizationPermission("api_key.manage", access.organizationId);
     const keys = await listOrganizationApiKeys(access.organizationId);
     return NextResponse.json({
       keys,
       webhookUrl: appUrl("/api/webhooks/automation"),
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to list API keys";
-    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err);
   }
 }
 
@@ -38,13 +41,24 @@ export async function POST(request: Request) {
     if (!body.businessId) {
       return NextResponse.json({ error: "businessId required" }, { status: 400 });
     }
+    await requireRecentAuth();
     const access = await requireBusinessAccess(body.businessId);
-    const auth = await requireAuth();
+    const auth = await requireOrganizationPermission("api_key.manage", access.organizationId);
     const created = await createOrganizationApiKey({
       organizationId: access.organizationId,
       businessId: body.scopeToBusiness ? body.businessId : null,
       name: body.name,
       createdBy: auth.userId,
+    });
+    const meta = requestAuditMeta(request);
+    await writeSecurityAuditEvent({
+      action: "api_key.create",
+      organizationId: access.organizationId,
+      actorUserId: auth.userId,
+      actorEmail: auth.email,
+      resourceType: "organization_api_key",
+      resourceId: created.key.id,
+      ...meta,
     });
     return NextResponse.json({
       key: created.key,
@@ -53,8 +67,7 @@ export async function POST(request: Request) {
       warning: "Copy this key now — it will not be shown again.",
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to create API key";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err);
   }
 }
 
@@ -66,15 +79,26 @@ export async function DELETE(request: Request) {
     if (!businessId || !keyId) {
       return NextResponse.json({ error: "businessId and keyId required" }, { status: 400 });
     }
+    await requireRecentAuth();
     const access = await requireBusinessAccess(businessId);
+    const auth = await requireOrganizationPermission("api_key.manage", access.organizationId);
     const ok = await revokeOrganizationApiKey({
       organizationId: access.organizationId,
       keyId,
     });
     if (!ok) return NextResponse.json({ error: "Key not found" }, { status: 404 });
+    const meta = requestAuditMeta(request);
+    await writeSecurityAuditEvent({
+      action: "api_key.revoke",
+      organizationId: access.organizationId,
+      actorUserId: auth.userId,
+      actorEmail: auth.email,
+      resourceType: "organization_api_key",
+      resourceId: keyId,
+      ...meta,
+    });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to revoke API key";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err);
   }
 }

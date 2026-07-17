@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { listLocalTrustMarkets, listLocalTrustRuns, suggestNearbyMarkets } from "@/lib/local-trust/markets";
 
@@ -26,7 +27,6 @@ export async function GET(
 
     return NextResponse.json({ markets, suggestions });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load markets";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Failed to load markets");
   }
 }

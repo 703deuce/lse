@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { createServiceClient } from "@/lib/db/client";
 import { requireScanAccess } from "@/lib/auth/api-auth";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
@@ -56,8 +57,6 @@ export async function POST(
       message: "Enrichment queued",
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Enrichment trigger failed";
-    const status = message.includes("access denied") || message.includes("not found") ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return httpErrorFromException(err, "Enrichment trigger failed");
   }
 }

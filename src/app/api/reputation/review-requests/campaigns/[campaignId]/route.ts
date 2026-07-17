@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
+import { requireRecentAuth } from "@/lib/auth/reauth";
 import {
   getCampaignDetail,
   getRecipientEventHistory,
@@ -9,6 +11,8 @@ import {
 } from "@/lib/reputation/campaigns";
 import { createServiceClient } from "@/lib/db/client";
 import { PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
+import { httpErrorFromException } from "@/lib/security/http-errors";
+import { requestAuditMeta, writeSecurityAuditEvent } from "@/lib/security/audit-log";
 
 export async function GET(
   request: Request,
@@ -44,9 +48,7 @@ export async function GET(
     if (err instanceof EntitlementError) {
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
     }
-    const message = err instanceof Error ? err.message : "Failed to load campaign";
-    const statusCode = message.includes("not found") ? 404 : 500;
-    return NextResponse.json({ error: message }, { status: statusCode });
+    return httpErrorFromException(err, "Failed to load campaign");
   }
 }
 
@@ -162,8 +164,18 @@ export async function PATCH(
       return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
     }
 
-    // Draft → active/scheduled launch: reserve bulk quota that was skipped on draft save.
+    const isLaunchToActive =
+      status === "active" &&
+      before.status !== "active" &&
+      (action === "start" || action === "resume" || before.status === "draft");
+
+    let permAuth: Awaited<ReturnType<typeof requireOrganizationPermission>> | null = null;
     let reservedReady = 0;
+    if (isLaunchToActive) {
+      await requireRecentAuth();
+      permAuth = await requireOrganizationPermission("campaign.send", auth.organizationId);
+    }
+
     if (status === "active" && before.status === "draft") {
       const { data: readyRecs } = await supabase
         .from("review_request_recipients")
@@ -184,6 +196,19 @@ export async function PATCH(
         status,
         auth.organizationId
       );
+      if (isLaunchToActive && permAuth) {
+        const meta = requestAuditMeta(request);
+        await writeSecurityAuditEvent({
+          action: "campaign.launch",
+          organizationId: auth.organizationId,
+          actorUserId: permAuth.userId,
+          actorEmail: permAuth.email,
+          resourceType: "review_request_campaign",
+          resourceId: campaignId,
+          meta: { previousStatus: before.status, action },
+          ...meta,
+        });
+      }
       return NextResponse.json({ campaign });
     } catch (updateErr) {
       if (reservedReady > 0) {
@@ -200,8 +225,6 @@ export async function PATCH(
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
-    const message = err instanceof Error ? err.message : "Failed to update campaign";
-    const statusCode = message.includes("not found") ? 404 : 500;
-    return NextResponse.json({ error: message }, { status: statusCode });
+    return httpErrorFromException(err, "Failed to update campaign");
   }
 }

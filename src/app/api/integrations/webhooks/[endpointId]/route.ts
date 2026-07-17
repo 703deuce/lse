@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import { createServiceClient } from "@/lib/db/client";
@@ -100,6 +101,7 @@ export async function GET(
     }
     const message = err instanceof Error ? err.message : "Failed to load endpoint";
     const status = message.includes("not found") ? 404 : message.includes("required") ? 400 : 500;
+    if (status === 500) return httpErrorFromException(err, "Failed to load endpoint");
     return NextResponse.json({ error: message }, { status });
   }
 }
@@ -198,7 +200,6 @@ export async function PATCH(
     if (err instanceof EntitlementError) {
       return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
     }
-    const message = err instanceof Error ? err.message : "Failed to update endpoint";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Failed to update endpoint");
   }
 }

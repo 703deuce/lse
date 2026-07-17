@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 
@@ -40,7 +41,6 @@ export async function POST(request: Request) {
       queueDriver: job.driver,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Volume refresh failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return httpErrorFromException(err, "Volume refresh failed");
   }
 }
