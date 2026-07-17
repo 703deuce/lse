@@ -371,14 +371,16 @@ export function compareEntityGrids(
     summary: {
       avgRankA: avgA,
       avgRankB: avgB,
+      // Positive = current (B) improved vs baseline (A).
+      // Rank: lower is better → avgA - avgB. SoLV/top3: higher is better → B - A.
       avgRankDelta:
         avgA != null && avgB != null ? Math.round((avgA - avgB) * 10) / 10 : null,
       solvA,
       solvB,
-      solvDelta: Math.round((solvA - solvB) * 100) / 100,
+      solvDelta: Math.round((solvB - solvA) * 100) / 100,
       top3CellsA: metricsA.top3Cells,
       top3CellsB: metricsB.top3Cells,
-      top3Delta: metricsA.top3Cells - metricsB.top3Cells,
+      top3Delta: metricsB.top3Cells - metricsA.top3Cells,
       improvedCells: improved,
       declinedCells: declined,
       unchangedCells: unchanged,

@@ -1268,7 +1268,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                               }
                               className="text-[10px] text-zinc-400 hover:text-zinc-600"
                             >
-                              Color scale: {colorMode === "falcon" ? "Local Falcon" : "Strict"}
+                              Color scale: {colorMode === "falcon" ? "Gradient" : "Strict"}
                             </button>
                           </div>
                         </div>
