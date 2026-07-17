@@ -129,7 +129,42 @@ export const revokeReportSchema = z.object({
   reportId: z.string().uuid(),
 });
 
+const VISION_DATA_URL =
+  /^data:image\/(png|jpeg|jpg|webp);base64,([A-Za-z0-9+/=]+)$/;
+
 export const visionAnalyzeSchema = z.object({
-  imageBase64: z.string().min(100),
+  imageBase64: z
+    .string()
+    .min(100)
+    .refine((value) => VISION_DATA_URL.test(value), {
+      message: "imageBase64 must be a data URL for png, jpeg, jpg, or webp",
+    })
+    .refine((value) => {
+      const match = value.match(VISION_DATA_URL);
+      if (!match?.[2]) return false;
+      try {
+        return Buffer.from(match[2], "base64").length <= 4_000_000;
+      } catch {
+        return false;
+      }
+    }, "image payload too large"),
   prompt: z.string().min(5),
+});
+
+export const sendReviewEmailSchema = z.object({
+  businessId: z.string().uuid(),
+  customerName: z.string().trim().min(1).max(200),
+  customerEmail: z.string().trim().email().max(320),
+  serviceType: z.string().max(120).optional(),
+  templateId: z.string().uuid().optional(),
+  customMessage: z.string().max(2000).optional(),
+});
+
+export const sendReviewSmsSchema = z.object({
+  businessId: z.string().uuid(),
+  customerName: z.string().trim().min(1).max(200),
+  customerPhone: z.string().trim().min(7).max(32),
+  serviceType: z.string().max(120).optional(),
+  templateId: z.string().uuid().optional(),
+  customMessage: z.string().max(800).optional(),
 });

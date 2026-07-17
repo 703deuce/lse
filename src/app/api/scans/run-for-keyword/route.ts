@@ -73,7 +73,7 @@ export async function POST(request: Request) {
       excludedLabels = [],
     } = parsed.data;
     const auth = await requireBusinessAccess(businessId);
-    const rate = assertRateLimit({
+    const rate = await assertRateLimit({
       key: `scans-run-for-keyword:${auth.organizationId}`,
       maxPerWindow: 25,
       windowMs: 60_000,

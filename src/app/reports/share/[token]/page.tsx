@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import { hashShareToken } from "@/lib/reporting/share-token";
 import { assertRateLimit } from "@/lib/security/rate-limit";
 import { writeSecurityAuditEvent } from "@/lib/security/audit-log";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
+import { shareUnlockCookieName } from "@/lib/reporting/share-password";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +18,13 @@ export const metadata: Metadata = {
 
 export default async function ShareReportPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { token } = await params;
+  const query = await searchParams;
   if (!token || token.length < 16 || token.length > 128) notFound();
 
   const hdrs = await headers();
@@ -28,7 +32,7 @@ export default async function ShareReportPage({
     hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     hdrs.get("x-real-ip") ??
     "unknown";
-  const rate = assertRateLimit({
+  const rate = await assertRateLimit({
     key: `share:${ip}`,
     maxPerWindow: 60,
     windowMs: 60_000,
@@ -48,7 +52,7 @@ export default async function ShareReportPage({
   let { data: report } = await supabase
     .from("reports")
     .select(
-      "id, html_content, share_expires_at, artifact_status, error_message, business_id, generated_at, share_token_hash"
+      "id, html_content, share_expires_at, artifact_status, error_message, business_id, generated_at, share_token_hash, share_password_hash"
     )
     .eq("share_token_hash", tokenHash)
     .maybeSingle();
@@ -57,7 +61,7 @@ export default async function ShareReportPage({
     const legacy = await supabase
       .from("reports")
       .select(
-        "id, html_content, share_expires_at, artifact_status, error_message, business_id, generated_at, share_token_hash"
+        "id, html_content, share_expires_at, artifact_status, error_message, business_id, generated_at, share_token_hash, share_password_hash"
       )
       .eq("share_token", token)
       .is("share_token_hash", null)
@@ -92,6 +96,51 @@ export default async function ShareReportPage({
     if (Number.isFinite(expires) && expires <= Date.now()) notFound();
   }
 
+  const passwordHash = report.share_password_hash as string | null;
+  if (passwordHash) {
+    const hashForCookie = String(report.share_token_hash ?? tokenHash);
+    const cookieStore = await cookies();
+    const unlocked = cookieStore.get(shareUnlockCookieName(hashForCookie));
+    if (!unlocked?.value) {
+      return (
+        <main className="flex min-h-dvh items-center justify-center bg-zinc-50 px-6">
+          <div className="w-full max-w-sm rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <h1 className="text-lg font-semibold text-zinc-900">Password required</h1>
+            <p className="mt-2 text-sm text-zinc-600">
+              Enter the password provided with this shared report.
+            </p>
+            {query.error ? (
+              <p className="mt-2 text-sm text-red-600">Incorrect password. Try again.</p>
+            ) : null}
+            <form
+              method="post"
+              action={`/reports/share/${token}/unlock`}
+              className="mt-4 space-y-3"
+            >
+              <label className="block text-sm font-medium text-zinc-700" htmlFor="password">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                autoComplete="current-password"
+                className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+              />
+              <button
+                type="submit"
+                className="w-full rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white"
+              >
+                Unlock report
+              </button>
+            </form>
+          </div>
+        </main>
+      );
+    }
+  }
+
   const status = String(report.artifact_status ?? "ready");
   const generatedAt = report.generated_at ? new Date(report.generated_at as string).getTime() : NaN;
   const generatingTooLong =
@@ -120,11 +169,6 @@ export default async function ShareReportPage({
             This usually takes under a minute. This page refreshes automatically.
           </p>
           <meta httpEquiv="refresh" content="3" />
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `setTimeout(function(){location.reload()},3000)`,
-            }}
-          />
         </div>
       </main>
     );

@@ -26,7 +26,7 @@ export async function POST(request: Request) {
 
     const auth = await requireBusinessAccess(businessId);
     organizationId = auth.organizationId;
-    const rate = assertRateLimit({
+    const rate = await assertRateLimit({
       key: `backlink-gap:${auth.organizationId}`,
       maxPerWindow: 25,
       windowMs: 60_000,

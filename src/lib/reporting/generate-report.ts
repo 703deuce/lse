@@ -372,27 +372,29 @@ export async function buildTypedReportPayload(
 export async function generateTypedReport(
   params: GenerateReportParams
 ): Promise<GenerateReportResult> {
-  const payload = await buildTypedReportPayload(params);
-  const html = renderReportHtml(payload);
-  // Prefer create-time identity (async share) so worker updates keep the same key.
-  const identityKey = params.identityKey?.trim() || reportIdentityKey(payload, params);
+  const { withReportGenerationTimeout } = await import("@/lib/reporting/report-timeout");
+  return withReportGenerationTimeout(async () => {
+    const payload = await buildTypedReportPayload(params);
+    const html = renderReportHtml(payload);
+    const identityKey = params.identityKey?.trim() || reportIdentityKey(payload, params);
 
-  if (params.persist === false) {
-    return {
-      reportId: null,
-      shareToken: null,
+    if (params.persist === false) {
+      return {
+        reportId: null,
+        shareToken: null,
+        html,
+        payload,
+      };
+    }
+
+    return persistReport({
+      businessId: params.businessId,
       html,
       payload,
-    };
-  }
-
-  return persistReport({
-    businessId: params.businessId,
-    html,
-    payload,
-    identityKey,
-    reportId: params.reportId,
-    preferShareToken: params.shareToken,
+      identityKey,
+      reportId: params.reportId,
+      preferShareToken: params.shareToken,
+    });
   });
 }
 

@@ -99,7 +99,7 @@ export function getBullmqConnectionOptions(
   connectTimeout: number;
   retryStrategy: (times: number) => number | void;
   enableOfflineQueue: boolean;
-  tls?: Record<string, never>;
+  tls?: { rejectUnauthorized: boolean };
 } {
   const url = redisUrl ?? getRedisUrl();
   if (!url) throw new Error("REDIS_URL is required for BullMQ");
@@ -117,7 +117,7 @@ export function getBullmqConnectionOptions(
     // Indefinite reconnect with bounded backoff (ms).
     retryStrategy: (times: number) => Math.min(Math.max(times, 1) * 200, 5_000),
     enableOfflineQueue: true,
-    ...(parsed.protocol === "rediss:" ? { tls: {} } : {}),
+    ...(parsed.protocol === "rediss:" ? { tls: { rejectUnauthorized: true } } : {}),
   };
 }
 

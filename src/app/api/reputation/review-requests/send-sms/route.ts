@@ -5,6 +5,7 @@ import { requireOrganizationPermission } from "@/lib/auth/permissions";
 import { requireRecentAuth } from "@/lib/auth/reauth";
 import { sendReviewRequestSms } from "@/lib/reputation/review-sends";
 import { PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
+import { sendReviewSmsSchema } from "@/lib/validation/schemas";
 import { httpErrorFromException } from "@/lib/security/http-errors";
 import {
   getIdempotentResponse,
@@ -35,37 +36,27 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as {
-      businessId?: string;
-      customerName?: string;
-      customerPhone?: string;
-      serviceType?: string;
-      templateId?: string;
-      customMessage?: string;
-    };
-
-    if (!body.businessId || !body.customerName?.trim() || !body.customerPhone?.trim()) {
-      return NextResponse.json(
-        { error: "businessId, customerName, and customerPhone are required" },
-        { status: 400 }
-      );
+    const body = await request.json();
+    const parsed = sendReviewSmsSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
 
     await requireRecentAuth();
-    const access = await requireBusinessAccess(body.businessId);
+    const access = await requireBusinessAccess(parsed.data.businessId);
     await requireCampaignSendAccess(access.organizationId);
     const permAuth = await requireOrganizationPermission("campaign.send", access.organizationId);
     organizationId = access.organizationId;
     await reserveUsageOrThrow(access.organizationId, "review_sms_sent", 1);
     reserved = true;
     const result = await sendReviewRequestSms({
-      businessId: body.businessId,
+      businessId: parsed.data.businessId,
       organizationId: access.organizationId,
-      customerName: body.customerName.trim(),
-      customerPhone: body.customerPhone.trim(),
-      serviceType: body.serviceType,
-      templateId: body.templateId,
-      customMessage: body.customMessage,
+      customerName: parsed.data.customerName,
+      customerPhone: parsed.data.customerPhone,
+      serviceType: parsed.data.serviceType,
+      templateId: parsed.data.templateId,
+      customMessage: parsed.data.customMessage,
     });
 
     if (!result.ok) {
@@ -84,7 +75,7 @@ export async function POST(request: Request) {
       actorEmail: permAuth.email,
       resourceType: "review_request_send",
       resourceId: result.sendId ?? null,
-      meta: { channel: "sms", businessId: body.businessId },
+      meta: { channel: "sms", businessId: parsed.data.businessId },
       ...meta,
     });
 

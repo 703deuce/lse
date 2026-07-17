@@ -12,7 +12,7 @@ export async function GET(
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     request.headers.get("x-real-ip") ??
     "unknown";
-  const rate = assertRateLimit({
+  const rate = await assertRateLimit({
     key: `track:${ip}`,
     maxPerWindow: 120,
     windowMs: 60_000,

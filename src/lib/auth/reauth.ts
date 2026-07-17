@@ -14,10 +14,40 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
+/** Testable reauth decision from JWT claims (auth_time only; iat-only without AAL2 rejected). */
+export function evaluateRecentAuthFromPayload(
+  payload: Record<string, unknown> | null,
+  maxAgeMs = DEFAULT_MAX_AGE_MS
+): { ok: true; authenticatedAt: number } | { ok: false; code: "reauth_required" } {
+  if (!payload) {
+    return { ok: false, code: "reauth_required" };
+  }
+
+  const authTimeSec =
+    typeof payload.auth_time === "number" ? payload.auth_time : null;
+
+  if (authTimeSec == null) {
+    const aal = typeof payload.aal === "string" ? payload.aal : null;
+    if (aal === "aal2") {
+      const iat = typeof payload.iat === "number" ? payload.iat : null;
+      if (iat != null && Date.now() - iat * 1000 <= maxAgeMs) {
+        return { ok: true, authenticatedAt: iat * 1000 };
+      }
+    }
+    return { ok: false, code: "reauth_required" };
+  }
+
+  const authenticatedAt = authTimeSec * 1000;
+  if (Date.now() - authenticatedAt > maxAgeMs) {
+    return { ok: false, code: "reauth_required" };
+  }
+  return { ok: true, authenticatedAt };
+}
+
 /**
- * Require a fresh session for sensitive mutations (ASVS reauthentication).
- * Uses access-token `iat` (or auth_time). Clients should re-login / MFA challenge
- * when they receive 401 with code=reauth_required.
+ * Require a fresh interactive authentication for sensitive mutations.
+ * Uses JWT `auth_time` only — never `iat`, which rotates on token refresh
+ * and would bypass step-up reauthentication.
  */
 export async function requireRecentAuth(
   maxAgeMs = DEFAULT_MAX_AGE_MS
@@ -35,20 +65,11 @@ export async function requireRecentAuth(
   }
 
   const payload = decodeJwtPayload(session.access_token);
-  const authTimeSec =
-    typeof payload?.auth_time === "number"
-      ? payload.auth_time
-      : typeof payload?.iat === "number"
-        ? payload.iat
-        : null;
-  if (authTimeSec == null) {
-    throw new Error("Reauthentication required");
-  }
-  const authenticatedAt = authTimeSec * 1000;
-  if (Date.now() - authenticatedAt > maxAgeMs) {
+  const decision = evaluateRecentAuthFromPayload(payload, maxAgeMs);
+  if (!decision.ok) {
     const err = new Error("Reauthentication required");
-    (err as Error & { code?: string }).code = "reauth_required";
+    (err as Error & { code?: string }).code = decision.code;
     throw err;
   }
-  return { authenticatedAt };
+  return { authenticatedAt: decision.authenticatedAt };
 }

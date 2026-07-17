@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
     const { businessId, gridSize, radiusMeters, device, os, browser, parityLabel, centerLat: bodyLat, centerLng: bodyLng, centerLabel: bodyLabel } = parsed.data;
     const auth = await requireBusinessAccess(businessId);
-    const rate = assertRateLimit({
+    const rate = await assertRateLimit({
       key: `scans-create:${auth.organizationId}`,
       maxPerWindow: 25,
       windowMs: 60_000,

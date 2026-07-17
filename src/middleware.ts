@@ -3,6 +3,8 @@ import { createServerClient } from "@supabase/ssr";
 import { getDevDefaultAppPath, isDevBypassEnabled } from "@/lib/auth/dev";
 import { REQUEST_ID_HEADER, resolveRequestId } from "@/lib/observability/request-id";
 import { isCsrfExemptPath, isSameOriginMutation } from "@/lib/security/csrf";
+import { assertRateLimit } from "@/lib/security/rate-limit";
+import { mergeCookieOptions } from "@/lib/supabase/cookie-options";
 
 const PUBLIC_PREFIXES = [
   "/sign-in",
@@ -75,6 +77,24 @@ export async function middleware(request: NextRequest) {
     return nextWithRequestId(request, requestId);
   }
 
+  if (pathname === "/auth/callback" || pathname === "/sign-in") {
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip") ??
+      "unknown";
+    const rate = await assertRateLimit({
+      key: `auth:${pathname}:${ip}`,
+      maxPerWindow: 30,
+      windowMs: 60_000,
+    });
+    if (!rate.ok) {
+      const denied = new NextResponse("Too many requests", { status: 429 });
+      denied.headers.set(REQUEST_ID_HEADER, requestId);
+      denied.headers.set("Retry-After", String(Math.ceil(rate.retryAfterMs / 1000)));
+      return denied;
+    }
+  }
+
   if (isPublicPath(pathname)) {
     return nextWithRequestId(request, requestId);
   }
@@ -100,6 +120,7 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      cookieOptions: mergeCookieOptions(),
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -110,7 +131,7 @@ export async function middleware(request: NextRequest) {
           });
           response = nextWithRequestId(request, requestId);
           cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
+            response.cookies.set(name, value, mergeCookieOptions(options));
           });
         },
       },

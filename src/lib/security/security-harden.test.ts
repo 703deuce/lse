@@ -4,7 +4,12 @@ import { isPrivateIp } from "@/lib/validation/ssrf";
 import { authorizeBearerSecret, safeEqualSecret } from "@/lib/security/secrets";
 import { isCsrfExemptPath, isSameOriginMutation } from "@/lib/security/csrf";
 import { escapeCsv } from "@/lib/reporting/metrics";
-import { assertRateLimit, resetRateLimitsForTests } from "@/lib/security/rate-limit";
+import {
+  assertRateLimit,
+  assertRateLimitSync,
+  resetRateLimitsForTests,
+  __testUseMemoryRateLimitOnly,
+} from "@/lib/security/rate-limit";
 import { roleHasPermission } from "@/lib/auth/permissions-core";
 import {
   isAllowedExternalRedirect,
@@ -18,6 +23,14 @@ import {
 } from "@/lib/app-url";
 import { sanitizeUntrustedText } from "@/lib/security/prompt-guard";
 import { isAdminMfaRequired } from "@/lib/auth/admin-mfa";
+import { evaluateRecentAuthFromPayload } from "@/lib/auth/reauth";
+import { assertSafeArtifactStoragePath } from "@/lib/reporting/artifact-path";
+import { hashSharePassword, verifySharePassword } from "@/lib/reporting/share-password";
+import {
+  isOrganizationAccessBlocked,
+  isOrganizationEnqueueBlocked,
+} from "@/lib/auth/org-status";
+import { mergeCookieOptions, supabaseCookieOptions } from "@/lib/supabase/cookie-options";
 
 describe("ASVS code hardenings", () => {
   it("blocks private and metadata IPs for SSRF", () => {
@@ -92,11 +105,29 @@ describe("ASVS code hardenings", () => {
     assert.equal(escapeCsv("normal"), "normal");
   });
 
-  it("rate-limits expensive routes per key", () => {
+  it("rate-limits expensive routes per key", async () => {
     resetRateLimitsForTests();
-    assert.equal(assertRateLimit({ key: "k", maxPerWindow: 2, windowMs: 60_000 }).ok, true);
-    assert.equal(assertRateLimit({ key: "k", maxPerWindow: 2, windowMs: 60_000 }).ok, true);
-    assert.equal(assertRateLimit({ key: "k", maxPerWindow: 2, windowMs: 60_000 }).ok, false);
+    __testUseMemoryRateLimitOnly();
+    assert.equal((await assertRateLimit({ key: "k", maxPerWindow: 2, windowMs: 60_000 })).ok, true);
+    assert.equal((await assertRateLimit({ key: "k", maxPerWindow: 2, windowMs: 60_000 })).ok, true);
+    assert.equal((await assertRateLimit({ key: "k", maxPerWindow: 2, windowMs: 60_000 })).ok, false);
+    assert.equal(assertRateLimitSync({ key: "sync-k", maxPerWindow: 1 }).ok, true);
+    assert.equal(assertRateLimitSync({ key: "sync-k", maxPerWindow: 1 }).ok, false);
+  });
+
+  it("falls back to memory rate limit when redis unavailable", async () => {
+    resetRateLimitsForTests();
+    const prev = process.env.REDIS_URL;
+    process.env.REDIS_URL = "redis://127.0.0.1:6399";
+    __testUseMemoryRateLimitOnly();
+    try {
+      const first = await assertRateLimit({ key: "redis-fallback", maxPerWindow: 5 });
+      assert.equal(first.ok, true);
+    } finally {
+      if (prev === undefined) delete process.env.REDIS_URL;
+      else process.env.REDIS_URL = prev;
+      resetRateLimitsForTests();
+    }
   });
 
   it("maps org roles to permissions", () => {
@@ -184,6 +215,64 @@ describe("ASVS code hardenings", () => {
       process.env.NODE_ENV = prevNode;
       if (prevMfa === undefined) delete process.env.ADMIN_REQUIRE_MFA;
       else process.env.ADMIN_REQUIRE_MFA = prevMfa;
+    }
+  });
+
+  it("reauth rejects iat-only without aal2", () => {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const iatOnly = evaluateRecentAuthFromPayload({ iat: nowSec });
+    assert.equal(iatOnly.ok, false);
+
+    const aal2 = evaluateRecentAuthFromPayload({ aal: "aal2", iat: nowSec });
+    assert.equal(aal2.ok, true);
+
+    const authTime = evaluateRecentAuthFromPayload({ auth_time: nowSec - 60 });
+    assert.equal(authTime.ok, true);
+  });
+
+  it("rejects artifact storage path traversal", () => {
+    assert.doesNotThrow(() =>
+      assertSafeArtifactStoragePath("businesses/abc/scans/def/pdf/report.pdf")
+    );
+    assert.throws(() => assertSafeArtifactStoragePath("../etc/passwd"));
+    assert.throws(() => assertSafeArtifactStoragePath("uploads/evil.pdf"));
+    assert.throws(() => assertSafeArtifactStoragePath("businesses/../secret"));
+  });
+
+  it("verifies share password scrypt hashes", async () => {
+    const hash = await hashSharePassword("hunter2");
+    assert.match(hash, /^scrypt\$/);
+    assert.equal(await verifySharePassword("hunter2", hash), true);
+    assert.equal(await verifySharePassword("wrong", hash), false);
+  });
+
+  it("blocks deleted and suspended org access helpers", () => {
+    assert.equal(isOrganizationAccessBlocked("deleted"), true);
+    assert.equal(isOrganizationAccessBlocked("suspended"), true);
+    assert.equal(isOrganizationAccessBlocked("active"), false);
+    assert.equal(
+      isOrganizationEnqueueBlocked({ status: "active", outboundPaused: true }, "send_campaign_email"),
+      true
+    );
+    assert.equal(
+      isOrganizationEnqueueBlocked({ status: "active", outboundPaused: true }, "process_scan"),
+      false
+    );
+  });
+
+  it("uses secure cookie defaults in production", () => {
+    const prev = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      const opts = supabaseCookieOptions();
+      assert.equal(opts.secure, true);
+      assert.equal(opts.httpOnly, true);
+      assert.equal(opts.sameSite, "lax");
+      const merged = mergeCookieOptions({ path: "/custom" });
+      assert.equal(merged.secure, true);
+      assert.equal(merged.path, "/custom");
+    } finally {
+      process.env.NODE_ENV = prev;
     }
   });
 });

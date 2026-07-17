@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     }
 
     const auth = await requireBusinessAccess(businessId);
-    const rate = assertRateLimit({
+    const rate = await assertRateLimit({
       key: `keywords-check:${auth.organizationId}`,
       maxPerWindow: 25,
       windowMs: 60_000,

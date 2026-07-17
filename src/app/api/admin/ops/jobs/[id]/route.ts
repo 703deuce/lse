@@ -1,4 +1,5 @@
 import { requirePlatformAdmin } from "@/lib/auth/admin";
+import { requireRecentAuth } from "@/lib/auth/reauth";
 import { NextResponse } from "next/server";
 import { httpErrorFromException } from "@/lib/security/http-errors";
 import { cancelJob, getJobStatus, retryJob } from "@/lib/queue";
@@ -25,6 +26,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireRecentAuth();
     const auth = await requirePlatformAdmin();
     const { id } = await params;
     const body = (await request.json().catch(() => ({}))) as { action?: string };

@@ -25,6 +25,7 @@ import type {
 import { createServiceClient } from "@/lib/db/client";
 import { logger } from "@/lib/observability/logger";
 import { releaseUsage, reserveUsageOrThrow, type UsageKey } from "@/lib/plans";
+import { assertOrganizationCanEnqueue } from "@/lib/auth/org-status";
 
 /**
  * Public queue API — feature code must call this (or dispatchFeatureJob), never BullMQ directly.
@@ -42,6 +43,7 @@ export function resolveQueueDriver(): QueueDriverName {
 }
 
 export async function enqueueJob(input: EnqueueJobInput): Promise<EnqueueJobResult> {
+  await assertOrganizationCanEnqueue(input.organizationId, input.jobType);
   const driver = resolveQueueDriver();
   if (driver === "bullmq") {
     if (!getRedisUrl()) {

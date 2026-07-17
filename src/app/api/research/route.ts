@@ -8,7 +8,7 @@ import { httpErrorFromException } from "@/lib/security/http-errors";
 export async function POST(request: Request) {
   try {
     const auth = await requireAuth();
-    const rate = assertRateLimit({
+    const rate = await assertRateLimit({
       key: `research:${auth.organizationId}`,
       maxPerWindow: 20,
       windowMs: 60_000,
