@@ -31,7 +31,7 @@ Status: **queued** = uses `dispatchFeatureJob` / ledger; **in-request** = still 
 | Create / keyword / parity / rerun | scan APIs → `dispatchScanProcessing` | queued |
 | Grid cells | `processScanBatch` | queued |
 | Enrichment | finalize → `scan_enrichment` | queued |
-| Early enrichment | progress ≥ 17 cells → `early_enrichment` | queued |
+| Early enrichment | opt-in only (`GRID_SCAN_AUTO_ENRICHMENT=true`); otherwise skipped | queued when enabled |
 | Maps KD | `POST /api/maps-difficulty/run` | queued (+ UI job poll) |
 | Keyword check/volume | `/api/keywords/{check,volume}` | queued (+ UI job poll) |
 | Single-point rank | `/api/single-point-rank/check` | queued (handler registered) |

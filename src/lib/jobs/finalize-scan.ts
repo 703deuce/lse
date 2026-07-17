@@ -6,10 +6,7 @@ import { validateStoredCellResult } from "@/lib/maps/cell-result-integrity";
 import { mapsDepth } from "@/lib/jobs/run-grid-cells";
 import { SCAN_RESULT_COMPETITOR_COLUMNS } from "@/lib/maps/scan-result-columns";
 import { mergeScanConfidenceSummary } from "@/lib/jobs/merge-confidence-summary";
-
-function gridScanAutoEnrichment(): boolean {
-  return process.env.GRID_SCAN_AUTO_ENRICHMENT === "true";
-}
+import { gridScanAutoEnrichmentEnabled } from "@/lib/jobs/grid-scan-enrichment-flag";
 
 /**
  * Phase 1 — mark scan rank-ready as soon as grid cells are saved. Map is usable.
@@ -138,7 +135,7 @@ export async function finalizeRankReady(
     .update({
       status: "rank_ready",
       rank_status: "ready",
-      enrichment_status: gridScanAutoEnrichment() ? "pending" : "skipped",
+      enrichment_status: gridScanAutoEnrichmentEnabled() ? "pending" : "skipped",
       aggregate_metrics: aggregateMetrics,
       cells_total: totalCells,
       cells_completed: cellsCompleted,
@@ -187,7 +184,7 @@ export async function finalizeRankReady(
   invalidateScanGridCache(scanBatchId);
   await invalidateWorkspaceCache(supabase, scanBatchId);
 
-  if (gridScanAutoEnrichment()) {
+  if (gridScanAutoEnrichmentEnabled()) {
     const { dispatchFeatureJob } = await import("@/lib/queue/dispatch");
     await dispatchFeatureJob({
       jobType: "scan_enrichment",
