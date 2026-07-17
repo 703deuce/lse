@@ -6,6 +6,10 @@
  *   npm run worker:messaging   ← REQUIRED for campaign email/sms (Brevo/Twilio)
  *   npm run worker:all         ← Maps + intelligence + reports (excludes messaging)
  *
+ *   Review Momentum / Reputation / Growth Audit → `maintenance` (on worker:all)
+ *   Local Trust → `local-trust` (on worker:all)
+ *   Review alerts only → `review-monitor` (messaging worker)
+ *
  * Later, replace worker:all with:
  *   npm run worker:maps
  *   npm run worker:intelligence

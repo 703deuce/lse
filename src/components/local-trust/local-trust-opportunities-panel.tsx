@@ -97,10 +97,11 @@ function OpportunityTable({ rows, showMarketBadge }: { rows: OppRow[]; showMarke
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-medium text-zinc-900 hover:text-emerald-700"
+                      title="Opens the external opportunity page (third-party sites can 404)"
                     >
                       {String(row.title)}
                     </a>
-                    <ExternalLink className="mt-0.5 h-3 w-3 shrink-0 text-zinc-400" />
+                    <ExternalLink className="mt-0.5 h-3 w-3 shrink-0 text-zinc-400" aria-hidden />
                   </div>
                   <p className="mt-0.5 text-[11px] text-zinc-400">{String(row.domain ?? "")}</p>
                   {showMarketBadge && row.market_city != null && row.market_state != null ? (

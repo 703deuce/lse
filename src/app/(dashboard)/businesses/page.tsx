@@ -4,15 +4,27 @@ import { requireAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
 import { PageHeader } from "@/components/ui/page-header";
 
-export default async function BusinessesPage() {
+export default async function BusinessesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const auth = await requireAuth();
   const supabase = createServiceClient();
+  const { error } = await searchParams;
 
   const { data: businesses } = await supabase
     .from("businesses")
     .select("*")
     .eq("organization_id", auth.organizationId)
     .order("created_at", { ascending: false });
+
+  const accessMessage =
+    error === "access_denied"
+      ? "You do not have access to that business. Pick one of your businesses below."
+      : error === "invalid_business"
+        ? "That business link was invalid. Pick one of your businesses below."
+        : null;
 
   return (
     <>
@@ -29,6 +41,12 @@ export default async function BusinessesPage() {
           </Link>
         }
       />
+
+      {accessMessage ? (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {accessMessage}
+        </div>
+      ) : null}
 
       {!businesses?.length ? (
         <div className="rounded-xl border border-dashed border-zinc-300 p-12 text-center">
