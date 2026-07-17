@@ -43,10 +43,14 @@ export function isOrganizationEnqueueBlocked(
 }
 
 /**
- * Load org kill-switch / status for enqueue gates.
- * Tolerates missing `outbound_paused` when migration 057 is not applied yet —
- * previously that PostgREST error was treated as "org not found" and every
- * module Run button returned HTTP 404.
+ * Load org kill-switch / status for **enqueue gates only**.
+ *
+ * Must not be used from `getAuthContext` / page session establishment.
+ * ASVS originally called this on every authenticated request; when the
+ * `outbound_paused` select failed, the session was wiped while workers kept
+ * running. Keep that coupling out of auth context permanently.
+ *
+ * Tolerates missing `outbound_paused` when migration 057 is not applied yet.
  */
 export async function loadOrganizationGateStatus(
   organizationId: string
