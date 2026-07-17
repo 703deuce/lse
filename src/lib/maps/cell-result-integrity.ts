@@ -51,7 +51,14 @@ export function validateLiveCellSerp(
 }
 
 export function validateStoredCellResult(
-  row: Pick<ScanResultRow, "target_found" | "top_competitors_json"> | null | undefined,
+  row:
+    | {
+        target_found?: boolean | null;
+        /** Accept unknown from Supabase selects — only array length is inspected. */
+        top_competitors_json?: unknown;
+      }
+    | null
+    | undefined,
   depth = 20
 ): CellSerpValidation {
   if (!row) {
