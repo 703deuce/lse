@@ -155,9 +155,9 @@ async function loadCompactFromDb(jobId: string): Promise<CompactJobStatusBundle 
     .eq("id", jobId)
     .maybeSingle();
 
-  let data = primary.data;
-  if (!primary.error && data) {
-    // happy path
+  let row: CompactRow | null = null;
+  if (!primary.error && primary.data) {
+    row = primary.data as unknown as CompactRow;
   } else if (primary.error) {
     // Schema lag: progress_version missing → entire select failed → UI got 404
     // "Job not found" while the worker was still processing the job.
@@ -167,12 +167,11 @@ async function loadCompactFromDb(jobId: string): Promise<CompactJobStatusBundle 
       .eq("id", jobId)
       .maybeSingle();
     if (legacy.error || !legacy.data) return null;
-    data = legacy.data;
+    row = legacy.data as unknown as CompactRow;
   } else {
     return null;
   }
 
-  const row = data as unknown as CompactRow;
   return {
     compact: rowToCompact(row),
     organizationId: row.organization_id,
