@@ -360,6 +360,15 @@ async function runOneCell(
   ) as "android" | "ios" | "windows" | "macos";
   const browser = job.browser === "firefox" ? "firefox" : "chrome";
 
+  const targetInput = {
+    cid: job.business.cid,
+    place_id: job.business.place_id,
+    name: job.business.name,
+    address: job.business.address_text,
+    phone: job.business.phone,
+    website_url: job.business.website_url,
+  };
+
   const apiStart = performance.now();
   const fetched = await fetchMapsCell({
     keyword: kw,
@@ -372,6 +381,8 @@ async function runOneCell(
     organizationId: job.organizationId,
     providers,
     allowTransientRetry: options?.allowTransientRetry,
+    target: targetInput,
+    gridLabel: job.point.grid_label,
   });
   const apiSec = elapsedSec(apiStart);
   const attemptsUsed = Math.max(1, fetched.attempts.length);
@@ -389,14 +400,7 @@ async function runOneCell(
 
   if (fetched.ok) {
     const items = fetched.items as MapsLiveResult[];
-    const targetInput = {
-      cid: job.business.cid,
-      place_id: job.business.place_id,
-      name: job.business.name,
-      address: job.business.address_text,
-      phone: job.business.phone,
-      website_url: job.business.website_url,
-    };
+    // Orchestrator already required complete SERP when target was provided.
     const serpValidation = validateLiveCellSerp(items, targetInput, depth);
     if (!serpValidation.complete) {
       const category = (serpValidation.category ?? "sparse_maps_results") as MapsFailureCategory;
@@ -446,7 +450,7 @@ async function runOneCell(
         timings,
         failureCategory: category,
         finalProvider: fetched.finalProvider,
-        unresolved: false,
+        unresolved: true,
       };
     }
 
@@ -816,10 +820,33 @@ function buildGridCellJobs(
   return jobs;
 }
 
+/** Jobs that did not succeed in this pass (includes missing results). */
 function failedJobsFromPass(jobs: GridCellJob[], results: GridCellRunResult[]): GridCellJob[] {
-  return jobs.filter((job) =>
-    results.some((r) => !r.success && r.pointId === job.point.id && r.keywordId === job.keyword.id)
+  const succeeded = new Set(
+    results.filter((r) => r.success).map((r) => `${r.pointId}:${r.keywordId}`)
   );
+  return jobs.filter((job) => !succeeded.has(`${job.point.id}:${job.keyword.id}`));
+}
+
+/** Re-read incomplete cells from DB so fallback cannot be skipped due to in-memory drift. */
+async function loadIncompleteJobsFromDb(
+  scanBatchId: string,
+  jobs: GridCellJob[],
+  depth: number
+): Promise<GridCellJob[]> {
+  const supabase = createServiceClient();
+  const pointIds = [...new Set(jobs.map((j) => j.point.id))];
+  if (!pointIds.length) return [];
+  const { data: savedResults } = await supabase
+    .from("scan_results")
+    .select("scan_point_id, keyword_id, target_found, top_competitors_json")
+    .in("scan_point_id", pointIds);
+  return jobs.filter((job) => {
+    const row = (savedResults ?? []).find(
+      (r) => r.scan_point_id === job.point.id && r.keyword_id === job.keyword.id
+    );
+    return !validateStoredCellResult(row, depth).complete;
+  });
 }
 
 async function runIntegrityPass(params: {
@@ -1312,8 +1339,20 @@ export async function runGridCellsLive(params: {
         console.log("[Scan] Bright Data probes failed — switching to secondary providers");
       }
     }
+  }
 
-    // Secondary fallbacks for anything still unresolved.
+  // Secondary fallback ALWAYS keys off DB incomplete cells after Bright Data phases.
+  // Never skip this just because in-memory remainingJobs was empty/desynced.
+  {
+    const dbIncomplete = await loadIncompleteJobsFromDb(params.scanBatchId, jobs, depth);
+    if (dbIncomplete.length !== remainingJobs.length) {
+      console.warn(
+        `[Scan] Unresolved sync: in-memory=${remainingJobs.length} db_incomplete=${dbIncomplete.length} — using DB set`
+      );
+    }
+    remainingJobs = dbIncomplete;
+    failedCells = remainingJobs.length;
+
     if (remainingJobs.length > 0 && mapsFallbackEnabled()) {
       const secondaryPlan = await resolveUsableMapsProviders(secondaryFallbackProviders());
       if (!secondaryPlan.usable.length) {
@@ -1339,7 +1378,7 @@ export async function runGridCellsLive(params: {
         );
       } else {
         console.log(
-          `[Scan] Secondary fallback for ${remainingJobs.length} cells via ${secondaryPlan.usable.join(" → ")}` +
+          `[Scan] Secondary fallback START for ${remainingJobs.length} cells via ${secondaryPlan.usable.join(" → ")}` +
             (secondaryPlan.skipped.length
               ? ` (skipped: ${secondaryPlan.skipped.map((s) => `${s.provider}:${s.skipReason}`).join(", ")})`
               : "")
@@ -1362,6 +1401,7 @@ export async function runGridCellsLive(params: {
               reason: s.skipReason,
               detail: s.detail,
             })),
+            unresolved_after_brightdata: remainingJobs.length,
           },
           { force: true }
         );
@@ -1387,11 +1427,10 @@ export async function runGridCellsLive(params: {
         remainingJobs = failedJobsFromPass(remainingJobs, fallbackPass.results);
         failedCells = remainingJobs.length;
         console.log(
-          `[Scan] Secondary fallback finished: recovered=${fallbackPass.successCount} still_unresolved=${remainingJobs.length}`
+          `[Scan] Secondary fallback FINISHED: recovered=${fallbackPass.successCount} still_unresolved=${remainingJobs.length}`
         );
       }
     } else if (remainingJobs.length > 0 && maxRounds > 1) {
-      // Fallback disabled — keep a single legacy-style BD retry with jitter (not 1s storm).
       const delay = isolatedRetryDelayMs();
       await sleep(delay);
       const pass = await runJobsWithConcurrency(remainingJobs, {
@@ -1415,6 +1454,8 @@ export async function runGridCellsLive(params: {
       completedOffset += pass.successCount;
       remainingJobs = failedJobsFromPass(remainingJobs, pass.results);
       failedCells = remainingJobs.length;
+    } else if (remainingJobs.length === 0) {
+      console.log("[Scan] No incomplete cells after Bright Data — secondary fallback not needed");
     }
   }
 

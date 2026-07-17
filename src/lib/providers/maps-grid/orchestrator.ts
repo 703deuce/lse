@@ -4,6 +4,8 @@
  */
 
 import type { ScanDeviceProfile } from "@/lib/maps/scan-profiles";
+import { validateLiveCellSerp } from "@/lib/maps/cell-result-integrity";
+import type { TargetMatchInput } from "@/lib/providers/dataforseo/match-target";
 import { runMapsProviderAdapter } from "@/lib/providers/maps-grid/adapters";
 import {
   dataForSeoMapsEnabled,
@@ -16,6 +18,7 @@ import {
 import {
   isPermanentMapsFailure,
   isTransientMapsFailure,
+  type MapsFailureCategory,
 } from "@/lib/providers/maps-grid/failure-categories";
 import { getMapsProviderCircuit } from "@/lib/queue/maps-provider-circuit";
 import type {
@@ -37,6 +40,13 @@ export type FetchMapsCellParams = {
   providers: MapsProviderId[];
   /** Allow one transient retry on the last/current provider before moving on. */
   allowTransientRetry?: boolean;
+  /**
+   * When set, a provider response must pass SERP completeness before it wins.
+   * Sparse / empty-organic results continue to the next provider instead of
+   * short-circuiting the fallback chain.
+   */
+  target?: TargetMatchInput;
+  gridLabel?: string;
 };
 
 export type MapsProviderSkipReason =
@@ -208,6 +218,9 @@ export async function fetchMapsCell(params: FetchMapsCellParams): Promise<MapsCe
         await new Promise((r) => setTimeout(r, delay));
       }
 
+      console.log(
+        `[MapsFallback] grid=${params.gridLabel ?? "?"} provider=${provider} attempt=${tryNum} starting`
+      );
       const result = await runMapsProviderAdapter(provider, {
         keyword: params.keyword,
         lat: params.lat,
@@ -219,9 +232,32 @@ export async function fetchMapsCell(params: FetchMapsCellParams): Promise<MapsCe
         organizationId: params.organizationId,
         attemptNumber: tryNum,
       });
+
+      if (result.ok && params.target) {
+        const serp = validateLiveCellSerp(result.items, params.target, params.depth);
+        if (!serp.complete) {
+          const category = (serp.category ?? "sparse_maps_results") as MapsFailureCategory;
+          console.warn(
+            `[MapsFallback] grid=${params.gridLabel ?? "?"} provider=${provider} incomplete SERP (${serp.reason}) — trying next provider`
+          );
+          attempts.push({
+            ...result.attempt,
+            success: false,
+            category,
+            errorMessage: serp.reason ?? "Incomplete map results for this cell",
+          });
+          // Treat incomplete SERP as transient so secondary providers still run.
+          if (tryNum < maxTries) continue;
+          break;
+        }
+      }
+
       attempts.push(result.attempt);
 
       if (result.ok) {
+        console.log(
+          `[MapsFallback] grid=${params.gridLabel ?? "?"} provider=${provider} SUCCESS items=${result.items.length}`
+        );
         return {
           ok: true,
           items: result.items,
@@ -244,6 +280,10 @@ export async function fetchMapsCell(params: FetchMapsCellParams): Promise<MapsCe
           providerLatencyMs: result.attempt.latencyMs,
         };
       }
+
+      console.warn(
+        `[MapsFallback] grid=${params.gridLabel ?? "?"} provider=${provider} FAILED category=${result.attempt.category}: ${result.attempt.errorMessage ?? ""}`
+      );
 
       if (isPermanentMapsFailure(result.attempt.category)) {
         break; // next provider
