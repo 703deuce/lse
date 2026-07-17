@@ -28,8 +28,9 @@ export function isCsrfExemptPath(pathname: string): boolean {
 }
 
 /**
- * Returns false when Origin/Referer is present and does not match the request host.
- * Missing Origin+Referer is allowed (non-browser clients / curl with Bearer).
+ * Same-origin check for mutating requests.
+ * Cookie-authenticated browser requests must send Origin or Referer.
+ * Non-browser clients without cookies may omit both (Bearer / cron).
  */
 export function isSameOriginMutation(request: {
   method: string;
@@ -46,6 +47,9 @@ export function isSameOriginMutation(request: {
 
   const refererHost = parseOriginHost(request.headers.get("referer"));
   if (refererHost) return refererHost === requestHost;
+
+  const hasCookie = Boolean(request.headers.get("cookie")?.trim());
+  if (hasCookie) return false;
 
   return true;
 }

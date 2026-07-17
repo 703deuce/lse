@@ -18,6 +18,9 @@ export function LogoutButton({ className }: { className?: string }) {
     }
 
     const supabase = createClient();
+    void fetch("/api/auth/logout-audit", { method: "POST", credentials: "include" }).catch(
+      () => {}
+    );
     // Global scope revokes refresh tokens on all devices (ASVS session termination).
     await supabase.auth.signOut({ scope: "global" });
     router.push("/sign-in");

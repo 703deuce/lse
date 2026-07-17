@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
+import { assertRateLimit } from "@/lib/security/rate-limit";
 
 export async function POST(request: Request) {
   try {
@@ -18,6 +19,20 @@ export async function POST(request: Request) {
     }
 
     const auth = await requireBusinessAccess(businessId);
+    const rate = assertRateLimit({
+      key: `reputation-run:${auth.organizationId}`,
+      maxPerWindow: 25,
+      windowMs: 60_000,
+    });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rate.retryAfterMs / 1000)) },
+        }
+      );
+    }
     const job = await dispatchFeatureJob({
       jobType: "reputation_audit",
       payload: {

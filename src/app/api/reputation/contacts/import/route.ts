@@ -130,6 +130,7 @@ export async function POST(request: Request) {
     const access = await requireBusinessAccess(businessId);
     await requireEntitlement(access.organizationId, "review_campaigns");
     const permAuth = await requireOrganizationPermission("contacts.import", access.organizationId);
+    await requireRecentAuth();
 
     let rows: ContactImportRow[] = Array.isArray(body.rows) ? (body.rows as ContactImportRow[]) : [];
     if ((!rows.length || action === "preview") && Array.isArray(body.csvRows) && Array.isArray(body.headers)) {

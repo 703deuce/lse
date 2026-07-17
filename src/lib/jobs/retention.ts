@@ -11,6 +11,10 @@ export type RetentionResult = {
   providerWebhookEventsDeleted: number;
   replyBodiesScrubbed: number;
   contactsScrubbed: number;
+  deletedOrgsPurged: number;
+  deletedOrgContactsScrubbed: number;
+  deletedOrgSharesRevoked: number;
+  deletedOrgMessagesScrubbed: number;
 };
 
 const RETENTION_INTERVAL_MS = Number(process.env.RETENTION_INTERVAL_MS ?? 60 * 60 * 1000);
@@ -148,6 +152,83 @@ export async function runDataRetentionCleanup(): Promise<RetentionResult> {
     .select("id");
   providerWebhookEventsDeleted = providerWh?.length ?? 0;
 
+  const deletedOrgDays = Number(process.env.RETENTION_DELETED_ORG_DAYS ?? 30);
+  let deletedOrgsPurged = 0;
+  let deletedOrgContactsScrubbed = 0;
+  let deletedOrgSharesRevoked = 0;
+  let deletedOrgMessagesScrubbed = 0;
+
+  try {
+    const { data: deletedOrgs } = await supabase
+      .from("organizations")
+      .select("id")
+      .eq("status", "deleted")
+      .lt("updated_at", daysAgoIso(deletedOrgDays));
+
+    for (const org of deletedOrgs ?? []) {
+      const orgId = org.id as string;
+      deletedOrgsPurged += 1;
+
+      const { data: scrubbedContacts } = await supabase
+        .from("review_request_contacts")
+        .update({
+          customer_name: null,
+          first_name: null,
+          last_name: null,
+          customer_email: null,
+          customer_phone: null,
+          phone_e164: null,
+          email_normalized: null,
+          notes: null,
+          latest_reply_snippet: null,
+          external_customer_id: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("organization_id", orgId)
+        .or(
+          "customer_name.not.is.null,customer_email.not.is.null,customer_phone.not.is.null,notes.not.is.null,latest_reply_snippet.not.is.null"
+        )
+        .select("id");
+      deletedOrgContactsScrubbed += scrubbedContacts?.length ?? 0;
+
+      const { data: businesses } = await supabase
+        .from("businesses")
+        .select("id")
+        .eq("organization_id", orgId);
+      const businessIds = (businesses ?? []).map((b) => b.id as string);
+
+      if (businessIds.length) {
+        const { data: revokedShares } = await supabase
+          .from("reports")
+          .update({ share_token: null, share_token_hash: null })
+          .in("business_id", businessIds)
+          .not("share_token", "is", null)
+          .select("id");
+        deletedOrgSharesRevoked += revokedShares?.length ?? 0;
+
+        const { data: scrubbedMsgs } = await supabase
+          .from("review_request_messages")
+          .update({ message_body: null })
+          .in("business_id", businessIds)
+          .not("message_body", "is", null)
+          .select("id");
+        deletedOrgMessagesScrubbed += scrubbedMsgs?.length ?? 0;
+      }
+
+      const { data: scrubbedReplies } = await supabase
+        .from("review_request_replies")
+        .update({ body: "", metadata: {} })
+        .eq("organization_id", orgId)
+        .neq("body", "")
+        .select("id");
+      deletedOrgMessagesScrubbed += scrubbedReplies?.length ?? 0;
+    }
+  } catch (err) {
+    logger.warn("data_retention_deleted_org_purge_failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   const result = {
     telemetryDeleted,
     providerRunsScrubbed,
@@ -158,6 +239,10 @@ export async function runDataRetentionCleanup(): Promise<RetentionResult> {
     providerWebhookEventsDeleted,
     replyBodiesScrubbed,
     contactsScrubbed,
+    deletedOrgsPurged,
+    deletedOrgContactsScrubbed,
+    deletedOrgSharesRevoked,
+    deletedOrgMessagesScrubbed,
   };
 
   logger.info("data_retention_cleanup", result);

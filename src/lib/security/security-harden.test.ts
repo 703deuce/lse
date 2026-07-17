@@ -12,6 +12,12 @@ import {
 } from "@/lib/security/safe-redirect";
 import { hashShareToken } from "@/lib/reporting/share-token";
 import { parseJobPayload } from "@/lib/queue/payload-schemas";
+import {
+  getBrevoEventsWebhookUrl,
+  getBrevoInboundWebhookUrl,
+} from "@/lib/app-url";
+import { sanitizeUntrustedText } from "@/lib/security/prompt-guard";
+import { isAdminMfaRequired } from "@/lib/auth/admin-mfa";
 
 describe("ASVS code hardenings", () => {
   it("blocks private and metadata IPs for SSRF", () => {
@@ -62,6 +68,19 @@ describe("ASVS code hardenings", () => {
         headers: { get: (n) => (n === "origin" ? "https://app.example" : null) },
       }),
       true
+    );
+    assert.equal(
+      isSameOriginMutation({
+        method: "POST",
+        url: "https://app.example/api/scans/create",
+        headers: {
+          get: (n) => {
+            if (n === "cookie") return "session=abc";
+            return null;
+          },
+        },
+      }),
+      false
     );
   });
 
@@ -133,5 +152,38 @@ describe("ASVS code hardenings", () => {
     const businessOrg = orgB;
     const allowed = businessOrg === orgA;
     assert.equal(allowed, false);
+  });
+
+  it("does not embed Brevo webhook secrets in URLs", () => {
+    const prev = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.NEXT_PUBLIC_APP_URL = "https://app.example";
+    try {
+      assert.equal(getBrevoInboundWebhookUrl().includes("?token="), false);
+      assert.equal(getBrevoEventsWebhookUrl().includes("?token="), false);
+      assert.equal(getBrevoInboundWebhookUrl(), "https://app.example/api/webhooks/brevo/inbound");
+    } finally {
+      if (prev === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
+      else process.env.NEXT_PUBLIC_APP_URL = prev;
+    }
+  });
+
+  it("truncates untrusted prompt text", () => {
+    const long = "a".repeat(100);
+    assert.equal(sanitizeUntrustedText(long, 20).length, 20);
+    assert.equal(sanitizeUntrustedText("hello\x00world").includes("\0"), false);
+  });
+
+  it("requires admin MFA in production regardless of env override", () => {
+    const prevNode = process.env.NODE_ENV;
+    const prevMfa = process.env.ADMIN_REQUIRE_MFA;
+    process.env.NODE_ENV = "production";
+    process.env.ADMIN_REQUIRE_MFA = "false";
+    try {
+      assert.equal(isAdminMfaRequired(), true);
+    } finally {
+      process.env.NODE_ENV = prevNode;
+      if (prevMfa === undefined) delete process.env.ADMIN_REQUIRE_MFA;
+      else process.env.ADMIN_REQUIRE_MFA = prevMfa;
+    }
   });
 });

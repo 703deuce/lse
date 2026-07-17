@@ -10,6 +10,7 @@ export type SecurityAuditAction =
   | "integration.webhook.rotate"
   | "integration.webhook.delete"
   | "report.share.create"
+  | "report.share.view"
   | "report.share.revoke"
   | "campaign.launch"
   | "campaign.send"

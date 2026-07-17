@@ -46,18 +46,14 @@ export function getTwilioSmsWebhookUrl(): string {
   );
 }
 
+/** Brevo must authenticate with `x-brevo-token` / Bearer header — never put secrets in the URL. */
 export function getBrevoInboundWebhookUrl(): string {
-  const secret = process.env.BREVO_INBOUND_WEBHOOK_SECRET?.trim();
-  const base = appUrl(WEBHOOK_PATHS.brevoInbound);
-  return secret ? `${base}?token=${encodeURIComponent(secret)}` : base;
+  return appUrl(WEBHOOK_PATHS.brevoInbound);
 }
 
+/** Brevo must authenticate with `x-brevo-token` / Bearer header — never put secrets in the URL. */
 export function getBrevoEventsWebhookUrl(): string {
-  const secret =
-    process.env.BREVO_EVENTS_WEBHOOK_SECRET?.trim() ||
-    process.env.BREVO_INBOUND_WEBHOOK_SECRET?.trim();
-  const base = appUrl(WEBHOOK_PATHS.brevoEvents);
-  return secret ? `${base}?token=${encodeURIComponent(secret)}` : base;
+  return appUrl(WEBHOOK_PATHS.brevoEvents);
 }
 
 export function getJobsCronUrl(): string {

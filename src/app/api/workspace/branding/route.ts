@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { httpErrorFromException } from "@/lib/security/http-errors";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
+import { requireRecentAuth } from "@/lib/auth/reauth";
 import { requireAuth } from "@/lib/auth/context";
 import {
   loadOrganizationReportBranding,
@@ -19,7 +21,8 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
-    const auth = await requireAuth();
+    await requireRecentAuth();
+    const auth = await requireOrganizationPermission("business.update");
     const body = await request.json();
     const parsed = reportBrandingSchema.safeParse(body);
     if (!parsed.success) {

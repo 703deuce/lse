@@ -1,4 +1,4 @@
-import { safeFetchWebsite } from "@/lib/validation/ssrf";
+import { safeFetchWebsite, safeReadText } from "@/lib/validation/ssrf";
 import type { ParsedPage } from "@/lib/audit/types";
 
 function stripTags(html: string): string {
@@ -54,7 +54,7 @@ const HOUR_PATTERNS = [
 
 export async function fetchAndParsePage(url: string): Promise<ParsedPage> {
   const res = await safeFetchWebsite(url, 15000);
-  const html = await res.text();
+  const html = await safeReadText(res);
   const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
   const bodyText = stripTags(html);
   const telLinks = /href=["']tel:([^"']+)["']/gi.test(html);

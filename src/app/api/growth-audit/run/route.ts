@@ -3,6 +3,7 @@ import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { hasFeature, PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
+import { assertRateLimit } from "@/lib/security/rate-limit";
 
 export async function POST(request: Request) {
   let reserved = false;
@@ -21,6 +22,20 @@ export async function POST(request: Request) {
 
     const auth = await requireBusinessAccess(businessId);
     organizationId = auth.organizationId;
+    const rate = assertRateLimit({
+      key: `growth-audit:${auth.organizationId}`,
+      maxPerWindow: 25,
+      windowMs: 60_000,
+    });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rate.retryAfterMs / 1000)) },
+        }
+      );
+    }
     if (!(await hasFeature(auth.organizationId, "growth_audit"))) {
       return NextResponse.json(
         { error: "Growth Audit is not included in your plan." },

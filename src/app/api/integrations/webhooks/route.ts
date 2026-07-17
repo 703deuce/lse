@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireAuth } from "@/lib/auth/context";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
+import { requireRecentAuth } from "@/lib/auth/reauth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import {
   buildIncomingWebhookUrl,
@@ -9,8 +11,9 @@ import {
   listWebhookEndpoints,
 } from "@/lib/integrations/webhook-endpoints";
 import { createServiceClient } from "@/lib/db/client";
-import { assertWithinLimit, PlanLimitError } from "@/lib/plans";
+import { assertWithinLimit } from "@/lib/plans";
 import type { FieldMapping } from "@/lib/integrations/webhook-mapping";
+import { requestAuditMeta, writeSecurityAuditEvent } from "@/lib/security/audit-log";
 
 export async function GET(request: Request) {
   try {
@@ -108,6 +111,11 @@ export async function POST(request: Request) {
     const access = await requireBusinessAccess(body.businessId);
     await requireEntitlement(access.organizationId, "review_campaigns");
     await assertWithinLimit(access.organizationId, "webhook_endpoints", 1);
+    await requireRecentAuth();
+    const permAuth = await requireOrganizationPermission(
+      "integration.manage",
+      access.organizationId
+    );
     const auth = await requireAuth();
 
     const supabase = createServiceClient();
@@ -138,7 +146,7 @@ export async function POST(request: Request) {
       description: body.description,
       eventType: body.eventType,
       isTest: body.isTest ?? true,
-      signatureRequired: body.signatureRequired ?? false,
+      signatureRequired: body.signatureRequired ?? true,
       sendDelayMinutes: body.sendDelayMinutes ?? 0,
       duplicateWindowDays: body.duplicateWindowDays ?? 90,
       fieldMapping: body.fieldMapping,
@@ -146,6 +154,17 @@ export async function POST(request: Request) {
       requireEmailConsent: body.requireEmailConsent,
       requireSmsConsent: body.requireSmsConsent,
       createdByUserId: auth.userId,
+    });
+
+    const meta = requestAuditMeta(request);
+    await writeSecurityAuditEvent({
+      action: "integration.webhook.create",
+      organizationId: access.organizationId,
+      actorUserId: permAuth.userId,
+      actorEmail: permAuth.email,
+      resourceType: "integration_webhook_endpoint",
+      resourceId: created.endpoint.id,
+      ...meta,
     });
 
     return NextResponse.json({
@@ -162,12 +181,6 @@ export async function POST(request: Request) {
       warning: "Copy the webhook URL (and signing secret if shown) now — they will not be shown again.",
     });
   } catch (err) {
-    if (err instanceof EntitlementError) {
-      return NextResponse.json({ error: err.message, entitlement: err.entitlement }, { status: 403 });
-    }
-    if (err instanceof PlanLimitError) {
-      return NextResponse.json({ error: err.message, limit: err.limitKey }, { status: 403 });
-    }
     return httpErrorFromException(err, "Failed to create webhook");
   }
 }

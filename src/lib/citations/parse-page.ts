@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import { safeFetchWebsite } from "@/lib/validation/ssrf";
+import { safeFetchWebsite, safeReadText } from "@/lib/validation/ssrf";
 import { scrapeWebsite } from "@/lib/providers/scrapingdog";
 
 const PHONE_RE = /(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
@@ -72,7 +72,7 @@ export async function parseCitationPage(
   let html = "";
   try {
     const res = await safeFetchWebsite(url, 12000);
-    html = await res.text();
+    html = await safeReadText(res);
   } catch {
     try {
       html = await scrapeWebsite({ url, organizationId });

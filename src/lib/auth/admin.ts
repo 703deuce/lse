@@ -3,15 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth/context";
 import { isDevBypassEnabled } from "@/lib/auth/dev";
 import { writeSecurityAuditEvent } from "@/lib/security/audit-log";
+import { isAdminMfaRequired } from "@/lib/auth/admin-mfa";
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "")
   .split(",")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
-
-const REQUIRE_ADMIN_MFA =
-  process.env.ADMIN_REQUIRE_MFA === "true" ||
-  (process.env.NODE_ENV === "production" && process.env.ADMIN_REQUIRE_MFA !== "false");
 
 export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;
@@ -37,7 +34,7 @@ export async function requirePlatformAdmin(): Promise<{
     throw new Error("Admin access required");
   }
 
-  if (!isDevBypassEnabled() && REQUIRE_ADMIN_MFA) {
+  if (!isDevBypassEnabled() && isAdminMfaRequired()) {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
     if (error || data?.currentLevel !== "aal2") {
