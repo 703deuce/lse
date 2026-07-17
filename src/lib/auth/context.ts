@@ -73,6 +73,13 @@ export async function getAuthContext(): Promise<AuthContext> {
 
   const orgGate = await loadOrganizationGateStatus(organizationId);
   if (!orgGate || isOrganizationAccessBlocked(orgGate.status)) {
+    // Clear the session so middleware does not bounce /sign-in → /businesses
+    // while app guards treat the user as unauthenticated (redirect loop).
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      /* ignore */
+    }
     return {
       userId: "",
       organizationId: "",

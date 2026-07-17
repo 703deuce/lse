@@ -400,6 +400,7 @@ export async function executeJobType(
       }
       case "maps_difficulty_run": {
         const { processMapsDifficultyJob } = await import("@/lib/maps-difficulty/run-job");
+        const { assertOrganizationCanEnqueue } = await import("@/lib/auth/org-status");
         const keyword = String(payload.keyword ?? "").trim();
         const lat = Number(payload.lat);
         const lng = Number(payload.lng);
@@ -407,6 +408,7 @@ export async function executeJobType(
         if (!keyword || !Number.isFinite(lat) || !Number.isFinite(lng) || !organizationId) {
           return permanent("maps_difficulty payload incomplete");
         }
+        await assertOrganizationCanEnqueue(organizationId, "maps_difficulty_run");
         await processMapsDifficultyJob({
           organizationId,
           keyword,
@@ -544,18 +546,10 @@ export async function executeJobType(
         const businessId = String(payload.businessId ?? "");
         const module = String(payload.module ?? "");
         const organizationId = String(payload.organizationId ?? "");
-        if (!businessId || !module) return permanent("gbp_audit_module payload incomplete");
-        if (organizationId) {
-          const supabase = createServiceClient();
-          const { data: biz } = await supabase
-            .from("businesses")
-            .select("organization_id")
-            .eq("id", businessId)
-            .maybeSingle();
-          if (!biz || biz.organization_id !== organizationId) {
-            return permanent("gbp_audit_module tenant mismatch");
-          }
+        if (!businessId || !module || !organizationId) {
+          return permanent("gbp_audit_module payload incomplete");
         }
+        await requireBusinessOrg(businessId, organizationId);
         const { executeAuditModule, isAuditModule } = await import("@/lib/audit/run-module");
         if (!isAuditModule(module)) return permanent("Unknown GBP audit module");
         const result = await executeAuditModule({

@@ -73,10 +73,19 @@ async function assertRateLimitRedis(params: {
         throw new Error("redis connect failed");
       });
     }
-    const count = await redis.incr(redisKey);
-    if (count === 1) {
-      await redis.pexpire(redisKey, windowMs);
-    }
+    // Atomic INCR + conditional PEXPIRE so a failed expire cannot stick the key forever.
+    const count = (await redis.eval(
+      `
+      local n = redis.call('INCR', KEYS[1])
+      if n == 1 or redis.call('PTTL', KEYS[1]) < 0 then
+        redis.call('PEXPIRE', KEYS[1], ARGV[1])
+      end
+      return n
+      `,
+      1,
+      redisKey,
+      String(windowMs)
+    )) as number;
     if (count > max) {
       const ttl = await redis.pttl(redisKey);
       return { ok: false, retryAfterMs: Math.max(50, ttl > 0 ? ttl : windowMs) };

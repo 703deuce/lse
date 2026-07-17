@@ -7,6 +7,7 @@ export type Permission =
   | "scan.read"
   | "report.create"
   | "report.share"
+  | "contacts.read"
   | "contacts.import"
   | "contacts.export"
   | "campaign.send"
@@ -32,11 +33,12 @@ const PERMISSION_MIN_ROLE: Record<Permission, OrgRole> = {
   "scan.run": "member",
   "scan.read": "readonly",
   "report.create": "member",
-  "report.share": "admin",
+  "report.share": "member",
+  "contacts.read": "member",
   "contacts.import": "member",
-  "contacts.export": "admin",
-  "campaign.send": "admin",
-  "billing.read": "admin",
+  "contacts.export": "member",
+  "campaign.send": "member",
+  "billing.read": "member",
   "integration.manage": "admin",
   "api_key.manage": "admin",
   "member.invite": "admin",

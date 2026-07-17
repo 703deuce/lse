@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { GoogleMapsKeyProvider } from "@/components/maps/google-maps-key-context";
-import { getGoogleMapsApiKey } from "@/lib/maps/google-maps-key";
+import { getBrowserGoogleMapsApiKey } from "@/lib/maps/google-maps-key";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -24,7 +24,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const mapsApiKey = getGoogleMapsApiKey() ?? null;
+  const mapsApiKey = getBrowserGoogleMapsApiKey() ?? null;
 
   return (
     <html
