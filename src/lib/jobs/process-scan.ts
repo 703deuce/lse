@@ -7,6 +7,7 @@ import {
   extractTopCompetitors,
 } from "@/lib/providers/dataforseo";
 import { finalizeRankReady } from "@/lib/jobs/finalize-scan";
+import { mergeScanConfidenceSummary } from "@/lib/jobs/merge-confidence-summary";
 import { runGridCellsLive } from "@/lib/jobs/run-grid-cells";
 import {
   claimQueuedScan,
@@ -17,6 +18,11 @@ import {
   scanLeaseTtlMs,
 } from "@/lib/jobs/scan-lease";
 import { CELLS_IN_FLIGHT_STATUSES } from "@/lib/scans/status";
+import {
+  mapsProviderModeLabel,
+  parseMapsProviderMode,
+  scanBatchProviderColumn,
+} from "@/lib/maps/provider-modes";
 
 /** Outcome of attempting to process a scan batch. */
 export type ProcessScanOutcome = "ran" | "deferred" | "already_done";
@@ -238,32 +244,42 @@ export async function processScanBatch(
     }
 
     const totalTasks = insertedPoints.length * keywordList.length;
+    const confSummary = (batch.confidence_summary ?? {}) as Record<string, unknown>;
+    const providerMode = parseMapsProviderMode(confSummary.maps_provider_mode);
 
-    console.log("[Scan] Starting batch (Bright Data live):", {
+    console.log("[Scan] Starting batch:", {
       scanBatchId,
       resume,
       businessId: business.id,
       scanType: batch.scan_type,
-      provider: "brightdata",
+      providerMode,
+      providerModeLabel: mapsProviderModeLabel(providerMode),
+      provider: scanBatchProviderColumn(providerMode),
       gridSize: batch.grid_size,
       radiusMeters: batch.radius_meters,
       keywordCount: keywordList.length,
       cellCount: insertedPoints.length,
       totalTasks,
       center: { lat: centerLat, lng: centerLng },
+      device: batch.device,
+      os: batch.os,
     });
 
     await supabase
       .from("scan_batches")
       .update({
         status: "provider_running",
-        provider: "brightdata",
+        provider: scanBatchProviderColumn(providerMode),
         lease_owner: leaseOwner,
         lease_expires_at: new Date(Date.now() + scanLeaseTtlMs()).toISOString(),
         heartbeat_at: new Date().toISOString(),
       })
       .eq("id", scanBatchId)
       .eq("lease_owner", leaseOwner);
+
+    await mergeScanConfidenceSummary(supabase, scanBatchId, {
+      maps_provider_mode: providerMode,
+    }).catch(() => undefined);
 
     let rankReadyPromise: Promise<void> | null = null;
     const totalCellsPlanned = insertedPoints.length * keywordList.length;
@@ -293,6 +309,7 @@ export async function processScanBatch(
       device: (batch.device as string | null) ?? "mobile",
       os: (batch.os as string | null) ?? "android",
       browser: (batch as { browser?: string }).browser ?? "chrome",
+      providerMode,
       organizationId: resolvedOrgId,
       onLeaseHeartbeat: async () => {
         await extendScanLease(scanBatchId, leaseOwner);

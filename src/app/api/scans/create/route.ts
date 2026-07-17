@@ -5,6 +5,11 @@ import { createServiceClient } from "@/lib/db/client";
 import { dispatchScanProcessing } from "@/lib/jobs/schedule-scan";
 import { createScanSchema } from "@/lib/validation/schemas";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
+import {
+  DEFAULT_MAPS_PROVIDER_MODE,
+  parseMapsProviderMode,
+  scanBatchProviderColumn,
+} from "@/lib/maps/provider-modes";
 import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
 import {
   gridMapCredits,
@@ -41,7 +46,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: parsed.error.message }, { status: 400 });
     }
 
-    const { businessId, gridSize, radiusMeters, device, os, browser, parityLabel, centerLat: bodyLat, centerLng: bodyLng, centerLabel: bodyLabel } = parsed.data;
+    const {
+      businessId,
+      gridSize,
+      radiusMeters,
+      device,
+      os,
+      browser,
+      mapsProviderMode: rawMode,
+      parityLabel,
+      centerLat: bodyLat,
+      centerLng: bodyLng,
+      centerLabel: bodyLabel,
+    } = parsed.data;
+    const mapsProviderMode = parseMapsProviderMode(rawMode ?? DEFAULT_MAPS_PROVIDER_MODE);
     const auth = await requireBusinessAccess(businessId);
     const rate = await assertRateLimit({
       key: `scans-create:${auth.organizationId}`,
@@ -180,7 +198,7 @@ export async function POST(request: Request) {
           device,
           os,
           browser,
-          provider: "brightdata",
+          provider: scanBatchProviderColumn(mapsProviderMode),
           location_id: latestScan?.location_id ?? null,
           center_lat: centerLat,
           center_lng: centerLng,
@@ -188,6 +206,7 @@ export async function POST(request: Request) {
           confidence_summary: {
             ...PARITY_SUMMARY,
             scan_profile: { device, os, browser },
+            maps_provider_mode: mapsProviderMode,
             ...(parityLabel ? { parity_profile: parityLabel } : {}),
             // Scope baseline Settings scans to the primary keyword — otherwise
             // processScanBatch fans out to every keyword for the same credit cost.

@@ -12,6 +12,11 @@ import {
   reserveUsageOrThrow,
 } from "@/lib/plans";
 import { DEFAULT_RADIUS_METERS, MAX_RADIUS_METERS, MIN_RADIUS_METERS } from "@/lib/maps/grid-metrics";
+import {
+  DEFAULT_MAPS_PROVIDER_MODE,
+  parseMapsProviderMode,
+  scanBatchProviderColumn,
+} from "@/lib/maps/provider-modes";
 import { assertRateLimit } from "@/lib/security/rate-limit";
 
 const schema = z.object({
@@ -29,6 +34,7 @@ const schema = z.object({
   device: z.enum(["desktop", "mobile"]).default("mobile"),
   os: z.enum(["android", "ios", "windows", "macos"]).default("android"),
   browser: z.enum(["chrome", "firefox"]).default("chrome"),
+  mapsProviderMode: z.enum(["hybrid", "scrapingdog", "dataforseo"]).default("hybrid"),
   locationId: z.string().uuid().optional().nullable(),
   centerLat: z.number().optional(),
   centerLng: z.number().optional(),
@@ -65,6 +71,7 @@ export async function POST(request: Request) {
       device,
       os,
       browser,
+      mapsProviderMode: rawMode,
       locationId,
       centerLat,
       centerLng,
@@ -72,6 +79,7 @@ export async function POST(request: Request) {
       movedFromScanId,
       excludedLabels = [],
     } = parsed.data;
+    const mapsProviderMode = parseMapsProviderMode(rawMode ?? DEFAULT_MAPS_PROVIDER_MODE);
     const auth = await requireBusinessAccess(businessId);
     const rate = await assertRateLimit({
       key: `scans-run-for-keyword:${auth.organizationId}`,
@@ -177,7 +185,7 @@ export async function POST(request: Request) {
           device,
           os,
           browser,
-          provider: "brightdata",
+          provider: scanBatchProviderColumn(mapsProviderMode),
           location_id: locationId ?? null,
           center_lat: resolvedCenterLat,
           center_lng: resolvedCenterLng,
@@ -186,6 +194,7 @@ export async function POST(request: Request) {
           confidence_summary: {
             ...PARITY_SUMMARY,
             scan_profile: { device, os, browser },
+            maps_provider_mode: mapsProviderMode,
             keyword_ids: [resolvedKeywordId],
             keyword_label: String(kwRow.keyword).trim(),
             method: "live_parallel",

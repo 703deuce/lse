@@ -30,6 +30,8 @@ export const createBusinessSchema = z.object({
   country: z.string().optional(),
 });
 
+export const mapsProviderModeSchema = z.enum(["hybrid", "scrapingdog", "dataforseo"]);
+
 export const createScanSchema = z.object({
   businessId: z.string().uuid(),
   gridSize: z.number().int().min(3).max(11).default(7),
@@ -43,6 +45,8 @@ export const createScanSchema = z.object({
   device: z.enum(["desktop", "mobile"]).default("mobile"),
   os: z.enum(["android", "ios", "windows", "macos"]).default("android"),
   browser: z.enum(["chrome", "firefox"]).default("chrome"),
+  /** A/B mode: hybrid (BD→DFS→SD), scrapingdog-only, or dataforseo-only. */
+  mapsProviderMode: mapsProviderModeSchema.default("hybrid"),
   parityLabel: z.string().optional(),
   centerLat: z.number().min(-90).max(90).optional(),
   centerLng: z.number().min(-180).max(180).optional(),

@@ -41,7 +41,6 @@ import {
   fetchMapsCell,
   logMapsProviderAvailability,
   resolveUsableMapsProviders,
-  secondaryFallbackProviders,
 } from "@/lib/providers/maps-grid/orchestrator";
 import type { MapsFailureCategory } from "@/lib/providers/maps-grid/failure-categories";
 import type { MapsProviderId, MapsRecoveryStage } from "@/lib/providers/maps-grid/types";
@@ -49,6 +48,15 @@ import {
   recordMapsProviderAttempt,
   setMapsProviderCircuit,
 } from "@/lib/queue/maps-provider-circuit";
+import {
+  DEFAULT_MAPS_PROVIDER_MODE,
+  integrityProvidersForMode,
+  mapsProviderModeLabel,
+  parseMapsProviderMode,
+  primaryProvidersForMode,
+  secondaryProvidersForMode,
+  type MapsProviderMode,
+} from "@/lib/maps/provider-modes";
 
 /** Default wave size — overridden by BRIGHTDATA_GRID_BATCH_SIZE / FAIR_CHUNK (max 100). */
 const BRIGHTDATA_GRID_BATCH_SIZE = 100;
@@ -892,12 +900,14 @@ async function runIntegrityPass(params: {
   totalCells: number;
   organizationId?: string;
   onCellSettled?: (success: boolean) => Promise<void>;
+  providerMode?: MapsProviderMode;
 }): Promise<{
   failedCells: number;
   failedPointIds: string[];
   timings: CellPhaseTimings[];
   successCount: number;
 }> {
+  const providerMode = parseMapsProviderMode(params.providerMode);
   const supabase = createServiceClient();
   const { data: pointRows } = await supabase
     .from("scan_points")
@@ -923,14 +933,14 @@ async function runIntegrityPass(params: {
   }
 
   console.log(
-    `[Scan] Integrity retry for ${incompleteJobs.length} sparse/incomplete cells (concurrency=${params.concurrency})`
+    `[Scan] Integrity retry for ${incompleteJobs.length} sparse/incomplete cells (concurrency=${params.concurrency} mode=${providerMode})`
   );
-  // Prefer secondaries here — Bright Data already had primary + recovery chances.
-  // Always pass the full chain (not a pre-filtered usable list) so each provider
+  // Mode-aware integrity chain. Always pass the full list so each provider
   // records an attempt even when credentials are missing on this worker.
-  const integrityProviders = mapsFallbackEnabled()
-    ? [...secondaryFallbackProviders(), ...brightDataOnlyProviders()]
-    : brightDataOnlyProviders();
+  const integrityProviders =
+    providerMode === "hybrid" && !mapsFallbackEnabled()
+      ? brightDataOnlyProviders()
+      : integrityProvidersForMode(providerMode);
   const integrityPlan = await resolveUsableMapsProviders(integrityProviders);
   console.log(
     `[Scan] Integrity providers chain=${integrityProviders.join("→")} ready=${integrityPlan.usable.join(",") || "none"}` +
@@ -1018,6 +1028,8 @@ export async function runGridCellsLive(params: {
   organizationId?: string;
   /** When true, skip cells that already have complete saved results. */
   resume?: boolean;
+  /** Hybrid / ScrapingDog-only / DataForSEO-only — for A/B testing. */
+  providerMode?: MapsProviderMode;
   onSoftReady?: () => Promise<void>;
   onLeaseHeartbeat?: () => Promise<void>;
 }): Promise<{ failedCells: number; totalCells: number; successCells: number }> {
@@ -1026,6 +1038,9 @@ export async function runGridCellsLive(params: {
   const maxRounds = mapsGridMaxRetryRounds();
   const retryDelayMs = mapsGridRetryDelayMs();
   const batchSize = mapsCellBatchSize();
+  const providerMode = parseMapsProviderMode(params.providerMode ?? DEFAULT_MAPS_PROVIDER_MODE);
+  const primaryProviders = primaryProvidersForMode(providerMode);
+  const useBrightDataRecovery = providerMode === "hybrid";
 
   const allJobs = buildGridCellJobs(params);
   const totalCells = allJobs.length;
@@ -1068,9 +1083,12 @@ export async function runGridCellsLive(params: {
     })
     .eq("id", params.scanBatchId);
 
-  console.log("[Scan] Live parallel grid (Bright Data):", {
+  console.log("[Scan] Live parallel grid:", {
     scanBatchId: params.scanBatchId,
     resume: !!params.resume,
+    providerMode,
+    providerModeLabel: mapsProviderModeLabel(providerMode),
+    primaryProviders,
     totalCells,
     pendingCells: jobs.length,
     alreadyComplete,
@@ -1085,7 +1103,7 @@ export async function runGridCellsLive(params: {
     browser: params.browser,
     uniqueCoordinates: new Set(allJobs.map((j) => `${j.point.lat},${j.point.lng}`)).size,
   });
-  logMapsProviderAvailability(`scan=${params.scanBatchId}`);
+  logMapsProviderAvailability(`scan=${params.scanBatchId} mode=${providerMode}`);
 
   const allTimings: CellPhaseTimings[] = [];
   const scanWallStart = performance.now();
@@ -1122,6 +1140,7 @@ export async function runGridCellsLive(params: {
       totalCells,
       organizationId: params.organizationId,
       onCellSettled,
+      providerMode,
     });
     const failedCells = integrity.failedCells;
     const successCells = Math.max(0, totalCells - failedCells);
@@ -1150,6 +1169,12 @@ export async function runGridCellsLive(params: {
     console.log(
       `[Scan] Primary batch ${batchIndex + 1}/${primaryChunks.length}: ${chunk.length} cells`
     );
+    const primaryStage: MapsRecoveryStage =
+      providerMode === "scrapingdog"
+        ? "fallback_scrapingdog"
+        : providerMode === "dataforseo"
+          ? "fallback_dataforseo"
+          : "scanning_brightdata";
     const pass = await runJobsWithConcurrency(chunk, {
       scanBatchId: params.scanBatchId,
       depth,
@@ -1158,10 +1183,10 @@ export async function runGridCellsLive(params: {
       concurrency: mapsGridConcurrency(chunk.length),
       totalCells,
       passLabel,
-      providers: brightDataOnlyProviders(),
-      allowTransientRetry: false,
+      providers: primaryProviders,
+      allowTransientRetry: providerMode !== "hybrid",
       scanRetryRound: 0,
-      recoveryStage: "scanning_brightdata",
+      recoveryStage: primaryStage,
       completedOffset,
       updateProgress: true,
       // No mid-primary soft-ready — map waits until pass=complete after integrity.
@@ -1177,8 +1202,53 @@ export async function runGridCellsLive(params: {
   let remainingJobs = failedFromPrimary;
   let failedCells = remainingJobs.length;
 
-  // ---- Multi-provider recovery (Bright Data → ScrapingDog → DataForSEO) ----
-  if (remainingJobs.length > 0) {
+  // ---- Recovery after primary ----
+  // Hybrid: Bright Data isolated/degraded recovery, then DataForSEO → ScrapingDog.
+  // Single-provider modes: one same-provider retry pass (no Bright Data).
+  if (remainingJobs.length > 0 && !useBrightDataRecovery) {
+    console.log(
+      `[Scan] ${providerMode} retry for ${remainingJobs.length} cells (same provider, no Bright Data)`
+    );
+    await sleep(isolatedRetryDelayMs());
+    const stage: MapsRecoveryStage =
+      providerMode === "scrapingdog" ? "fallback_scrapingdog" : "fallback_dataforseo";
+    await scheduleCellProgress(
+      params.scanBatchId,
+      completedOffset,
+      totalCells,
+      remainingJobs.length,
+      {
+        pass: `${providerMode}-retry`,
+        recovery_stage: stage,
+        maps_provider_mode: providerMode,
+      },
+      { force: true }
+    );
+    const retryPass = await runJobsWithConcurrency(remainingJobs, {
+      scanBatchId: params.scanBatchId,
+      depth,
+      timeoutMs,
+      maxAttempts: 1,
+      concurrency: Math.min(remainingJobs.length, mapsGridConcurrency(remainingJobs.length)),
+      totalCells,
+      passLabel: `${providerMode}-retry`,
+      providers: primaryProviders,
+      allowTransientRetry: true,
+      scanRetryRound: 1,
+      recoveryStage: stage,
+      completedOffset,
+      updateProgress: true,
+      onCellSettled,
+      organizationId: params.organizationId,
+    });
+    allTimings.push(...retryPass.timings);
+    completedOffset += retryPass.successCount;
+    remainingJobs = failedJobsFromPass(remainingJobs, retryPass.results);
+    failedCells = remainingJobs.length;
+  }
+
+  // ---- Hybrid Bright Data recovery (Bright Data → DataForSEO → ScrapingDog) ----
+  if (remainingJobs.length > 0 && useBrightDataRecovery) {
     const primaryOutcomes = allTimings.map((t) => ({
       success: t.success,
       category: (t.failureCategory as MapsFailureCategory | undefined) ??
@@ -1365,9 +1435,8 @@ export async function runGridCellsLive(params: {
     }
   }
 
-  // Secondary fallback MUST run for every unresolved cell after Bright Data phases.
-  // Union in-memory failures with a full-grid DB incompleteness check so neither
-  // desync nor a partial PostgREST read can skip DataForSEO/ScrapingDog.
+  // Secondary fallback MUST run for every unresolved cell after Bright Data phases
+  // (hybrid mode only). Union in-memory failures with a full-grid DB check.
   {
     const memoryUnresolved = remainingJobs;
     const dbIncomplete = await loadIncompleteJobsFromDb(params.scanBatchId, allJobs, depth);
@@ -1379,8 +1448,8 @@ export async function runGridCellsLive(params: {
       );
     }
 
-    if (remainingJobs.length > 0 && mapsFallbackEnabled()) {
-      const secondaryProviders = secondaryFallbackProviders();
+    const secondaryProviders = secondaryProvidersForMode(providerMode);
+    if (remainingJobs.length > 0 && mapsFallbackEnabled() && secondaryProviders.length > 0) {
       const secondaryPlan = await resolveUsableMapsProviders(secondaryProviders);
       const skipSummary = secondaryPlan.skipped
         .map((s) => `${s.provider}:${s.skipReason}${s.detail ? `(${s.detail})` : ""}`)
@@ -1405,7 +1474,9 @@ export async function runGridCellsLive(params: {
       const stage =
         secondaryPlan.usable[0] === "dataforseo"
           ? ("fallback_dataforseo" as const)
-          : ("fallback_scrapingdog" as const);
+          : secondaryPlan.usable[0] === "scrapingdog"
+            ? ("fallback_scrapingdog" as const)
+            : ("fallback_dataforseo" as const);
       await scheduleCellProgress(
         params.scanBatchId,
         completedOffset,
@@ -1414,6 +1485,7 @@ export async function runGridCellsLive(params: {
         {
           pass: "fallback-secondary",
           recovery_stage: stage,
+          maps_provider_mode: providerMode,
           secondary_fallback_attempted: true,
           fallback_providers: secondaryProviders,
           fallback_ready_providers: secondaryPlan.usable,
@@ -1457,7 +1529,11 @@ export async function runGridCellsLive(params: {
       console.log(
         `[Scan] Secondary fallback FINISHED: recovered=${fallbackPass.successCount} still_unresolved=${remainingJobs.length}`
       );
-    } else if (remainingJobs.length > 0 && !mapsFallbackEnabled()) {
+    } else if (
+      remainingJobs.length > 0 &&
+      useBrightDataRecovery &&
+      !mapsFallbackEnabled()
+    ) {
       console.error(
         `[Scan] SECONDARY FALLBACK DISABLED (MAPS_GRID_FALLBACK_ENABLED=false) — ${remainingJobs.length} cells left unresolved after Bright Data`
       );
@@ -1502,7 +1578,13 @@ export async function runGridCellsLive(params: {
         failedCells = remainingJobs.length;
       }
     } else if (remainingJobs.length === 0) {
-      console.log("[Scan] No incomplete cells after Bright Data — secondary fallback not needed");
+      console.log(
+        `[Scan] No incomplete cells after primary (${providerMode}) — secondary fallback not needed`
+      );
+    } else if (remainingJobs.length > 0 && secondaryProviders.length === 0) {
+      console.log(
+        `[Scan] Mode=${providerMode} has no secondary chain — ${remainingJobs.length} cells go to integrity`
+      );
     }
   }
 
@@ -1517,6 +1599,7 @@ export async function runGridCellsLive(params: {
     totalCells,
     organizationId: params.organizationId,
     onCellSettled,
+    providerMode,
   });
   allTimings.push(...integrity.timings);
   const failedPointIds = [

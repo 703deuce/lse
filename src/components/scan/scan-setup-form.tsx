@@ -11,6 +11,11 @@ import {
   gridScanMeta,
 } from "@/lib/maps/grid-metrics";
 import { DEFAULT_SCAN_PROFILE } from "@/lib/maps/scan-profiles";
+import {
+  DEFAULT_MAPS_PROVIDER_MODE,
+  MAPS_PROVIDER_MODE_OPTIONS,
+  type MapsProviderMode,
+} from "@/lib/maps/provider-modes";
 import { RadiusMilesField } from "@/components/scan/radius-miles-field";
 
 export function ScanSetupForm({
@@ -36,6 +41,9 @@ export function ScanSetupForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(defaults);
+  const [mapsProviderMode, setMapsProviderMode] = useState<MapsProviderMode>(
+    DEFAULT_MAPS_PROVIDER_MODE
+  );
 
   useEffect(() => {
     setForm((prev) => ({
@@ -84,6 +92,7 @@ export function ScanSetupForm({
           device: DEFAULT_SCAN_PROFILE.device,
           os: DEFAULT_SCAN_PROFILE.os,
           browser: DEFAULT_SCAN_PROFILE.browser,
+          mapsProviderMode,
           centerLat: lat,
           centerLng: lng,
         }),
@@ -130,7 +139,21 @@ export function ScanSetupForm({
           inputClassName={selectClass}
           hint={null}
         />
-        <div className="flex items-end">
+        <label className="text-xs font-medium text-text-muted">
+          Maps provider mode
+          <select
+            className={selectClass}
+            value={mapsProviderMode}
+            onChange={(e) => setMapsProviderMode(e.target.value as MapsProviderMode)}
+          >
+            {MAPS_PROVIDER_MODE_OPTIONS.map((opt) => (
+              <option key={opt.id} value={opt.id}>
+                {opt.shortLabel}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="flex items-end sm:col-span-2 lg:col-span-1">
           <button
             type="button"
             onClick={runScan}

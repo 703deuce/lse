@@ -230,6 +230,7 @@ export function scanProgressMessage(batch: {
       return "Creating your map…";
     }
     const stage = String(conf.recovery_stage ?? "");
+    const mode = String(conf.maps_provider_mode ?? "hybrid");
     if (stage === "brightdata_degraded") {
       return "Bright Data temporarily degraded — recovering…";
     }
@@ -237,11 +238,21 @@ export function scanProgressMessage(batch: {
       return "Testing provider recovery…";
     }
     if (stage === "fallback_scrapingdog") {
+      if (mode === "scrapingdog") {
+        return total > 0
+          ? `Scanning with ScrapingDog… ${completed} / ${total}`
+          : "Scanning with ScrapingDog…";
+      }
       return total > 0
         ? `Completing remaining points with ScrapingDog… ${completed} / ${total}`
         : "Completing remaining points with ScrapingDog…";
     }
     if (stage === "fallback_dataforseo") {
+      if (mode === "dataforseo") {
+        return total > 0
+          ? `Scanning with DataForSEO… ${completed} / ${total}`
+          : "Scanning with DataForSEO…";
+      }
       return total > 0
         ? `Completing unresolved points with DataForSEO… ${completed} / ${total}`
         : "Completing unresolved points with DataForSEO…";
@@ -250,16 +261,16 @@ export function scanProgressMessage(batch: {
       const ready = Array.isArray(conf.fallback_ready_providers)
         ? (conf.fallback_ready_providers as string[])
         : [];
-      // Prefer first-in-chain messaging (ScrapingDog → DataForSEO).
-      if (ready.includes("scrapingdog") || stage === "fallback_scrapingdog") {
-        return total > 0
-          ? `Completing remaining points with ScrapingDog… ${completed} / ${total}`
-          : "Completing remaining points with ScrapingDog…";
-      }
+      // Prefer first-in-chain messaging (DataForSEO → ScrapingDog).
       if (ready.includes("dataforseo") || stage === "fallback_dataforseo") {
         return total > 0
           ? `Completing unresolved points with DataForSEO… ${completed} / ${total}`
           : "Completing unresolved points with DataForSEO…";
+      }
+      if (ready.includes("scrapingdog") || stage === "fallback_scrapingdog") {
+        return total > 0
+          ? `Completing remaining points with ScrapingDog… ${completed} / ${total}`
+          : "Completing remaining points with ScrapingDog…";
       }
       return total > 0
         ? `Trying backup Maps providers… ${completed} / ${total}`
@@ -281,6 +292,16 @@ export function scanProgressMessage(batch: {
       return total > 0
         ? `Retrying remaining locations… ${completed} / ${total} ready`
         : "Retrying remaining locations…";
+    }
+    if (mode === "scrapingdog") {
+      return total > 0
+        ? `Scanning with ScrapingDog… ${completed} / ${total}`
+        : "Scanning with ScrapingDog…";
+    }
+    if (mode === "dataforseo") {
+      return total > 0
+        ? `Scanning with DataForSEO… ${completed} / ${total}`
+        : "Scanning with DataForSEO…";
     }
     return total > 0
       ? `Scanning with Bright Data… ${completed} / ${total}`

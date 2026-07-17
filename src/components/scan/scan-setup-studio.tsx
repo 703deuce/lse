@@ -20,6 +20,11 @@ import {
   computeSolv,
 } from "@/lib/maps/grid-metrics";
 import { DEFAULT_SCAN_PROFILE } from "@/lib/maps/scan-profiles";
+import {
+  DEFAULT_MAPS_PROVIDER_MODE,
+  MAPS_PROVIDER_MODE_OPTIONS,
+  type MapsProviderMode,
+} from "@/lib/maps/provider-modes";
 import { RadiusMilesField } from "@/components/scan/radius-miles-field";
 import { updateBusinessSettings } from "@/lib/actions/mutations";
 import { cn } from "@/lib/utils";
@@ -76,6 +81,9 @@ export function ScanSetupStudio({
   );
   const [gridSize, setGridSize] = useState(DEFAULT_GRID_SIZE);
   const [radiusMeters, setRadiusMeters] = useState(DEFAULT_RADIUS_METERS);
+  const [mapsProviderMode, setMapsProviderMode] = useState<MapsProviderMode>(
+    DEFAULT_MAPS_PROVIDER_MODE
+  );
   const [centerLat, setCenterLat] = useState(defaultCenterLat);
   const [centerLng, setCenterLng] = useState(defaultCenterLng);
   const [defaultLat, setDefaultLat] = useState(defaultCenterLat);
@@ -206,6 +214,7 @@ export function ScanSetupStudio({
           device: DEFAULT_SCAN_PROFILE.device,
           os: DEFAULT_SCAN_PROFILE.os,
           browser: DEFAULT_SCAN_PROFILE.browser,
+          mapsProviderMode,
           centerLat,
           centerLng,
           centerLabel: locationLabel,
@@ -426,6 +435,26 @@ export function ScanSetupStudio({
               selectClassName={fieldSelect}
               inputClassName={cn(dashboardControl, "h-auto w-full px-2.5 py-1.5")}
             />
+            <label className={fieldLabel}>
+              Maps provider mode
+              <select
+                value={mapsProviderMode}
+                onChange={(e) => setMapsProviderMode(e.target.value as MapsProviderMode)}
+                className={fieldSelect}
+              >
+                {MAPS_PROVIDER_MODE_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="text-[11px] leading-relaxed text-zinc-500">
+              {
+                MAPS_PROVIDER_MODE_OPTIONS.find((o) => o.id === mapsProviderMode)
+                  ?.description
+              }
+            </p>
             <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-[12px] leading-relaxed text-sky-900">
               <p className="flex gap-1.5">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
