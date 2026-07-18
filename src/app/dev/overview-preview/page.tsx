@@ -8,6 +8,9 @@ import { ModulePage } from "@/components/ui/design-system";
 import { loadDashboardFeatured } from "@/lib/overview/load-dashboard-featured";
 import { loadDashboardRecentScans } from "@/lib/overview/load-dashboard-scans";
 
+/** Avoid prerender during `next build` when Supabase env is unavailable. */
+export const dynamic = "force-dynamic";
+
 async function resolvePreviewBusiness(): Promise<{
   id: string;
   name: string;
