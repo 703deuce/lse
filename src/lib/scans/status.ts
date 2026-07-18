@@ -231,6 +231,24 @@ export function scanProgressMessage(batch: {
     }
     const stage = String(conf.recovery_stage ?? "");
     const mode = String(conf.maps_provider_mode ?? "hybrid");
+    if (pass.startsWith("bd-delayed-wait")) {
+      const round = Number(conf.delayed_retry_round ?? 0);
+      const rounds = Number(conf.delayed_retry_rounds ?? 0);
+      const label =
+        round > 0 && rounds > 0 ? ` (${round}/${rounds})` : "";
+      return total > 0
+        ? `Waiting before Bright Data retry${label}… ${completed} / ${total}`
+        : `Waiting before Bright Data retry${label}…`;
+    }
+    if (pass.startsWith("bd-delayed-retry")) {
+      const round = Number(conf.delayed_retry_round ?? 0);
+      const rounds = Number(conf.delayed_retry_rounds ?? 0);
+      const label =
+        round > 0 && rounds > 0 ? ` (${round}/${rounds})` : "";
+      return total > 0
+        ? `Retrying unfinished points with Bright Data${label}… ${completed} / ${total}`
+        : `Retrying unfinished points with Bright Data${label}…`;
+    }
     if (stage === "brightdata_degraded") {
       return "Bright Data temporarily degraded — recovering…";
     }
@@ -349,6 +367,13 @@ export function scanWaitPhase(batch: {
 
   if (status === "normalizing" || pass === "complete") return "creating_map";
   if (total > 0 && completed >= total) return "creating_map";
-  if (pass.startsWith("retry") || pass === "integrity") return "retrying";
+  if (
+    pass.startsWith("retry") ||
+    pass === "integrity" ||
+    pass.startsWith("bd-delayed-") ||
+    pass.startsWith("bd-")
+  ) {
+    return "retrying";
+  }
   return "scanning";
 }

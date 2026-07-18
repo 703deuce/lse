@@ -23,18 +23,13 @@ import {
   maybeStartEarlyEnrichment,
 } from "@/lib/jobs/run-early-enrichment";
 import {
+  brightDataDelayedRetryDelayMs,
+  brightDataDelayedRetryRounds,
   brightDataNormalCellTimeoutMs,
-  brightDataHalfOpenConcurrency,
-  brightDataHalfOpenRampConcurrency,
-  mapsFallbackEnabled,
 } from "@/lib/providers/maps-grid/config";
 import {
-  analyzePrimaryWave,
-  degradedRecoveryDelayMs,
   isolatedRetryConcurrency,
   isolatedRetryDelayMs,
-  probesRecovered,
-  selectProbeJobs,
 } from "@/lib/providers/maps-grid/batch-recovery";
 import {
   brightDataOnlyProviders,
@@ -44,17 +39,13 @@ import {
 } from "@/lib/providers/maps-grid/orchestrator";
 import type { MapsFailureCategory } from "@/lib/providers/maps-grid/failure-categories";
 import type { MapsProviderId, MapsRecoveryStage } from "@/lib/providers/maps-grid/types";
-import {
-  recordMapsProviderAttempt,
-  setMapsProviderCircuit,
-} from "@/lib/queue/maps-provider-circuit";
+import { recordMapsProviderAttempt } from "@/lib/queue/maps-provider-circuit";
 import {
   DEFAULT_MAPS_PROVIDER_MODE,
   integrityProvidersForMode,
   mapsProviderModeLabel,
   parseMapsProviderMode,
   primaryProvidersForMode,
-  secondaryProvidersForMode,
   type MapsProviderMode,
 } from "@/lib/maps/provider-modes";
 
@@ -937,10 +928,7 @@ async function runIntegrityPass(params: {
   );
   // Mode-aware integrity chain. Always pass the full list so each provider
   // records an attempt even when credentials are missing on this worker.
-  const integrityProviders =
-    providerMode === "hybrid" && !mapsFallbackEnabled()
-      ? brightDataOnlyProviders()
-      : integrityProvidersForMode(providerMode);
+  const integrityProviders = integrityProvidersForMode(providerMode);
   const integrityPlan = await resolveUsableMapsProviders(integrityProviders);
   console.log(
     `[Scan] Integrity providers chain=${integrityProviders.join("→")} ready=${integrityPlan.usable.join(",") || "none"}` +
@@ -1203,8 +1191,8 @@ export async function runGridCellsLive(params: {
   let failedCells = remainingJobs.length;
 
   // ---- Recovery after primary ----
-  // Hybrid: Bright Data isolated/degraded recovery, then DataForSEO → ScrapingDog.
-  // Single-provider modes: one same-provider retry pass (no Bright Data).
+  // Hybrid: pause → Bright Data retry (×2) for unfinished cells — no DFS/SD switch.
+  // Single-provider modes: one same-provider retry pass.
   if (remainingJobs.length > 0 && !useBrightDataRecovery) {
     console.log(
       `[Scan] ${providerMode} retry for ${remainingJobs.length} cells (same provider, no Bright Data)`
@@ -1247,196 +1235,7 @@ export async function runGridCellsLive(params: {
     failedCells = remainingJobs.length;
   }
 
-  // ---- Hybrid Bright Data recovery (Bright Data → DataForSEO → ScrapingDog) ----
-  if (remainingJobs.length > 0 && useBrightDataRecovery) {
-    const primaryOutcomes = allTimings.map((t) => ({
-      success: t.success,
-      category: (t.failureCategory as MapsFailureCategory | undefined) ??
-        (t.success ? ("success" as const) : ("unknown" as const)),
-    }));
-    // Prefer per-result categories from the failed job set when available.
-    const waveAnalysis = analyzePrimaryWave(
-      failedFromPrimary.length + (jobs.length - failedFromPrimary.length) > 0
-        ? [
-            ...Array.from({ length: Math.max(0, jobs.length - failedFromPrimary.length) }, () => ({
-              success: true as const,
-              category: "success" as MapsFailureCategory,
-            })),
-            ...failedFromPrimary.map((job) => {
-              const r = allTimings.find((t) => t.gridLabel === job.point.grid_label && !t.success);
-              return {
-                success: false as const,
-                category: (r?.failureCategory as MapsFailureCategory | undefined) ?? "http_504",
-              };
-            }),
-          ]
-        : primaryOutcomes
-    );
-
-    console.log("[Scan] Primary wave analysis:", {
-      mode: waveAnalysis.mode,
-      failures: remainingJobs.length,
-      attempted: jobs.length,
-      degradationPercent: Math.round(waveAnalysis.percent),
-    });
-
-    if (waveAnalysis.mode === "isolated") {
-      const delay = isolatedRetryDelayMs();
-      console.log(
-        `[Scan] Isolated Bright Data recovery: ${remainingJobs.length} cells after ${delay}ms (concurrency≤${isolatedRetryConcurrency(remainingJobs.length)})`
-      );
-      await sleep(delay);
-      await scheduleCellProgress(
-        params.scanBatchId,
-        completedOffset,
-        totalCells,
-        remainingJobs.length,
-        { pass: "bd-isolated-recovery", recovery_stage: "scanning_brightdata" },
-        { force: true }
-      );
-      const pass = await runJobsWithConcurrency(remainingJobs, {
-        scanBatchId: params.scanBatchId,
-        depth,
-        timeoutMs,
-        maxAttempts: 1,
-        concurrency: isolatedRetryConcurrency(remainingJobs.length),
-        totalCells,
-        passLabel: "bd-isolated-recovery",
-        providers: brightDataOnlyProviders(),
-        allowTransientRetry: false,
-        scanRetryRound: 1,
-        recoveryStage: "scanning_brightdata",
-        completedOffset,
-        updateProgress: true,
-        onCellSettled,
-        organizationId: params.organizationId,
-      });
-      allTimings.push(...pass.timings);
-      completedOffset += pass.successCount;
-      remainingJobs = failedJobsFromPass(remainingJobs, pass.results);
-      failedCells = remainingJobs.length;
-    } else if (waveAnalysis.mode === "degraded") {
-      await setMapsProviderCircuit(
-        "brightdata",
-        "degraded",
-        `${waveAnalysis.degradationCount}/${waveAnalysis.attemptCount} degradation failures`
-      );
-      const delay = degradedRecoveryDelayMs();
-      console.log(
-        `[Scan] Bright Data degraded — waiting ${delay}ms then probing ${Math.min(3, remainingJobs.length)} cells`
-      );
-      await scheduleCellProgress(
-        params.scanBatchId,
-        completedOffset,
-        totalCells,
-        remainingJobs.length,
-        { pass: "bd-degraded", recovery_stage: "brightdata_degraded" },
-        { force: true }
-      );
-      await sleep(delay);
-
-      const probes = selectProbeJobs(remainingJobs);
-      await scheduleCellProgress(
-        params.scanBatchId,
-        completedOffset,
-        totalCells,
-        remainingJobs.length,
-        { pass: "bd-probes", recovery_stage: "testing_provider_recovery" },
-        { force: true }
-      );
-      const probePass = await runJobsWithConcurrency(probes, {
-        scanBatchId: params.scanBatchId,
-        depth,
-        timeoutMs,
-        maxAttempts: 1,
-        concurrency: Math.min(2, probes.length),
-        totalCells,
-        passLabel: "bd-probes",
-        providers: brightDataOnlyProviders(),
-        allowTransientRetry: false,
-        scanRetryRound: 1,
-        recoveryStage: "testing_provider_recovery",
-        completedOffset,
-        updateProgress: true,
-        onCellSettled,
-        organizationId: params.organizationId,
-      });
-      allTimings.push(...probePass.timings);
-      completedOffset += probePass.successCount;
-      remainingJobs = remainingJobs.filter(
-        (job) =>
-          !probePass.results.some(
-            (r) => r.success && r.pointId === job.point.id && r.keywordId === job.keyword.id
-          )
-      );
-      failedCells = remainingJobs.length;
-
-      if (probesRecovered(probePass.successCount) && remainingJobs.length > 0) {
-        await setMapsProviderCircuit("brightdata", "half_open", "probes recovered");
-        console.log(
-          `[Scan] Bright Data probes recovered — resuming ${remainingJobs.length} cells at concurrency ${brightDataHalfOpenConcurrency()}`
-        );
-        const halfOpenPass = await runJobsWithConcurrency(remainingJobs, {
-          scanBatchId: params.scanBatchId,
-          depth,
-          timeoutMs,
-          maxAttempts: 1,
-          concurrency: Math.min(brightDataHalfOpenConcurrency(), remainingJobs.length),
-          totalCells,
-          passLabel: "bd-half-open",
-          providers: brightDataOnlyProviders(),
-          allowTransientRetry: false,
-          scanRetryRound: 2,
-          recoveryStage: "scanning_brightdata",
-          completedOffset,
-          updateProgress: true,
-          onCellSettled,
-          organizationId: params.organizationId,
-        });
-        allTimings.push(...halfOpenPass.timings);
-        completedOffset += halfOpenPass.successCount;
-        remainingJobs = failedJobsFromPass(remainingJobs, halfOpenPass.results);
-        failedCells = remainingJobs.length;
-
-        // Optional ramp if healthy.
-        if (remainingJobs.length > 0 && halfOpenPass.successCount >= Math.ceil(halfOpenPass.results.length * 0.7)) {
-          const rampPass = await runJobsWithConcurrency(remainingJobs, {
-            scanBatchId: params.scanBatchId,
-            depth,
-            timeoutMs,
-            maxAttempts: 1,
-            concurrency: Math.min(brightDataHalfOpenRampConcurrency(), remainingJobs.length),
-            totalCells,
-            passLabel: "bd-half-open-ramp",
-            providers: brightDataOnlyProviders(),
-            allowTransientRetry: false,
-            scanRetryRound: 3,
-            recoveryStage: "scanning_brightdata",
-            completedOffset,
-            updateProgress: true,
-            onCellSettled,
-            organizationId: params.organizationId,
-          });
-          allTimings.push(...rampPass.timings);
-          completedOffset += rampPass.successCount;
-          remainingJobs = failedJobsFromPass(remainingJobs, rampPass.results);
-          failedCells = remainingJobs.length;
-        }
-
-        if (remainingJobs.length === 0) {
-          await setMapsProviderCircuit("brightdata", "closed", "half-open recovered all cells");
-        } else {
-          await setMapsProviderCircuit("brightdata", "open", "half-open still failing — fallback");
-        }
-      } else if (remainingJobs.length > 0) {
-        await setMapsProviderCircuit("brightdata", "open", "probes failed — fallback");
-        console.log("[Scan] Bright Data probes failed — switching to secondary providers");
-      }
-    }
-  }
-
-  // Secondary fallback MUST run for every unresolved cell after Bright Data phases
-  // (hybrid mode only). Union in-memory failures with a full-grid DB check.
+  // Union in-memory failures with a full-grid DB check before delayed retries.
   {
     const memoryUnresolved = remainingJobs;
     const dbIncomplete = await loadIncompleteJobsFromDb(params.scanBatchId, allJobs, depth);
@@ -1447,145 +1246,102 @@ export async function runGridCellsLive(params: {
         `[Scan] Unresolved sync: in-memory=${memoryUnresolved.length} db_incomplete=${dbIncomplete.length} union=${remainingJobs.length}`
       );
     }
+  }
 
-    const secondaryProviders = secondaryProvidersForMode(providerMode);
-    if (remainingJobs.length > 0 && mapsFallbackEnabled() && secondaryProviders.length > 0) {
-      const secondaryPlan = await resolveUsableMapsProviders(secondaryProviders);
-      const skipSummary = secondaryPlan.skipped
-        .map((s) => `${s.provider}:${s.skipReason}${s.detail ? `(${s.detail})` : ""}`)
-        .join(" | ");
-      // Never skip the pass itself — even with zero "usable" providers we still
-      // enter the cell loop so telemetry records provider_unavailable attempts
-      // instead of silently finishing after Bright Data backup.
-      if (!secondaryPlan.usable.length) {
-        console.error(
-          `[Scan] Secondary fallback providers unavailable for ${remainingJobs.length} cells — still running pass for diagnostics. ${skipSummary}`
-        );
-      }
-      console.log(
-        `[Scan] Secondary fallback START for ${remainingJobs.length} cells via ${secondaryProviders.join(" → ")}` +
-          (secondaryPlan.usable.length
-            ? ` (ready: ${secondaryPlan.usable.join(" → ")})`
-            : " (ready: none)") +
-          (secondaryPlan.skipped.length
-            ? ` (skipped: ${secondaryPlan.skipped.map((s) => `${s.provider}:${s.skipReason}`).join(", ")})`
-            : "")
-      );
-      const stage =
-        secondaryPlan.usable[0] === "dataforseo"
-          ? ("fallback_dataforseo" as const)
-          : secondaryPlan.usable[0] === "scrapingdog"
-            ? ("fallback_scrapingdog" as const)
-            : ("fallback_dataforseo" as const);
+  // Hybrid: wait ~30s then retry unfinished cells with Bright Data again (twice).
+  // Hypothesis: rapid re-hits are the failure mode, not needing another provider.
+  if (remainingJobs.length > 0 && useBrightDataRecovery) {
+    const delayMs = brightDataDelayedRetryDelayMs();
+    const rounds = brightDataDelayedRetryRounds();
+    console.log(
+      `[Scan] Bright Data delayed retry plan: ${remainingJobs.length} unfinished cells, ` +
+        `${rounds} rounds × ${delayMs}ms pause (no ScrapingDog/DataForSEO)`
+    );
+
+    for (let round = 1; round <= rounds && remainingJobs.length > 0; round++) {
       await scheduleCellProgress(
         params.scanBatchId,
         completedOffset,
         totalCells,
         remainingJobs.length,
         {
-          pass: "fallback-secondary",
-          recovery_stage: stage,
+          pass: `bd-delayed-wait-${round}`,
+          recovery_stage: "brightdata_degraded",
           maps_provider_mode: providerMode,
-          secondary_fallback_attempted: true,
-          fallback_providers: secondaryProviders,
-          fallback_ready_providers: secondaryPlan.usable,
-          fallback_skipped_providers: secondaryPlan.skipped.map((s) => ({
-            provider: s.provider,
-            reason: s.skipReason,
-            detail: s.detail,
-          })),
-          ...(skipSummary
-            ? {
-                fallback_skipped: secondaryPlan.usable.length === 0,
-                fallback_skipped_reason: skipSummary,
-              }
-            : {}),
+          delayed_retry_round: round,
+          delayed_retry_rounds: rounds,
+          delayed_retry_delay_ms: delayMs,
           unresolved_after_brightdata: remainingJobs.length,
+          secondary_fallback_attempted: false,
         },
         { force: true }
       );
-      const fallbackPass = await runJobsWithConcurrency(remainingJobs, {
+      console.log(
+        `[Scan] Bright Data delayed wait ${round}/${rounds}: sleeping ${delayMs}ms before retrying ${remainingJobs.length} cells`
+      );
+      await sleep(delayMs);
+
+      await scheduleCellProgress(
+        params.scanBatchId,
+        completedOffset,
+        totalCells,
+        remainingJobs.length,
+        {
+          pass: `bd-delayed-retry-${round}`,
+          recovery_stage: "scanning_brightdata",
+          maps_provider_mode: providerMode,
+          delayed_retry_round: round,
+          delayed_retry_rounds: rounds,
+        },
+        { force: true }
+      );
+      console.log(
+        `[Scan] Bright Data delayed retry ${round}/${rounds} START for ${remainingJobs.length} cells`
+      );
+      const pass = await runJobsWithConcurrency(remainingJobs, {
         scanBatchId: params.scanBatchId,
         depth,
         timeoutMs,
         maxAttempts: 1,
-        concurrency: Math.min(remainingJobs.length, 8),
+        concurrency: mapsGridConcurrency(remainingJobs.length),
         totalCells,
-        passLabel: "fallback-secondary",
-        // Full secondary chain every time — orchestrator records per-provider skips.
-        providers: secondaryProviders,
-        allowTransientRetry: true,
-        scanRetryRound: 4,
-        recoveryStage: stage,
+        passLabel: `bd-delayed-retry-${round}`,
+        providers: brightDataOnlyProviders(),
+        allowTransientRetry: false,
+        scanRetryRound: round,
+        recoveryStage: "scanning_brightdata",
         completedOffset,
         updateProgress: true,
         onCellSettled,
         organizationId: params.organizationId,
       });
-      allTimings.push(...fallbackPass.timings);
-      completedOffset += fallbackPass.successCount;
-      remainingJobs = failedJobsFromPass(remainingJobs, fallbackPass.results);
+      allTimings.push(...pass.timings);
+      completedOffset += pass.successCount;
+      remainingJobs = failedJobsFromPass(remainingJobs, pass.results);
       failedCells = remainingJobs.length;
       console.log(
-        `[Scan] Secondary fallback FINISHED: recovered=${fallbackPass.successCount} still_unresolved=${remainingJobs.length}`
+        `[Scan] Bright Data delayed retry ${round}/${rounds} FINISHED: recovered=${pass.successCount} still_unresolved=${remainingJobs.length}`
       );
-    } else if (
-      remainingJobs.length > 0 &&
-      useBrightDataRecovery &&
-      !mapsFallbackEnabled()
-    ) {
-      console.error(
-        `[Scan] SECONDARY FALLBACK DISABLED (MAPS_GRID_FALLBACK_ENABLED=false) — ${remainingJobs.length} cells left unresolved after Bright Data`
-      );
-      await scheduleCellProgress(
-        params.scanBatchId,
-        completedOffset,
-        totalCells,
-        remainingJobs.length,
-        {
-          pass: "fallback-skipped",
-          recovery_stage: "completed_with_unresolved",
-          secondary_fallback_attempted: false,
-          fallback_skipped: true,
-          fallback_skipped_reason: "MAPS_GRID_FALLBACK_ENABLED is false",
-          unresolved_after_brightdata: remainingJobs.length,
-        },
-        { force: true }
-      );
-      if (maxRounds > 1) {
-        const delay = isolatedRetryDelayMs();
-        await sleep(delay);
-        const pass = await runJobsWithConcurrency(remainingJobs, {
-          scanBatchId: params.scanBatchId,
-          depth,
-          timeoutMs,
-          maxAttempts: 1,
-          concurrency: isolatedRetryConcurrency(remainingJobs.length),
-          totalCells,
-          passLabel: "bd-legacy-retry",
-          providers: brightDataOnlyProviders(),
-          allowTransientRetry: false,
-          scanRetryRound: 1,
-          recoveryStage: "scanning_brightdata",
-          completedOffset,
-          updateProgress: true,
-          onCellSettled,
-          organizationId: params.organizationId,
-        });
-        allTimings.push(...pass.timings);
-        completedOffset += pass.successCount;
-        remainingJobs = failedJobsFromPass(remainingJobs, pass.results);
+
+      // Re-sync DB after each round in case another path wrote results.
+      if (remainingJobs.length > 0 && round < rounds) {
+        const dbIncomplete = await loadIncompleteJobsFromDb(params.scanBatchId, allJobs, depth);
+        remainingJobs = mergeUnresolvedJobs(remainingJobs, dbIncomplete);
         failedCells = remainingJobs.length;
       }
-    } else if (remainingJobs.length === 0) {
+    }
+
+    if (remainingJobs.length === 0) {
+      console.log("[Scan] All cells recovered via Bright Data delayed retries");
+    } else {
       console.log(
-        `[Scan] No incomplete cells after primary (${providerMode}) — secondary fallback not needed`
-      );
-    } else if (remainingJobs.length > 0 && secondaryProviders.length === 0) {
-      console.log(
-        `[Scan] Mode=${providerMode} has no secondary chain — ${remainingJobs.length} cells go to integrity`
+        `[Scan] ${remainingJobs.length} cells still unresolved after Bright Data delayed retries — integrity next`
       );
     }
+  } else if (remainingJobs.length === 0) {
+    console.log(
+      `[Scan] No incomplete cells after primary (${providerMode}) — delayed retry not needed`
+    );
   }
 
   const integrityConcurrency = mapsGridConcurrency(totalCells);

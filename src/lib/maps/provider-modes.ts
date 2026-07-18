@@ -1,7 +1,7 @@
 /**
  * Maps grid provider modes for A/B testing which stack ranks best.
  *
- * - hybrid: Bright Data primary → DataForSEO → ScrapingDog (production default)
+ * - hybrid: Bright Data primary, then pause + Bright Data retries (no DFS/SD switch)
  * - scrapingdog: every cell via ScrapingDog only
  * - dataforseo: every cell via DataForSEO only (uses device=mobile|desktop + os)
  */
@@ -23,9 +23,10 @@ export type MapsProviderModeOption = {
 export const MAPS_PROVIDER_MODE_OPTIONS: MapsProviderModeOption[] = [
   {
     id: "hybrid",
-    label: "Hybrid (Bright Data → DataForSEO → ScrapingDog)",
-    shortLabel: "Hybrid",
-    description: "Production path: Bright Data first, then DataForSEO, then ScrapingDog.",
+    label: "Bright Data (pause + retry)",
+    shortLabel: "Bright Data",
+    description:
+      "Bright Data for every cell. Unfinished cells wait ~30s then retry Bright Data twice — no ScrapingDog/DataForSEO switch.",
   },
   {
     id: "scrapingdog",
@@ -68,10 +69,9 @@ export function primaryProvidersForMode(mode: MapsProviderMode): MapsProviderId[
 
 /**
  * Secondary fallbacks after the primary stack is exhausted.
- * Hybrid: DataForSEO then ScrapingDog. Single-provider modes: none.
+ * Hybrid no longer switches providers — it uses delayed Bright Data retries instead.
  */
-export function secondaryProvidersForMode(mode: MapsProviderMode): MapsProviderId[] {
-  if (mode === "hybrid") return ["dataforseo", "scrapingdog"];
+export function secondaryProvidersForMode(_mode: MapsProviderMode): MapsProviderId[] {
   return [];
 }
 
@@ -84,7 +84,7 @@ export function integrityProvidersForMode(mode: MapsProviderMode): MapsProviderI
       return ["dataforseo"];
     case "hybrid":
     default:
-      return ["dataforseo", "scrapingdog", "brightdata"];
+      return ["brightdata"];
   }
 }
 

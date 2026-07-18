@@ -78,6 +78,19 @@ export function brightDataHalfOpenRampConcurrency(): number {
   return envInt("BRIGHTDATA_HALF_OPEN_RAMP_CONCURRENCY", 10, { min: 1, max: 100 });
 }
 
+/**
+ * After the primary Bright Data wave, wait this long before each delayed
+ * Bright Data retry of unfinished cells (tests rate-limit / cooldown theory).
+ */
+export function brightDataDelayedRetryDelayMs(): number {
+  return envInt("BRIGHTDATA_DELAYED_RETRY_DELAY_MS", 30_000, { min: 0, max: 300_000 });
+}
+
+/** How many pause → Bright Data retry rounds after the primary wave. */
+export function brightDataDelayedRetryRounds(): number {
+  return envInt("BRIGHTDATA_DELAYED_RETRY_ROUNDS", 2, { min: 0, max: 5 });
+}
+
 export function brightDataCircuitLeaseMs(): number {
   return envInt("BRIGHTDATA_CIRCUIT_LEASE_MS", 120_000, { min: 10_000, max: 900_000 });
 }
