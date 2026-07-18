@@ -51,10 +51,12 @@ export async function assertCanEnqueueMapsScan(params: {
 
   const plan = await getOrganizationPlan(params.organizationId).catch(() => null);
   const freelancerLimits = resolveFreelancerLimits(plan?.id);
-  const concurrentCap = Math.min(
-    maxActiveMapsScansPerOrg(),
-    freelancerLimits.maxConcurrentScans
-  );
+  // Internal/admin testing uses the plan's high concurrent cap directly.
+  // Paid tiers stay within the global infrastructure ceiling.
+  const concurrentCap =
+    plan?.id === "internal"
+      ? freelancerLimits.maxConcurrentScans
+      : Math.min(maxActiveMapsScansPerOrg(), freelancerLimits.maxConcurrentScans);
 
   if (params.gridSize != null && params.gridSize > freelancerLimits.maxGridSize) {
     return {
@@ -92,11 +94,16 @@ export async function assertCanEnqueueMapsScan(params: {
     .eq("status", "queued")
     .neq("id", params.scanBatchId);
 
-  if ((orgQueued ?? 0) >= maxQueuedMapsScansPerOrg()) {
+  const queuedCap =
+    plan?.id === "internal"
+      ? Math.max(maxQueuedMapsScansPerOrg(), 100)
+      : maxQueuedMapsScansPerOrg();
+
+  if ((orgQueued ?? 0) >= queuedCap) {
     return {
       ok: false,
       code: "queued_limit",
-      reason: `Organization already has ${orgQueued} queued Maps scans (limit ${maxQueuedMapsScansPerOrg()}).`,
+      reason: `Organization already has ${orgQueued} queued Maps scans (limit ${queuedCap}).`,
     };
   }
 

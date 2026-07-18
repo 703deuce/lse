@@ -95,9 +95,10 @@ export function AdminAccountsClient() {
         <Link href="/admin/ops" className="text-emerald-700 underline">
           Ops console
         </Link>{" "}
-        — queues, Redis, job retry/cancel. To test multi-location yourself, set your org plan to{" "}
-        <strong className="font-medium text-zinc-700">agency</strong> (20 locations) or{" "}
-        <strong className="font-medium text-zinc-700">internal</strong> (unlimited).
+        — queues, Redis, job retry/cancel. Platform admins are auto-upgraded to{" "}
+        <strong className="font-medium text-zinc-700">internal</strong> (highest limits:
+        unlimited locations/credits, 25 concurrent scans). You can also set any org to{" "}
+        <strong className="font-medium text-zinc-700">internal</strong> below.
       </p>
       {accounts.map((account) => (
         <ContentCard key={account.id}>

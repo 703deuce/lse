@@ -29,4 +29,13 @@ export const FREELANCER_PLAN_LIMITS = {
     historyRetentionMonths: 24,
     aiVisibilityRunsPerMonth: 100,
   },
+  /** Platform admin / internal testing — highest capacity. */
+  internal: {
+    maxActiveLocations: 9999,
+    maxConcurrentScans: 25,
+    maxGridSize: 13,
+    allowedScheduleFrequencies: ["manual", "weekly", "biweekly", "monthly"],
+    historyRetentionMonths: 120,
+    aiVisibilityRunsPerMonth: null,
+  },
 } as const satisfies Record<string, PlanLimits>;

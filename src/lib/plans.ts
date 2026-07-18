@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/db/client";
+import { isAdminEmail } from "@/lib/auth/admin";
 
 export type PlanId = "starter" | "pro" | "agency" | "internal";
 
@@ -240,6 +241,47 @@ export function getCurrentPeriod(): { periodStart: string; periodEnd: string } {
   return { periodStart: fmt(start), periodEnd: fmt(end) };
 }
 
+/**
+ * If a platform admin (ADMIN_EMAILS) is a member of this org, force plan=internal
+ * so admins are never stuck on starter limits while testing.
+ */
+async function ensureAdminOrgInternalPlan(
+  organizationId: string,
+  currentPlan: string | null | undefined
+): Promise<PlanId> {
+  const normalized = normalizePlanId(currentPlan);
+  if (normalized === "internal") return "internal";
+
+  const supabase = createServiceClient();
+  const { data: members } = await supabase
+    .from("organization_members")
+    .select("user_id, role")
+    .eq("organization_id", organizationId)
+    .in("role", ["owner", "admin"]);
+
+  const userIds = (members ?? []).map((m) => m.user_id as string).filter(Boolean);
+  if (!userIds.length) return normalized;
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, email")
+    .in("id", userIds);
+
+  const hasAdmin = (profiles ?? []).some((p) => isAdminEmail(p.email as string | null));
+  if (!hasAdmin) return normalized;
+
+  try {
+    await setOrganizationPlan(organizationId, "internal");
+  } catch {
+    await supabase
+      .from("organizations")
+      .update({ plan: "internal" })
+      .eq("id", organizationId);
+  }
+
+  return "internal";
+}
+
 export async function getOrganizationPlan(organizationId: string): Promise<PlanDefinition> {
   const supabase = createServiceClient();
   const { data } = await supabase
@@ -247,7 +289,8 @@ export async function getOrganizationPlan(organizationId: string): Promise<PlanD
     .select("plan")
     .eq("id", organizationId)
     .maybeSingle();
-  return getPlan(data?.plan);
+  const planId = await ensureAdminOrgInternalPlan(organizationId, data?.plan as string | null);
+  return getPlan(planId);
 }
 
 export async function getCurrentUsage(organizationId: string): Promise<UsageSnapshot> {

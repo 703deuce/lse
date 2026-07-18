@@ -6,8 +6,11 @@ import {
 
 /** Map existing plan ids onto freelancer capacity limits. */
 export function resolveFreelancerLimits(planId: PlanId | string | null | undefined): PlanLimits {
-  if (planId === "starter") return FREELANCER_PLAN_LIMITS.solo_starter;
-  if (planId === "agency" || planId === "internal") {
+  if (planId === "internal") {
+    return { ...FREELANCER_PLAN_LIMITS.internal };
+  }
+  if (planId === "starter") return { ...FREELANCER_PLAN_LIMITS.solo_starter };
+  if (planId === "agency") {
     return {
       ...FREELANCER_PLAN_LIMITS.freelancer,
       maxActiveLocations: 50,
@@ -16,7 +19,7 @@ export function resolveFreelancerLimits(planId: PlanId | string | null | undefin
     };
   }
   // pro + default
-  return FREELANCER_PLAN_LIMITS.freelancer;
+  return { ...FREELANCER_PLAN_LIMITS.freelancer };
 }
 
 export function assertGridSizeAllowed(

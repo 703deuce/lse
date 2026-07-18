@@ -51,6 +51,14 @@ export async function requirePlatformAdmin(): Promise<{
     }
   }
 
+  // Keep the admin's own workspace on the highest plan for product testing.
+  try {
+    const { setOrganizationPlan } = await import("@/lib/plans");
+    await setOrganizationPlan(auth.organizationId, "internal");
+  } catch {
+    /* non-fatal — plan resolution still auto-promotes on read */
+  }
+
   return {
     userId: auth.userId,
     email: auth.email,
