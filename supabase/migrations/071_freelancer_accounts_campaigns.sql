@@ -154,18 +154,18 @@ WHERE NOT EXISTS (
 )
 GROUP BY bk.business_id;
 
--- Attach orphan keywords to an active campaign on the same business
+-- Attach orphan keywords to an active campaign on the same business.
+-- Avoid UPDATE … FROM LATERAL correlating to the target table (Postgres 42P10).
 UPDATE business_keywords bk
 SET campaign_id = c.id
-FROM LATERAL (
-  SELECT id
+FROM (
+  SELECT DISTINCT ON (mc.business_id) mc.id, mc.business_id
   FROM maps_campaigns mc
-  WHERE mc.business_id = bk.business_id
-    AND mc.archived_at IS NULL
-  ORDER BY mc.created_at ASC
-  LIMIT 1
+  WHERE mc.archived_at IS NULL
+  ORDER BY mc.business_id, mc.created_at ASC
 ) c
-WHERE bk.campaign_id IS NULL;
+WHERE bk.campaign_id IS NULL
+  AND bk.business_id = c.business_id;
 
 -- ---------------------------------------------------------------------------
 -- In-app notification events (email can connect later)
