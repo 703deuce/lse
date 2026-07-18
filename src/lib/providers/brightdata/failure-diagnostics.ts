@@ -46,6 +46,8 @@ export type BrightDataFailureDiagnostics = {
   latencyMs?: number | null;
   zone?: string | null;
   organicCount?: number | null;
+  /** Bright Data troubleshooting headers (x-brd-error*, x-luminati-error*). */
+  responseHeaders?: Record<string, string> | null;
 };
 
 const REDACT_PATTERNS: Array<[RegExp, string]> = [
@@ -187,12 +189,22 @@ export function classifyBrightDataMapsResponse(params: {
   zone?: string | null;
   requestId?: string | null;
   organicCount?: number;
+  responseHeaders?: Record<string, string> | null;
 }): BrightDataFailureDiagnostics {
   const bodyText = params.bodyText ?? "";
   const byteCount = new TextEncoder().encode(bodyText).length;
   const markers = detectBodyMarkers(bodyText);
   const preview = redactProviderText(bodyText, 800);
   const trimmed = bodyText.trim();
+  const headerCode =
+    params.responseHeaders?.["x-brd-error-code"] ??
+    params.responseHeaders?.["x-luminati-error-code"] ??
+    null;
+  const headerMsg =
+    params.responseHeaders?.["x-brd-error"] ??
+    params.responseHeaders?.["x-luminati-error"] ??
+    params.responseHeaders?.["x-luminati-error-msg"] ??
+    null;
 
   const base = {
     httpStatus: params.httpStatus,
@@ -204,6 +216,7 @@ export function classifyBrightDataMapsResponse(params: {
     latencyMs: params.latencyMs,
     zone: params.zone ?? null,
     organicCount: params.organicCount ?? null,
+    responseHeaders: params.responseHeaders ?? null,
   };
 
   if (!params.httpStatus || params.httpStatus < 200 || params.httpStatus >= 300) {
@@ -214,12 +227,19 @@ export function classifyBrightDataMapsResponse(params: {
       parsed = null;
     }
     const err = extractProviderError(parsed);
+    const code = headerCode ?? err.code;
+    const message =
+      headerMsg ??
+      err.message ??
+      (params.httpStatus === 503
+        ? "Service Unavailable — Bright Data browser check failed or incomplete; retry (confirm zone is SERP API, not Web Unlocker)"
+        : null);
     return {
       ...base,
       category: "http_error",
       schemaKeys: topLevelSchemaKeys(parsed),
-      providerErrorCode: err.code,
-      providerErrorMessage: err.message,
+      providerErrorCode: code,
+      providerErrorMessage: message,
     };
   }
 
@@ -350,6 +370,29 @@ export function extractBrightDataRequestId(headers: Headers): string | null {
   return null;
 }
 
+/**
+ * Capture Bright Data error / throttle headers for support tickets.
+ * Sophie / BD docs: check x-brd-error-code, x-brd-error, x-luminati-*.
+ */
+export function extractBrightDataErrorHeaders(
+  headers: Headers
+): Record<string, string> | null {
+  const keys = [
+    "x-brd-error-code",
+    "x-brd-error",
+    "x-luminati-error-code",
+    "x-luminati-error",
+    "x-luminati-error-msg",
+    "retry-after",
+  ];
+  const out: Record<string, string> = {};
+  for (const key of keys) {
+    const v = headers.get(key);
+    if (v?.trim()) out[key] = v.trim().slice(0, 240);
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 /** Safe object for DB / console — never includes auth material. */
 export function diagnosticsForStorage(
   diagnostics: BrightDataFailureDiagnostics
@@ -372,6 +415,7 @@ export function diagnosticsForStorage(
     latency_ms: diagnostics.latencyMs ?? null,
     zone: diagnostics.zone ?? null,
     organic_count: diagnostics.organicCount ?? null,
+    response_headers: diagnostics.responseHeaders ?? null,
   };
 }
 
@@ -385,8 +429,13 @@ export function logBrightDataFailureDiagnostics(
       ` latencyMs=${diagnostics.latencyMs ?? "-"}` +
       ` bytes=${diagnostics.byteCount ?? "-"}` +
       ` requestId=${diagnostics.requestId ?? "-"}` +
+      ` zone=${diagnostics.zone ?? "-"}` +
+      ` brdCode=${diagnostics.providerErrorCode ?? "-"}` +
       ` keys=${(diagnostics.schemaKeys ?? []).join(",") || "-"}` +
       ` markers=${diagnostics.markers ? JSON.stringify(diagnostics.markers) : "-"}` +
+      (diagnostics.responseHeaders
+        ? ` headers=${JSON.stringify(diagnostics.responseHeaders)}`
+        : "") +
       (diagnostics.providerErrorMessage
         ? ` err=${redactProviderText(diagnostics.providerErrorMessage, 160)}`
         : "")

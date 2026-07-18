@@ -7,6 +7,7 @@ import {
   BrightDataMapsFailure,
   classifyBrightDataMapsResponse,
   diagnosticsForStorage,
+  extractBrightDataErrorHeaders,
   extractBrightDataRequestId,
   humanMessageForCategory,
   logBrightDataFailureDiagnostics,
@@ -212,6 +213,7 @@ export async function mapsSearchAtCoordinate(params: {
   const text = await res.text();
   const latencyMs = Date.now() - start;
   const requestId = extractBrightDataRequestId(res.headers);
+  const responseHeaders = extractBrightDataErrorHeaders(res.headers);
   const contentType = res.headers.get("content-type");
   const items = res.ok ? parseBrightDataBody(text) : [];
   const costEstimate = estimateProviderCost("brightdata");
@@ -225,6 +227,7 @@ export async function mapsSearchAtCoordinate(params: {
       zone,
       requestId,
       organicCount: items.length,
+      responseHeaders,
     });
     const failure = new BrightDataMapsFailure(
       diagnostics,

@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   classifyBrightDataMapsResponse,
   detectBodyMarkers,
+  extractBrightDataErrorHeaders,
   humanMessageForCategory,
   redactProviderText,
 } from "@/lib/providers/brightdata/failure-diagnostics";
@@ -74,6 +75,30 @@ describe("Bright Data failure diagnostics", () => {
     assert.equal(d.category, "http_error");
     assert.equal(d.httpStatus, 502);
     assert.match(humanMessageForCategory(d.category, { status: 502, detail: "Bad gateway" }), /HTTP 502/);
+  });
+
+  it("captures Bright Data 503 troubleshooting headers", () => {
+    const headers = new Headers({
+      "x-brd-error-code": "browser_check_failed",
+      "x-brd-error": "Browser check failed or was not completed",
+      "x-brd-request-id": "req-abc-123",
+    });
+    const extracted = extractBrightDataErrorHeaders(headers);
+    assert.equal(extracted?.["x-brd-error-code"], "browser_check_failed");
+
+    const d = classifyBrightDataMapsResponse({
+      httpStatus: 503,
+      contentType: "text/plain",
+      bodyText: "Service Unavailable",
+      latencyMs: 12000,
+      zone: "serp_api1",
+      requestId: "req-abc-123",
+      responseHeaders: extracted,
+    });
+    assert.equal(d.category, "http_error");
+    assert.equal(d.httpStatus, 503);
+    assert.equal(d.providerErrorCode, "browser_check_failed");
+    assert.match(String(d.providerErrorMessage), /Browser check failed/i);
   });
 
   it("classifies unexpected schema when JSON has no Maps keys", () => {
