@@ -221,6 +221,8 @@ export async function POST(request: Request) {
         keyword: { id: kwRow.id, keyword: String(kwRow.keyword).trim() },
         jobId: dispatched.jobId,
         queueDriver: dispatched.driver,
+        // Clients must leave the live grid wait page — scan continues in the worker.
+        redirectTo: `/businesses/${businessId}/overview`,
       });
     } catch (inner) {
       await releaseUsage(auth.organizationId, "map_credits_used", creditsNeeded).catch(() => {});

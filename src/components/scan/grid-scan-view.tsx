@@ -845,7 +845,9 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Scan failed");
       setMoveGridActive(false);
-      window.location.assign(`/businesses/${businessId}/overview`);
+      const { goToDashboardAfterScanStart } = await import("@/lib/scans/after-scan-start");
+      goToDashboardAfterScanStart(businessId);
+      return;
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Move-grid scan failed");
     } finally {
@@ -916,9 +918,9 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
   }
 
   function handleScanStarted(_newScanId: string, _newKeywordId?: string) {
-    // Hard navigate so a later URL replaceState/switchScan cannot keep the user
-    // on the live grid wait page. Scan continues in the worker regardless.
-    window.location.assign(`/businesses/${businessId}/overview`);
+    void import("@/lib/scans/after-scan-start").then(({ goToDashboardAfterScanStart }) => {
+      goToDashboardAfterScanStart(businessId);
+    });
   }
 
   function handleCellClick(cell: GridCell) {

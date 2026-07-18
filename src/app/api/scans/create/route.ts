@@ -229,7 +229,12 @@ export async function POST(request: Request) {
         organizationId: auth.organizationId,
       });
 
-      return NextResponse.json({ scan: batch, jobId: dispatched.jobId, queueDriver: dispatched.driver });
+      return NextResponse.json({
+        scan: batch,
+        jobId: dispatched.jobId,
+        queueDriver: dispatched.driver,
+        redirectTo: `/businesses/${businessId}/overview`,
+      });
     } catch (inner) {
       await releaseUsage(auth.organizationId, "map_credits_used", creditsNeeded).catch(() => {});
       throw inner;

@@ -223,8 +223,10 @@ export function ScanSetupStudio({
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Scan failed to start");
-      // Background scan — hard navigate to dashboard in-progress card.
-      window.location.assign(`/businesses/${businessId}/overview`);
+      // Must leave setup immediately — scan runs in the worker.
+      const { goToDashboardAfterScanStart } = await import("@/lib/scans/after-scan-start");
+      goToDashboardAfterScanStart(businessId);
+      return;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Scan failed");
     } finally {

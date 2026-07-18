@@ -97,8 +97,9 @@ export function ScanSetupForm({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      // Background scan — hard navigate so nothing can send the user to the grid wait page.
-      window.location.assign(`/businesses/${businessId}/overview`);
+      const { goToDashboardAfterScanStart } = await import("@/lib/scans/after-scan-start");
+      goToDashboardAfterScanStart(businessId);
+      return;
     } catch (err) {
       alert(err instanceof Error ? err.message : "Scan failed");
     } finally {
