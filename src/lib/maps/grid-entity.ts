@@ -271,19 +271,28 @@ export function buildEntityGridCells(
     let notInResults = false;
 
     if (hasResult) {
+      const competitors = (result?.top_competitors_json ?? []) as StoredCompetitor[];
+      const packSize = competitors.length;
       if (useTargetRank) {
         rank = (result?.target_rank as number | null) ?? null;
         matchReason = (result?.confidence as string | null) ?? null;
-        // Only true "20+": we have a result row and target_rank is null.
-        notInResults = rank == null;
+        // Only true "20+": null rank after a full top-20 pack. Short SERPs are pending.
+        const fullPack = packSize >= 20;
+        notInResults = rank == null && fullPack;
       } else {
-        const competitors = (result?.top_competitors_json ?? []) as StoredCompetitor[];
         const match = findEntityInCompetitors(competitors, entity);
         rank = match.rank;
         matchReason = match.matchReason;
-        notInResults = !match.found || rank == null;
+        const fullPack = packSize >= 20;
+        notInResults = (!match.found || rank == null) && fullPack;
       }
     }
+
+    const incompleteNotFound =
+      hasResult &&
+      (result?.target_rank as number | null) == null &&
+      !notInResults &&
+      ((result?.top_competitors_json as unknown[] | null)?.length ?? 0) < 20;
 
     return {
       pointId: p.id,
@@ -293,8 +302,8 @@ export function buildEntityGridCells(
       row,
       col,
       rank,
-      // No saved cell yet → pending (...). Never invent 20+/✕ for a fetch/retry gap.
-      pending: !hasResult,
+      // No saved cell yet, or sparse not-found SERP → pending (...). Never fake 20+.
+      pending: !hasResult || incompleteNotFound,
       failed,
       notInResults,
       matchReason,

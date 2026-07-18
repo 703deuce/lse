@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
 import type { DashboardScanRow } from "@/lib/overview/load-dashboard-scans";
 import { ScanMiniHeatmap } from "@/components/overview/scan-mini-heatmap";
@@ -71,25 +70,50 @@ function MapPreviewPlaceholder({
 
 export function DashboardRecentScans({
   businessId,
-  rows,
-  total,
+  rows: initialRows,
+  total: initialTotal,
 }: {
   businessId: string;
   rows: DashboardScanRow[];
   total: number;
 }) {
-  const router = useRouter();
+  const [rows, setRows] = useState(initialRows);
+  const [total, setTotal] = useState(initialTotal);
+
+  useEffect(() => {
+    setRows(initialRows);
+    setTotal(initialTotal);
+  }, [initialRows, initialTotal]);
+
   const hasActive = rows.some(
     (scan) => scan.active || isScanActivelyRunning(scan.status)
   );
 
+  const poll = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `/api/businesses/${businessId}/recent-scans?preview=3`,
+        { cache: "no-store" }
+      );
+      if (!res.ok) return;
+      const json = (await res.json()) as { rows?: DashboardScanRow[]; total?: number };
+      if (Array.isArray(json.rows)) setRows(json.rows);
+      if (typeof json.total === "number") setTotal(json.total);
+    } catch {
+      /* ignore transient poll errors */
+    }
+  }, [businessId]);
+
+  // While any scan is active, poll every 5s so the spinner becomes a heatmap
+  // without the user leaving or manually refreshing the dashboard.
   useEffect(() => {
     if (!hasActive) return;
+    void poll();
     const id = window.setInterval(() => {
-      router.refresh();
+      void poll();
     }, 5_000);
     return () => window.clearInterval(id);
-  }, [hasActive, router]);
+  }, [hasActive, poll]);
 
   return (
     <section className={cn(dashboardCard, "overflow-hidden p-0")}>

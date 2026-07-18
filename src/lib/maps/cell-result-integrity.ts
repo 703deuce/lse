@@ -3,7 +3,6 @@ import {
   matchTargetInResults,
   type TargetMatchInput,
 } from "@/lib/providers/dataforseo/match-target";
-import type { ScanResultRow } from "@/lib/db/types";
 
 export type CellSerpValidation = {
   complete: boolean;
@@ -12,10 +11,24 @@ export type CellSerpValidation = {
   category?: "empty_maps_results" | "sparse_maps_results";
 };
 
+/**
+ * Minimum competitors when the target *is* found (reject target-only stubs).
+ * Override with GRID_CELL_MIN_SERP_RESULTS.
+ */
 export function minCellSerpResults(depth = 20): number {
   const env = Number(process.env.GRID_CELL_MIN_SERP_RESULTS);
   if (Number.isFinite(env) && env > 0) return Math.min(env, depth);
   return Math.min(3, depth);
+}
+
+/**
+ * Minimum organics required before we may claim "not in pack" / 20+.
+ * A short SERP (e.g. 3 results) is not proof the business ranks 20+.
+ */
+export function minResultsForNotFound(depth = 20): number {
+  const env = Number(process.env.GRID_CELL_NOT_FOUND_MIN_SERP_RESULTS);
+  if (Number.isFinite(env) && env > 0) return Math.min(Math.floor(env), depth);
+  return Math.max(1, depth);
 }
 
 function competitorCount(value: unknown): number {
@@ -27,7 +40,6 @@ export function validateLiveCellSerp(
   target: TargetMatchInput,
   depth = 20
 ): CellSerpValidation {
-  const min = minCellSerpResults(depth);
   if (!items.length) {
     return {
       complete: false,
@@ -35,15 +47,30 @@ export function validateLiveCellSerp(
       category: "empty_maps_results",
     };
   }
-  if (items.length < min) {
-    const targetOnly =
-      items.length === 1 &&
-      matchTargetInResults(items, target, items.length).found;
+
+  const match = matchTargetInResults(items, target, items.length);
+
+  if (match.found) {
+    const minFound = minCellSerpResults(depth);
+    if (items.length < minFound) {
+      return {
+        complete: false,
+        reason:
+          items.length === 1
+            ? `target-only SERP: only your listing returned (need ${minFound})`
+            : `sparse SERP: ${items.length} results returned (need ${minFound})`,
+        category: "sparse_maps_results",
+      };
+    }
+    return { complete: true };
+  }
+
+  // Not found — only complete (true 20+) when the full top-N pack came back.
+  const need = minResultsForNotFound(depth);
+  if (items.length < need) {
     return {
       complete: false,
-      reason: targetOnly
-        ? `target-only SERP: only your listing returned (need ${min})`
-        : `sparse SERP: ${items.length} results returned (need ${min})`,
+      reason: `incomplete SERP for 20+: ${items.length} results (need ${need} before ranking as not found)`,
       category: "sparse_maps_results",
     };
   }
@@ -54,6 +81,7 @@ export function validateStoredCellResult(
   row:
     | {
         target_found?: boolean | null;
+        target_rank?: number | null;
         /** Accept unknown from Supabase selects — only array length is inspected. */
         top_competitors_json?: unknown;
       }
@@ -65,17 +93,31 @@ export function validateStoredCellResult(
     return { complete: false, reason: "no saved cell result" };
   }
   const count = competitorCount(row.top_competitors_json);
-  const min = minCellSerpResults(depth);
-  if (count < min) {
-    if (row.target_found && count <= 1) {
+  const found = row.target_found === true || (row.target_rank != null && Number(row.target_rank) > 0);
+
+  if (found) {
+    const min = minCellSerpResults(depth);
+    if (count < min) {
+      if (count <= 1) {
+        return {
+          complete: false,
+          reason: `target-only SERP: only your listing stored (need ${min})`,
+        };
+      }
       return {
         complete: false,
-        reason: `target-only SERP: only your listing stored (need ${min})`,
+        reason: `sparse stored SERP: ${count} results saved (need ${min})`,
       };
     }
+    return { complete: true };
+  }
+
+  // Saved as not-found / 20+ — require a full pack or treat as incomplete for recovery.
+  const need = minResultsForNotFound(depth);
+  if (count < need) {
     return {
       complete: false,
-      reason: `sparse stored SERP: ${count} results saved (need ${min})`,
+      reason: `incomplete stored SERP for 20+: ${count} results (need ${need})`,
     };
   }
   return { complete: true };
@@ -86,6 +128,8 @@ export function isRetryableCellSerpError(message: string): boolean {
   return (
     msg.includes("sparse serp") ||
     msg.includes("target-only serp") ||
+    msg.includes("incomplete serp for 20+") ||
+    msg.includes("incomplete stored serp for 20+") ||
     msg.includes("no map results") ||
     msg.includes("no saved cell result")
   );
@@ -105,7 +149,11 @@ function resultQualityScore(row: StoredScanResultRow): number {
   const competitors = competitorCount(row.top_competitors_json);
   const rankBonus = row.target_found ? 10 : 0;
   const createdAt = row.created_at ? Date.parse(row.created_at) : 0;
-  return competitors * 1000 + rankBonus + (Number.isFinite(createdAt) ? createdAt / 1_000_000_000 : 0);
+  return (
+    competitors * 1000 +
+    rankBonus +
+    (Number.isFinite(createdAt) ? createdAt / 1_000_000_000 : 0)
+  );
 }
 
 /** When duplicate rows exist for a point+keyword, keep the richest result. */
