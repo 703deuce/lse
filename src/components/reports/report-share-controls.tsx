@@ -171,11 +171,18 @@ export function ReportShareControls({
     }
   }
 
+  function absoluteShareUrl(url: string): string {
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    // Prefer the browser's public host (never invent localhost when already absolute from API).
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "";
+    return url.startsWith("/") ? `${origin}${url}` : `${origin}/${url}`;
+  }
+
   async function copyLink() {
     const url = share?.shareUrl || shareUrl;
     if (!url) return;
-    const absolute =
-      url.startsWith("http") ? url : `${window.location.origin}${url}`;
+    const absolute = absoluteShareUrl(url);
     try {
       await navigator.clipboard.writeText(absolute);
       setCopied(true);

@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/db/client";
+import { publicReportShareUrl } from "@/lib/app-url";
 import { generateShareToken, hashShareToken } from "@/lib/reporting/share-token";
 import type { ReportType } from "@/lib/reporting/types";
 
@@ -90,7 +91,7 @@ export async function findReusableShare(params: {
     return {
       reportId: data.id as string,
       shareToken: data.share_token as string,
-      shareUrl: `/reports/share/${data.share_token}`,
+      shareUrl: publicReportShareUrl(data.share_token as string),
       status: "generating",
     };
   }
@@ -99,7 +100,7 @@ export async function findReusableShare(params: {
     return {
       reportId: data.id as string,
       shareToken: data.share_token as string,
-      shareUrl: `/reports/share/${data.share_token}`,
+      shareUrl: publicReportShareUrl(data.share_token as string),
       status: "ready",
     };
   }
@@ -136,7 +137,7 @@ export async function createGeneratingShareRecord(params: {
     return {
       reportId: inflight.id as string,
       shareToken: inflight.share_token as string,
-      shareUrl: `/reports/share/${inflight.share_token}`,
+      shareUrl: publicReportShareUrl(inflight.share_token as string),
     };
   }
 
@@ -194,7 +195,7 @@ export async function createGeneratingShareRecord(params: {
     return {
       reportId: revived.id as string,
       shareToken,
-      shareUrl: `/reports/share/${shareToken}`,
+      shareUrl: publicReportShareUrl(shareToken),
     };
   }
 
@@ -247,7 +248,7 @@ export async function createGeneratingShareRecord(params: {
         return {
           reportId: revived.id as string,
           shareToken,
-          shareUrl: `/reports/share/${shareToken}`,
+          shareUrl: publicReportShareUrl(shareToken),
         };
       }
     }
@@ -257,6 +258,6 @@ export async function createGeneratingShareRecord(params: {
   return {
     reportId: data.id as string,
     shareToken,
-    shareUrl: `/reports/share/${shareToken}`,
+    shareUrl: publicReportShareUrl(shareToken),
   };
 }

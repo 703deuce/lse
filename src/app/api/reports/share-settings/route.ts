@@ -8,6 +8,7 @@ import { generateShareToken, hashShareToken } from "@/lib/reporting/share-token"
 import { hashSharePassword } from "@/lib/reporting/share-password";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 import { markProspectAuditSent } from "@/lib/accounts/mark-audit-sent";
+import { publicReportShareUrl } from "@/lib/app-url";
 
 const schema = z.object({
   businessId: z.string().uuid(),
@@ -41,11 +42,12 @@ export async function GET(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    const origin = new URL(request.url).origin;
     return NextResponse.json({
       report: {
         id: data.id,
-        shareUrl: data.share_token ? `${origin}/reports/share/${data.share_token}` : null,
+        shareUrl: data.share_token
+          ? publicReportShareUrl(data.share_token as string)
+          : null,
         expiresAt: data.share_expires_at,
         hasPassword: Boolean(data.share_password_hash),
         viewCount: data.share_view_count ?? 0,
@@ -132,12 +134,13 @@ export async function PATCH(request: Request) {
       });
     }
 
-    const origin = new URL(request.url).origin;
     return NextResponse.json({
       ok: true,
       report: {
         id: data!.id,
-        shareUrl: data!.share_token ? `${origin}/reports/share/${data!.share_token}` : null,
+        shareUrl: data!.share_token
+          ? publicReportShareUrl(data!.share_token as string)
+          : null,
         expiresAt: data!.share_expires_at,
         hasPassword: Boolean(data!.share_password_hash),
         viewCount: data!.share_view_count ?? 0,
