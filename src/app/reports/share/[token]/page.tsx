@@ -106,7 +106,9 @@ export default async function ShareReportPage({
   if (passwordHash) {
     const hashForCookie = String(report.share_token_hash ?? tokenHash);
     const cookieStore = await cookies();
-    const unlocked = cookieStore.get(shareUnlockCookieName(hashForCookie));
+    const unlocked = cookieStore.get(
+      shareUnlockCookieName(hashForCookie, passwordHash)
+    );
     if (!unlocked?.value) {
       return (
         <main className="flex min-h-dvh items-center justify-center bg-zinc-50 px-6">

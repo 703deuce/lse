@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
 import {
   artifactIdentityKey,
   brandingVersionFromWhiteLabel,
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
     }
     const { businessId, scanBatchId, kind, competitorLimit, force } = parsed.data;
     const auth = await requireBusinessAccess(businessId);
+    await requireOrganizationPermission("report.create", auth.organizationId);
 
     const supabase = createServiceClient();
     const { data: batch } = await supabase

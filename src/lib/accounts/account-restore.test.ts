@@ -14,8 +14,8 @@ function restorePatch(input: {
   const nextType = input.accountType ?? input.currentType;
   if (nextType === "client" || (nextType == null && input.currentTracked !== false)) {
     patch.is_tracked = true;
-    if (input.accountType === undefined) patch.account_type = "client";
-    patch.prospect_status = "won";
+    patch.account_type = "client";
+    patch.prospect_status = null;
   } else {
     patch.is_tracked = false;
     if (input.accountType === undefined && nextType == null) {
@@ -34,6 +34,7 @@ describe("account restore patch", () => {
     assert.equal(patch.archived_at, null);
     assert.equal(patch.is_tracked, true);
     assert.equal(patch.account_type, "client");
+    assert.equal(patch.prospect_status, null);
   });
 
   it("restores prospects without consuming a tracked slot", () => {

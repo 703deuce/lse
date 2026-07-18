@@ -199,19 +199,46 @@ async function persistReport(params: {
       ? (params.payload as { sections?: Partial<Record<string, boolean>> | null })
           .sections
       : null;
+
+  let prevMeta: Record<string, unknown> = {};
+  if (existingReportId) {
+    const { data: prev } = await supabase
+      .from("reports")
+      .select("metadata_json")
+      .eq("id", existingReportId)
+      .eq("business_id", params.businessId)
+      .maybeSingle();
+    prevMeta = (prev?.metadata_json as Record<string, unknown>) ?? {};
+  }
+
   const metadata = {
+    ...prevMeta,
     reportType: params.payload.reportType,
     identityKey: params.identityKey,
     payload: slimPayload,
     generatedAt: params.payload.generatedAt,
     artifactKind: "html_share",
-    ...(typeof execSummary === "string" ? { executiveSummary: execSummary } : {}),
-    ...(sections ? { sections } : {}),
-  } satisfies ReportMeta & {
-    payload: AnyReportPayload;
-    generatedAt: string;
-    artifactKind: string;
-  };
+    ...(typeof execSummary === "string"
+      ? { executiveSummary: execSummary }
+      : typeof prevMeta.executiveSummary === "string"
+        ? { executiveSummary: prevMeta.executiveSummary }
+        : {}),
+    ...(sections
+      ? { sections }
+      : prevMeta.sections
+        ? { sections: prevMeta.sections }
+        : {}),
+    ...(params.payload.reportType === "maps_campaign" ||
+    params.payload.reportType === "review_campaign"
+      ? {
+          campaignId:
+            (params.payload as { parameters?: { campaignId?: string | null } })
+              .parameters?.campaignId ??
+            prevMeta.campaignId ??
+            null,
+        }
+      : {}),
+  } satisfies ReportMeta & Record<string, unknown>;
 
   if (existingReportId) {
     const { data: report, error } = await supabase
@@ -226,6 +253,7 @@ async function persistReport(params: {
         scan_batch_id: scanBatchId,
         artifact_kind: "html_share",
         artifact_status: "ready",
+        publish_status: "published",
         error_message: null,
       })
       .eq("id", existingReportId)
@@ -401,12 +429,8 @@ export async function generateTypedReport(
         ...(params.sections != null ? { sections: params.sections } : {}),
       } as AnyReportPayload;
     }
-    // Pull approved summary/sections from an existing report row when regenerating.
-    if (
-      params.reportId &&
-      (!("executiveSummary" in payload) ||
-        !(payload as { executiveSummary?: string }).executiveSummary)
-    ) {
+    // Always merge approved summary/sections from the report row when regenerating.
+    if (params.reportId) {
       const supabase = createServiceClient();
       const { data: existing } = await supabase
         .from("reports")
@@ -415,15 +439,23 @@ export async function generateTypedReport(
         .eq("business_id", params.businessId)
         .maybeSingle();
       const meta = (existing?.metadata_json as Record<string, unknown>) ?? {};
-      if (typeof meta.executiveSummary === "string" && meta.executiveSummary.trim()) {
-        payload = {
-          ...payload,
-          executiveSummary: meta.executiveSummary,
-          sections:
-            (meta.sections as Partial<Record<string, boolean>> | undefined) ??
-            (payload as { sections?: Partial<Record<string, boolean>> }).sections,
-        } as AnyReportPayload;
-      }
+      const fromMetaSummary =
+        typeof meta.executiveSummary === "string" ? meta.executiveSummary : null;
+      const fromMetaSections =
+        meta.sections && typeof meta.sections === "object"
+          ? (meta.sections as Partial<Record<string, boolean>>)
+          : null;
+      payload = {
+        ...payload,
+        executiveSummary:
+          params.executiveSummary ??
+          (payload as { executiveSummary?: string | null }).executiveSummary ??
+          fromMetaSummary,
+        sections:
+          params.sections ??
+          (payload as { sections?: Partial<Record<string, boolean>> | null }).sections ??
+          fromMetaSections,
+      } as AnyReportPayload;
     }
     const html = renderReportHtml(payload);
     const identityKey = params.identityKey?.trim() || reportIdentityKey(payload, params);

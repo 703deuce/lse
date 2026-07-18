@@ -243,10 +243,15 @@ export async function finalizeRankReady(
     sparse_cells: sparsePointIds.length,
   };
   if (hasEmptyProviderData) {
+    // Keep customer-visible copy free of provider/credential details.
     confidencePatch.provider_error =
-      "Bright Data returned no map results — check BRIGHTDATA_API_KEY, BRIGHTDATA_ZONE (serp_api1), and account credits";
+      "The maps provider returned no results for some points. Background recovery will keep retrying.";
   } else if (conf.provider_error) {
-    confidencePatch.provider_error = conf.provider_error;
+    const raw = String(conf.provider_error);
+    confidencePatch.provider_error =
+      /bright\s*data|api[_-]?key|scrapingdog|dataforseo|zone/i.test(raw)
+        ? "The maps provider hit a temporary issue. Background recovery will keep retrying."
+        : raw.slice(0, 240);
   }
   await mergeScanConfidenceSummary(supabase, scanBatchId, confidencePatch);
 

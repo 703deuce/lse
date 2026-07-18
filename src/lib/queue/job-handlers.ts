@@ -533,6 +533,14 @@ export async function executeJobType(
             reportId: optionalString(payload.reportId),
             shareToken: optionalString(payload.shareToken),
             identityKey: optionalString(payload.identityKey),
+            executiveSummary:
+              typeof payload.executiveSummary === "string"
+                ? payload.executiveSummary
+                : null,
+            sections:
+              payload.sections && typeof payload.sections === "object"
+                ? (payload.sections as Partial<Record<string, boolean>>)
+                : null,
           });
           if (ledgerJobId) {
             const { updateJobProgress } = await import("@/lib/queue/ledger");

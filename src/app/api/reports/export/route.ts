@@ -187,6 +187,7 @@ export async function POST(request: Request) {
       businessId: data.businessId,
       reportType,
       identityKey,
+      force: data.force === true,
     });
     if (reusable?.status === "ready") {
       logger.info("report_export_share_reused", {

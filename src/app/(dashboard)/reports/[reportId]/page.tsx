@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { requirePageAuth } from "@/lib/auth/context";
+import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { notFound } from "next/navigation";
 
@@ -14,11 +15,24 @@ export default async function ReportDetailPage({
   const supabase = createServiceClient();
   const { data: report } = await supabase
     .from("reports")
-    .select("id, business_id, share_token")
+    .select("id, business_id, share_token, publish_status")
     .eq("id", reportId)
     .maybeSingle();
   if (!report?.business_id) notFound();
-  if (report.share_token) {
+
+  // Tenant gate — never leak share tokens across orgs.
+  try {
+    await requireBusinessAccess(report.business_id as string);
+  } catch {
+    notFound();
+  }
+
+  const publishStatus = String(report.publish_status ?? "published");
+  if (
+    report.share_token &&
+    publishStatus !== "draft" &&
+    publishStatus !== "archived"
+  ) {
     redirect(`/reports/share/${report.share_token}`);
   }
   redirect(`/businesses/${report.business_id}/reports`);

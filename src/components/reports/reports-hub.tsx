@@ -334,6 +334,17 @@ export function ReportsHub({
       if (activeType === "maps_campaign" && mapsCampaignId) {
         body.campaignId = mapsCampaignId;
       }
+      // Rollup report types reuse identity forever — force a fresh HTML build.
+      if (
+        format === "share" &&
+        (activeType === "maps_campaign" ||
+          activeType === "location" ||
+          activeType === "trend" ||
+          activeType === "keyword" ||
+          activeType === "reviews")
+      ) {
+        body.force = true;
+      }
 
       const res = await fetch("/api/reports/export", {
         method: "POST",

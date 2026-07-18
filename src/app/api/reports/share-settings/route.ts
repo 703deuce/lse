@@ -26,7 +26,8 @@ export async function GET(request: Request) {
     if (!businessId || !reportId) {
       return NextResponse.json({ error: "businessId and reportId required" }, { status: 400 });
     }
-    await requireBusinessAccess(businessId);
+    const access = await requireBusinessAccess(businessId);
+    await requireOrganizationPermission("report.share", access.organizationId);
     const supabase = createServiceClient();
     const { data, error } = await supabase
       .from("reports")

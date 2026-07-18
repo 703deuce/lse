@@ -1,4 +1,4 @@
-import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 
 const scryptAsync = promisify(scrypt);
@@ -28,10 +28,20 @@ export async function verifySharePassword(
   }
 }
 
-/** Cookie name for a short-lived share unlock token (prefix of stored hash). */
-export function shareUnlockCookieName(shareTokenHash: string): string {
+/**
+ * Cookie name for a short-lived share unlock.
+ * Includes a fingerprint of the password hash so changing/clearing the password
+ * invalidates previously unlocked cookies.
+ */
+export function shareUnlockCookieName(
+  shareTokenHash: string,
+  passwordHash?: string | null
+): string {
   const prefix = shareTokenHash.slice(0, 12).replace(/[^a-zA-Z0-9_-]/g, "_");
-  return `share_unlock_${prefix}`;
+  const pwFp = passwordHash
+    ? createHash("sha256").update(passwordHash).digest("hex").slice(0, 8)
+    : "nopw";
+  return `share_unlock_${prefix}_${pwFp}`;
 }
 
 export const SHARE_UNLOCK_COOKIE_MAX_AGE_SEC = 60 * 60;

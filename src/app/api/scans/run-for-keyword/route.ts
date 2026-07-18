@@ -2,15 +2,22 @@ import { NextResponse } from "next/server";
 import { httpErrorFromException } from "@/lib/security/http-errors";
 import { z } from "zod";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
 import { createServiceClient } from "@/lib/db/client";
 import { dispatchScanProcessing } from "@/lib/jobs/schedule-scan";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
 import {
+  getOrganizationPlan,
   gridMapCredits,
   PlanLimitError,
   releaseUsage,
   reserveUsageOrThrow,
 } from "@/lib/plans";
+import {
+  assertGridSizeAllowed,
+  resolveFreelancerLimits,
+} from "@/lib/plans/resolve-freelancer-limits";
+import { assertCanEnqueueMapsScan, findDuplicateActiveScan } from "@/lib/queue/fairness";
 import { DEFAULT_RADIUS_METERS, MAX_RADIUS_METERS, MIN_RADIUS_METERS } from "@/lib/maps/grid-metrics";
 import {
   DEFAULT_MAPS_PROVIDER_MODE,
@@ -24,7 +31,7 @@ const schema = z.object({
   businessId: z.string().uuid(),
   keywordId: z.string().uuid().optional(),
   keyword: z.string().optional(),
-  gridSize: z.number().int().min(3).max(11).default(7),
+  gridSize: z.number().int().min(3).max(13).default(7),
   radiusMeters: z
     .number()
     .int()
@@ -82,6 +89,7 @@ export async function POST(request: Request) {
     } = parsed.data;
     const mapsProviderMode = parseMapsProviderMode(rawMode ?? DEFAULT_MAPS_PROVIDER_MODE);
     const auth = await requireBusinessAccess(businessId);
+    await requireOrganizationPermission("scan.run", auth.organizationId);
     const rate = await assertRateLimit({
       key: `scans-run-for-keyword:${auth.organizationId}`,
       maxPerWindow: 25,
@@ -95,6 +103,12 @@ export async function POST(request: Request) {
           headers: { "Retry-After": String(Math.ceil(rate.retryAfterMs / 1000)) },
         }
       );
+    }
+    const plan = await getOrganizationPlan(auth.organizationId);
+    const limits = resolveFreelancerLimits(plan.id);
+    const gridOk = assertGridSizeAllowed(gridSize, limits);
+    if (!gridOk.ok) {
+      return NextResponse.json({ error: gridOk.message }, { status: 400 });
     }
     const supabase = createServiceClient();
 
@@ -168,6 +182,37 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Include at least one grid point before running a scan." },
         { status: 400 }
+      );
+    }
+
+    const duplicate = await findDuplicateActiveScan({
+      businessId,
+      keywordLabel: String(kwRow.keyword),
+      gridSize,
+      radiusMeters,
+    });
+    if (duplicate) {
+      return NextResponse.json(
+        {
+          error: "An equivalent scan is already queued or running for this keyword and grid.",
+          scan: { id: duplicate.id, status: duplicate.status },
+          duplicate: true,
+        },
+        { status: 409 }
+      );
+    }
+
+    const fairness = await assertCanEnqueueMapsScan({
+      organizationId: auth.organizationId,
+      businessId,
+      scanBatchId: "00000000-0000-0000-0000-000000000000",
+      keyword: String(kwRow.keyword),
+      gridSize,
+    });
+    if (!fairness.ok && (fairness.code === "queued_limit" || fairness.code === "active_limit")) {
+      return NextResponse.json(
+        { error: fairness.reason, code: fairness.code },
+        { status: 429 }
       );
     }
 

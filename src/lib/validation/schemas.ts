@@ -98,6 +98,8 @@ export const exportReportSchema = z.object({
   gridSize: z.number().int().positive().optional().nullable(),
   radiusMeters: z.number().positive().optional().nullable(),
   selectedCompetitorKeys: z.array(z.string()).optional(),
+  /** Bust ready-share reuse and regenerate HTML from current data. */
+  force: z.boolean().optional(),
   format: z
     .enum(["share", "csv", "summary_csv", "points_csv"])
     .optional()

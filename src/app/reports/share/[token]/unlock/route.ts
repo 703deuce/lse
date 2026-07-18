@@ -7,6 +7,7 @@ import {
   verifySharePassword,
 } from "@/lib/reporting/share-password";
 import { mergeCookieOptions } from "@/lib/supabase/cookie-options";
+import { assertRateLimit } from "@/lib/security/rate-limit";
 
 export async function POST(
   request: NextRequest,
@@ -15,6 +16,19 @@ export async function POST(
   const { token } = await context.params;
   if (!token || token.length < 16 || token.length > 128) {
     return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    request.headers.get("x-real-ip") ??
+    "unknown";
+  const rate = await assertRateLimit({
+    key: `share-unlock:${ip}:${token.slice(0, 12)}`,
+    maxPerWindow: 10,
+    windowMs: 60_000,
+  });
+  if (!rate.ok) {
+    return NextResponse.redirect(new URL(`/reports/share/${token}?error=1`, request.url));
   }
 
   const form = await request.formData();
@@ -67,7 +81,10 @@ export async function POST(
   }
 
   const hashForCookie = String(report.share_token_hash ?? tokenHash);
-  const cookieName = shareUnlockCookieName(hashForCookie);
+  const cookieName = shareUnlockCookieName(
+    hashForCookie,
+    String(report.share_password_hash)
+  );
   const response = NextResponse.redirect(new URL(`/reports/share/${token}`, request.url));
   response.cookies.set(
     cookieName,

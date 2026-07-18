@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { requirePageAuth } from "@/lib/auth/context";
+import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { notFound } from "next/navigation";
 
@@ -18,5 +19,10 @@ export default async function ReportEditPage({
     .eq("id", reportId)
     .maybeSingle();
   if (!report?.business_id) notFound();
+  try {
+    await requireBusinessAccess(report.business_id as string);
+  } catch {
+    notFound();
+  }
   redirect(`/businesses/${report.business_id}/reports`);
 }

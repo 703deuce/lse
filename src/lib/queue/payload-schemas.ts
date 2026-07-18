@@ -92,6 +92,8 @@ const generateReportPayloadSchema = z
     identityKey: z.string().optional(),
     artifactKind: z.string().optional(),
     force: z.boolean().optional(),
+    executiveSummary: z.string().nullable().optional(),
+    sections: z.record(z.string(), z.boolean()).nullable().optional(),
     competitorLimit: z.union([z.literal("all"), z.literal(10), z.literal(20)]).optional(),
   })
   .passthrough();

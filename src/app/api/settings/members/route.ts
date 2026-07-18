@@ -79,14 +79,29 @@ export async function POST(request: Request) {
       );
     }
 
-    const { error } = await supabase.from("organization_members").upsert(
-      {
-        organization_id: auth.organizationId,
-        user_id: profile.id,
-        role: parsed.data.role,
-      },
-      { onConflict: "organization_id,user_id" }
-    );
+    const { data: existing } = await supabase
+      .from("organization_members")
+      .select("user_id, role")
+      .eq("organization_id", auth.organizationId)
+      .eq("user_id", profile.id)
+      .maybeSingle();
+    if (existing) {
+      return NextResponse.json(
+        {
+          error:
+            existing.role === "owner"
+              ? "That user is already the workspace owner."
+              : "That user is already a member. Change their role from the member list instead.",
+        },
+        { status: 409 }
+      );
+    }
+
+    const { error } = await supabase.from("organization_members").insert({
+      organization_id: auth.organizationId,
+      user_id: profile.id,
+      role: parsed.data.role,
+    });
     if (error) {
       return NextResponse.json({ error: "Request could not be completed" }, { status: 500 });
     }

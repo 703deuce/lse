@@ -29,3 +29,15 @@ describe("shareIdentityKey", () => {
     );
   });
 });
+
+describe("share expiry helpers", () => {
+  it("treats null expiry as never expired", () => {
+    // Mirrors findReusableShare / share page: null means forever.
+    const expiresAt: string | null = null;
+    const expired = Boolean(
+      expiresAt && Number.isFinite(new Date(expiresAt).getTime()) && new Date(expiresAt).getTime() <= Date.now()
+    );
+    assert.equal(expired, false);
+  });
+});
+

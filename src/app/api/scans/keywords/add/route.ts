@@ -20,6 +20,22 @@ export async function POST(request: Request) {
     const supabase = createServiceClient();
     const trimmed = keyword.trim();
 
+    let scopedCampaignId: string | null = null;
+    if (campaignId) {
+      const { data: campaign } = await supabase
+        .from("maps_campaigns")
+        .select("id, business_id")
+        .eq("id", campaignId)
+        .maybeSingle();
+      if (!campaign || campaign.business_id !== businessId) {
+        return NextResponse.json(
+          { error: "campaignId does not belong to this business" },
+          { status: 400 }
+        );
+      }
+      scopedCampaignId = campaign.id as string;
+    }
+
     const { data: existing } = await supabase
       .from("business_keywords")
       .select("id, keyword, city, state, is_primary, campaign_id")
@@ -29,10 +45,10 @@ export async function POST(request: Request) {
       (k) => String(k.keyword).trim().toLowerCase() === trimmed.toLowerCase()
     );
     if (duplicate) {
-      if (campaignId && !duplicate.campaign_id) {
+      if (scopedCampaignId && !duplicate.campaign_id) {
         await supabase
           .from("business_keywords")
-          .update({ campaign_id: campaignId })
+          .update({ campaign_id: scopedCampaignId })
           .eq("id", duplicate.id);
       }
       return NextResponse.json({
@@ -51,7 +67,7 @@ export async function POST(request: Request) {
         city: primary?.city ?? null,
         state: primary?.state ?? null,
         is_primary: false,
-        campaign_id: campaignId ?? null,
+        campaign_id: scopedCampaignId,
         active: true,
         sort_order: (existing ?? []).length,
       })

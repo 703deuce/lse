@@ -376,9 +376,15 @@ export function ReportShareControls({
                   type="checkbox"
                   checked={on}
                   onChange={(e) => {
+                    const prev = sections;
                     const next = { ...sections, [id]: e.target.checked };
                     setSections(next);
-                    void persistSections(businessId, reportId, next);
+                    void persistSections(businessId, reportId, next).then((r) => {
+                      if (!r.ok) {
+                        setSections(prev);
+                        setError(r.error ?? "Failed to save sections");
+                      }
+                    });
                   }}
                 />
                 <label htmlFor={`sec-${id}`}>{REPORT_SECTION_LABELS[id]}</label>
@@ -397,14 +403,19 @@ async function persistSections(
   businessId: string,
   reportId: string,
   sections: Partial<Record<ReportSectionId, boolean>>
-) {
+): Promise<{ ok: boolean; error?: string }> {
   try {
-    await fetch("/api/reports/sections", {
+    const res = await fetch("/api/reports/sections", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ businessId, reportId, sections }),
     });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, error: String(json.error ?? "Failed to save sections") };
+    }
+    return { ok: true };
   } catch {
-    /* best-effort */
+    return { ok: false, error: "Failed to save sections" };
   }
 }

@@ -9,6 +9,7 @@ import { dedupeScanResults } from "@/lib/maps/cell-result-integrity";
 import { SCAN_RESULT_GRID_COLUMNS } from "@/lib/maps/scan-result-columns";
 import type { ScanResultRow } from "@/lib/db/types";
 import { mergeScanConfidenceSummary } from "@/lib/jobs/merge-confidence-summary";
+import { sanitizeScanBatchForClient } from "@/lib/scans/sanitize-scan-batch-for-client";
 
 function isInFlightLeaseStale(batch: {
   status: string;
@@ -143,9 +144,13 @@ export async function GET(
       .limit(1)
       .maybeSingle();
 
+    const safeBatch = sanitizeScanBatchForClient(
+      batch as unknown as Record<string, unknown>
+    );
+
     return NextResponse.json({
       batch: {
-        ...batch,
+        ...safeBatch,
         map_renderable: isMapRenderable(batch.status),
       },
       business: business ?? null,

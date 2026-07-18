@@ -76,7 +76,21 @@ export async function PATCH(
       updated_at: new Date().toISOString(),
     };
 
-    if (p.accountType !== undefined) patch.account_type = p.accountType;
+    // Bare accountType flips bypass convert/untrack limits — reject them.
+    if (
+      p.accountType !== undefined &&
+      p.restore !== true &&
+      p.archive !== true
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Use convert-to-client or archive/restore to change account type. Direct accountType updates are not allowed.",
+        },
+        { status: 400 }
+      );
+    }
+
     if (p.prospectStatus !== undefined) patch.prospect_status = p.prospectStatus;
     if (p.primaryContactName !== undefined) patch.primary_contact_name = p.primaryContactName;
     if (p.primaryContactEmail !== undefined) {
@@ -85,6 +99,11 @@ export async function PATCH(
     if (p.notes !== undefined) patch.notes = p.notes;
     if (p.phone !== undefined) patch.phone = p.phone;
     if (p.websiteUrl !== undefined) patch.website_url = p.websiteUrl || null;
+
+    if (p.prospectStatus === "archived" && p.archive !== true) {
+      patch.archived_at = new Date().toISOString();
+      patch.is_tracked = false;
+    }
 
     if (p.archive === true) {
       patch.archived_at = new Date().toISOString();
@@ -108,8 +127,8 @@ export async function PATCH(
           await assertWithinLimit(auth.organizationId, "max_businesses", 1);
         }
         patch.is_tracked = true;
-        if (p.accountType === undefined) patch.account_type = "client";
-        if (p.prospectStatus === undefined) patch.prospect_status = "won";
+        patch.account_type = "client";
+        patch.prospect_status = null;
       } else {
         patch.is_tracked = false;
         if (p.accountType === undefined && nextType == null) {

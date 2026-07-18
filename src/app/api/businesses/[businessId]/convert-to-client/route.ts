@@ -49,7 +49,7 @@ export async function POST(
       .from("businesses")
       .update({
         account_type: "client",
-        prospect_status: "won",
+        prospect_status: null,
         is_tracked: true,
         tracking_source: "convert",
         archived_at: null,

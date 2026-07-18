@@ -11,8 +11,8 @@ import {
   type SummaryTone,
 } from "@/lib/reporting/ai-executive-summary";
 import { generateTypedReport } from "@/lib/reporting/generate-report";
+import { rebuildParamsFromMetadata } from "@/lib/reporting/rebuild-params";
 import { trackProductEvent } from "@/lib/analytics/product-events";
-import type { ReportType } from "@/lib/reporting/types";
 
 const schema = z.object({
   businessId: z.string().uuid(),
@@ -126,24 +126,23 @@ export async function POST(request: Request) {
         .eq("business_id", p.businessId);
 
       // Rebuild HTML so share links show the new summary (bypass stale reuse).
-      const reportType = (prevMeta.reportType as ReportType | undefined) ?? "single_scan";
-      const campaignId =
-        (prevMeta.campaignId as string | null | undefined) ??
-        ((prevMeta.payload as { parameters?: { campaignId?: string } } | undefined)
-          ?.parameters?.campaignId ?? null);
+      const rebuild = rebuildParamsFromMetadata(meta);
       try {
         await generateTypedReport({
           businessId: p.businessId,
           scanBatchId: (report.scan_batch_id as string | null) ?? undefined,
-          reportType,
-          campaignId,
+          reportType: rebuild.reportType,
+          keywordId: rebuild.keywordId,
+          locationId: rebuild.locationId,
+          campaignId: rebuild.campaignId,
+          gridSize: rebuild.gridSize,
+          radiusMeters: rebuild.radiusMeters,
+          selectedCompetitorKeys: rebuild.selectedCompetitorKeys,
           reportId: p.reportId,
           shareToken: (report.share_token as string | null) ?? undefined,
-          identityKey: (prevMeta.identityKey as string | undefined) ?? undefined,
+          identityKey: rebuild.identityKey ?? undefined,
           executiveSummary: summary,
-          sections:
-            (prevMeta.sections as Partial<Record<string, boolean>> | undefined) ??
-            null,
+          sections: rebuild.sections,
           persist: true,
         });
       } catch {

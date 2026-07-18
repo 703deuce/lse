@@ -6,12 +6,18 @@ import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { requireOrganizationPermission } from "@/lib/auth/permissions";
 import { createServiceClient } from "@/lib/db/client";
 import { trackProductEvent } from "@/lib/analytics/product-events";
+import { getOrganizationPlan } from "@/lib/plans";
+import {
+  assertGridSizeAllowed,
+  assertScheduleAllowed,
+  resolveFreelancerLimits,
+} from "@/lib/plans/resolve-freelancer-limits";
 
 const createSchema = z.object({
   businessId: z.string().uuid(),
   name: z.string().min(1).max(120),
   description: z.string().max(2000).nullable().optional(),
-  defaultGridSize: z.number().int().min(3).max(15).optional(),
+  defaultGridSize: z.number().int().min(3).max(13).optional(),
   defaultRadiusMeters: z.number().int().min(100).max(50000).optional(),
   scheduleType: z.enum(["manual", "weekly", "biweekly", "monthly"]).optional(),
   scheduleDay: z.number().int().min(0).max(31).nullable().optional(),
@@ -64,7 +70,29 @@ export async function POST(request: Request) {
     const p = parsed.data;
     const auth = await requireBusinessAccess(p.businessId);
     await requireOrganizationPermission("business.update", auth.organizationId);
+    const plan = await getOrganizationPlan(auth.organizationId);
+    const limits = resolveFreelancerLimits(plan.id);
+    const gridSize = p.defaultGridSize ?? 7;
+    const gridOk = assertGridSizeAllowed(gridSize, limits);
+    if (!gridOk.ok) {
+      return NextResponse.json({ error: gridOk.message }, { status: 400 });
+    }
+    const scheduleType = p.scheduleType ?? "manual";
+    const scheduleEnabled = p.scheduleEnabled ?? false;
+    if (scheduleEnabled || scheduleType !== "manual") {
+      const schedOk = assertScheduleAllowed(scheduleType, limits);
+      if (!schedOk.ok) {
+        return NextResponse.json({ error: schedOk.message }, { status: 403 });
+      }
+    }
     const supabase = createServiceClient();
+
+    let nextScheduledAt: string | null = null;
+    if (scheduleEnabled && scheduleType !== "manual") {
+      const days =
+        scheduleType === "monthly" ? 30 : scheduleType === "biweekly" ? 14 : 7;
+      nextScheduledAt = new Date(Date.now() + days * 86400000).toISOString();
+    }
 
     const { data, error } = await supabase
       .from("maps_campaigns")
@@ -72,12 +100,13 @@ export async function POST(request: Request) {
         business_id: p.businessId,
         name: p.name.trim(),
         description: p.description ?? null,
-        default_grid_size: p.defaultGridSize ?? 7,
+        default_grid_size: gridSize,
         default_radius_meters: p.defaultRadiusMeters ?? 3000,
-        schedule_type: p.scheduleType ?? "manual",
+        schedule_type: scheduleType,
         schedule_day: p.scheduleDay ?? null,
         schedule_timezone: p.scheduleTimezone ?? null,
-        schedule_enabled: p.scheduleEnabled ?? false,
+        schedule_enabled: scheduleEnabled,
+        next_scheduled_at: nextScheduledAt,
       })
       .select("*")
       .single();

@@ -48,10 +48,18 @@ export function shareIdentityKey(params: {
   }
 }
 
+function isShareExpired(expiresAt: string | null | undefined): boolean {
+  if (!expiresAt) return false; // null = never expires
+  const ms = new Date(expiresAt).getTime();
+  return Number.isFinite(ms) && ms <= Date.now();
+}
+
 export async function findReusableShare(params: {
   businessId: string;
   reportType: string;
   identityKey: string;
+  /** When true, never return a ready row (force rebuild). */
+  force?: boolean;
 }): Promise<{
   reportId: string;
   shareToken: string;
@@ -62,7 +70,7 @@ export async function findReusableShare(params: {
   const { data } = await supabase
     .from("reports")
     .select(
-      "id, share_token, share_expires_at, html_content, artifact_status, publish_status"
+      "id, share_token, share_expires_at, html_content, artifact_status, publish_status, generated_at"
     )
     .eq("business_id", params.businessId)
     .eq("metadata_json->>reportType", params.reportType)
@@ -75,18 +83,9 @@ export async function findReusableShare(params: {
   if (!data?.share_token) return null;
   const publishStatus = String(data.publish_status ?? "published");
   if (publishStatus === "draft" || publishStatus === "archived") return null;
-  const expiresAt = data.share_expires_at ? new Date(data.share_expires_at as string).getTime() : 0;
-  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return null;
+  if (isShareExpired(data.share_expires_at as string | null)) return null;
 
   const artifactStatus = String(data.artifact_status ?? "");
-  if (data.html_content) {
-    return {
-      reportId: data.id as string,
-      shareToken: data.share_token as string,
-      shareUrl: `/reports/share/${data.share_token}`,
-      status: "ready",
-    };
-  }
   if (artifactStatus === "generating") {
     return {
       reportId: data.id as string,
@@ -95,10 +94,19 @@ export async function findReusableShare(params: {
       status: "generating",
     };
   }
+  if (params.force) return null;
+  if (data.html_content) {
+    return {
+      reportId: data.id as string,
+      shareToken: data.share_token as string,
+      shareUrl: `/reports/share/${data.share_token}`,
+      status: "ready",
+    };
+  }
   return null;
 }
 
-/** Create a durable generating share row so the API can return immediately. */
+/** Create or revive a generating share row for this identity. */
 export async function createGeneratingShareRecord(params: {
   businessId: string;
   reportType: ReportType;
@@ -111,11 +119,12 @@ export async function createGeneratingShareRecord(params: {
   const shareTokenHash = hashShareToken(shareToken);
   const shareExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
 
-  // Reuse an in-flight generating row for the same identity (idempotent double-click).
+  // Prefer an in-flight generating row for the same identity (idempotent double-click).
   const { data: inflight } = await supabase
     .from("reports")
     .select("id, share_token")
     .eq("business_id", params.businessId)
+    .eq("metadata_json->>reportType", params.reportType)
     .eq("metadata_json->>identityKey", params.identityKey)
     .eq("artifact_status", "generating")
     .not("share_token", "is", null)
@@ -131,10 +140,63 @@ export async function createGeneratingShareRecord(params: {
     };
   }
 
+  // Revive any existing identity row (revoked/archived/expired/failed) so the
+  // unique (business, reportType, identityKey) index never blocks re-share.
+  const { data: existing } = await supabase
+    .from("reports")
+    .select("id, metadata_json")
+    .eq("business_id", params.businessId)
+    .eq("metadata_json->>reportType", params.reportType)
+    .eq("metadata_json->>identityKey", params.identityKey)
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   const scanBatchId =
     params.reportType === "single_scan" || params.reportType === "competitor"
       ? params.scanBatchId ?? null
       : null;
+
+  const nextMeta = {
+    ...((existing?.metadata_json as Record<string, unknown>) ?? {}),
+    reportType: params.reportType,
+    identityKey: params.identityKey,
+    artifactKind: "html_share",
+    campaignId: params.campaignId ?? null,
+  };
+
+  if (existing?.id) {
+    const { data: revived, error: reviveErr } = await supabase
+      .from("reports")
+      .update({
+        share_token: shareToken,
+        share_token_hash: shareTokenHash,
+        share_expires_at: shareExpiresAt,
+        share_password_hash: null,
+        share_view_count: 0,
+        share_last_viewed_at: null,
+        html_content: null,
+        artifact_kind: "html_share",
+        artifact_status: "generating",
+        publish_status: "published",
+        error_message: null,
+        scan_batch_id: scanBatchId,
+        metadata_json: nextMeta,
+        generated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id)
+      .eq("business_id", params.businessId)
+      .select("id")
+      .single();
+    if (reviveErr || !revived) {
+      throw new Error(reviveErr?.message ?? "Failed to revive share record");
+    }
+    return {
+      reportId: revived.id as string,
+      shareToken,
+      shareUrl: `/reports/share/${shareToken}`,
+    };
+  }
 
   const { data, error } = await supabase
     .from("reports")
@@ -148,37 +210,44 @@ export async function createGeneratingShareRecord(params: {
       artifact_kind: "html_share",
       artifact_status: "generating",
       publish_status: "published",
-      metadata_json: {
-        reportType: params.reportType,
-        identityKey: params.identityKey,
-        artifactKind: "html_share",
-        campaignId: params.campaignId ?? null,
-      },
+      metadata_json: nextMeta,
     })
     .select("id")
     .single();
 
   if (error || !data) {
-    // Unique race — only reuse an in-flight generating row (never failed/stale).
+    // Unique race — revive whatever now owns the identity.
     const { data: raced } = await supabase
       .from("reports")
-      .select("id, share_token, artifact_status, share_expires_at")
+      .select("id")
       .eq("business_id", params.businessId)
+      .eq("metadata_json->>reportType", params.reportType)
       .eq("metadata_json->>identityKey", params.identityKey)
-      .eq("artifact_status", "generating")
-      .not("share_token", "is", null)
       .order("generated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (raced?.id && raced.share_token) {
-      const expiresAt = raced.share_expires_at
-        ? new Date(raced.share_expires_at as string).getTime()
-        : 0;
-      if (Number.isFinite(expiresAt) && expiresAt > Date.now()) {
+    if (raced?.id) {
+      const { data: revived, error: reviveErr } = await supabase
+        .from("reports")
+        .update({
+          share_token: shareToken,
+          share_token_hash: shareTokenHash,
+          share_expires_at: shareExpiresAt,
+          html_content: null,
+          artifact_status: "generating",
+          publish_status: "published",
+          error_message: null,
+          metadata_json: nextMeta,
+          generated_at: new Date().toISOString(),
+        })
+        .eq("id", raced.id)
+        .select("id")
+        .single();
+      if (!reviveErr && revived) {
         return {
-          reportId: raced.id as string,
-          shareToken: raced.share_token as string,
-          shareUrl: `/reports/share/${raced.share_token}`,
+          reportId: revived.id as string,
+          shareToken,
+          shareUrl: `/reports/share/${shareToken}`,
         };
       }
     }
