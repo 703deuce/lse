@@ -58,3 +58,17 @@ Re-run the migration backfill only on fresh DBs; production should apply once.
 1. Apply SQL migrations **071** then **072**.
 2. Redeploy **web + maps worker**.
 3. Smoke: create share → set password → open link → view count increments; invite assistant seat.
+
+## Migration `073_campaign_baseline.sql`
+
+### What changed
+
+| Object | Change |
+|---|---|
+| `maps_campaigns` | Optional `baseline_scan_batch_id` → `scan_batches(id)` for baseline-vs-current reports |
+
+### Deploy order
+
+1. Apply SQL migrations **071 → 072 → 073** (do not run 073 alone — it needs `maps_campaigns` from 071).
+2. Redeploy **web + maps worker** if not already on the freelancer-journey build.
+3. Smoke: convert a prospect → campaign has baseline when a completed scan exists; campaign schedule panel can set baseline.
