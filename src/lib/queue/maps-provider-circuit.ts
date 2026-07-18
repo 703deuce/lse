@@ -1,13 +1,18 @@
 /**
- * Distributed Bright Data (Maps) circuit with lease/expiry.
- * States: closed → degraded → open → half_open → closed
+ * Distributed Bright Data (Maps) circuit breaker.
+ * States: closed → open → half_open → closed (or reopen with longer lease).
+ *
+ * Opens when ≥30% of the last 20 attempts are degradation failures (min 10 samples).
+ * While open: no Bright Data calls. After lease: half-open probes decide close vs reopen.
  */
 
 import { getRedisUrl } from "@/lib/queue/config";
 import {
   brightDataCircuitLeaseMs,
-  brightDataDegradedMinFailures,
-  brightDataDegradedThresholdPercent,
+  brightDataCircuitMinSamples,
+  brightDataCircuitOpenDurationMs,
+  brightDataCircuitOpenThresholdPercent,
+  brightDataCircuitSampleSize,
   brightDataDegradedWindowMs,
 } from "@/lib/providers/maps-grid/config";
 import {
@@ -16,13 +21,15 @@ import {
 } from "@/lib/providers/maps-grid/failure-categories";
 import type { MapsCircuitState, MapsProviderId } from "@/lib/providers/maps-grid/types";
 
-type CircuitSnapshot = {
+export type CircuitSnapshot = {
   state: MapsCircuitState;
   openedAt: number;
   expiresAt: number;
   reason: string | null;
   failureCount: number;
   attemptCount: number;
+  /** Consecutive opens without a successful close — drives backoff escalation. */
+  openStreak: number;
 };
 
 type WindowSample = { at: number; failure: boolean; degradation: boolean };
@@ -72,6 +79,7 @@ function defaultClosed(): CircuitSnapshot {
     reason: null,
     failureCount: 0,
     attemptCount: 0,
+    openStreak: 0,
   };
 }
 
@@ -83,10 +91,27 @@ function windowKey(provider: MapsProviderId): string {
   return `lse:provider:${provider}:maps:window`;
 }
 
+/**
+ * open → half_open when lease expires (probe window).
+ * half_open / degraded expiry → closed if nothing else happens.
+ */
 function applyExpiry(snap: CircuitSnapshot): CircuitSnapshot {
   if (snap.state === "closed") return snap;
   if (snap.expiresAt > 0 && Date.now() > snap.expiresAt) {
-    return defaultClosed();
+    if (snap.state === "open") {
+      const now = Date.now();
+      return {
+        ...snap,
+        state: "half_open",
+        openedAt: now,
+        expiresAt: now + Math.min(brightDataCircuitLeaseMs(), 60_000),
+        reason: "half-open probe window",
+      };
+    }
+    return {
+      ...defaultClosed(),
+      openStreak: snap.state === "half_open" ? snap.openStreak : 0,
+    };
   }
   return snap;
 }
@@ -99,7 +124,13 @@ async function readCircuit(provider: MapsProviderId): Promise<CircuitSnapshot> {
   try {
     const raw = await redis.get(circuitKey(provider));
     if (!raw) return defaultClosed();
-    return applyExpiry(JSON.parse(raw) as CircuitSnapshot);
+    const parsed = JSON.parse(raw) as CircuitSnapshot;
+    if (typeof parsed.openStreak !== "number") parsed.openStreak = 0;
+    const next = applyExpiry(parsed);
+    if (next.state !== parsed.state || next.expiresAt !== parsed.expiresAt) {
+      await writeCircuit(provider, next);
+    }
+    return next;
   } catch {
     return applyExpiry(memoryCircuits.get(provider) ?? defaultClosed());
   }
@@ -109,7 +140,10 @@ async function writeCircuit(provider: MapsProviderId, snap: CircuitSnapshot): Pr
   memoryCircuits.set(provider, snap);
   const redis = await getRedis();
   if (!redis) return;
-  const ttlSec = Math.max(5, Math.ceil(brightDataCircuitLeaseMs() / 1000));
+  const ttlSec = Math.max(
+    5,
+    Math.ceil(Math.max(brightDataCircuitLeaseMs(), snap.expiresAt - Date.now()) / 1000) + 5
+  );
   await redis.set(circuitKey(provider), JSON.stringify(snap), "EX", ttlSec).catch(() => {});
 }
 
@@ -122,19 +156,43 @@ export async function getMapsProviderCircuit(
 export async function setMapsProviderCircuit(
   provider: MapsProviderId,
   state: MapsCircuitState,
-  reason?: string
+  reason?: string,
+  opts?: { openStreak?: number; leaseMs?: number }
 ): Promise<CircuitSnapshot> {
+  const prev = await readCircuit(provider);
   const now = Date.now();
+  let openStreak = prev.openStreak ?? 0;
+  if (state === "closed") {
+    openStreak = 0;
+  } else if (state === "open") {
+    openStreak = opts?.openStreak ?? openStreak + 1;
+  } else if (opts?.openStreak != null) {
+    openStreak = opts.openStreak;
+  }
+
+  const leaseMs =
+    opts?.leaseMs ??
+    (state === "open"
+      ? brightDataCircuitOpenDurationMs(Math.max(0, openStreak - 1))
+      : state === "half_open"
+        ? Math.min(brightDataCircuitLeaseMs(), 60_000)
+        : brightDataCircuitLeaseMs());
+
   const snap: CircuitSnapshot = {
     state,
     openedAt: state === "closed" ? 0 : now,
-    expiresAt: state === "closed" ? 0 : now + brightDataCircuitLeaseMs(),
+    expiresAt: state === "closed" ? 0 : now + leaseMs,
     reason: reason ?? null,
     failureCount: 0,
     attemptCount: 0,
+    openStreak,
   };
   await writeCircuit(provider, snap);
-  console.warn(`[MapsCircuit] ${provider} → ${state}${reason ? ` (${reason})` : ""}`);
+  console.warn(
+    `[MapsCircuit] ${provider} → ${state}` +
+      `${reason ? ` (${reason})` : ""}` +
+      (state === "open" ? ` lease=${leaseMs}ms streak=${snap.openStreak}` : "")
+  );
   return snap;
 }
 
@@ -142,21 +200,22 @@ async function pushWindowSample(
   provider: MapsProviderId,
   sample: WindowSample
 ): Promise<WindowSample[]> {
+  const sampleSize = brightDataCircuitSampleSize();
   const windowMs = brightDataDegradedWindowMs();
   const redis = await getRedis();
   if (!redis) {
     const arr = memoryWindows.get(provider) ?? [];
     arr.push(sample);
-    const pruned = arr.filter((s) => sample.at - s.at <= windowMs);
+    const pruned = arr.filter((s) => sample.at - s.at <= windowMs).slice(-sampleSize);
     memoryWindows.set(provider, pruned);
     return pruned;
   }
   try {
     const key = windowKey(provider);
     await redis.lpush(key, JSON.stringify(sample));
-    await redis.ltrim(key, 0, 499);
+    await redis.ltrim(key, 0, sampleSize - 1);
     await redis.pexpire(key, windowMs + 5_000);
-    const raw = await redis.lrange(key, 0, 499);
+    const raw = await redis.lrange(key, 0, sampleSize - 1);
     return raw
       .map((r) => {
         try {
@@ -165,11 +224,12 @@ async function pushWindowSample(
           return null;
         }
       })
-      .filter((s): s is WindowSample => !!s && sample.at - s.at <= windowMs);
+      .filter((s): s is WindowSample => !!s)
+      .slice(0, sampleSize);
   } catch {
     const arr = memoryWindows.get(provider) ?? [];
     arr.push(sample);
-    const pruned = arr.filter((s) => sample.at - s.at <= windowMs);
+    const pruned = arr.filter((s) => sample.at - s.at <= windowMs).slice(-sampleSize);
     memoryWindows.set(provider, pruned);
     return pruned;
   }
@@ -177,6 +237,7 @@ async function pushWindowSample(
 
 export type DegradationDecision = {
   shouldDegrade: boolean;
+  shouldOpen: boolean;
   failureCount: number;
   attemptCount: number;
   degradationCount: number;
@@ -185,17 +246,20 @@ export type DegradationDecision = {
 
 export function evaluateDegradationWindow(
   samples: Array<{ failure: boolean; degradation: boolean }>,
-  opts?: { minFailures?: number; thresholdPercent?: number }
+  opts?: { minFailures?: number; thresholdPercent?: number; minSamples?: number }
 ): DegradationDecision {
-  const minFailures = opts?.minFailures ?? brightDataDegradedMinFailures();
-  const threshold = opts?.thresholdPercent ?? brightDataDegradedThresholdPercent();
-  const attemptCount = samples.length;
-  const failureCount = samples.filter((s) => s.failure).length;
-  const degradationCount = samples.filter((s) => s.degradation).length;
+  const minSamples = opts?.minSamples ?? opts?.minFailures ?? brightDataCircuitMinSamples();
+  const threshold = opts?.thresholdPercent ?? brightDataCircuitOpenThresholdPercent();
+  const capped = samples.slice(0, brightDataCircuitSampleSize());
+  const attemptCount = capped.length;
+  const failureCount = capped.filter((s) => s.failure).length;
+  const degradationCount = capped.filter((s) => s.degradation).length;
   const percent = attemptCount > 0 ? (degradationCount / attemptCount) * 100 : 0;
+  const shouldOpen =
+    attemptCount >= minSamples && percent >= threshold && degradationCount >= 1;
   return {
-    shouldDegrade:
-      degradationCount >= minFailures && percent >= threshold && attemptCount >= minFailures,
+    shouldDegrade: shouldOpen,
+    shouldOpen,
     failureCount,
     attemptCount,
     degradationCount,
@@ -204,7 +268,7 @@ export function evaluateDegradationWindow(
 }
 
 /**
- * Record a cell attempt outcome. Returns whether degraded mode should open.
+ * Record a cell attempt outcome. May open the Bright Data circuit.
  */
 export async function recordMapsProviderAttempt(params: {
   provider?: MapsProviderId;
@@ -221,10 +285,13 @@ export async function recordMapsProviderAttempt(params: {
   const decision = evaluateDegradationWindow(samples);
   let circuit = await readCircuit(provider);
 
-  if (decision.shouldDegrade && (circuit.state === "closed" || circuit.state === "half_open")) {
+  if (
+    decision.shouldOpen &&
+    (circuit.state === "closed" || circuit.state === "degraded" || circuit.state === "half_open")
+  ) {
     circuit = await setMapsProviderCircuit(
       provider,
-      "degraded",
+      "open",
       `${decision.degradationCount}/${decision.attemptCount} degradation failures (${Math.round(decision.percent)}%)`
     );
   }
@@ -232,9 +299,37 @@ export async function recordMapsProviderAttempt(params: {
   return { ...decision, circuit };
 }
 
+/** True when Bright Data must not accept new work (open only — half_open allows probes). */
 export async function shouldSkipBrightDataPrimary(): Promise<boolean> {
   const circuit = await getMapsProviderCircuit("brightdata");
   return circuit.state === "open";
+}
+
+/**
+ * Wait while circuit is open; when half_open, caller should run probes.
+ * Returns the circuit state after any open wait.
+ */
+export async function waitWhileBrightDataCircuitOpen(
+  sleepFn: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))
+): Promise<CircuitSnapshot> {
+  let circuit = await getMapsProviderCircuit("brightdata");
+  while (circuit.state === "open") {
+    const waitMs = Math.max(250, Math.min(circuit.expiresAt - Date.now() + 50, 30_000));
+    console.warn(
+      `[MapsCircuit] Bright Data open — pausing ${waitMs}ms (expires in ${Math.max(0, circuit.expiresAt - Date.now())}ms)`
+    );
+    await sleepFn(waitMs);
+    circuit = await getMapsProviderCircuit("brightdata");
+  }
+  return circuit;
+}
+
+export async function closeBrightDataCircuit(reason: string): Promise<CircuitSnapshot> {
+  return setMapsProviderCircuit("brightdata", "closed", reason, { openStreak: 0 });
+}
+
+export async function reopenBrightDataCircuit(reason: string): Promise<CircuitSnapshot> {
+  return setMapsProviderCircuit("brightdata", "open", reason);
 }
 
 export function __resetMapsProviderCircuitForTests(): void {

@@ -1,6 +1,12 @@
 /**
  * Maps grid multi-provider configuration.
  * All tunables live here as env-backed getters — no scattered magic numbers.
+ *
+ * Production Bright Data policy (defaults):
+ * - Global concurrency 12
+ * - Recovery: 20–35s@5 → 60–100s@3 → 120–210s@1–2
+ * - Circuit: ≥30% transient failures over last 20 (min 10) → open
+ * - ScrapingDog only after Bright Data recovery window
  */
 
 function envInt(name: string, fallback: number, opts?: { min?: number; max?: number }): number {
@@ -19,23 +25,56 @@ function envBool(name: string, fallback: boolean): boolean {
 
 /** Bright Data global in-flight concurrency for Maps cells (across workers). */
 export function brightDataGlobalConcurrency(): number {
-  return envInt("BRIGHTDATA_GLOBAL_CONCURRENCY", 25, { min: 1, max: 250 });
+  return envInt("BRIGHTDATA_GLOBAL_CONCURRENCY", 12, { min: 1, max: 250 });
+}
+
+/** Per-scan healthy concurrency for the initial Bright Data pass. */
+export function brightDataHealthyConcurrency(): number {
+  return envInt("BRIGHTDATA_HEALTHY_CONCURRENCY", brightDataGlobalConcurrency(), {
+    min: 1,
+    max: 250,
+  });
 }
 
 export function brightDataNormalCellTimeoutMs(): number {
   return envInt("BRIGHTDATA_NORMAL_CELL_TIMEOUT_MS", 45_000, { min: 5_000, max: 180_000 });
 }
 
+/** Rolling sample size for the Bright Data circuit (last N attempts). */
+export function brightDataCircuitSampleSize(): number {
+  return envInt("BRIGHTDATA_CIRCUIT_SAMPLE_SIZE", 20, { min: 5, max: 200 });
+}
+
+/** Open circuit when degradation % over the sample window reaches this. */
+export function brightDataCircuitOpenThresholdPercent(): number {
+  return envInt("BRIGHTDATA_CIRCUIT_OPEN_THRESHOLD_PERCENT", 30, { min: 1, max: 100 });
+}
+
+/** Require at least this many samples before opening the circuit. */
+export function brightDataCircuitMinSamples(): number {
+  return envInt("BRIGHTDATA_CIRCUIT_MIN_SAMPLES", 10, { min: 1, max: 200 });
+}
+
+/** @deprecated Prefer brightDataCircuitOpenThresholdPercent — kept for analyzePrimaryWave callers. */
 export function brightDataDegradedThresholdPercent(): number {
-  return envInt("BRIGHTDATA_DEGRADED_THRESHOLD_PERCENT", 25, { min: 1, max: 100 });
+  return envInt(
+    "BRIGHTDATA_DEGRADED_THRESHOLD_PERCENT",
+    brightDataCircuitOpenThresholdPercent(),
+    { min: 1, max: 100 }
+  );
 }
 
+/** @deprecated Prefer brightDataCircuitMinSamples. */
 export function brightDataDegradedMinFailures(): number {
-  return envInt("BRIGHTDATA_DEGRADED_MIN_FAILURES", 5, { min: 1, max: 500 });
+  return envInt("BRIGHTDATA_DEGRADED_MIN_FAILURES", brightDataCircuitMinSamples(), {
+    min: 1,
+    max: 500,
+  });
 }
 
+/** Soft time prune for Redis window entries (sample-count is authoritative). */
 export function brightDataDegradedWindowMs(): number {
-  return envInt("BRIGHTDATA_DEGRADED_WINDOW_MS", 20_000, { min: 1_000, max: 300_000 });
+  return envInt("BRIGHTDATA_DEGRADED_WINDOW_MS", 600_000, { min: 1_000, max: 3_600_000 });
 }
 
 export function brightDataIsolatedRetryConcurrency(): number {
@@ -59,11 +98,11 @@ export function brightDataRecoveryDelayMaxMs(): number {
 }
 
 export function brightDataProbeCount(): number {
-  return envInt("BRIGHTDATA_PROBE_COUNT", 3, { min: 1, max: 10 });
+  return envInt("BRIGHTDATA_PROBE_COUNT", 2, { min: 1, max: 10 });
 }
 
 export function brightDataProbeConcurrency(): number {
-  return envInt("BRIGHTDATA_PROBE_CONCURRENCY", 2, { min: 1, max: 5 });
+  return envInt("BRIGHTDATA_PROBE_CONCURRENCY", 1, { min: 1, max: 5 });
 }
 
 export function brightDataProbeSuccessMin(): number {
@@ -71,28 +110,49 @@ export function brightDataProbeSuccessMin(): number {
 }
 
 export function brightDataHalfOpenConcurrency(): number {
-  return envInt("BRIGHTDATA_HALF_OPEN_CONCURRENCY", 5, { min: 1, max: 50 });
+  return envInt("BRIGHTDATA_HALF_OPEN_CONCURRENCY", 4, { min: 1, max: 50 });
 }
 
 export function brightDataHalfOpenRampConcurrency(): number {
-  return envInt("BRIGHTDATA_HALF_OPEN_RAMP_CONCURRENCY", 10, { min: 1, max: 100 });
+  return envInt("BRIGHTDATA_HALF_OPEN_RAMP_CONCURRENCY", 8, { min: 1, max: 100 });
+}
+
+/** Initial open duration when the circuit first trips. */
+export function brightDataCircuitOpenBaseMs(): number {
+  return envInt("BRIGHTDATA_CIRCUIT_OPEN_BASE_MS", 30_000, { min: 1_000, max: 600_000 });
+}
+
+/** Cap for escalated open periods (~5 minutes). */
+export function brightDataCircuitOpenMaxMs(): number {
+  return envInt("BRIGHTDATA_CIRCUIT_OPEN_MAX_MS", 300_000, { min: 5_000, max: 900_000 });
 }
 
 /**
- * After the primary Bright Data wave, wait this long before each delayed
- * Bright Data retry of unfinished cells (tests rate-limit / cooldown theory).
+ * Hard ceiling for Bright Data recovery before ScrapingDog fallback
+ * (primary + backoff rounds + circuit waits).
+ */
+export function brightDataRecoveryDeadlineMs(): number {
+  return envInt("BRIGHTDATA_RECOVERY_DEADLINE_MS", 11 * 60_000, {
+    min: 60_000,
+    max: 30 * 60_000,
+  });
+}
+
+/**
+ * @deprecated Prefer brightDataRecoverySchedule() tiers.
+ * Kept so older env knobs still parse in tests/ops.
  */
 export function brightDataDelayedRetryDelayMs(): number {
   return envInt("BRIGHTDATA_DELAYED_RETRY_DELAY_MS", 30_000, { min: 0, max: 300_000 });
 }
 
-/** How many pause → Bright Data retry rounds after the primary wave. */
+/** @deprecated Prefer brightDataRecoverySchedule() length. */
 export function brightDataDelayedRetryRounds(): number {
-  return envInt("BRIGHTDATA_DELAYED_RETRY_ROUNDS", 2, { min: 0, max: 5 });
+  return envInt("BRIGHTDATA_DELAYED_RETRY_ROUNDS", 3, { min: 0, max: 8 });
 }
 
 export function brightDataCircuitLeaseMs(): number {
-  return envInt("BRIGHTDATA_CIRCUIT_LEASE_MS", 120_000, { min: 10_000, max: 900_000 });
+  return envInt("BRIGHTDATA_CIRCUIT_LEASE_MS", 600_000, { min: 10_000, max: 900_000 });
 }
 
 export function dataForSeoMapsEnabled(): boolean {
@@ -100,8 +160,6 @@ export function dataForSeoMapsEnabled(): boolean {
 }
 
 export function dataForSeoMapsConcurrency(): number {
-  // No hardcoded "10" — require explicit config, else a conservative default
-  // only when credentials exist. Operators should set the verified account value.
   return envInt("DATAFORSEO_MAPS_CONCURRENCY", 8, { min: 1, max: 100 });
 }
 
@@ -118,7 +176,6 @@ export function scrapingDogMapsEnabled(): boolean {
 }
 
 export function scrapingDogMapsConcurrency(): number {
-  // Plan-specific — must be set to the account dashboard value in production.
   return envInt("SCRAPINGDOG_MAPS_CONCURRENCY", 5, { min: 1, max: 100 });
 }
 
@@ -153,4 +210,48 @@ export function jitterMs(minMs: number, maxMs: number): number {
   const hi = Math.max(minMs, maxMs);
   if (hi <= 0) return 0;
   return lo + Math.floor(Math.random() * (hi - lo + 1));
+}
+
+export type BrightDataRecoveryRound = {
+  /** 1-based round id for logs / UI */
+  round: number;
+  delayMinMs: number;
+  delayMaxMs: number;
+  concurrency: number;
+};
+
+/**
+ * Exponential-ish Bright Data recovery schedule with jitter ranges.
+ * Round 1: 20–35s @5 · Round 2: 60–100s @3 · Round 3: 120–210s @2
+ */
+export function brightDataRecoverySchedule(): BrightDataRecoveryRound[] {
+  return [
+    {
+      round: 1,
+      delayMinMs: envInt("BRIGHTDATA_RETRY1_DELAY_MIN_MS", 20_000, { min: 0, max: 600_000 }),
+      delayMaxMs: envInt("BRIGHTDATA_RETRY1_DELAY_MAX_MS", 35_000, { min: 0, max: 600_000 }),
+      concurrency: envInt("BRIGHTDATA_RETRY1_CONCURRENCY", 5, { min: 1, max: 50 }),
+    },
+    {
+      round: 2,
+      delayMinMs: envInt("BRIGHTDATA_RETRY2_DELAY_MIN_MS", 60_000, { min: 0, max: 600_000 }),
+      delayMaxMs: envInt("BRIGHTDATA_RETRY2_DELAY_MAX_MS", 100_000, { min: 0, max: 600_000 }),
+      concurrency: envInt("BRIGHTDATA_RETRY2_CONCURRENCY", 3, { min: 1, max: 50 }),
+    },
+    {
+      round: 3,
+      delayMinMs: envInt("BRIGHTDATA_RETRY3_DELAY_MIN_MS", 120_000, { min: 0, max: 600_000 }),
+      delayMaxMs: envInt("BRIGHTDATA_RETRY3_DELAY_MAX_MS", 210_000, { min: 0, max: 600_000 }),
+      concurrency: envInt("BRIGHTDATA_RETRY3_CONCURRENCY", 2, { min: 1, max: 50 }),
+    },
+  ];
+}
+
+/** Escalating open durations: 30s → 60s → 120s → 240s → max. */
+export function brightDataCircuitOpenDurationMs(openStreak: number): number {
+  const base = brightDataCircuitOpenBaseMs();
+  const max = brightDataCircuitOpenMaxMs();
+  const streak = Math.max(0, Math.floor(openStreak));
+  const ms = base * 2 ** streak;
+  return Math.min(max, ms);
 }

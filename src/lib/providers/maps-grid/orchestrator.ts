@@ -348,8 +348,8 @@ export function brightDataOnlyProviders(): MapsProviderId[] {
 
 /** Secondary fallbacks after Bright Data is exhausted or circuit-open. */
 export function secondaryFallbackProviders(): MapsProviderId[] {
-  // Production hybrid order: DataForSEO first, ScrapingDog second.
-  return ["dataforseo", "scrapingdog"];
+  // Production hybrid stays Bright Data–only (no provider switch).
+  return [];
 }
 
 /** Full chain when a cell should try everything remaining. */

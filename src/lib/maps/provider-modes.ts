@@ -1,9 +1,9 @@
 /**
  * Maps grid provider modes for A/B testing which stack ranks best.
  *
- * - hybrid: Bright Data primary, then pause + Bright Data retries (no DFS/SD switch)
- * - scrapingdog: every cell via ScrapingDog only
- * - dataforseo: every cell via DataForSEO only (uses device=mobile|desktop + os)
+ * - hybrid: Bright Data only — controlled concurrency, backoff retries, circuit breaker
+ * - scrapingdog: every cell via ScrapingDog only (A/B)
+ * - dataforseo: every cell via DataForSEO only (A/B; device=mobile|desktop + os)
  */
 
 import type { MapsProviderId } from "@/lib/providers/maps-grid/types";
@@ -23,10 +23,10 @@ export type MapsProviderModeOption = {
 export const MAPS_PROVIDER_MODE_OPTIONS: MapsProviderModeOption[] = [
   {
     id: "hybrid",
-    label: "Bright Data (pause + retry)",
+    label: "Bright Data (backoff + circuit)",
     shortLabel: "Bright Data",
     description:
-      "Bright Data for every cell. Unfinished cells wait ~30s then retry Bright Data twice — no ScrapingDog/DataForSEO switch.",
+      "Bright Data only: concurrency 12, exponential backoff on unfinished cells, circuit breaker when failure rates spike. No ScrapingDog/DataForSEO mix — waits for Bright Data.",
   },
   {
     id: "scrapingdog",
@@ -68,8 +68,8 @@ export function primaryProvidersForMode(mode: MapsProviderMode): MapsProviderId[
 }
 
 /**
- * Secondary fallbacks after the primary stack is exhausted.
- * Hybrid no longer switches providers — it uses delayed Bright Data retries instead.
+ * Secondary provider fallbacks — unused for hybrid (Bright Data only).
+ * ScrapingDog/DataForSEO modes also have no secondary chain.
  */
 export function secondaryProvidersForMode(_mode: MapsProviderMode): MapsProviderId[] {
   return [];

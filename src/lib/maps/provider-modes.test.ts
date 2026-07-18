@@ -16,7 +16,7 @@ describe("maps provider modes", () => {
     assert.equal(parseMapsProviderMode("dataforseo"), "dataforseo");
   });
 
-  it("hybrid is Bright Data only with delayed retries (no DFS/SD switch)", () => {
+  it("hybrid is Bright Data only — no ScrapingDog/DataForSEO fallback", () => {
     assert.deepEqual(primaryProvidersForMode("hybrid"), ["brightdata"]);
     assert.deepEqual(secondaryProvidersForMode("hybrid"), []);
     assert.deepEqual(integrityProvidersForMode("hybrid"), ["brightdata"]);

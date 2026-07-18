@@ -45,7 +45,7 @@ export const createScanSchema = z.object({
   device: z.enum(["desktop", "mobile"]).default("mobile"),
   os: z.enum(["android", "ios", "windows", "macos"]).default("android"),
   browser: z.enum(["chrome", "firefox"]).default("chrome"),
-  /** A/B mode: hybrid (BD + delayed BD retries), scrapingdog-only, or dataforseo-only. */
+  /** A/B mode: hybrid (Bright Data backoff+circuit), scrapingdog-only, or dataforseo-only. */
   mapsProviderMode: mapsProviderModeSchema.default("hybrid"),
   parityLabel: z.string().optional(),
   centerLat: z.number().min(-90).max(90).optional(),

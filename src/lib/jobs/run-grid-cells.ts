@@ -23,13 +23,19 @@ import {
   maybeStartEarlyEnrichment,
 } from "@/lib/jobs/run-early-enrichment";
 import {
-  brightDataDelayedRetryDelayMs,
-  brightDataDelayedRetryRounds,
   brightDataNormalCellTimeoutMs,
+  brightDataProbeConcurrency,
+  brightDataRecoveryDeadlineMs,
 } from "@/lib/providers/maps-grid/config";
 import {
+  brightDataPrimaryConcurrency,
   isolatedRetryConcurrency,
   isolatedRetryDelayMs,
+  listBrightDataRecoveryRounds,
+  probesRecovered,
+  recoveryRoundConcurrency,
+  recoveryRoundDelayMs,
+  selectProbeJobs,
 } from "@/lib/providers/maps-grid/batch-recovery";
 import {
   brightDataOnlyProviders,
@@ -39,7 +45,13 @@ import {
 } from "@/lib/providers/maps-grid/orchestrator";
 import type { MapsFailureCategory } from "@/lib/providers/maps-grid/failure-categories";
 import type { MapsProviderId, MapsRecoveryStage } from "@/lib/providers/maps-grid/types";
-import { recordMapsProviderAttempt } from "@/lib/queue/maps-provider-circuit";
+import {
+  closeBrightDataCircuit,
+  getMapsProviderCircuit,
+  recordMapsProviderAttempt,
+  reopenBrightDataCircuit,
+  waitWhileBrightDataCircuitOpen,
+} from "@/lib/queue/maps-provider-circuit";
 import {
   DEFAULT_MAPS_PROVIDER_MODE,
   integrityProvidersForMode,
@@ -1163,12 +1175,16 @@ export async function runGridCellsLive(params: {
         : providerMode === "dataforseo"
           ? "fallback_dataforseo"
           : "scanning_brightdata";
+    const primaryConcurrency =
+      providerMode === "hybrid"
+        ? brightDataPrimaryConcurrency(chunk.length)
+        : mapsGridConcurrency(chunk.length);
     const pass = await runJobsWithConcurrency(chunk, {
       scanBatchId: params.scanBatchId,
       depth,
       timeoutMs,
       maxAttempts: 1,
-      concurrency: mapsGridConcurrency(chunk.length),
+      concurrency: primaryConcurrency,
       totalCells,
       passLabel,
       providers: primaryProviders,
@@ -1191,8 +1207,9 @@ export async function runGridCellsLive(params: {
   let failedCells = remainingJobs.length;
 
   // ---- Recovery after primary ----
-  // Hybrid: pause → Bright Data retry (×2) for unfinished cells — no DFS/SD switch.
-  // Single-provider modes: one same-provider retry pass.
+  // Hybrid: Bright Data only — backoff rounds + circuit breaker + extra waits until
+  // deadline. Never switch to ScrapingDog/DataForSEO (rank parity). Single-provider
+  // modes: one same-provider retry.
   if (remainingJobs.length > 0 && !useBrightDataRecovery) {
     console.log(
       `[Scan] ${providerMode} retry for ${remainingJobs.length} cells (same provider, no Bright Data)`
@@ -1235,7 +1252,7 @@ export async function runGridCellsLive(params: {
     failedCells = remainingJobs.length;
   }
 
-  // Union in-memory failures with a full-grid DB check before delayed retries.
+  // Union in-memory failures with a full-grid DB check before recovery.
   {
     const memoryUnresolved = remainingJobs;
     const dbIncomplete = await loadIncompleteJobsFromDb(params.scanBatchId, allJobs, depth);
@@ -1248,67 +1265,165 @@ export async function runGridCellsLive(params: {
     }
   }
 
-  // Hybrid: wait ~30s then retry unfinished cells with Bright Data again (twice).
-  // Hypothesis: rapid re-hits are the failure mode, not needing another provider.
   if (remainingJobs.length > 0 && useBrightDataRecovery) {
-    const delayMs = brightDataDelayedRetryDelayMs();
-    const rounds = brightDataDelayedRetryRounds();
+    const recoveryRounds = listBrightDataRecoveryRounds();
+    const deadlineMs = brightDataRecoveryDeadlineMs();
+    const finalRound = recoveryRounds[recoveryRounds.length - 1] ?? {
+      round: 3,
+      delayMinMs: 120_000,
+      delayMaxMs: 210_000,
+      concurrency: 2,
+    };
     console.log(
-      `[Scan] Bright Data delayed retry plan: ${remainingJobs.length} unfinished cells, ` +
-        `${rounds} rounds × ${delayMs}ms pause (no ScrapingDog/DataForSEO)`
+      `[Scan] Bright Data recovery plan: ${remainingJobs.length} unfinished · ` +
+        `${recoveryRounds.length} backoff rounds · deadline=${Math.round(deadlineMs / 1000)}s · ` +
+        `Bright Data only (no ScrapingDog)`
     );
 
-    for (let round = 1; round <= rounds && remainingJobs.length > 0; round++) {
+    let roundIndex = 0;
+    // Scheduled rounds, then keep repeating the final slow round until deadline.
+    while (remainingJobs.length > 0) {
+      const elapsed = performance.now() - scanWallStart;
+      if (elapsed >= deadlineMs) {
+        console.warn(
+          `[Scan] Bright Data recovery deadline reached (${Math.round(elapsed / 1000)}s) — ` +
+            `${remainingJobs.length} cells still unresolved (no provider fallback)`
+        );
+        break;
+      }
+
+      const scheduled = recoveryRounds[roundIndex];
+      const round = scheduled ?? {
+        ...finalRound,
+        round: (finalRound.round ?? 3) + (roundIndex - recoveryRounds.length + 1),
+      };
+      roundIndex += 1;
+
+      // Respect circuit: wait out open, then half-open probes before the round.
+      let circuit = await waitWhileBrightDataCircuitOpen(sleep);
+      if (circuit.state === "half_open" && remainingJobs.length > 0) {
+        const probes = selectProbeJobs(remainingJobs);
+        await scheduleCellProgress(
+          params.scanBatchId,
+          completedOffset,
+          totalCells,
+          remainingJobs.length,
+          {
+            pass: `bd-half-open-probes-${round.round}`,
+            recovery_stage: "testing_provider_recovery",
+            maps_provider_mode: providerMode,
+            delayed_retry_round: round.round,
+          },
+          { force: true }
+        );
+        console.log(
+          `[Scan] Bright Data half-open probes: ${probes.length} cells @ concurrency ${brightDataProbeConcurrency()}`
+        );
+        const probePass = await runJobsWithConcurrency(probes, {
+          scanBatchId: params.scanBatchId,
+          depth,
+          timeoutMs,
+          maxAttempts: 1,
+          concurrency: Math.min(brightDataProbeConcurrency(), probes.length),
+          totalCells,
+          passLabel: `bd-half-open-probes-${round.round}`,
+          providers: brightDataOnlyProviders(),
+          allowTransientRetry: false,
+          scanRetryRound: round.round,
+          recoveryStage: "testing_provider_recovery",
+          completedOffset,
+          updateProgress: true,
+          onCellSettled,
+          organizationId: params.organizationId,
+        });
+        allTimings.push(...probePass.timings);
+        completedOffset += probePass.successCount;
+        remainingJobs = remainingJobs.filter(
+          (job) =>
+            !probePass.results.some(
+              (r) => r.success && r.pointId === job.point.id && r.keywordId === job.keyword.id
+            )
+        );
+        failedCells = remainingJobs.length;
+        if (probesRecovered(probePass.successCount)) {
+          await closeBrightDataCircuit("half-open probes recovered");
+          circuit = await getMapsProviderCircuit("brightdata");
+        } else {
+          await reopenBrightDataCircuit("half-open probes failed");
+          circuit = await waitWhileBrightDataCircuitOpen(sleep);
+        }
+      }
+
+      if (remainingJobs.length === 0) break;
+      if ((await getMapsProviderCircuit("brightdata")).state === "open") {
+        await waitWhileBrightDataCircuitOpen(sleep);
+      }
+
+      const delayMs = recoveryRoundDelayMs(round);
+      const totalRoundsLabel =
+        roundIndex <= recoveryRounds.length
+          ? String(recoveryRounds.length)
+          : `${recoveryRounds.length}+`;
       await scheduleCellProgress(
         params.scanBatchId,
         completedOffset,
         totalCells,
         remainingJobs.length,
         {
-          pass: `bd-delayed-wait-${round}`,
+          pass: `bd-delayed-wait-${round.round}`,
           recovery_stage: "brightdata_degraded",
           maps_provider_mode: providerMode,
-          delayed_retry_round: round,
-          delayed_retry_rounds: rounds,
+          delayed_retry_round: round.round,
+          delayed_retry_rounds: recoveryRounds.length,
           delayed_retry_delay_ms: delayMs,
+          delayed_retry_concurrency: round.concurrency,
           unresolved_after_brightdata: remainingJobs.length,
           secondary_fallback_attempted: false,
         },
         { force: true }
       );
       console.log(
-        `[Scan] Bright Data delayed wait ${round}/${rounds}: sleeping ${delayMs}ms before retrying ${remainingJobs.length} cells`
+        `[Scan] Bright Data recovery wait ${round.round}/${totalRoundsLabel}: ` +
+          `sleeping ${delayMs}ms then retrying ${remainingJobs.length} @ concurrency≤${round.concurrency}`
       );
       await sleep(delayMs);
 
+      if (performance.now() - scanWallStart >= deadlineMs) {
+        console.warn("[Scan] Deadline hit during recovery wait — stopping Bright Data retries");
+        break;
+      }
+
+      const roundConcurrency = recoveryRoundConcurrency(round, remainingJobs.length);
       await scheduleCellProgress(
         params.scanBatchId,
         completedOffset,
         totalCells,
         remainingJobs.length,
         {
-          pass: `bd-delayed-retry-${round}`,
+          pass: `bd-delayed-retry-${round.round}`,
           recovery_stage: "scanning_brightdata",
           maps_provider_mode: providerMode,
-          delayed_retry_round: round,
-          delayed_retry_rounds: rounds,
+          delayed_retry_round: round.round,
+          delayed_retry_rounds: recoveryRounds.length,
+          delayed_retry_concurrency: roundConcurrency,
         },
         { force: true }
       );
       console.log(
-        `[Scan] Bright Data delayed retry ${round}/${rounds} START for ${remainingJobs.length} cells`
+        `[Scan] Bright Data recovery retry ${round.round}/${totalRoundsLabel} START ` +
+          `for ${remainingJobs.length} cells (concurrency=${roundConcurrency})`
       );
       const pass = await runJobsWithConcurrency(remainingJobs, {
         scanBatchId: params.scanBatchId,
         depth,
         timeoutMs,
         maxAttempts: 1,
-        concurrency: mapsGridConcurrency(remainingJobs.length),
+        concurrency: roundConcurrency,
         totalCells,
-        passLabel: `bd-delayed-retry-${round}`,
+        passLabel: `bd-delayed-retry-${round.round}`,
         providers: brightDataOnlyProviders(),
         allowTransientRetry: false,
-        scanRetryRound: round,
+        scanRetryRound: round.round,
         recoveryStage: "scanning_brightdata",
         completedOffset,
         updateProgress: true,
@@ -1320,27 +1435,35 @@ export async function runGridCellsLive(params: {
       remainingJobs = failedJobsFromPass(remainingJobs, pass.results);
       failedCells = remainingJobs.length;
       console.log(
-        `[Scan] Bright Data delayed retry ${round}/${rounds} FINISHED: recovered=${pass.successCount} still_unresolved=${remainingJobs.length}`
+        `[Scan] Bright Data recovery retry ${round.round}/${totalRoundsLabel} FINISHED: ` +
+          `recovered=${pass.successCount} still_unresolved=${remainingJobs.length}`
       );
 
-      // Re-sync DB after each round in case another path wrote results.
-      if (remainingJobs.length > 0 && round < rounds) {
+      if (remainingJobs.length > 0) {
         const dbIncomplete = await loadIncompleteJobsFromDb(params.scanBatchId, allJobs, depth);
         remainingJobs = mergeUnresolvedJobs(remainingJobs, dbIncomplete);
         failedCells = remainingJobs.length;
       }
+
+      // After the scheduled rounds, continue with final-round pacing until deadline.
+      if (roundIndex >= recoveryRounds.length && remainingJobs.length > 0) {
+        console.log(
+          `[Scan] Extending Bright Data recovery (round ${round.round + 1}+) until deadline — ` +
+            `${remainingJobs.length} still unresolved`
+        );
+      }
     }
 
     if (remainingJobs.length === 0) {
-      console.log("[Scan] All cells recovered via Bright Data delayed retries");
+      console.log("[Scan] All cells recovered via Bright Data");
     } else {
       console.log(
-        `[Scan] ${remainingJobs.length} cells still unresolved after Bright Data delayed retries — integrity next`
+        `[Scan] ${remainingJobs.length} cells still unresolved after Bright Data recovery — integrity next (Bright Data only)`
       );
     }
   } else if (remainingJobs.length === 0) {
     console.log(
-      `[Scan] No incomplete cells after primary (${providerMode}) — delayed retry not needed`
+      `[Scan] No incomplete cells after primary (${providerMode}) — recovery not needed`
     );
   }
 
