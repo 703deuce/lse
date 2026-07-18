@@ -1,13 +1,14 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
-  Award,
-  FileSearch,
+  Bot,
   FileText,
+  FolderKanban,
+  Grid3X3,
   KeyRound,
-  Link2,
-  MessageSquarePlus,
+  Palette,
   Settings,
+  Users,
 } from "lucide-react";
 import {
   dashboardCard,
@@ -22,18 +23,19 @@ type ToolItem = {
   iconClass: string;
 };
 
+/** Maps-product tools only — reputation workflows stay out. */
 export function DashboardToolsRow({ businessId }: { businessId: string }) {
   const tools: ToolItem[] = [
     {
-      href: `/businesses/${businessId}/growth-audit`,
-      label: "Growth Audit",
-      icon: FileSearch,
+      href: `/businesses/${businessId}/scans`,
+      label: "Scans",
+      icon: Grid3X3,
       iconClass: "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100",
     },
     {
-      href: `/businesses/${businessId}/backlink-gap`,
-      label: "Backlink Gap",
-      icon: Link2,
+      href: `/businesses/${businessId}/campaigns`,
+      label: "Campaigns",
+      icon: FolderKanban,
       iconClass: "bg-sky-50 text-sky-600 ring-1 ring-sky-100",
     },
     {
@@ -43,21 +45,27 @@ export function DashboardToolsRow({ businessId }: { businessId: string }) {
       iconClass: "bg-violet-50 text-violet-600 ring-1 ring-violet-100",
     },
     {
-      href: `/businesses/${businessId}/review-requests`,
-      label: "Review Requests",
-      icon: MessageSquarePlus,
-      iconClass: "bg-amber-50 text-amber-600 ring-1 ring-amber-100",
+      href: `/businesses/${businessId}/ai-visibility`,
+      label: "AI Visibility",
+      icon: Bot,
+      iconClass: "bg-amber-50 text-amber-700 ring-1 ring-amber-100",
     },
     {
-      href: `/businesses/${businessId}/trust`,
-      label: "Local Trust",
-      icon: Award,
+      href: `/businesses/${businessId}/competitors`,
+      label: "Competitors",
+      icon: Users,
       iconClass: "bg-orange-50 text-orange-600 ring-1 ring-orange-100",
     },
     {
       href: `/businesses/${businessId}/reports`,
       label: "Reports",
       icon: FileText,
+      iconClass: "bg-zinc-100 text-zinc-600 ring-1 ring-zinc-200",
+    },
+    {
+      href: `/branding`,
+      label: "Branding",
+      icon: Palette,
       iconClass: "bg-zinc-100 text-zinc-600 ring-1 ring-zinc-200",
     },
     {
@@ -71,7 +79,7 @@ export function DashboardToolsRow({ businessId }: { businessId: string }) {
   return (
     <section className={cn(dashboardCard, "px-3.5 py-3")}>
       <h2 className={cn(dashboardSectionLabel, "mb-2.5")}>Tools</h2>
-      <div className="grid grid-cols-3 gap-1 sm:grid-cols-4 md:grid-cols-7">
+      <div className="grid grid-cols-3 gap-1 sm:grid-cols-4 md:grid-cols-8">
         {tools.map((tool) => (
           <Link
             key={tool.label}

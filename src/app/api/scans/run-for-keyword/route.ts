@@ -18,6 +18,7 @@ import {
   scanBatchProviderColumn,
 } from "@/lib/maps/provider-modes";
 import { assertRateLimit } from "@/lib/security/rate-limit";
+import { trackProductEvent } from "@/lib/analytics/product-events";
 
 const schema = z.object({
   businessId: z.string().uuid(),
@@ -214,6 +215,12 @@ export async function POST(request: Request) {
         scanBatchId: batch.id,
         businessId,
         organizationId: auth.organizationId,
+      });
+
+      trackProductEvent("scan_started", {
+        organizationId: auth.organizationId,
+        businessId,
+        scanId: batch.id,
       });
 
       return NextResponse.json({

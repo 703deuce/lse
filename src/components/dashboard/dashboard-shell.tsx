@@ -5,11 +5,18 @@ import { usePathname } from "next/navigation";
 import { Menu, MapPin, X } from "lucide-react";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardUIProvider, useDashboardUI } from "@/components/dashboard/dashboard-context";
+import { WorkspaceSearch } from "@/components/dashboard/workspace-search";
 import { cn } from "@/lib/utils";
 
 function extractBusinessId(pathname: string): string | undefined {
-  const match = pathname.match(/^\/businesses\/([^/]+)/);
-  return match?.[1];
+  const business = pathname.match(/^\/businesses\/([^/]+)/);
+  if (business?.[1] && business[1] !== "new") return business[1];
+  // Freelancer CRM detail routes use the same business UUID.
+  const client = pathname.match(/^\/clients\/([^/]+)/);
+  if (client?.[1]) return client[1];
+  const prospect = pathname.match(/^\/prospects\/([^/]+)/);
+  if (prospect?.[1]) return prospect[1];
+  return undefined;
 }
 
 /** Rank grid map view — full-bleed main, no page padding. */
@@ -98,6 +105,11 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
             fullBleed ? "overflow-y-hidden p-0" : "overflow-y-auto px-3 py-4 sm:px-5 sm:py-6 lg:px-8"
           )}
         >
+          {!fullBleed ? (
+            <div className="mb-4 hidden lg:block">
+              <WorkspaceSearch />
+            </div>
+          ) : null}
           {children}
         </main>
       </div>

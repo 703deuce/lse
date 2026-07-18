@@ -108,6 +108,107 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
     }
   }
 
+  async function runAllKeywords() {
+    if (!campaign) return;
+    const active = keywords.filter((k) => k.active !== false);
+    if (!active.length) {
+      setError("Add at least one active keyword first.");
+      return;
+    }
+    if (
+      !confirm(
+        `This will create ${active.length} background scan${active.length === 1 ? "" : "s"}. Continue?`
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      for (const kw of active) {
+        const res = await fetch("/api/scans/run-for-keyword", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            businessId: campaign.business_id,
+            keywordId: kw.id,
+            gridSize: campaign.default_grid_size,
+            radiusMeters: campaign.default_radius_meters,
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error ?? `Failed to queue ${kw.keyword}`);
+      }
+      window.location.href = `/businesses/${campaign.business_id}/overview`;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not run campaign");
+      setBusy(false);
+    }
+  }
+
+  async function archiveCampaign() {
+    if (!confirm("Archive this campaign? Keywords and past scans stay saved.")) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archive: true }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Archive failed");
+      window.location.href = `/businesses/${campaign?.business_id}/campaigns`;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Archive failed");
+      setBusy(false);
+    }
+  }
+
+  async function duplicateCampaign() {
+    if (!campaign) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessId: campaign.business_id,
+          name: `${campaign.name} (copy)`,
+          description: campaign.description,
+          defaultGridSize: campaign.default_grid_size,
+          defaultRadiusMeters: campaign.default_radius_meters,
+          scheduleType: "manual",
+          scheduleEnabled: false,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Duplicate failed");
+      const newId = json.campaign?.id as string | undefined;
+      if (newId) {
+        for (const kw of keywords) {
+          await fetch("/api/scans/keywords/add", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              businessId: campaign.business_id,
+              keyword: kw.keyword,
+              campaignId: newId,
+            }),
+          });
+        }
+        window.location.href = `/campaigns/${newId}`;
+        return;
+      }
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Duplicate failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-sm text-zinc-500">
@@ -135,13 +236,33 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
         title={campaign.name}
         subtitle={`${businessName || "Location"} · ${campaign.default_grid_size}×${campaign.default_grid_size} grid · ${Math.round(campaign.default_radius_meters / 1609.34 * 10) / 10} mi radius`}
         actions={
-          <Link
-            href={`/businesses/${campaign.business_id}/scans`}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-          >
-            <Play className="h-4 w-4" />
-            Run campaign scans
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={busy || keywords.filter((k) => k.active !== false).length < 1}
+              onClick={() => void runAllKeywords()}
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+              Run all keywords
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void duplicateCampaign()}
+              className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+            >
+              Duplicate
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void archiveCampaign()}
+              className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+            >
+              Archive
+            </button>
+          </div>
         }
       />
 

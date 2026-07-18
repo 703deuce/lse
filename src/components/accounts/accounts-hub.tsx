@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, MapPin, Plus, UserCheck, Archive } from "lucide-react";
+import { Loader2, MapPin, Plus, UserCheck, Archive, RotateCcw } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import {
   isClientRow,
@@ -39,6 +39,7 @@ export function AccountsHub({
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | ProspectStatus | "archived">("all");
+  const [clientFilter, setClientFilter] = useState<"active" | "archived">("active");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -112,19 +113,55 @@ export function AccountsHub({
     }
   }
 
+  async function restoreClient(businessId: string) {
+    setBusyId(businessId);
+    setError(null);
+    try {
+      const res = await fetch(`/api/businesses/${businessId}/convert-to-client`, {
+        method: "POST",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          json.error ??
+            (res.status === 402
+              ? "Active location limit reached. Archive another client or upgrade."
+              : "Could not restore")
+        );
+      }
+      setClientFilter("active");
+      await load();
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not restore");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   const list = useMemo(() => {
     if (mode === "clients") {
+      if (clientFilter === "archived") {
+        return rows.filter(
+          (b) =>
+            !!b.archived_at ||
+            (b.account_type === "client" && b.is_tracked === false)
+        );
+      }
       return rows.filter(isClientRow);
     }
-    const prospects = rows.filter(
-      (b) => isProspectRow(b) || (statusFilter === "archived" && !!b.archived_at)
-    );
     if (statusFilter === "all") return rows.filter(isProspectRow);
     if (statusFilter === "archived") {
-      return rows.filter((b) => !!b.archived_at && b.account_type !== "client");
+      return rows.filter(
+        (b) =>
+          !!b.archived_at &&
+          (b.account_type === "prospect" || b.account_type == null)
+      );
     }
-    return prospects.filter((b) => b.prospect_status === statusFilter);
-  }, [mode, rows, statusFilter]);
+    return rows.filter(
+      (b) => isProspectRow(b) && b.prospect_status === statusFilter
+    );
+  }, [mode, rows, statusFilter, clientFilter]);
 
   const title = mode === "clients" ? "Clients" : "Prospects";
   const subtitle =
@@ -170,6 +207,18 @@ export function AccountsHub({
             {trackedCount} / {maxBusinesses || "—"} active locations
           </span>
           {planName ? <span>{planName} plan</span> : null}
+          <div className="flex gap-2">
+            <FilterChip
+              active={clientFilter === "active"}
+              onClick={() => setClientFilter("active")}
+              label="Active"
+            />
+            <FilterChip
+              active={clientFilter === "archived"}
+              onClick={() => setClientFilter("archived")}
+              label="Archived"
+            />
+          </div>
         </div>
       ) : (
         <div className="mb-4 flex flex-wrap gap-2">
@@ -277,7 +326,7 @@ export function AccountsHub({
                       Convert to client
                     </button>
                   ) : null}
-                  {mode === "clients" ? (
+                  {mode === "clients" && clientFilter === "active" ? (
                     <button
                       type="button"
                       disabled={busyId === b.id}
@@ -290,6 +339,21 @@ export function AccountsHub({
                         <Archive className="h-3.5 w-3.5" />
                       )}
                       Archive
+                    </button>
+                  ) : null}
+                  {mode === "clients" && clientFilter === "archived" ? (
+                    <button
+                      type="button"
+                      disabled={busyId === b.id}
+                      onClick={() => void restoreClient(b.id)}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      {busyId === b.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      )}
+                      Restore
                     </button>
                   ) : null}
                 </div>

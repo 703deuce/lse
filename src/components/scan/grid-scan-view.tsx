@@ -1143,7 +1143,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                     <GridMetricCard
                       label="Weighted SoLV"
                       value={`${weightedSolv}%`}
-                      sub="Partial credit 4–20"
+                      sub="Ranks 4–20"
                       icon={BarChart3}
                       iconWrapClassName="bg-emerald-50"
                       iconClassName="text-emerald-600"
@@ -1340,9 +1340,6 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
                   the background — check the dashboard, or retry after confirming the location is
                   complete.
                 </p>
-                {batch?.error_message ? (
-                  <p className="mt-2 font-mono text-xs">{String(batch.error_message)}</p>
-                ) : null}
               </div>
             )}
 

@@ -177,6 +177,25 @@ export function AccountDetail({
         </div>
       ) : null}
 
+      <nav className="mb-6 flex flex-wrap gap-1 border-b border-zinc-200 pb-2 text-sm">
+        {[
+          { href: mode === "prospect" ? `/prospects/${businessId}` : `/clients/${businessId}`, label: "Overview" },
+          { href: `/businesses/${businessId}/campaigns`, label: "Campaigns" },
+          { href: `/businesses/${businessId}/scans`, label: "Scans" },
+          { href: `/businesses/${businessId}/ai-visibility`, label: "AI Visibility" },
+          { href: `/businesses/${businessId}/reports`, label: "Reports" },
+          { href: `/locations/${businessId}`, label: "Location" },
+        ].map((tab) => (
+          <Link
+            key={tab.label}
+            href={tab.href}
+            className="rounded-md px-2.5 py-1.5 font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+          >
+            {tab.label}
+          </Link>
+        ))}
+      </nav>
+
       <div className="mb-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <QuickLink
           href={`/businesses/${businessId}/scans`}
@@ -197,10 +216,10 @@ export function AccountDetail({
           hint="Optional mentions"
         />
         <QuickLink
-          href={`/businesses/${businessId}/keywords`}
+          href={`/businesses/${businessId}/campaigns`}
           icon={Radar}
-          label="Keywords"
-          hint="Campaign keywords"
+          label="Campaigns"
+          hint="Keyword groups"
         />
       </div>
 

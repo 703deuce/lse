@@ -6,8 +6,12 @@ import { Suspense, useEffect, useState, type ComponentType } from "react";
 import {
   Building2,
   FileText,
+  LayoutDashboard,
   MapPin,
+  Palette,
+  Radar,
   Settings,
+  Sparkles,
   Users,
   ChevronDown,
 } from "lucide-react";
@@ -21,11 +25,14 @@ import {
 } from "@/components/dashboard/dashboard-nav";
 
 const navItems = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/prospects", label: "Prospects", icon: Users },
   { href: "/clients", label: "Clients", icon: Building2 },
-  { href: "/agency/reports", label: "Reports", icon: FileText },
-  { href: "/branding", label: "Branding", icon: Settings },
-  { href: "/onboarding", label: "Get started", icon: MapPin },
+  { href: "/scans", label: "Scans", icon: Radar },
+  { href: "/reports", label: "Reports", icon: FileText },
+  { href: "/ai-visibility", label: "AI Visibility", icon: Sparkles },
+  { href: "/branding", label: "Branding", icon: Palette },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 function SidebarNavItemRow({
@@ -238,9 +245,15 @@ export function DashboardSidebarPanel({
               active={
                 item.href === "/clients"
                   ? pathname === "/clients" ||
-                    pathname === "/businesses" ||
+                    pathname.startsWith("/clients/") ||
                     pathname === "/agency/clients"
-                  : pathname === item.href || pathname.startsWith(`${item.href}/`)
+                  : item.href === "/reports"
+                    ? pathname === "/reports" ||
+                      pathname.startsWith("/reports/") ||
+                      pathname.startsWith("/agency/reports")
+                    : item.href === "/scans"
+                      ? pathname === "/scans" || pathname.startsWith("/scans/")
+                      : pathname === item.href || pathname.startsWith(`${item.href}/`)
               }
               staticLinks={staticLinks}
               onNavigate={onNavigate}

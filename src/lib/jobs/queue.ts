@@ -271,6 +271,19 @@ export async function processPendingJobs(limit = 5): Promise<{
     logger.info("scheduled_scans_enqueued", { count: scheduledEnqueued });
   }
 
+  // Freelancer Maps campaigns (weekly / biweekly / monthly).
+  const campaignScans = await import("@/lib/jobs/process-maps-campaigns")
+    .then((m) => m.processDueMapsCampaigns(10))
+    .catch((err) => {
+      logger.warn("maps_campaigns_process_failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return 0;
+    });
+  if (campaignScans > 0) {
+    logger.info("maps_campaign_scans_created", { count: campaignScans });
+  }
+
   // BullMQ workers own ledger job execution after handoff.
   if (resolveQueueDriver() === "bullmq") {
     if (mapsMismatches > 0) {

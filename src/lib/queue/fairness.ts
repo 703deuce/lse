@@ -3,6 +3,8 @@ import {
   maxActiveMapsScansPerOrg,
   maxQueuedMapsScansPerOrg,
 } from "@/lib/queue/config";
+import { getOrganizationPlan } from "@/lib/plans";
+import { resolveFreelancerLimits } from "@/lib/plans/resolve-freelancer-limits";
 
 const ACTIVE_SCAN_STATUSES = [
   "queued",
@@ -10,6 +12,8 @@ const ACTIVE_SCAN_STATUSES = [
   "provider_running",
   "normalizing",
   "enriching",
+  "recovering",
+  "rank_ready",
 ] as const;
 
 export type MapsFairnessResult =
@@ -45,18 +49,39 @@ export async function assertCanEnqueueMapsScan(params: {
   const businessIds = (orgBusinesses ?? []).map((b) => b.id as string);
   if (!businessIds.length) return { ok: true };
 
+  const plan = await getOrganizationPlan(params.organizationId).catch(() => null);
+  const freelancerLimits = resolveFreelancerLimits(plan?.id);
+  const concurrentCap = Math.min(
+    maxActiveMapsScansPerOrg(),
+    freelancerLimits.maxConcurrentScans
+  );
+
+  if (params.gridSize != null && params.gridSize > freelancerLimits.maxGridSize) {
+    return {
+      ok: false,
+      code: "active_limit",
+      reason: `Grid size ${params.gridSize}×${params.gridSize} exceeds your plan maximum of ${freelancerLimits.maxGridSize}×${freelancerLimits.maxGridSize}.`,
+    };
+  }
+
   const { count: orgActive } = await supabase
     .from("scan_batches")
     .select("id", { count: "exact", head: true })
     .in("business_id", businessIds)
-    .in("status", ["dispatching", "provider_running", "normalizing"])
+    .in("status", [
+      "dispatching",
+      "provider_running",
+      "normalizing",
+      "enriching",
+      "recovering",
+    ])
     .neq("id", params.scanBatchId);
 
-  if ((orgActive ?? 0) >= maxActiveMapsScansPerOrg()) {
+  if ((orgActive ?? 0) >= concurrentCap) {
     return {
       ok: false,
       code: "active_limit",
-      reason: `Organization already has ${orgActive} active Maps scans (limit ${maxActiveMapsScansPerOrg()}). Wait for one to finish, then try again.`,
+      reason: `You already have ${orgActive} scan(s) running (limit ${concurrentCap} concurrent). Wait for one to finish, then try again.`,
     };
   }
 

@@ -192,14 +192,14 @@ export function GridPreviewCanvas({
 
         <div className="pointer-events-none absolute left-3 top-3 flex max-w-[70%] items-center gap-1.5 rounded-md bg-white/95 px-2 py-1 text-[11px] font-medium text-zinc-700 shadow-sm ring-1 ring-zinc-200/80">
           <MapPin className="h-3 w-3 shrink-0 text-emerald-600" />
-          <span className="truncate">{locationLabel?.trim() || "Preview · not billed yet"}</span>
+          <span className="truncate">{locationLabel?.trim() || "Preview · not started"}</span>
         </div>
         <div className="pointer-events-none absolute bottom-3 left-3 right-3 flex flex-wrap items-center justify-between gap-2 rounded-md bg-white/95 px-2.5 py-1.5 text-[11px] text-zinc-600 shadow-sm ring-1 ring-zinc-200/80">
           <span>
             {meta.gridSize}×{meta.gridSize} · {meta.radiusMiles} mi · ~{meta.spacingMiles} mi spacing
           </span>
           <span className="font-semibold text-zinc-800">
-            {included}/{points.length} points · {included} credits
+            {included}/{points.length} cells included
           </span>
         </div>
       </div>

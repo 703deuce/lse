@@ -92,9 +92,23 @@ export async function PATCH(
     if (p.scheduleType !== undefined) patch.schedule_type = p.scheduleType;
     if (p.scheduleDay !== undefined) patch.schedule_day = p.scheduleDay;
     if (p.scheduleTimezone !== undefined) patch.schedule_timezone = p.scheduleTimezone;
-    if (p.scheduleEnabled !== undefined) patch.schedule_enabled = p.scheduleEnabled;
+    if (p.scheduleEnabled !== undefined) {
+      patch.schedule_enabled = p.scheduleEnabled;
+      if (p.scheduleEnabled && p.nextScheduledAt === undefined) {
+        const type = p.scheduleType ?? campaign.schedule_type ?? "weekly";
+        const days = type === "monthly" ? 30 : type === "biweekly" ? 14 : 7;
+        patch.next_scheduled_at = new Date(Date.now() + days * 86400000).toISOString();
+      }
+      if (p.scheduleEnabled === false && p.nextScheduledAt === undefined) {
+        patch.next_scheduled_at = null;
+      }
+    }
     if (p.nextScheduledAt !== undefined) patch.next_scheduled_at = p.nextScheduledAt;
-    if (p.archive === true) patch.archived_at = new Date().toISOString();
+    if (p.archive === true) {
+      patch.archived_at = new Date().toISOString();
+      patch.schedule_enabled = false;
+      patch.next_scheduled_at = null;
+    }
 
     const supabase = createServiceClient();
     const { data, error } = await supabase

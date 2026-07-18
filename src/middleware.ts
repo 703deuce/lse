@@ -21,11 +21,19 @@ function isPublicPath(pathname: string): boolean {
 }
 
 function isProtectedPath(pathname: string): boolean {
+  // Public share links must stay open (also listed in PUBLIC_PREFIXES).
+  if (pathname.startsWith("/reports/share/")) return false;
   return (
     pathname.startsWith("/businesses") ||
+    pathname.startsWith("/dashboard") ||
     pathname.startsWith("/prospects") ||
     pathname.startsWith("/clients") ||
     pathname.startsWith("/campaigns") ||
+    pathname.startsWith("/scans") ||
+    pathname === "/reports" ||
+    pathname.startsWith("/reports/") ||
+    pathname.startsWith("/ai-visibility") ||
+    pathname.startsWith("/locations") ||
     pathname.startsWith("/branding") ||
     pathname.startsWith("/onboarding") ||
     pathname.startsWith("/agency") ||

@@ -143,7 +143,8 @@ export async function finalizeRankReady(
         cells_total: totalCells,
         cells_completed: cellsCompleted,
         cells_failed: actualFailed,
-        error_message: "All scan points failed",
+        error_message:
+          "We could not complete ranking for these search points. The scan may recover — check back shortly.",
         finished_at: rankReadyAt,
       })
       .eq("id", scanBatchId)
@@ -171,7 +172,7 @@ export async function finalizeRankReady(
       // this is what live polling must observe to reveal the map).
       finished_at: rankReadyAt,
       error_message: hasEmptyProviderData
-        ? "Bright Data returned empty results for all cells"
+        ? "Provider returned empty results for all cells — recovery may still retry unresolved points."
         : sparsePointIds.length > 0
           ? `${sparsePointIds.length} cell${sparsePointIds.length === 1 ? "" : "s"} returned sparse Maps data (rank may show without competitors).`
           : null,
@@ -189,6 +190,44 @@ export async function finalizeRankReady(
   console.log(
     `[Finalization] scan=${scanBatchId} COMPLETE total=${totalCells || actualCompleted}`
   );
+
+  try {
+    const { trackProductEvent } = await import("@/lib/analytics/product-events");
+    const { createAppNotification } = await import("@/lib/notifications/create");
+    const { data: batchMeta } = await supabase
+      .from("scan_batches")
+      .select("business_id")
+      .eq("id", scanBatchId)
+      .maybeSingle();
+    const businessId = batchMeta?.business_id as string | undefined;
+    let orgId = organizationId;
+    if (!orgId && businessId) {
+      const { data: biz } = await supabase
+        .from("businesses")
+        .select("organization_id")
+        .eq("id", businessId)
+        .maybeSingle();
+      orgId = (biz?.organization_id as string | undefined) ?? undefined;
+    }
+    trackProductEvent("scan_completed", {
+      organizationId: orgId,
+      businessId,
+      scanId: scanBatchId,
+    });
+    if (orgId && businessId) {
+      await createAppNotification({
+        organizationId: orgId,
+        eventType: "scan_completed",
+        title: "Scan completed",
+        body: "Your Maps scan finished and is ready to review.",
+        href: `/businesses/${businessId}/grid/${scanBatchId}`,
+        entityType: "scan",
+        entityId: scanBatchId,
+      });
+    }
+  } catch {
+    // non-blocking analytics/notifications
+  }
 
   // Merge confidence keys — do not replace the whole document (preserves progress / early flags).
   // Do NOT write failed_point_ids here. Soft-ready races with trailing retries; a mid-flight

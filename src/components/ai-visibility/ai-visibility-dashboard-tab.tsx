@@ -243,7 +243,7 @@ export function AiVisibilityDashboardTab({
                     {ENGINE_LABELS[e.engine as AiEngine]} check failed
                   </p>
                   <p className="mt-0.5 text-[11px] text-text-muted">
-                    {e.error_message ?? "Provider error — re-run after verifying API keys/credits."}
+                    {e.error_message ?? "Provider error — re-run this prompt after a short wait."}
                   </p>
                 </div>
               </div>
