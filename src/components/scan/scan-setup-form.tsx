@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2, Play } from "lucide-react";
 import { updateBusinessSettings } from "@/lib/actions/mutations";
 import {
@@ -38,7 +37,6 @@ export function ScanSetupForm({
   footerBar?: boolean;
   onDefaultsChange?: (next: { gridSize: number; radiusMeters: number }) => void;
 }) {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(defaults);
   const [mapsProviderMode, setMapsProviderMode] = useState<MapsProviderMode>(
@@ -99,9 +97,8 @@ export function ScanSetupForm({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      // Background scan — do not wait on the live grid page.
-      router.push(`/businesses/${businessId}/overview`);
-      router.refresh();
+      // Background scan — hard navigate so nothing can send the user to the grid wait page.
+      window.location.assign(`/businesses/${businessId}/overview`);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Scan failed");
     } finally {

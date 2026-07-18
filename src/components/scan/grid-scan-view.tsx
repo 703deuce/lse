@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
 import {
   BarChart3,
   Crosshair,
@@ -847,8 +846,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Scan failed");
       setMoveGridActive(false);
-      router.push(`/businesses/${businessId}/overview`);
-      router.refresh();
+      window.location.assign(`/businesses/${businessId}/overview`);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Move-grid scan failed");
     } finally {
@@ -919,9 +917,9 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
   }
 
   function handleScanStarted(_newScanId: string, _newKeywordId?: string) {
-    // Scans run in the background — return to the dashboard in-progress card.
-    router.push(`/businesses/${businessId}/overview`);
-    router.refresh();
+    // Hard navigate so a later URL replaceState/switchScan cannot keep the user
+    // on the live grid wait page. Scan continues in the worker regardless.
+    window.location.assign(`/businesses/${businessId}/overview`);
   }
 
   function handleCellClick(cell: GridCell) {

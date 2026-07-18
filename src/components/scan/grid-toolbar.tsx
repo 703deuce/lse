@@ -143,8 +143,9 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? "Scan failed to start");
+        // Parent redirects to the dashboard. Do NOT call onKeywordChange —
+        // that switches to /grid/{newScanId} and cancels the dashboard redirect.
         onScanStarted?.(json.scan.id, selected.id);
-        onKeywordChange(selected.id, json.scan.id);
         void loadKeywords();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Run failed");
@@ -161,7 +162,6 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
       selectedLocationId,
       scanRunExtras,
       onScanStarted,
-      onKeywordChange,
       loadKeywords,
     ]
   );
@@ -207,8 +207,8 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
           });
           const runJson = await runRes.json();
           if (!runRes.ok) throw new Error(runJson.error ?? "Scan failed to start");
-          onScanStarted?.(runJson.scan.id);
-          onKeywordChange(json.keyword.id, runJson.scan.id);
+          // Redirect only — avoid onKeywordChange racing back to the grid page.
+          onScanStarted?.(runJson.scan.id, json.keyword.id);
         }
       }
     } catch (e) {

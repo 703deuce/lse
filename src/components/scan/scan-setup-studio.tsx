@@ -223,9 +223,8 @@ export function ScanSetupStudio({
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Scan failed to start");
-      // Background scan — show in-progress card on the dashboard.
-      router.push(`/businesses/${businessId}/overview`);
-      router.refresh();
+      // Background scan — hard navigate to dashboard in-progress card.
+      window.location.assign(`/businesses/${businessId}/overview`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Scan failed");
     } finally {
