@@ -1,12 +1,16 @@
 /**
  * Distributed per-provider Maps concurrency + start-rate limiter.
  * Shared across all workers / scans / retries. Falls back to in-process when Redis is absent.
+ *
+ * Bright Data paced trial: 10 in-flight + 10 starts per rolling minute.
+ * Other providers keep a 1-second start window.
  */
 
 import { getRedisUrl } from "@/lib/queue/config";
 import type { MapsProviderId } from "@/lib/providers/maps-grid/types";
 import {
   brightDataGlobalConcurrency,
+  brightDataStartRatePerMin,
   dataForSeoMapsConcurrency,
   scrapingDogMapsConcurrency,
 } from "@/lib/providers/maps-grid/config";
@@ -72,12 +76,42 @@ export function mapsProviderMaxInFlight(provider: MapsProviderId): number {
   }
 }
 
-/** Soft start-rate = concurrency * 4 / sec (capped), overridable via env. */
-export function mapsProviderStartRatePerSec(provider: MapsProviderId): number {
+/** Rate window length — Bright Data uses 1 minute; others 1 second. */
+export function mapsProviderRateWindowMs(provider: MapsProviderId): number {
+  if (provider === "brightdata") {
+    const n = Number(process.env.BRIGHTDATA_RATE_WINDOW_MS ?? 60_000);
+    return Number.isFinite(n) && n >= 1_000 ? Math.floor(n) : 60_000;
+  }
+  return 1_000;
+}
+
+/** Max starts allowed inside the provider rate window. */
+export function mapsProviderStartRate(provider: MapsProviderId): number {
+  if (provider === "brightdata") {
+    const legacySec = Number(process.env.MAPS_BRIGHTDATA_START_RATE_PER_SEC ?? "");
+    if (Number.isFinite(legacySec) && legacySec > 0) {
+      // Convert legacy per-sec into the minute window when using 60s windows.
+      const windowMs = mapsProviderRateWindowMs(provider);
+      if (windowMs >= 60_000) return Math.max(1, Math.floor(legacySec * (windowMs / 1000)));
+      return Math.floor(legacySec);
+    }
+    return brightDataStartRatePerMin();
+  }
   const envKey = `MAPS_${provider.toUpperCase()}_START_RATE_PER_SEC`;
   const n = Number(process.env[envKey]);
   if (Number.isFinite(n) && n > 0) return Math.floor(n);
   return Math.min(mapsProviderMaxInFlight(provider) * 4, 200);
+}
+
+/** @deprecated Prefer mapsProviderStartRate — kept for older callers/tests. */
+export function mapsProviderStartRatePerSec(provider: MapsProviderId): number {
+  if (provider === "brightdata") {
+    const windowMs = mapsProviderRateWindowMs(provider);
+    const perWindow = mapsProviderStartRate(provider);
+    if (windowMs >= 60_000) return Math.max(1, Math.ceil(perWindow / (windowMs / 1000)));
+    return perWindow;
+  }
+  return mapsProviderStartRate(provider);
 }
 
 function memoryState(provider: MapsProviderId): MemoryState {
@@ -92,12 +126,13 @@ function memoryState(provider: MapsProviderId): MemoryState {
 async function acquireMemorySlot(provider: MapsProviderId, timeoutMs: number): Promise<Slot> {
   const deadline = Date.now() + timeoutMs;
   const maxInFlight = mapsProviderMaxInFlight(provider);
-  const startRate = mapsProviderStartRatePerSec(provider);
+  const startRate = mapsProviderStartRate(provider);
+  const windowMs = mapsProviderRateWindowMs(provider);
   const state = memoryState(provider);
 
   while (Date.now() < deadline) {
     const now = Date.now();
-    if (now - state.windowStart >= 1000) {
+    if (now - state.windowStart >= windowMs) {
       state.windowStart = now;
       state.startsInWindow = 0;
     }
@@ -124,17 +159,18 @@ async function acquireRedisSlot(provider: MapsProviderId, timeoutMs: number): Pr
 
   const deadline = Date.now() + timeoutMs;
   const maxInFlight = mapsProviderMaxInFlight(provider);
-  const startRate = mapsProviderStartRatePerSec(provider);
+  const startRate = mapsProviderStartRate(provider);
+  const windowMs = mapsProviderRateWindowMs(provider);
   const inFlightKey = `lse:provider:${provider}:maps:inflight`;
   const rateKeyPrefix = `lse:provider:${provider}:maps:starts:`;
 
   while (Date.now() < deadline) {
-    const second = Math.floor(Date.now() / 1000);
-    const rateKey = `${rateKeyPrefix}${second}`;
+    const bucket = Math.floor(Date.now() / windowMs);
+    const rateKey = `${rateKeyPrefix}${bucket}`;
     const multi = redis.multi();
     multi.incr(inFlightKey);
     multi.incr(rateKey);
-    multi.expire(rateKey, 2);
+    multi.expire(rateKey, Math.max(2, Math.ceil(windowMs / 1000) + 1));
     const results = await multi.exec();
     const inFlight = Number(results?.[0]?.[1] ?? 0);
     const starts = Number(results?.[1]?.[1] ?? 0);

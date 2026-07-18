@@ -17,6 +17,7 @@ import {
 } from "@/lib/maps/cell-result-integrity";
 import { invalidateScanGridCache } from "@/lib/maps/scan-queries";
 import { fairChunkSize } from "@/lib/queue/bright-data-limiter";
+import { brightDataWaveIntervalMs } from "@/lib/providers/maps-grid/config";
 import { withDbLimit } from "@/lib/platform/db-limiter";
 import {
   EARLY_ENRICHMENT_MIN_CELLS,
@@ -51,7 +52,7 @@ import {
 } from "@/lib/maps/provider-modes";
 
 /** Default wave size — overridden by BRIGHTDATA_GRID_BATCH_SIZE / FAIR_CHUNK (max 100). */
-const BRIGHTDATA_GRID_BATCH_SIZE = 100;
+const BRIGHTDATA_GRID_BATCH_SIZE = 10;
 
 export function mapsDepth(): number {
   const n = Number(
@@ -75,9 +76,8 @@ export function mapsCellBatchSize(): number {
 }
 
 /**
- * In-scan parallelism. Defaults to min(cells, 100) so a lone 7×7/10×10
- * fires in one wave. Extra simultaneous scans are paced by
- * acquireBrightDataSlot (global Redis rate + in-flight), not by this cap.
+ * In-scan parallelism. Defaults to min(cells, wave size) — paced trial uses 10.
+ * Extra simultaneous scans are paced by acquireBrightDataSlot + wave interval.
  */
 export function mapsGridConcurrency(cellCount: number): number {
   return Math.min(Math.max(cellCount, 0), mapsCellBatchSize());
@@ -1218,8 +1218,9 @@ export async function runGridCellsLive(params: {
     const chunk = primaryChunks[batchIndex];
     const passLabel =
       primaryChunks.length > 1 ? `primary-batch-${batchIndex + 1}` : "primary";
+    const waveStartedAt = Date.now();
     console.log(
-      `[Scan] Primary batch ${batchIndex + 1}/${primaryChunks.length}: ${chunk.length} cells`
+      `[Scan] Primary batch ${batchIndex + 1}/${primaryChunks.length}: ${chunk.length} cells (paced wave)`
     );
     const primaryStage: MapsRecoveryStage =
       providerMode === "scrapingdog"
@@ -1227,7 +1228,7 @@ export async function runGridCellsLive(params: {
         : providerMode === "dataforseo"
           ? "fallback_dataforseo"
           : "scanning_brightdata";
-    // Burst primary — up to 100 cells in parallel (global semaphore may still pace).
+    // Paced primary — default wave of 10; wait for the wave to finish before the next.
     const pass = await runJobsWithConcurrency(chunk, {
       scanBatchId: params.scanBatchId,
       depth,
@@ -1250,6 +1251,20 @@ export async function runGridCellsLive(params: {
     failedFromPrimary.push(...failedJobsFromPass(chunk, pass.results));
     // Advance by successes only — failed cells stay off the public counter until retry/finish.
     completedOffset += pass.successCount;
+
+    // 10/min pacing: after the wave finishes, wait out the remainder of the minute
+    // before launching the next wave (skip after the last wave).
+    if (batchIndex < primaryChunks.length - 1) {
+      const intervalMs = brightDataWaveIntervalMs();
+      const elapsed = Date.now() - waveStartedAt;
+      const waitMs = Math.max(0, intervalMs - elapsed);
+      if (waitMs > 0) {
+        console.log(
+          `[Scan] Wave pacing: waiting ${waitMs}ms before next batch (${batchIndex + 2}/${primaryChunks.length})`
+        );
+        await sleep(waitMs);
+      }
+    }
   }
 
   let remainingJobs = failedFromPrimary;

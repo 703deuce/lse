@@ -44,9 +44,9 @@ describe("Bright Data short jittered recovery config", () => {
     }
   });
 
-  it("defaults global concurrency to 100 (burst)", () => {
-    assert.equal(brightDataGlobalConcurrency(), 100);
-    assert.equal(brightDataHealthyConcurrency(), 100);
+  it("defaults global concurrency to 10 (paced trial)", () => {
+    assert.equal(brightDataGlobalConcurrency(), 10);
+    assert.equal(brightDataHealthyConcurrency(), 10);
   });
 
   it("retries unfinished cells every 8–15s with a 10 minute deadline", () => {
@@ -61,10 +61,10 @@ describe("Bright Data short jittered recovery config", () => {
     assert.ok(schedule.length >= 20);
     assert.equal(schedule[0].delayMinMs, 8_000);
     assert.equal(schedule[0].delayMaxMs, 15_000);
-    assert.equal(schedule[0].concurrency, 100);
+    assert.equal(schedule[0].concurrency, 10);
     const roundDelay = recoveryRoundDelayMs(schedule[0]);
     assert.ok(roundDelay >= 8_000 && roundDelay <= 15_000);
-    assert.equal(recoveryRoundConcurrency(schedule[0], 11), 11);
+    assert.equal(recoveryRoundConcurrency(schedule[0], 11), 10);
   });
 
   it("circuit open durations escalate 30s → 60s → 120s → 240s → 300s cap", () => {
@@ -77,7 +77,7 @@ describe("Bright Data short jittered recovery config", () => {
   });
 
   it("adaptive concurrency steps down with success rate", () => {
-    assert.equal(adaptiveBrightDataConcurrency(0.99), 100);
+    assert.equal(adaptiveBrightDataConcurrency(0.99), 10);
     assert.equal(adaptiveBrightDataConcurrency(0.9), 8);
     assert.equal(adaptiveBrightDataConcurrency(0.75), 4);
     assert.equal(adaptiveBrightDataConcurrency(0.5), 2);

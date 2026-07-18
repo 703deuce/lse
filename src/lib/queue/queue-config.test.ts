@@ -102,12 +102,14 @@ describe("queue config", () => {
     assert.ok(ALL_QUEUE_NAMES.includes("email-send"));
   });
 
-  it("defaults Bright Data fair chunk / start rate for ~100-cell waves", async () => {
+  it("defaults Bright Data fair chunk / start rate for paced 10/min waves", async () => {
     const prevChunk = process.env.BRIGHTDATA_FAIR_CHUNK_SIZE;
     const prevRate = process.env.BRIGHTDATA_GLOBAL_START_RATE_PER_SEC;
+    const prevRateMin = process.env.BRIGHTDATA_GLOBAL_START_RATE_PER_MIN;
     const prevBatch = process.env.BRIGHTDATA_GRID_BATCH_SIZE;
     delete process.env.BRIGHTDATA_FAIR_CHUNK_SIZE;
     delete process.env.BRIGHTDATA_GLOBAL_START_RATE_PER_SEC;
+    delete process.env.BRIGHTDATA_GLOBAL_START_RATE_PER_MIN;
     delete process.env.BRIGHTDATA_GRID_BATCH_SIZE;
 
     // Re-import after env clear is not needed — helpers read env on each call.
@@ -116,18 +118,22 @@ describe("queue config", () => {
     const { mapsCellBatchSize, mapsGridConcurrency } = await import(
       "@/lib/jobs/run-grid-cells"
     );
+    const { brightDataStartRatePerMin } = await import("@/lib/providers/maps-grid/config");
 
-    assert.equal(chunkFn(), 100);
-    assert.equal(rateFn(), 100);
-    assert.equal(mapsCellBatchSize(), 100);
-    assert.equal(mapsGridConcurrency(49), 49);
-    assert.equal(mapsGridConcurrency(100), 100);
-    assert.equal(mapsGridConcurrency(121), 100);
+    assert.equal(chunkFn(), 10);
+    assert.equal(brightDataStartRatePerMin(), 10);
+    assert.equal(rateFn(), 1); // ceil(10/min) legacy per-sec view
+    assert.equal(mapsCellBatchSize(), 10);
+    assert.equal(mapsGridConcurrency(49), 10);
+    assert.equal(mapsGridConcurrency(10), 10);
+    assert.equal(mapsGridConcurrency(121), 10);
 
     if (prevChunk === undefined) delete process.env.BRIGHTDATA_FAIR_CHUNK_SIZE;
     else process.env.BRIGHTDATA_FAIR_CHUNK_SIZE = prevChunk;
     if (prevRate === undefined) delete process.env.BRIGHTDATA_GLOBAL_START_RATE_PER_SEC;
     else process.env.BRIGHTDATA_GLOBAL_START_RATE_PER_SEC = prevRate;
+    if (prevRateMin === undefined) delete process.env.BRIGHTDATA_GLOBAL_START_RATE_PER_MIN;
+    else process.env.BRIGHTDATA_GLOBAL_START_RATE_PER_MIN = prevRateMin;
     if (prevBatch === undefined) delete process.env.BRIGHTDATA_GRID_BATCH_SIZE;
     else process.env.BRIGHTDATA_GRID_BATCH_SIZE = prevBatch;
   });

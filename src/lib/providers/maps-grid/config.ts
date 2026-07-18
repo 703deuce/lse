@@ -2,8 +2,8 @@
  * Maps grid multi-provider configuration.
  * All tunables live here as env-backed getters — no scattered magic numbers.
  *
- * Production Bright Data policy (defaults):
- * - Burst primary: up to 100 in-flight
+ * Production Bright Data policy (defaults — paced trial):
+ * - 10 cells per wave, wait for the wave to finish, then at most 10 starts/minute
  * - Unfinished-only retries every 8–15s (jitter) until all done or 10 min deadline
  * - Bright Data only (no ScrapingDog mix)
  * - No circuit-breaker skip — every unfinished cell is attempted on schedule
@@ -25,15 +25,31 @@ function envBool(name: string, fallback: boolean): boolean {
 
 /**
  * Bright Data global in-flight concurrency for Maps cells (across workers).
- * Default 100 matches the historical fair-chunk / grid burst — not the cautious 12.
+ * Default 10 = one paced wave (raise via env to restore burst).
  */
 export function brightDataGlobalConcurrency(): number {
-  return envInt("BRIGHTDATA_GLOBAL_CONCURRENCY", 100, { min: 1, max: 250 });
+  return envInt("BRIGHTDATA_GLOBAL_CONCURRENCY", 10, { min: 1, max: 250 });
+}
+
+/**
+ * Max Bright Data cell starts per rolling minute (across workers).
+ * Paired with wave size 10: launch 10 → wait for finish → next 10 after the minute.
+ */
+export function brightDataStartRatePerMin(): number {
+  return envInt("BRIGHTDATA_GLOBAL_START_RATE_PER_MIN", 10, { min: 1, max: 6000 });
+}
+
+/**
+ * Minimum spacing between primary waves (ms), measured from wave start.
+ * Default 60s so completed fast waves still respect “10 per minute.”
+ */
+export function brightDataWaveIntervalMs(): number {
+  return envInt("BRIGHTDATA_WAVE_INTERVAL_MS", 60_000, { min: 0, max: 600_000 });
 }
 
 /**
  * Optional lower cap for adaptive mid-scan throttle (circuit recovery ramps).
- * Primary pass uses mapsGridConcurrency (up to 100), not this.
+ * Primary pass uses mapsGridConcurrency (up to wave size), not this.
  */
 export function brightDataHealthyConcurrency(): number {
   return envInt("BRIGHTDATA_HEALTHY_CONCURRENCY", brightDataGlobalConcurrency(), {
@@ -246,7 +262,7 @@ export type BrightDataRecoveryRound = {
  * Runtime loops these with 8–15s jitter until the deadline — not long multi-minute gaps.
  */
 export function brightDataRecoverySchedule(): BrightDataRecoveryRound[] {
-  const burst = 100;
+  const wave = brightDataGlobalConcurrency();
   const delayMin = brightDataRetryDelayMinMs();
   const delayMax = brightDataRetryDelayMaxMs();
   // Enough slots that a 10-minute deadline is the real stop, not round count.
@@ -255,7 +271,7 @@ export function brightDataRecoverySchedule(): BrightDataRecoveryRound[] {
     round: i + 1,
     delayMinMs: delayMin,
     delayMaxMs: delayMax,
-    concurrency: envInt("BRIGHTDATA_RETRY_CONCURRENCY", burst, { min: 1, max: 250 }),
+    concurrency: envInt("BRIGHTDATA_RETRY_CONCURRENCY", wave, { min: 1, max: 250 }),
   }));
 }
 

@@ -16,29 +16,32 @@ export function getQueuePrefix(): string {
 }
 
 /**
- * Global Bright Data start rate (requests/sec) across all workers.
- * Provider allows ~100/sec; keep a little headroom for other features.
+ * Legacy per-second Bright Data start rate.
+ * Prefer BRIGHTDATA_GLOBAL_START_RATE_PER_MIN (default 10/min paced trial).
+ * If PER_SEC is unset, derive from per-minute (ceil) so callers stay valid.
  */
 export function brightDataStartRatePerSec(): number {
-  const n = Number(process.env.BRIGHTDATA_GLOBAL_START_RATE_PER_SEC ?? 100);
-  return Number.isFinite(n) && n > 0 ? n : 100;
+  const perSec = Number(process.env.BRIGHTDATA_GLOBAL_START_RATE_PER_SEC ?? "");
+  if (Number.isFinite(perSec) && perSec > 0) return perSec;
+  const perMin = Number(process.env.BRIGHTDATA_GLOBAL_START_RATE_PER_MIN ?? 10);
+  if (Number.isFinite(perMin) && perMin > 0) return Math.max(1, Math.ceil(perMin / 60));
+  return 1;
 }
 
 /** Global in-flight Bright Data requests across all workers. */
 export function brightDataMaxInFlight(): number {
-  const n = Number(process.env.BRIGHTDATA_GLOBAL_MAX_IN_FLIGHT ?? 250);
-  return Number.isFinite(n) && n > 0 ? n : 250;
+  const n = Number(process.env.BRIGHTDATA_GLOBAL_MAX_IN_FLIGHT ?? 10);
+  return Number.isFinite(n) && n > 0 ? n : 10;
 }
 
 /**
  * Max cells one scan launches per wave (and local pLimit concurrency).
- * Default 100 = one full large grid wave when alone. Concurrent scans share
- * capacity via the Redis global in-flight / start-rate limiter, so two 7×7
- * jobs (~49+49) can run together without one waiting for the other to finish.
+ * Default 10 = paced trial (do 10 → wait for finish → next 10 after the minute).
+ * Raise via BRIGHTDATA_FAIR_CHUNK_SIZE / BRIGHTDATA_GRID_BATCH_SIZE to restore burst.
  */
 export function brightDataFairChunkSize(): number {
-  const n = Number(process.env.BRIGHTDATA_FAIR_CHUNK_SIZE ?? 100);
-  return Number.isFinite(n) && n > 0 ? Math.min(n, 100) : 100;
+  const n = Number(process.env.BRIGHTDATA_FAIR_CHUNK_SIZE ?? 10);
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 100) : 10;
 }
 
 /** Twilio global start rate (SMS API calls/sec across workers). */

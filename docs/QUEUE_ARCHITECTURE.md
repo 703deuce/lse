@@ -130,7 +130,10 @@ Cross-tenant limits (Redis-backed when `REDIS_URL` is set):
 
 - `BRIGHTDATA_GLOBAL_START_RATE_PER_SEC` (default `100`) — how many SERP calls may *start* per second
 - `BRIGHTDATA_GLOBAL_MAX_IN_FLIGHT` (default `250`) — open requests across all workers
-- `BRIGHTDATA_FAIR_CHUNK_SIZE` / `BRIGHTDATA_GRID_BATCH_SIZE` (default `100`) — max cells one scan launches per wave / in-scan `pLimit`
+- `BRIGHTDATA_FAIR_CHUNK_SIZE` / `BRIGHTDATA_GRID_BATCH_SIZE` (default `10`) — max cells one scan launches per wave / in-scan `pLimit`
+- `BRIGHTDATA_GLOBAL_CONCURRENCY` (default `10`) — global in-flight Bright Data cells
+- `BRIGHTDATA_GLOBAL_START_RATE_PER_MIN` (default `10`) — max starts per rolling minute
+- `BRIGHTDATA_WAVE_INTERVAL_MS` (default `60000`) — after a wave finishes, wait out the remainder of this interval before the next wave
 
 ## Messaging provider limits
 
@@ -143,7 +146,7 @@ Same Redis pattern for campaign delivery:
 
 BullMQ concurrency defaults: `email-send` = 15, `sms-send` = 10 (env-overridable).
 
-A lone 7×7 (49) or 10×10 (100) starts all cells in one wave. Two simultaneous 7×7s both schedule ~49 workers; the Redis global limiter shares starts/in-flight so neither waits for the other job’s whole grid to finish. Grids larger than 100 cells go in waves of 100.
+Paced trial defaults: each scan launches waves of 10 cells, waits for that wave to finish, then waits out the remainder of a 60s interval before the next wave (10/minute). Global Redis limiter also caps Bright Data at 10 in-flight and 10 starts/min across workers. Raise the env vars above to restore burst behavior.
 
 ## Per-tenant Maps fairness
 
