@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Maps Growth Agent",
+  title: "Maps Rank Tracker",
   description: "Google Maps visibility audits and weekly action plans",
 };
 

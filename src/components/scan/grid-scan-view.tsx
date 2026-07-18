@@ -1336,8 +1336,9 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
               <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
                 <p className="font-medium">No ranking data returned</p>
                 <p className="mt-1">
-                  Rank data came back empty for every search point. Check API credentials and
-                  account credits.
+                  Rank data came back empty for every search point. The scan may still recover in
+                  the background — check the dashboard, or retry after confirming the location is
+                  complete.
                 </p>
                 {batch?.error_message ? (
                   <p className="mt-2 font-mono text-xs">{String(batch.error_message)}</p>

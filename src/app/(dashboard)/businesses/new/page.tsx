@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2, MapPin, Search } from "lucide-react";
 
@@ -25,7 +25,28 @@ function listingNeedsPrivateScanCenter(listing: Candidate): boolean {
 }
 
 export default function NewBusinessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto flex w-full max-w-2xl items-center gap-2 py-12 text-sm text-zinc-500">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading…
+        </div>
+      }
+    >
+      <NewBusinessPageInner />
+    </Suspense>
+  );
+}
+
+function NewBusinessPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const accountAs = useMemo(() => {
+    const raw = searchParams.get("as");
+    return raw === "prospect" ? "prospect" : "client";
+  }, [searchParams]);
+  const isProspect = accountAs === "prospect";
   const [step, setStep] = useState<"search" | "select" | "setup">("search");
   const [loading, setLoading] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
@@ -141,6 +162,8 @@ export default function NewBusinessPage() {
           scan_center_label: scanCenter?.label ?? selected.address?.trim() ?? null,
           keyword: form.keyword || form.name,
           city: form.city,
+          // Prospects do not consume an active location slot until converted.
+          isTracked: !isProspect,
         }),
       });
       const data = await res.json();
@@ -148,7 +171,7 @@ export default function NewBusinessPage() {
         if (res.status === 402 || /max businesses|plan limit/i.test(String(data.error ?? ""))) {
           throw new Error(
             data.error ??
-              "Location limit reached for your plan. Archive a location or upgrade to add another."
+              "Active location limit reached for your plan. Archive a client or upgrade to add another."
           );
         }
         throw new Error(data.error ?? "Create failed");
@@ -170,14 +193,20 @@ export default function NewBusinessPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-        <Link href="/businesses" className="mb-6 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700">
+        <Link
+          href={isProspect ? "/prospects" : "/clients"}
+          className="mb-6 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
+        >
           <ArrowLeft className="h-4 w-4" /> Back
         </Link>
 
-        <h1 className="text-2xl font-bold">Add a location</h1>
+        <h1 className="text-2xl font-bold">
+          {isProspect ? "Add a prospect" : "Add a client"}
+        </h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Find your Google listing. This location gets its own scans, keywords, and module history —
-          separate from your other businesses.
+          {isProspect
+            ? "Find their Google listing to run a prospect audit. Scans and reports stay with this record if you convert them to a client later."
+            : "Find their Google listing. Each client location gets its own keywords, Maps scans, and branded reports."}
         </p>
 
         {error && (
@@ -357,7 +386,7 @@ export default function NewBusinessPage() {
                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                Save & continue
+                {isProspect ? "Save prospect & continue" : "Save client & continue"}
               </button>
               <button
                 type="button"

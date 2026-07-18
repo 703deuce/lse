@@ -7,7 +7,6 @@ import {
   Building2,
   FileText,
   MapPin,
-  Phone,
   Settings,
   Users,
   ChevronDown,
@@ -22,8 +21,8 @@ import {
 } from "@/components/dashboard/dashboard-nav";
 
 const navItems = [
-  { href: "/businesses", label: "Businesses", icon: Building2 },
-  { href: "/agency/clients", label: "Clients", icon: Users },
+  { href: "/prospects", label: "Prospects", icon: Users },
+  { href: "/clients", label: "Clients", icon: Building2 },
   { href: "/agency/reports", label: "Reports", icon: FileText },
 ];
 
@@ -198,17 +197,17 @@ export function DashboardSidebarPanel({
           </div>
           <div className="min-w-0">
             {staticLinks ? (
-              <p className="truncate text-sm font-bold text-white">Maps Growth Agent</p>
+              <p className="truncate text-sm font-bold text-white">Maps Rank Tracker</p>
             ) : (
               <Link
-                href="/businesses"
+                href="/clients"
                 className="block truncate text-sm font-bold text-white"
                 onClick={() => onNavigate?.()}
               >
-                Maps Growth Agent
+                Maps Rank Tracker
               </Link>
             )}
-            <p className="text-[11px] text-slate-400">Local SEO Platform</p>
+            <p className="text-[11px] text-slate-400">For freelance local SEO</p>
           </div>
         </div>
         {businessId &&
@@ -235,8 +234,10 @@ export function DashboardSidebarPanel({
               label={item.label}
               icon={item.icon}
               active={
-                item.href === "/businesses"
-                  ? pathname === "/businesses"
+                item.href === "/clients"
+                  ? pathname === "/clients" ||
+                    pathname === "/businesses" ||
+                    pathname === "/agency/clients"
                   : pathname === item.href || pathname.startsWith(`${item.href}/`)
               }
               staticLinks={staticLinks}
@@ -253,49 +254,51 @@ export function DashboardSidebarPanel({
               staticLinks={staticLinks}
               onNavigate={onNavigate}
             />
-            <div className="mb-2">
-              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                {nav.reputation.title}
-              </p>
-              <div className="space-y-0.5">
-                {nav.reputation.items.map((item) => (
-                  <div key={item.href}>
-                    <SidebarNavItemRow
-                      href={item.href}
-                      label={item.label}
-                      icon={item.icon}
-                      active={isSidebarHrefActive(pathname, item.href, businessId, {
-                        exact: Boolean(item.children?.length),
-                      })}
-                      staticLinks={staticLinks}
-                      onNavigate={onNavigate}
-                    />
-                    {item.children?.map((child) => (
-                      <SidebarNavSubItemRow
-                        key={child.href}
-                        href={child.href}
-                        label={child.label}
-                        active={isSidebarHrefActive(pathname, child.href, businessId)}
-                        dot
+            {nav.reputation.items.length > 0 ? (
+              <div className="mb-2">
+                <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  {nav.reputation.title}
+                </p>
+                <div className="space-y-0.5">
+                  {nav.reputation.items.map((item) => (
+                    <div key={item.href}>
+                      <SidebarNavItemRow
+                        href={item.href}
+                        label={item.label}
+                        icon={item.icon}
+                        active={isSidebarHrefActive(pathname, item.href, businessId, {
+                          exact: Boolean(item.children?.length),
+                        })}
                         staticLinks={staticLinks}
                         onNavigate={onNavigate}
                       />
-                    ))}
-                  </div>
-                ))}
-                {nav.reputation.subLinks.map((item) => (
-                  <SidebarNavSubItemRow
-                    key={item.href}
-                    href={item.href}
-                    label={item.label}
-                    active={isSidebarHrefActive(pathname, item.href, businessId)}
-                    dot
-                    staticLinks={staticLinks}
-                    onNavigate={onNavigate}
-                  />
-                ))}
+                      {item.children?.map((child) => (
+                        <SidebarNavSubItemRow
+                          key={child.href}
+                          href={child.href}
+                          label={child.label}
+                          active={isSidebarHrefActive(pathname, child.href, businessId)}
+                          dot
+                          staticLinks={staticLinks}
+                          onNavigate={onNavigate}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                  {nav.reputation.subLinks.map((item) => (
+                    <SidebarNavSubItemRow
+                      key={item.href}
+                      href={item.href}
+                      label={item.label}
+                      active={isSidebarHrefActive(pathname, item.href, businessId)}
+                      dot
+                      staticLinks={staticLinks}
+                      onNavigate={onNavigate}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : null}
             <NavSection
               title={nav.research.title}
               items={nav.research.items}
@@ -317,17 +320,6 @@ export function DashboardSidebarPanel({
       </nav>
       {businessId && showFooter && !staticLinks && (
         <div className="space-y-2 border-t border-sidebar-border p-2.5">
-          <div className="mx-1 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3">
-            <p className="text-xs font-semibold text-emerald-200">Need help growing?</p>
-            <Link
-              href={`/businesses/${businessId}/growth-audit?tab=growth-plan`}
-              onClick={() => onNavigate?.()}
-              className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
-            >
-              <Phone className="h-3.5 w-3.5" />
-              Open Growth Plan
-            </Link>
-          </div>
           <SidebarNavItemRow
             href={`/businesses/${businessId}/settings`}
             label="Settings"
@@ -379,7 +371,7 @@ function SidebarFallback({
       )}
     >
       <div className="border-b border-sidebar-border px-4 py-3.5">
-        <p className="text-sm font-bold text-white">Maps Growth Agent</p>
+        <p className="text-sm font-bold text-white">Maps Rank Tracker</p>
       </div>
       <div className="flex-1 p-2.5" />
       {businessId && <div className="border-t border-sidebar-border p-2.5" />}

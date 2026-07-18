@@ -19,8 +19,8 @@ export default async function AgencyClientsPage() {
   return (
     <>
       <PageHeader
-        title="Agency — Clients"
-        subtitle="Multi-location management (owner workspace for now)"
+        title="Clients"
+        subtitle="Your client locations — open any one to run scans and build reports"
       />
 
       <div className="overflow-x-auto">

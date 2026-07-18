@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ContentCard, btnSecondary } from "@/components/ui/design-system";
+import { FREELANCER_MAPS_PRODUCT } from "@/lib/product/freelancer-maps";
 
 type UsageResponse = {
   organization: { name: string; plan: string; billing_status: string | null } | null;
@@ -109,24 +110,67 @@ export function AccountPlanUsageCard() {
       </div>
 
       <div className="space-y-4">
-        <UsageRow label="Locations" used={data.businessCount} limit={plan.limits.max_businesses} />
-        <UsageRow label="Map credits" used={usage.map_credits_used} limit={plan.limits.map_credits_month} />
-        <UsageRow label="Growth audits" used={usage.growth_audits_used} limit={plan.limits.growth_audits_month} />
-        <UsageRow label="Local Trust scans" used={usage.local_trust_scans_used} limit={plan.limits.local_trust_scans_month} />
-        <UsageRow label="Backlink Gap runs" used={usage.backlink_gap_runs_used} limit={plan.limits.backlink_gap_runs_month} />
-        <UsageRow label="Review emails" used={usage.review_emails_sent} limit={plan.limits.email_review_requests_month} />
-        <UsageRow label="SMS messages" used={usage.review_sms_sent} limit={plan.limits.sms_month} />
-        <UsageRow label="Bulk review requests" used={usage.bulk_review_requests_used} limit={plan.limits.bulk_review_requests_month} />
         <UsageRow
-          label="Review trigger endpoints"
-          used={data.webhookEndpoints ?? 0}
-          limit={plan.limits.webhook_endpoints ?? 0}
+          label="Active locations"
+          used={data.businessCount}
+          limit={plan.limits.max_businesses}
         />
-        <UsageRow
-          label="Review trigger events"
-          used={data.webhookEventsMonth ?? 0}
-          limit={plan.limits.webhook_events_month ?? 0}
-        />
+        {!FREELANCER_MAPS_PRODUCT.hideMapCreditAnxiety ? (
+          <UsageRow
+            label="Map credits"
+            used={usage.map_credits_used}
+            limit={plan.limits.map_credits_month}
+          />
+        ) : (
+          <p className="rounded-lg border border-emerald-100 bg-emerald-50/80 px-3 py-2 text-sm text-emerald-900">
+            Manual Maps scans are unlimited on your plan. Usage is controlled by active location
+            slots and concurrent scan capacity — not a monthly credit balance.
+          </p>
+        )}
+        {!FREELANCER_MAPS_PRODUCT.hideReputationNav ? (
+          <>
+            <UsageRow
+              label="Growth audits"
+              used={usage.growth_audits_used}
+              limit={plan.limits.growth_audits_month}
+            />
+            <UsageRow
+              label="Local Trust scans"
+              used={usage.local_trust_scans_used}
+              limit={plan.limits.local_trust_scans_month}
+            />
+            <UsageRow
+              label="Backlink Gap runs"
+              used={usage.backlink_gap_runs_used}
+              limit={plan.limits.backlink_gap_runs_month}
+            />
+            <UsageRow
+              label="Review emails"
+              used={usage.review_emails_sent}
+              limit={plan.limits.email_review_requests_month}
+            />
+            <UsageRow
+              label="SMS messages"
+              used={usage.review_sms_sent}
+              limit={plan.limits.sms_month}
+            />
+            <UsageRow
+              label="Bulk review requests"
+              used={usage.bulk_review_requests_used}
+              limit={plan.limits.bulk_review_requests_month}
+            />
+            <UsageRow
+              label="Review trigger endpoints"
+              used={data.webhookEndpoints ?? 0}
+              limit={plan.limits.webhook_endpoints ?? 0}
+            />
+            <UsageRow
+              label="Review trigger events"
+              used={data.webhookEventsMonth ?? 0}
+              limit={plan.limits.webhook_events_month ?? 0}
+            />
+          </>
+        ) : null}
       </div>
     </ContentCard>
   );

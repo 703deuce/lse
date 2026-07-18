@@ -461,15 +461,15 @@ export function ScanSetupStudio({
               <p className="flex gap-1.5">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 <span>
-                  Click bubbles on the map to exclude empty areas before you run — that also lowers
-                  credit usage.
+                  Click bubbles on the map to exclude empty areas before you run — excluded cells are
+                  skipped and do not affect metrics.
                 </span>
               </p>
             </div>
             <p className="text-[12px] text-zinc-600">
               Keyword: <strong>{selectedKeyword?.keyword ?? "—"}</strong>
               <br />
-              Will use <strong>{includedCount}</strong> of {totalPoints} credits
+              Grid: <strong>{includedCount}</strong> of {totalPoints} cells
               {excludedLabels.size > 0 ? ` (${excludedLabels.size} excluded)` : ""}.
             </p>
           </Section>
@@ -483,10 +483,10 @@ export function ScanSetupStudio({
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#137752] px-3.5 py-2.5 text-[13px] font-semibold text-white hover:bg-[#0f6244] disabled:opacity-50"
             >
               {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-              Run scan · {includedCount} credits
+              Run scan · {includedCount} cells
             </button>
             <p className="text-center text-[11px] text-zinc-400">
-              Nothing is billed until you click Run scan.
+              Manual Maps scans are unlimited. The scan continues in the background after you start.
             </p>
           </div>
         </aside>

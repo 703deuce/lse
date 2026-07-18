@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Building2, ChevronRight, Megaphone, Play } from "lucide-react";
+import { Building2, ChevronRight, FileText, Play, Target } from "lucide-react";
 import { dashboardBody, dashboardCard, dashboardCardTitle } from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
 
@@ -7,29 +7,36 @@ export function DashboardQuickActions({ businessId }: { businessId: string }) {
   const actions = [
     {
       href: `/businesses/${businessId}/scans`,
-      title: "Run Quick Scan",
-      description: "Check local rankings in minutes.",
+      title: "Run scan",
+      description: "Queue a Maps grid in the background.",
       icon: Play,
       iconWrap: "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100",
     },
     {
-      href: "/businesses/new",
-      title: "Add a Location",
-      description: "Onboard another business location.",
-      icon: Building2,
+      href: `/businesses/${businessId}/reports`,
+      title: "Create report",
+      description: "Turn completed scans into a branded deliverable.",
+      icon: FileText,
       iconWrap: "bg-sky-50 text-sky-600 ring-1 ring-sky-100",
     },
     {
-      href: `/businesses/${businessId}/review-campaigns`,
-      title: "Create Campaign",
-      description: "Send automated review requests.",
-      icon: Megaphone,
-      iconWrap: "bg-violet-50 text-violet-600 ring-1 ring-violet-100",
+      href: "/prospects",
+      title: "New prospect",
+      description: "Start an audit for outreach.",
+      icon: Target,
+      iconWrap: "bg-amber-50 text-amber-700 ring-1 ring-amber-100",
+    },
+    {
+      href: "/clients",
+      title: "New client",
+      description: "Add a client location to track.",
+      icon: Building2,
+      iconWrap: "bg-zinc-100 text-zinc-700 ring-1 ring-zinc-200",
     },
   ] as const;
 
   return (
-    <div className="grid gap-2 sm:grid-cols-3">
+    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
       {actions.map((action) => (
         <Link
           key={action.title}

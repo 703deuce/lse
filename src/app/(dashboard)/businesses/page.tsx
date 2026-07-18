@@ -1,6 +1,7 @@
+import { redirect } from "next/navigation";
 import { requirePageAuth } from "@/lib/auth/context";
-import { BusinessesHub } from "@/components/businesses/businesses-hub";
 
+/** Legacy /businesses hub → freelancer Clients list. */
 export default async function BusinessesPage({
   searchParams,
 }: {
@@ -8,13 +9,6 @@ export default async function BusinessesPage({
 }) {
   await requirePageAuth();
   const { error } = await searchParams;
-
-  const accessMessage =
-    error === "access_denied"
-      ? "You do not have access to that location. Pick one of your businesses below."
-      : error === "invalid_business"
-        ? "That location link was invalid. Pick one of your businesses below."
-        : null;
-
-  return <BusinessesHub accessMessage={accessMessage} />;
+  const qs = error ? `?error=${encodeURIComponent(error)}` : "";
+  redirect(`/clients${qs}`);
 }

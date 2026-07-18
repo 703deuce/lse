@@ -34,7 +34,7 @@ export default async function AgencyReportsPage() {
   return (
     <>
       <PageHeader
-        title="Agency — Reports"
+        title="Reports"
         subtitle="Open each client’s Reports hub to share, print PDF, or export CSV"
       />
 
