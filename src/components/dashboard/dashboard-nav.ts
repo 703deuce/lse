@@ -83,7 +83,7 @@ export function buildBusinessSidebarNav(businessId: string): {
       title: "Branding",
       items: [
         {
-          href: `${base}/settings?tab=branding`,
+          href: `/branding`,
           label: "Report branding",
           icon: Palette,
         },

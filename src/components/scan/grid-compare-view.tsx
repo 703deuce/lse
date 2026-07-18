@@ -29,6 +29,8 @@ import {
 } from "@/components/scan/grid-compare-ui";
 import { GridMetricCard, KpiRow } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
+import { assessScanCompareCompatibility } from "@/lib/scans/compare-compatibility";
+import { trackProductEvent } from "@/lib/analytics/product-events";
 
 const ScanMap = dynamic(
   () => import("@/components/maps/scan-map").then((m) => m.ScanMap),
@@ -273,6 +275,45 @@ export function GridCompareView({
   const scansDifferInExtent =
     gridSizeA !== gridSizeB || radiusMetersA !== radiusMetersB;
   const syncZoom = !scansDifferInExtent;
+  const compareCompatibility = useMemo(() => {
+    if (!data) return { compatible: true, warnings: [] as string[] };
+    return assessScanCompareCompatibility(
+      {
+        keyword: data.scanA.keyword?.keyword ?? keywordProp,
+        gridSize: data.scanA.gridSize ?? gridSizeA,
+        radiusMeters: data.scanA.radiusMeters ?? radiusMetersA,
+        centerLat: officeCenter[0],
+        centerLng: officeCenter[1],
+        businessId,
+      },
+      {
+        keyword: data.scanB.keyword?.keyword ?? keywordProp,
+        gridSize: data.scanB.gridSize ?? gridSizeB,
+        radiusMeters: data.scanB.radiusMeters ?? radiusMetersB,
+        centerLat: officeCenter[0],
+        centerLng: officeCenter[1],
+        businessId,
+      }
+    );
+  }, [
+    data,
+    gridSizeA,
+    gridSizeB,
+    radiusMetersA,
+    radiusMetersB,
+    keywordProp,
+    officeCenter,
+    businessId,
+  ]);
+
+  useEffect(() => {
+    if (!data) return;
+    trackProductEvent("scan_comparison_viewed", {
+      businessId,
+      scanId: data.scanA.id,
+      compatible: compareCompatibility.compatible,
+    });
+  }, [data, businessId, compareCompatibility.compatible]);
   const deviceLabel = device.charAt(0).toUpperCase() + device.slice(1);
   const osLabel = os === "ios" ? "iOS (iPhone)" : os.charAt(0).toUpperCase() + os.slice(1);
   const browserLabel = browser.charAt(0).toUpperCase() + browser.slice(1);
@@ -469,6 +510,17 @@ export function GridCompareView({
               {error}
             </p>
           )}
+
+          {!loading && data && !compareCompatibility.compatible ? (
+            <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[13px] text-amber-950">
+              <p className="font-semibold">Comparison may be misleading</p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-4 text-[12px] text-amber-900">
+                {compareCompatibility.warnings.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           {summary && !loading && data && (
             <>

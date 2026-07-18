@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Ban,
-  BarChart3,
   Download,
   FileText,
   Grid3X3,
@@ -12,7 +11,6 @@ import {
   Loader2,
   MapPinned,
   Megaphone,
-  Star,
   Target,
   Users,
 } from "lucide-react";
@@ -31,6 +29,7 @@ import type { ReportType } from "@/lib/reporting/types";
 import { ScanExportMenu } from "@/components/reports/scan-export-menu";
 import { useActiveJobStatus } from "@/components/jobs/use-active-job-status";
 import { isTerminalJobStatus } from "@/lib/jobs/active-job-status";
+import { FREELANCER_MAPS_PRODUCT } from "@/lib/product/freelancer-maps";
 
 type ScanOption = {
   id: string;
@@ -69,68 +68,54 @@ type ReportCard = {
 const REPORT_CARDS: ReportCard[] = [
   {
     type: "single_scan",
-    title: "Single Scan Report",
-    description: "Heatmap, ARP/ATRP/SoLV, coverage, and competitors for one completed grid.",
+    title: "Prospect audit",
+    description:
+      "Current Maps visibility, competitor presence, and opportunity for outreach.",
     icon: Grid3X3,
     needsScan: true,
     available: true,
   },
   {
     type: "trend",
-    title: "Trend Report",
-    description: "ARP, ATRP, and SoLV over time for matching keyword + grid settings.",
+    title: "Monthly client report",
+    description:
+      "Ranking change since the prior period, keyword trends, and coverage over time.",
     icon: LineChart,
     needsScan: false,
     available: true,
   },
   {
+    type: "maps_campaign",
+    title: "Campaign progress report",
+    description:
+      "Baseline versus current for a keyword group — gains, weak areas, and rollup.",
+    icon: Megaphone,
+    needsScan: false,
+    available: true,
+  },
+  {
     type: "competitor",
-    title: "Competitor Report",
-    description: "Market pack ranked by ATRP/SoLV with ratings, categories, and GBP links.",
+    title: "Competitor visibility",
+    description: "Local pack share, ratings, and who appears most across the grid.",
     icon: Users,
     needsScan: true,
     available: true,
   },
   {
     type: "location",
-    title: "Location Report",
-    description: "All tracked keywords for this business, ranked best to worst.",
+    title: "Location keyword summary",
+    description: "All tracked keywords for this location, ranked best to worst.",
     icon: MapPinned,
     needsScan: false,
     available: true,
   },
   {
     type: "keyword",
-    title: "Keyword Report",
-    description: "One keyword across business + additional rank locations.",
+    title: "Keyword deep dive",
+    description: "One keyword across the primary pin and additional rank locations.",
     icon: Target,
     needsScan: false,
     needsKeyword: true,
-    available: true,
-  },
-  {
-    type: "maps_campaign",
-    title: "Maps Campaign Report",
-    description: "Scheduled tracking summary with keyword rollup and rising/falling.",
-    icon: Megaphone,
-    needsScan: false,
-    available: true,
-  },
-  {
-    type: "reviews",
-    title: "Reviews Report",
-    description: "Rating, velocity, response rate, and competitor review momentum.",
-    icon: Star,
-    needsScan: false,
-    available: true,
-  },
-  {
-    type: "review_campaign",
-    title: "Review Campaign Report",
-    description: "SMS/email funnel, attribution, and recipient status for review requests.",
-    icon: BarChart3,
-    needsScan: false,
-    needsCampaign: true,
     available: true,
   },
 ];

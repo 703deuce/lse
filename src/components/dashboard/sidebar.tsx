@@ -24,6 +24,8 @@ const navItems = [
   { href: "/prospects", label: "Prospects", icon: Users },
   { href: "/clients", label: "Clients", icon: Building2 },
   { href: "/agency/reports", label: "Reports", icon: FileText },
+  { href: "/branding", label: "Branding", icon: Settings },
+  { href: "/onboarding", label: "Get started", icon: MapPin },
 ];
 
 function SidebarNavItemRow({
