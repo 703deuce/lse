@@ -24,17 +24,14 @@ import {
 } from "@/lib/jobs/run-early-enrichment";
 import {
   brightDataNormalCellTimeoutMs,
-  brightDataProbeConcurrency,
   brightDataRecoveryDeadlineMs,
 } from "@/lib/providers/maps-grid/config";
 import {
   isolatedRetryConcurrency,
   isolatedRetryDelayMs,
   listBrightDataRecoveryRounds,
-  probesRecovered,
   recoveryRoundConcurrency,
   recoveryRoundDelayMs,
-  selectProbeJobs,
 } from "@/lib/providers/maps-grid/batch-recovery";
 import {
   brightDataOnlyProviders,
@@ -44,13 +41,6 @@ import {
 } from "@/lib/providers/maps-grid/orchestrator";
 import type { MapsFailureCategory } from "@/lib/providers/maps-grid/failure-categories";
 import type { MapsProviderId, MapsRecoveryStage } from "@/lib/providers/maps-grid/types";
-import {
-  closeBrightDataCircuit,
-  getMapsProviderCircuit,
-  recordMapsProviderAttempt,
-  reopenBrightDataCircuit,
-  waitWhileBrightDataCircuitOpen,
-} from "@/lib/queue/maps-provider-circuit";
 import {
   DEFAULT_MAPS_PROVIDER_MODE,
   integrityProvidersForMode,
@@ -395,17 +385,6 @@ async function runOneCell(
   });
   const apiSec = elapsedSec(apiStart);
   const attemptsUsed = Math.max(1, fetched.attempts.length);
-
-  // Record Bright Data outcomes into the distributed degradation window.
-  for (const attempt of fetched.attempts) {
-    if (attempt.provider === "brightdata") {
-      await recordMapsProviderAttempt({
-        provider: "brightdata",
-        success: attempt.success,
-        category: attempt.category,
-      }).catch(() => undefined);
-    }
-  }
 
   if (fetched.ok) {
     const items = fetched.items as MapsLiveResult[];
@@ -1284,66 +1263,6 @@ export async function runGridCellsLive(params: {
 
       const round = recoveryRounds[roundIndex];
 
-      // Respect circuit: wait out open, then half-open probes before the round.
-      let circuit = await waitWhileBrightDataCircuitOpen(sleep);
-      if (circuit.state === "half_open" && remainingJobs.length > 0) {
-        const probes = selectProbeJobs(remainingJobs);
-        await scheduleCellProgress(
-          params.scanBatchId,
-          completedOffset,
-          totalCells,
-          remainingJobs.length,
-          {
-            pass: `bd-half-open-probes-${round.round}`,
-            recovery_stage: "testing_provider_recovery",
-            maps_provider_mode: providerMode,
-            delayed_retry_round: round.round,
-          },
-          { force: true }
-        );
-        console.log(
-          `[Scan] Bright Data half-open probes: ${probes.length} cells @ concurrency ${brightDataProbeConcurrency()}`
-        );
-        const probePass = await runJobsWithConcurrency(probes, {
-          scanBatchId: params.scanBatchId,
-          depth,
-          timeoutMs,
-          maxAttempts: 1,
-          concurrency: Math.min(brightDataProbeConcurrency(), probes.length),
-          totalCells,
-          passLabel: `bd-half-open-probes-${round.round}`,
-          providers: brightDataOnlyProviders(),
-          allowTransientRetry: false,
-          scanRetryRound: round.round,
-          recoveryStage: "testing_provider_recovery",
-          completedOffset,
-          updateProgress: true,
-          onCellSettled,
-          organizationId: params.organizationId,
-        });
-        allTimings.push(...probePass.timings);
-        completedOffset += probePass.successCount;
-        remainingJobs = remainingJobs.filter(
-          (job) =>
-            !probePass.results.some(
-              (r) => r.success && r.pointId === job.point.id && r.keywordId === job.keyword.id
-            )
-        );
-        failedCells = remainingJobs.length;
-        if (probesRecovered(probePass.successCount)) {
-          await closeBrightDataCircuit("half-open probes recovered");
-          circuit = await getMapsProviderCircuit("brightdata");
-        } else {
-          await reopenBrightDataCircuit("half-open probes failed");
-          circuit = await waitWhileBrightDataCircuitOpen(sleep);
-        }
-      }
-
-      if (remainingJobs.length === 0) break;
-      if ((await getMapsProviderCircuit("brightdata")).state === "open") {
-        await waitWhileBrightDataCircuitOpen(sleep);
-      }
-
       const delayMs = recoveryRoundDelayMs(round);
       const totalRoundsLabel = String(recoveryRounds.length);
       await scheduleCellProgress(
@@ -1353,7 +1272,7 @@ export async function runGridCellsLive(params: {
         remainingJobs.length,
         {
           pass: `bd-delayed-wait-${round.round}`,
-          recovery_stage: "brightdata_degraded",
+          recovery_stage: "scanning_brightdata",
           maps_provider_mode: providerMode,
           delayed_retry_round: round.round,
           delayed_retry_rounds: recoveryRounds.length,

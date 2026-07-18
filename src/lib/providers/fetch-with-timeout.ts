@@ -51,7 +51,13 @@ function circuitCooldownMs(provider: string): number {
   return Number.isFinite(n) && n > 0 ? n : 60_000;
 }
 
+/** Bright Data uses its own unfinished-cell retry schedule — never trip HTTP circuit. */
+function circuitDisabledForProvider(provider: string): boolean {
+  return /^brightdata/i.test(provider.trim());
+}
+
 export function assertCircuitClosed(provider: string): void {
+  if (circuitDisabledForProvider(provider)) return;
   const state = circuits.get(provider);
   if (!state) return;
   const now = Date.now();
@@ -70,6 +76,7 @@ export function recordProviderSuccess(provider: string): void {
 }
 
 export function recordProviderFailure(provider: string, err?: unknown): void {
+  if (circuitDisabledForProvider(provider)) return;
   const status =
     err && typeof err === "object" && "status" in err
       ? Number((err as { status?: number }).status)

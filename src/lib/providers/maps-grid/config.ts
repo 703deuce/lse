@@ -6,7 +6,7 @@
  * - Burst primary: up to 100 in-flight
  * - Unfinished-only retries: 10s → 20s → 1m → 1m → 3m → 2m → 3m
  * - Bright Data only (no ScrapingDog mix)
- * - Circuit: ≥30% transient failures over last 20 (min 10) → open
+ * - No circuit-breaker skip — every unfinished cell is attempted on schedule
  */
 
 function envInt(name: string, fallback: number, opts?: { min?: number; max?: number }): number {

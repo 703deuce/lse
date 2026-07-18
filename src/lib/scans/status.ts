@@ -234,7 +234,6 @@ export function scanProgressMessage(batch: {
     if (
       pass.startsWith("bd-delayed-wait") ||
       pass.startsWith("bd-delayed-retry") ||
-      pass.startsWith("bd-half-open") ||
       stage === "brightdata_degraded" ||
       stage === "testing_provider_recovery"
     ) {

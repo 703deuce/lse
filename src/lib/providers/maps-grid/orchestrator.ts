@@ -20,7 +20,6 @@ import {
   isTransientMapsFailure,
   type MapsFailureCategory,
 } from "@/lib/providers/maps-grid/failure-categories";
-import { getMapsProviderCircuit } from "@/lib/queue/maps-provider-circuit";
 import type {
   MapsCellFetchResult,
   MapsProviderAttempt,
@@ -134,18 +133,7 @@ export async function resolveUsableMapsProviders(
       skipped.push(availability);
       continue;
     }
-    if (p === "brightdata") {
-      const circuit = await getMapsProviderCircuit("brightdata");
-      if (circuit.state === "open") {
-        skipped.push({
-          provider: p,
-          enabled: false,
-          skipReason: "circuit_open",
-          detail: circuit.reason ?? "Bright Data circuit open",
-        });
-        continue;
-      }
-    }
+    // Always try Bright Data when credentials/enabled — no circuit-breaker skip.
     usable.push(p);
   }
   return { usable, skipped };
