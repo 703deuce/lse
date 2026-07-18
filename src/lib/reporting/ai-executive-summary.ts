@@ -14,12 +14,21 @@ export const SUMMARY_TONES: Array<{ id: SummaryTone; label: string }> = [
   { id: "detailed", label: "Detailed" },
 ];
 
+export type SummaryKpiSlice = {
+  arp?: number | null;
+  atrp?: number | null;
+  top3Pct?: number | null;
+  top10Pct?: number | null;
+  notFoundPct?: number | null;
+  visibilityScore?: number | null;
+};
+
 export type SummaryMetricsInput = {
   businessName: string;
   keyword?: string | null;
   reportLabel: string;
-  kpis: Partial<ReportKpis>;
-  priorKpis?: Partial<ReportKpis> | null;
+  kpis: SummaryKpiSlice | Partial<ReportKpis>;
+  priorKpis?: SummaryKpiSlice | Partial<ReportKpis> | null;
   aiMentioned?: number | null;
   aiTotal?: number | null;
   priorAiMentioned?: number | null;
