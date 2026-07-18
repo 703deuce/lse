@@ -1182,8 +1182,8 @@ export async function runGridCellsLive(params: {
   let failedCells = remainingJobs.length;
 
   // ---- Recovery after primary ----
-  // Hybrid: burst primary, then unfinished-only Bright Data waits:
-  // 10s → 20s → 1m → 1m → 3m → 2m → 3m (no ScrapingDog mix).
+  // Hybrid: burst primary, then unfinished-only Bright Data retries every
+  // 8–15s (jitter) until done or the ~10 min deadline (no ScrapingDog mix).
   // Single-provider modes: one same-provider retry.
   if (remainingJobs.length > 0 && !useBrightDataRecovery) {
     console.log(
@@ -1245,11 +1245,11 @@ export async function runGridCellsLive(params: {
     const deadlineMs = brightDataRecoveryDeadlineMs();
     console.log(
       `[Scan] Bright Data recovery plan: ${remainingJobs.length} unfinished · ` +
-        `10s→20s→1m→1m→3m→2m→3m · deadline=${Math.round(deadlineMs / 1000)}s · ` +
+        `retry every 8–15s (jitter) · deadline=${Math.round(deadlineMs / 1000)}s · ` +
         `Bright Data only (no ScrapingDog)`
     );
 
-    // Exact scheduled rounds only — unfinished cells each time.
+    // Keep retrying unresolved cells on a short cadence until done or deadline.
     for (let roundIndex = 0; roundIndex < recoveryRounds.length; roundIndex++) {
       if (remainingJobs.length === 0) break;
       const elapsed = performance.now() - scanWallStart;
@@ -1262,9 +1262,7 @@ export async function runGridCellsLive(params: {
       }
 
       const round = recoveryRounds[roundIndex];
-
       const delayMs = recoveryRoundDelayMs(round);
-      const totalRoundsLabel = String(recoveryRounds.length);
       await scheduleCellProgress(
         params.scanBatchId,
         completedOffset,
@@ -1275,7 +1273,6 @@ export async function runGridCellsLive(params: {
           recovery_stage: "scanning_brightdata",
           maps_provider_mode: providerMode,
           delayed_retry_round: round.round,
-          delayed_retry_rounds: recoveryRounds.length,
           delayed_retry_delay_ms: delayMs,
           delayed_retry_concurrency: round.concurrency,
           unresolved_after_brightdata: remainingJobs.length,
@@ -1284,8 +1281,8 @@ export async function runGridCellsLive(params: {
         { force: true }
       );
       console.log(
-        `[Scan] Bright Data recovery wait ${round.round}/${totalRoundsLabel}: ` +
-          `sleeping ${delayMs}ms then retrying ${remainingJobs.length} @ concurrency≤${round.concurrency}`
+        `[Scan] Bright Data recovery wait ${round.round}: ` +
+          `sleeping ${delayMs}ms then retrying ${remainingJobs.length} unfinished`
       );
       await sleep(delayMs);
 
@@ -1305,14 +1302,13 @@ export async function runGridCellsLive(params: {
           recovery_stage: "scanning_brightdata",
           maps_provider_mode: providerMode,
           delayed_retry_round: round.round,
-          delayed_retry_rounds: recoveryRounds.length,
           delayed_retry_concurrency: roundConcurrency,
         },
         { force: true }
       );
       console.log(
-        `[Scan] Bright Data recovery retry ${round.round}/${totalRoundsLabel} START ` +
-          `for ${remainingJobs.length} cells (concurrency=${roundConcurrency})`
+        `[Scan] Bright Data recovery retry ${round.round} START ` +
+          `for ${remainingJobs.length} unfinished cells (concurrency=${roundConcurrency})`
       );
       const pass = await runJobsWithConcurrency(remainingJobs, {
         scanBatchId: params.scanBatchId,
@@ -1333,10 +1329,11 @@ export async function runGridCellsLive(params: {
       });
       allTimings.push(...pass.timings);
       completedOffset += pass.successCount;
+      // Drop finished cells — only unresolved remain for the next round.
       remainingJobs = failedJobsFromPass(remainingJobs, pass.results);
       failedCells = remainingJobs.length;
       console.log(
-        `[Scan] Bright Data recovery retry ${round.round}/${totalRoundsLabel} FINISHED: ` +
+        `[Scan] Bright Data recovery retry ${round.round} FINISHED: ` +
           `recovered=${pass.successCount} still_unresolved=${remainingJobs.length}`
       );
 

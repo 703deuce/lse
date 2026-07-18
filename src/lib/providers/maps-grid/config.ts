@@ -4,7 +4,7 @@
  *
  * Production Bright Data policy (defaults):
  * - Burst primary: up to 100 in-flight
- * - Unfinished-only retries: 10s → 20s → 1m → 1m → 3m → 2m → 3m
+ * - Unfinished-only retries every 8–15s (jitter) until all done or 10 min deadline
  * - Bright Data only (no ScrapingDog mix)
  * - No circuit-breaker skip — every unfinished cell is attempted on schedule
  */
@@ -135,13 +135,28 @@ export function brightDataCircuitOpenMaxMs(): number {
 
 /**
  * Hard ceiling for the full Bright Data recovery window
- * (primary burst + 10s/20s/1m/1m/3m/2m/3m waits + cell work).
+ * (primary burst + short jittered retries until done).
  */
 export function brightDataRecoveryDeadlineMs(): number {
-  return envInt("BRIGHTDATA_RECOVERY_DEADLINE_MS", 20 * 60_000, {
+  return envInt("BRIGHTDATA_RECOVERY_DEADLINE_MS", 10 * 60_000, {
     min: 60_000,
     max: 45 * 60_000,
   });
+}
+
+/** Min wait between unfinished-cell Bright Data retry rounds. */
+export function brightDataRetryDelayMinMs(): number {
+  return envInt("BRIGHTDATA_RETRY_DELAY_MIN_MS", 8_000, { min: 0, max: 120_000 });
+}
+
+/** Max wait between unfinished-cell Bright Data retry rounds (jitter upper bound). */
+export function brightDataRetryDelayMaxMs(): number {
+  return envInt("BRIGHTDATA_RETRY_DELAY_MAX_MS", 15_000, { min: 0, max: 180_000 });
+}
+
+/** Jittered delay before the next unfinished-cell retry round. */
+export function brightDataRetryDelayMs(): number {
+  return jitterMs(brightDataRetryDelayMinMs(), brightDataRetryDelayMaxMs());
 }
 
 /**
@@ -227,32 +242,21 @@ export type BrightDataRecoveryRound = {
 };
 
 /**
- * Bright Data recovery after the burst primary (unfinished cells only):
- * 10s → 20s → 1m → 1m → 3m → 2m → 3m
+ * Template rounds for unfinished-cell Bright Data recovery.
+ * Runtime loops these with 8–15s jitter until the deadline — not long multi-minute gaps.
  */
 export function brightDataRecoverySchedule(): BrightDataRecoveryRound[] {
   const burst = 100;
-  const round = (
-    n: number,
-    delayMs: number,
-    minEnv: string,
-    maxEnv: string,
-    concEnv: string
-  ): BrightDataRecoveryRound => ({
-    round: n,
-    delayMinMs: envInt(minEnv, delayMs, { min: 0, max: 900_000 }),
-    delayMaxMs: envInt(maxEnv, delayMs, { min: 0, max: 900_000 }),
-    concurrency: envInt(concEnv, burst, { min: 1, max: 250 }),
-  });
-  return [
-    round(1, 10_000, "BRIGHTDATA_RETRY1_DELAY_MIN_MS", "BRIGHTDATA_RETRY1_DELAY_MAX_MS", "BRIGHTDATA_RETRY1_CONCURRENCY"),
-    round(2, 20_000, "BRIGHTDATA_RETRY2_DELAY_MIN_MS", "BRIGHTDATA_RETRY2_DELAY_MAX_MS", "BRIGHTDATA_RETRY2_CONCURRENCY"),
-    round(3, 60_000, "BRIGHTDATA_RETRY3_DELAY_MIN_MS", "BRIGHTDATA_RETRY3_DELAY_MAX_MS", "BRIGHTDATA_RETRY3_CONCURRENCY"),
-    round(4, 60_000, "BRIGHTDATA_RETRY4_DELAY_MIN_MS", "BRIGHTDATA_RETRY4_DELAY_MAX_MS", "BRIGHTDATA_RETRY4_CONCURRENCY"),
-    round(5, 180_000, "BRIGHTDATA_RETRY5_DELAY_MIN_MS", "BRIGHTDATA_RETRY5_DELAY_MAX_MS", "BRIGHTDATA_RETRY5_CONCURRENCY"),
-    round(6, 120_000, "BRIGHTDATA_RETRY6_DELAY_MIN_MS", "BRIGHTDATA_RETRY6_DELAY_MAX_MS", "BRIGHTDATA_RETRY6_CONCURRENCY"),
-    round(7, 180_000, "BRIGHTDATA_RETRY7_DELAY_MIN_MS", "BRIGHTDATA_RETRY7_DELAY_MAX_MS", "BRIGHTDATA_RETRY7_CONCURRENCY"),
-  ];
+  const delayMin = brightDataRetryDelayMinMs();
+  const delayMax = brightDataRetryDelayMaxMs();
+  // Enough slots that a 10-minute deadline is the real stop, not round count.
+  const slots = envInt("BRIGHTDATA_RETRY_MAX_ROUNDS", 40, { min: 1, max: 120 });
+  return Array.from({ length: slots }, (_, i) => ({
+    round: i + 1,
+    delayMinMs: delayMin,
+    delayMaxMs: delayMax,
+    concurrency: envInt("BRIGHTDATA_RETRY_CONCURRENCY", burst, { min: 1, max: 250 }),
+  }));
 }
 
 /** Escalating open durations: 30s → 60s → 120s → 240s → max. */

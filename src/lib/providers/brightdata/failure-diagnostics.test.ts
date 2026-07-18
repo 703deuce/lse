@@ -5,6 +5,7 @@ import {
   detectBodyMarkers,
   extractBrightDataErrorHeaders,
   humanMessageForCategory,
+  isNoReadyCookies,
   redactProviderText,
 } from "@/lib/providers/brightdata/failure-diagnostics";
 
@@ -110,5 +111,23 @@ describe("Bright Data failure diagnostics", () => {
       organicCount: 0,
     });
     assert.equal(d.category, "unexpected_schema");
+  });
+
+  it("treats no_ready_cookies as capacity, not a Maps miss", () => {
+    assert.equal(isNoReadyCookies("no_ready_cookies", null), true);
+    const d = classifyBrightDataMapsResponse({
+      httpStatus: 200,
+      contentType: "application/json",
+      bodyText: JSON.stringify({
+        error: "No ready cookies available",
+        code: "no_ready_cookies",
+      }),
+      latencyMs: 400,
+      zone: "serp_api1",
+      organicCount: 0,
+    });
+    assert.equal(d.category, "capacity_timeout");
+    assert.equal(d.providerErrorCode, "no_ready_cookies");
+    assert.match(humanMessageForCategory(d.category), /cookie pool|no_ready_cookies/i);
   });
 });

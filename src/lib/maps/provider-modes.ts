@@ -26,7 +26,7 @@ export const MAPS_PROVIDER_MODE_OPTIONS: MapsProviderModeOption[] = [
     label: "Bright Data (burst + wait retries)",
     shortLabel: "Bright Data",
     description:
-      "Bright Data only: burst up to ~100 cells, then unfinished retries at 10s → 20s → 1m → 1m → 3m → 2m → 3m. No ScrapingDog mix.",
+      "Bright Data only: burst up to ~100 cells, then unfinished retries every 8–15s until done or ~10 min. No ScrapingDog mix.",
   },
   {
     id: "scrapingdog",

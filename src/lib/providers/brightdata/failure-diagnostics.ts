@@ -108,6 +108,20 @@ export function topLevelSchemaKeys(parsed: unknown): string[] {
   return Object.keys(parsed as Record<string, unknown>).slice(0, 40);
 }
 
+/** Bright Data cookie-pool miss — retry, do not treat as a completed Maps lookup. */
+export function isNoReadyCookies(
+  code?: string | null,
+  message?: string | null,
+  bodyText?: string | null
+): boolean {
+  const blob = `${code ?? ""} ${message ?? ""} ${bodyText ?? ""}`.toLowerCase();
+  return (
+    blob.includes("no_ready_cookies") ||
+    blob.includes("no ready cookies") ||
+    blob.includes("noreadycookies")
+  );
+}
+
 function extractProviderError(parsed: unknown): {
   code: string | null;
   message: string | null;
@@ -170,7 +184,10 @@ export function humanMessageForCategory(
     case "html_or_wrong_zone":
       return `Bright Data zone "${extras?.zone ?? "?"}" returned HTML, not ranked Maps JSON — create a SERP API zone at https://brightdata.com/cp/zones`;
     case "capacity_timeout":
-      return extras?.detail ?? "Bright Data capacity timeout";
+      return (
+        extras?.detail ??
+        "Bright Data cookie pool / capacity not ready (no_ready_cookies) — retry, not a Maps miss"
+      );
     case "circuit_open":
       return extras?.detail ?? "brightdata circuit open";
     default:
@@ -234,6 +251,17 @@ export function classifyBrightDataMapsResponse(params: {
       (params.httpStatus === 503
         ? "Service Unavailable — Bright Data browser check failed or incomplete; retry (confirm zone is SERP API, not Web Unlocker)"
         : null);
+    // Cookie-pool / capacity misses are not real Maps searches — keep retrying.
+    if (isNoReadyCookies(code, message, trimmed)) {
+      return {
+        ...base,
+        category: "capacity_timeout",
+        schemaKeys: topLevelSchemaKeys(parsed),
+        providerErrorCode: code ?? "no_ready_cookies",
+        providerErrorMessage:
+          message ?? "no_ready_cookies — Bright Data cookie pool not ready (not a Maps miss)",
+      };
+    }
     return {
       ...base,
       category: "http_error",
@@ -293,6 +321,18 @@ export function classifyBrightDataMapsResponse(params: {
       Array.isArray((parsed as { organic?: unknown }).organic) &&
       ((parsed as { organic: unknown[] }).organic?.length ?? 0) > 0;
     if (!hasOrganic) {
+      if (isNoReadyCookies(err.code, err.message, trimmed) || isNoReadyCookies(headerCode, headerMsg)) {
+        return {
+          ...base,
+          category: "capacity_timeout",
+          schemaKeys,
+          providerErrorCode: err.code ?? headerCode ?? "no_ready_cookies",
+          providerErrorMessage:
+            err.message ??
+            headerMsg ??
+            "no_ready_cookies — Bright Data cookie pool not ready (not a Maps miss)",
+        };
+      }
       return {
         ...base,
         category: "provider_error_payload",

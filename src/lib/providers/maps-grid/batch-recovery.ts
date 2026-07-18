@@ -10,6 +10,7 @@ import {
   brightDataRecoveryDelayMaxMs,
   brightDataRecoveryDelayMinMs,
   brightDataRecoverySchedule,
+  brightDataRetryDelayMs,
   jitterMs,
   type BrightDataRecoveryRound,
 } from "@/lib/providers/maps-grid/config";
@@ -79,8 +80,9 @@ export function brightDataPrimaryConcurrency(cellCount: number): number {
   return Math.min(Math.max(cellCount, 0), brightDataHealthyConcurrency());
 }
 
-export function recoveryRoundDelayMs(round: BrightDataRecoveryRound): number {
-  return jitterMs(round.delayMinMs, round.delayMaxMs);
+export function recoveryRoundDelayMs(round?: BrightDataRecoveryRound): number {
+  if (round) return jitterMs(round.delayMinMs, round.delayMaxMs);
+  return brightDataRetryDelayMs();
 }
 
 export function recoveryRoundConcurrency(

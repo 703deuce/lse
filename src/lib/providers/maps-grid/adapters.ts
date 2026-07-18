@@ -81,9 +81,18 @@ function providerAvailable(provider: MapsProviderId): { ok: true } | { ok: false
 function categorizeCaught(err: unknown): { category: MapsFailureCategory; message: string; httpStatus?: number | null; diagnostics?: Record<string, unknown> } {
   if (err instanceof BrightDataMapsFailure) {
     let category = fromBrightDataCategory(err.category);
-    // Prefer precise HTTP status categories when available.
     const status = err.diagnostics.httpStatus;
-    if (status === 429) category = "http_429";
+    // Cookie-pool misses are capacity, not a real Maps attempt — keep as capacity_timeout.
+    const code = String(err.diagnostics.providerErrorCode ?? "").toLowerCase();
+    const msg = String(err.diagnostics.providerErrorMessage ?? err.message ?? "").toLowerCase();
+    if (
+      err.category === "capacity_timeout" ||
+      code.includes("no_ready_cookies") ||
+      msg.includes("no_ready_cookies") ||
+      msg.includes("no ready cookies")
+    ) {
+      category = "capacity_timeout";
+    } else if (status === 429) category = "http_429";
     else if (status === 502) category = "http_502";
     else if (status === 503) category = "http_503";
     else if (status === 504) category = "http_504";
