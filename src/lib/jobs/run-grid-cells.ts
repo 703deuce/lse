@@ -1203,8 +1203,8 @@ export async function runGridCellsLive(params: {
   let failedCells = remainingJobs.length;
 
   // ---- Recovery after primary ----
-  // Hybrid: burst primary already ran. Then quick couple-second Bright Data retries,
-  // then ~30s / ~45s waits — still Bright Data only (no ScrapingDog mix).
+  // Hybrid: burst primary, then unfinished-only Bright Data waits:
+  // 10s → 20s → 1m → 1m → 3m → 2m → 3m (no ScrapingDog mix).
   // Single-provider modes: one same-provider retry.
   if (remainingJobs.length > 0 && !useBrightDataRecovery) {
     console.log(
@@ -1264,21 +1264,15 @@ export async function runGridCellsLive(params: {
   if (remainingJobs.length > 0 && useBrightDataRecovery) {
     const recoveryRounds = listBrightDataRecoveryRounds();
     const deadlineMs = brightDataRecoveryDeadlineMs();
-    const finalRound = recoveryRounds[recoveryRounds.length - 1] ?? {
-      round: 4,
-      delayMinMs: 40_000,
-      delayMaxMs: 50_000,
-      concurrency: 100,
-    };
     console.log(
       `[Scan] Bright Data recovery plan: ${remainingJobs.length} unfinished · ` +
-        `quick×2 then ~30s/~45s waits · deadline=${Math.round(deadlineMs / 1000)}s · ` +
+        `10s→20s→1m→1m→3m→2m→3m · deadline=${Math.round(deadlineMs / 1000)}s · ` +
         `Bright Data only (no ScrapingDog)`
     );
 
-    let roundIndex = 0;
-    // Scheduled rounds, then keep repeating the final slow round until deadline.
-    while (remainingJobs.length > 0) {
+    // Exact scheduled rounds only — unfinished cells each time.
+    for (let roundIndex = 0; roundIndex < recoveryRounds.length; roundIndex++) {
+      if (remainingJobs.length === 0) break;
       const elapsed = performance.now() - scanWallStart;
       if (elapsed >= deadlineMs) {
         console.warn(
@@ -1288,12 +1282,7 @@ export async function runGridCellsLive(params: {
         break;
       }
 
-      const scheduled = recoveryRounds[roundIndex];
-      const round = scheduled ?? {
-        ...finalRound,
-        round: (finalRound.round ?? 3) + (roundIndex - recoveryRounds.length + 1),
-      };
-      roundIndex += 1;
+      const round = recoveryRounds[roundIndex];
 
       // Respect circuit: wait out open, then half-open probes before the round.
       let circuit = await waitWhileBrightDataCircuitOpen(sleep);
@@ -1356,10 +1345,7 @@ export async function runGridCellsLive(params: {
       }
 
       const delayMs = recoveryRoundDelayMs(round);
-      const totalRoundsLabel =
-        roundIndex <= recoveryRounds.length
-          ? String(recoveryRounds.length)
-          : `${recoveryRounds.length}+`;
+      const totalRoundsLabel = String(recoveryRounds.length);
       await scheduleCellProgress(
         params.scanBatchId,
         completedOffset,
@@ -1439,14 +1425,6 @@ export async function runGridCellsLive(params: {
         const dbIncomplete = await loadIncompleteJobsFromDb(params.scanBatchId, allJobs, depth);
         remainingJobs = mergeUnresolvedJobs(remainingJobs, dbIncomplete);
         failedCells = remainingJobs.length;
-      }
-
-      // After the scheduled rounds, continue with final-round pacing until deadline.
-      if (roundIndex >= recoveryRounds.length && remainingJobs.length > 0) {
-        console.log(
-          `[Scan] Extending Bright Data recovery (round ${round.round + 1}+) until deadline — ` +
-            `${remainingJobs.length} still unresolved`
-        );
       }
     }
 

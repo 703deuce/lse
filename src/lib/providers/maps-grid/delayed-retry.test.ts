@@ -4,6 +4,7 @@ import {
   brightDataCircuitOpenDurationMs,
   brightDataGlobalConcurrency,
   brightDataHealthyConcurrency,
+  brightDataRecoveryDeadlineMs,
   brightDataRecoverySchedule,
 } from "@/lib/providers/maps-grid/config";
 import {
@@ -16,6 +17,7 @@ describe("Bright Data burst + backoff recovery config", () => {
   const keys = [
     "BRIGHTDATA_GLOBAL_CONCURRENCY",
     "BRIGHTDATA_HEALTHY_CONCURRENCY",
+    "BRIGHTDATA_RECOVERY_DEADLINE_MS",
     "BRIGHTDATA_RETRY1_DELAY_MIN_MS",
     "BRIGHTDATA_RETRY1_DELAY_MAX_MS",
     "BRIGHTDATA_RETRY1_CONCURRENCY",
@@ -28,6 +30,15 @@ describe("Bright Data burst + backoff recovery config", () => {
     "BRIGHTDATA_RETRY4_DELAY_MIN_MS",
     "BRIGHTDATA_RETRY4_DELAY_MAX_MS",
     "BRIGHTDATA_RETRY4_CONCURRENCY",
+    "BRIGHTDATA_RETRY5_DELAY_MIN_MS",
+    "BRIGHTDATA_RETRY5_DELAY_MAX_MS",
+    "BRIGHTDATA_RETRY5_CONCURRENCY",
+    "BRIGHTDATA_RETRY6_DELAY_MIN_MS",
+    "BRIGHTDATA_RETRY6_DELAY_MAX_MS",
+    "BRIGHTDATA_RETRY6_CONCURRENCY",
+    "BRIGHTDATA_RETRY7_DELAY_MIN_MS",
+    "BRIGHTDATA_RETRY7_DELAY_MAX_MS",
+    "BRIGHTDATA_RETRY7_CONCURRENCY",
     "BRIGHTDATA_CIRCUIT_OPEN_BASE_MS",
     "BRIGHTDATA_CIRCUIT_OPEN_MAX_MS",
   ];
@@ -52,24 +63,25 @@ describe("Bright Data burst + backoff recovery config", () => {
     assert.equal(brightDataHealthyConcurrency(), 100);
   });
 
-  it("recovery: quick×2 then ~30s then ~45s, full burst on remaining", () => {
+  it("recovery waits: 10s → 20s → 1m → 1m → 3m → 2m → 3m on unfinished only", () => {
     const schedule = brightDataRecoverySchedule();
-    assert.equal(schedule.length, 4);
+    assert.equal(schedule.length, 7);
     assert.deepEqual(
       schedule.map((r) => [r.delayMinMs, r.delayMaxMs, r.concurrency]),
       [
-        [2_000, 5_000, 100],
-        [2_000, 5_000, 100],
-        [25_000, 35_000, 100],
-        [40_000, 50_000, 100],
+        [10_000, 10_000, 100],
+        [20_000, 20_000, 100],
+        [60_000, 60_000, 100],
+        [60_000, 60_000, 100],
+        [180_000, 180_000, 100],
+        [120_000, 120_000, 100],
+        [180_000, 180_000, 100],
       ]
     );
-    const quick = recoveryRoundDelayMs(schedule[0]);
-    assert.ok(quick >= 2_000 && quick <= 5_000);
-    const slow30 = recoveryRoundDelayMs(schedule[2]);
-    assert.ok(slow30 >= 25_000 && slow30 <= 35_000);
+    assert.equal(recoveryRoundDelayMs(schedule[0]), 10_000);
+    assert.equal(recoveryRoundDelayMs(schedule[4]), 180_000);
     assert.equal(recoveryRoundConcurrency(schedule[0], 11), 11);
-    assert.equal(recoveryRoundConcurrency(schedule[0], 120), 100);
+    assert.equal(brightDataRecoveryDeadlineMs(), 20 * 60_000);
   });
 
   it("circuit open durations escalate 30s → 60s → 120s → 240s → 300s cap", () => {

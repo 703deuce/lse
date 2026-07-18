@@ -3,9 +3,9 @@
  * All tunables live here as env-backed getters — no scattered magic numbers.
  *
  * Production Bright Data policy (defaults):
- * - Burst primary: up to 100 in-flight (same as fair-chunk / grid batch)
- * - Quick retries: ~2–5s × 2 on unfinished cells (full burst)
- * - Then slow waits: ~30s, then ~45s, still Bright Data only
+ * - Burst primary: up to 100 in-flight
+ * - Unfinished-only retries: 10s → 20s → 1m → 1m → 3m → 2m → 3m
+ * - Bright Data only (no ScrapingDog mix)
  * - Circuit: ≥30% transient failures over last 20 (min 10) → open
  */
 
@@ -134,13 +134,13 @@ export function brightDataCircuitOpenMaxMs(): number {
 }
 
 /**
- * Hard ceiling for Bright Data recovery before ScrapingDog fallback
- * (primary + backoff rounds + circuit waits).
+ * Hard ceiling for the full Bright Data recovery window
+ * (primary burst + 10s/20s/1m/1m/3m/2m/3m waits + cell work).
  */
 export function brightDataRecoveryDeadlineMs(): number {
-  return envInt("BRIGHTDATA_RECOVERY_DEADLINE_MS", 11 * 60_000, {
+  return envInt("BRIGHTDATA_RECOVERY_DEADLINE_MS", 20 * 60_000, {
     min: 60_000,
-    max: 30 * 60_000,
+    max: 45 * 60_000,
   });
 }
 
@@ -227,38 +227,31 @@ export type BrightDataRecoveryRound = {
 };
 
 /**
- * Bright Data recovery after the burst primary:
- * 1–2: quick couple-second retries (full burst on remaining)
- * 3: ~30s wait · 4: ~45s wait
- * Further rounds (until deadline) reuse round 4 pacing.
+ * Bright Data recovery after the burst primary (unfinished cells only):
+ * 10s → 20s → 1m → 1m → 3m → 2m → 3m
  */
 export function brightDataRecoverySchedule(): BrightDataRecoveryRound[] {
   const burst = 100;
+  const round = (
+    n: number,
+    delayMs: number,
+    minEnv: string,
+    maxEnv: string,
+    concEnv: string
+  ): BrightDataRecoveryRound => ({
+    round: n,
+    delayMinMs: envInt(minEnv, delayMs, { min: 0, max: 900_000 }),
+    delayMaxMs: envInt(maxEnv, delayMs, { min: 0, max: 900_000 }),
+    concurrency: envInt(concEnv, burst, { min: 1, max: 250 }),
+  });
   return [
-    {
-      round: 1,
-      delayMinMs: envInt("BRIGHTDATA_RETRY1_DELAY_MIN_MS", 2_000, { min: 0, max: 600_000 }),
-      delayMaxMs: envInt("BRIGHTDATA_RETRY1_DELAY_MAX_MS", 5_000, { min: 0, max: 600_000 }),
-      concurrency: envInt("BRIGHTDATA_RETRY1_CONCURRENCY", burst, { min: 1, max: 250 }),
-    },
-    {
-      round: 2,
-      delayMinMs: envInt("BRIGHTDATA_RETRY2_DELAY_MIN_MS", 2_000, { min: 0, max: 600_000 }),
-      delayMaxMs: envInt("BRIGHTDATA_RETRY2_DELAY_MAX_MS", 5_000, { min: 0, max: 600_000 }),
-      concurrency: envInt("BRIGHTDATA_RETRY2_CONCURRENCY", burst, { min: 1, max: 250 }),
-    },
-    {
-      round: 3,
-      delayMinMs: envInt("BRIGHTDATA_RETRY3_DELAY_MIN_MS", 25_000, { min: 0, max: 600_000 }),
-      delayMaxMs: envInt("BRIGHTDATA_RETRY3_DELAY_MAX_MS", 35_000, { min: 0, max: 600_000 }),
-      concurrency: envInt("BRIGHTDATA_RETRY3_CONCURRENCY", burst, { min: 1, max: 250 }),
-    },
-    {
-      round: 4,
-      delayMinMs: envInt("BRIGHTDATA_RETRY4_DELAY_MIN_MS", 40_000, { min: 0, max: 600_000 }),
-      delayMaxMs: envInt("BRIGHTDATA_RETRY4_DELAY_MAX_MS", 50_000, { min: 0, max: 600_000 }),
-      concurrency: envInt("BRIGHTDATA_RETRY4_CONCURRENCY", burst, { min: 1, max: 250 }),
-    },
+    round(1, 10_000, "BRIGHTDATA_RETRY1_DELAY_MIN_MS", "BRIGHTDATA_RETRY1_DELAY_MAX_MS", "BRIGHTDATA_RETRY1_CONCURRENCY"),
+    round(2, 20_000, "BRIGHTDATA_RETRY2_DELAY_MIN_MS", "BRIGHTDATA_RETRY2_DELAY_MAX_MS", "BRIGHTDATA_RETRY2_CONCURRENCY"),
+    round(3, 60_000, "BRIGHTDATA_RETRY3_DELAY_MIN_MS", "BRIGHTDATA_RETRY3_DELAY_MAX_MS", "BRIGHTDATA_RETRY3_CONCURRENCY"),
+    round(4, 60_000, "BRIGHTDATA_RETRY4_DELAY_MIN_MS", "BRIGHTDATA_RETRY4_DELAY_MAX_MS", "BRIGHTDATA_RETRY4_CONCURRENCY"),
+    round(5, 180_000, "BRIGHTDATA_RETRY5_DELAY_MIN_MS", "BRIGHTDATA_RETRY5_DELAY_MAX_MS", "BRIGHTDATA_RETRY5_CONCURRENCY"),
+    round(6, 120_000, "BRIGHTDATA_RETRY6_DELAY_MIN_MS", "BRIGHTDATA_RETRY6_DELAY_MAX_MS", "BRIGHTDATA_RETRY6_CONCURRENCY"),
+    round(7, 180_000, "BRIGHTDATA_RETRY7_DELAY_MIN_MS", "BRIGHTDATA_RETRY7_DELAY_MAX_MS", "BRIGHTDATA_RETRY7_CONCURRENCY"),
   ];
 }
 
