@@ -26,6 +26,7 @@ function isProtectedPath(pathname: string): boolean {
   return (
     pathname.startsWith("/businesses") ||
     pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/workspace") ||
     pathname.startsWith("/prospects") ||
     pathname.startsWith("/clients") ||
     pathname.startsWith("/campaigns") ||

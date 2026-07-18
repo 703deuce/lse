@@ -1,16 +1,23 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Award,
   Bot,
+  ClipboardList,
+  FileSearch,
   FileText,
   FolderKanban,
   Grid3X3,
   KeyRound,
   LayoutDashboard,
-  Palette,
-  Settings,
+  Library,
+  Link2,
+  MessageSquareText,
+  Settings2,
+  Star,
+  TrendingUp,
   Users,
+  Webhook,
 } from "lucide-react";
-import { FREELANCER_MAPS_PRODUCT } from "@/lib/product/freelancer-maps";
 
 export type SidebarNavChild = {
   href: string;
@@ -39,8 +46,8 @@ export type SidebarReputationNav = {
 };
 
 /**
- * Freelancer Maps product — per-location sidebar.
- * Reputation / review-request tools stay out of the primary nav.
+ * Full per-location sidebar — Maps + research + reviews in one menu.
+ * Freelancer CRM (prospects/clients) stays on the org strip; modules stay here.
  */
 export function buildBusinessSidebarNav(businessId: string): {
   main: SidebarNavSection;
@@ -52,41 +59,48 @@ export function buildBusinessSidebarNav(businessId: string): {
 
   return {
     main: {
-      title: "Work",
+      title: "Main",
       items: [
         { href: `${base}/overview`, label: "Dashboard", icon: LayoutDashboard },
-        { href: `${base}/scans`, label: "Scans", icon: Grid3X3, isRankGrid: true },
-        { href: `${base}/reports`, label: "Reports", icon: FileText },
-        { href: `${base}/ai-visibility`, label: "AI Visibility", icon: Bot },
+        { href: `${base}/scans`, label: "Maps Scans", icon: Grid3X3, isRankGrid: true },
+        { href: `${base}/campaigns`, label: "Maps Campaigns", icon: FolderKanban },
+        { href: `${base}/growth-audit`, label: "Growth Audit", icon: FileSearch },
       ],
     },
-    // Empty when Maps product hides reputation — sidebar skips rendering when items empty.
-    reputation: FREELANCER_MAPS_PRODUCT.hideReputationNav
-      ? { title: "Reputation", items: [], subLinks: [] }
-      : {
-          title: "Reviews",
-          items: [
-            // Kept for optional re-enable; not shown while hideReputationNav is true.
-          ],
-          subLinks: [],
-        },
-    research: {
-      title: "Setup",
+    reputation: {
+      title: "Reviews",
       items: [
-        { href: `${base}/campaigns`, label: "Campaigns", icon: FolderKanban },
+        { href: `${base}/reviews`, label: "Review Feed", icon: Star },
+        { href: `${base}/review-momentum`, label: "Review Momentum", icon: TrendingUp },
+        {
+          href: `${base}/review-requests`,
+          label: "Review Requests",
+          icon: MessageSquareText,
+          children: [{ href: `${base}/review-campaigns`, label: "Campaigns" }],
+        },
+        { href: `${base}/contacts`, label: "Contacts", icon: Users },
+        { href: `${base}/review-templates`, label: "Templates", icon: FileText },
+        { href: `${base}/integrations`, label: "Review Triggers", icon: Webhook },
+        { href: `${base}/review-settings`, label: "Settings", icon: Settings2 },
+      ],
+      subLinks: [],
+    },
+    research: {
+      title: "Research",
+      items: [
+        { href: `${base}/backlink-gap`, label: "Backlink Gap", icon: Link2 },
+        { href: `${base}/trust`, label: "Local Trust", icon: Award },
+        { href: `${base}/citations`, label: "Citations", icon: Library },
         { href: `${base}/keywords`, label: "Keywords", icon: KeyRound },
+        { href: `${base}/ai-visibility`, label: "AI Visibility", icon: Bot },
         { href: `${base}/competitors`, label: "Competitors", icon: Users },
-        { href: `${base}/settings`, label: "Location settings", icon: Settings },
       ],
     },
     reports: {
-      title: "Branding",
+      title: "Reports",
       items: [
-        {
-          href: `/branding`,
-          label: "Report branding",
-          icon: Palette,
-        },
+        { href: `${base}/tasks`, label: "Growth Plan", icon: ClipboardList },
+        { href: `${base}/reports`, label: "Reports", icon: FileText },
       ],
     },
   };

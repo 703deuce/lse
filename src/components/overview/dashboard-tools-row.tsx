@@ -1,14 +1,17 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
+  Award,
   Bot,
+  FileSearch,
   FileText,
   FolderKanban,
-  Grid3X3,
   KeyRound,
-  Palette,
+  Link2,
+  MessageSquarePlus,
   Settings,
-  Users,
+  Star,
+  TrendingUp,
 } from "lucide-react";
 import {
   dashboardCard,
@@ -23,19 +26,25 @@ type ToolItem = {
   iconClass: string;
 };
 
-/** Maps-product tools only — reputation workflows stay out. */
+/** Full tools strip — Maps + research + reviews (nothing removed for positioning). */
 export function DashboardToolsRow({ businessId }: { businessId: string }) {
   const tools: ToolItem[] = [
     {
-      href: `/businesses/${businessId}/scans`,
-      label: "Scans",
-      icon: Grid3X3,
+      href: `/businesses/${businessId}/growth-audit`,
+      label: "Growth Audit",
+      icon: FileSearch,
       iconClass: "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100",
     },
     {
       href: `/businesses/${businessId}/campaigns`,
-      label: "Campaigns",
+      label: "Maps Campaigns",
       icon: FolderKanban,
+      iconClass: "bg-teal-50 text-teal-600 ring-1 ring-teal-100",
+    },
+    {
+      href: `/businesses/${businessId}/backlink-gap`,
+      label: "Backlink Gap",
+      icon: Link2,
       iconClass: "bg-sky-50 text-sky-600 ring-1 ring-sky-100",
     },
     {
@@ -45,27 +54,39 @@ export function DashboardToolsRow({ businessId }: { businessId: string }) {
       iconClass: "bg-violet-50 text-violet-600 ring-1 ring-violet-100",
     },
     {
-      href: `/businesses/${businessId}/ai-visibility`,
-      label: "AI Visibility",
-      icon: Bot,
+      href: `/businesses/${businessId}/trust`,
+      label: "Local Trust",
+      icon: Award,
+      iconClass: "bg-orange-50 text-orange-600 ring-1 ring-orange-100",
+    },
+    {
+      href: `/businesses/${businessId}/reviews`,
+      label: "Reviews",
+      icon: Star,
+      iconClass: "bg-amber-50 text-amber-600 ring-1 ring-amber-100",
+    },
+    {
+      href: `/businesses/${businessId}/review-momentum`,
+      label: "Review Momentum",
+      icon: TrendingUp,
+      iconClass: "bg-rose-50 text-rose-600 ring-1 ring-rose-100",
+    },
+    {
+      href: `/businesses/${businessId}/review-requests`,
+      label: "Review Requests",
+      icon: MessageSquarePlus,
       iconClass: "bg-amber-50 text-amber-700 ring-1 ring-amber-100",
     },
     {
-      href: `/businesses/${businessId}/competitors`,
-      label: "Competitors",
-      icon: Users,
-      iconClass: "bg-orange-50 text-orange-600 ring-1 ring-orange-100",
+      href: `/businesses/${businessId}/ai-visibility`,
+      label: "AI Visibility",
+      icon: Bot,
+      iconClass: "bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100",
     },
     {
       href: `/businesses/${businessId}/reports`,
       label: "Reports",
       icon: FileText,
-      iconClass: "bg-zinc-100 text-zinc-600 ring-1 ring-zinc-200",
-    },
-    {
-      href: `/branding`,
-      label: "Branding",
-      icon: Palette,
       iconClass: "bg-zinc-100 text-zinc-600 ring-1 ring-zinc-200",
     },
     {
@@ -79,7 +100,7 @@ export function DashboardToolsRow({ businessId }: { businessId: string }) {
   return (
     <section className={cn(dashboardCard, "px-3.5 py-3")}>
       <h2 className={cn(dashboardSectionLabel, "mb-2.5")}>Tools</h2>
-      <div className="grid grid-cols-3 gap-1 sm:grid-cols-4 md:grid-cols-8">
+      <div className="grid grid-cols-3 gap-1 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-11">
         {tools.map((tool) => (
           <Link
             key={tool.label}

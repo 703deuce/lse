@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useState, type ComponentType } from "react";
 import {
   Building2,
+  Briefcase,
   FileText,
   LayoutDashboard,
   MapPin,
@@ -24,8 +25,10 @@ import {
   type SidebarNavItem,
 } from "@/components/dashboard/dashboard-nav";
 
-const navItems = [
+/** Org-level strip — always available; location modules add below when a client is open. */
+const orgNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/workspace", label: "Workspace", icon: Briefcase },
   { href: "/prospects", label: "Prospects", icon: Users },
   { href: "/clients", label: "Clients", icon: Building2 },
   { href: "/scans", label: "Scans", icon: Radar },
@@ -34,6 +37,40 @@ const navItems = [
   { href: "/branding", label: "Branding", icon: Palette },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
+
+/** When inside a location, keep CRM/workspace reachable without swapping menus away. */
+const orgStripWhenInBusiness = [
+  { href: "/workspace", label: "Workspace", icon: Briefcase },
+  { href: "/prospects", label: "Prospects", icon: Users },
+  { href: "/clients", label: "Clients", icon: Building2 },
+];
+
+function isOrgNavActive(pathname: string, href: string): boolean {
+  if (href === "/clients") {
+    return (
+      pathname === "/clients" ||
+      pathname.startsWith("/clients/") ||
+      pathname === "/agency/clients"
+    );
+  }
+  if (href === "/reports") {
+    return (
+      pathname === "/reports" ||
+      pathname.startsWith("/reports/") ||
+      pathname.startsWith("/agency/reports")
+    );
+  }
+  if (href === "/scans") {
+    return pathname === "/scans" || pathname.startsWith("/scans/");
+  }
+  if (href === "/workspace") {
+    return pathname === "/workspace" || pathname.startsWith("/workspace?");
+  }
+  if (href === "/dashboard") {
+    return pathname === "/dashboard";
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 function SidebarNavItemRow({
   href,
@@ -236,101 +273,109 @@ export function DashboardSidebarPanel({
       </div>
       <nav className="flex-1 space-y-0.5 overflow-y-auto overscroll-contain p-2.5" suppressHydrationWarning>
         {!businessId &&
-          navItems.map((item) => (
+          orgNavItems.map((item) => (
             <SidebarNavItemRow
               key={item.href}
               href={item.href}
               label={item.label}
               icon={item.icon}
-              active={
-                item.href === "/clients"
-                  ? pathname === "/clients" ||
-                    pathname.startsWith("/clients/") ||
-                    pathname === "/agency/clients"
-                  : item.href === "/reports"
-                    ? pathname === "/reports" ||
-                      pathname.startsWith("/reports/") ||
-                      pathname.startsWith("/agency/reports")
-                    : item.href === "/scans"
-                      ? pathname === "/scans" || pathname.startsWith("/scans/")
-                      : pathname === item.href || pathname.startsWith(`${item.href}/`)
-              }
+              active={isOrgNavActive(pathname, item.href)}
               staticLinks={staticLinks}
               onNavigate={onNavigate}
             />
           ))}
         {nav && businessId && (
-          <div className="mt-3 border-t border-sidebar-border pt-3">
-            <NavSection
-              title={nav.main.title}
-              items={nav.main.items}
-              businessId={businessId}
-              pathname={pathname}
-              staticLinks={staticLinks}
-              onNavigate={onNavigate}
-            />
-            {nav.reputation.items.length > 0 ? (
-              <div className="mb-2">
-                <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                  {nav.reputation.title}
-                </p>
-                <div className="space-y-0.5">
-                  {nav.reputation.items.map((item) => (
-                    <div key={item.href}>
-                      <SidebarNavItemRow
-                        href={item.href}
-                        label={item.label}
-                        icon={item.icon}
-                        active={isSidebarHrefActive(pathname, item.href, businessId, {
-                          exact: Boolean(item.children?.length),
-                        })}
-                        staticLinks={staticLinks}
-                        onNavigate={onNavigate}
-                      />
-                      {item.children?.map((child) => (
-                        <SidebarNavSubItemRow
-                          key={child.href}
-                          href={child.href}
-                          label={child.label}
-                          active={isSidebarHrefActive(pathname, child.href, businessId)}
-                          dot
+          <>
+            <div className="mb-2">
+              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                Account
+              </p>
+              <div className="space-y-0.5">
+                {orgStripWhenInBusiness.map((item) => (
+                  <SidebarNavItemRow
+                    key={item.href}
+                    href={item.href}
+                    label={item.label}
+                    icon={item.icon}
+                    active={isOrgNavActive(pathname, item.href)}
+                    staticLinks={staticLinks}
+                    onNavigate={onNavigate}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="border-t border-sidebar-border pt-3">
+              <NavSection
+                title={nav.main.title}
+                items={nav.main.items}
+                businessId={businessId}
+                pathname={pathname}
+                staticLinks={staticLinks}
+                onNavigate={onNavigate}
+              />
+              {nav.reputation.items.length > 0 ? (
+                <div className="mb-2">
+                  <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    {nav.reputation.title}
+                  </p>
+                  <div className="space-y-0.5">
+                    {nav.reputation.items.map((item) => (
+                      <div key={item.href}>
+                        <SidebarNavItemRow
+                          href={item.href}
+                          label={item.label}
+                          icon={item.icon}
+                          active={isSidebarHrefActive(pathname, item.href, businessId, {
+                            exact: Boolean(item.children?.length),
+                          })}
                           staticLinks={staticLinks}
                           onNavigate={onNavigate}
                         />
-                      ))}
-                    </div>
-                  ))}
-                  {nav.reputation.subLinks.map((item) => (
-                    <SidebarNavSubItemRow
-                      key={item.href}
-                      href={item.href}
-                      label={item.label}
-                      active={isSidebarHrefActive(pathname, item.href, businessId)}
-                      dot
-                      staticLinks={staticLinks}
-                      onNavigate={onNavigate}
-                    />
-                  ))}
+                        {item.children?.map((child) => (
+                          <SidebarNavSubItemRow
+                            key={child.href}
+                            href={child.href}
+                            label={child.label}
+                            active={isSidebarHrefActive(pathname, child.href, businessId)}
+                            dot
+                            staticLinks={staticLinks}
+                            onNavigate={onNavigate}
+                          />
+                        ))}
+                      </div>
+                    ))}
+                    {nav.reputation.subLinks.map((item) => (
+                      <SidebarNavSubItemRow
+                        key={item.href}
+                        href={item.href}
+                        label={item.label}
+                        active={isSidebarHrefActive(pathname, item.href, businessId)}
+                        dot
+                        staticLinks={staticLinks}
+                        onNavigate={onNavigate}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ) : null}
-            <NavSection
-              title={nav.research.title}
-              items={nav.research.items}
-              businessId={businessId}
-              pathname={pathname}
-              staticLinks={staticLinks}
-              onNavigate={onNavigate}
-            />
-            <NavSection
-              title={nav.reports.title}
-              items={nav.reports.items}
-              businessId={businessId}
-              pathname={pathname}
-              staticLinks={staticLinks}
-              onNavigate={onNavigate}
-            />
-          </div>
+              ) : null}
+              <NavSection
+                title={nav.research.title}
+                items={nav.research.items}
+                businessId={businessId}
+                pathname={pathname}
+                staticLinks={staticLinks}
+                onNavigate={onNavigate}
+              />
+              <NavSection
+                title={nav.reports.title}
+                items={nav.reports.items}
+                businessId={businessId}
+                pathname={pathname}
+                staticLinks={staticLinks}
+                onNavigate={onNavigate}
+              />
+            </div>
+          </>
         )}
       </nav>
       {businessId && showFooter && !staticLinks && (
