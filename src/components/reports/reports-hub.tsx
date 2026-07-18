@@ -29,7 +29,6 @@ import type { ReportType } from "@/lib/reporting/types";
 import { ScanExportMenu } from "@/components/reports/scan-export-menu";
 import { useActiveJobStatus } from "@/components/jobs/use-active-job-status";
 import { isTerminalJobStatus } from "@/lib/jobs/active-job-status";
-import { FREELANCER_MAPS_PRODUCT } from "@/lib/product/freelancer-maps";
 
 type ScanOption = {
   id: string;
