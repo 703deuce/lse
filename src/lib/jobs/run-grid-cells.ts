@@ -28,7 +28,6 @@ import {
   brightDataRecoveryDeadlineMs,
 } from "@/lib/providers/maps-grid/config";
 import {
-  brightDataPrimaryConcurrency,
   isolatedRetryConcurrency,
   isolatedRetryDelayMs,
   listBrightDataRecoveryRounds,
@@ -1175,16 +1174,13 @@ export async function runGridCellsLive(params: {
         : providerMode === "dataforseo"
           ? "fallback_dataforseo"
           : "scanning_brightdata";
-    const primaryConcurrency =
-      providerMode === "hybrid"
-        ? brightDataPrimaryConcurrency(chunk.length)
-        : mapsGridConcurrency(chunk.length);
+    // Burst primary — up to 100 cells in parallel (global semaphore may still pace).
     const pass = await runJobsWithConcurrency(chunk, {
       scanBatchId: params.scanBatchId,
       depth,
       timeoutMs,
       maxAttempts: 1,
-      concurrency: primaryConcurrency,
+      concurrency: mapsGridConcurrency(chunk.length),
       totalCells,
       passLabel,
       providers: primaryProviders,
@@ -1207,9 +1203,9 @@ export async function runGridCellsLive(params: {
   let failedCells = remainingJobs.length;
 
   // ---- Recovery after primary ----
-  // Hybrid: Bright Data only — backoff rounds + circuit breaker + extra waits until
-  // deadline. Never switch to ScrapingDog/DataForSEO (rank parity). Single-provider
-  // modes: one same-provider retry.
+  // Hybrid: burst primary already ran. Then quick couple-second Bright Data retries,
+  // then ~30s / ~45s waits — still Bright Data only (no ScrapingDog mix).
+  // Single-provider modes: one same-provider retry.
   if (remainingJobs.length > 0 && !useBrightDataRecovery) {
     console.log(
       `[Scan] ${providerMode} retry for ${remainingJobs.length} cells (same provider, no Bright Data)`
@@ -1269,14 +1265,14 @@ export async function runGridCellsLive(params: {
     const recoveryRounds = listBrightDataRecoveryRounds();
     const deadlineMs = brightDataRecoveryDeadlineMs();
     const finalRound = recoveryRounds[recoveryRounds.length - 1] ?? {
-      round: 3,
-      delayMinMs: 120_000,
-      delayMaxMs: 210_000,
-      concurrency: 2,
+      round: 4,
+      delayMinMs: 40_000,
+      delayMaxMs: 50_000,
+      concurrency: 100,
     };
     console.log(
       `[Scan] Bright Data recovery plan: ${remainingJobs.length} unfinished · ` +
-        `${recoveryRounds.length} backoff rounds · deadline=${Math.round(deadlineMs / 1000)}s · ` +
+        `quick×2 then ~30s/~45s waits · deadline=${Math.round(deadlineMs / 1000)}s · ` +
         `Bright Data only (no ScrapingDog)`
     );
 

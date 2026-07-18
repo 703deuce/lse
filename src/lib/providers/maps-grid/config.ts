@@ -3,10 +3,10 @@
  * All tunables live here as env-backed getters — no scattered magic numbers.
  *
  * Production Bright Data policy (defaults):
- * - Global concurrency 12
- * - Recovery: 20–35s@5 → 60–100s@3 → 120–210s@1–2
+ * - Burst primary: up to 100 in-flight (same as fair-chunk / grid batch)
+ * - Quick retries: ~2–5s × 2 on unfinished cells (full burst)
+ * - Then slow waits: ~30s, then ~45s, still Bright Data only
  * - Circuit: ≥30% transient failures over last 20 (min 10) → open
- * - ScrapingDog only after Bright Data recovery window
  */
 
 function envInt(name: string, fallback: number, opts?: { min?: number; max?: number }): number {
@@ -23,12 +23,18 @@ function envBool(name: string, fallback: boolean): boolean {
   return /^(1|true|yes|on)$/i.test(raw.trim());
 }
 
-/** Bright Data global in-flight concurrency for Maps cells (across workers). */
+/**
+ * Bright Data global in-flight concurrency for Maps cells (across workers).
+ * Default 100 matches the historical fair-chunk / grid burst — not the cautious 12.
+ */
 export function brightDataGlobalConcurrency(): number {
-  return envInt("BRIGHTDATA_GLOBAL_CONCURRENCY", 12, { min: 1, max: 250 });
+  return envInt("BRIGHTDATA_GLOBAL_CONCURRENCY", 100, { min: 1, max: 250 });
 }
 
-/** Per-scan healthy concurrency for the initial Bright Data pass. */
+/**
+ * Optional lower cap for adaptive mid-scan throttle (circuit recovery ramps).
+ * Primary pass uses mapsGridConcurrency (up to 100), not this.
+ */
 export function brightDataHealthyConcurrency(): number {
   return envInt("BRIGHTDATA_HEALTHY_CONCURRENCY", brightDataGlobalConcurrency(), {
     min: 1,
@@ -221,28 +227,37 @@ export type BrightDataRecoveryRound = {
 };
 
 /**
- * Exponential-ish Bright Data recovery schedule with jitter ranges.
- * Round 1: 20–35s @5 · Round 2: 60–100s @3 · Round 3: 120–210s @2
+ * Bright Data recovery after the burst primary:
+ * 1–2: quick couple-second retries (full burst on remaining)
+ * 3: ~30s wait · 4: ~45s wait
+ * Further rounds (until deadline) reuse round 4 pacing.
  */
 export function brightDataRecoverySchedule(): BrightDataRecoveryRound[] {
+  const burst = 100;
   return [
     {
       round: 1,
-      delayMinMs: envInt("BRIGHTDATA_RETRY1_DELAY_MIN_MS", 20_000, { min: 0, max: 600_000 }),
-      delayMaxMs: envInt("BRIGHTDATA_RETRY1_DELAY_MAX_MS", 35_000, { min: 0, max: 600_000 }),
-      concurrency: envInt("BRIGHTDATA_RETRY1_CONCURRENCY", 5, { min: 1, max: 50 }),
+      delayMinMs: envInt("BRIGHTDATA_RETRY1_DELAY_MIN_MS", 2_000, { min: 0, max: 600_000 }),
+      delayMaxMs: envInt("BRIGHTDATA_RETRY1_DELAY_MAX_MS", 5_000, { min: 0, max: 600_000 }),
+      concurrency: envInt("BRIGHTDATA_RETRY1_CONCURRENCY", burst, { min: 1, max: 250 }),
     },
     {
       round: 2,
-      delayMinMs: envInt("BRIGHTDATA_RETRY2_DELAY_MIN_MS", 60_000, { min: 0, max: 600_000 }),
-      delayMaxMs: envInt("BRIGHTDATA_RETRY2_DELAY_MAX_MS", 100_000, { min: 0, max: 600_000 }),
-      concurrency: envInt("BRIGHTDATA_RETRY2_CONCURRENCY", 3, { min: 1, max: 50 }),
+      delayMinMs: envInt("BRIGHTDATA_RETRY2_DELAY_MIN_MS", 2_000, { min: 0, max: 600_000 }),
+      delayMaxMs: envInt("BRIGHTDATA_RETRY2_DELAY_MAX_MS", 5_000, { min: 0, max: 600_000 }),
+      concurrency: envInt("BRIGHTDATA_RETRY2_CONCURRENCY", burst, { min: 1, max: 250 }),
     },
     {
       round: 3,
-      delayMinMs: envInt("BRIGHTDATA_RETRY3_DELAY_MIN_MS", 120_000, { min: 0, max: 600_000 }),
-      delayMaxMs: envInt("BRIGHTDATA_RETRY3_DELAY_MAX_MS", 210_000, { min: 0, max: 600_000 }),
-      concurrency: envInt("BRIGHTDATA_RETRY3_CONCURRENCY", 2, { min: 1, max: 50 }),
+      delayMinMs: envInt("BRIGHTDATA_RETRY3_DELAY_MIN_MS", 25_000, { min: 0, max: 600_000 }),
+      delayMaxMs: envInt("BRIGHTDATA_RETRY3_DELAY_MAX_MS", 35_000, { min: 0, max: 600_000 }),
+      concurrency: envInt("BRIGHTDATA_RETRY3_CONCURRENCY", burst, { min: 1, max: 250 }),
+    },
+    {
+      round: 4,
+      delayMinMs: envInt("BRIGHTDATA_RETRY4_DELAY_MIN_MS", 40_000, { min: 0, max: 600_000 }),
+      delayMaxMs: envInt("BRIGHTDATA_RETRY4_DELAY_MAX_MS", 50_000, { min: 0, max: 600_000 }),
+      concurrency: envInt("BRIGHTDATA_RETRY4_CONCURRENCY", burst, { min: 1, max: 250 }),
     },
   ];
 }

@@ -1,7 +1,7 @@
 /**
  * Maps grid provider modes for A/B testing which stack ranks best.
  *
- * - hybrid: Bright Data only — controlled concurrency, backoff retries, circuit breaker
+ * - hybrid: Bright Data burst primary + quick retries + slow waits (no provider switch)
  * - scrapingdog: every cell via ScrapingDog only (A/B)
  * - dataforseo: every cell via DataForSEO only (A/B; device=mobile|desktop + os)
  */
@@ -23,10 +23,10 @@ export type MapsProviderModeOption = {
 export const MAPS_PROVIDER_MODE_OPTIONS: MapsProviderModeOption[] = [
   {
     id: "hybrid",
-    label: "Bright Data (backoff + circuit)",
+    label: "Bright Data (burst + wait retries)",
     shortLabel: "Bright Data",
     description:
-      "Bright Data only: concurrency 12, exponential backoff on unfinished cells, circuit breaker when failure rates spike. No ScrapingDog/DataForSEO mix — waits for Bright Data.",
+      "Bright Data only: burst up to ~100 cells, quick couple-second retries on failures, then ~30s/~45s waits. Circuit breaker when failure rates spike. No ScrapingDog mix.",
   },
   {
     id: "scrapingdog",
