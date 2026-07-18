@@ -116,6 +116,9 @@ export async function processDueMapsCampaigns(limit = 10): Promise<number> {
           confidence_summary: {
             scheduled: true,
             mapsCampaignId: campaign.id,
+            // process-scan filters keywords via keyword_ids (not keywordId).
+            keyword_ids: [kw.id],
+            keyword_label: kw.keyword,
             keywordId: kw.id,
             keyword: kw.keyword,
           },

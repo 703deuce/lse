@@ -70,7 +70,13 @@ export async function POST(request: Request) {
       .eq("email", email)
       .maybeSingle();
     if (!profile?.id) {
-      return NextResponse.json({ ok: true, pending: true });
+      return NextResponse.json(
+        {
+          error:
+            "That email has not signed up yet. Ask them to create an account first, then invite again.",
+        },
+        { status: 404 }
+      );
     }
 
     const { error } = await supabase.from("organization_members").upsert(

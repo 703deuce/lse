@@ -19,6 +19,7 @@ export async function POST(request: Request) {
     const auth = await requireOrganizationPermission("report.share", access.organizationId);
     const supabase = createServiceClient();
 
+    // Keep HTML + metadata for audit; only kill public access.
     const { data, error } = await supabase
       .from("reports")
       .update({
@@ -28,9 +29,7 @@ export async function POST(request: Request) {
         share_expires_at: new Date().toISOString(),
         share_view_count: 0,
         share_last_viewed_at: null,
-        html_content: null,
         publish_status: "archived",
-        metadata_json: {},
       })
       .eq("id", reportId)
       .eq("business_id", businessId)

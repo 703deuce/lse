@@ -85,6 +85,12 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    if (reportType === "maps_campaign" && !data.campaignId) {
+      return NextResponse.json(
+        { error: "campaignId is required for Maps campaign reports", requestId },
+        { status: 400 }
+      );
+    }
 
     const format = data.format ?? "share";
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
 import { createServiceClient } from "@/lib/db/client";
 import { assertWithinLimit, PlanLimitError } from "@/lib/plans";
 import { trackProductEvent } from "@/lib/analytics/product-events";
@@ -15,6 +16,7 @@ export async function POST(
   try {
     const { businessId } = await params;
     const auth = await requireBusinessAccess(businessId);
+    await requireOrganizationPermission("business.update", auth.organizationId);
     const supabase = createServiceClient();
 
     const { data: business } = await supabase

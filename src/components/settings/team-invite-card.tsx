@@ -60,13 +60,7 @@ export function TeamInviteCard() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Invite failed");
-      if (json.pending) {
-        setMessage(
-          "Invite recorded. They’ll appear once they sign in with that email."
-        );
-      } else {
-        setMessage(`Added as ${json.role}.`);
-      }
+      setMessage(`Added as ${json.role}.`);
       setEmail("");
       await load();
     } catch (e) {

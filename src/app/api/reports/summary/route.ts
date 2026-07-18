@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
 import { createServiceClient } from "@/lib/db/client";
 import { httpErrorFromException } from "@/lib/security/http-errors";
+import { assertRateLimit } from "@/lib/security/rate-limit";
 import {
   generateExecutiveSummary,
   SUMMARY_TONES,
   type SummaryTone,
 } from "@/lib/reporting/ai-executive-summary";
+import { generateTypedReport } from "@/lib/reporting/generate-report";
 import { trackProductEvent } from "@/lib/analytics/product-events";
+import type { ReportType } from "@/lib/reporting/types";
 
 const schema = z.object({
   businessId: z.string().uuid(),
@@ -54,6 +58,20 @@ export async function POST(request: Request) {
     }
     const p = parsed.data;
     const auth = await requireBusinessAccess(p.businessId);
+    await requireOrganizationPermission("report.create", auth.organizationId);
+
+    const rate = await assertRateLimit({
+      key: `report-summary:${auth.organizationId}`,
+      maxPerWindow: 30,
+      windowMs: 60_000,
+    });
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: "Too many summary requests. Try again shortly." },
+        { status: 429 }
+      );
+    }
+
     const supabase = createServiceClient();
 
     const { data: business } = await supabase
@@ -86,12 +104,17 @@ export async function POST(request: Request) {
     if (p.save && p.reportId) {
       const { data: report } = await supabase
         .from("reports")
-        .select("metadata_json")
+        .select("id, metadata_json, scan_batch_id, share_token")
         .eq("id", p.reportId)
         .eq("business_id", p.businessId)
         .maybeSingle();
+      if (!report) {
+        return NextResponse.json({ error: "Report not found" }, { status: 404 });
+      }
+
+      const prevMeta = (report.metadata_json as Record<string, unknown>) ?? {};
       const meta = {
-        ...((report?.metadata_json as Record<string, unknown>) ?? {}),
+        ...prevMeta,
         executiveSummary: summary,
         summaryTone: p.tone,
         summaryApproved: true,
@@ -101,13 +124,38 @@ export async function POST(request: Request) {
         .update({ metadata_json: meta })
         .eq("id", p.reportId)
         .eq("business_id", p.businessId);
-    }
 
-    trackProductEvent("report_draft_created", {
-      organizationId: auth.organizationId,
-      businessId: p.businessId,
-      reportId: p.reportId,
-    });
+      // Rebuild HTML so share links show the new summary (bypass stale reuse).
+      const reportType = (prevMeta.reportType as ReportType | undefined) ?? "single_scan";
+      const campaignId =
+        (prevMeta.campaignId as string | null | undefined) ??
+        ((prevMeta.payload as { parameters?: { campaignId?: string } } | undefined)
+          ?.parameters?.campaignId ?? null);
+      try {
+        await generateTypedReport({
+          businessId: p.businessId,
+          scanBatchId: (report.scan_batch_id as string | null) ?? undefined,
+          reportType,
+          campaignId,
+          reportId: p.reportId,
+          shareToken: (report.share_token as string | null) ?? undefined,
+          identityKey: (prevMeta.identityKey as string | undefined) ?? undefined,
+          executiveSummary: summary,
+          sections:
+            (prevMeta.sections as Partial<Record<string, boolean>> | undefined) ??
+            null,
+          persist: true,
+        });
+      } catch {
+        // Metadata is saved even if rebuild fails (e.g. missing scan for old row).
+      }
+
+      trackProductEvent("report_draft_created", {
+        organizationId: auth.organizationId,
+        businessId: p.businessId,
+        reportId: p.reportId,
+      });
+    }
 
     return NextResponse.json({ summary, source, tone: p.tone });
   } catch (err) {

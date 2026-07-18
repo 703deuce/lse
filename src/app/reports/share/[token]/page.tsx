@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/db/client";
+import { createClient as createUserClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { hashShareToken } from "@/lib/reporting/share-token";
@@ -179,7 +180,7 @@ export default async function ShareReportPage({
     );
   }
 
-  // Count successful unlocked views only.
+  // Count client views only — workspace members previewing their own link do not increment.
   void (async () => {
     try {
       const { data: biz } = await supabase
@@ -187,18 +188,38 @@ export default async function ShareReportPage({
         .select("organization_id")
         .eq("id", report.business_id)
         .maybeSingle();
-      await supabase
-        .from("reports")
-        .update({
-          share_view_count: (report.share_view_count ?? 0) + 1,
-          share_last_viewed_at: new Date().toISOString(),
-        })
-        .eq("id", report.id);
-      trackProductEvent("shared_report_viewed", {
-        organizationId: biz?.organization_id ?? undefined,
-        businessId: report.business_id as string,
-        reportId: report.id as string,
-      });
+      let skipCount = false;
+      try {
+        const userSb = await createUserClient();
+        const {
+          data: { user },
+        } = await userSb.auth.getUser();
+        if (user?.id && biz?.organization_id) {
+          const { data: mem } = await supabase
+            .from("organization_members")
+            .select("user_id")
+            .eq("organization_id", biz.organization_id)
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (mem) skipCount = true;
+        }
+      } catch {
+        /* anonymous share viewers have no session */
+      }
+      if (!skipCount) {
+        await supabase
+          .from("reports")
+          .update({
+            share_view_count: (report.share_view_count ?? 0) + 1,
+            share_last_viewed_at: new Date().toISOString(),
+          })
+          .eq("id", report.id);
+        trackProductEvent("shared_report_viewed", {
+          organizationId: biz?.organization_id ?? undefined,
+          businessId: report.business_id as string,
+          reportId: report.id as string,
+        });
+      }
     } catch {
       /* best-effort */
     }

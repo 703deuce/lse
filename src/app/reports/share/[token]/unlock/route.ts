@@ -28,14 +28,18 @@ export async function POST(
 
   let { data: report } = await supabase
     .from("reports")
-    .select("id, share_password_hash, share_token_hash")
+    .select(
+      "id, share_password_hash, share_token_hash, publish_status, share_expires_at"
+    )
     .eq("share_token_hash", tokenHash)
     .maybeSingle();
 
   if (!report) {
     const legacy = await supabase
       .from("reports")
-      .select("id, share_password_hash, share_token_hash")
+      .select(
+        "id, share_password_hash, share_token_hash, publish_status, share_expires_at"
+      )
       .eq("share_token", token)
       .is("share_token_hash", null)
       .maybeSingle();
@@ -44,6 +48,17 @@ export async function POST(
 
   if (!report?.share_password_hash) {
     return NextResponse.redirect(new URL(`/reports/share/${token}`, request.url));
+  }
+
+  const publishStatus = String(report.publish_status ?? "published");
+  if (publishStatus === "draft" || publishStatus === "archived") {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+  if (report.share_expires_at) {
+    const expires = new Date(report.share_expires_at as string).getTime();
+    if (Number.isFinite(expires) && expires <= Date.now()) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
   }
 
   const ok = await verifySharePassword(password, String(report.share_password_hash));

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireAuth } from "@/lib/auth/context";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
 import { createServiceClient } from "@/lib/db/client";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 
@@ -62,6 +63,7 @@ export async function POST(request: Request) {
     }
     const p = parsed.data;
     const auth = await requireBusinessAccess(p.businessId);
+    await requireOrganizationPermission("business.update", auth.organizationId);
     const supabase = createServiceClient();
 
     const { data, error } = await supabase

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
 import { createServiceClient } from "@/lib/db/client";
 
 const patchSchema = z.object({
@@ -73,7 +74,8 @@ export async function PATCH(
     if (!campaign) {
       return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
     }
-    await requireBusinessAccess(campaign.business_id);
+    const access = await requireBusinessAccess(campaign.business_id);
+    await requireOrganizationPermission("business.update", access.organizationId);
 
     const parsed = patchSchema.safeParse(await request.json());
     if (!parsed.success) {

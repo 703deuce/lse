@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireOrganizationPermission } from "@/lib/auth/permissions";
 import { createServiceClient } from "@/lib/db/client";
+import { assertWithinLimit, PlanLimitError } from "@/lib/plans";
 const prospectStatusSchema = z.enum([
   "new",
   "contacted",
@@ -61,6 +63,7 @@ export async function PATCH(
   try {
     const { businessId } = await params;
     const auth = await requireBusinessAccess(businessId);
+    await requireOrganizationPermission("business.update", auth.organizationId);
     const body = await request.json();
     const parsed = patchSchema.safeParse(body);
     if (!parsed.success) {
@@ -86,16 +89,13 @@ export async function PATCH(
     if (p.archive === true) {
       patch.archived_at = new Date().toISOString();
       patch.is_tracked = false;
-      if (p.accountType === undefined) {
-        // keep account_type; mark prospect pipeline archived when prospect
-      }
     }
     if (p.restore === true) {
       patch.archived_at = null;
       // Restoring a client re-opens the tracked slot; prospects stay untracked audits.
       const { data: current } = await supabase
         .from("businesses")
-        .select("account_type, is_tracked")
+        .select("account_type, is_tracked, archived_at")
         .eq("id", businessId)
         .eq("organization_id", auth.organizationId)
         .maybeSingle();
@@ -104,6 +104,9 @@ export async function PATCH(
         (current?.account_type as string | null) ??
         null;
       if (nextType === "client" || (nextType == null && current?.is_tracked !== false)) {
+        if (current?.is_tracked === false || current?.archived_at) {
+          await assertWithinLimit(auth.organizationId, "max_businesses", 1);
+        }
         patch.is_tracked = true;
         if (p.accountType === undefined) patch.account_type = "client";
         if (p.prospectStatus === undefined) patch.prospect_status = "won";
@@ -130,6 +133,12 @@ export async function PATCH(
 
     return NextResponse.json({ ok: true, account: data });
   } catch (err) {
+    if (err instanceof PlanLimitError) {
+      return NextResponse.json(
+        { error: err.message, limitKey: err.limitKey },
+        { status: 402 }
+      );
+    }
     return httpErrorFromException(err, "Failed to update account");
   }
 }

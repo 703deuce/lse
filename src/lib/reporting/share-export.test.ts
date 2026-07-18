@@ -17,4 +17,15 @@ describe("shareIdentityKey", () => {
       "competitor:batch-1:a,b"
     );
   });
+
+  it("scopes maps campaign shares by campaign id", () => {
+    assert.equal(
+      shareIdentityKey({ reportType: "maps_campaign", campaignId: "camp-1" }),
+      "maps_campaign:camp-1"
+    );
+    assert.equal(
+      shareIdentityKey({ reportType: "maps_campaign" }),
+      "maps_campaign:default"
+    );
+  });
 });

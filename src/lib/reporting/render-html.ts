@@ -1,5 +1,6 @@
 import { escapeHtml } from "@/lib/reporting/metrics";
 import { rankLabel } from "@/lib/maps/grid-metrics";
+import { isSectionEnabled } from "@/lib/reporting/report-sections";
 import type {
   AnyReportPayload,
   CompetitorReportPayload,
@@ -15,6 +16,17 @@ import type {
   TrendReportPayload,
   WhiteLabelConfig,
 } from "@/lib/reporting/types";
+
+function payloadSections(payload: AnyReportPayload) {
+  return (payload as { sections?: Parameters<typeof isSectionEnabled>[0] }).sections;
+}
+
+function payloadExecutiveSummary(payload: AnyReportPayload): string | null {
+  const summary = (payload as { executiveSummary?: string | null }).executiveSummary;
+  if (!summary?.trim()) return null;
+  if (!isSectionEnabled(payloadSections(payload), "executive_summary")) return null;
+  return summary.trim();
+}
 
 function accent(wl: WhiteLabelConfig): string {
   return wl.accentColor?.trim() || "#059669";
@@ -189,6 +201,11 @@ function shell(
     wl.contactLine?.trim() || null,
     `Generated ${payload.generatedAt}`,
   ].filter(Boolean);
+  const executiveSummary = payloadExecutiveSummary(payload);
+  const summaryBlock = executiveSummary
+    ? `<section><h2>Executive summary</h2><p>${escapeHtml(executiveSummary)}</p></section>`
+    : "";
+  const footerEnabled = isSectionEnabled(payloadSections(payload), "footer");
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -268,26 +285,29 @@ function shell(
         <div>${escapeHtml(periodLabel(payload))}</div>
       </div>
     </header>
+    ${summaryBlock}
     ${body}
-    <footer class="report-footer">
+    ${
+      footerEnabled
+        ? `<footer class="report-footer">
       <div>${footerBits.map((b) => escapeHtml(String(b))).join(" · ")}</div>
       <div class="page-num"></div>
-    </footer>
+    </footer>`
+        : ""
+    }
   </div>
 </body>
 </html>`;
 }
 
 function renderSingleScan(payload: SingleScanReportPayload): string {
+  const sections = payloadSections(payload);
   const dist = payload.rankDistribution
     .map(
       (d) =>
         `<div class="dist-item"><strong>${d.count}</strong><span class="muted">${escapeHtml(d.label)}</span></div>`
     )
     .join("");
-  const executiveSummary =
-    (payload as SingleScanReportPayload & { executiveSummary?: string | null })
-      .executiveSummary ?? null;
   const reviewBits: string[] = [];
   if (payload.business.rating != null) {
     reviewBits.push(`★ ${fmt(payload.business.rating)}`);
@@ -298,25 +318,30 @@ function renderSingleScan(payload: SingleScanReportPayload): string {
   const body = `
     <p class="muted">${escapeHtml(payload.parameters.keyword)} · ${payload.parameters.gridSize}×${payload.parameters.gridSize} · ${payload.parameters.radiusMeters}m${payload.parameters.centerLabel ? ` · ${escapeHtml(payload.parameters.centerLabel)}` : ""}</p>
     ${
-      reviewBits.length
+      reviewBits.length && isSectionEnabled(sections, "review_snapshot")
         ? `<p class="muted">Review snapshot: ${escapeHtml(reviewBits.join(" · "))} <span class="muted">(context only)</span></p>`
         : ""
     }
     ${
-      executiveSummary
-        ? `<section><h2>Executive summary</h2><p>${escapeHtml(executiveSummary)}</p></section>`
+      isSectionEnabled(sections, "maps_overview")
+        ? `<h2>Google Maps overview</h2>${kpiCards(payload.kpis)}`
         : ""
     }
-    <h2>Google Maps overview</h2>
-    ${kpiCards(payload.kpis)}
-    <h2>Maps grid</h2>
-    ${heatmapHtml(payload.heatmap.gridSize, payload.heatmap.cells)}
+    ${
+      isSectionEnabled(sections, "maps_grid")
+        ? `<h2>Maps grid</h2>${heatmapHtml(payload.heatmap.gridSize, payload.heatmap.cells)}
     <h2>Rank distribution</h2>
-    <div class="dist">${dist}</div>
-    <section class="page-break">
+    <div class="dist">${dist}</div>`
+        : ""
+    }
+    ${
+      isSectionEnabled(sections, "competitors")
+        ? `<section class="page-break">
       <h2>Competitor visibility</h2>
       ${competitorTable(payload.competitors)}
-    </section>`;
+    </section>`
+        : ""
+    }`;
   return shell(payload, body);
 }
 

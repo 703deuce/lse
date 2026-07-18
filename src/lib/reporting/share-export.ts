@@ -38,7 +38,7 @@ export function shareIdentityKey(params: {
         params.radiusMeters ?? "r",
       ].join(":");
     case "maps_campaign":
-      return "maps_campaign";
+      return `maps_campaign:${params.campaignId ?? "default"}`;
     case "reviews":
       return "reviews";
     case "review_campaign":
@@ -61,7 +61,9 @@ export async function findReusableShare(params: {
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("reports")
-    .select("id, share_token, share_expires_at, html_content, artifact_status")
+    .select(
+      "id, share_token, share_expires_at, html_content, artifact_status, publish_status"
+    )
     .eq("business_id", params.businessId)
     .eq("metadata_json->>reportType", params.reportType)
     .eq("metadata_json->>identityKey", params.identityKey)
@@ -71,6 +73,8 @@ export async function findReusableShare(params: {
     .maybeSingle();
 
   if (!data?.share_token) return null;
+  const publishStatus = String(data.publish_status ?? "published");
+  if (publishStatus === "draft" || publishStatus === "archived") return null;
   const expiresAt = data.share_expires_at ? new Date(data.share_expires_at as string).getTime() : 0;
   if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return null;
 

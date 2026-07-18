@@ -180,12 +180,6 @@ export function ReportShareControls({
       await navigator.clipboard.writeText(absolute);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      void fetch("/api/reports/share-settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId, reportId }),
-      }).catch(() => undefined);
-      // Fire-and-forget analytics via a tiny side channel on copy
       void fetch("/api/analytics/event", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
