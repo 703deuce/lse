@@ -128,7 +128,11 @@ export async function reconcileCompletedMapsJobScanMismatch(limit = 10): Promise
     if (!batch) continue;
 
     const status = String(batch.status);
-    if (!["queued", "dispatching", "provider_running", "normalizing"].includes(status)) {
+    if (
+      !["queued", "dispatching", "provider_running", "recovering", "normalizing"].includes(
+        status
+      )
+    ) {
       continue;
     }
 
@@ -245,6 +249,11 @@ export async function processPendingJobs(limit = 5): Promise<{
   }
   const scansReclaimed = await reclaimStaleInFlightScans(5);
   const mapsMismatches = await reconcileCompletedMapsJobScanMismatch(10).catch(() => 0);
+  const { reconcileIncompleteMapsScans } = await import("@/lib/jobs/scan-recovery");
+  const mapsRecoveries = await reconcileIncompleteMapsScans(10).catch(() => 0);
+  if (mapsRecoveries > 0) {
+    logger.info("maps_incomplete_recovery_enqueued", { count: mapsRecoveries });
+  }
 
   // Campaigns + review alerts go through named queues (messaging / intelligence workers).
   await enqueueRecurringDrains();

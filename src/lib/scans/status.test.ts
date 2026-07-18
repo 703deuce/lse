@@ -42,6 +42,21 @@ describe("scan map ready / retry pin settle", () => {
     assert.equal(isGridPassStillSettling({ confidence_summary: { pass: "complete" } }), false);
   });
 
+  it("keeps wait UI up during background recovery pending", () => {
+    const batch = {
+      status: "recovering",
+      cells_completed: 40,
+      cells_total: 49,
+      confidence_summary: {
+        pass: "background-recovery-pending",
+        recovery_stage: "awaiting_background_recovery",
+      },
+    };
+    assert.equal(isGridPassStillSettling(batch), true);
+    assert.equal(isScanMapReady(batch, 40, 49), false);
+    assert.equal(shouldPollUntilMapReady(batch, 40, 49), true);
+  });
+
   it("keeps wait UI up during secondary fallback even if rank_ready timestamps exist", () => {
     const batch = {
       status: "rank_ready",

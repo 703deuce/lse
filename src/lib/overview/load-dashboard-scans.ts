@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/db/client";
 import { parseGridLabel } from "@/lib/maps/grid-entity";
 import { computeSolv } from "@/lib/maps/grid-metrics";
 import type { ScanBatchRow, ScanPointRow, ScanResultRow } from "@/lib/db/types";
+import { isScanActivelyRunning } from "@/lib/scans/status";
 
 export type DashboardScanRow = {
   id: string;
@@ -9,13 +10,38 @@ export type DashboardScanRow = {
   keywordId: string | null;
   finishedAt: string;
   gridSize: number;
+  radiusMeters: number | null;
   arp: number | null;
   solv: number | null;
   saiv: number | null;
   change: number | null;
   ranks: Array<number | null>;
   status: string;
+  totalCells: number;
+  completedCells: number;
+  unresolvedCells: number;
+  progressPercent: number;
+  locationLabel: string | null;
+  businessName: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  nextRecoveryAt: string | null;
+  active: boolean;
 };
+
+const DASHBOARD_SCAN_STATUSES = [
+  "queued",
+  "dispatching",
+  "provider_running",
+  "recovering",
+  "normalizing",
+  "ready",
+  "partial",
+  "rank_ready",
+  "failed",
+  "cancelled",
+] as const;
 
 function buildRankGrid(
   gridSize: number,
@@ -44,10 +70,10 @@ export async function loadDashboardRecentScans(
   const { data: batches } = await supabase
     .from("scan_batches")
     .select(
-      "id, status, grid_size, created_at, finished_at, aggregate_metrics, confidence_summary"
+      "id, status, grid_size, radius_meters, created_at, started_at, finished_at, aggregate_metrics, confidence_summary, cells_total, cells_completed, cells_failed, center_label, next_recovery_at, business_id"
     )
     .eq("business_id", businessId)
-    .in("status", ["ready", "partial", "rank_ready"])
+    .in("status", [...DASHBOARD_SCAN_STATUSES])
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -55,12 +81,27 @@ export async function loadDashboardRecentScans(
     .from("scan_batches")
     .select("id", { count: "exact", head: true })
     .eq("business_id", businessId)
-    .in("status", ["ready", "partial", "rank_ready"]);
+    .in("status", [...DASHBOARD_SCAN_STATUSES]);
 
-  const allBatches = (batches ?? []) as ScanBatchRow[];
+  const allBatches = (batches ?? []) as Array<
+    ScanBatchRow & {
+      cells_total?: number | null;
+      cells_completed?: number | null;
+      cells_failed?: number | null;
+      radius_meters?: number | null;
+      next_recovery_at?: string | null;
+    }
+  >;
   const total = totalCount ?? allBatches.length;
   const previewBatches = allBatches.slice(0, preview);
   if (!previewBatches.length) return { rows: [], total: 0 };
+
+  const { data: business } = await supabase
+    .from("businesses")
+    .select("name")
+    .eq("id", businessId)
+    .maybeSingle();
+  const businessName = (business?.name as string | null) ?? null;
 
   const keywordIds = Array.from(
     new Set(
@@ -130,6 +171,7 @@ export async function loadDashboardRecentScans(
   const solvHistory = new Map<string, Array<{ batchId: string; solv: number }>>();
 
   for (const batch of allBatches) {
+    if (isScanActivelyRunning(batch.status as string)) continue;
     const conf = (batch.confidence_summary ?? {}) as { keyword_ids?: string[] };
     const keywordId = conf.keyword_ids?.[0];
     if (!keywordId) continue;
@@ -158,6 +200,8 @@ export async function loadDashboardRecentScans(
     const conf = (batch.confidence_summary ?? {}) as {
       keyword_label?: string;
       keyword_ids?: string[];
+      unresolved_cells?: number;
+      progress_percent?: number;
     };
     const keywordId = conf.keyword_ids?.[0] ?? null;
     const label = conf.keyword_label?.trim() || "";
@@ -172,20 +216,36 @@ export async function loadDashboardRecentScans(
       visibilityScore?: number | null;
     };
 
+    const active = isScanActivelyRunning(batch.status as string);
+    const totalCells = Number(batch.cells_total ?? metrics.totalCells ?? 0);
+    const completedCells = Number(batch.cells_completed ?? 0);
+    const unresolvedCells = active
+      ? Math.max(
+          0,
+          Number(conf.unresolved_cells ?? Math.max(0, totalCells - completedCells))
+        )
+      : Number(batch.cells_failed ?? 0);
+    const progressPercent =
+      totalCells > 0
+        ? Math.min(100, Math.round((completedCells / totalCells) * 100))
+        : Number(conf.progress_percent ?? 0);
+
     const solv =
-      metrics.top3Cells != null && metrics.totalCells
+      !active && metrics.top3Cells != null && metrics.totalCells
         ? computeSolv(metrics.top3Cells, metrics.totalCells)
         : null;
     const saiv =
-      metrics.visibilityScore != null ? Math.round(Number(metrics.visibilityScore)) : null;
+      !active && metrics.visibilityScore != null
+        ? Math.round(Number(metrics.visibilityScore))
+        : null;
 
     let change: number | null = null;
-    if (keywordId && solv != null) {
+    if (!active && keywordId && solv != null) {
       change = changeForBatch(batch.id, keywordId, solv);
     }
 
     const points = pointsByBatch.get(batch.id) ?? [];
-    const ranks = buildRankGrid(batch.grid_size, points, rankByPointId);
+    const ranks = active ? [] : buildRankGrid(batch.grid_size, points, rankByPointId);
 
     return {
       id: batch.id,
@@ -193,12 +253,24 @@ export async function loadDashboardRecentScans(
       keywordId,
       finishedAt: (batch.finished_at as string | null) ?? (batch.created_at as string),
       gridSize: batch.grid_size,
-      arp: metrics.averageRank != null ? Math.round(metrics.averageRank * 10) / 10 : null,
+      radiusMeters: (batch.radius_meters as number | null) ?? null,
+      arp: !active && metrics.averageRank != null ? Math.round(metrics.averageRank * 10) / 10 : null,
       solv,
       saiv,
       change,
       ranks,
       status: batch.status as string,
+      totalCells,
+      completedCells,
+      unresolvedCells,
+      progressPercent,
+      locationLabel: (batch.center_label as string | null) ?? null,
+      businessName,
+      createdAt: batch.created_at as string,
+      startedAt: (batch.started_at as string | null) ?? null,
+      completedAt: (batch.finished_at as string | null) ?? null,
+      nextRecoveryAt: (batch.next_recovery_at as string | null) ?? null,
+      active,
     };
   });
 

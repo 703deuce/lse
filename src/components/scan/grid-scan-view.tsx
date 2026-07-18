@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import {
   BarChart3,
   Crosshair,
@@ -124,6 +125,7 @@ function replaceUrlWithoutRouterSync(url: string) {
 }
 
 export function GridScanView({ businessId, scanId }: { businessId: string; scanId: string }) {
+  const router = useRouter();
   const [activeScanId, setActiveScanId] = useState(scanId);
   const [colorMode, setColorMode] = useState<GridColorMode>("falcon");
   const [keywordId, setKeywordId] = useState<string | null>(null);
@@ -845,7 +847,8 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Scan failed");
       setMoveGridActive(false);
-      switchScan(json.scan.id as string);
+      router.push(`/businesses/${businessId}/overview`);
+      router.refresh();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Move-grid scan failed");
     } finally {
@@ -915,8 +918,10 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
     }
   }
 
-  function handleScanStarted(newScanId: string, newKeywordId?: string) {
-    switchScan(newScanId, newKeywordId ?? keywordId);
+  function handleScanStarted(_newScanId: string, _newKeywordId?: string) {
+    // Scans run in the background — return to the dashboard in-progress card.
+    router.push(`/businesses/${businessId}/overview`);
+    router.refresh();
   }
 
   function handleCellClick(cell: GridCell) {

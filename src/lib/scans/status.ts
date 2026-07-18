@@ -22,6 +22,7 @@ export const SCAN_POLL_STATUSES = new Set([
   "queued",
   "dispatching",
   "provider_running",
+  "recovering",
   "normalizing",
   "enriching",
   "scoring",
@@ -33,8 +34,22 @@ export const CELLS_IN_FLIGHT_STATUSES = new Set([
   "queued",
   "dispatching",
   "provider_running",
+  "recovering",
   "normalizing",
 ]);
+
+/** Parent scan is actively working (dashboard spinner). */
+export const SCAN_ACTIVE_STATUSES = [
+  "queued",
+  "dispatching",
+  "provider_running",
+  "recovering",
+  "normalizing",
+] as const;
+
+export function isScanActivelyRunning(status: string | null | undefined): boolean {
+  return !!status && (SCAN_ACTIVE_STATUSES as readonly string[]).includes(status);
+}
 
 export function isMapRenderable(status: string | null | undefined): boolean {
   return status ? MAP_RENDERABLE_STATUSES.has(status) : false;
@@ -67,7 +82,7 @@ export function isGridPassStillSettling(batch: {
 }): boolean {
   const pass = String((batch.confidence_summary as { pass?: unknown } | null)?.pass ?? "");
   if (!pass || pass === "complete") return false;
-  return /^(primary|retry|integrity|bd-|fallback)/i.test(pass);
+  return /^(primary|retry|integrity|bd-|fallback|background-recovery)/i.test(pass);
 }
 
 /**
@@ -225,12 +240,26 @@ export function scanProgressMessage(batch: {
   const total = Number(batch.cells_total ?? conf.total_cells ?? 0);
   const pass = String(conf.pass ?? "");
 
+  if (batch.status === "recovering") {
+    return total > 0
+      ? `Scan in progress. Completed cells are being saved automatically (${completed} of ${total}). You can leave this page and return later.`
+      : "Scan in progress. Completed cells are being saved automatically. You can leave this page and return later.";
+  }
+
   if (areCellsInFlight(batch.status ?? null)) {
     if (total > 0 && completed >= total) {
       return "Creating your map…";
     }
     const stage = String(conf.recovery_stage ?? "");
     // User-facing copy — no provider/circuit jargon.
+    if (
+      pass === "background-recovery-pending" ||
+      stage === "awaiting_background_recovery"
+    ) {
+      return total > 0
+        ? `Scan in progress… ${completed} of ${total} points saved`
+        : "Scan in progress…";
+    }
     if (
       pass.startsWith("bd-delayed-wait") ||
       pass.startsWith("bd-delayed-retry") ||

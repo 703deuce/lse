@@ -11,6 +11,18 @@ const processScanPayloadSchema = z
     businessId: optionalUuid,
     ledgerJobId: optionalString,
     jobType: z.string().optional(),
+    recoveryGeneration: z.number().int().positive().optional(),
+  })
+  .passthrough();
+
+const retryScanCellsPayloadSchema = z
+  .object({
+    scanBatchId: uuid,
+    organizationId: optionalUuid,
+    businessId: optionalUuid,
+    ledgerJobId: optionalString,
+    jobType: z.string().optional(),
+    recoveryGeneration: z.number().int().positive().optional(),
   })
   .passthrough();
 
@@ -121,7 +133,7 @@ const growthAuditRunPayloadSchema = z
 
 export const JOB_PAYLOAD_SCHEMAS: Record<string, z.ZodTypeAny> = {
   process_scan: processScanPayloadSchema,
-  retry_scan_cells: processScanPayloadSchema,
+  retry_scan_cells: retryScanCellsPayloadSchema,
   import_contacts: importContactsPayloadSchema,
   keyword_check: keywordCheckPayloadSchema,
   local_trust_run: localTrustRunPayloadSchema,

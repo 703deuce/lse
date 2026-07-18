@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import type { DashboardScanRow } from "@/lib/overview/load-dashboard-scans";
 import { ScanMiniHeatmap } from "@/components/overview/scan-mini-heatmap";
 import {
@@ -10,6 +14,7 @@ import {
 } from "@/components/overview/dashboard-ui";
 import { btnSecondary } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
+import { isScanActivelyRunning } from "@/lib/scans/status";
 
 function formatScanDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -39,6 +44,31 @@ function ChangeCell({ value }: { value: number | null }) {
   );
 }
 
+function MapPreviewPlaceholder({
+  completedCells,
+  totalCells,
+  status,
+}: {
+  completedCells: number;
+  totalCells: number;
+  status: string;
+}) {
+  const finalizing = status === "normalizing";
+  return (
+    <div className="flex h-10 w-[88px] flex-col items-center justify-center gap-0.5 rounded-md bg-zinc-100 text-zinc-600">
+      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+      <span className="text-[9px] font-medium leading-tight">Scan in progress</span>
+      {finalizing && totalCells > 0 ? (
+        <span className="text-[8px] text-zinc-500">
+          Finalizing {completedCells} of {totalCells}
+        </span>
+      ) : (
+        <span className="text-[8px] text-zinc-500">Collecting map rankings…</span>
+      )}
+    </div>
+  );
+}
+
 export function DashboardRecentScans({
   businessId,
   rows,
@@ -48,6 +78,19 @@ export function DashboardRecentScans({
   rows: DashboardScanRow[];
   total: number;
 }) {
+  const router = useRouter();
+  const hasActive = rows.some(
+    (scan) => scan.active || isScanActivelyRunning(scan.status)
+  );
+
+  useEffect(() => {
+    if (!hasActive) return;
+    const id = window.setInterval(() => {
+      router.refresh();
+    }, 5_000);
+    return () => window.clearInterval(id);
+  }, [hasActive, router]);
+
   return (
     <section className={cn(dashboardCard, "overflow-hidden p-0")}>
       <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-3.5 py-2.5">
@@ -80,42 +123,67 @@ export function DashboardRecentScans({
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {rows.map((scan) => (
-                <tr key={scan.id} className="transition-colors hover:bg-zinc-50/50">
-                  <td className="px-3.5 py-2 text-[13px] font-medium text-zinc-900">
-                    {scan.keyword ?? "Historical scan"}
-                  </td>
-                  <td className="whitespace-nowrap px-3.5 py-2 text-[12px] tabular-nums text-zinc-500">
-                    {formatScanDate(scan.finishedAt)}
-                  </td>
-                  <td className="px-3.5 py-2 text-[12px] tabular-nums text-zinc-500">
-                    {scan.gridSize}×{scan.gridSize}
-                  </td>
-                  <td className="px-3.5 py-2 text-[13px] font-semibold tabular-nums text-zinc-900">
-                    {scan.arp ?? "—"}
-                  </td>
-                  <td className="px-3.5 py-2 text-[12px] tabular-nums text-zinc-600">
-                    {scan.solv != null ? `${scan.solv}%` : "—"}
-                    {scan.saiv != null && (
-                      <span className="text-zinc-400"> / {scan.saiv}%</span>
-                    )}
-                  </td>
-                  <td className="px-3.5 py-2">
-                    <ChangeCell value={scan.change} />
-                  </td>
-                  <td className="px-3.5 py-2">
-                    <ScanMiniHeatmap ranks={scan.ranks} gridSize={scan.gridSize} />
-                  </td>
-                  <td className="px-3.5 py-2 text-right">
-                    <Link
-                      href={`/businesses/${businessId}/grid/${scan.id}`}
-                      className={cn(btnSecondary, "h-7 px-2.5 text-[11px] font-medium")}
-                    >
-                      Open
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+              {rows.map((scan) => {
+                const active = scan.active || isScanActivelyRunning(scan.status);
+                return (
+                  <tr key={scan.id} className="transition-colors hover:bg-zinc-50/50">
+                    <td className="px-3.5 py-2 text-[13px] font-medium text-zinc-900">
+                      {scan.keyword ?? "Historical scan"}
+                    </td>
+                    <td className="whitespace-nowrap px-3.5 py-2 text-[12px] tabular-nums text-zinc-500">
+                      {formatScanDate(scan.createdAt || scan.finishedAt)}
+                    </td>
+                    <td className="px-3.5 py-2 text-[12px] tabular-nums text-zinc-500">
+                      {scan.gridSize}×{scan.gridSize}
+                    </td>
+                    <td className="px-3.5 py-2 text-[13px] font-semibold tabular-nums text-zinc-900">
+                      {active ? "—" : (scan.arp ?? "—")}
+                    </td>
+                    <td className="px-3.5 py-2 text-[12px] tabular-nums text-zinc-600">
+                      {active ? (
+                        <span className="text-zinc-400">—</span>
+                      ) : (
+                        <>
+                          {scan.solv != null ? `${scan.solv}%` : "—"}
+                          {scan.saiv != null && (
+                            <span className="text-zinc-400"> / {scan.saiv}%</span>
+                          )}
+                        </>
+                      )}
+                    </td>
+                    <td className="px-3.5 py-2">
+                      {active ? (
+                        <span className="text-[12px] text-zinc-400">—</span>
+                      ) : (
+                        <ChangeCell value={scan.change} />
+                      )}
+                    </td>
+                    <td className="px-3.5 py-2">
+                      {active ? (
+                        <MapPreviewPlaceholder
+                          completedCells={scan.completedCells}
+                          totalCells={scan.totalCells}
+                          status={scan.status}
+                        />
+                      ) : scan.status === "failed" || scan.status === "cancelled" ? (
+                        <div className="flex h-10 w-[88px] items-center justify-center rounded-md bg-zinc-100 text-[10px] font-medium text-zinc-500">
+                          {scan.status === "cancelled" ? "Cancelled" : "Failed"}
+                        </div>
+                      ) : (
+                        <ScanMiniHeatmap ranks={scan.ranks} gridSize={scan.gridSize} />
+                      )}
+                    </td>
+                    <td className="px-3.5 py-2 text-right">
+                      <Link
+                        href={`/businesses/${businessId}/grid/${scan.id}`}
+                        className={cn(btnSecondary, "h-7 px-2.5 text-[11px] font-medium")}
+                      >
+                        {active ? "View" : "Open"}
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

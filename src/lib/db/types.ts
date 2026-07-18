@@ -225,6 +225,12 @@ export interface ScanBatchRow {
   lease_owner?: string | null;
   lease_expires_at?: string | null;
   heartbeat_at?: string | null;
+  recovery_generation?: number | null;
+  next_recovery_at?: string | null;
+  last_recovery_at?: string | null;
+  recovery_locked_at?: string | null;
+  recovery_lock_owner?: string | null;
+  recovery_lease_expires_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -247,7 +253,18 @@ export interface ScanPointRow {
   lat: number;
   lng: number;
   distance_from_center_m: number | null;
+  cell_status?: string | null;
+  total_attempts?: number | null;
+  capacity_failures?: number | null;
+  actual_search_failures?: number | null;
+  last_error_category?: string | null;
+  last_error_message?: string | null;
+  first_attempt_at?: string | null;
+  last_attempt_at?: string | null;
+  completed_at?: string | null;
+  next_retry_at?: string | null;
   created_at: string;
+  updated_at?: string | null;
 }
 
 export interface ScanPointInsert {

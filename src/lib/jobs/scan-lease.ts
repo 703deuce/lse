@@ -60,7 +60,9 @@ export async function reclaimStaleScan(
   const now = new Date();
   const nowIso = now.toISOString();
 
-  // Prefer rows with an expired lease.
+  const IN_FLIGHT = ["dispatching", "provider_running", "recovering"] as const;
+
+  // Prefer rows with an expired lease (includes background recovering).
   const { data: expired } = await supabase
     .from("scan_batches")
     .update({
@@ -70,12 +72,29 @@ export async function reclaimStaleScan(
       error_message: null,
     })
     .eq("id", scanBatchId)
-    .in("status", ["dispatching", "provider_running"])
+    .in("status", [...IN_FLIGHT])
     .lt("lease_expires_at", nowIso)
     .select("*")
     .maybeSingle();
 
   if (expired) return expired as ClaimedBatch;
+
+  // Recovering with no lease — delayed recovery job is ready to claim immediately.
+  const { data: recoveringReady } = await supabase
+    .from("scan_batches")
+    .update({
+      lease_owner: leaseOwner,
+      lease_expires_at: leaseExpiryIso(now),
+      heartbeat_at: nowIso,
+      error_message: null,
+    })
+    .eq("id", scanBatchId)
+    .eq("status", "recovering")
+    .is("lease_expires_at", null)
+    .select("*")
+    .maybeSingle();
+
+  if (recoveringReady) return recoveringReady as ClaimedBatch;
 
   // Pre-lease crashes: lease_expires_at NULL and stuck past TTL from started_at/updated_at.
   const staleBefore = new Date(now.getTime() - scanLeaseTtlMs()).toISOString();
@@ -153,7 +172,7 @@ export async function extendScanLease(scanBatchId: string, leaseOwner: string): 
     })
     .eq("id", scanBatchId)
     .eq("lease_owner", leaseOwner)
-    .in("status", ["dispatching", "provider_running", "normalizing", "rank_ready"])
+    .in("status", ["dispatching", "provider_running", "recovering", "normalizing", "rank_ready"])
     .select("id")
     .maybeSingle();
   return !!data;
@@ -182,7 +201,7 @@ export async function listStaleInFlightScanIds(limit = 5): Promise<string[]> {
   const { data: expired } = await supabase
     .from("scan_batches")
     .select("id")
-    .in("status", ["dispatching", "provider_running", "normalizing"])
+    .in("status", ["dispatching", "provider_running", "recovering", "normalizing"])
     .lt("lease_expires_at", nowIso)
     .order("lease_expires_at", { ascending: true })
     .limit(limit);
@@ -193,7 +212,7 @@ export async function listStaleInFlightScanIds(limit = 5): Promise<string[]> {
     const { data: unleashed } = await supabase
       .from("scan_batches")
       .select("id")
-      .in("status", ["dispatching", "provider_running", "normalizing"])
+      .in("status", ["dispatching", "provider_running", "recovering", "normalizing"])
       .is("lease_expires_at", null)
       .or(`started_at.lt.${staleBefore},and(started_at.is.null,updated_at.lt.${staleBefore})`)
       .limit(limit - ids.size);

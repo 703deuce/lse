@@ -50,7 +50,7 @@ export function scheduleScanProcessing(scanBatchId: string, organizationId?: str
           lease_expires_at: null,
         })
         .eq("id", scanBatchId)
-        .in("status", ["queued", "dispatching", "provider_running", "normalizing"]);
+        .in("status", ["queued", "dispatching", "provider_running", "recovering", "normalizing"]);
 
       await markMapsLedgerTerminal(scanBatchId, "failed", message).catch(() => {});
 
@@ -117,7 +117,7 @@ export function kickQueuedScanIfNeeded(scanBatchId: string, status: string, orga
     return;
   }
 
-  if (status === "dispatching" || status === "provider_running") {
+  if (status === "dispatching" || status === "provider_running" || status === "recovering") {
     // Always schedule processScanBatch; it no-ops unless the lease is stale / claimable.
     scheduleScanProcessing(scanBatchId, organizationId);
   }

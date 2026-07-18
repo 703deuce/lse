@@ -99,7 +99,8 @@ export function ScanSetupForm({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      router.push(`/businesses/${businessId}/grid/${data.scan.id}`);
+      // Background scan — do not wait on the live grid page.
+      router.push(`/businesses/${businessId}/overview`);
       router.refresh();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Scan failed");

@@ -24,12 +24,38 @@ export async function finalizeRankReady(
 ): Promise<void> {
   const supabase = createServiceClient();
 
-  // Claim: only one finalize may leave provider_running/dispatching → normalizing.
+  console.log(`[Finalization] scan=${scanBatchId} START`);
+
+  // Idempotent guard: all expected cells must be complete before finalizing.
+  {
+    const { countScanCellProgress } = await import("@/lib/jobs/scan-cell-state");
+    const progress = await countScanCellProgress(scanBatchId);
+    if (progress.totalCells > 0 && progress.unresolvedCells > 0) {
+      console.log(
+        `[Finalization] scan=${scanBatchId} skip — unresolved=${progress.unresolvedCells}`
+      );
+      // Keep/restore recovering so background jobs continue.
+      await supabase
+        .from("scan_batches")
+        .update({
+          status: "recovering",
+          cells_completed: progress.completedCells,
+          cells_total: progress.totalCells,
+          cells_failed: 0,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", scanBatchId)
+        .in("status", ["provider_running", "dispatching", "recovering", "normalizing"]);
+      return;
+    }
+  }
+
+  // Claim: only one finalize may leave running/recovering → normalizing (finalizing).
   const { data: claimed } = await supabase
     .from("scan_batches")
     .update({ status: "normalizing" })
     .eq("id", scanBatchId)
-    .in("status", ["provider_running", "dispatching"])
+    .in("status", ["provider_running", "dispatching", "recovering"])
     .select("*")
     .maybeSingle();
 
@@ -159,6 +185,10 @@ export async function finalizeRankReady(
     console.log("[finalizeRankReady] rank_ready write skipped — status moved", scanBatchId);
     return;
   }
+
+  console.log(
+    `[Finalization] scan=${scanBatchId} COMPLETE total=${totalCells || actualCompleted}`
+  );
 
   // Merge confidence keys — do not replace the whole document (preserves progress / early flags).
   // Do NOT write failed_point_ids here. Soft-ready races with trailing retries; a mid-flight

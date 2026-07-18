@@ -349,6 +349,48 @@ async function runOneCell(
   let matchingSec = 0;
   let dbSaveSec = 0;
 
+  // Re-check DB before spending a provider call — completed cells must never rerun.
+  {
+    const { data: existing } = await supabase
+      .from("scan_results")
+      .select("scan_point_id, keyword_id, target_found, top_competitors_json")
+      .eq("scan_point_id", job.point.id)
+      .eq("keyword_id", job.keyword.id)
+      .maybeSingle();
+    if (validateStoredCellResult(existing, depth).complete) {
+      try {
+        const { markCellComplete } = await import("@/lib/jobs/scan-cell-state");
+        await markCellComplete(job.point.id);
+      } catch {
+        /* optional */
+      }
+      return {
+        success: true,
+        pointId: job.point.id,
+        keywordId: job.keyword.id,
+        gridLabel: job.point.grid_label,
+        timings: {
+          gridLabel: job.point.grid_label,
+          apiSec: 0,
+          matchingSec: 0,
+          dbSaveSec: 0,
+          progressSec: 0,
+          totalSec: 0,
+          success: true,
+          attempts: 0,
+        },
+        finalProvider: "brightdata",
+      };
+    }
+  }
+
+  try {
+    const { markCellAttemptStarted } = await import("@/lib/jobs/scan-cell-state");
+    await markCellAttemptStarted(job.point.id);
+  } catch {
+    /* cell state columns optional until migration 069 */
+  }
+
   const device = job.device === "mobile" ? "mobile" : "desktop";
   const os = (
     ["android", "ios", "windows", "macos"].includes(job.os)
@@ -430,6 +472,16 @@ async function runOneCell(
         lng,
         passLabel,
       });
+      try {
+        const { markCellRetryWait } = await import("@/lib/jobs/scan-cell-state");
+        await markCellRetryWait(job.point.id, {
+          category,
+          message: serpValidation.reason ?? null,
+          capacityFailure: false,
+        });
+      } catch {
+        /* optional */
+      }
       return {
         success: false,
         pointId: job.point.id,
@@ -497,6 +549,12 @@ async function runOneCell(
     }
     dbSaveSec = elapsedSec(dbStart);
     invalidateScanGridCache(job.scanBatchId);
+    try {
+      const { markCellComplete } = await import("@/lib/jobs/scan-cell-state");
+      await markCellComplete(job.point.id);
+    } catch {
+      /* optional until migration 069 */
+    }
 
     if (job.organizationId) {
       const { recordUsage } = await import("@/lib/platform/usage-ledger");
@@ -624,6 +682,17 @@ async function runOneCell(
     lng,
     passLabel,
   });
+
+  try {
+    const { markCellRetryWait } = await import("@/lib/jobs/scan-cell-state");
+    await markCellRetryWait(job.point.id, {
+      category: lastCategory ?? null,
+      message: fetched.lastErrorMessage ?? null,
+      capacityFailure: lastCategory === "capacity_timeout",
+    });
+  } catch {
+    /* optional until migration 069 */
+  }
 
   return {
     success: false,
@@ -1010,7 +1079,12 @@ export async function runGridCellsLive(params: {
   providerMode?: MapsProviderMode;
   onSoftReady?: () => Promise<void>;
   onLeaseHeartbeat?: () => Promise<void>;
-}): Promise<{ failedCells: number; totalCells: number; successCells: number }> {
+}): Promise<{
+  failedCells: number;
+  totalCells: number;
+  successCells: number;
+  needsBackgroundRecovery: boolean;
+}> {
   const depth = mapsDepth();
   const timeoutMs = mapsGridCellTimeoutMs();
   const maxRounds = mapsGridMaxRetryRounds();
@@ -1134,7 +1208,7 @@ export async function runGridCellsLive(params: {
       await onSoftReady();
     }
     await refreshScanAggregateMetrics(params.scanBatchId);
-    return { failedCells, totalCells, successCells };
+    return { failedCells, totalCells, successCells, needsBackgroundRecovery: false };
   }
 
   let completedOffset = alreadyComplete;
@@ -1357,6 +1431,7 @@ export async function runGridCellsLive(params: {
     );
   }
 
+  // Integrity only when we still have time-budget context; Bright Data only for hybrid.
   const integrityConcurrency = mapsGridConcurrency(totalCells);
   const integrity = await runIntegrityPass({
     scanBatchId: params.scanBatchId,
@@ -1371,12 +1446,43 @@ export async function runGridCellsLive(params: {
     providerMode,
   });
   allTimings.push(...integrity.timings);
-  const failedPointIds = [
-    ...new Set([...remainingJobs.map((j) => j.point.id), ...integrity.failedPointIds]),
-  ];
+  // Prefer DB as source of truth after integrity.
+  remainingJobs = await loadIncompleteJobsFromDb(params.scanBatchId, allJobs, depth);
+  const failedPointIds = [...new Set(remainingJobs.map((j) => j.point.id))];
   failedCells = failedPointIds.length;
 
   const successCells = Math.max(0, totalCells - failedCells);
+  const needsBackgroundRecovery = useBrightDataRecovery && failedCells > 0;
+
+  if (needsBackgroundRecovery) {
+    // Do not mark pass=complete — background recovery will continue.
+    console.log(
+      `[Scan] scan=${params.scanBatchId} active-window EXPIRED completed=${successCells} unresolved=${failedCells}`
+    );
+    await scheduleCellProgress(
+      params.scanBatchId,
+      successCells,
+      totalCells,
+      0,
+      {
+        pass: "background-recovery-pending",
+        method: params.resume ? "live_parallel_resume" : "live_parallel",
+        unresolved_point_ids: failedPointIds,
+        failed_point_ids: [],
+        recovery_stage: "awaiting_background_recovery",
+        provider_unresolved: true,
+        completed_cells: successCells,
+        unresolved_cells: failedCells,
+      },
+      { force: true }
+    );
+    await refreshScanAggregateMetrics(params.scanBatchId);
+    const wallSec = elapsedSec(scanWallStart);
+    console.log(`[ScanBenchmark] wall_clock=${wallSec}s`);
+    logCellPhaseTimings(params.scanBatchId, allTimings, integrityConcurrency, totalCells);
+    return { failedCells, totalCells, successCells, needsBackgroundRecovery: true };
+  }
+
   await scheduleCellProgress(
     params.scanBatchId,
     totalCells,
@@ -1402,5 +1508,5 @@ export async function runGridCellsLive(params: {
   console.log(`[ScanBenchmark] wall_clock=${wallSec}s`);
   logCellPhaseTimings(params.scanBatchId, allTimings, integrityConcurrency, totalCells);
 
-  return { failedCells, totalCells, successCells };
+  return { failedCells, totalCells, successCells, needsBackgroundRecovery: false };
 }

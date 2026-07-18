@@ -107,8 +107,7 @@ export async function executeJobType(
 
   try {
     switch (jobType) {
-      case "process_scan":
-      case "retry_scan_cells": {
+      case "process_scan": {
         const scanBatchId = String(payload.scanBatchId ?? "");
         if (!scanBatchId) return permanent("Missing scanBatchId");
         const orgId = await resolveOrgId(payload);
@@ -125,6 +124,30 @@ export async function executeJobType(
             await maybeReleaseUnusedMapCredits(scanBatchId, orgId, message).catch(() => {});
             if (PRE_PROVIDER_FAIL.test(message)) return permanent(message);
           }
+          throw err;
+        }
+      }
+      case "retry_scan_cells": {
+        const scanBatchId = String(payload.scanBatchId ?? "");
+        if (!scanBatchId) return permanent("Missing scanBatchId");
+        const orgId = await resolveOrgId(payload);
+        const recoveryGeneration =
+          typeof payload.recoveryGeneration === "number"
+            ? payload.recoveryGeneration
+            : Number(payload.recoveryGeneration ?? 0) || undefined;
+        try {
+          const { processScanRecovery } = await import("@/lib/jobs/scan-recovery");
+          const outcome = await processScanRecovery(
+            scanBatchId,
+            orgId,
+            recoveryGeneration
+          );
+          if (outcome === "deferred") return { ok: true, markComplete: false };
+          return { ok: true, markComplete: true };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Scan recovery failed";
+          // Temporary provider errors must not permanently fail the parent scan.
+          console.warn(`[Recovery] scan=${scanBatchId} worker error:`, message);
           throw err;
         }
       }

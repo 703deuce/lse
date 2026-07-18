@@ -3,12 +3,42 @@ import type { DashboardScanRow } from "@/lib/overview/load-dashboard-scans";
 
 export const SCREENSHOT_BUSINESS_ID = "screenshot-preview";
 
+function scanRow(
+  partial: Partial<DashboardScanRow> & Pick<DashboardScanRow, "id" | "keyword" | "status">
+): DashboardScanRow {
+  return {
+    keywordId: "kw-1",
+    finishedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    startedAt: null,
+    completedAt: null,
+    nextRecoveryAt: null,
+    gridSize: 7,
+    radiusMeters: 1600,
+    arp: null,
+    solv: null,
+    saiv: null,
+    change: null,
+    ranks: [],
+    totalCells: 49,
+    completedCells: 0,
+    unresolvedCells: 49,
+    progressPercent: 0,
+    locationLabel: "Woodbridge, VA",
+    businessName: "Junk Removal Woodbridge",
+    active: false,
+    ...partial,
+  };
+}
+
 export const screenshotScans: DashboardScanRow[] = [
-  {
+  scanRow({
     id: "scan-1",
     keyword: "junk removal woodbridge",
     keywordId: "kw-1",
     finishedAt: new Date(Date.now() - 86400000).toISOString(),
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    completedAt: new Date(Date.now() - 86400000).toISOString(),
     gridSize: 7,
     arp: 4.2,
     solv: 42,
@@ -16,12 +46,17 @@ export const screenshotScans: DashboardScanRow[] = [
     change: 3.3,
     ranks: Array.from({ length: 49 }, (_, i) => (i % 5 === 0 ? 3 : i % 3 === 0 ? 8 : 14)),
     status: "ready",
-  },
-  {
+    completedCells: 49,
+    unresolvedCells: 0,
+    progressPercent: 100,
+  }),
+  scanRow({
     id: "scan-2",
     keyword: "junk removal woodbridge",
     keywordId: "kw-1",
     finishedAt: new Date(Date.now() - 172800000).toISOString(),
+    createdAt: new Date(Date.now() - 172800000).toISOString(),
+    completedAt: new Date(Date.now() - 172800000).toISOString(),
     gridSize: 7,
     arp: 5.1,
     solv: 38,
@@ -29,12 +64,17 @@ export const screenshotScans: DashboardScanRow[] = [
     change: -2.8,
     ranks: Array.from({ length: 49 }, (_, i) => (i % 4 === 0 ? 5 : i % 2 === 0 ? 11 : 18)),
     status: "ready",
-  },
-  {
+    completedCells: 49,
+    unresolvedCells: 0,
+    progressPercent: 100,
+  }),
+  scanRow({
     id: "scan-3",
     keyword: "junk removal woodbridge",
     keywordId: "kw-1",
     finishedAt: new Date(Date.now() - 259200000).toISOString(),
+    createdAt: new Date(Date.now() - 259200000).toISOString(),
+    completedAt: new Date(Date.now() - 259200000).toISOString(),
     gridSize: 3,
     arp: 6.8,
     solv: 22,
@@ -42,7 +82,11 @@ export const screenshotScans: DashboardScanRow[] = [
     change: 1.1,
     ranks: [2, 5, 8, 4, 12, 9, 15, 7, 11],
     status: "ready",
-  },
+    totalCells: 9,
+    completedCells: 9,
+    unresolvedCells: 0,
+    progressPercent: 100,
+  }),
 ];
 
 /** Representative layout data — mirrors live dashboard structure (2 recent reviews, rich cards). */

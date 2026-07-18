@@ -23,9 +23,16 @@ import {
   parseMapsProviderMode,
   scanBatchProviderColumn,
 } from "@/lib/maps/provider-modes";
+import { persistScanProgress, resetStaleRunningCells } from "@/lib/jobs/scan-cell-state";
 
 /** Outcome of attempting to process a scan batch. */
 export type ProcessScanOutcome = "ran" | "deferred" | "already_done";
+
+export type ProcessScanOptions = {
+  /** True when invoked from delayed maps-cell-retry recovery. */
+  recoveryMode?: boolean;
+  recoveryGeneration?: number;
+};
 
 /** Usable / post-cell statuses — job can complete without re-running the grid. */
 const SCAN_ALREADY_DONE = new Set([
@@ -38,11 +45,12 @@ const SCAN_ALREADY_DONE = new Set([
 ]);
 // Note: `normalizing` is intentionally NOT here — finalize may still be writing.
 // `rank_ready` is handled separately: only already_done when pass=complete.
+// `recovering` is handled via reclaim / recovery jobs — never already_done here.
 
 /**
  * Process or resume a scan batch.
  * - Fresh: claims `queued` → creates points → runs all cells.
- * - Resume: reclaims stale `dispatching`/`provider_running` → keeps points → skips complete cells.
+ * - Resume: reclaims stale `dispatching`/`provider_running`/`recovering` → keeps points → skips complete cells.
  *
  * @returns `ran` when this invocation owned the lease,
  * `already_done` when the scan is past map-cell work,
@@ -50,12 +58,14 @@ const SCAN_ALREADY_DONE = new Set([
  */
 export async function processScanBatch(
   scanBatchId: string,
-  organizationId?: string
+  organizationId?: string,
+  options?: ProcessScanOptions
 ): Promise<ProcessScanOutcome> {
   const supabase = createServiceClient();
   const leaseOwner = newScanLeaseOwner();
+  const recoveryMode = options?.recoveryMode === true;
 
-  let batch = await claimQueuedScan(scanBatchId, leaseOwner);
+  let batch = recoveryMode ? null : await claimQueuedScan(scanBatchId, leaseOwner);
   let resume = false;
 
   if (!batch) {
@@ -92,6 +102,7 @@ export async function processScanBatch(
         const afterStatus = String(after?.status ?? "");
         // Do not ACK the ledger complete while cells/finalize are still in flight.
         if (CELLS_IN_FLIGHT_STATUSES.has(afterStatus)) return "deferred";
+        if (afterStatus === "recovering") return "deferred";
         if (afterStatus === "rank_ready") {
           const pass = String(
             ((after?.confidence_summary as { pass?: unknown } | null)?.pass ?? "") as string
@@ -103,8 +114,12 @@ export async function processScanBatch(
         return "deferred";
       }
     }
+    // recovering with an active lease held by another worker
+    if (status === "recovering") return "deferred";
     return "deferred";
   }
+
+  await resetStaleRunningCells(scanBatchId);
 
   const heartbeatMs = Math.max(15_000, Math.floor(scanLeaseTtlMs() / 3));
   const heartbeat = setInterval(() => {
@@ -265,10 +280,11 @@ export async function processScanBatch(
       os: batch.os,
     });
 
+    const runStatus = recoveryMode ? "recovering" : "provider_running";
     await supabase
       .from("scan_batches")
       .update({
-        status: "provider_running",
+        status: runStatus,
         provider: scanBatchProviderColumn(providerMode),
         lease_owner: leaseOwner,
         lease_expires_at: new Date(Date.now() + scanLeaseTtlMs()).toISOString(),
@@ -281,65 +297,107 @@ export async function processScanBatch(
       maps_provider_mode: providerMode,
     }).catch(() => undefined);
 
+    console.log(
+      `[Scan] scan=${scanBatchId} ${recoveryMode ? "recovery-window" : "active-window"} START ` +
+        `total=${insertedPoints.length * keywordList.length}`
+    );
+
     let rankReadyPromise: Promise<void> | null = null;
     const totalCellsPlanned = insertedPoints.length * keywordList.length;
 
-    const { failedCells, totalCells, successCells } = await runGridCellsLive({
-      scanBatchId,
-      resume,
-      points: insertedPoints.map((p) => ({
-        id: p.id,
-        grid_label: p.grid_label,
-        lat: p.lat,
-        lng: p.lng,
-        distance_from_center_m: p.distance_from_center_m ?? undefined,
-      })),
-      keywords: keywordList.map((k) => ({
-        id: k.id as string,
-        keyword: String(k.keyword).trim(),
-      })),
-      business: {
-        cid: business.cid,
-        place_id: business.place_id,
-        name: business.name,
-        address_text: business.address_text,
-        phone: business.phone,
-        website_url: business.website_url,
-      },
-      device: (batch.device as string | null) ?? "mobile",
-      os: (batch.os as string | null) ?? "android",
-      browser: (batch as { browser?: string }).browser ?? "chrome",
-      providerMode,
-      organizationId: resolvedOrgId,
-      onLeaseHeartbeat: async () => {
-        await extendScanLease(scanBatchId, leaseOwner);
-      },
-      onSoftReady: async () => {
-        if (!rankReadyPromise) {
-          rankReadyPromise = (async () => {
-            const { data: progress } = await supabase
-              .from("scan_batches")
-              .select("cells_failed")
-              .eq("id", scanBatchId)
-              .single();
-            await finalizeRankReady(
-              scanBatchId,
-              resolvedOrgId,
-              Number(progress?.cells_failed ?? 0),
-              totalCellsPlanned
-            );
-          })();
-        }
-        await rankReadyPromise;
-      },
-    });
+    const { failedCells, totalCells, successCells, needsBackgroundRecovery } =
+      await runGridCellsLive({
+        scanBatchId,
+        resume: resume || recoveryMode,
+        points: insertedPoints.map((p) => ({
+          id: p.id,
+          grid_label: p.grid_label,
+          lat: p.lat,
+          lng: p.lng,
+          distance_from_center_m: p.distance_from_center_m ?? undefined,
+        })),
+        keywords: keywordList.map((k) => ({
+          id: k.id as string,
+          keyword: String(k.keyword).trim(),
+        })),
+        business: {
+          cid: business.cid,
+          place_id: business.place_id,
+          name: business.name,
+          address_text: business.address_text,
+          phone: business.phone,
+          website_url: business.website_url,
+        },
+        device: (batch.device as string | null) ?? "mobile",
+        os: (batch.os as string | null) ?? "android",
+        browser: (batch as { browser?: string }).browser ?? "chrome",
+        providerMode,
+        organizationId: resolvedOrgId,
+        onLeaseHeartbeat: async () => {
+          await extendScanLease(scanBatchId, leaseOwner);
+        },
+        // Never soft-finalize mid-scan when persistent recovery is enabled for hybrid.
+        onSoftReady: async () => {
+          if (providerMode === "hybrid") return;
+          if (!rankReadyPromise) {
+            rankReadyPromise = (async () => {
+              const { data: progress } = await supabase
+                .from("scan_batches")
+                .select("cells_failed")
+                .eq("id", scanBatchId)
+                .single();
+              await finalizeRankReady(
+                scanBatchId,
+                resolvedOrgId,
+                Number(progress?.cells_failed ?? 0),
+                totalCellsPlanned
+              );
+            })();
+          }
+          await rankReadyPromise;
+        },
+      });
+
+    const progress = await persistScanProgress(scanBatchId);
+    const unresolved =
+      progress.unresolvedCells > 0
+        ? progress.unresolvedCells
+        : needsBackgroundRecovery
+          ? failedCells
+          : 0;
+
+    if (unresolved > 0 && (providerMode === "hybrid" || recoveryMode)) {
+      // Keep completed cells; schedule delayed recovery — do not finalize incomplete.
+      if (!resolvedOrgId) {
+        throw new Error("Missing organizationId for background scan recovery");
+      }
+      const { transitionToBackgroundRecovery } = await import("@/lib/jobs/scan-recovery");
+      await transitionToBackgroundRecovery({
+        scanBatchId,
+        businessId: business.id as string,
+        organizationId: resolvedOrgId,
+        leaseOwner,
+        completedCells: progress.completedCells || successCells,
+        unresolvedCells: unresolved,
+        totalCells: progress.totalCells || totalCells,
+      });
+      console.log("[Scan] Live batch deferred to background recovery:", {
+        scanBatchId,
+        resume,
+        recoveryMode,
+        unresolved,
+        completed: progress.completedCells || successCells,
+        totalCells,
+      });
+      return "ran";
+    }
 
     if (!rankReadyPromise) {
       await finalizeRankReady(scanBatchId, resolvedOrgId, failedCells, totalCells);
     } else {
       await rankReadyPromise;
     }
-    // Always reconcile after retries/integrity — soft-ready may have finalized early.
+    // Reconcile only after a complete finalize path.
     const { reconcileScanCellFailures } = await import("@/lib/jobs/reconcile-scan-failures");
     await reconcileScanCellFailures(scanBatchId, failedCells, totalCells);
 
@@ -355,6 +413,7 @@ export async function processScanBatch(
     return "ran";
   } catch (err) {
     const message = err instanceof Error ? err.message : "Processing failed";
+    // Permanent configuration / crash errors only — never mark failed for provider capacity.
     await supabase
       .from("scan_batches")
       .update({
@@ -366,7 +425,7 @@ export async function processScanBatch(
       })
       .eq("id", scanBatchId)
       .eq("lease_owner", leaseOwner)
-      .in("status", ["queued", "dispatching", "provider_running", "normalizing"]);
+      .in("status", ["queued", "dispatching", "provider_running", "recovering", "normalizing"]);
     throw err;
   } finally {
     clearInterval(heartbeat);
