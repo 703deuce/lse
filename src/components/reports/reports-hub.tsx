@@ -139,9 +139,13 @@ function milesLabel(meters: number): string {
 export function ReportsHub({
   businessId,
   latestScanId,
+  initialType,
+  initialMapsCampaignId,
 }: {
   businessId: string;
   latestScanId?: string | null;
+  initialType?: ReportType;
+  initialMapsCampaignId?: string | null;
 }) {
   const [scans, setScans] = useState<ScanOption[]>([]);
   const [keywords, setKeywords] = useState<KeywordOption[]>([]);
@@ -152,8 +156,8 @@ export function ReportsHub({
   const [scanId, setScanId] = useState(latestScanId ?? "");
   const [keywordId, setKeywordId] = useState("");
   const [campaignId, setCampaignId] = useState("");
-  const [mapsCampaignId, setMapsCampaignId] = useState("");
-  const [activeType, setActiveType] = useState<ReportType>("single_scan");
+  const [mapsCampaignId, setMapsCampaignId] = useState(initialMapsCampaignId ?? "");
+  const [activeType, setActiveType] = useState<ReportType>(initialType ?? "single_scan");
   const [busy, setBusy] = useState<"share" | "csv" | "revoke" | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [reportId, setReportId] = useState<string | null>(null);

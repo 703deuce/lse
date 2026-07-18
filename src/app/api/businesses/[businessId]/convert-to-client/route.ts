@@ -71,7 +71,18 @@ export async function POST(
       .limit(1)
       .maybeSingle();
 
-    if (!existingCampaign) {
+    // Prefer an existing completed scan as campaign baseline after conversion.
+    const { data: baselineScan } = await supabase
+      .from("scan_batches")
+      .select("id")
+      .eq("business_id", businessId)
+      .in("status", ["ready", "partial", "rank_ready"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let campaignId = existingCampaign?.id as string | undefined;
+    if (!campaignId) {
       const { data: created } = await supabase
         .from("maps_campaigns")
         .insert({
@@ -82,13 +93,26 @@ export async function POST(
         .select("id")
         .maybeSingle();
 
-      if (created?.id) {
+      campaignId = created?.id as string | undefined;
+      if (campaignId) {
         await supabase
           .from("business_keywords")
-          .update({ campaign_id: created.id })
+          .update({ campaign_id: campaignId })
           .eq("business_id", businessId)
           .is("campaign_id", null);
       }
+    }
+
+    if (campaignId && baselineScan?.id) {
+      // Optional until migration 073 is applied — ignore missing-column errors.
+      await supabase
+        .from("maps_campaigns")
+        .update({
+          baseline_scan_batch_id: baselineScan.id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", campaignId)
+        .is("baseline_scan_batch_id", null);
     }
 
     trackProductEvent("prospect_converted", {

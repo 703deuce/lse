@@ -5,10 +5,13 @@ import { createServiceClient } from "@/lib/db/client";
 
 export default async function GridScanPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessId: string; scanId: string }>;
+  searchParams: Promise<{ compare?: string }>;
 }) {
   const { businessId, scanId } = await params;
+  const sp = await searchParams;
   await requireBusinessPageData(businessId);
 
   const supabase = createServiceClient();
@@ -20,5 +23,11 @@ export default async function GridScanPage({
 
   if (!batch || batch.business_id !== businessId) notFound();
 
-  return <GridScanView businessId={businessId} scanId={scanId} />;
+  return (
+    <GridScanView
+      businessId={businessId}
+      scanId={scanId}
+      initialCompareScanId={sp.compare ?? null}
+    />
+  );
 }

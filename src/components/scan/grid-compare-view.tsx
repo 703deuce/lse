@@ -85,6 +85,8 @@ interface GridCompareViewProps {
   browser?: string;
   initialMode?: CompareMode;
   initialCompetitorKey?: string | null;
+  /** Optional baseline (period A) when opened from campaign Compare period. */
+  initialScanAId?: string | null;
   onClose: () => void;
 }
 
@@ -133,13 +135,14 @@ export function GridCompareView({
   browser = "Chrome",
   initialMode = "scans",
   initialCompetitorKey = null,
+  initialScanAId = null,
   onClose,
 }: GridCompareViewProps) {
   useCompareActive(true);
   const [mode, setMode] = useState<CompareMode>(initialMode);
   const [scans, setScans] = useState<ScanOption[]>([]);
   // A = baseline (earlier), B = current (later). Opened scan is always Current.
-  const [scanAId, setScanAId] = useState("");
+  const [scanAId, setScanAId] = useState(initialScanAId ?? "");
   const [scanBId, setScanBId] = useState(currentScanId);
   const [competitorScanId, setCompetitorScanId] = useState(currentScanId);
   const [competitorKey, setCompetitorKey] = useState(initialCompetitorKey ?? "");

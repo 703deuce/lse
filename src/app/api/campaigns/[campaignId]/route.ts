@@ -10,6 +10,7 @@ import {
   assertScheduleAllowed,
   resolveFreelancerLimits,
 } from "@/lib/plans/resolve-freelancer-limits";
+import { loadCampaignKeywordMetrics } from "@/lib/campaigns/keyword-metrics";
 
 const patchSchema = z.object({
   name: z.string().min(1).max(120).optional(),
@@ -21,6 +22,7 @@ const patchSchema = z.object({
   scheduleTimezone: z.string().max(80).nullable().optional(),
   scheduleEnabled: z.boolean().optional(),
   nextScheduledAt: z.string().datetime().nullable().optional(),
+  baselineScanBatchId: z.string().uuid().nullable().optional(),
   archive: z.boolean().optional(),
 });
 
@@ -48,11 +50,12 @@ export async function GET(
     await requireBusinessAccess(campaign.business_id);
 
     const supabase = createServiceClient();
-    const { data: keywords } = await supabase
-      .from("business_keywords")
-      .select("id, keyword, is_primary, active, sort_order, created_at")
-      .eq("campaign_id", campaignId)
-      .order("sort_order", { ascending: true });
+    const keywords = await loadCampaignKeywordMetrics(supabase, {
+      businessId: campaign.business_id as string,
+      campaignId,
+      gridSize: Number(campaign.default_grid_size ?? 7),
+      radiusMeters: Number(campaign.default_radius_meters ?? 3000),
+    });
 
     const { data: business } = await supabase
       .from("businesses")
@@ -62,7 +65,7 @@ export async function GET(
 
     return NextResponse.json({
       campaign,
-      keywords: keywords ?? [],
+      keywords,
       business,
     });
   } catch (err) {
@@ -106,6 +109,22 @@ export async function PATCH(
         return NextResponse.json({ error: schedOk.message }, { status: 403 });
       }
     }
+
+    if (p.baselineScanBatchId) {
+      const supabaseCheck = createServiceClient();
+      const { data: batch } = await supabaseCheck
+        .from("scan_batches")
+        .select("id, business_id")
+        .eq("id", p.baselineScanBatchId)
+        .maybeSingle();
+      if (!batch || batch.business_id !== campaign.business_id) {
+        return NextResponse.json(
+          { error: "Baseline scan must belong to this client" },
+          { status: 400 }
+        );
+      }
+    }
+
     const patch: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
@@ -130,6 +149,9 @@ export async function PATCH(
       }
     }
     if (p.nextScheduledAt !== undefined) patch.next_scheduled_at = p.nextScheduledAt;
+    if (p.baselineScanBatchId !== undefined) {
+      patch.baseline_scan_batch_id = p.baselineScanBatchId;
+    }
     if (p.archive === true) {
       patch.archived_at = new Date().toISOString();
       patch.schedule_enabled = false;

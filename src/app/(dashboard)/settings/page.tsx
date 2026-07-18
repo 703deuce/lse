@@ -10,7 +10,7 @@ export default async function SettingsPage() {
     <>
       <PageHeader
         title="Settings"
-        subtitle="Account, subscription, branding, and security for your freelancer workspace."
+        subtitle="Account, subscription, branding, and security for your independent consultant workspace."
       />
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <SettingsLink href="/settings/profile" title="Profile" body="Name and account email." />

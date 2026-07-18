@@ -7,6 +7,7 @@ import { httpErrorFromException } from "@/lib/security/http-errors";
 import { generateShareToken, hashShareToken } from "@/lib/reporting/share-token";
 import { hashSharePassword } from "@/lib/reporting/share-password";
 import { trackProductEvent } from "@/lib/analytics/product-events";
+import { markProspectAuditSent } from "@/lib/accounts/mark-audit-sent";
 
 const schema = z.object({
   businessId: z.string().uuid(),
@@ -118,6 +119,10 @@ export async function PATCH(request: Request) {
       .maybeSingle();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    if (p.publishStatus === "published" || p.regenerate) {
+      await markProspectAuditSent(supabase, p.businessId);
+    }
 
     if (p.publishStatus === "published") {
       trackProductEvent("report_published", {

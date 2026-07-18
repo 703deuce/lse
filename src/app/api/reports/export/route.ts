@@ -24,6 +24,8 @@ import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requestAuditMeta, writeSecurityAuditEvent } from "@/lib/security/audit-log";
 import type { ReportType } from "@/lib/reporting/types";
 import { randomUUID } from "crypto";
+import { createServiceClient } from "@/lib/db/client";
+import { markProspectAuditSent } from "@/lib/accounts/mark-audit-sent";
 
 function exportStatus(message: string): number {
   if (message.includes("access denied") || message.includes("Authentication required")) {
@@ -199,6 +201,9 @@ export async function POST(request: Request) {
         status: reusable.status,
         durationMs: Date.now() - started,
       });
+      if (reportType === "single_scan") {
+        await markProspectAuditSent(createServiceClient(), data.businessId);
+      }
       return NextResponse.json({
         queued: false,
         reused: true,
@@ -346,6 +351,10 @@ export async function POST(request: Request) {
       jobId: job.jobId,
       durationMs: Date.now() - started,
     });
+
+    if (reportType === "single_scan") {
+      await markProspectAuditSent(createServiceClient(), data.businessId);
+    }
 
     return NextResponse.json({
       queued: true,

@@ -77,9 +77,9 @@ function drawFooter(
     .lineWidth(0.5)
     .stroke();
   doc.fillColor("#71717a").fontSize(7).font("Helvetica");
-  const left = payload.whiteLabel.hidePlatformBranding
-    ? payload.business.name
-    : `Maps Growth Agent · ${payload.business.name}`;
+  const left = payload.whiteLabel.companyName?.trim()
+    ? `${payload.whiteLabel.companyName} · ${payload.business.name}`
+    : payload.business.name;
   const generated = new Date(payload.generatedAt).toLocaleString("en-US", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -234,9 +234,9 @@ export async function renderSingleScanPdfDetailed(params: {
   doc.y = metaY + metaLeft.length * 17 + 18;
 
   const boxes: Array<[string, string]> = [
-    ["ARP", fmt(k.arp)],
-    ["ATRP", fmt(k.atrp)],
-    ["SoLV", pct(k.solv)],
+    ["Avg. rank", fmt(k.arp)],
+    ["Avg. rank (all cells)", fmt(k.atrp)],
+    ["Top 3 %", pct(k.solv)],
     ["Top 3", pct(k.top3Pct)],
     ["Top 10", pct(k.top10Pct)],
     ["Visibility", pct(k.visibilityScore)],
@@ -388,15 +388,15 @@ export async function renderSingleScanPdfDetailed(params: {
   const you = payload.competitors.find((c) => c.isTarget);
   doc.font("Helvetica").fontSize(9).fillColor("#3f3f46");
   const marketLines = [
-    `Your SoLV: ${pct(you?.solv ?? k.solv)}`,
+    `Your Top 3 %: ${pct(you?.solv ?? k.solv)}`,
     leader
-      ? `Leader SoLV: ${pct(leader.solv)} (${leader.name.slice(0, 28)})`
-      : "Leader SoLV: -",
+      ? `Leader Top 3 %: ${pct(leader.solv)} (${leader.name.slice(0, 28)})`
+      : "Leader Top 3 %: -",
     leader
       ? `Gap to leader: ${fmt((leader.solv ?? 0) - (you?.solv ?? k.solv), 0)} pts`
       : "Gap to leader: -",
     `Competitors listed: ${Math.max(0, competitors.length - (you ? 1 : 0))}`,
-    `Average rank (ARP): ${fmt(k.arp)}`,
+    `Average rank: ${fmt(k.arp)}`,
   ];
   for (const line of marketLines) {
     doc.text(line, rightX, rightY, { width: colW, lineBreak: false });
@@ -409,9 +409,9 @@ export async function renderSingleScanPdfDetailed(params: {
   let dy = defsY + 14;
   doc.fontSize(8).font("Helvetica").fillColor("#3f3f46");
   const defs = [
-    "ARP — Average rank where the business appears in the top 20.",
-    "ATRP — Average total rank treating not-found cells as rank 21.",
-    "SoLV — Share of local voice: percent of cells ranking in the top 3.",
+    "Avg. rank — Average rank where the business appears in the top 20.",
+    "Avg. rank (all cells) — Treats missing cells as rank 21 so absences count.",
+    "Top 3 % — Percent of map pins ranking in the local pack (positions 1–3).",
     "Visibility — Percent of cells ranking in the top 10.",
   ];
   for (const line of defs) {
@@ -432,12 +432,12 @@ export async function renderSingleScanPdfDetailed(params: {
   doc.y += 16;
   doc.fontSize(8).font("Helvetica").fillColor("#71717a");
   doc.text(
-    `Sorted by SoLV · Showing ${competitorLimit === "all" ? "all" : `top ${competitorLimit}`} · Target row highlighted · Address wraps under business name`,
+    `Sorted by Top 3 % · Showing ${competitorLimit === "all" ? "all" : `top ${competitorLimit}`} · Target row highlighted · Address wraps under business name`,
     { width: doc.page.width - 72 }
   );
   doc.moveDown(0.35);
 
-  // Columns: # | Business+Address | Rating | Reviews | Found | Top3 | SoLV | ARP | ATRP
+  // Columns: # | Business+Address | Rating | Reviews | Found | Top3 pins | Top3% | Avg | Avg all
   const tableLeft = 36;
   const tableWidth = doc.page.width - 72;
   const cols = [
@@ -447,9 +447,9 @@ export async function renderSingleScanPdfDetailed(params: {
     { key: "Reviews", w: 54 },
     { key: "Found", w: 48 },
     { key: "Top 3", w: 44 },
-    { key: "SoLV", w: 48 },
-    { key: "ARP", w: 44 },
-    { key: "ATRP", w: 48 },
+    { key: "Top 3 %", w: 48 },
+    { key: "Avg", w: 44 },
+    { key: "Avg all", w: 48 },
   ];
   // Normalize widths to tableWidth
   const sumW = cols.reduce((s, c) => s + c.w, 0);

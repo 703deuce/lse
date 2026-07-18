@@ -14,7 +14,7 @@ export default function OnboardingPage() {
     <div className="mx-auto max-w-2xl">
       <PageHeader
         title="Welcome to Maps Rank Tracker"
-        subtitle="Unlimited Google Maps rank tracking and client reporting for freelance local SEO."
+        subtitle="Audit prospects, track every client, and deliver professional white-label reports—with unlimited Maps scans and no credit math. Built for independent local SEO consultants managing 1–20 clients."
       />
 
       {!path ? (

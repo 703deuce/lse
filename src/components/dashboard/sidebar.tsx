@@ -216,7 +216,7 @@ export function DashboardSidebarPanel({
                 Maps Rank Tracker
               </Link>
             )}
-            <p className="text-[11px] text-slate-400">For freelance local SEO</p>
+            <p className="text-[11px] text-slate-400">Independent consultants · 1–20 clients</p>
           </div>
         </div>
         {businessId &&

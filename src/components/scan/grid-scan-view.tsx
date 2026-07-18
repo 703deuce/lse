@@ -123,7 +123,16 @@ function replaceUrlWithoutRouterSync(url: string) {
   window.history.replaceState({ __NA: true }, "", url);
 }
 
-export function GridScanView({ businessId, scanId }: { businessId: string; scanId: string }) {
+export function GridScanView({
+  businessId,
+  scanId,
+  initialCompareScanId = null,
+}: {
+  businessId: string;
+  scanId: string;
+  /** When set (e.g. from campaign Compare period), open compare with this baseline scan. */
+  initialCompareScanId?: string | null;
+}) {
   const [activeScanId, setActiveScanId] = useState(scanId);
   const [colorMode, setColorMode] = useState<GridColorMode>("falcon");
   const [keywordId, setKeywordId] = useState<string | null>(null);
@@ -131,9 +140,10 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
   /** User-pinned competitors beyond the auto top chips. */
   const [extraEntityKeys, setExtraEntityKeys] = useState<string[]>([]);
   const [inspectorCellId, setInspectorCellId] = useState<string | null>(null);
-  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(Boolean(initialCompareScanId));
   const [compareInitialMode, setCompareInitialMode] = useState<"scans" | "competitors">("scans");
   const [compareInitialCompetitorKey, setCompareInitialCompetitorKey] = useState<string | null>(null);
+  const [compareInitialScanAId] = useState<string | null>(initialCompareScanId);
   const [showRadiusRings, setShowRadiusRings] = useState(false);
   const [timelineMode, setTimelineMode] = useState<TimelineMode>("target");
   const [timelineCompetitorKey, setTimelineCompetitorKey] = useState<string | null>(null);
@@ -1396,6 +1406,7 @@ export function GridScanView({ businessId, scanId }: { businessId: string; scanI
           browser={String((batch as { browser?: string })?.browser ?? "chrome")}
           initialMode={compareInitialMode}
           initialCompetitorKey={compareInitialCompetitorKey}
+          initialScanAId={compareInitialScanAId}
           onClose={() => {
             setCompareOpen(false);
             setCompareInitialCompetitorKey(null);

@@ -1,5 +1,5 @@
 /**
- * Maps product positioning — independent local SEO freelancers (≈1–20 locations).
+ * Maps product positioning — independent local SEO consultants managing ~1–20 clients.
  *
  * Reputation / review-request campaigns are a separate product and must stay
  * out of the primary Maps navigation.
@@ -7,9 +7,12 @@
 
 export const FREELANCER_MAPS_PRODUCT = {
   name: "Maps Rank Tracker",
-  tagline: "Unlimited Google Maps rank tracking for freelance local SEO",
+  /** Primary positioning line for dashboards and onboarding. */
+  tagline:
+    "The Google Maps rank-tracking and reporting workspace for independent local SEO consultants.",
   supporting:
-    "Run every client and prospect scan you need, track rankings over time, and deliver branded reports without unfinished grids.",
+    "Audit prospects, track every client, and deliver professional white-label reports—with unlimited Maps scans and no credit math.",
+  audienceLine: "Built for independent local SEO consultants managing 1–20 clients.",
   /** Hide review-request / reputation workflows from the Maps sidebar. */
   hideReputationNav: true,
   /** Prefer location limits over credit-anxiety copy in the UI. */
