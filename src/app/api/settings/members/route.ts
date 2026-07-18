@@ -8,12 +8,12 @@ import { requestAuditMeta, writeSecurityAuditEvent } from "@/lib/security/audit-
 
 const inviteSchema = z.object({
   email: z.string().email().max(320),
-  role: z.enum(["admin", "member", "readonly"]).default("member"),
+  role: z.enum(["admin", "member", "assistant", "readonly"]).default("assistant"),
 });
 
 const roleSchema = z.object({
   userId: z.string().uuid(),
-  role: z.enum(["admin", "member", "readonly"]),
+  role: z.enum(["admin", "member", "assistant", "readonly"]),
 });
 
 export async function GET() {

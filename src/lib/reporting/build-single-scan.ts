@@ -255,7 +255,8 @@ export async function buildSingleScanReport(params: {
       gridSize: batch.grid_size,
       radiusMeters: batch.radius_meters,
       pointCount: gridData.points.length,
-      platform: batch.provider ?? batch.scan_type ?? "maps",
+      // Never expose provider names (Bright Data, etc.) in client-facing reports.
+      platform: "maps",
       centerLabel: batch.center_label ?? null,
       scanId: batch.id,
     },

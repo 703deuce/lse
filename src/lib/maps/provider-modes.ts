@@ -23,23 +23,22 @@ export type MapsProviderModeOption = {
 export const MAPS_PROVIDER_MODE_OPTIONS: MapsProviderModeOption[] = [
   {
     id: "hybrid",
-    label: "Bright Data (burst + wait retries)",
-    shortLabel: "Bright Data",
+    label: "Standard (recommended)",
+    shortLabel: "Standard",
     description:
-      "Bright Data only: burst up to ~100 cells, then unfinished retries every 8–15s until done or ~10 min. No ScrapingDog mix.",
+      "Fast parallel grid collection with automatic retries for unfinished points. Recommended for client work.",
   },
   {
     id: "scrapingdog",
-    label: "ScrapingDog only",
-    shortLabel: "ScrapingDog",
-    description: "Run every grid cell through ScrapingDog Maps — no Bright Data.",
+    label: "Alternate provider A",
+    shortLabel: "Alt A",
+    description: "Internal A/B mode — not needed for normal freelancer scans.",
   },
   {
     id: "dataforseo",
-    label: "DataForSEO only",
-    shortLabel: "DataForSEO",
-    description:
-      "Run every grid cell through DataForSEO Maps Live (device=mobile + os supported).",
+    label: "Alternate provider B",
+    shortLabel: "Alt B",
+    description: "Internal A/B mode — not needed for normal freelancer scans.",
   },
 ];
 

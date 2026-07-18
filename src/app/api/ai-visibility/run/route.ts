@@ -4,6 +4,7 @@ import { hasFeature, PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 import { assertRateLimit } from "@/lib/security/rate-limit";
 import { httpErrorFromException } from "@/lib/security/http-errors";
+import { trackProductEvent } from "@/lib/analytics/product-events";
 
 export async function POST(request: Request) {
   let reserved = false;
@@ -71,6 +72,10 @@ export async function POST(request: Request) {
       await releaseUsage(auth.organizationId, "ai_visibility_runs_used", 1).catch(() => {});
     }
     reserved = false;
+    trackProductEvent("ai_visibility_run_started", {
+      organizationId: auth.organizationId,
+      businessId,
+    });
     return NextResponse.json({
       queued: true,
       status: "queued",

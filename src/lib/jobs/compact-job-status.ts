@@ -11,6 +11,7 @@ import {
   derivePhase,
   type CompactJobStatusResponse,
 } from "@/lib/jobs/active-job-status";
+import { customerSafeScanError } from "@/lib/scans/customer-safe-error";
 
 const CACHE_TTL_MS = 2_000;
 /** Running jobs with heartbeat older than this are surfaced as stalled. */
@@ -137,9 +138,11 @@ function rowToCompact(row: CompactRow): CompactJobStatusResponse {
     updatedAt,
     version: Number(row.progress_version ?? 0),
     errorMessage: stalled
-      ? row.error_message ||
-        "Worker heartbeat is stale — the job may be recovering automatically."
-      : row.error_message,
+      ? customerSafeScanError(
+          row.error_message ||
+            "Worker heartbeat is stale — the job may be recovering automatically."
+        )
+      : customerSafeScanError(row.error_message),
     result: progress.result ?? undefined,
     enqueueState: row.enqueue_state,
     queueName: row.queue_name,

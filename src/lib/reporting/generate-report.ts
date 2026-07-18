@@ -37,6 +37,8 @@ export type GenerateReportParams = {
    * over recomputed keys so worker updates don't rewrite competitor:…:default → top-5.
    */
   identityKey?: string | null;
+  executiveSummary?: string | null;
+  sections?: Partial<Record<string, boolean>> | null;
 };
 
 export type GenerateReportResult = {
@@ -105,7 +107,7 @@ function reportIdentityKey(
         payload.parameters.radiusMeters,
       ].join(":");
     case "maps_campaign":
-      return "maps_campaign";
+      return `maps_campaign:${params.campaignId ?? payload.parameters.campaignId ?? "default"}`;
     case "reviews":
       return "reviews";
     case "review_campaign":
@@ -188,12 +190,23 @@ async function persistReport(params: {
   // Keep metadata lean — full heatmap cells + HTML already live in html_content.
   // Oversized metadata_json has caused share/export instability on large grids.
   const slimPayload = slimReportPayloadForMetadata(params.payload);
+  const execSummary =
+    "executiveSummary" in params.payload
+      ? (params.payload as { executiveSummary?: string | null }).executiveSummary
+      : null;
+  const sections =
+    "sections" in params.payload
+      ? (params.payload as { sections?: Partial<Record<string, boolean>> | null })
+          .sections
+      : null;
   const metadata = {
     reportType: params.payload.reportType,
     identityKey: params.identityKey,
     payload: slimPayload,
     generatedAt: params.payload.generatedAt,
     artifactKind: "html_share",
+    ...(typeof execSummary === "string" ? { executiveSummary: execSummary } : {}),
+    ...(sections ? { sections } : {}),
   } satisfies ReportMeta & {
     payload: AnyReportPayload;
     generatedAt: string;
@@ -344,6 +357,7 @@ export async function buildTypedReportPayload(
   if (reportType === "maps_campaign") {
     return buildMapsCampaignReport({
       businessId: params.businessId,
+      campaignId: params.campaignId,
       whiteLabel: params.whiteLabel,
     });
   }
@@ -374,7 +388,43 @@ export async function generateTypedReport(
 ): Promise<GenerateReportResult> {
   const { withReportGenerationTimeout } = await import("@/lib/reporting/report-timeout");
   return withReportGenerationTimeout(async () => {
-    const payload = await buildTypedReportPayload(params);
+    let payload = await buildTypedReportPayload(params);
+    if (
+      params.executiveSummary != null ||
+      params.sections != null
+    ) {
+      payload = {
+        ...payload,
+        ...(params.executiveSummary != null
+          ? { executiveSummary: params.executiveSummary }
+          : {}),
+        ...(params.sections != null ? { sections: params.sections } : {}),
+      } as AnyReportPayload;
+    }
+    // Pull approved summary/sections from an existing report row when regenerating.
+    if (
+      params.reportId &&
+      (!("executiveSummary" in payload) ||
+        !(payload as { executiveSummary?: string }).executiveSummary)
+    ) {
+      const supabase = createServiceClient();
+      const { data: existing } = await supabase
+        .from("reports")
+        .select("metadata_json")
+        .eq("id", params.reportId)
+        .eq("business_id", params.businessId)
+        .maybeSingle();
+      const meta = (existing?.metadata_json as Record<string, unknown>) ?? {};
+      if (typeof meta.executiveSummary === "string" && meta.executiveSummary.trim()) {
+        payload = {
+          ...payload,
+          executiveSummary: meta.executiveSummary,
+          sections:
+            (meta.sections as Partial<Record<string, boolean>> | undefined) ??
+            (payload as { sections?: Partial<Record<string, boolean>> }).sections,
+        } as AnyReportPayload;
+      }
+    }
     const html = renderReportHtml(payload);
     const identityKey = params.identityKey?.trim() || reportIdentityKey(payload, params);
 

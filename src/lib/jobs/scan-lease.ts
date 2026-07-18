@@ -94,7 +94,19 @@ export async function reclaimStaleScan(
     .select("*")
     .maybeSingle();
 
-  if (recoveringReady) return recoveringReady as ClaimedBatch;
+  if (recoveringReady) {
+    try {
+      const { trackProductEvent } = await import("@/lib/analytics/product-events");
+      trackProductEvent("scan_recovered", {
+        organizationId: (recoveringReady as { organization_id?: string }).organization_id,
+        businessId: (recoveringReady as { business_id?: string }).business_id,
+        scanId: scanBatchId,
+      });
+    } catch {
+      /* analytics must never block recovery */
+    }
+    return recoveringReady as ClaimedBatch;
+  }
 
   // Pre-lease crashes: lease_expires_at NULL and stuck past TTL from started_at/updated_at.
   const staleBefore = new Date(now.getTime() - scanLeaseTtlMs()).toISOString();

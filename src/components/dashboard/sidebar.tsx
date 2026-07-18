@@ -408,10 +408,10 @@ function DashboardSidebarInner({
 
   useEffect(() => {
     if (!businessId) return;
-    void fetch(`/api/reputation/review-link/${businessId}`)
+    void fetch(`/api/businesses/${businessId}/account`)
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
-        if (json?.businessName) setBusinessName(json.businessName as string);
+        if (json?.account?.name) setBusinessName(json.account.name as string);
       })
       .catch(() => undefined);
   }, [businessId]);

@@ -28,21 +28,21 @@ function fmt(n: number | null | undefined, digits = 1): string {
 function reportTitle(type: AnyReportPayload["reportType"]): string {
   switch (type) {
     case "single_scan":
-      return "Single Scan Report";
+      return "Prospect audit";
     case "trend":
-      return "Trend Report";
+      return "Monthly client report";
     case "competitor":
-      return "Competitor Report";
+      return "Competitor visibility";
     case "location":
-      return "Location Report";
+      return "Location keyword summary";
     case "keyword":
-      return "Keyword Report";
+      return "Keyword deep dive";
     case "maps_campaign":
-      return "Maps Campaign Report";
+      return "Campaign progress report";
     case "reviews":
-      return "Reviews Report";
+      return "Review snapshot";
     case "review_campaign":
-      return "Review Campaign Report";
+      return "Campaign report";
     default:
       return "Maps Report";
   }
@@ -285,15 +285,36 @@ function renderSingleScan(payload: SingleScanReportPayload): string {
         `<div class="dist-item"><strong>${d.count}</strong><span class="muted">${escapeHtml(d.label)}</span></div>`
     )
     .join("");
+  const executiveSummary =
+    (payload as SingleScanReportPayload & { executiveSummary?: string | null })
+      .executiveSummary ?? null;
+  const reviewBits: string[] = [];
+  if (payload.business.rating != null) {
+    reviewBits.push(`★ ${fmt(payload.business.rating)}`);
+  }
+  if (payload.business.reviewCount != null) {
+    reviewBits.push(`${payload.business.reviewCount.toLocaleString()} reviews`);
+  }
   const body = `
-    <p class="muted">${escapeHtml(payload.parameters.keyword)} · ${payload.parameters.gridSize}×${payload.parameters.gridSize} · ${payload.parameters.radiusMeters}m · ${escapeHtml(payload.parameters.platform)}${payload.parameters.centerLabel ? ` · ${escapeHtml(payload.parameters.centerLabel)}` : ""}</p>
+    <p class="muted">${escapeHtml(payload.parameters.keyword)} · ${payload.parameters.gridSize}×${payload.parameters.gridSize} · ${payload.parameters.radiusMeters}m${payload.parameters.centerLabel ? ` · ${escapeHtml(payload.parameters.centerLabel)}` : ""}</p>
+    ${
+      reviewBits.length
+        ? `<p class="muted">Review snapshot: ${escapeHtml(reviewBits.join(" · "))} <span class="muted">(context only)</span></p>`
+        : ""
+    }
+    ${
+      executiveSummary
+        ? `<section><h2>Executive summary</h2><p>${escapeHtml(executiveSummary)}</p></section>`
+        : ""
+    }
+    <h2>Google Maps overview</h2>
     ${kpiCards(payload.kpis)}
-    <h2>Rank heatmap</h2>
+    <h2>Maps grid</h2>
     ${heatmapHtml(payload.heatmap.gridSize, payload.heatmap.cells)}
     <h2>Rank distribution</h2>
     <div class="dist">${dist}</div>
     <section class="page-break">
-      <h2>Competitors</h2>
+      <h2>Competitor visibility</h2>
       ${competitorTable(payload.competitors)}
     </section>`;
   return shell(payload, body);

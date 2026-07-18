@@ -143,6 +143,7 @@ export async function createGeneratingShareRecord(params: {
       html_content: null,
       artifact_kind: "html_share",
       artifact_status: "generating",
+      publish_status: "published",
       metadata_json: {
         reportType: params.reportType,
         identityKey: params.identityKey,

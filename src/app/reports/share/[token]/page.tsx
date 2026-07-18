@@ -6,6 +6,7 @@ import { assertRateLimit } from "@/lib/security/rate-limit";
 import { writeSecurityAuditEvent } from "@/lib/security/audit-log";
 import { headers, cookies } from "next/headers";
 import { shareUnlockCookieName } from "@/lib/reporting/share-password";
+import { trackProductEvent } from "@/lib/analytics/product-events";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,7 @@ export default async function ShareReportPage({
   let { data: report } = await supabase
     .from("reports")
     .select(
-      "id, html_content, share_expires_at, artifact_status, error_message, business_id, generated_at, share_token_hash, share_password_hash"
+      "id, html_content, share_expires_at, artifact_status, error_message, business_id, generated_at, share_token_hash, share_password_hash, publish_status, share_view_count"
     )
     .eq("share_token_hash", tokenHash)
     .maybeSingle();
@@ -61,7 +62,7 @@ export default async function ShareReportPage({
     const legacy = await supabase
       .from("reports")
       .select(
-        "id, html_content, share_expires_at, artifact_status, error_message, business_id, generated_at, share_token_hash, share_password_hash"
+        "id, html_content, share_expires_at, artifact_status, error_message, business_id, generated_at, share_token_hash, share_password_hash, publish_status, share_view_count"
       )
       .eq("share_token", token)
       .is("share_token_hash", null)
@@ -70,6 +71,15 @@ export default async function ShareReportPage({
   }
 
   if (!report) notFound();
+
+  if (report.publish_status === "archived" || report.publish_status === "draft") {
+    notFound();
+  }
+
+  if (report.share_expires_at) {
+    const expires = new Date(report.share_expires_at).getTime();
+    if (Number.isFinite(expires) && expires <= Date.now()) notFound();
+  }
 
   void (async () => {
     try {
@@ -90,11 +100,6 @@ export default async function ShareReportPage({
       /* best-effort */
     }
   })();
-
-  if (report.share_expires_at) {
-    const expires = new Date(report.share_expires_at).getTime();
-    if (Number.isFinite(expires) && expires <= Date.now()) notFound();
-  }
 
   const passwordHash = report.share_password_hash as string | null;
   if (passwordHash) {
@@ -173,6 +178,31 @@ export default async function ShareReportPage({
       </main>
     );
   }
+
+  // Count successful unlocked views only.
+  void (async () => {
+    try {
+      const { data: biz } = await supabase
+        .from("businesses")
+        .select("organization_id")
+        .eq("id", report.business_id)
+        .maybeSingle();
+      await supabase
+        .from("reports")
+        .update({
+          share_view_count: (report.share_view_count ?? 0) + 1,
+          share_last_viewed_at: new Date().toISOString(),
+        })
+        .eq("id", report.id);
+      trackProductEvent("shared_report_viewed", {
+        organizationId: biz?.organization_id ?? undefined,
+        businessId: report.business_id as string,
+        reportId: report.id as string,
+      });
+    } catch {
+      /* best-effort */
+    }
+  })();
 
   return (
     <iframe

@@ -92,6 +92,27 @@ export async function PATCH(
     }
     if (p.restore === true) {
       patch.archived_at = null;
+      // Restoring a client re-opens the tracked slot; prospects stay untracked audits.
+      const { data: current } = await supabase
+        .from("businesses")
+        .select("account_type, is_tracked")
+        .eq("id", businessId)
+        .eq("organization_id", auth.organizationId)
+        .maybeSingle();
+      const nextType =
+        (p.accountType as string | undefined) ??
+        (current?.account_type as string | null) ??
+        null;
+      if (nextType === "client" || (nextType == null && current?.is_tracked !== false)) {
+        patch.is_tracked = true;
+        if (p.accountType === undefined) patch.account_type = "client";
+        if (p.prospectStatus === undefined) patch.prospect_status = "won";
+      } else {
+        patch.is_tracked = false;
+        if (p.accountType === undefined && nextType == null) {
+          patch.account_type = "prospect";
+        }
+      }
     }
 
     const { data, error } = await supabase

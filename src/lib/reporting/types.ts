@@ -87,6 +87,8 @@ export type SingleScanReportPayload = {
   rankDistribution: { label: string; count: number }[];
   whiteLabel: WhiteLabelConfig;
   generatedAt: string;
+  executiveSummary?: string | null;
+  sections?: Partial<Record<string, boolean>> | null;
 };
 
 export type TrendReportPayload = {
@@ -188,6 +190,8 @@ export type MapsCampaignReportPayload = {
   reportType: "maps_campaign";
   business: { id: string; name: string; address: string | null };
   parameters: {
+    campaignId?: string | null;
+    campaignName?: string | null;
     scheduleEnabled: boolean;
     cronExpression: string | null;
     nextRunAt: string | null;

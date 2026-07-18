@@ -27,6 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { ReportType } from "@/lib/reporting/types";
 import { ScanExportMenu } from "@/components/reports/scan-export-menu";
+import { ReportShareControls } from "@/components/reports/report-share-controls";
 import { useActiveJobStatus } from "@/components/jobs/use-active-job-status";
 import { isTerminalJobStatus } from "@/lib/jobs/active-job-status";
 
@@ -52,6 +53,15 @@ type CampaignOption = {
   sent: number;
   reviewsDetected: number;
 };
+type MapsCampaignOption = {
+  id: string;
+  name: string;
+  status: string;
+  scheduleEnabled: boolean;
+  nextRunAt: string | null;
+  gridSize: number | null;
+  radiusMeters: number | null;
+};
 
 type ReportCard = {
   type: ReportType;
@@ -60,6 +70,7 @@ type ReportCard = {
   icon: typeof FileText;
   needsScan: boolean;
   needsCampaign?: boolean;
+  needsMapsCampaign?: boolean;
   needsKeyword?: boolean;
   available: boolean;
 };
@@ -90,6 +101,7 @@ const REPORT_CARDS: ReportCard[] = [
       "Baseline versus current for a keyword group — gains, weak areas, and rollup.",
     icon: Megaphone,
     needsScan: false,
+    needsMapsCampaign: true,
     available: true,
   },
   {
@@ -134,11 +146,13 @@ export function ReportsHub({
   const [scans, setScans] = useState<ScanOption[]>([]);
   const [keywords, setKeywords] = useState<KeywordOption[]>([]);
   const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
+  const [mapsCampaigns, setMapsCampaigns] = useState<MapsCampaignOption[]>([]);
   const [loadingScans, setLoadingScans] = useState(true);
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [scanId, setScanId] = useState(latestScanId ?? "");
   const [keywordId, setKeywordId] = useState("");
   const [campaignId, setCampaignId] = useState("");
+  const [mapsCampaignId, setMapsCampaignId] = useState("");
   const [activeType, setActiveType] = useState<ReportType>("single_scan");
   const [busy, setBusy] = useState<"share" | "csv" | "revoke" | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -207,16 +221,19 @@ export function ReportsHub({
       if (!res.ok) throw new Error(json.error ?? "Failed to load report options");
       const kw = (json.keywords ?? []) as KeywordOption[];
       const camps = (json.campaigns ?? []) as CampaignOption[];
+      const mapsCamps = (json.mapsCampaigns ?? []) as MapsCampaignOption[];
       setKeywords(kw);
       setCampaigns(camps);
+      setMapsCampaigns(mapsCamps);
       if (!keywordId && kw[0]?.id) setKeywordId(kw[0].id);
       if (!campaignId && camps[0]?.id) setCampaignId(camps[0].id);
+      if (!mapsCampaignId && mapsCamps[0]?.id) setMapsCampaignId(mapsCamps[0].id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load report options");
     } finally {
       setLoadingOptions(false);
     }
-  }, [businessId, campaignId, keywordId]);
+  }, [businessId, campaignId, keywordId, mapsCampaignId]);
 
   useEffect(() => {
     void loadScans();
@@ -250,7 +267,7 @@ export function ReportsHub({
     setReportId(null);
     setShareJobId(null);
     setShareStatus("idle");
-  }, [scanId, keywordId, campaignId, activeType]);
+  }, [scanId, keywordId, campaignId, mapsCampaignId, activeType]);
 
   async function createReport(format: "share" | "csv") {
     if (!activeCard.available) return;
@@ -260,6 +277,10 @@ export function ReportsHub({
     }
     if (activeCard.needsCampaign && !campaignId) {
       setError("Select a review campaign first");
+      return;
+    }
+    if (activeCard.needsMapsCampaign && !mapsCampaignId) {
+      setError("Select a Maps campaign first");
       return;
     }
     if (activeCard.needsKeyword && !keywordId) {
@@ -310,6 +331,9 @@ export function ReportsHub({
         if (selectedScan?.radiusMeters) body.radiusMeters = selectedScan.radiusMeters;
       }
       if (activeType === "review_campaign" && campaignId) body.campaignId = campaignId;
+      if (activeType === "maps_campaign" && mapsCampaignId) {
+        body.campaignId = mapsCampaignId;
+      }
 
       const res = await fetch("/api/reports/export", {
         method: "POST",
@@ -545,6 +569,35 @@ export function ReportsHub({
             </div>
           ) : null}
 
+          {activeCard.needsMapsCampaign ? (
+            <div className="mt-3">
+              <label className={fieldLabelClass}>Maps campaign</label>
+              {loadingOptions ? (
+                <p className="mt-1 flex items-center gap-2 text-[12px] text-zinc-500">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading campaigns…
+                </p>
+              ) : mapsCampaigns.length === 0 ? (
+                <p className="mt-1 text-[12px] text-amber-700">
+                  No Maps campaigns yet. Create one under Campaigns first.
+                </p>
+              ) : (
+                <select
+                  className={cn(inputClass, "mt-1")}
+                  value={mapsCampaignId}
+                  onChange={(e) => setMapsCampaignId(e.target.value)}
+                >
+                  {mapsCampaigns.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                      {c.scheduleEnabled ? " · scheduled" : " · manual"}
+                      {c.gridSize ? ` · ${c.gridSize}×${c.gridSize}` : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          ) : null}
+
           <div className="mt-4 flex flex-col gap-2">
             {activeType === "single_scan" && scanId ? (
               <ScanExportMenu businessId={businessId} scanBatchId={scanId} className="mb-2" />
@@ -557,6 +610,7 @@ export function ReportsHub({
                 ((activeCard.needsScan || activeType === "trend") && !scanId) ||
                 (activeType === "trend" && !resolvedTrendKeywordId) ||
                 (activeCard.needsCampaign && !campaignId) ||
+                (activeCard.needsMapsCampaign && !mapsCampaignId) ||
                 (activeCard.needsKeyword && !keywordId)
               }
               onClick={() => void createReport("share")}
@@ -581,6 +635,7 @@ export function ReportsHub({
                 ((activeCard.needsScan || activeType === "trend") && !scanId) ||
                 (activeType === "trend" && !resolvedTrendKeywordId) ||
                 (activeCard.needsCampaign && !campaignId) ||
+                (activeCard.needsMapsCampaign && !mapsCampaignId) ||
                 (activeCard.needsKeyword && !keywordId)
               }
               onClick={() => void createReport("csv")}
@@ -620,6 +675,20 @@ export function ReportsHub({
                   </button>
                 ) : null}
                 <p className="break-all text-[11px] text-zinc-500">{shareUrl}</p>
+                {reportId ? (
+                  <ReportShareControls
+                    businessId={businessId}
+                    reportId={reportId}
+                    shareUrl={shareUrl}
+                    onShareUrlChange={setShareUrl}
+                    keyword={selectedScan?.keyword}
+                    reportLabel={activeCard.title}
+                    kpis={{
+                      arp: selectedScan?.averageRank ?? null,
+                      visibilityScore: selectedScan?.visibilityScore ?? null,
+                    }}
+                  />
+                ) : null}
               </>
             ) : null}
           </div>

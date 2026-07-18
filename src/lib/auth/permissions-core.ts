@@ -1,4 +1,4 @@
-export type OrgRole = "owner" | "admin" | "member" | "readonly";
+export type OrgRole = "owner" | "admin" | "member" | "assistant" | "readonly";
 
 export type Permission =
   | "business.read"
@@ -23,6 +23,7 @@ const ROLE_RANK: Record<OrgRole, number> = {
   owner: 40,
   admin: 30,
   member: 20,
+  assistant: 20,
   readonly: 10,
 };
 
@@ -47,12 +48,30 @@ const PERMISSION_MIN_ROLE: Record<Permission, OrgRole> = {
   "admin.ops": "owner",
 };
 
-export function roleHasPermission(role: OrgRole, permission: Permission): boolean {
-  const min = PERMISSION_MIN_ROLE[permission];
-  return ROLE_RANK[role] >= ROLE_RANK[min];
+export function normalizeOrgRole(role: string | null | undefined): OrgRole {
+  if (
+    role === "owner" ||
+    role === "admin" ||
+    role === "assistant" ||
+    role === "readonly"
+  ) {
+    return role;
+  }
+  return "member";
 }
 
-export function normalizeOrgRole(role: string | null | undefined): OrgRole {
-  if (role === "owner" || role === "admin" || role === "readonly") return role;
-  return "member";
+/** Assistant ≈ member for ops, but cannot manage billing, ownership, or invites. */
+export function roleHasPermission(role: OrgRole, permission: Permission): boolean {
+  if (
+    role === "assistant" &&
+    (permission === "billing.read" ||
+      permission === "org.delete" ||
+      permission === "member.invite" ||
+      permission === "member.manage" ||
+      permission === "api_key.manage")
+  ) {
+    return false;
+  }
+  const min = PERMISSION_MIN_ROLE[permission];
+  return ROLE_RANK[role] >= ROLE_RANK[min];
 }

@@ -15,6 +15,11 @@ export default async function SettingsPage() {
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <SettingsLink href="/settings/profile" title="Profile" body="Name and account email." />
         <SettingsLink
+          href="/settings/team"
+          title="Team"
+          body="Invite Owner / Assistant seats for your workspace."
+        />
+        <SettingsLink
           href="/settings/subscription"
           title="Subscription"
           body="Plan limits and active location slots."

@@ -35,3 +35,26 @@ Re-run the migration backfill only on fresh DBs; production should apply once.
 1. Apply SQL migration 071.
 2. Deploy web + maps worker (web first if only UI; both if create API uses new columns).
 3. Smoke: create prospect → scan → convert → client list shows record; campaigns list loads.
+
+## Migration `072_freelancer_share_team.sql`
+
+### What changed
+
+| Object | Change |
+|---|---|
+| `reports` | `share_view_count`, `share_last_viewed_at`, `publish_status` (`draft` / `published` / `archived`) |
+| `organization_members.role` | Accepts `assistant` (≈ member without billing/invite/ownership) |
+
+### Product surfaces wired
+
+- Share link password / expiry / regenerate / view count / publish status in Reports hub
+- AI executive summary generate + save (tone presets)
+- Report section toggles persisted on `metadata_json.sections`
+- Settings → Team assistant invite
+- Public share page increments view count and blocks draft/archived links
+
+### Deploy order
+
+1. Apply SQL migrations **071** then **072**.
+2. Redeploy **web + maps worker**.
+3. Smoke: create share → set password → open link → view count increments; invite assistant seat.

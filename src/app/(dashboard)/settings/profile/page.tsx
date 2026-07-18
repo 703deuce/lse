@@ -34,7 +34,11 @@ export default async function ProfileSettingsPage() {
           </div>
         </dl>
         <p className="mt-4 text-xs text-zinc-500">
-          Assistant seats can be invited later. Owners manage billing, branding, and deletion.
+          Invite assistants under{" "}
+          <a href="/settings/team" className="font-medium text-emerald-700 hover:underline">
+            Settings → Team
+          </a>
+          . Owners manage billing, branding, and deletion.
         </p>
       </div>
     </>
