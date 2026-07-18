@@ -29,9 +29,9 @@ COMMENT ON COLUMN scan_batches.next_recovery_at IS
 COMMENT ON COLUMN scan_batches.recovery_lock_owner IS
   'Worker id holding the recovery execution lease (separate from scan lease)';
 
-CREATE INDEX IF NOT EXISTS idx_scan_batches_recovering_next
-  ON scan_batches (next_recovery_at)
-  WHERE status = 'recovering';
+-- NOTE: Do not create a partial index on status = 'recovering' in this file.
+-- PostgreSQL requires the new enum value to be committed before it can be used
+-- (error 55P04). See 070_scan_recovering_index.sql.
 
 ALTER TABLE scan_points
   ADD COLUMN IF NOT EXISTS cell_status TEXT NOT NULL DEFAULT 'pending',
