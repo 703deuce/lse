@@ -1,18 +1,82 @@
--- Campaign baseline scan for freelancer progress reporting.
--- When a prospect converts (or a freelancer marks a scan), reports can compare
--- baseline vs current / prior period vs current.
+-- Campaign baseline + ensure maps_campaigns exists.
+-- Safe to run even if 071 was skipped: creates the table first, then adds baseline.
+-- Prefer still applying full 071/072 for CRM columns, share fields, and keyword backfill.
 --
--- REQUIRES: 071_freelancer_accounts_campaigns.sql (creates maps_campaigns)
--- Apply order: 071 → 072 → 073
+-- Apply order (ideal): 071 → 072 → 073
+-- This file alone will create maps_campaigns if missing so baseline can apply.
+
+-- ---------------------------------------------------------------------------
+-- Ensure maps_campaigns exists (subset of 071 — idempotent)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS maps_campaigns (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID NOT NULL REFERENCES businesses (id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  default_grid_size INTEGER NOT NULL DEFAULT 7,
+  default_radius_meters INTEGER NOT NULL DEFAULT 3000,
+  schedule_type TEXT NOT NULL DEFAULT 'manual',
+  schedule_day INTEGER,
+  schedule_timezone TEXT,
+  next_scheduled_at TIMESTAMPTZ,
+  schedule_enabled BOOLEAN NOT NULL DEFAULT false,
+  archived_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT maps_campaigns_schedule_type_check
+    CHECK (schedule_type IN ('manual', 'weekly', 'biweekly', 'monthly'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_maps_campaigns_business
+  ON maps_campaigns (business_id)
+  WHERE archived_at IS NULL;
+
+ALTER TABLE maps_campaigns ENABLE ROW LEVEL SECURITY;
 
 DO $$
 BEGIN
-  IF to_regclass('public.maps_campaigns') IS NULL THEN
-    RAISE EXCEPTION
-      'maps_campaigns does not exist. Apply supabase/migrations/071_freelancer_accounts_campaigns.sql first, then 072, then 073.';
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'maps_campaigns' AND policyname = 'maps_campaigns_member_all'
+  ) THEN
+    CREATE POLICY maps_campaigns_member_all ON maps_campaigns
+      FOR ALL
+      USING (
+        EXISTS (
+          SELECT 1
+          FROM businesses b
+          WHERE b.id = maps_campaigns.business_id
+            AND is_business_member(b.id)
+        )
+      )
+      WITH CHECK (
+        EXISTS (
+          SELECT 1
+          FROM businesses b
+          WHERE b.id = maps_campaigns.business_id
+            AND is_business_member(b.id)
+        )
+      );
   END IF;
+EXCEPTION
+  WHEN undefined_function THEN
+    -- is_business_member missing on very old DBs — table still created; add RLS later.
+    RAISE NOTICE 'maps_campaigns created without RLS policy (is_business_member missing)';
 END $$;
 
+-- Keyword campaign link (from 071) — needed for campaign ops
+ALTER TABLE business_keywords
+  ADD COLUMN IF NOT EXISTS campaign_id UUID REFERENCES maps_campaigns (id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+
+CREATE INDEX IF NOT EXISTS idx_business_keywords_campaign
+  ON business_keywords (campaign_id)
+  WHERE campaign_id IS NOT NULL;
+
+-- ---------------------------------------------------------------------------
+-- Baseline column (original 073 purpose)
+-- ---------------------------------------------------------------------------
 ALTER TABLE maps_campaigns
   ADD COLUMN IF NOT EXISTS baseline_scan_batch_id UUID REFERENCES scan_batches (id) ON DELETE SET NULL;
 
