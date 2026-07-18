@@ -124,7 +124,6 @@ function replaceUrlWithoutRouterSync(url: string) {
 }
 
 export function GridScanView({ businessId, scanId }: { businessId: string; scanId: string }) {
-  const router = useRouter();
   const [activeScanId, setActiveScanId] = useState(scanId);
   const [colorMode, setColorMode] = useState<GridColorMode>("falcon");
   const [keywordId, setKeywordId] = useState<string | null>(null);
