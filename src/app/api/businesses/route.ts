@@ -15,7 +15,9 @@ export async function GET() {
     // breaks the locations hub with "column businesses.city does not exist".
     const { data, error } = await supabase
       .from("businesses")
-      .select("id, name, address_text, scan_center_label, primary_category, is_tracked, created_at")
+      .select(
+        "id, name, address_text, scan_center_label, primary_category, is_tracked, account_type, prospect_status, primary_contact_name, primary_contact_email, notes, archived_at, created_at"
+      )
       .eq("organization_id", auth.organizationId)
       .order("name", { ascending: true });
 
@@ -24,7 +26,9 @@ export async function GET() {
     }
 
     const businesses = data ?? [];
-    const trackedCount = businesses.filter((b) => b.is_tracked !== false).length;
+    const trackedCount = businesses.filter(
+      (b) => b.is_tracked !== false && !b.archived_at
+    ).length;
 
     return NextResponse.json({
       businesses,

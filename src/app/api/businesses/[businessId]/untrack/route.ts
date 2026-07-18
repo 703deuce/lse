@@ -30,6 +30,7 @@ export async function POST(
       .from("businesses")
       .update({
         is_tracked: false,
+        archived_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq("id", businessId);
@@ -43,7 +44,12 @@ export async function POST(
       .update({ enabled: false, next_run_at: null })
       .eq("business_id", businessId);
 
-    return NextResponse.json({ ok: true, businessId, isTracked: false });
+    return NextResponse.json({
+      ok: true,
+      businessId,
+      isTracked: false,
+      archived: true,
+    });
   } catch (err) {
     return httpErrorFromException(err, "Untrack failed");
   }

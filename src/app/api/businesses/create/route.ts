@@ -6,6 +6,7 @@ import { setBusinessGeom } from "@/lib/db/geo";
 import { parseUsAddressCityState } from "@/lib/geo/us-address";
 import { assertWithinLimit, PlanLimitError } from "@/lib/plans";
 import { createBusinessSchema } from "@/lib/validation/schemas";
+import { trackProductEvent } from "@/lib/analytics/product-events";
 
 export async function POST(request: Request) {
   try {
@@ -68,30 +69,88 @@ export async function POST(request: Request) {
         scan_center_label: scanCenterLabel ?? publicAddress,
         is_tracked: isTracked,
         tracking_source: isTracked ? "manual" : "manual",
+        account_type: isTracked ? "client" : "prospect",
+        prospect_status: isTracked ? null : "new",
       })
       .select("*")
       .single();
 
-    if (error || !business) {
-      return NextResponse.json({ error: error?.message ?? "Create failed" }, { status: 500 });
+    // If freelancer CRM columns are not migrated yet, retry without them.
+    let businessRow = business;
+    let createError = error;
+    if (createError && /account_type|prospect_status/i.test(createError.message)) {
+      const retry = await supabase
+        .from("businesses")
+        .insert({
+          organization_id: auth.organizationId,
+          name: data.name,
+          website_url: data.website_url ?? null,
+          phone: data.phone ?? null,
+          address_text: publicAddress,
+          lat: data.lat ?? null,
+          lng: data.lng ?? null,
+          place_id: data.place_id ?? null,
+          cid: data.cid ?? null,
+          primary_category: data.primary_category ?? null,
+          service_area_mode: data.service_area_mode ?? "storefront",
+          scan_center_lat: scanCenterLat,
+          scan_center_lng: scanCenterLng,
+          scan_center_label: scanCenterLabel ?? publicAddress,
+          is_tracked: isTracked,
+          tracking_source: "manual",
+        })
+        .select("*")
+        .single();
+      businessRow = retry.data;
+      createError = retry.error;
     }
 
-    const geomLat = business.scan_center_lat ?? business.lat;
-    const geomLng = business.scan_center_lng ?? business.lng;
+    if (createError || !businessRow) {
+      return NextResponse.json(
+        { error: createError?.message ?? "Create failed" },
+        { status: 500 }
+      );
+    }
+    const createdBusiness = businessRow;
+
+    const geomLat = createdBusiness.scan_center_lat ?? createdBusiness.lat;
+    const geomLng = createdBusiness.scan_center_lng ?? createdBusiness.lng;
     if (geomLat && geomLng) {
-      await setBusinessGeom(business.id, geomLng, geomLat);
+      await setBusinessGeom(createdBusiness.id, geomLng, geomLat);
+    }
+
+    let campaignId: string | null = null;
+    const { data: campaign, error: campaignError } = await supabase
+      .from("maps_campaigns")
+      .insert({
+        business_id: createdBusiness.id,
+        name: "Primary keywords",
+        description: isTracked ? "Default client campaign" : "Prospect audit keywords",
+      })
+      .select("id")
+      .maybeSingle();
+    if (!campaignError && campaign?.id) {
+      campaignId = campaign.id;
     }
 
     if (data.keyword) {
       const fromAddress = parseUsAddressCityState(scanCenterLabel ?? publicAddress);
-      const { error: keywordError } = await supabase.from("business_keywords").insert({
-        business_id: business.id,
+      const keywordInsert: Record<string, unknown> = {
+        business_id: createdBusiness.id,
         keyword: data.keyword.trim(),
         is_primary: true,
         city: data.city ?? fromAddress.city,
         state: data.state ?? fromAddress.state,
         country: data.country ?? "US",
-      });
+      };
+      if (campaignId) {
+        keywordInsert.campaign_id = campaignId;
+        keywordInsert.active = true;
+        keywordInsert.sort_order = 0;
+      }
+      const { error: keywordError } = await supabase
+        .from("business_keywords")
+        .insert(keywordInsert);
       if (keywordError) {
         return NextResponse.json(
           { error: `Business created but primary keyword failed: ${keywordError.message}` },
@@ -100,7 +159,12 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ business });
+    trackProductEvent(isTracked ? "client_created" : "prospect_created", {
+      organizationId: auth.organizationId,
+      businessId: createdBusiness.id,
+    });
+
+    return NextResponse.json({ business: createdBusiness });
   } catch (err) {
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });

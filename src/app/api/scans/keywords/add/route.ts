@@ -6,7 +6,11 @@ import { createServiceClient } from "@/lib/db/client";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { businessId, keyword } = body as { businessId?: string; keyword?: string };
+    const { businessId, keyword, campaignId } = body as {
+      businessId?: string;
+      keyword?: string;
+      campaignId?: string;
+    };
 
     if (!businessId || !keyword?.trim()) {
       return NextResponse.json({ error: "businessId and keyword required" }, { status: 400 });
@@ -18,13 +22,19 @@ export async function POST(request: Request) {
 
     const { data: existing } = await supabase
       .from("business_keywords")
-      .select("id, keyword, city, state, is_primary")
+      .select("id, keyword, city, state, is_primary, campaign_id")
       .eq("business_id", businessId);
 
     const duplicate = (existing ?? []).find(
       (k) => String(k.keyword).trim().toLowerCase() === trimmed.toLowerCase()
     );
     if (duplicate) {
+      if (campaignId && !duplicate.campaign_id) {
+        await supabase
+          .from("business_keywords")
+          .update({ campaign_id: campaignId })
+          .eq("id", duplicate.id);
+      }
       return NextResponse.json({
         keyword: { id: duplicate.id, keyword: String(duplicate.keyword).trim() },
         created: false,
@@ -41,6 +51,9 @@ export async function POST(request: Request) {
         city: primary?.city ?? null,
         state: primary?.state ?? null,
         is_primary: false,
+        campaign_id: campaignId ?? null,
+        active: true,
+        sort_order: (existing ?? []).length,
       })
       .select("*")
       .single();

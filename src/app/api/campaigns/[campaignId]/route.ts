@@ -1,0 +1,112 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { httpErrorFromException } from "@/lib/security/http-errors";
+import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { createServiceClient } from "@/lib/db/client";
+
+const patchSchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  description: z.string().max(2000).nullable().optional(),
+  defaultGridSize: z.number().int().min(3).max(15).optional(),
+  defaultRadiusMeters: z.number().int().min(100).max(50000).optional(),
+  scheduleType: z.enum(["manual", "weekly", "biweekly", "monthly"]).optional(),
+  scheduleDay: z.number().int().min(0).max(31).nullable().optional(),
+  scheduleTimezone: z.string().max(80).nullable().optional(),
+  scheduleEnabled: z.boolean().optional(),
+  nextScheduledAt: z.string().datetime().nullable().optional(),
+  archive: z.boolean().optional(),
+});
+
+async function loadCampaign(campaignId: string) {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("maps_campaigns")
+    .select("*")
+    .eq("id", campaignId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ campaignId: string }> }
+) {
+  try {
+    const { campaignId } = await params;
+    const campaign = await loadCampaign(campaignId);
+    if (!campaign) {
+      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+    }
+    await requireBusinessAccess(campaign.business_id);
+
+    const supabase = createServiceClient();
+    const { data: keywords } = await supabase
+      .from("business_keywords")
+      .select("id, keyword, is_primary, active, sort_order, created_at")
+      .eq("campaign_id", campaignId)
+      .order("sort_order", { ascending: true });
+
+    const { data: business } = await supabase
+      .from("businesses")
+      .select("id, name, account_type")
+      .eq("id", campaign.business_id)
+      .maybeSingle();
+
+    return NextResponse.json({
+      campaign,
+      keywords: keywords ?? [],
+      business,
+    });
+  } catch (err) {
+    return httpErrorFromException(err, "Failed to load campaign");
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ campaignId: string }> }
+) {
+  try {
+    const { campaignId } = await params;
+    const campaign = await loadCampaign(campaignId);
+    if (!campaign) {
+      return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+    }
+    await requireBusinessAccess(campaign.business_id);
+
+    const parsed = patchSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+    }
+    const p = parsed.data;
+    const patch: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (p.name !== undefined) patch.name = p.name.trim();
+    if (p.description !== undefined) patch.description = p.description;
+    if (p.defaultGridSize !== undefined) patch.default_grid_size = p.defaultGridSize;
+    if (p.defaultRadiusMeters !== undefined) {
+      patch.default_radius_meters = p.defaultRadiusMeters;
+    }
+    if (p.scheduleType !== undefined) patch.schedule_type = p.scheduleType;
+    if (p.scheduleDay !== undefined) patch.schedule_day = p.scheduleDay;
+    if (p.scheduleTimezone !== undefined) patch.schedule_timezone = p.scheduleTimezone;
+    if (p.scheduleEnabled !== undefined) patch.schedule_enabled = p.scheduleEnabled;
+    if (p.nextScheduledAt !== undefined) patch.next_scheduled_at = p.nextScheduledAt;
+    if (p.archive === true) patch.archived_at = new Date().toISOString();
+
+    const supabase = createServiceClient();
+    const { data, error } = await supabase
+      .from("maps_campaigns")
+      .update(patch)
+      .eq("id", campaignId)
+      .select("*")
+      .maybeSingle();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ campaign: data });
+  } catch (err) {
+    return httpErrorFromException(err, "Failed to update campaign");
+  }
+}

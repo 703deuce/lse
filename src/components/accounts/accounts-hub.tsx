@@ -2,29 +2,26 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, MapPin, Plus, UserCheck, Archive } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import {
+  isClientRow,
+  isProspectRow,
+  PROSPECT_STATUSES,
+  type AccountListRow,
+  type ProspectStatus,
+} from "@/lib/accounts/types";
 
-type BusinessRow = {
-  id: string;
-  name: string;
-  address_text?: string | null;
-  scan_center_label?: string | null;
-  primary_category?: string | null;
-  is_tracked?: boolean | null;
-  created_at?: string | null;
-};
-
-function locationSubtitle(b: BusinessRow): string {
+function locationSubtitle(b: AccountListRow): string {
   return b.address_text?.trim() || b.scan_center_label?.trim() || b.primary_category || "—";
 }
 
-/**
- * Phase 1 freelancer lists.
- * Clients = tracked businesses (plan slots).
- * Prospects = untracked businesses (audits / archived until Phase 2 account_type).
- */
+function statusLabel(status: string | null | undefined): string {
+  if (!status) return "—";
+  return status.replace(/_/g, " ");
+}
+
 export function AccountsHub({
   mode,
   accessMessage,
@@ -33,7 +30,7 @@ export function AccountsHub({
   accessMessage?: string | null;
 }) {
   const router = useRouter();
-  const [rows, setRows] = useState<BusinessRow[]>([]);
+  const [rows, setRows] = useState<AccountListRow[]>([]);
   const [trackedCount, setTrackedCount] = useState(0);
   const [maxBusinesses, setMaxBusinesses] = useState(0);
   const [planName, setPlanName] = useState("");
@@ -41,6 +38,7 @@ export function AccountsHub({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | ProspectStatus | "archived">("all");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,7 +67,7 @@ export function AccountsHub({
     setBusyId(businessId);
     setError(null);
     try {
-      const res = await fetch(`/api/businesses/${businessId}/convert-to-tracked`, {
+      const res = await fetch(`/api/businesses/${businessId}/convert-to-client`, {
         method: "POST",
       });
       const json = await res.json().catch(() => ({}));
@@ -83,7 +81,7 @@ export function AccountsHub({
       }
       await load();
       router.refresh();
-      router.push(`/businesses/${businessId}/overview`);
+      router.push(`/clients/${businessId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not convert to client");
     } finally {
@@ -114,9 +112,19 @@ export function AccountsHub({
     }
   }
 
-  const clients = rows.filter((b) => b.is_tracked !== false);
-  const prospects = rows.filter((b) => b.is_tracked === false);
-  const list = mode === "clients" ? clients : prospects;
+  const list = useMemo(() => {
+    if (mode === "clients") {
+      return rows.filter(isClientRow);
+    }
+    const prospects = rows.filter(
+      (b) => isProspectRow(b) || (statusFilter === "archived" && !!b.archived_at)
+    );
+    if (statusFilter === "all") return rows.filter(isProspectRow);
+    if (statusFilter === "archived") {
+      return rows.filter((b) => !!b.archived_at && b.account_type !== "client");
+    }
+    return prospects.filter((b) => b.prospect_status === statusFilter);
+  }, [mode, rows, statusFilter]);
 
   const title = mode === "clients" ? "Clients" : "Prospects";
   const subtitle =
@@ -164,9 +172,26 @@ export function AccountsHub({
           {planName ? <span>{planName} plan</span> : null}
         </div>
       ) : (
-        <p className="mb-4 text-sm text-zinc-600">
-          Prospect audits do not use an active location slot until you convert them to a client.
-        </p>
+        <div className="mb-4 flex flex-wrap gap-2">
+          <FilterChip
+            active={statusFilter === "all"}
+            onClick={() => setStatusFilter("all")}
+            label="All"
+          />
+          {PROSPECT_STATUSES.filter((s) => s !== "archived").map((s) => (
+            <FilterChip
+              key={s}
+              active={statusFilter === s}
+              onClick={() => setStatusFilter(s)}
+              label={statusLabel(s)}
+            />
+          ))}
+          <FilterChip
+            active={statusFilter === "archived"}
+            onClick={() => setStatusFilter("archived")}
+            label="Archived"
+          />
+        </div>
       )}
 
       {accessMessage ? (
@@ -201,67 +226,102 @@ export function AccountsHub({
         </div>
       ) : (
         <ul className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 bg-white">
-          {list.map((b) => (
-            <li
-              key={b.id}
-              className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="min-w-0">
-                <Link
-                  href={`/businesses/${b.id}/overview`}
-                  className="truncate text-sm font-semibold text-zinc-900 hover:text-emerald-700"
-                >
-                  {b.name}
-                </Link>
-                <p className="mt-0.5 truncate text-xs text-zinc-500">{locationSubtitle(b)}</p>
-              </div>
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
-                <Link
-                  href={`/businesses/${b.id}/scans`}
-                  className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-                >
-                  Scans
-                </Link>
-                <Link
-                  href={`/businesses/${b.id}/reports`}
-                  className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-                >
-                  Reports
-                </Link>
-                {mode === "prospects" ? (
-                  <button
-                    type="button"
-                    disabled={busyId === b.id}
-                    onClick={() => void convertToClient(b.id)}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+          {list.map((b) => {
+            const detailHref =
+              mode === "prospects" ? `/prospects/${b.id}` : `/clients/${b.id}`;
+            return (
+              <li
+                key={b.id}
+                className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <Link
+                    href={detailHref}
+                    className="truncate text-sm font-semibold text-zinc-900 hover:text-emerald-700"
                   >
-                    {busyId === b.id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <UserCheck className="h-3.5 w-3.5" />
-                    )}
-                    Convert to client
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={busyId === b.id}
-                    onClick={() => void archiveClient(b.id)}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+                    {b.name}
+                  </Link>
+                  <p className="mt-0.5 truncate text-xs text-zinc-500">{locationSubtitle(b)}</p>
+                  {mode === "prospects" ? (
+                    <p className="mt-1 text-[11px] capitalize text-zinc-400">
+                      {statusLabel(b.prospect_status ?? "new")}
+                      {b.primary_contact_name ? ` · ${b.primary_contact_name}` : ""}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <Link
+                    href={`/businesses/${b.id}/scans`}
+                    className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
                   >
-                    {busyId === b.id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Archive className="h-3.5 w-3.5" />
-                    )}
-                    Archive
-                  </button>
-                )}
-              </div>
-            </li>
-          ))}
+                    Scans
+                  </Link>
+                  <Link
+                    href={`/businesses/${b.id}/reports`}
+                    className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                  >
+                    Reports
+                  </Link>
+                  {mode === "prospects" && !b.archived_at ? (
+                    <button
+                      type="button"
+                      disabled={busyId === b.id}
+                      onClick={() => void convertToClient(b.id)}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      {busyId === b.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <UserCheck className="h-3.5 w-3.5" />
+                      )}
+                      Convert to client
+                    </button>
+                  ) : null}
+                  {mode === "clients" ? (
+                    <button
+                      type="button"
+                      disabled={busyId === b.id}
+                      onClick={() => void archiveClient(b.id)}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+                    >
+                      {busyId === b.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Archive className="h-3.5 w-3.5" />
+                      )}
+                      Archive
+                    </button>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </>
+  );
+}
+
+function FilterChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        active
+          ? "rounded-md bg-zinc-900 px-2.5 py-1 text-xs font-medium capitalize text-white"
+          : "rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium capitalize text-zinc-600 hover:bg-zinc-50"
+      }
+    >
+      {label}
+    </button>
   );
 }

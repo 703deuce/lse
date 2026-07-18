@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Bot,
   FileText,
+  FolderKanban,
   Grid3X3,
   KeyRound,
   LayoutDashboard,
@@ -72,6 +73,7 @@ export function buildBusinessSidebarNav(businessId: string): {
     research: {
       title: "Setup",
       items: [
+        { href: `${base}/campaigns`, label: "Campaigns", icon: FolderKanban },
         { href: `${base}/keywords`, label: "Keywords", icon: KeyRound },
         { href: `${base}/competitors`, label: "Competitors", icon: Users },
         { href: `${base}/settings`, label: "Location settings", icon: Settings },

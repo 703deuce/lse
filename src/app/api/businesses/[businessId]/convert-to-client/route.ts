@@ -3,9 +3,10 @@ import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createServiceClient } from "@/lib/db/client";
 import { assertWithinLimit, PlanLimitError } from "@/lib/plans";
+import { trackProductEvent } from "@/lib/analytics/product-events";
 
 /**
- * Convert a manual/untracked business into a tracked slot (consumes max_businesses).
+ * Convert prospect → client without duplicating locations, scans, or reports.
  */
 export async function POST(
   _request: Request,
@@ -18,7 +19,7 @@ export async function POST(
 
     const { data: business } = await supabase
       .from("businesses")
-      .select("id, organization_id, is_tracked, tracking_source")
+      .select("id, organization_id, is_tracked, account_type, archived_at")
       .eq("id", businessId)
       .eq("organization_id", auth.organizationId)
       .maybeSingle();
@@ -27,25 +28,28 @@ export async function POST(
       return NextResponse.json({ error: "Business not found" }, { status: 404 });
     }
 
-    if (business.is_tracked !== false) {
+    const alreadyClient =
+      business.account_type === "client" && business.is_tracked !== false && !business.archived_at;
+
+    if (alreadyClient) {
       return NextResponse.json({
         ok: true,
-        alreadyTracked: true,
+        alreadyClient: true,
         businessId,
-        isTracked: true,
-        trackingSource: business.tracking_source ?? "manual",
       });
     }
 
-    await assertWithinLimit(auth.organizationId, "max_businesses", 1);
+    if (business.is_tracked === false || business.archived_at) {
+      await assertWithinLimit(auth.organizationId, "max_businesses", 1);
+    }
 
     const { error } = await supabase
       .from("businesses")
       .update({
-        is_tracked: true,
-        tracking_source: "convert",
         account_type: "client",
         prospect_status: "won",
+        is_tracked: true,
+        tracking_source: "convert",
         archived_at: null,
         updated_at: new Date().toISOString(),
       })
@@ -56,12 +60,44 @@ export async function POST(
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Ensure a default Maps campaign exists for keyword grouping.
+    const { data: existingCampaign } = await supabase
+      .from("maps_campaigns")
+      .select("id")
+      .eq("business_id", businessId)
+      .is("archived_at", null)
+      .limit(1)
+      .maybeSingle();
+
+    if (!existingCampaign) {
+      const { data: created } = await supabase
+        .from("maps_campaigns")
+        .insert({
+          business_id: businessId,
+          name: "Primary keywords",
+          description: "Created on prospect → client conversion",
+        })
+        .select("id")
+        .maybeSingle();
+
+      if (created?.id) {
+        await supabase
+          .from("business_keywords")
+          .update({ campaign_id: created.id })
+          .eq("business_id", businessId)
+          .is("campaign_id", null);
+      }
+    }
+
+    trackProductEvent("prospect_converted", {
+      organizationId: auth.organizationId,
+      businessId,
+    });
+
     return NextResponse.json({
       ok: true,
-      alreadyTracked: false,
+      alreadyClient: false,
       businessId,
-      isTracked: true,
-      trackingSource: "convert",
       accountType: "client",
     });
   } catch (err) {

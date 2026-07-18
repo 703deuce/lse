@@ -158,6 +158,15 @@ export interface BusinessRow {
   scan_center_lng: number | null;
   /** Private app-only address used when the public GBP listing has none. */
   scan_center_label: string | null;
+  is_tracked?: boolean;
+  tracking_source?: string;
+  account_type?: "prospect" | "client";
+  prospect_status?: string | null;
+  primary_contact_name?: string | null;
+  primary_contact_email?: string | null;
+  notes?: string | null;
+  tags?: string[];
+  archived_at?: string | null;
   created_at: string;
   updated_at: string;
 }
