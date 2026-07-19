@@ -61,13 +61,23 @@ export type MapsProviderAvailability = {
   detail?: string;
 };
 
+/**
+ * @param role - `primary` ignores MAPS_GRID_FALLBACK_ENABLED (that flag only
+ *   gates secondary/fallback providers). Selecting DataForSEO as the scan mode
+ *   must not be blocked just because fallbacks are off.
+ */
 export function describeMapsProviderAvailability(
-  provider: MapsProviderId
+  provider: MapsProviderId,
+  options?: { role?: "primary" | "secondary" }
 ): MapsProviderAvailability {
+  const role = options?.role ?? "primary";
+
   if (provider === "brightdata") {
     return { provider, enabled: true };
   }
-  if (!mapsFallbackEnabled()) {
+
+  // Fallback gate applies only to secondary providers in a multi-provider chain.
+  if (role === "secondary" && !mapsFallbackEnabled()) {
     return {
       provider,
       enabled: false,
@@ -75,6 +85,7 @@ export function describeMapsProviderAvailability(
       detail: "MAPS_GRID_FALLBACK_ENABLED is false",
     };
   }
+
   if (provider === "dataforseo") {
     if (!dataForSeoMapsEnabled()) {
       return {
@@ -127,13 +138,15 @@ export async function resolveUsableMapsProviders(
 }> {
   const skipped: MapsProviderAvailability[] = [];
   const usable: MapsProviderId[] = [];
-  for (const p of providers) {
-    const availability = describeMapsProviderAvailability(p);
+  for (let i = 0; i < providers.length; i++) {
+    const p = providers[i]!;
+    const availability = describeMapsProviderAvailability(p, {
+      role: i === 0 ? "primary" : "secondary",
+    });
     if (!availability.enabled) {
       skipped.push(availability);
       continue;
     }
-    // Always try Bright Data when credentials/enabled — no circuit-breaker skip.
     usable.push(p);
   }
   return { usable, skipped };
@@ -170,7 +183,7 @@ export async function fetchMapsCell(params: FetchMapsCellParams): Promise<MapsCe
   const attempts: MapsProviderAttempt[] = [];
   const maxAttempts = maxTotalProviderAttemptsPerCell();
   let attemptBudget = 0;
-  const primaryProvider: MapsProviderId = params.providers[0] ?? "brightdata";
+  const primaryProvider: MapsProviderId = params.providers[0] ?? "dataforseo";
   let fallbackReason: string | null = null;
 
   if (!providers.length) {
@@ -334,10 +347,11 @@ export function brightDataOnlyProviders(): MapsProviderId[] {
   return ["brightdata"];
 }
 
-/** Secondary fallbacks after Bright Data is exhausted or circuit-open. */
+/** Secondary fallbacks after the primary provider is exhausted. */
 export function secondaryFallbackProviders(): MapsProviderId[] {
-  // Production hybrid stays Bright Data–only (no provider switch).
-  return [];
+  // Used by recovery helpers; standard DataForSEO mode wires Bright Data via
+  // secondaryProvidersForMode("dataforseo") in run-grid-cells.
+  return ["brightdata"];
 }
 
 /** Full chain when a cell should try everything remaining. */

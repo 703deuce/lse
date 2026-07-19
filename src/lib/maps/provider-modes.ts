@@ -1,9 +1,14 @@
 /**
- * Maps grid provider modes for A/B testing which stack ranks best.
+ * Maps grid provider modes.
  *
- * - hybrid: Bright Data burst primary + quick retries + slow waits (no provider switch)
- * - scrapingdog: every cell via ScrapingDog only (A/B)
- * - dataforseo: every cell via DataForSEO only (A/B; device=mobile|desktop + os)
+ * - dataforseo: DataForSEO Maps Live Advanced (standard / recommended)
+ * - hybrid: Bright Data (alternate)
+ * - scrapingdog: ScrapingDog (alternate A/B)
+ *
+ * DataForSEO is the primary Maps scraper. The Live Advanced client
+ * (serp/google/maps/live/advanced) with location_coordinate `lat,lng,17z`
+ * and search_this_area parity is the path that previously worked in
+ * scripts/compare-grid-providers.mjs (Jul 2026 comparison run).
  */
 
 import type { MapsProviderId } from "@/lib/providers/maps-grid/types";
@@ -11,7 +16,8 @@ import type { MapsProviderId } from "@/lib/providers/maps-grid/types";
 export const MAPS_PROVIDER_MODES = ["hybrid", "scrapingdog", "dataforseo"] as const;
 export type MapsProviderMode = (typeof MAPS_PROVIDER_MODES)[number];
 
-export const DEFAULT_MAPS_PROVIDER_MODE: MapsProviderMode = "hybrid";
+/** Standard scans use DataForSEO Maps Live Advanced. */
+export const DEFAULT_MAPS_PROVIDER_MODE: MapsProviderMode = "dataforseo";
 
 export type MapsProviderModeOption = {
   id: MapsProviderMode;
@@ -22,22 +28,22 @@ export type MapsProviderModeOption = {
 
 export const MAPS_PROVIDER_MODE_OPTIONS: MapsProviderModeOption[] = [
   {
-    id: "hybrid",
-    label: "Standard (recommended)",
+    id: "dataforseo",
+    label: "Standard (DataForSEO)",
     shortLabel: "Standard",
     description:
-      "Fast parallel grid collection with automatic retries for unfinished points. Recommended for client work.",
+      "Google Maps Live Advanced via DataForSEO — the default grid scraper for client work.",
+  },
+  {
+    id: "hybrid",
+    label: "Bright Data (alternate)",
+    shortLabel: "Bright Data",
+    description: "Alternate provider for A/B or when DataForSEO is unavailable.",
   },
   {
     id: "scrapingdog",
-    label: "Alternate provider A",
-    shortLabel: "Alt A",
-    description: "Internal A/B mode — not needed for normal freelancer scans.",
-  },
-  {
-    id: "dataforseo",
-    label: "Alternate provider B",
-    shortLabel: "Alt B",
+    label: "ScrapingDog (alternate)",
+    shortLabel: "ScrapingDog",
     description: "Internal A/B mode — not needed for normal freelancer scans.",
   },
 ];
@@ -58,20 +64,27 @@ export function primaryProvidersForMode(mode: MapsProviderMode): MapsProviderId[
   switch (mode) {
     case "scrapingdog":
       return ["scrapingdog"];
-    case "dataforseo":
-      return ["dataforseo"];
     case "hybrid":
-    default:
       return ["brightdata"];
+    case "dataforseo":
+    default:
+      return ["dataforseo"];
   }
 }
 
 /**
- * Secondary provider fallbacks — unused for hybrid (Bright Data only).
- * ScrapingDog/DataForSEO modes also have no secondary chain.
+ * Secondary provider fallbacks after the primary chain is exhausted.
+ * Standard (DataForSEO) can optionally try Bright Data when fallback is enabled.
  */
-export function secondaryProvidersForMode(_mode: MapsProviderMode): MapsProviderId[] {
-  return [];
+export function secondaryProvidersForMode(mode: MapsProviderMode): MapsProviderId[] {
+  switch (mode) {
+    case "dataforseo":
+      return ["brightdata"];
+    case "hybrid":
+    case "scrapingdog":
+    default:
+      return [];
+  }
 }
 
 /** Integrity / last-chance chain for sparse cells. */
@@ -79,11 +92,11 @@ export function integrityProvidersForMode(mode: MapsProviderMode): MapsProviderI
   switch (mode) {
     case "scrapingdog":
       return ["scrapingdog"];
-    case "dataforseo":
-      return ["dataforseo"];
     case "hybrid":
-    default:
       return ["brightdata"];
+    case "dataforseo":
+    default:
+      return ["dataforseo", "brightdata"];
   }
 }
 
@@ -98,10 +111,10 @@ export function scanBatchProviderColumn(mode: MapsProviderMode): string {
   switch (mode) {
     case "scrapingdog":
       return "scrapingdog";
-    case "dataforseo":
-      return "dataforseo";
     case "hybrid":
-    default:
       return "brightdata";
+    case "dataforseo":
+    default:
+      return "dataforseo";
   }
 }

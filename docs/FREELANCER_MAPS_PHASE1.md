@@ -6,7 +6,7 @@ Product: **Unlimited Google Maps rank tracking and client reporting for freelanc
 
 - **Auth:** Supabase Auth → `profiles` + `organization_members` → `organizations` (workspace/tenant).
 - **Core entity:** `businesses` (one Google listing / scan pin per row). Plan slots via `is_tracked`.
-- **Scans:** `scan_batches` → `scan_points` → `scan_results`; Bright Data only for Maps; persistent recovery (`recovering` + `maps-cell-retry`).
+- **Scans:** `scan_batches` → `scan_points` → `scan_results`; **DataForSEO Maps Live Advanced** is the standard scraper (`location_coordinate` `lat,lng,17z` + `search_this_area`); Bright Data remains an alternate / optional fallback.
 - **Reports:** `reports` with HTML share + PDF artifacts; org white-label columns.
 - **AI visibility:** `ai_visibility_*` tables; optional reporting feature.
 - **Reputation:** Full review-campaign stack exists but is a **separate product** — hidden from Maps nav in Phase 1.

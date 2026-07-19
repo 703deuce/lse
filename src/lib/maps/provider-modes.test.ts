@@ -10,13 +10,14 @@ import {
 } from "@/lib/maps/provider-modes";
 
 describe("maps provider modes", () => {
-  it("defaults unknown values to hybrid", () => {
-    assert.equal(parseMapsProviderMode(undefined), DEFAULT_MAPS_PROVIDER_MODE);
-    assert.equal(parseMapsProviderMode("nope"), "hybrid");
-    assert.equal(parseMapsProviderMode("dataforseo"), "dataforseo");
+  it("defaults unknown values to DataForSEO (standard)", () => {
+    assert.equal(DEFAULT_MAPS_PROVIDER_MODE, "dataforseo");
+    assert.equal(parseMapsProviderMode(undefined), "dataforseo");
+    assert.equal(parseMapsProviderMode("nope"), "dataforseo");
+    assert.equal(parseMapsProviderMode("hybrid"), "hybrid");
   });
 
-  it("hybrid is Bright Data only — no ScrapingDog/DataForSEO fallback", () => {
+  it("hybrid is Bright Data alternate", () => {
     assert.deepEqual(primaryProvidersForMode("hybrid"), ["brightdata"]);
     assert.deepEqual(secondaryProvidersForMode("hybrid"), []);
     assert.deepEqual(integrityProvidersForMode("hybrid"), ["brightdata"]);
@@ -30,10 +31,10 @@ describe("maps provider modes", () => {
     assert.equal(scanBatchProviderColumn("scrapingdog"), "scrapingdog");
   });
 
-  it("dataforseo mode is single-provider with no secondary chain", () => {
+  it("dataforseo is standard with optional Bright Data secondary", () => {
     assert.deepEqual(primaryProvidersForMode("dataforseo"), ["dataforseo"]);
-    assert.deepEqual(secondaryProvidersForMode("dataforseo"), []);
-    assert.deepEqual(integrityProvidersForMode("dataforseo"), ["dataforseo"]);
+    assert.deepEqual(secondaryProvidersForMode("dataforseo"), ["brightdata"]);
+    assert.deepEqual(integrityProvidersForMode("dataforseo"), ["dataforseo", "brightdata"]);
     assert.equal(scanBatchProviderColumn("dataforseo"), "dataforseo");
   });
 });

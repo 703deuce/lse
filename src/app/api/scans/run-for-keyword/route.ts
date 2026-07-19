@@ -42,7 +42,7 @@ const schema = z.object({
   device: z.enum(["desktop", "mobile"]).default("mobile"),
   os: z.enum(["android", "ios", "windows", "macos"]).default("android"),
   browser: z.enum(["chrome", "firefox"]).default("chrome"),
-  mapsProviderMode: z.enum(["hybrid", "scrapingdog", "dataforseo"]).default("hybrid"),
+  mapsProviderMode: z.enum(["hybrid", "scrapingdog", "dataforseo"]).default("dataforseo"),
   locationId: z.string().uuid().optional().nullable(),
   centerLat: z.number().optional(),
   centerLng: z.number().optional(),

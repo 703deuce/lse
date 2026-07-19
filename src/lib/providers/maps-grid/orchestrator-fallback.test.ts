@@ -68,8 +68,40 @@ describe("fetchMapsCell secondary attempt records", () => {
 });
 
 describe("secondaryFallbackProviders order", () => {
-  it("stays Bright Data–only (no ScrapingDog/DataForSEO switch)", async () => {
+  it("offers Bright Data as secondary helper after DataForSEO primary", async () => {
     const { secondaryFallbackProviders } = await import("@/lib/providers/maps-grid/orchestrator");
-    assert.deepEqual(secondaryFallbackProviders(), []);
+    assert.deepEqual(secondaryFallbackProviders(), ["brightdata"]);
+  });
+});
+
+describe("describeMapsProviderAvailability primary vs secondary", () => {
+  it("does not block DataForSEO primary when MAPS_GRID_FALLBACK_ENABLED is false", async () => {
+    const prevFallback = process.env.MAPS_GRID_FALLBACK_ENABLED;
+    const prevUser = process.env.DATAFORSEO_USERNAME;
+    const prevPass = process.env.DATAFORSEO_PASSWORD;
+    const prevEnabled = process.env.DATAFORSEO_MAPS_ENABLED;
+    process.env.MAPS_GRID_FALLBACK_ENABLED = "false";
+    process.env.DATAFORSEO_MAPS_ENABLED = "true";
+    process.env.DATAFORSEO_USERNAME = "user";
+    process.env.DATAFORSEO_PASSWORD = "pass";
+    try {
+      const { describeMapsProviderAvailability } = await import(
+        "@/lib/providers/maps-grid/orchestrator"
+      );
+      const asPrimary = describeMapsProviderAvailability("dataforseo", { role: "primary" });
+      const asSecondary = describeMapsProviderAvailability("dataforseo", { role: "secondary" });
+      assert.equal(asPrimary.enabled, true);
+      assert.equal(asSecondary.enabled, false);
+      assert.equal(asSecondary.skipReason, "fallback_disabled");
+    } finally {
+      if (prevFallback == null) delete process.env.MAPS_GRID_FALLBACK_ENABLED;
+      else process.env.MAPS_GRID_FALLBACK_ENABLED = prevFallback;
+      if (prevUser == null) delete process.env.DATAFORSEO_USERNAME;
+      else process.env.DATAFORSEO_USERNAME = prevUser;
+      if (prevPass == null) delete process.env.DATAFORSEO_PASSWORD;
+      else process.env.DATAFORSEO_PASSWORD = prevPass;
+      if (prevEnabled == null) delete process.env.DATAFORSEO_MAPS_ENABLED;
+      else process.env.DATAFORSEO_MAPS_ENABLED = prevEnabled;
+    }
   });
 });

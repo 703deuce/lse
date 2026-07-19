@@ -98,7 +98,8 @@ function matchRank(items, target, getFields) {
 async function dfsCell(lat, lng) {
   const body = [{
     keyword: KEYWORD.trim(),
-    location_coordinate: `${lat},${lng},${ZOOM}`,
+    // DataForSEO docs require zoom with a trailing "z" (e.g. 17z).
+    location_coordinate: `${lat},${lng},${ZOOM}z`,
     language_code: "en",
     device: "mobile",
     os: "android",

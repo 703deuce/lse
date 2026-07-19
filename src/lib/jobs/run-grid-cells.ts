@@ -48,6 +48,7 @@ import {
   mapsProviderModeLabel,
   parseMapsProviderMode,
   primaryProvidersForMode,
+  secondaryProvidersForMode,
   type MapsProviderMode,
 } from "@/lib/maps/provider-modes";
 
@@ -1091,7 +1092,15 @@ export async function runGridCellsLive(params: {
   const retryDelayMs = mapsGridRetryDelayMs();
   const batchSize = mapsCellBatchSize();
   const providerMode = parseMapsProviderMode(params.providerMode ?? DEFAULT_MAPS_PROVIDER_MODE);
-  const primaryProviders = primaryProvidersForMode(providerMode);
+  // Primary + optional secondary (e.g. DataForSEO → Bright Data when fallback enabled).
+  const primaryProviders = Array.from(
+    new Set([
+      ...primaryProvidersForMode(providerMode),
+      ...secondaryProvidersForMode(providerMode),
+    ])
+  );
+  // Bright Data delayed recovery path is for Bright Data–primary modes only.
+  // DataForSEO standard retries through the DFS (+ optional BD) chain above.
   const useBrightDataRecovery = providerMode === "hybrid";
 
   const allJobs = buildGridCellJobs(params);
