@@ -10,7 +10,7 @@ import { buildMapsLiveRequest, mapsLiveRequestBody } from "@/lib/providers/dataf
 import type { MapsLiveResult } from "@/lib/providers/dataforseo/index";
 
 describe("DataForSEO Maps Priority batch shape", () => {
-  it("uses high priority, STA on, search_places off for local-intent grids", () => {
+  it("uses high priority, STA off, search_places off for full top-20 packs", () => {
     assert.equal(DATAFORSEO_MAPS_PRIORITY_HIGH, 2);
     assert.equal(MAPS_TASK_POST_ENDPOINT, "serp/google/maps/task_post");
 
@@ -20,7 +20,6 @@ describe("DataForSEO Maps Priority batch shape", () => {
       lng: -77.4445995,
       profile: { device: "mobile", os: "android", browser: "chrome" },
       depth: 20,
-      searchThisArea: true,
     });
     const body = {
       ...mapsLiveRequestBody(request),
@@ -29,7 +28,7 @@ describe("DataForSEO Maps Priority batch shape", () => {
     };
 
     assert.equal(body.priority, 2);
-    assert.equal(body.search_this_area, true);
+    assert.equal(body.search_this_area, false);
     assert.equal(body.search_places, false);
     assert.equal(body.depth, 20);
     assert.equal(body.device, "mobile");

@@ -1229,7 +1229,7 @@ export async function runGridCellsLive(params: {
   // poll results, retry incomplete once on Priority, then Bright Data.
   if (providerMode === "dataforseo") {
     console.log(
-      `[Scan] DataForSEO Priority batch primary: ${jobs.length} cells (search_this_area=true, depth=${depth})`
+      `[Scan] DataForSEO Priority batch primary: ${jobs.length} cells (search_this_area=${LOCAL_FALCON_PARITY.searchThisArea}, search_places=${LOCAL_FALCON_PARITY.searchPlaces}, depth=${depth})`
     );
     await scheduleCellProgress(
       params.scanBatchId,

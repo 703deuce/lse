@@ -257,8 +257,8 @@ export async function runDataForSeoPriorityPass(params: {
   scanRetryRound?: number;
   organizationId?: string;
   /**
-   * Sparse mobile packs are common on edge pins. Retry passes can force
-   * desktop + windows while keeping search_this_area=true.
+   * Sparse mobile packs can still happen. Retry passes can force
+   * desktop + windows (same search_this_area / search_places as parity).
    */
   forceDesktop?: boolean;
 }): Promise<{
@@ -289,8 +289,7 @@ export async function runDataForSeoPriorityPass(params: {
         depth,
         languageCode: LOCAL_FALCON_PARITY.languageCode,
         zoom: LOCAL_FALCON_PARITY.locationZoom,
-        // Always STA for grid rank tracking (DataForSEO Maps requirement).
-        searchThisArea: true,
+        searchThisArea: LOCAL_FALCON_PARITY.searchThisArea,
       };
     }),
     params.organizationId ?? jobs[0]?.organizationId

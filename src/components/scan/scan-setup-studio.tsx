@@ -22,6 +22,7 @@ import {
 import { DEFAULT_SCAN_PROFILE } from "@/lib/maps/scan-profiles";
 import {
   DEFAULT_MAPS_PROVIDER_MODE,
+  MAPS_PROVIDER_MODE_OPTIONS,
   type MapsProviderMode,
 } from "@/lib/maps/provider-modes";
 import { RadiusMilesField } from "@/components/scan/radius-miles-field";
@@ -504,9 +505,25 @@ export function ScanSetupStudio({
               selectClassName={fieldSelect}
               inputClassName={cn(dashboardControl, "h-auto w-full px-2.5 py-1.5")}
             />
+            <label className={fieldLabel}>
+              Maps provider
+              <select
+                value={mapsProviderMode}
+                onChange={(e) => setMapsProviderMode(e.target.value as MapsProviderMode)}
+                className={fieldSelect}
+                title={
+                  MAPS_PROVIDER_MODE_OPTIONS.find((o) => o.id === mapsProviderMode)?.description
+                }
+              >
+                {MAPS_PROVIDER_MODE_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <p className="text-[11px] leading-relaxed text-zinc-500">
-              Radius is the distance from the center to the outer grid edge. Larger grids take longer
-              but cover more of the market.
+              Switch DataForSEO vs ScrapingDog to A/B the same grid. Radius is center → outer edge.
             </p>
             <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-[12px] leading-relaxed text-sky-900">
               <p className="flex gap-1.5">

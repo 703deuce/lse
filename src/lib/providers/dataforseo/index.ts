@@ -120,7 +120,7 @@ export async function mapsLiveAdvanced(params: {
 
 /**
  * Grid cell fetch via DataForSEO Priority (queued task_post + task_get).
- * Keeps search_this_area=true and rejects packs with fewer than `depth` items.
+ * Uses search_this_area=false (full pack) and rejects packs with fewer than `depth` items.
  * Prefer runMapsPriorityBatch for full grids (submit all pins in one POST).
  */
 export async function mapsLiveGridCell(

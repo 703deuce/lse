@@ -106,20 +106,27 @@ export async function mapsGridCell(params: {
   os: ScanDeviceProfile["os"];
   browser: ScanDeviceProfile["browser"];
   depth?: number;
+  zoom?: number;
   organizationId?: string;
 }): Promise<{
   items: MapsLiveResult[];
   request: MapsGridRequest;
   timestamp: string;
 }> {
-  const depth = params.depth ?? mapsGridDepth();
-  const request = buildMapsGridRequest(params);
+  if (!Number.isFinite(params.lat) || !Number.isFinite(params.lng)) {
+    throw new Error("ScrapingDog grid cell requires finite lat/lng");
+  }
 
+  const depth = params.depth ?? mapsGridDepth();
+  const zoom = params.zoom ?? LOCAL_FALCON_PARITY.locationZoom;
+  const request = buildMapsGridRequest({ ...params, zoom });
+
+  // Always pin the search with ll=@lat,lng,zoomz (required for grid rank).
   const raw = await mapsSearchAtCoordinate({
     query: request.query,
     lat: params.lat,
     lng: params.lng,
-    zoom: request._meta.location_zoom,
+    zoom,
     domain: request.domain,
     language: request.language,
     country: request.country,
@@ -129,6 +136,11 @@ export async function mapsGridCell(params: {
   const items = normalizeScrapingDogResults(raw, depth);
   if (!items.length) {
     throw new Error("ScrapingDog returned no map results for this cell");
+  }
+  if (items.length < depth) {
+    throw new Error(
+      `sparse SERP: ${items.length} results returned (need ${depth})`
+    );
   }
 
   return {

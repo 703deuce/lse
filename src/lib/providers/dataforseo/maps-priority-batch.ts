@@ -319,7 +319,7 @@ export async function runMapsPriorityBatch(
     cells.map((c) => [sanitizeMapsTaskTag(c.tag), c] as const)
   );
   console.log(
-    `[DataForSEO] Priority batch submit: ${cells.length} tasks (max ${dataForSeoMapsMaxTasksPerPost()}/POST, priority=${DATAFORSEO_MAPS_PRIORITY_HIGH}, search_this_area=true, search_places=false)`
+    `[DataForSEO] Priority batch submit: ${cells.length} tasks (max ${dataForSeoMapsMaxTasksPerPost()}/POST, priority=${DATAFORSEO_MAPS_PRIORITY_HIGH}, search_this_area=${LOCAL_FALCON_PARITY.searchThisArea}, search_places=${LOCAL_FALCON_PARITY.searchPlaces})`
   );
 
   const posted = await postMapsPriorityTasks(cells, organizationId);
@@ -434,7 +434,7 @@ export async function mapsPriorityGridCell(params: {
         depth,
         languageCode: params.languageCode,
         zoom: params.zoom,
-        searchThisArea: true,
+        searchThisArea: LOCAL_FALCON_PARITY.searchThisArea,
       },
     ],
     params.organizationId

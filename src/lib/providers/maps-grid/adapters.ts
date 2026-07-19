@@ -199,6 +199,7 @@ export async function runMapsProviderAdapter(
           os: input.os,
           browser: input.browser,
           depth: input.depth,
+          zoom: LOCAL_FALCON_PARITY.locationZoom,
           organizationId: input.organizationId,
         }),
         timeoutMs,

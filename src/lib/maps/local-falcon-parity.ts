@@ -9,13 +9,16 @@ export const LOCAL_FALCON_PARITY = {
   /** DataForSEO Google Maps Live (not Local Finder / organic local pack) */
   searchEngine: "google_maps" as const,
   endpoint: MAPS_LIVE_ENDPOINT,
-  /** LF uses Maps “search this area” viewport — DataForSEO default true */
-  searchThisArea: true,
+  /**
+   * Production A/B (Tampa 7×7): search_this_area=true + zoom 17 clipped the
+   * viewport so hard that many cells returned 0–15 pins. With
+   * search_this_area=false every cell returned a full top-20 pack.
+   * Keep false for DataForSEO grid rank tracking.
+   */
+  searchThisArea: false,
   /**
    * DataForSEO docs: search_places=true can interfere with local-intent
-   * keywords and return the wrong/sparse pack. Set false for grid rank tracking.
-   * (task_post / live advanced — “to obtain correct results for keywords with
-   * local intent you may set this parameter to false”)
+   * keywords and return the wrong/sparse pack. Keep false for grids.
    */
   searchPlaces: false,
   /** United States */
@@ -33,7 +36,7 @@ export const LOCAL_FALCON_PARITY = {
   browser: DEFAULT_SCAN_PROFILE.browser,
 } as const;
 
-/** Edge grid pins on mobile return 40102 when search_this_area=true — retry once with this */
+/** Legacy Live STA flip — grids use searchThisArea=false by default now. */
 export const SEARCH_THIS_AREA_FALLBACK = false;
 
 export function isNoSearchResultsError(err: unknown): boolean {
