@@ -54,7 +54,14 @@ import {
   secondaryProvidersForMode,
   type MapsProviderMode,
 } from "@/lib/maps/provider-modes";
-import { runDataForSeoPriorityPass } from "@/lib/jobs/run-dfs-priority-pass";
+import { runDataForSeoLivePass, runDataForSeoPriorityPass, persistDataForSeoCellSuccess } from "@/lib/jobs/run-dfs-priority-pass";
+import {
+  dfsLiveTailThreshold,
+  fingerprintSerp,
+  findConsensusGroup,
+  serpConsensusRequired,
+  type SerpObservation,
+} from "@/lib/maps/serp-consensus";
 import { parseMapsLocationZoom } from "@/lib/maps/maps-zoom";
 
 /** Default wave size — overridden by BRIGHTDATA_GRID_BATCH_SIZE / FAIR_CHUNK (max 100). */
@@ -158,6 +165,9 @@ export type GridCellRunResult = {
   failureCategory?: MapsFailureCategory;
   finalProvider?: MapsProviderId | null;
   unresolved?: boolean;
+  /** Raw SERP items when available (for sparse consensus across retries). */
+  serpItems?: MapsLiveResult[];
+  acceptReason?: string;
 };
 
 async function saveCellProgress(
@@ -1302,6 +1312,8 @@ export async function runGridCellsLive(params: {
 
   let completedOffset = alreadyComplete;
   const failedFromPrimary: GridCellJob[] = [];
+  /** Sparse SERP observations from the DataForSEO primary pass (for consensus). */
+  const primarySerpSeed: Array<{ job: GridCellJob; items: MapsLiveResult[] }> = [];
 
   // DataForSEO: adaptive Priority queue — solo fills ≤100/POST; when other
   // maps wait, 25-cell round-robin. Never wait for batch finish between POSTs.
@@ -1336,6 +1348,16 @@ export async function runGridCellsLive(params: {
     completedOffset += primaryPass.successCount;
     for (const r of primaryPass.results) {
       if (r.success) await onCellSettled(true);
+    }
+    // Seed sparse observation history from the primary pass for consensus.
+    {
+      const byKey = new Map(
+        primaryPass.results.map((r) => [`${r.pointId}:${r.keywordId}`, r] as const)
+      );
+      for (const job of failedFromPrimary) {
+        const row = byKey.get(`${job.point.id}:${job.keyword.id}`);
+        if (row?.serpItems) primarySerpSeed.push({ job, items: row.serpItems });
+      }
     }
   } else {
     for (let batchIndex = 0; batchIndex < primaryChunks.length; batchIndex++) {
@@ -1395,17 +1417,31 @@ export async function runGridCellsLive(params: {
   let failedCells = remainingJobs.length;
 
   // ---- Recovery after primary ----
-  // DataForSEO: wait + Priority retry unfinished cells until done or ~10 min
-  // (same pattern as Bright Data — no provider switch).
+  // DataForSEO: wait + retry unfinished cells until done or ~10 min.
+  // 20+ / 10–19 accept immediately; 0–9 keep retrying until the same SERP
+  // (place_id overlap) appears 3 times, then accept as legitimate.
+  // When <5 cells remain, switch those retries to Live advanced.
   // ScrapingDog: one same-provider retry.
   // Hybrid: Bright Data recovery loop below.
   if (remainingJobs.length > 0 && providerMode === "dataforseo") {
     const recoveryStartedAt = Date.now();
     const deadlineMs = dataForSeoRecoveryDeadlineMs();
     const maxRounds = dataForSeoRetryMaxRounds();
+    const consensusNeed = serpConsensusRequired();
+    const liveTailAt = dfsLiveTailThreshold();
+    const sparseHistory = new Map<string, SerpObservation[]>();
+    const consensusAcceptedLabels: string[] = [];
+
+    const jobKey = (j: GridCellJob) => `${j.point.id}:${j.keyword.id}`;
+
+    for (const seed of primarySerpSeed) {
+      sparseHistory.set(jobKey(seed.job), [fingerprintSerp(seed.items)]);
+    }
+
     console.log(
-      `[Scan] DataForSEO Priority recovery plan: ${remainingJobs.length} unfinished · ` +
-        `deadline=${Math.round(deadlineMs / 1000)}s · maxRounds=${maxRounds} · Priority only`
+      `[Scan] DataForSEO recovery plan: ${remainingJobs.length} unfinished · ` +
+        `deadline=${Math.round(deadlineMs / 1000)}s · consensus=${consensusNeed}×same SERP · ` +
+        `liveTail=<${liveTailAt} cells`
     );
 
     for (let round = 1; round <= maxRounds; round++) {
@@ -1434,11 +1470,12 @@ export async function runGridCellsLive(params: {
           totalCells,
           remainingJobs.length,
           {
-            pass: `dfs-priority-recovery-wait-${round}`,
+            pass: `dfs-recovery-wait-${round}`,
             recovery_stage: "fallback_dataforseo",
             maps_provider_mode: providerMode,
             location_zoom: locationZoom,
-            method: "dfs_priority_batch",
+            method:
+              remainingJobs.length < liveTailAt ? "dfs_live_advanced" : "dfs_priority_batch",
             recovery_round: round,
             unresolved_after_dataforseo: remainingJobs.length,
           },
@@ -1451,13 +1488,16 @@ export async function runGridCellsLive(params: {
       }
 
       if (Date.now() - recoveryStartedAt >= deadlineMs) {
-        console.warn("[Scan] Deadline hit during DFS recovery wait — stopping Priority retries");
+        console.warn("[Scan] Deadline hit during DFS recovery wait — stopping retries");
         break;
       }
 
+      const useLive = remainingJobs.length < liveTailAt;
+      const method = useLive ? "dfs_live_advanced" : "dfs_priority_batch";
       console.log(
-        `[Scan] DataForSEO Priority recovery ${round} START ` +
-          `for ${remainingJobs.length} unfinished cells (desktop/zoom=${locationZoom}/STA=false)`
+        `[Scan] DataForSEO recovery ${round} START ` +
+          `for ${remainingJobs.length} unfinished via ${useLive ? "Live" : "Priority"} ` +
+          `(desktop/zoom=${locationZoom}/STA=false)`
       );
       await scheduleCellProgress(
         params.scanBatchId,
@@ -1465,37 +1505,102 @@ export async function runGridCellsLive(params: {
         totalCells,
         remainingJobs.length,
         {
-          pass: `dfs-priority-recovery-${round}`,
+          pass: `dfs-recovery-${round}`,
           recovery_stage: "fallback_dataforseo",
           maps_provider_mode: providerMode,
           location_zoom: locationZoom,
-          method: "dfs_priority_batch",
+          method,
           recovery_round: round,
         },
         { force: true }
       );
 
-      const retryPass = await runDataForSeoPriorityPass({
-        jobs: remainingJobs,
-        depth,
-        passLabel: `dfs-priority-recovery-${round}`,
-        scanRetryRound: round,
-        organizationId: params.organizationId,
-        forceDesktop: true,
-        locationZoom,
-        submitPriority: 4,
-      });
+      const retryPass = useLive
+        ? await runDataForSeoLivePass({
+            jobs: remainingJobs,
+            depth,
+            passLabel: `dfs-live-recovery-${round}`,
+            scanRetryRound: round,
+            organizationId: params.organizationId,
+            forceDesktop: true,
+            locationZoom,
+          })
+        : await runDataForSeoPriorityPass({
+            jobs: remainingJobs,
+            depth,
+            passLabel: `dfs-priority-recovery-${round}`,
+            scanRetryRound: round,
+            organizationId: params.organizationId,
+            forceDesktop: true,
+            locationZoom,
+            submitPriority: 4,
+          });
+
       allTimings.push(...retryPass.timings);
-      completedOffset += retryPass.successCount;
-      for (const r of retryPass.results) {
-        if (r.success) await onCellSettled(true);
+
+      const byKey = new Map<string, (typeof retryPass.results)[number]>(
+        retryPass.results.map((r) => [`${r.pointId}:${r.keywordId}`, r])
+      );
+      const stillUnresolved: GridCellJob[] = [];
+
+      for (const job of remainingJobs) {
+        const key = jobKey(job);
+        const row = byKey.get(key);
+        if (row?.success) {
+          completedOffset += 1;
+          await onCellSettled(true);
+          continue;
+        }
+
+        const items = row?.serpItems ?? [];
+        const obs = fingerprintSerp(items);
+        const hist = sparseHistory.get(key) ?? [];
+        hist.push(obs);
+        sparseHistory.set(key, hist);
+
+        const consensus = findConsensusGroup(hist, consensusNeed);
+        if (consensus) {
+          console.log(
+            `[Scan] Sparse consensus (${consensusNeed}× count=${consensus.representative.count}) ` +
+              `grid=${job.point.grid_label} — accepting as legitimate SERP`
+          );
+          const accepted = await persistDataForSeoCellSuccess({
+            job,
+            items: consensus.representative.items,
+            request: {
+              _cell_meta: {
+                accept_reason: "consensus_sparse",
+                consensus_observations: hist.length,
+                consensus_count: consensus.representative.count,
+              },
+            },
+            depth,
+            passLabel: `dfs-consensus-${round}`,
+            apiSec: row?.timings?.apiSec ?? 0,
+            scanRetryRound: round,
+            forceAccept: true,
+            unstable: false,
+            acceptReason: "consensus_sparse",
+            method,
+          });
+          if (accepted.success) {
+            completedOffset += 1;
+            consensusAcceptedLabels.push(job.point.grid_label);
+            await onCellSettled(true);
+            continue;
+          }
+        }
+
+        stillUnresolved.push(job);
       }
-      remainingJobs = failedJobsFromPass(remainingJobs, retryPass.results);
+
+      remainingJobs = stillUnresolved;
       failedCells = remainingJobs.length;
 
       console.log(
-        `[Scan] DataForSEO Priority recovery ${round} FINISHED: ` +
-          `recovered=${retryPass.successCount} still_unresolved=${remainingJobs.length}`
+        `[Scan] DataForSEO recovery ${round} FINISHED: ` +
+          `pass_ok=${retryPass.successCount} consensus_ok=${consensusAcceptedLabels.length} ` +
+          `still_unresolved=${remainingJobs.length}`
       );
 
       if (remainingJobs.length > 0) {
@@ -1505,11 +1610,18 @@ export async function runGridCellsLive(params: {
       }
     }
 
+    if (consensusAcceptedLabels.length > 0) {
+      await mergeScanConfidenceSummary(createServiceClient(), params.scanBatchId, {
+        dfs_consensus_accepted_labels: consensusAcceptedLabels,
+        dfs_consensus_accepted: consensusAcceptedLabels.length,
+      }).catch(() => undefined);
+    }
+
     if (remainingJobs.length === 0) {
-      console.log("[Scan] All cells recovered via DataForSEO Priority");
+      console.log("[Scan] All cells recovered via DataForSEO (pack or sparse consensus)");
     } else {
       console.warn(
-        `[Scan] ${remainingJobs.length} cells still unresolved after DataForSEO recovery — integrity next (Priority only)`
+        `[Scan] ${remainingJobs.length} cells still unresolved after DataForSEO recovery — integrity next`
       );
     }
   } else if (remainingJobs.length > 0 && providerMode === "scrapingdog") {

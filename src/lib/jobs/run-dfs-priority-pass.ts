@@ -1,14 +1,15 @@
 /**
- * DataForSEO Priority batch pass for Maps grids.
+ * DataForSEO Priority / Live batch passes for Maps grids.
  *
- * Submits cells through the fair Priority queue (25-cell app chunks → ≤100/POST,
- * round-robin across concurrent scans), polls until ready, then persists only
- * packs with >= min SERP results (default 10; still request depth 20).
+ * Accepts full packs (20+) and soft packs (10–19). Sparse packs (0–9) are
+ * returned with serpItems so recovery can build place_id consensus.
  */
 
+import pLimit from "p-limit";
 import { createServiceClient } from "@/lib/db/client";
 import {
   extractTopCompetitors,
+  mapsLiveAdvanced,
   type MapsLiveResult,
 } from "@/lib/providers/dataforseo";
 import {
@@ -16,7 +17,8 @@ import {
   sanitizeMapsTaskTag,
 } from "@/lib/providers/dataforseo/maps-priority-batch";
 import { matchTargetInResults } from "@/lib/providers/dataforseo/match-target";
-import { minCellSerpResults, validateLiveCellSerp } from "@/lib/maps/cell-result-integrity";
+import { validateLiveCellSerp } from "@/lib/maps/cell-result-integrity";
+import { decideSerpAccept } from "@/lib/maps/serp-consensus";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
 import { invalidateScanGridCache } from "@/lib/maps/scan-queries";
 import {
@@ -30,10 +32,7 @@ import type {
   GridCellRunResult,
 } from "@/lib/jobs/run-grid-cells";
 
-// Types-only import from run-grid-cells (runtime import is the reverse direction).
-
 function cellTag(job: GridCellJob): string {
-  // Avoid ":" — DataForSEO tags are sanitized; keep a stable reversible key.
   return `${job.point.id}__${job.keyword.id}`;
 }
 
@@ -50,7 +49,7 @@ function deviceProfile(job: GridCellJob) {
   return { device, os, browser } as const;
 }
 
-async function persistPrioritySuccess(params: {
+export async function persistDataForSeoCellSuccess(params: {
   job: GridCellJob;
   items: MapsLiveResult[];
   request: Record<string, unknown>;
@@ -59,9 +58,26 @@ async function persistPrioritySuccess(params: {
   passLabel: string;
   apiSec: number;
   scanRetryRound: number;
+  /** Skip min-SERP validation — used after sparse consensus. */
+  forceAccept?: boolean;
+  unstable?: boolean;
+  acceptReason?: string;
+  method?: string;
 }): Promise<GridCellRunResult> {
-  const { job, items, request, timestamp, depth, passLabel, apiSec, scanRetryRound } =
-    params;
+  const {
+    job,
+    items,
+    request,
+    timestamp,
+    depth,
+    passLabel,
+    apiSec,
+    scanRetryRound,
+    forceAccept = false,
+    unstable = false,
+    acceptReason,
+    method = "dfs_priority_batch",
+  } = params;
   const supabase = createServiceClient();
   const cellStarted = performance.now();
   const targetInput = {
@@ -73,52 +89,55 @@ async function persistPrioritySuccess(params: {
     website_url: job.business.website_url,
   };
 
-  const serp = validateLiveCellSerp(items, targetInput, depth);
-  if (!serp.complete) {
-    const category = (serp.category ?? "sparse_maps_results") as MapsFailureCategory;
-    const timings: CellPhaseTimings = {
-      gridLabel: job.point.grid_label,
-      apiSec,
-      matchingSec: 0,
-      dbSaveSec: 0,
-      progressSec: 0,
-      totalSec: elapsedSec(cellStarted),
-      success: false,
-      attempts: 1,
-      failureCategory: category,
-    };
-    void saveCellTelemetry({
-      scanBatchId: job.scanBatchId,
-      scanPointId: job.point.id,
-      keywordId: job.keyword.id,
-      gridLabel: job.point.grid_label,
-      provider: "dataforseo",
-      concurrency: 0,
-      apiLatencyMs: apiSec * 1000,
-      matchingMs: 0,
-      dbSaveMs: 0,
-      totalMs: timings.totalSec * 1000,
-      attempts: 1,
-      success: false,
-      timedOut: false,
-      errorMessage: serp.reason,
-      failureCategory: category,
-      providerDiagnostics: { scanRetryRound, pass: passLabel, method: "dfs_priority_batch" },
-      distanceFromCenterM: job.point.distance_from_center_m,
-      lat: job.point.lat,
-      lng: job.point.lng,
-      passLabel,
-    });
-    return {
-      success: false,
-      pointId: job.point.id,
-      keywordId: job.keyword.id,
-      gridLabel: job.point.grid_label,
-      timings,
-      failureCategory: category,
-      finalProvider: "dataforseo",
-      unresolved: true,
-    };
+  if (!forceAccept) {
+    const serp = validateLiveCellSerp(items, targetInput, depth);
+    if (!serp.complete) {
+      const category = (serp.category ?? "sparse_maps_results") as MapsFailureCategory;
+      const timings: CellPhaseTimings = {
+        gridLabel: job.point.grid_label,
+        apiSec,
+        matchingSec: 0,
+        dbSaveSec: 0,
+        progressSec: 0,
+        totalSec: elapsedSec(cellStarted),
+        success: false,
+        attempts: 1,
+        failureCategory: category,
+      };
+      void saveCellTelemetry({
+        scanBatchId: job.scanBatchId,
+        scanPointId: job.point.id,
+        keywordId: job.keyword.id,
+        gridLabel: job.point.grid_label,
+        provider: "dataforseo",
+        concurrency: 0,
+        apiLatencyMs: apiSec * 1000,
+        matchingMs: 0,
+        dbSaveMs: 0,
+        totalMs: timings.totalSec * 1000,
+        attempts: 1,
+        success: false,
+        timedOut: false,
+        errorMessage: serp.reason,
+        failureCategory: category,
+        providerDiagnostics: { scanRetryRound, pass: passLabel, method },
+        distanceFromCenterM: job.point.distance_from_center_m,
+        lat: job.point.lat,
+        lng: job.point.lng,
+        passLabel,
+      });
+      return {
+        success: false,
+        pointId: job.point.id,
+        keywordId: job.keyword.id,
+        gridLabel: job.point.grid_label,
+        timings,
+        failureCategory: category,
+        finalProvider: "dataforseo",
+        unresolved: true,
+        serpItems: items,
+      };
+    }
   }
 
   const matchStart = performance.now();
@@ -143,7 +162,10 @@ async function persistPrioritySuccess(params: {
         fallback_used: false,
         fallback_reason: null,
         pass: passLabel,
-        method: "dfs_priority_batch",
+        method,
+        unstable,
+        accept_reason: acceptReason ?? (forceAccept ? "consensus_sparse" : "pack_ok"),
+        item_count: items.length,
       },
     } as Record<string, unknown>,
   };
@@ -154,7 +176,7 @@ async function persistPrioritySuccess(params: {
   });
   if (upsertError) {
     console.error(
-      `[Scan] Priority upsert failed grid=${job.point.grid_label}:`,
+      `[Scan] DataForSEO upsert failed grid=${job.point.grid_label}:`,
       upsertError.message
     );
     return {
@@ -164,6 +186,7 @@ async function persistPrioritySuccess(params: {
       gridLabel: job.point.grid_label,
       failureCategory: "permanent_error",
       finalProvider: "dataforseo",
+      serpItems: items,
     };
   }
 
@@ -189,14 +212,14 @@ async function persistPrioritySuccess(params: {
         estimatedCostUsd: cost,
         actualCostUsd: cost,
         actualUnits: 1,
-        idempotencyKey: `dataforseo:maps_grid_cell:${job.scanBatchId}:${job.point.id}:${job.keyword.id}:priority:${passLabel}`,
+        idempotencyKey: `dataforseo:maps_grid_cell:${job.scanBatchId}:${job.point.id}:${job.keyword.id}:${method}:${passLabel}`,
         metadata: {
           scan_batch_id: job.scanBatchId,
           scan_point_id: job.point.id,
           keyword_id: job.keyword.id,
           pass: passLabel,
           success: true,
-          method: "dfs_priority_batch",
+          method,
         },
       }).catch(() => {});
     } catch {
@@ -232,8 +255,10 @@ async function persistPrioritySuccess(params: {
     providerDiagnostics: {
       scanRetryRound,
       pass: passLabel,
-      method: "dfs_priority_batch",
+      method,
       item_count: items.length,
+      unstable,
+      accept_reason: acceptReason,
     },
     distanceFromCenterM: job.point.distance_from_center_m,
     lat: job.point.lat,
@@ -248,7 +273,131 @@ async function persistPrioritySuccess(params: {
     gridLabel: job.point.grid_label,
     timings,
     finalProvider: "dataforseo",
+    serpItems: items,
+    acceptReason: acceptReason ?? (forceAccept ? "consensus_sparse" : "pack_ok"),
   };
+}
+
+function incompleteResult(params: {
+  job: GridCellJob;
+  items: MapsLiveResult[];
+  apiSec: number;
+  reason: string;
+  category: MapsFailureCategory;
+  passLabel: string;
+  scanRetryRound: number;
+  method: string;
+  taskId?: string | null;
+  taskStatus?: number | null;
+}): GridCellRunResult {
+  const { job, items, apiSec, reason, category, passLabel, scanRetryRound, method } = params;
+  console.warn(
+    `[Scan] DataForSEO incomplete grid=${job.point.grid_label} items=${items.length}: ${reason}`
+  );
+  void saveCellTelemetry({
+    scanBatchId: job.scanBatchId,
+    scanPointId: job.point.id,
+    keywordId: job.keyword.id,
+    gridLabel: job.point.grid_label,
+    provider: "dataforseo",
+    concurrency: 0,
+    apiLatencyMs: apiSec * 1000,
+    matchingMs: 0,
+    dbSaveMs: 0,
+    totalMs: apiSec * 1000,
+    attempts: 1,
+    success: false,
+    timedOut: false,
+    errorMessage: reason,
+    failureCategory: category,
+    providerDiagnostics: {
+      scanRetryRound,
+      pass: passLabel,
+      method,
+      task_id: params.taskId,
+      item_count: items.length,
+      task_status: params.taskStatus,
+    },
+    distanceFromCenterM: job.point.distance_from_center_m,
+    lat: job.point.lat,
+    lng: job.point.lng,
+    passLabel,
+  });
+  return {
+    success: false,
+    pointId: job.point.id,
+    keywordId: job.keyword.id,
+    gridLabel: job.point.grid_label,
+    failureCategory: category,
+    finalProvider: "dataforseo",
+    unresolved: true,
+    serpItems: items,
+    timings: {
+      gridLabel: job.point.grid_label,
+      apiSec,
+      matchingSec: 0,
+      dbSaveSec: 0,
+      progressSec: 0,
+      totalSec: apiSec,
+      success: false,
+      attempts: 1,
+      failureCategory: category,
+    },
+  };
+}
+
+async function settleFetchedCell(params: {
+  job: GridCellJob;
+  items: MapsLiveResult[];
+  request: Record<string, unknown>;
+  timestamp?: string;
+  depth: number;
+  passLabel: string;
+  apiSec: number;
+  scanRetryRound: number;
+  method: string;
+  taskId?: string | null;
+  taskStatus?: number | null;
+  errorMessage?: string;
+}): Promise<GridCellRunResult> {
+  const decision = decideSerpAccept(params.items);
+  if (decision.action === "accept") {
+    return persistDataForSeoCellSuccess({
+      job: params.job,
+      items: params.items,
+      request: params.request,
+      timestamp: params.timestamp,
+      depth: params.depth,
+      passLabel: params.passLabel,
+      apiSec: params.apiSec,
+      scanRetryRound: params.scanRetryRound,
+      acceptReason: decision.reason,
+      method: params.method,
+    });
+  }
+
+  const category: MapsFailureCategory =
+    params.items.length === 0 ? "valid_empty_maps_results" : "sparse_maps_results";
+  const reason =
+    params.errorMessage ??
+    (decision.reason === "empty"
+      ? "DataForSEO returned no map results for this cell"
+      : decision.reason === "target_only"
+        ? "target-only SERP: only 1 listing returned"
+        : `sparse SERP: ${params.items.length} results (awaiting consensus)`);
+
+  return incompleteResult({
+    job: params.job,
+    items: params.items,
+    apiSec: params.apiSec,
+    reason,
+    category,
+    passLabel: params.passLabel,
+    scanRetryRound: params.scanRetryRound,
+    method: params.method,
+    taskId: params.taskId,
+    taskStatus: params.taskStatus,
+  });
 }
 
 export async function runDataForSeoPriorityPass(params: {
@@ -257,13 +406,8 @@ export async function runDataForSeoPriorityPass(params: {
   passLabel: string;
   scanRetryRound?: number;
   organizationId?: string;
-  /**
-   * Sparse mobile packs can still happen. Retry passes can force
-   * desktop + windows (same search_this_area / search_places as parity).
-   */
   forceDesktop?: boolean;
   locationZoom?: number;
-  /** App fair-queue priority: 1 active, 2 paid, 3 scheduled, 4 retry. */
   submitPriority?: 1 | 2 | 3 | 4 | "highest" | "normal" | "lower" | "retry";
 }): Promise<{
   results: GridCellRunResult[];
@@ -280,7 +424,9 @@ export async function runDataForSeoPriorityPass(params: {
   const scanKey = jobs[0]?.scanBatchId ?? `pass-${passLabel}`;
   const submitPriority =
     params.submitPriority ??
-    (passLabel.includes("retry") || passLabel.includes("integrity")
+    (passLabel.includes("retry") ||
+    passLabel.includes("integrity") ||
+    passLabel.includes("recovery")
       ? 4
       : passLabel.includes("scheduled")
         ? 3
@@ -329,6 +475,7 @@ export async function runDataForSeoPriorityPass(params: {
         failureCategory: "provider_unavailable",
         finalProvider: "dataforseo",
         unresolved: true,
+        serpItems: [],
         timings: {
           gridLabel: job.point.grid_label,
           apiSec,
@@ -344,72 +491,8 @@ export async function runDataForSeoPriorityPass(params: {
       continue;
     }
 
-    const minSerp = minCellSerpResults(depth);
-    if (!row.ok || row.items.length < minSerp) {
-      const category: MapsFailureCategory =
-        row.items.length === 0 ? "valid_empty_maps_results" : "sparse_maps_results";
-      const reason =
-        row.errorMessage ??
-        (row.items.length === 0
-          ? "DataForSEO Priority returned no map results for this cell"
-          : `sparse SERP: ${row.items.length} results returned (need ${minSerp})`);
-      console.warn(
-        `[Scan] Priority incomplete grid=${job.point.grid_label} items=${row.items.length} need=${minSerp}: ${reason}`
-      );
-      results.push({
-        success: false,
-        pointId: job.point.id,
-        keywordId: job.keyword.id,
-        gridLabel: job.point.grid_label,
-        failureCategory: category,
-        finalProvider: "dataforseo",
-        unresolved: true,
-        timings: {
-          gridLabel: job.point.grid_label,
-          apiSec,
-          matchingSec: 0,
-          dbSaveSec: 0,
-          progressSec: 0,
-          totalSec: apiSec,
-          success: false,
-          attempts: 1,
-          failureCategory: category,
-        },
-      });
-      void saveCellTelemetry({
-        scanBatchId: job.scanBatchId,
-        scanPointId: job.point.id,
-        keywordId: job.keyword.id,
-        gridLabel: job.point.grid_label,
-        provider: "dataforseo",
-        concurrency: 0,
-        apiLatencyMs: apiSec * 1000,
-        matchingMs: 0,
-        dbSaveMs: 0,
-        totalMs: apiSec * 1000,
-        attempts: 1,
-        success: false,
-        timedOut: false,
-        errorMessage: reason,
-        failureCategory: category,
-        providerDiagnostics: {
-          scanRetryRound,
-          pass: passLabel,
-          method: "dfs_priority_batch",
-          task_id: row.taskId,
-          item_count: row.items.length,
-          task_status: row.taskStatus,
-        },
-        distanceFromCenterM: job.point.distance_from_center_m,
-        lat: job.point.lat,
-        lng: job.point.lng,
-        passLabel,
-      });
-      continue;
-    }
-
     results.push(
-      await persistPrioritySuccess({
+      await settleFetchedCell({
         job,
         items: row.items,
         request: row.request as unknown as Record<string, unknown>,
@@ -418,14 +501,111 @@ export async function runDataForSeoPriorityPass(params: {
         passLabel,
         apiSec,
         scanRetryRound,
+        method: "dfs_priority_batch",
+        taskId: row.taskId,
+        taskStatus: row.taskStatus,
+        errorMessage: row.errorMessage,
       })
     );
   }
 
   const successCount = results.filter((r) => r.success).length;
   console.log(
-    `[Scan] Priority pass ${passLabel}: ${successCount}/${jobs.length} complete (>=${minCellSerpResults(depth)} items)`
+    `[Scan] Priority pass ${passLabel}: ${successCount}/${jobs.length} complete (20+ or 10–19 soft)`
   );
+
+  return {
+    results,
+    successCount,
+    timings: results.map((r) => r.timings).filter(Boolean) as CellPhaseTimings[],
+  };
+}
+
+/**
+ * Live advanced path for the last few unfinished cells (faster than Priority
+ * when the unfinished set is tiny).
+ */
+export async function runDataForSeoLivePass(params: {
+  jobs: GridCellJob[];
+  depth: number;
+  passLabel: string;
+  scanRetryRound?: number;
+  organizationId?: string;
+  forceDesktop?: boolean;
+  locationZoom?: number;
+  concurrency?: number;
+}): Promise<{
+  results: GridCellRunResult[];
+  successCount: number;
+  timings: CellPhaseTimings[];
+}> {
+  const { jobs, depth, passLabel } = params;
+  const scanRetryRound = params.scanRetryRound ?? 0;
+  const locationZoom = params.locationZoom ?? LOCAL_FALCON_PARITY.locationZoom;
+  if (!jobs.length) {
+    return { results: [], successCount: 0, timings: [] };
+  }
+
+  const limit = pLimit(Math.max(1, Math.min(params.concurrency ?? jobs.length, 5)));
+  console.log(
+    `[Scan] DataForSEO Live tail pass ${passLabel}: ${jobs.length} cells (concurrency≤5)`
+  );
+
+  const results = await Promise.all(
+    jobs.map((job) =>
+      limit(async () => {
+        const profile = deviceProfile(job);
+        const device = params.forceDesktop ? "desktop" : profile.device;
+        const os = params.forceDesktop ? "windows" : profile.os;
+        const apiStart = performance.now();
+        try {
+          const live = await mapsLiveAdvanced({
+            keyword: job.keyword.keyword.trim(),
+            lat: job.point.lat,
+            lng: job.point.lng,
+            device,
+            os,
+            browser: profile.browser,
+            depth,
+            languageCode: LOCAL_FALCON_PARITY.languageCode,
+            zoom: locationZoom,
+            searchThisArea: LOCAL_FALCON_PARITY.searchThisArea,
+            searchPlaces: LOCAL_FALCON_PARITY.searchPlaces,
+            seDomain: LOCAL_FALCON_PARITY.seDomain,
+            organizationId: params.organizationId ?? job.organizationId,
+          });
+          const apiSec = elapsedSec(apiStart);
+          return settleFetchedCell({
+            job,
+            items: live.items,
+            request: live.request as unknown as Record<string, unknown>,
+            timestamp: live.timestamp,
+            depth,
+            passLabel,
+            apiSec,
+            scanRetryRound,
+            method: "dfs_live_advanced",
+          });
+        } catch (err) {
+          const apiSec = elapsedSec(apiStart);
+          const message = err instanceof Error ? err.message : String(err);
+          return incompleteResult({
+            job,
+            items: [],
+            apiSec,
+            reason: message,
+            category: "provider_unavailable",
+            passLabel,
+            scanRetryRound,
+            method: "dfs_live_advanced",
+          });
+        }
+      })
+    )
+  );
+
+  const successCount = results.filter((r) => r.success).length;
+  console.log(`[Scan] Live pass ${passLabel}: ${successCount}/${jobs.length} complete`);
 
   return {
     results,
