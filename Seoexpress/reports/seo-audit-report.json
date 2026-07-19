@@ -1,0 +1,2722 @@
+{
+  "generatedAt": "2026-07-01T04:43:59.258Z",
+  "summary": {
+    "pagesAudited": 12,
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 15
+  },
+  "notTestableLocally": [
+    "HTTP 200/HTTPS/redirect chains (requires production server)",
+    "Playwright rendered crawl and mobile viewport screenshots",
+    "Lighthouse / Core Web Vitals lab scores",
+    "Live Rich Results Test validation",
+    "Contact form submission and email delivery",
+    "GA4 / Search Console / conversion event verification"
+  ],
+  "pages": [
+    {
+      "url": "https://www.localseoexpress.com/about/",
+      "route": "/about/",
+      "filename": "about.html",
+      "primaryKeyword": "Local SEO Express / Anthony Johnson",
+      "secondaryKeywords": [
+        "local SEO company",
+        "digital marketing experience"
+      ],
+      "httpStatus": "not-tested-locally",
+      "indexability": "indexable",
+      "canonical": "https://www.localseoexpress.com/about/",
+      "title": "About Local SEO Express | Anthony Johnson, Owner",
+      "titleLength": 48,
+      "metaDescription": "Meet Anthony Johnson, owner of Local SEO Express. With 17 years of digital marketing experience, Anthony helps local businesses improve Google Maps visibility, rankings, calls and leads.",
+      "metaDescriptionLength": 186,
+      "h1": "Local SEO Built Around Calls, Leads and Real Business Growth",
+      "first120Words": "Home About About Local SEO Express Local SEO Built Around Calls, Leads and Real Business Growth Rankings are useful. Calls, appointments and customers are better. Local SEO Express delivers local SEO services owned and led by Anthony Johnson , a digital marketer with 17 years of experience helping businesses improve their online visibility and reach more customers. We help local and multi-location businesses compete in Google Maps and organic search without wasting money on generic strategies, meaningless reports or work that never produces measurable results. Our goal is simple: Help more of the right customers find, trust and contact your business. Get Your Free SEO Audit Learn More About Our Approach AJ Anthony Johnson Owner 17 Years Experience Digital Marketing",
+      "headingOutline": [
+        {
+          "level": 1,
+          "text": "Local SEO Built Around Calls, Leads and Real Business Growth"
+        },
+        {
+          "level": 2,
+          "text": "Anthony Johnson"
+        },
+        {
+          "level": 2,
+          "text": "Meet Anthony Johnson"
+        },
+        {
+          "level": 3,
+          "text": "Why I Started Local SEO Express"
+        },
+        {
+          "level": 2,
+          "text": "Local SEO Should Produce More Than Rankings"
+        },
+        {
+          "level": 2,
+          "text": "We Start With the Market"
+        },
+        {
+          "level": 2,
+          "text": "What Makes Our Approach Different"
+        },
+        {
+          "level": 3,
+          "text": "We Start With the Market"
+        },
+        {
+          "level": 3,
+          "text": "We Optimize Maps and the Website Together"
+        },
+        {
+          "level": 3,
+          "text": "We Focus on Services That Matter Most"
+        },
+        {
+          "level": 3,
+          "text": "We Track Leads and Keep It Understandable"
+        },
+        {
+          "level": 2,
+          "text": "What We Help Businesses Improve"
+        },
+        {
+          "level": 2,
+          "text": "Who We Work With"
+        },
+        {
+          "level": 2,
+          "text": "Our Proven 6-Step Local SEO Process"
+        },
+        {
+          "level": 3,
+          "text": "Audit"
+        },
+        {
+          "level": 3,
+          "text": "Research"
+        },
+        {
+          "level": 3,
+          "text": "Prioritize"
+        },
+        {
+          "level": 3,
+          "text": "Optimize"
+        },
+        {
+          "level": 3,
+          "text": "Build Authority"
+        },
+        {
+          "level": 3,
+          "text": "Track & Improve"
+        },
+        {
+          "level": 2,
+          "text": "What We Will Not Promise"
+        },
+        {
+          "level": 2,
+          "text": "Get Your Free Local SEO Audit"
+        },
+        {
+          "level": 2,
+          "text": "Frequently Asked Questions"
+        },
+        {
+          "level": 3,
+          "text": "Services"
+        },
+        {
+          "level": 3,
+          "text": "Industries"
+        },
+        {
+          "level": 3,
+          "text": "Company"
+        }
+      ],
+      "wordCount": 1207,
+      "internalLinksOut": 36,
+      "images": [],
+      "structuredDataTypes": [
+        "AboutPage",
+        "BreadcrumbList",
+        "ListItem",
+        "Person",
+        "FAQPage",
+        "Question",
+        "Answer"
+      ],
+      "openGraph": {
+        "title": "About Local SEO Express | Anthony Johnson, Owner",
+        "description": "Meet Anthony Johnson, owner of Local SEO Express. With 17 years of digital marketing experience, Anthony helps local businesses improve Google Maps visibility, rankings, calls and leads.",
+        "url": "https://www.localseoexpress.com/about/",
+        "image": "https://www.localseoexpress.com/images/logo.svg"
+      },
+      "primaryKeywordOccurrences": 0,
+      "issues": [
+        {
+          "severity": "low",
+          "category": "meta",
+          "message": "Meta description length 186 chars (review 110–170)"
+        }
+      ],
+      "fixes": [],
+      "fixStatus": "pass",
+      "inSitemap": true,
+      "incomingLinksCount": 28
+    },
+    {
+      "url": "https://www.localseoexpress.com/citation-building-services/",
+      "route": "/citation-building-services/",
+      "filename": "citation-building-services.html",
+      "primaryKeyword": "citation building services",
+      "secondaryKeywords": [
+        "local citation building services",
+        "citation cleanup service",
+        "manual citation building"
+      ],
+      "httpStatus": "not-tested-locally",
+      "indexability": "indexable",
+      "canonical": "https://www.localseoexpress.com/citation-building-services/",
+      "title": "Citation Building Services | Manual Listings & NAP Cleanup",
+      "titleLength": 58,
+      "metaDescription": "Get accurate citation building services with manual local directory submissions, NAP cleanup, duplicate detection, niche listings and complete reporting.",
+      "metaDescriptionLength": 153,
+      "h1": "Citation Building Services That Fix and Strengthen Your Listings",
+      "first120Words": "Home Local SEO Services Citation Building Services Citation Building Services Citation Building Services That Fix and Strengthen Your Listings Our citation building services identify inaccurate and duplicate local business listings, correct inconsistent NAP information and manually build relevant citations across trusted core, local and industry-specific directories. Incorrect business listings do more than confuse search engines—they send customers to old addresses, disconnected phone numbers and websites that no longer exist. Every submission is based on verified information, and when the work is complete, you receive a detailed report showing exactly what was built, updated or flagged for further verification. Get Your Free Citation Audit View Citation Packages Manual Submissions &bull; NAP Cleanup &bull; Duplicate Detection &bull; Niche Directories &bull; Live-Link Reporting",
+      "headingOutline": [
+        {
+          "level": 1,
+          "text": "Citation Building Services That Fix and Strengthen Your Listings"
+        },
+        {
+          "level": 2,
+          "text": "Local Citation Building Services Built Around Accuracy and Relevance"
+        },
+        {
+          "level": 2,
+          "text": "Listing Problems Are Costing You Customers"
+        },
+        {
+          "level": 3,
+          "text": "Inconsistent NAP"
+        },
+        {
+          "level": 3,
+          "text": "Duplicate Listings"
+        },
+        {
+          "level": 3,
+          "text": "Wrong Phone Numbers"
+        },
+        {
+          "level": 3,
+          "text": "Outdated Addresses"
+        },
+        {
+          "level": 2,
+          "text": "What Are Local Citations?"
+        },
+        {
+          "level": 2,
+          "text": "Citation Building vs. Citation Cleanup"
+        },
+        {
+          "level": 3,
+          "text": "Citation Building"
+        },
+        {
+          "level": 3,
+          "text": "Citation Cleanup"
+        },
+        {
+          "level": 2,
+          "text": "What's Included in Our Citation Building Services"
+        },
+        {
+          "level": 3,
+          "text": "Citation Audit"
+        },
+        {
+          "level": 3,
+          "text": "NAP Consistency Review"
+        },
+        {
+          "level": 3,
+          "text": "Historical NAP Discovery"
+        },
+        {
+          "level": 3,
+          "text": "Duplicate Detection"
+        },
+        {
+          "level": 3,
+          "text": "Manual Submissions"
+        },
+        {
+          "level": 3,
+          "text": "Core Directory Listings"
+        },
+        {
+          "level": 3,
+          "text": "Local & Regional Citations"
+        },
+        {
+          "level": 3,
+          "text": "Industry-Specific Citations"
+        },
+        {
+          "level": 3,
+          "text": "Competitor Gap Analysis"
+        },
+        {
+          "level": 3,
+          "text": "Rich Profile Optimization"
+        },
+        {
+          "level": 3,
+          "text": "Verification Support"
+        },
+        {
+          "level": 3,
+          "text": "Complete Citation Report"
+        },
+        {
+          "level": 2,
+          "text": "Your Business Information Is Already Spread Across the Web"
+        },
+        {
+          "level": 3,
+          "text": "Citation Building Is Not Just Submitting Your Business Everywhere"
+        },
+        {
+          "level": 3,
+          "text": "Data Aggregator and Distribution Review"
+        },
+        {
+          "level": 3,
+          "text": "Login Credentials and Listing Ownership"
+        },
+        {
+          "level": 3,
+          "text": "Citation Building for New Businesses"
+        },
+        {
+          "level": 3,
+          "text": "Citation Cleanup for Established Businesses"
+        },
+        {
+          "level": 3,
+          "text": "Multi-Location Citation Building"
+        },
+        {
+          "level": 3,
+          "text": "What Citations Cannot Do by Themselves"
+        },
+        {
+          "level": 3,
+          "text": "Manual Citation Building Versus Automated Distribution"
+        },
+        {
+          "level": 2,
+          "text": "Our Proven Citation Building Process"
+        },
+        {
+          "level": 3,
+          "text": "Collect Business Info"
+        },
+        {
+          "level": 3,
+          "text": "Audit & Analyze"
+        },
+        {
+          "level": 3,
+          "text": "Strategy & Plan"
+        },
+        {
+          "level": 3,
+          "text": "Build & Submit"
+        },
+        {
+          "level": 3,
+          "text": "Clean & Correct"
+        },
+        {
+          "level": 3,
+          "text": "Verify & Sync"
+        },
+        {
+          "level": 3,
+          "text": "Report & Improve"
+        },
+        {
+          "level": 2,
+          "text": "Affordable Packages. Real Results."
+        },
+        {
+          "level": 3,
+          "text": "Citation Starter"
+        },
+        {
+          "level": 3,
+          "text": "Cleanup & Growth"
+        },
+        {
+          "level": 3,
+          "text": "Multi-Location"
+        },
+        {
+          "level": 3,
+          "text": "Why Choose Local SEO Express?"
+        },
+        {
+          "level": 2,
+          "text": "Related Local SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Google Maps SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO Packages"
+        },
+        {
+          "level": 2,
+          "text": "Frequently Asked Questions"
+        },
+        {
+          "level": 2,
+          "text": "Ready to Fix Your Listings and Get Found Everywhere?"
+        },
+        {
+          "level": 3,
+          "text": "Services"
+        },
+        {
+          "level": 3,
+          "text": "Industries"
+        },
+        {
+          "level": 3,
+          "text": "Company"
+        }
+      ],
+      "wordCount": 1808,
+      "internalLinksOut": 43,
+      "images": [],
+      "structuredDataTypes": [
+        "WebPage",
+        "BreadcrumbList",
+        "ListItem",
+        "Service",
+        "Country",
+        "FAQPage",
+        "Question",
+        "Answer"
+      ],
+      "openGraph": {
+        "title": "Citation Building Services | Manual Listings & NAP Cleanup",
+        "description": "Get accurate citation building services with manual local directory submissions, NAP cleanup, duplicate detection, niche listings and complete reporting.",
+        "url": "https://www.localseoexpress.com/citation-building-services/",
+        "image": "https://www.localseoexpress.com/images/logo.svg"
+      },
+      "primaryKeywordOccurrences": 10,
+      "issues": [],
+      "fixes": [],
+      "fixStatus": "pass",
+      "inSitemap": true,
+      "incomingLinksCount": 40
+    },
+    {
+      "url": "https://www.localseoexpress.com/contact/",
+      "route": "/contact/",
+      "filename": "contact.html",
+      "primaryKeyword": "contact Local SEO Express",
+      "secondaryKeywords": [
+        "free local SEO audit",
+        "local SEO consultation"
+      ],
+      "httpStatus": "not-tested-locally",
+      "indexability": "indexable",
+      "canonical": "https://www.localseoexpress.com/contact/",
+      "title": "Contact Local SEO Express | Request Your Free SEO Audit",
+      "titleLength": 55,
+      "metaDescription": "Request a free local SEO audit from Local SEO Express. Contact Anthony Johnson to discuss Google Maps SEO, citations, website optimization and lead generation for your business.",
+      "metaDescriptionLength": 177,
+      "h1": "Let's Find Out What Is Holding Back Your Local Rankings",
+      "first120Words": "Home Contact We're Here to Help Let's Find Out What Is Holding Back Your Local Rankings You do not need to know exactly which local SEO services you need before contacting us. That is what the audit is for. Tell us a little about your business, the services you want to promote and the locations you want to target. We will review your current local search presence and identify the most important opportunities. That may include: Google Maps visibility Google Business Profile problems Missing service pages Weak location relevance Review gaps Citation inconsistencies Competitor advantages Technical website issues Missing local authority Poor lead tracking No generic sales presentation. No pressure to choose the largest package. Just a clearer picture of",
+      "headingOutline": [
+        {
+          "level": 1,
+          "text": "Let's Find Out What Is Holding Back Your Local Rankings"
+        },
+        {
+          "level": 2,
+          "text": "Request Your Free Local SEO Audit"
+        },
+        {
+          "level": 2,
+          "text": "What Happens After You Contact Us?"
+        },
+        {
+          "level": 3,
+          "text": "We Review Your Business"
+        },
+        {
+          "level": 3,
+          "text": "We Check the Market"
+        },
+        {
+          "level": 3,
+          "text": "We Identify the Gaps"
+        },
+        {
+          "level": 3,
+          "text": "We Recommend the Next Step"
+        },
+        {
+          "level": 2,
+          "text": "What Can We Help You With?"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Google Maps SEO"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO Packages"
+        },
+        {
+          "level": 3,
+          "text": "Citation Building Services"
+        },
+        {
+          "level": 3,
+          "text": "Small Business Local SEO"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO for Plumbers"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO for Dentists"
+        },
+        {
+          "level": 2,
+          "text": "Prefer to Contact Us Directly?"
+        },
+        {
+          "level": 3,
+          "text": "Call Us"
+        },
+        {
+          "level": 3,
+          "text": "Email Us"
+        },
+        {
+          "level": 3,
+          "text": "Business Hours"
+        },
+        {
+          "level": 3,
+          "text": "Service Area"
+        },
+        {
+          "level": 2,
+          "text": "Before You Send Your Request"
+        },
+        {
+          "level": 2,
+          "text": "Frequently Asked Questions"
+        },
+        {
+          "level": 2,
+          "text": "Ready to See What Is Holding Your Business Back?"
+        },
+        {
+          "level": 3,
+          "text": "Services"
+        },
+        {
+          "level": 3,
+          "text": "Industries"
+        },
+        {
+          "level": 3,
+          "text": "Company"
+        }
+      ],
+      "wordCount": 878,
+      "internalLinksOut": 36,
+      "images": [],
+      "structuredDataTypes": [
+        "ContactPage",
+        "BreadcrumbList",
+        "ListItem",
+        "FAQPage",
+        "Question",
+        "Answer"
+      ],
+      "openGraph": {
+        "title": "Contact Local SEO Express | Request Your Free SEO Audit",
+        "description": "Request a free local SEO audit from Local SEO Express. Contact Anthony Johnson to discuss Google Maps SEO, citations, website optimization and lead generation.",
+        "url": "https://www.localseoexpress.com/contact/",
+        "image": "https://www.localseoexpress.com/images/logo.svg"
+      },
+      "primaryKeywordOccurrences": 0,
+      "issues": [
+        {
+          "severity": "low",
+          "category": "meta",
+          "message": "Meta description length 177 chars (review 110–170)"
+        }
+      ],
+      "fixes": [],
+      "fixStatus": "pass",
+      "inSitemap": true,
+      "incomingLinksCount": 94
+    },
+    {
+      "url": "https://www.localseoexpress.com/google-maps-seo-services/",
+      "route": "/google-maps-seo-services/",
+      "filename": "google-maps-seo-services.html",
+      "primaryKeyword": "Google Maps SEO services",
+      "secondaryKeywords": [
+        "Google Maps SEO company",
+        "Google Maps ranking services",
+        "Google Maps optimization services"
+      ],
+      "httpStatus": "not-tested-locally",
+      "indexability": "indexable",
+      "canonical": "https://www.localseoexpress.com/google-maps-seo-services/",
+      "title": "Google Maps SEO Services That Generate Calls & Leads | Local SEO Express",
+      "titleLength": 72,
+      "metaDescription": "Rank higher in Google Maps with SEO services covering your Google Business Profile, website, reviews, citations, local content, authority and map-grid tracking.",
+      "metaDescriptionLength": 160,
+      "h1": "Google Maps SEO Services Built to Generate More Calls and Leads",
+      "first120Words": "Home Local SEO Services Google Maps SEO Services Google Maps SEO Services Google Maps SEO Services Built to Generate More Calls and Leads Our Google Maps SEO services improve your Google Business Profile, website, reviews, citations, content and local authority—so more nearby customers find, trust and contact your business. Google Maps is one part of a complete local SEO strategy that also includes your website, reviews, citations and local authority. Get My Free Audit See What's Included More Calls From Local Customers Higher Rankings In The Map Pack More Reviews Review generation strategy More Leads And Bookings Businesses Your Business ★★★★★ · Open now Open · Closes 6 PM Competitor Business ★★★★½ 4.5 · 36 reviews Competitor Business ★★★★ 4.0",
+      "headingOutline": [
+        {
+          "level": 1,
+          "text": "Google Maps SEO Services Built to Generate More Calls and Leads"
+        },
+        {
+          "level": 2,
+          "text": "It's Not Just Your Google Business Profile"
+        },
+        {
+          "level": 3,
+          "text": "Relevance"
+        },
+        {
+          "level": 3,
+          "text": "Distance"
+        },
+        {
+          "level": 3,
+          "text": "Prominence"
+        },
+        {
+          "level": 3,
+          "text": "GBP Optimization"
+        },
+        {
+          "level": 3,
+          "text": "Review Strategy"
+        },
+        {
+          "level": 3,
+          "text": "Citation Building"
+        },
+        {
+          "level": 3,
+          "text": "Maps Keyword Research"
+        },
+        {
+          "level": 3,
+          "text": "Local Content"
+        },
+        {
+          "level": 3,
+          "text": "Local Link Building"
+        },
+        {
+          "level": 3,
+          "text": "Technical SEO"
+        },
+        {
+          "level": 3,
+          "text": "Map Grid Tracking"
+        },
+        {
+          "level": 2,
+          "text": "A Simple Process That Drives Results"
+        },
+        {
+          "level": 3,
+          "text": "Audit & Research"
+        },
+        {
+          "level": 3,
+          "text": "Strategy"
+        },
+        {
+          "level": 3,
+          "text": "Optimize"
+        },
+        {
+          "level": 3,
+          "text": "Build Authority"
+        },
+        {
+          "level": 3,
+          "text": "Track & Improve"
+        },
+        {
+          "level": 2,
+          "text": "Google Maps SEO For Every Local Business"
+        },
+        {
+          "level": 2,
+          "text": "More Visibility. More Calls. More Revenue."
+        },
+        {
+          "level": 2,
+          "text": "Related Local SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Citation Building Services"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO Packages"
+        },
+        {
+          "level": 2,
+          "text": "Frequently Asked Questions"
+        },
+        {
+          "level": 2,
+          "text": "Find Out What Is Keeping You Out of the Map Pack"
+        },
+        {
+          "level": 2,
+          "text": "Ready to Get More Calls from Google Maps?"
+        },
+        {
+          "level": 3,
+          "text": "Services"
+        },
+        {
+          "level": 3,
+          "text": "Industries"
+        },
+        {
+          "level": 3,
+          "text": "Company"
+        }
+      ],
+      "wordCount": 1152,
+      "internalLinksOut": 41,
+      "images": [],
+      "structuredDataTypes": [
+        "WebPage",
+        "BreadcrumbList",
+        "ListItem",
+        "Service",
+        "Country",
+        "OfferCatalog",
+        "Offer",
+        "FAQPage",
+        "Question",
+        "Answer"
+      ],
+      "openGraph": {
+        "title": "Google Maps SEO Services That Generate Calls & Leads | Local SEO Express",
+        "description": "Rank higher in Google Maps with SEO services covering your Google Business Profile, website, reviews, citations, local content, authority and map-grid tracking.",
+        "url": "https://www.localseoexpress.com/google-maps-seo-services/",
+        "image": "https://www.localseoexpress.com/images/logo.svg"
+      },
+      "primaryKeywordOccurrences": 5,
+      "issues": [
+        {
+          "severity": "low",
+          "category": "title",
+          "message": "Title length 72 chars (review 35–65)"
+        }
+      ],
+      "fixes": [],
+      "fixStatus": "pass",
+      "inSitemap": true,
+      "incomingLinksCount": 40
+    },
+    {
+      "url": "https://www.localseoexpress.com/",
+      "route": "/",
+      "filename": "index.html",
+      "primaryKeyword": "local SEO company",
+      "secondaryKeywords": [
+        "local SEO agency",
+        "local SEO experts"
+      ],
+      "httpStatus": "not-tested-locally",
+      "indexability": "indexable",
+      "canonical": "https://www.localseoexpress.com/",
+      "title": "Local SEO Company That Generates Calls & Leads | Local SEO Express",
+      "titleLength": 66,
+      "metaDescription": "Local SEO Express helps local and multi-location businesses rank in Google Maps, get more local search visibility, and turn rankings into phone calls, leads, and customers.",
+      "metaDescriptionLength": 172,
+      "h1": "A Local SEO Company Focused on Calls, Leads and Growth",
+      "first120Words": "National Local SEO Company A Local SEO Company Focused on Calls, Leads and Growth Local SEO Express is a national local SEO company and local SEO agency focused on what happens after you rank—calls, leads and customers. We help local and multi-location businesses get found in Google Maps, appear higher in local search results and turn that visibility into phone calls, leads and paying customers. We optimize the signals that actually influence local visibility, including your website, Google Business Profile, service pages, citations, local authority and review strategy. No vague reports. No meaningless traffic numbers. Just a clear local SEO strategy built around generating more business. Get Your Free Local SEO Audit Explore Our Local SEO Services Local SEO Overview",
+      "headingOutline": [
+        {
+          "level": 1,
+          "text": "A Local SEO Company Focused on Calls, Leads and Growth"
+        },
+        {
+          "level": 2,
+          "text": "Your Customers Are Searching. The Question Is Whether They Find You or Your Competitors."
+        },
+        {
+          "level": 2,
+          "text": "Local SEO Built Around Revenue, Not Vanity Metrics"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Google Maps SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Citation Building Services"
+        },
+        {
+          "level": 3,
+          "text": "Free Local SEO Audit"
+        },
+        {
+          "level": 3,
+          "text": "GBP Optimization"
+        },
+        {
+          "level": 3,
+          "text": "Review Strategy"
+        },
+        {
+          "level": 3,
+          "text": "Local Link Building"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO Packages"
+        },
+        {
+          "level": 2,
+          "text": "We Optimize More Than Your Google Business Profile"
+        },
+        {
+          "level": 2,
+          "text": "Local SEO Services for Businesses That Depend on Local Customers"
+        },
+        {
+          "level": 2,
+          "text": "How It Works"
+        },
+        {
+          "level": 3,
+          "text": "Audit"
+        },
+        {
+          "level": 3,
+          "text": "Strategy"
+        },
+        {
+          "level": 3,
+          "text": "Optimization"
+        },
+        {
+          "level": 3,
+          "text": "Growth"
+        },
+        {
+          "level": 2,
+          "text": "Company Highlights"
+        },
+        {
+          "level": 3,
+          "text": "Owner-Led Strategy, Not a Generic Account Team"
+        },
+        {
+          "level": 2,
+          "text": "Find Out What Is Holding Back Your Local Rankings"
+        },
+        {
+          "level": 3,
+          "text": "Services"
+        },
+        {
+          "level": 3,
+          "text": "Industries"
+        },
+        {
+          "level": 3,
+          "text": "Company"
+        }
+      ],
+      "wordCount": 880,
+      "internalLinksOut": 39,
+      "images": [],
+      "structuredDataTypes": [
+        "WebSite",
+        "Organization",
+        "ContactPoint",
+        "ProfessionalService",
+        "Country"
+      ],
+      "openGraph": {
+        "title": "Local SEO Company That Generates Calls & Leads | Local SEO Express",
+        "description": "Get found in Google Maps and turn local search visibility into phone calls, leads, and paying customers.",
+        "url": "https://www.localseoexpress.com/",
+        "image": "https://www.localseoexpress.com/images/logo.svg"
+      },
+      "primaryKeywordOccurrences": 3,
+      "issues": [
+        {
+          "severity": "low",
+          "category": "title",
+          "message": "Title length 66 chars (review 35–65)"
+        },
+        {
+          "severity": "low",
+          "category": "meta",
+          "message": "Meta description length 172 chars (review 110–170)"
+        }
+      ],
+      "fixes": [],
+      "fixStatus": "pass",
+      "inSitemap": true,
+      "incomingLinksCount": 51
+    },
+    {
+      "url": "https://www.localseoexpress.com/local-seo-for-dentists/",
+      "route": "/local-seo-for-dentists/",
+      "filename": "local-seo-for-dentists.html",
+      "primaryKeyword": "local SEO for dentists",
+      "secondaryKeywords": [
+        "dental SEO services",
+        "SEO for dentists",
+        "dentist SEO company"
+      ],
+      "httpStatus": "not-tested-locally",
+      "indexability": "indexable",
+      "canonical": "https://www.localseoexpress.com/local-seo-for-dentists/",
+      "title": "Local SEO for Dentists That Brings More Patients | Local SEO Express",
+      "titleLength": 68,
+      "metaDescription": "Attract more local patients with SEO for dentists, including Google Maps, GBP optimization, treatment pages, reviews, dental citations, local content and appointment tracking.",
+      "metaDescriptionLength": 175,
+      "h1": "Local SEO for Dentists That Generates More Patient Appointments",
+      "first120Words": "Home Local SEO Services Local SEO for Dentists Dental SEO Services Local SEO for Dentists That Generates More Patient Appointments We help dental practices rank higher on Google Maps, drive more local calls, and book more high-value patient appointments with proven local SEO strategies built for dentists. Get My Free Dental SEO Audit See How It Works More Phone Calls More Appointments Better Reviews More New Patients Your Local SEO Performance Last 30 Days Calls From Google 248 ▲ 42% Booked Appointments 92 ▲ 38% Map Ranking Avg. 1.8 ▲ 0.7 Google Maps Ranking Average Position Apr 21 May 19 Dental treatments we help rank for General Dentistry Dental Implants Invisalign Emergency Dental Cosmetic Dentistry Pediatric Dental 350+ Dental Practices",
+      "headingOutline": [
+        {
+          "level": 1,
+          "text": "Local SEO for Dentists That Generates More Patient Appointments"
+        },
+        {
+          "level": 2,
+          "text": "Why Dental SEO Is Different"
+        },
+        {
+          "level": 3,
+          "text": "Urgent & Emergency Dental Searches"
+        },
+        {
+          "level": 3,
+          "text": "Planned & High-Value Treatment Searches"
+        },
+        {
+          "level": 2,
+          "text": "What's Included"
+        },
+        {
+          "level": 3,
+          "text": "1. Dental SEO Audit"
+        },
+        {
+          "level": 3,
+          "text": "2. Competitor Analysis"
+        },
+        {
+          "level": 3,
+          "text": "3. Keyword Research"
+        },
+        {
+          "level": 3,
+          "text": "4. Google Business Profile Optimization"
+        },
+        {
+          "level": 3,
+          "text": "5. Google Maps SEO"
+        },
+        {
+          "level": 3,
+          "text": "6. Treatment Pages"
+        },
+        {
+          "level": 3,
+          "text": "7. City / Service Area Pages"
+        },
+        {
+          "level": 3,
+          "text": "8. Reviews"
+        },
+        {
+          "level": 3,
+          "text": "9. Citations"
+        },
+        {
+          "level": 3,
+          "text": "10. Link Building"
+        },
+        {
+          "level": 3,
+          "text": "11. Technical SEO"
+        },
+        {
+          "level": 3,
+          "text": "12. Tracking & Reporting"
+        },
+        {
+          "level": 2,
+          "text": "Your Next Patient Is Already Searching"
+        },
+        {
+          "level": 3,
+          "text": "Dental SEO Audit"
+        },
+        {
+          "level": 3,
+          "text": "Google Maps SEO for Dentists"
+        },
+        {
+          "level": 3,
+          "text": "Dental Treatment Pages"
+        },
+        {
+          "level": 3,
+          "text": "Patient Review Strategy"
+        },
+        {
+          "level": 3,
+          "text": "Call and Appointment Tracking"
+        },
+        {
+          "level": 3,
+          "text": "Why Choose Local SEO Express for Dental SEO?"
+        },
+        {
+          "level": 2,
+          "text": "Google Maps SEO for Dentists"
+        },
+        {
+          "level": 2,
+          "text": "Treatment Pages & Keyword Targeting"
+        },
+        {
+          "level": 3,
+          "text": "Dental Implants"
+        },
+        {
+          "level": 3,
+          "text": "Invisalign"
+        },
+        {
+          "level": 3,
+          "text": "Emergency Dentist"
+        },
+        {
+          "level": 3,
+          "text": "Cosmetic Dentistry"
+        },
+        {
+          "level": 3,
+          "text": "Veneers"
+        },
+        {
+          "level": 3,
+          "text": "Teeth Whitening"
+        },
+        {
+          "level": 3,
+          "text": "Pediatric Dentistry"
+        },
+        {
+          "level": 3,
+          "text": "Root Canal"
+        },
+        {
+          "level": 2,
+          "text": "Our Proven SEO Process"
+        },
+        {
+          "level": 3,
+          "text": "Audit"
+        },
+        {
+          "level": 3,
+          "text": "Research"
+        },
+        {
+          "level": 3,
+          "text": "Strategy"
+        },
+        {
+          "level": 3,
+          "text": "Optimization"
+        },
+        {
+          "level": 3,
+          "text": "Authority Building"
+        },
+        {
+          "level": 3,
+          "text": "Tracking"
+        },
+        {
+          "level": 2,
+          "text": "Simple, Transparent Pricing"
+        },
+        {
+          "level": 3,
+          "text": "Starter"
+        },
+        {
+          "level": 3,
+          "text": "Growth"
+        },
+        {
+          "level": 3,
+          "text": "Pro"
+        },
+        {
+          "level": 2,
+          "text": "Related Local SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Google Maps SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO Packages"
+        },
+        {
+          "level": 3,
+          "text": "Citation Building Services"
+        },
+        {
+          "level": 2,
+          "text": "Frequently Asked Questions"
+        },
+        {
+          "level": 2,
+          "text": "Get Your Free Dental SEO Audit"
+        },
+        {
+          "level": 3,
+          "text": "Services"
+        },
+        {
+          "level": 3,
+          "text": "Industries"
+        },
+        {
+          "level": 3,
+          "text": "Company"
+        }
+      ],
+      "wordCount": 1550,
+      "internalLinksOut": 43,
+      "images": [],
+      "structuredDataTypes": [
+        "WebPage",
+        "BreadcrumbList",
+        "ListItem",
+        "Service",
+        "Country",
+        "FAQPage",
+        "Question",
+        "Answer"
+      ],
+      "openGraph": {
+        "title": "Local SEO for Dentists That Brings More Patients | Local SEO Express",
+        "description": "Attract more local patients with SEO for dentists, including Google Maps, GBP optimization, treatment pages, reviews, dental citations, local content and appointment tracking.",
+        "url": "https://www.localseoexpress.com/local-seo-for-dentists/",
+        "image": "https://www.localseoexpress.com/images/logo.svg"
+      },
+      "primaryKeywordOccurrences": 4,
+      "issues": [
+        {
+          "severity": "low",
+          "category": "title",
+          "message": "Title length 68 chars (review 35–65)"
+        },
+        {
+          "severity": "low",
+          "category": "meta",
+          "message": "Meta description length 175 chars (review 110–170)"
+        }
+      ],
+      "fixes": [],
+      "fixStatus": "pass",
+      "inSitemap": true,
+      "incomingLinksCount": 32
+    },
+    {
+      "url": "https://www.localseoexpress.com/local-seo-for-plumbers/",
+      "route": "/local-seo-for-plumbers/",
+      "filename": "local-seo-for-plumbers.html",
+      "primaryKeyword": "local SEO for plumbers",
+      "secondaryKeywords": [
+        "plumber SEO services",
+        "SEO for plumbers",
+        "plumbing SEO company"
+      ],
+      "httpStatus": "not-tested-locally",
+      "indexability": "indexable",
+      "canonical": "https://www.localseoexpress.com/local-seo-for-plumbers/",
+      "title": "Local SEO for Plumbers That Generates More Calls | Local SEO Express",
+      "titleLength": 68,
+      "metaDescription": "Generate more plumbing calls and booked jobs with local SEO for plumbers, including Google Maps, GBP optimization, service pages, reviews, citations, content and call tracking.",
+      "metaDescriptionLength": 176,
+      "h1": "Local SEO for Plumbers That Generates Calls and Booked Jobs",
+      "first120Words": "Home Local SEO Services Local SEO for Plumbers Plumber SEO Services Local SEO for Plumbers That Generates Calls and Booked Jobs We help plumbing businesses rank higher on Google Maps, drive more local calls, and book more high-value jobs with proven local SEO strategies built for plumbers. Get My Free SEO Audit See How It Works More Local Calls More Booked Jobs Higher Revenue Your Local SEO Performance Last 30 Days Calls From Google 187 ▲ 38% Booked Jobs 64 ▲ 42% Map Ranking Avg. 2.4 ▲ 1.1 Google Maps Ranking Average Position Apr 21 May 19 Plumbing services we help rank for Emergency Plumbing Drain Cleaning Water Heaters Sewer Repair Gas Lines Repiping Owner-Led Plumbing SEO campaigns 17+ Years",
+      "headingOutline": [
+        {
+          "level": 1,
+          "text": "Local SEO for Plumbers That Generates Calls and Booked Jobs"
+        },
+        {
+          "level": 2,
+          "text": "Why Plumbing SEO Is Different"
+        },
+        {
+          "level": 3,
+          "text": "Emergency Plumbing Searches"
+        },
+        {
+          "level": 3,
+          "text": "Planned & Higher-Value Plumbing Searches"
+        },
+        {
+          "level": 2,
+          "text": "What's Included"
+        },
+        {
+          "level": 3,
+          "text": "1. Plumbing SEO Audit"
+        },
+        {
+          "level": 3,
+          "text": "2. Competitor Analysis"
+        },
+        {
+          "level": 3,
+          "text": "3. Keyword Research"
+        },
+        {
+          "level": 3,
+          "text": "4. Google Business Profile Optimization"
+        },
+        {
+          "level": 3,
+          "text": "5. Google Maps SEO"
+        },
+        {
+          "level": 3,
+          "text": "6. Plumbing Service Pages"
+        },
+        {
+          "level": 3,
+          "text": "7. City / Service Area Pages"
+        },
+        {
+          "level": 3,
+          "text": "8. Reviews"
+        },
+        {
+          "level": 3,
+          "text": "9. Citations"
+        },
+        {
+          "level": 3,
+          "text": "10. Link Building"
+        },
+        {
+          "level": 3,
+          "text": "11. Technical SEO"
+        },
+        {
+          "level": 3,
+          "text": "12. Call Tracking"
+        },
+        {
+          "level": 3,
+          "text": "Plumbing SEO Audit"
+        },
+        {
+          "level": 3,
+          "text": "Plumbing Competitor Analysis"
+        },
+        {
+          "level": 3,
+          "text": "Plumbing Keyword Research"
+        },
+        {
+          "level": 3,
+          "text": "Google Business Profile Optimization"
+        },
+        {
+          "level": 3,
+          "text": "Google Maps SEO for Plumbers"
+        },
+        {
+          "level": 3,
+          "text": "Plumbing Service Pages"
+        },
+        {
+          "level": 3,
+          "text": "Service-Area and City Pages"
+        },
+        {
+          "level": 3,
+          "text": "Plumbing Review Strategy"
+        },
+        {
+          "level": 3,
+          "text": "Citation Building and Cleanup"
+        },
+        {
+          "level": 3,
+          "text": "Local Link Building for Plumbers"
+        },
+        {
+          "level": 3,
+          "text": "Technical SEO and Schema"
+        },
+        {
+          "level": 3,
+          "text": "Call and Lead Tracking"
+        },
+        {
+          "level": 2,
+          "text": "Google Maps SEO for Plumbers"
+        },
+        {
+          "level": 2,
+          "text": "Plumbing Service Pages & Keyword Targeting"
+        },
+        {
+          "level": 3,
+          "text": "Drain Cleaning"
+        },
+        {
+          "level": 3,
+          "text": "Water Heater Repair"
+        },
+        {
+          "level": 3,
+          "text": "Sewer Line Repair"
+        },
+        {
+          "level": 3,
+          "text": "Emergency Plumbing"
+        },
+        {
+          "level": 3,
+          "text": "Repiping"
+        },
+        {
+          "level": 3,
+          "text": "Commercial Plumbing"
+        },
+        {
+          "level": 2,
+          "text": "Our Proven SEO Process"
+        },
+        {
+          "level": 3,
+          "text": "Audit"
+        },
+        {
+          "level": 3,
+          "text": "Research"
+        },
+        {
+          "level": 3,
+          "text": "Strategy"
+        },
+        {
+          "level": 3,
+          "text": "Optimization"
+        },
+        {
+          "level": 3,
+          "text": "Authority Building"
+        },
+        {
+          "level": 3,
+          "text": "Tracking"
+        },
+        {
+          "level": 2,
+          "text": "Simple, Transparent Pricing"
+        },
+        {
+          "level": 3,
+          "text": "Starter"
+        },
+        {
+          "level": 3,
+          "text": "Growth"
+        },
+        {
+          "level": 3,
+          "text": "Pro"
+        },
+        {
+          "level": 2,
+          "text": "Related Local SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Google Maps SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO Packages"
+        },
+        {
+          "level": 3,
+          "text": "Citation Building Services"
+        },
+        {
+          "level": 2,
+          "text": "Frequently Asked Questions"
+        },
+        {
+          "level": 2,
+          "text": "Get Your Free Plumbing SEO Audit"
+        },
+        {
+          "level": 3,
+          "text": "Services"
+        },
+        {
+          "level": 3,
+          "text": "Industries"
+        },
+        {
+          "level": 3,
+          "text": "Company"
+        }
+      ],
+      "wordCount": 1645,
+      "internalLinksOut": 44,
+      "images": [],
+      "structuredDataTypes": [
+        "WebPage",
+        "BreadcrumbList",
+        "ListItem",
+        "Service",
+        "Country",
+        "FAQPage",
+        "Question",
+        "Answer"
+      ],
+      "openGraph": {
+        "title": "Local SEO for Plumbers That Generates More Calls | Local SEO Express",
+        "description": "Generate more plumbing calls and booked jobs with local SEO for plumbers, including Google Maps, GBP optimization, service pages, reviews, citations, content and call tracking.",
+        "url": "https://www.localseoexpress.com/local-seo-for-plumbers/",
+        "image": "https://www.localseoexpress.com/images/logo.svg"
+      },
+      "primaryKeywordOccurrences": 4,
+      "issues": [
+        {
+          "severity": "low",
+          "category": "title",
+          "message": "Title length 68 chars (review 35–65)"
+        },
+        {
+          "severity": "low",
+          "category": "meta",
+          "message": "Meta description length 176 chars (review 110–170)"
+        }
+      ],
+      "fixes": [],
+      "fixStatus": "pass",
+      "inSitemap": true,
+      "incomingLinksCount": 32
+    },
+    {
+      "url": "https://www.localseoexpress.com/local-seo-packages/",
+      "route": "/local-seo-packages/",
+      "filename": "local-seo-packages.html",
+      "primaryKeyword": "local SEO packages",
+      "secondaryKeywords": [
+        "local SEO pricing",
+        "local SEO plans",
+        "local SEO packages for small business"
+      ],
+      "httpStatus": "not-tested-locally",
+      "indexability": "indexable",
+      "canonical": "https://www.localseoexpress.com/local-seo-packages/",
+      "title": "Local SEO Packages & Pricing for Small Businesses | Local SEO Express",
+      "titleLength": 69,
+      "metaDescription": "Compare local SEO packages built around your market, competition and goals. Get Google Maps SEO, GBP optimization, website SEO, content, citations, links and lead tracking.",
+      "metaDescriptionLength": 172,
+      "h1": "Local SEO Packages Built Around Your Market—Not a Generic Checklist",
+      "first120Words": "Home Local SEO Packages Local SEO Packages Local SEO Packages Built Around Your Market—Not a Generic Checklist Most local SEO packages are built backwards. The agency chooses a price, fills the package with tasks, then sells the same plan to every business. Every plan is built on complete local SEO services scoped to your market. That does not make sense. A business investing in plumber SEO services in a small town does not need the same campaign as dental SEO services targeting an entire metro area—and a single-location business should not pay for the same strategy as a company with 20 locations. Our local SEO packages are based on what it will realistically take to compete in your market. We",
+      "headingOutline": [
+        {
+          "level": 1,
+          "text": "Local SEO Packages Built Around Your Market—Not a Generic Checklist"
+        },
+        {
+          "level": 2,
+          "text": "Local SEO Packages & Pricing"
+        },
+        {
+          "level": 3,
+          "text": "Local Foundation"
+        },
+        {
+          "level": 3,
+          "text": "Local Growth"
+        },
+        {
+          "level": 3,
+          "text": "Local Authority"
+        },
+        {
+          "level": 2,
+          "text": "See What's Included In Each Package"
+        },
+        {
+          "level": 2,
+          "text": "More Than Just SEO. We Drive Real Business Results."
+        },
+        {
+          "level": 3,
+          "text": "Focus on ROI"
+        },
+        {
+          "level": 3,
+          "text": "Market-Driven Strategy"
+        },
+        {
+          "level": 3,
+          "text": "Transparent Reporting"
+        },
+        {
+          "level": 3,
+          "text": "Experienced Team"
+        },
+        {
+          "level": 3,
+          "text": "White-Hat Methods"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO Experts"
+        },
+        {
+          "level": 2,
+          "text": "A Simple Process That Delivers Results"
+        },
+        {
+          "level": 3,
+          "text": "Audit & Research"
+        },
+        {
+          "level": 3,
+          "text": "Strategy"
+        },
+        {
+          "level": 3,
+          "text": "Optimize"
+        },
+        {
+          "level": 3,
+          "text": "Build Authority"
+        },
+        {
+          "level": 3,
+          "text": "Track & Improve"
+        },
+        {
+          "level": 2,
+          "text": "Frequently Asked Questions"
+        },
+        {
+          "level": 2,
+          "text": "Not Sure Which Package You Need?"
+        },
+        {
+          "level": 2,
+          "text": "Detailed Package Breakdown"
+        },
+        {
+          "level": 3,
+          "text": "Local Foundation"
+        },
+        {
+          "level": 4,
+          "text": "Strong fit when"
+        },
+        {
+          "level": 4,
+          "text": "What's included"
+        },
+        {
+          "level": 3,
+          "text": "Local Growth"
+        },
+        {
+          "level": 4,
+          "text": "Strong fit when"
+        },
+        {
+          "level": 4,
+          "text": "Everything in Foundation, plus"
+        },
+        {
+          "level": 3,
+          "text": "Local Authority"
+        },
+        {
+          "level": 4,
+          "text": "Built for"
+        },
+        {
+          "level": 4,
+          "text": "Everything in Growth, plus"
+        },
+        {
+          "level": 2,
+          "text": "What Every Local SEO Package Includes"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO Audit"
+        },
+        {
+          "level": 3,
+          "text": "Competitor Research"
+        },
+        {
+          "level": 3,
+          "text": "Local Keyword Research"
+        },
+        {
+          "level": 3,
+          "text": "Google Business Profile Optimization"
+        },
+        {
+          "level": 3,
+          "text": "Google Maps SEO"
+        },
+        {
+          "level": 3,
+          "text": "Website SEO"
+        },
+        {
+          "level": 3,
+          "text": "Service-Page Optimization"
+        },
+        {
+          "level": 3,
+          "text": "Location and Service-Area Pages"
+        },
+        {
+          "level": 3,
+          "text": "Citation Building and Cleanup"
+        },
+        {
+          "level": 3,
+          "text": "Review Strategy"
+        },
+        {
+          "level": 3,
+          "text": "Local Content"
+        },
+        {
+          "level": 3,
+          "text": "Local Link Building"
+        },
+        {
+          "level": 3,
+          "text": "Technical SEO"
+        },
+        {
+          "level": 3,
+          "text": "Tracking and Reporting"
+        },
+        {
+          "level": 2,
+          "text": "What Changes Between Packages?"
+        },
+        {
+          "level": 3,
+          "text": "Number of Locations"
+        },
+        {
+          "level": 3,
+          "text": "Number of Services"
+        },
+        {
+          "level": 3,
+          "text": "Market Competition"
+        },
+        {
+          "level": 3,
+          "text": "Current Website Condition"
+        },
+        {
+          "level": 3,
+          "text": "Authority Gap"
+        },
+        {
+          "level": 2,
+          "text": "Single-Location & Multi-Location Packages"
+        },
+        {
+          "level": 3,
+          "text": "Single-Location Local SEO Packages"
+        },
+        {
+          "level": 3,
+          "text": "Multi-Location Local SEO Packages"
+        },
+        {
+          "level": 2,
+          "text": "Why Cheap Local SEO Packages Often Fail"
+        },
+        {
+          "level": 3,
+          "text": "The Work Is Automated"
+        },
+        {
+          "level": 3,
+          "text": "The Important Work Is Missing"
+        },
+        {
+          "level": 3,
+          "text": "Nothing Meaningful Happens"
+        },
+        {
+          "level": 2,
+          "text": "Our Packages Do Not Guarantee Rankings"
+        },
+        {
+          "level": 2,
+          "text": "How Long Before You See Results?"
+        },
+        {
+          "level": 2,
+          "text": "How to Choose the Right Local SEO Package"
+        },
+        {
+          "level": 3,
+          "text": "How competitive is my market?"
+        },
+        {
+          "level": 3,
+          "text": "How many services do I want to target?"
+        },
+        {
+          "level": 3,
+          "text": "How many locations do I serve?"
+        },
+        {
+          "level": 3,
+          "text": "What is the condition of my website?"
+        },
+        {
+          "level": 3,
+          "text": "How much authority do my competitors have?"
+        },
+        {
+          "level": 3,
+          "text": "What can one new customer be worth?"
+        },
+        {
+          "level": 2,
+          "text": "Ready To Get More Calls, Leads & Customers?"
+        },
+        {
+          "level": 3,
+          "text": "Services"
+        },
+        {
+          "level": 3,
+          "text": "Industries"
+        },
+        {
+          "level": 3,
+          "text": "Company"
+        }
+      ],
+      "wordCount": 3255,
+      "internalLinksOut": 46,
+      "images": [],
+      "structuredDataTypes": [
+        "WebPage",
+        "BreadcrumbList",
+        "ListItem",
+        "OfferCatalog",
+        "Offer",
+        "UnitPriceSpecification",
+        "Service",
+        "FAQPage",
+        "Question",
+        "Answer"
+      ],
+      "openGraph": {
+        "title": "Local SEO Packages & Pricing for Small Businesses | Local SEO Express",
+        "description": "Compare local SEO packages built around your market, competition and goals. Get Google Maps SEO, GBP optimization, website SEO, content, citations, links and lead tracking.",
+        "url": "https://www.localseoexpress.com/local-seo-packages/",
+        "image": "https://www.localseoexpress.com/images/logo.svg"
+      },
+      "primaryKeywordOccurrences": 11,
+      "issues": [
+        {
+          "severity": "low",
+          "category": "title",
+          "message": "Title length 69 chars (review 35–65)"
+        },
+        {
+          "severity": "low",
+          "category": "meta",
+          "message": "Meta description length 172 chars (review 110–170)"
+        }
+      ],
+      "fixes": [],
+      "fixStatus": "pass",
+      "inSitemap": true,
+      "incomingLinksCount": 40
+    },
+    {
+      "url": "https://www.localseoexpress.com/local-seo-services-for-small-business/",
+      "route": "/local-seo-services-for-small-business/",
+      "filename": "local-seo-services-for-small-business.html",
+      "primaryKeyword": "local SEO services for small business",
+      "secondaryKeywords": [
+        "SEO services for local business",
+        "small business local SEO"
+      ],
+      "httpStatus": "not-tested-locally",
+      "indexability": "indexable",
+      "canonical": "https://www.localseoexpress.com/local-seo-services-for-small-business/",
+      "title": "Local SEO Services for Small Business That Drive Leads | Local SEO Express",
+      "titleLength": 74,
+      "metaDescription": "Grow your business with focused local SEO services for small businesses, including Google Maps, GBP optimization, website SEO, reviews, citations, content and lead tracking.",
+      "metaDescriptionLength": 173,
+      "h1": "Local SEO Services for Small Businesses That Need More Calls and Customers",
+      "first120Words": "Home Local SEO Services Local SEO Services for Small Business Small Business Local SEO Local SEO Services for Small Businesses That Need More Calls and Customers Running a small business means every marketing dollar has to work harder. You cannot afford to spend six months paying for reports, random blog posts and tasks that never turn into customers. Our local SEO services for small businesses focus on the opportunities most likely to generate phone calls, appointments, quote requests and sales—built on proven local SEO services scoped for your market. Get Your Free Small Business SEO Audit See What's Included Google Maps SEO &bull; Website Optimization &bull; GBP Management &bull; Reviews &bull; Citations &bull; Local Content &bull; Lead Tracking National Service",
+      "headingOutline": [
+        {
+          "level": 1,
+          "text": "Local SEO Services for Small Businesses That Need More Calls and Customers"
+        },
+        {
+          "level": 2,
+          "text": "Your Customers Are Searching. Can They Find You?"
+        },
+        {
+          "level": 2,
+          "text": "Everything Included in Our Small Business Local SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Small Business Local SEO Audit"
+        },
+        {
+          "level": 3,
+          "text": "Local Competitor Analysis"
+        },
+        {
+          "level": 3,
+          "text": "Opportunity-Based Keyword Research"
+        },
+        {
+          "level": 3,
+          "text": "Google Business Profile Optimization"
+        },
+        {
+          "level": 3,
+          "text": "Google Maps SEO"
+        },
+        {
+          "level": 3,
+          "text": "Website SEO"
+        },
+        {
+          "level": 3,
+          "text": "Service-Page Optimization"
+        },
+        {
+          "level": 3,
+          "text": "Location & Service-Area Pages"
+        },
+        {
+          "level": 3,
+          "text": "Review Strategy"
+        },
+        {
+          "level": 3,
+          "text": "Citation Building & Cleanup"
+        },
+        {
+          "level": 3,
+          "text": "Local Content Strategy"
+        },
+        {
+          "level": 3,
+          "text": "Call & Lead Tracking"
+        },
+        {
+          "level": 2,
+          "text": "Small Businesses Do Not Need Less Strategy"
+        },
+        {
+          "level": 2,
+          "text": "What Are Local SEO Services for Small Businesses?"
+        },
+        {
+          "level": 3,
+          "text": "Why Is Your Small Business Not Ranking?"
+        },
+        {
+          "level": 3,
+          "text": "Google Maps SEO for Small Businesses"
+        },
+        {
+          "level": 3,
+          "text": "We Start With the Easiest Valuable Opportunities"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO for New vs. Established Businesses"
+        },
+        {
+          "level": 3,
+          "text": "Service-Area vs. Storefront vs. Multi-Location"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO Versus Paid Advertising"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO Packages for Small Businesses"
+        },
+        {
+          "level": 2,
+          "text": "Why Choose Local SEO Express?"
+        },
+        {
+          "level": 3,
+          "text": "We Focus on Customers, Not Vanity Metrics"
+        },
+        {
+          "level": 3,
+          "text": "We Prioritize Your Best Opportunities"
+        },
+        {
+          "level": 3,
+          "text": "We Optimize Maps and the Website"
+        },
+        {
+          "level": 3,
+          "text": "We Respect Your Budget"
+        },
+        {
+          "level": 2,
+          "text": "Our Small Business Local SEO Process"
+        },
+        {
+          "level": 3,
+          "text": "Audit"
+        },
+        {
+          "level": 3,
+          "text": "Research"
+        },
+        {
+          "level": 3,
+          "text": "Prioritize"
+        },
+        {
+          "level": 3,
+          "text": "Optimize"
+        },
+        {
+          "level": 3,
+          "text": "Build Authority"
+        },
+        {
+          "level": 3,
+          "text": "Track & Improve"
+        },
+        {
+          "level": 2,
+          "text": "Industries We Help"
+        },
+        {
+          "level": 3,
+          "text": "Not Sure Where You Stand?"
+        },
+        {
+          "level": 2,
+          "text": "Related Local SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Google Maps SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO Packages"
+        },
+        {
+          "level": 2,
+          "text": "What We Focus On"
+        },
+        {
+          "level": 2,
+          "text": "Frequently Asked Questions"
+        },
+        {
+          "level": 2,
+          "text": "Stop Wasting Your Marketing Budget on Work That Never Produces Customers"
+        },
+        {
+          "level": 3,
+          "text": "Services"
+        },
+        {
+          "level": 3,
+          "text": "Industries"
+        },
+        {
+          "level": 3,
+          "text": "Company"
+        }
+      ],
+      "wordCount": 1824,
+      "internalLinksOut": 44,
+      "images": [],
+      "structuredDataTypes": [
+        "WebPage",
+        "BreadcrumbList",
+        "ListItem",
+        "Service",
+        "Country",
+        "FAQPage",
+        "Question",
+        "Answer"
+      ],
+      "openGraph": {
+        "title": "Local SEO Services for Small Business That Drive Leads | Local SEO Express",
+        "description": "Grow your business with focused local SEO services for small businesses, including Google Maps, GBP optimization, website SEO, reviews, citations, content and lead tracking.",
+        "url": "https://www.localseoexpress.com/local-seo-services-for-small-business/",
+        "image": "https://www.localseoexpress.com/images/logo.svg"
+      },
+      "primaryKeywordOccurrences": 5,
+      "issues": [
+        {
+          "severity": "low",
+          "category": "title",
+          "message": "Title length 74 chars (review 35–65)"
+        },
+        {
+          "severity": "low",
+          "category": "meta",
+          "message": "Meta description length 173 chars (review 110–170)"
+        }
+      ],
+      "fixes": [],
+      "fixStatus": "pass",
+      "inSitemap": true,
+      "incomingLinksCount": 33
+    },
+    {
+      "url": "https://www.localseoexpress.com/local-seo-services/",
+      "route": "/local-seo-services/",
+      "filename": "local-seo-services.html",
+      "primaryKeyword": "local SEO services",
+      "secondaryKeywords": [
+        "local search engine optimization services",
+        "managed local SEO"
+      ],
+      "httpStatus": "not-tested-locally",
+      "indexability": "indexable",
+      "canonical": "https://www.localseoexpress.com/local-seo-services/",
+      "title": "Local SEO Services That Generate Calls & Leads | Local SEO Express",
+      "titleLength": 66,
+      "metaDescription": "Local SEO services built to generate calls, leads and customers. Google Maps SEO, GBP optimization, website SEO, citations, reviews, local content and lead tracking.",
+      "metaDescriptionLength": 165,
+      "h1": "Local SEO Services Built to Generate Calls, Leads and Customers",
+      "first120Words": "Home Local SEO Services Local SEO Services Local SEO Services Built to Generate Calls, Leads and Customers Getting higher rankings is good. Getting more phone calls, leads and customers is better. Our local SEO services improve every part of your local search presence—from your website and Google Business Profile to your content, citations, reviews and local authority. So when nearby customers search for the services you provide, your business is easier to find, trust and contact. Google Maps SEO GBP Optimization Website SEO Local Content Citations Reviews Lead Tracking Get Your Free Local SEO Audit See What's Included 17+ Years Experience Owner-Led Strategy Data-Driven Strategies No Long-Term Contracts local seo services near me Your Business Open now Competitor A ★★★★",
+      "headingOutline": [
+        {
+          "level": 1,
+          "text": "Local SEO Services Built to Generate Calls, Leads and Customers"
+        },
+        {
+          "level": 2,
+          "text": "Your Customers Are Already Searching. Be The Business They Find."
+        },
+        {
+          "level": 2,
+          "text": "What Are Local SEO Services?"
+        },
+        {
+          "level": 2,
+          "text": "Local SEO Is More Than Your Google Business Profile"
+        },
+        {
+          "level": 2,
+          "text": "Complete Local SEO Services That Drive Results"
+        },
+        {
+          "level": 3,
+          "text": "Google Business Profile Optimization"
+        },
+        {
+          "level": 3,
+          "text": "Google Maps SEO"
+        },
+        {
+          "level": 3,
+          "text": "Local Keyword Research"
+        },
+        {
+          "level": 3,
+          "text": "Website SEO"
+        },
+        {
+          "level": 3,
+          "text": "Service & Location Pages"
+        },
+        {
+          "level": 3,
+          "text": "Local Content Creation"
+        },
+        {
+          "level": 3,
+          "text": "Citations & Listings"
+        },
+        {
+          "level": 3,
+          "text": "Review Strategy"
+        },
+        {
+          "level": 3,
+          "text": "Local Link Building"
+        },
+        {
+          "level": 3,
+          "text": "Analytics & Reporting"
+        },
+        {
+          "level": 3,
+          "text": "Technical SEO"
+        },
+        {
+          "level": 3,
+          "text": "Conversion Optimization"
+        },
+        {
+          "level": 2,
+          "text": "Everything Included In Our Local SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO Strategy"
+        },
+        {
+          "level": 3,
+          "text": "Google Business Profile Optimization"
+        },
+        {
+          "level": 3,
+          "text": "Google Maps SEO"
+        },
+        {
+          "level": 3,
+          "text": "Local Keyword Research"
+        },
+        {
+          "level": 3,
+          "text": "Website SEO"
+        },
+        {
+          "level": 3,
+          "text": "Service Pages"
+        },
+        {
+          "level": 3,
+          "text": "Location And Service-Area Pages"
+        },
+        {
+          "level": 3,
+          "text": "Local Content"
+        },
+        {
+          "level": 3,
+          "text": "Citation Building And Cleanup"
+        },
+        {
+          "level": 3,
+          "text": "Review Strategy"
+        },
+        {
+          "level": 3,
+          "text": "Local Link Building"
+        },
+        {
+          "level": 3,
+          "text": "Technical Local SEO"
+        },
+        {
+          "level": 3,
+          "text": "Tracking And Reporting"
+        },
+        {
+          "level": 2,
+          "text": "A Proven Process That Delivers Results"
+        },
+        {
+          "level": 3,
+          "text": "Audit"
+        },
+        {
+          "level": 3,
+          "text": "Research"
+        },
+        {
+          "level": 3,
+          "text": "Strategy"
+        },
+        {
+          "level": 3,
+          "text": "Optimization"
+        },
+        {
+          "level": 3,
+          "text": "Authority"
+        },
+        {
+          "level": 3,
+          "text": "Improve"
+        },
+        {
+          "level": 2,
+          "text": "We Focus On Revenue, Not Vanity Metrics"
+        },
+        {
+          "level": 2,
+          "text": "Local SEO Services For Small Businesses"
+        },
+        {
+          "level": 2,
+          "text": "Local SEO For Multi-Location Businesses"
+        },
+        {
+          "level": 2,
+          "text": "Local SEO For Businesses In Every Industry"
+        },
+        {
+          "level": 2,
+          "text": "Why Choose Local SEO Express?"
+        },
+        {
+          "level": 3,
+          "text": "We Work On The Whole Local Search System"
+        },
+        {
+          "level": 3,
+          "text": "We Start With Research"
+        },
+        {
+          "level": 3,
+          "text": "We Prioritize Opportunities"
+        },
+        {
+          "level": 3,
+          "text": "We Explain What We Are Doing"
+        },
+        {
+          "level": 3,
+          "text": "We Track Leads, Not Just Rankings"
+        },
+        {
+          "level": 3,
+          "text": "We Build For Long-Term Visibility"
+        },
+        {
+          "level": 2,
+          "text": "What Strong Local SEO Can Improve"
+        },
+        {
+          "level": 2,
+          "text": "Local SEO Packages"
+        },
+        {
+          "level": 2,
+          "text": "Related Local SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Google Maps SEO Services"
+        },
+        {
+          "level": 3,
+          "text": "Citation Building Services"
+        },
+        {
+          "level": 3,
+          "text": "Local SEO Packages"
+        },
+        {
+          "level": 2,
+          "text": "Frequently Asked Questions"
+        },
+        {
+          "level": 2,
+          "text": "Ready To Get More Calls, Leads & Customers?"
+        },
+        {
+          "level": 3,
+          "text": "Services"
+        },
+        {
+          "level": 3,
+          "text": "Industries"
+        },
+        {
+          "level": 3,
+          "text": "Company"
+        }
+      ],
+      "wordCount": 2497,
+      "internalLinksOut": 42,
+      "images": [],
+      "structuredDataTypes": [
+        "WebPage",
+        "BreadcrumbList",
+        "ListItem",
+        "Service",
+        "Country",
+        "OfferCatalog",
+        "Offer",
+        "FAQPage",
+        "Question",
+        "Answer"
+      ],
+      "openGraph": {
+        "title": "Local SEO Services That Generate Calls & Leads | Local SEO Express",
+        "description": "Complete local SEO services that improve Google Maps visibility, website rankings, citations, reviews and turn search visibility into revenue.",
+        "url": "https://www.localseoexpress.com/local-seo-services/",
+        "image": "https://www.localseoexpress.com/images/logo.svg"
+      },
+      "primaryKeywordOccurrences": 19,
+      "issues": [
+        {
+          "severity": "low",
+          "category": "title",
+          "message": "Title length 66 chars (review 35–65)"
+        }
+      ],
+      "fixes": [],
+      "fixStatus": "pass",
+      "inSitemap": true,
+      "incomingLinksCount": 58
+    },
+    {
+      "url": "https://www.localseoexpress.com/privacy-policy/",
+      "route": "/privacy-policy/",
+      "filename": "privacy-policy.html",
+      "primaryKeyword": null,
+      "secondaryKeywords": [],
+      "httpStatus": "not-tested-locally",
+      "indexability": "indexable",
+      "canonical": "https://www.localseoexpress.com/privacy-policy/",
+      "title": "Privacy Policy | Local SEO Express",
+      "titleLength": 34,
+      "metaDescription": "Privacy Policy for Local SEO Express. Learn how we collect, use, store and protect personal information when you visit our website or request local SEO services.",
+      "metaDescriptionLength": 161,
+      "h1": "Privacy Policy",
+      "first120Words": "Home Privacy Policy Privacy Policy Effective date: June 30, 2026 This Privacy Policy explains how Local SEO Express collects, uses, stores and protects personal information when you visit localseoexpress.com , submit an inquiry, speak with our team or receive local SEO services from us. Local SEO Express is a national local SEO company based in the United States. We help businesses improve visibility in Google Maps and local search. By using our website or contacting us, you agree to the practices described in this policy. Information We Collect We collect information in the following ways: Information you provide directly When you fill out a contact form, request a free SEO audit, call us, email us or engage our services, we",
+      "headingOutline": [
+        {
+          "level": 1,
+          "text": "Privacy Policy"
+        },
+        {
+          "level": 2,
+          "text": "Information We Collect"
+        },
+        {
+          "level": 3,
+          "text": "Information you provide directly"
+        },
+        {
+          "level": 3,
+          "text": "Information collected when you use our website"
+        },
+        {
+          "level": 3,
+          "text": "Information related to SEO services"
+        },
+        {
+          "level": 2,
+          "text": "How We Use Your Information"
+        },
+        {
+          "level": 2,
+          "text": "How We Share Information"
+        },
+        {
+          "level": 2,
+          "text": "Cookies and Similar Technologies"
+        },
+        {
+          "level": 2,
+          "text": "How Long We Keep Information"
+        },
+        {
+          "level": 2,
+          "text": "How We Protect Information"
+        },
+        {
+          "level": 2,
+          "text": "Your Choices and Rights"
+        },
+        {
+          "level": 2,
+          "text": "Children's Privacy"
+        },
+        {
+          "level": 2,
+          "text": "Links to Other Websites"
+        },
+        {
+          "level": 2,
+          "text": "Changes to This Policy"
+        },
+        {
+          "level": 2,
+          "text": "Contact Us"
+        },
+        {
+          "level": 3,
+          "text": "Services"
+        },
+        {
+          "level": 3,
+          "text": "Industries"
+        },
+        {
+          "level": 3,
+          "text": "Company"
+        }
+      ],
+      "wordCount": 1036,
+      "internalLinksOut": 29,
+      "images": [],
+      "structuredDataTypes": [],
+      "openGraph": {
+        "title": "",
+        "description": "",
+        "url": "",
+        "image": "https://www.localseoexpress.com/images/logo.svg"
+      },
+      "primaryKeywordOccurrences": 0,
+      "issues": [
+        {
+          "severity": "low",
+          "category": "title",
+          "message": "Title length 34 chars (review 35–65)"
+        }
+      ],
+      "fixes": [],
+      "fixStatus": "pass",
+      "inSitemap": true,
+      "incomingLinksCount": 13
+    },
+    {
+      "url": "https://www.localseoexpress.com/terms-of-service/",
+      "route": "/terms-of-service/",
+      "filename": "terms-of-service.html",
+      "primaryKeyword": null,
+      "secondaryKeywords": [],
+      "httpStatus": "not-tested-locally",
+      "indexability": "indexable",
+      "canonical": "https://www.localseoexpress.com/terms-of-service/",
+      "title": "Terms of Service | Local SEO Express",
+      "titleLength": 36,
+      "metaDescription": "Terms of Service for Local SEO Express. Read the terms governing use of our website and local SEO services, including audits, Google Maps SEO and citation building.",
+      "metaDescriptionLength": 164,
+      "h1": "Terms of Service",
+      "first120Words": "Home Terms of Service Terms of Service Effective date: June 30, 2026 These Terms of Service govern your access to and use of the Local SEO Express website at localseoexpress.com and any services provided by Local SEO Express. By using our website, submitting an inquiry or purchasing services, you agree to these terms. If you do not agree, do not use the website or our services. About Local SEO Express Local SEO Express is a United States–based company that provides local search engine optimization services to businesses nationwide. Our services may include local SEO strategy, Google Maps SEO, Google Business Profile optimization, website optimization, citation building and cleanup, review strategy support, local content, reporting and related marketing services. Website Use",
+      "headingOutline": [
+        {
+          "level": 1,
+          "text": "Terms of Service"
+        },
+        {
+          "level": 2,
+          "text": "About Local SEO Express"
+        },
+        {
+          "level": 2,
+          "text": "Website Use"
+        },
+        {
+          "level": 2,
+          "text": "Inquiries and Free Audits"
+        },
+        {
+          "level": 2,
+          "text": "Services and Client Agreements"
+        },
+        {
+          "level": 2,
+          "text": "Client Responsibilities"
+        },
+        {
+          "level": 2,
+          "text": "No Guaranteed Rankings or Results"
+        },
+        {
+          "level": 2,
+          "text": "Third-Party Platforms"
+        },
+        {
+          "level": 2,
+          "text": "Fees and Payment"
+        },
+        {
+          "level": 2,
+          "text": "Intellectual Property"
+        },
+        {
+          "level": 2,
+          "text": "Confidentiality"
+        },
+        {
+          "level": 2,
+          "text": "Account Access and Credentials"
+        },
+        {
+          "level": 2,
+          "text": "Termination"
+        },
+        {
+          "level": 2,
+          "text": "Disclaimer of Warranties"
+        },
+        {
+          "level": 2,
+          "text": "Limitation of Liability"
+        },
+        {
+          "level": 2,
+          "text": "Indemnification"
+        },
+        {
+          "level": 2,
+          "text": "Disputes and Governing Law"
+        },
+        {
+          "level": 2,
+          "text": "Changes to These Terms"
+        },
+        {
+          "level": 2,
+          "text": "General Provisions"
+        },
+        {
+          "level": 2,
+          "text": "Contact Us"
+        },
+        {
+          "level": 3,
+          "text": "Services"
+        },
+        {
+          "level": 3,
+          "text": "Industries"
+        },
+        {
+          "level": 3,
+          "text": "Company"
+        }
+      ],
+      "wordCount": 1516,
+      "internalLinksOut": 30,
+      "images": [],
+      "structuredDataTypes": [],
+      "openGraph": {
+        "title": "",
+        "description": "",
+        "url": "",
+        "image": "https://www.localseoexpress.com/images/logo.svg"
+      },
+      "primaryKeywordOccurrences": 0,
+      "issues": [],
+      "fixes": [],
+      "fixStatus": "pass",
+      "inSitemap": true,
+      "incomingLinksCount": 12
+    }
+  ],
+  "cannibalization": [],
+  "allIssues": [
+    {
+      "severity": "low",
+      "category": "meta",
+      "message": "Meta description length 186 chars (review 110–170)",
+      "route": "/about/",
+      "file": "about.html"
+    },
+    {
+      "severity": "low",
+      "category": "meta",
+      "message": "Meta description length 177 chars (review 110–170)",
+      "route": "/contact/",
+      "file": "contact.html"
+    },
+    {
+      "severity": "low",
+      "category": "title",
+      "message": "Title length 72 chars (review 35–65)",
+      "route": "/google-maps-seo-services/",
+      "file": "google-maps-seo-services.html"
+    },
+    {
+      "severity": "low",
+      "category": "title",
+      "message": "Title length 66 chars (review 35–65)",
+      "route": "/",
+      "file": "index.html"
+    },
+    {
+      "severity": "low",
+      "category": "meta",
+      "message": "Meta description length 172 chars (review 110–170)",
+      "route": "/",
+      "file": "index.html"
+    },
+    {
+      "severity": "low",
+      "category": "title",
+      "message": "Title length 68 chars (review 35–65)",
+      "route": "/local-seo-for-dentists/",
+      "file": "local-seo-for-dentists.html"
+    },
+    {
+      "severity": "low",
+      "category": "meta",
+      "message": "Meta description length 175 chars (review 110–170)",
+      "route": "/local-seo-for-dentists/",
+      "file": "local-seo-for-dentists.html"
+    },
+    {
+      "severity": "low",
+      "category": "title",
+      "message": "Title length 68 chars (review 35–65)",
+      "route": "/local-seo-for-plumbers/",
+      "file": "local-seo-for-plumbers.html"
+    },
+    {
+      "severity": "low",
+      "category": "meta",
+      "message": "Meta description length 176 chars (review 110–170)",
+      "route": "/local-seo-for-plumbers/",
+      "file": "local-seo-for-plumbers.html"
+    },
+    {
+      "severity": "low",
+      "category": "title",
+      "message": "Title length 69 chars (review 35–65)",
+      "route": "/local-seo-packages/",
+      "file": "local-seo-packages.html"
+    },
+    {
+      "severity": "low",
+      "category": "meta",
+      "message": "Meta description length 172 chars (review 110–170)",
+      "route": "/local-seo-packages/",
+      "file": "local-seo-packages.html"
+    },
+    {
+      "severity": "low",
+      "category": "title",
+      "message": "Title length 74 chars (review 35–65)",
+      "route": "/local-seo-services-for-small-business/",
+      "file": "local-seo-services-for-small-business.html"
+    },
+    {
+      "severity": "low",
+      "category": "meta",
+      "message": "Meta description length 173 chars (review 110–170)",
+      "route": "/local-seo-services-for-small-business/",
+      "file": "local-seo-services-for-small-business.html"
+    },
+    {
+      "severity": "low",
+      "category": "title",
+      "message": "Title length 66 chars (review 35–65)",
+      "route": "/local-seo-services/",
+      "file": "local-seo-services.html"
+    },
+    {
+      "severity": "low",
+      "category": "title",
+      "message": "Title length 34 chars (review 35–65)",
+      "route": "/privacy-policy/",
+      "file": "privacy-policy.html"
+    }
+  ]
+}
