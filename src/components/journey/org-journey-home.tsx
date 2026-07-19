@@ -20,6 +20,7 @@ import {
   RecentResultsPanel,
 } from "@/components/journey/dashboard-work-panels";
 import { WorkspaceQueueGrid } from "@/components/dashboard/workspace-queue";
+import { CancelActiveScansButton } from "@/components/scan/cancel-active-scans-button";
 import type { NextBestAction, SetupProgress } from "@/lib/journey/next-best-actions";
 import type { WorkingQueue, WorkingQueueItem } from "@/lib/workspace/working-queue";
 import {
@@ -431,11 +432,16 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
 
           {/* Live ops only: scans running + reports due */}
           <div>
-            <div className="mb-2">
-              <h2 className={sectionTitleClass}>Live queue</h2>
-              <p className="mt-0.5 text-[11px] text-zinc-500">
-                What is running now and which reports are due — completed work lives in Recent results.
-              </p>
+            <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h2 className={sectionTitleClass}>Live queue</h2>
+                <p className="mt-0.5 text-[11px] text-zinc-500">
+                  What is running now and which reports are due — completed work lives in Recent results.
+                </p>
+              </div>
+              {scansRunning.length > 0 || queue.scansRunning.length > 0 ? (
+                <CancelActiveScansButton label="Cancel all scans" />
+              ) : null}
             </div>
             <WorkspaceQueueGrid queue={queue} />
           </div>

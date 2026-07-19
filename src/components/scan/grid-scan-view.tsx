@@ -73,6 +73,7 @@ import type { GridCell } from "@/components/maps/scan-map";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ScanExportMenu } from "@/components/reports/scan-export-menu";
+import { CancelScanButton } from "@/components/scan/cancel-active-scans-button";
 
 const ScanMap = dynamic(
   () => import("@/components/maps/scan-map").then((m) => m.ScanMap),
@@ -1085,9 +1086,10 @@ export function GridScanView({
               <div className="mb-3 rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[12px] text-zinc-600">
                 <p className="font-semibold text-zinc-900">Scan queued / running</p>
                 <p className="mt-0.5">
-                  This continues in the background. You can return to the client or start another scan.
+                  This continues in the background. You can cancel it, return to the client, or start another scan.
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
+                  <CancelScanButton scanId={activeScanId} />
                   <Link
                     href={`/businesses/${businessId}/overview`}
                     className="rounded-lg border border-zinc-200 px-2.5 py-1.5 font-medium text-zinc-700 hover:bg-zinc-50"

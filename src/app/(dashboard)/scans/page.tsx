@@ -3,6 +3,11 @@ import { requirePageAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
 import { PageHeader } from "@/components/ui/page-header";
 import { customerSafeScanError } from "@/lib/scans/customer-safe-error";
+import { isCancellableScanStatus } from "@/lib/scans/cancel-scan";
+import {
+  CancelActiveScansButton,
+  CancelScanButton,
+} from "@/components/scan/cancel-active-scans-button";
 
 export default async function OrgScansPage() {
   const auth = await requirePageAuth();
@@ -27,18 +32,25 @@ export default async function OrgScansPage() {
         .limit(50)
     : { data: [] as never[] };
 
+  const hasActive = (scans ?? []).some((s) =>
+    isCancellableScanStatus(String(s.status))
+  );
+
   return (
     <>
       <PageHeader
         title="Scans"
         subtitle="Recent Maps grids across your prospects and clients."
         actions={
-          <Link
-            href="/scans/new"
-            className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-          >
-            New scan
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {hasActive ? <CancelActiveScansButton /> : null}
+            <Link
+              href="/scans/new"
+              className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+            >
+              New scan
+            </Link>
+          </div>
         }
       />
 
@@ -78,12 +90,17 @@ export default async function OrgScansPage() {
                     <p className="mt-1 text-xs text-amber-800">{safeError}</p>
                   ) : null}
                 </div>
-                <Link
-                  href={`/businesses/${s.business_id}/grid/${s.id}`}
-                  className="text-xs font-medium text-emerald-700 hover:underline"
-                >
-                  Open
-                </Link>
+                <div className="flex shrink-0 items-center gap-2">
+                  {isCancellableScanStatus(String(s.status)) ? (
+                    <CancelScanButton scanId={String(s.id)} />
+                  ) : null}
+                  <Link
+                    href={`/businesses/${s.business_id}/grid/${s.id}`}
+                    className="text-xs font-medium text-emerald-700 hover:underline"
+                  >
+                    Open
+                  </Link>
+                </div>
               </li>
             );
           })}
