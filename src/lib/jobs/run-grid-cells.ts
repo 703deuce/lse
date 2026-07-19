@@ -17,16 +17,19 @@ import {
 } from "@/lib/maps/cell-result-integrity";
 import { invalidateScanGridCache } from "@/lib/maps/scan-queries";
 import { fairChunkSize } from "@/lib/queue/bright-data-limiter";
-import { brightDataWaveIntervalMs } from "@/lib/providers/maps-grid/config";
+import {
+  brightDataRecoveryDeadlineMs,
+  brightDataWaveIntervalMs,
+  dataForSeoRecoveryDeadlineMs,
+  dataForSeoRetryDelayMs,
+  dataForSeoRetryMaxRounds,
+} from "@/lib/providers/maps-grid/config";
 import { withDbLimit } from "@/lib/platform/db-limiter";
 import {
   EARLY_ENRICHMENT_MIN_CELLS,
   maybeStartEarlyEnrichment,
 } from "@/lib/jobs/run-early-enrichment";
-import {
-  brightDataNormalCellTimeoutMs,
-  brightDataRecoveryDeadlineMs,
-} from "@/lib/providers/maps-grid/config";
+import { brightDataNormalCellTimeoutMs } from "@/lib/providers/maps-grid/config";
 import {
   isolatedRetryConcurrency,
   isolatedRetryDelayMs,
@@ -1175,7 +1178,7 @@ export async function runGridCellsLive(params: {
     ])
   );
   // Bright Data delayed recovery path is for Bright Data–primary modes only.
-  // DataForSEO standard retries through the DFS (+ optional BD) chain above.
+  // DataForSEO standard uses its own Priority wait/retry loop (~10 min).
   const useBrightDataRecovery = providerMode === "hybrid";
 
   const allJobs = buildGridCellJobs(params);
@@ -1392,43 +1395,123 @@ export async function runGridCellsLive(params: {
   let failedCells = remainingJobs.length;
 
   // ---- Recovery after primary ----
-  // DataForSEO: one Priority retry with the same Falcon-parity recipe (no BD mix).
+  // DataForSEO: wait + Priority retry unfinished cells until done or ~10 min
+  // (same pattern as Bright Data — no provider switch).
   // ScrapingDog: one same-provider retry.
   // Hybrid: Bright Data recovery loop below.
   if (remainingJobs.length > 0 && providerMode === "dataforseo") {
+    const recoveryStartedAt = Date.now();
+    const deadlineMs = dataForSeoRecoveryDeadlineMs();
+    const maxRounds = dataForSeoRetryMaxRounds();
     console.log(
-      `[Scan] DataForSEO Priority retry for ${remainingJobs.length} incomplete cells (desktop/zoom=${locationZoom}/STA=false)`
+      `[Scan] DataForSEO Priority recovery plan: ${remainingJobs.length} unfinished · ` +
+        `deadline=${Math.round(deadlineMs / 1000)}s · maxRounds=${maxRounds} · Priority only`
     );
-    await scheduleCellProgress(
-      params.scanBatchId,
-      completedOffset,
-      totalCells,
-      remainingJobs.length,
-      {
-        pass: "dfs-priority-retry",
-        recovery_stage: "fallback_dataforseo",
-        maps_provider_mode: providerMode,
-        location_zoom: locationZoom,
-        method: "dfs_priority_batch",
-      },
-      { force: true }
-    );
-    const retryPass = await runDataForSeoPriorityPass({
-      jobs: remainingJobs,
-      depth,
-      passLabel: "dfs-priority-retry",
-      scanRetryRound: 1,
-      organizationId: params.organizationId,
-      forceDesktop: true,
-      locationZoom,
-    });
-    allTimings.push(...retryPass.timings);
-    completedOffset += retryPass.successCount;
-    for (const r of retryPass.results) {
-      if (r.success) await onCellSettled(true);
+
+    for (let round = 1; round <= maxRounds; round++) {
+      if (remainingJobs.length === 0) break;
+
+      const elapsed = Date.now() - recoveryStartedAt;
+      if (elapsed >= deadlineMs) {
+        console.warn(
+          `[Scan] DataForSEO recovery deadline reached (${Math.round(elapsed / 1000)}s) — ` +
+            `${remainingJobs.length} cells still unresolved (no Bright Data fallback)`
+        );
+        break;
+      }
+
+      const delayMs = round === 1 ? Math.min(2_000, dataForSeoRetryDelayMs()) : dataForSeoRetryDelayMs();
+      const remainingBudget = deadlineMs - elapsed;
+      if (delayMs > 0 && remainingBudget > 0) {
+        const sleepFor = Math.min(delayMs, remainingBudget);
+        console.log(
+          `[Scan] DataForSEO recovery wait ${round}: ` +
+            `sleeping ${sleepFor}ms then retrying ${remainingJobs.length} unfinished`
+        );
+        await scheduleCellProgress(
+          params.scanBatchId,
+          completedOffset,
+          totalCells,
+          remainingJobs.length,
+          {
+            pass: `dfs-priority-recovery-wait-${round}`,
+            recovery_stage: "fallback_dataforseo",
+            maps_provider_mode: providerMode,
+            location_zoom: locationZoom,
+            method: "dfs_priority_batch",
+            recovery_round: round,
+            unresolved_after_dataforseo: remainingJobs.length,
+          },
+          { force: true }
+        );
+        await sleep(sleepFor);
+        if (params.onLeaseHeartbeat) {
+          await params.onLeaseHeartbeat().catch(() => undefined);
+        }
+      }
+
+      if (Date.now() - recoveryStartedAt >= deadlineMs) {
+        console.warn("[Scan] Deadline hit during DFS recovery wait — stopping Priority retries");
+        break;
+      }
+
+      console.log(
+        `[Scan] DataForSEO Priority recovery ${round} START ` +
+          `for ${remainingJobs.length} unfinished cells (desktop/zoom=${locationZoom}/STA=false)`
+      );
+      await scheduleCellProgress(
+        params.scanBatchId,
+        completedOffset,
+        totalCells,
+        remainingJobs.length,
+        {
+          pass: `dfs-priority-recovery-${round}`,
+          recovery_stage: "fallback_dataforseo",
+          maps_provider_mode: providerMode,
+          location_zoom: locationZoom,
+          method: "dfs_priority_batch",
+          recovery_round: round,
+        },
+        { force: true }
+      );
+
+      const retryPass = await runDataForSeoPriorityPass({
+        jobs: remainingJobs,
+        depth,
+        passLabel: `dfs-priority-recovery-${round}`,
+        scanRetryRound: round,
+        organizationId: params.organizationId,
+        forceDesktop: true,
+        locationZoom,
+        submitPriority: 4,
+      });
+      allTimings.push(...retryPass.timings);
+      completedOffset += retryPass.successCount;
+      for (const r of retryPass.results) {
+        if (r.success) await onCellSettled(true);
+      }
+      remainingJobs = failedJobsFromPass(remainingJobs, retryPass.results);
+      failedCells = remainingJobs.length;
+
+      console.log(
+        `[Scan] DataForSEO Priority recovery ${round} FINISHED: ` +
+          `recovered=${retryPass.successCount} still_unresolved=${remainingJobs.length}`
+      );
+
+      if (remainingJobs.length > 0) {
+        const dbIncomplete = await loadIncompleteJobsFromDb(params.scanBatchId, allJobs, depth);
+        remainingJobs = mergeUnresolvedJobs(remainingJobs, dbIncomplete);
+        failedCells = remainingJobs.length;
+      }
     }
-    remainingJobs = failedJobsFromPass(remainingJobs, retryPass.results);
-    failedCells = remainingJobs.length;
+
+    if (remainingJobs.length === 0) {
+      console.log("[Scan] All cells recovered via DataForSEO Priority");
+    } else {
+      console.warn(
+        `[Scan] ${remainingJobs.length} cells still unresolved after DataForSEO recovery — integrity next (Priority only)`
+      );
+    }
   } else if (remainingJobs.length > 0 && providerMode === "scrapingdog") {
     console.log(
       `[Scan] scrapingdog retry for ${remainingJobs.length} cells (same provider, no Bright Data)`

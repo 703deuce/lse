@@ -234,6 +234,37 @@ export function dataForSeoMapsTimeoutMs(): number {
   return envInt("DATAFORSEO_MAPS_TIMEOUT_MS", 180_000, { min: 30_000, max: 600_000 });
 }
 
+/**
+ * Hard ceiling for unfinished-cell DataForSEO recovery
+ * (primary + jittered Priority retries until done — same idea as Bright Data).
+ */
+export function dataForSeoRecoveryDeadlineMs(): number {
+  return envInt("DATAFORSEO_RECOVERY_DEADLINE_MS", 10 * 60_000, {
+    min: 60_000,
+    max: 45 * 60_000,
+  });
+}
+
+/** Min wait between unfinished-cell DataForSEO Priority retry rounds. */
+export function dataForSeoRetryDelayMinMs(): number {
+  return envInt("DATAFORSEO_RETRY_DELAY_MIN_MS", 8_000, { min: 0, max: 120_000 });
+}
+
+/** Max wait between unfinished-cell DataForSEO Priority retry rounds. */
+export function dataForSeoRetryDelayMaxMs(): number {
+  return envInt("DATAFORSEO_RETRY_DELAY_MAX_MS", 15_000, { min: 0, max: 180_000 });
+}
+
+/** Jittered delay before the next unfinished-cell DFS retry round. */
+export function dataForSeoRetryDelayMs(): number {
+  return jitterMs(dataForSeoRetryDelayMinMs(), dataForSeoRetryDelayMaxMs());
+}
+
+/** Max Priority recovery rounds inside the deadline (deadline is the real stop). */
+export function dataForSeoRetryMaxRounds(): number {
+  return envInt("DATAFORSEO_RETRY_MAX_ROUNDS", 40, { min: 1, max: 120 });
+}
+
 export function scrapingDogMapsEnabled(): boolean {
   return envBool("SCRAPINGDOG_MAPS_ENABLED", true);
 }
