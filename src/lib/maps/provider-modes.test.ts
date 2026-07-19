@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   DEFAULT_MAPS_PROVIDER_MODE,
+  MAPS_PROVIDER_MODE_OPTIONS,
   integrityProvidersForMode,
   parseMapsProviderMode,
   primaryProvidersForMode,
@@ -16,6 +17,13 @@ describe("maps provider modes", () => {
     assert.equal(parseMapsProviderMode("nope"), "dataforseo");
     assert.equal(parseMapsProviderMode("hybrid"), "hybrid");
     assert.equal(parseMapsProviderMode("scrapingdog"), "scrapingdog");
+  });
+
+  it("UI options expose DataForSEO Priority only", () => {
+    assert.deepEqual(
+      MAPS_PROVIDER_MODE_OPTIONS.map((o) => o.id),
+      ["dataforseo"]
+    );
   });
 
   it("hybrid is Bright Data alternate", () => {

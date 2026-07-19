@@ -20,11 +20,7 @@ import {
   computeSolv,
 } from "@/lib/maps/grid-metrics";
 import { DEFAULT_SCAN_PROFILE } from "@/lib/maps/scan-profiles";
-import {
-  DEFAULT_MAPS_PROVIDER_MODE,
-  MAPS_PROVIDER_MODE_OPTIONS,
-  type MapsProviderMode,
-} from "@/lib/maps/provider-modes";
+import { DEFAULT_MAPS_PROVIDER_MODE } from "@/lib/maps/provider-modes";
 import {
   DEFAULT_MAPS_LOCATION_ZOOM,
   MAPS_ZOOM_OPTIONS,
@@ -90,9 +86,6 @@ export function ScanSetupStudio({
   });
   const [gridSize, setGridSize] = useState(DEFAULT_GRID_SIZE);
   const [radiusMeters, setRadiusMeters] = useState(DEFAULT_RADIUS_METERS);
-  const [mapsProviderMode, setMapsProviderMode] = useState<MapsProviderMode>(
-    DEFAULT_MAPS_PROVIDER_MODE
-  );
   const [locationZoom, setLocationZoom] = useState(DEFAULT_MAPS_LOCATION_ZOOM);
   const [centerLat, setCenterLat] = useState(defaultCenterLat);
   const [centerLng, setCenterLng] = useState(defaultCenterLng);
@@ -240,7 +233,7 @@ export function ScanSetupStudio({
             device: DEFAULT_SCAN_PROFILE.device,
             os: DEFAULT_SCAN_PROFILE.os,
             browser: DEFAULT_SCAN_PROFILE.browser,
-            mapsProviderMode,
+            mapsProviderMode: DEFAULT_MAPS_PROVIDER_MODE,
             locationZoom,
             centerLat,
             centerLng,
@@ -513,29 +506,12 @@ export function ScanSetupStudio({
               inputClassName={cn(dashboardControl, "h-auto w-full px-2.5 py-1.5")}
             />
             <label className={fieldLabel}>
-              Maps provider
-              <select
-                value={mapsProviderMode}
-                onChange={(e) => setMapsProviderMode(e.target.value as MapsProviderMode)}
-                className={fieldSelect}
-                title={
-                  MAPS_PROVIDER_MODE_OPTIONS.find((o) => o.id === mapsProviderMode)?.description
-                }
-              >
-                {MAPS_PROVIDER_MODE_OPTIONS.map((opt) => (
-                  <option key={opt.id} value={opt.id}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={fieldLabel}>
               Map zoom
               <select
                 value={locationZoom}
                 onChange={(e) => setLocationZoom(Number(e.target.value))}
                 className={fieldSelect}
-                title="Production default is 14 (Falcon match). Higher = tighter neighborhood."
+                title="Default 14 matched Local Falcon. Higher = tighter neighborhood."
               >
                 {MAPS_ZOOM_OPTIONS.map((z) => (
                   <option key={z} value={z}>
@@ -545,7 +521,7 @@ export function ScanSetupStudio({
               </select>
             </label>
             <p className="text-[11px] leading-relaxed text-zinc-500">
-              A/B provider and zoom (default 14 / Falcon match). Radius is center → outer edge.
+              DataForSEO Priority · zoom default 14 (Falcon match). Radius is center → outer edge.
             </p>
             <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-[12px] leading-relaxed text-sky-900">
               <p className="flex gap-1.5">

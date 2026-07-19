@@ -12,11 +12,7 @@ import { rankLabel, GRID_SIZE_OPTIONS } from "@/lib/maps/grid-metrics";
 import type { KeywordScanSummary, LocationScanSummary } from "@/lib/maps/scan-queries";
 import { LocationSwitcher } from "@/components/scan/location-switcher";
 import { DEFAULT_SCAN_PROFILE } from "@/lib/maps/scan-profiles";
-import {
-  DEFAULT_MAPS_PROVIDER_MODE,
-  MAPS_PROVIDER_MODE_OPTIONS,
-  type MapsProviderMode,
-} from "@/lib/maps/provider-modes";
+import { DEFAULT_MAPS_PROVIDER_MODE } from "@/lib/maps/provider-modes";
 import {
   DEFAULT_MAPS_LOCATION_ZOOM,
   MAPS_ZOOM_OPTIONS,
@@ -77,9 +73,6 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
   const [runGridSize, setRunGridSize] = useState(initialGridSize);
   const [runRadiusMeters, setRunRadiusMeters] = useState(initialRadiusMeters);
   const [runKeywordId, setRunKeywordId] = useState(selectedKeywordId ?? "");
-  const [mapsProviderMode, setMapsProviderMode] = useState<MapsProviderMode>(
-    DEFAULT_MAPS_PROVIDER_MODE
-  );
   const [locationZoom, setLocationZoom] = useState(DEFAULT_MAPS_LOCATION_ZOOM);
 
   useEffect(() => {
@@ -141,7 +134,7 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
             device: DEFAULT_SCAN_PROFILE.device,
             os: DEFAULT_SCAN_PROFILE.os,
             browser: DEFAULT_SCAN_PROFILE.browser,
-            mapsProviderMode,
+            mapsProviderMode: DEFAULT_MAPS_PROVIDER_MODE,
             locationZoom,
             locationId: selectedLocationId,
             ...scanRunExtras,
@@ -166,7 +159,6 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
       businessId,
       runGridSize,
       runRadiusMeters,
-      mapsProviderMode,
       locationZoom,
       selectedLocationId,
       scanRunExtras,
@@ -208,7 +200,7 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
               device: DEFAULT_SCAN_PROFILE.device,
               os: DEFAULT_SCAN_PROFILE.os,
               browser: DEFAULT_SCAN_PROFILE.browser,
-              mapsProviderMode,
+              mapsProviderMode: DEFAULT_MAPS_PROVIDER_MODE,
               locationZoom,
               locationId: selectedLocationId,
             }),
@@ -308,30 +300,12 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
             hint={null}
           />
           <div className="col-span-2 xl:col-span-1">
-            <label className={fieldLabel}>Provider mode</label>
-            <select
-              value={mapsProviderMode}
-              onChange={(e) => setMapsProviderMode(e.target.value as MapsProviderMode)}
-              className={cn(fieldSelect, "mt-0.5")}
-              title={
-                MAPS_PROVIDER_MODE_OPTIONS.find((o) => o.id === mapsProviderMode)
-                  ?.description
-              }
-            >
-              {MAPS_PROVIDER_MODE_OPTIONS.map((opt) => (
-                <option key={opt.id} value={opt.id}>
-                  {opt.shortLabel}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="col-span-2 xl:col-span-1">
             <label className={fieldLabel}>Map zoom</label>
             <select
               value={locationZoom}
               onChange={(e) => setLocationZoom(Number(e.target.value))}
               className={cn(fieldSelect, "mt-0.5")}
-              title="Production default is 14 (Falcon match). Higher = tighter neighborhood."
+              title="Default 14 matched Local Falcon. Higher = tighter neighborhood."
             >
               {MAPS_ZOOM_OPTIONS.map((z) => (
                 <option key={z} value={z}>

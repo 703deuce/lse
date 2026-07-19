@@ -1,12 +1,13 @@
 /**
  * Maps grid provider modes.
  *
- * Production default: DataForSEO Maps Priority only
+ * Production: DataForSEO Maps Priority only
  * (task_post priority=2, desktop/windows, zoom 14, search_this_area=false,
  * search_places=true, depth 20). Never accept <20 items.
  *
- * ScrapingDog / Bright Data remain available for ops A/B but are not used
- * as fallbacks for the standard DataForSEO path.
+ * ScrapingDog / Bright Data code paths remain for legacy batches and ops
+ * tooling, but are not offered in the product UI and are never used as
+ * fallbacks on the standard DataForSEO path.
  */
 
 import type { MapsProviderId } from "@/lib/providers/maps-grid/types";
@@ -24,28 +25,23 @@ export type MapsProviderModeOption = {
   description: string;
 };
 
+/** Product UI — DataForSEO Priority only (SD / BD taken off). */
 export const MAPS_PROVIDER_MODE_OPTIONS: MapsProviderModeOption[] = [
   {
     id: "dataforseo",
     label: "DataForSEO (Priority)",
     shortLabel: "DataForSEO",
     description:
-      "Production default — batch Priority Maps (desktop, zoom 14, search_this_area off). Matches Local Falcon.",
-  },
-  {
-    id: "scrapingdog",
-    label: "ScrapingDog (ops A/B)",
-    shortLabel: "ScrapingDog",
-    description:
-      "Ops-only A/B — not used for “near me” keywords (coverage fails). Not a production fallback.",
-  },
-  {
-    id: "hybrid",
-    label: "Bright Data (ops A/B)",
-    shortLabel: "Bright Data",
-    description: "Ops-only alternate — not used as a DataForSEO fallback.",
+      "Batch Priority Maps (desktop, zoom 14, search_this_area off). Matches Local Falcon.",
   },
 ];
+
+/** Full labels for ops / legacy batch display (not shown in scan setup UI). */
+const LEGACY_MODE_LABELS: Record<MapsProviderMode, string> = {
+  dataforseo: "DataForSEO",
+  scrapingdog: "ScrapingDog",
+  hybrid: "Bright Data",
+};
 
 export function isMapsProviderMode(value: unknown): value is MapsProviderMode {
   return (
@@ -100,7 +96,9 @@ export function integrityProvidersForMode(mode: MapsProviderMode): MapsProviderI
 
 export function mapsProviderModeLabel(mode: MapsProviderMode): string {
   return (
-    MAPS_PROVIDER_MODE_OPTIONS.find((o) => o.id === mode)?.shortLabel ?? mode
+    MAPS_PROVIDER_MODE_OPTIONS.find((o) => o.id === mode)?.shortLabel ??
+    LEGACY_MODE_LABELS[mode] ??
+    mode
   );
 }
 

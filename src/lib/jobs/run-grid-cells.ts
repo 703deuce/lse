@@ -1248,7 +1248,7 @@ export async function runGridCellsLive(params: {
   const failedFromPrimary: GridCellJob[] = [];
 
   // DataForSEO standard: fire all pins via Priority task_post (up to 100/POST),
-  // poll results, retry incomplete once on Priority, then Bright Data.
+  // poll results, retry incomplete once on Priority. No ScrapingDog / Bright Data.
   if (providerMode === "dataforseo") {
     console.log(
       `[Scan] DataForSEO Priority batch primary: ${jobs.length} cells (search_this_area=${LOCAL_FALCON_PARITY.searchThisArea}, search_places=${LOCAL_FALCON_PARITY.searchPlaces}, zoom=${locationZoom}, depth=${depth})`

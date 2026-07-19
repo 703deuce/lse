@@ -10,11 +10,7 @@ import {
   gridScanMeta,
 } from "@/lib/maps/grid-metrics";
 import { DEFAULT_SCAN_PROFILE } from "@/lib/maps/scan-profiles";
-import {
-  DEFAULT_MAPS_PROVIDER_MODE,
-  MAPS_PROVIDER_MODE_OPTIONS,
-  type MapsProviderMode,
-} from "@/lib/maps/provider-modes";
+import { DEFAULT_MAPS_PROVIDER_MODE } from "@/lib/maps/provider-modes";
 import {
   DEFAULT_MAPS_LOCATION_ZOOM,
   MAPS_ZOOM_OPTIONS,
@@ -44,9 +40,6 @@ export function ScanSetupForm({
 }) {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(defaults);
-  const [mapsProviderMode, setMapsProviderMode] = useState<MapsProviderMode>(
-    DEFAULT_MAPS_PROVIDER_MODE
-  );
   const [locationZoom, setLocationZoom] = useState(DEFAULT_MAPS_LOCATION_ZOOM);
 
   useEffect(() => {
@@ -96,7 +89,7 @@ export function ScanSetupForm({
           device: DEFAULT_SCAN_PROFILE.device,
           os: DEFAULT_SCAN_PROFILE.os,
           browser: DEFAULT_SCAN_PROFILE.browser,
-          mapsProviderMode,
+          mapsProviderMode: DEFAULT_MAPS_PROVIDER_MODE,
           locationZoom,
           centerLat: lat,
           centerLng: lng,
@@ -145,20 +138,6 @@ export function ScanSetupForm({
           inputClassName={selectClass}
           hint={null}
         />
-        <label className="text-xs font-medium text-text-muted">
-          Maps provider mode
-          <select
-            className={selectClass}
-            value={mapsProviderMode}
-            onChange={(e) => setMapsProviderMode(e.target.value as MapsProviderMode)}
-          >
-            {MAPS_PROVIDER_MODE_OPTIONS.map((opt) => (
-              <option key={opt.id} value={opt.id}>
-                {opt.shortLabel}
-              </option>
-            ))}
-          </select>
-        </label>
         <label className="text-xs font-medium text-text-muted">
           Map zoom
           <select
