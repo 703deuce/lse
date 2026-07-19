@@ -70,6 +70,13 @@ describe("recovery decision matrix (acceptance cases)", () => {
     assert.equal(getBackgroundRecoveryDelay(nextGeneration), 5 * 60_000);
   });
 
+  it("case 2b: DataForSEO unfinished cells also defer to background recovery", async () => {
+    const { supportsBackgroundMapsRecovery } = await import("@/lib/maps/provider-modes");
+    assert.equal(supportsBackgroundMapsRecovery("dataforseo"), true);
+    assert.equal(supportsBackgroundMapsRecovery("hybrid"), true);
+    assert.equal(supportsBackgroundMapsRecovery("scrapingdog"), false);
+  });
+
   it("case 3: background recovery with remaining cells schedules next generation", () => {
     const currentGeneration = 1;
     const unresolvedAfter = 3;

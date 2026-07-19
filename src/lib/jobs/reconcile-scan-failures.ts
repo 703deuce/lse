@@ -49,19 +49,21 @@ export async function reconcileScanCellFailures(
     totalCells > 0 ? totalCells : unresolvedIds.length
   );
   const failedPointIds = unresolvedIds.slice(0, resolvedFailed);
+  const total = totalCells > 0 ? totalCells : pointIds.length;
+  const completed = Math.max(0, total - failedPointIds.length);
 
   await supabase
     .from("scan_batches")
     .update({
-      cells_total: totalCells > 0 ? totalCells : pointIds.length,
-      cells_completed: totalCells > 0 ? totalCells : pointIds.length,
+      cells_total: total,
+      cells_completed: completed,
       cells_failed: failedPointIds.length,
     })
     .eq("id", scanBatchId);
 
   await mergeScanConfidenceSummary(supabase, scanBatchId, {
-    completed_cells: totalCells > 0 ? totalCells : pointIds.length,
-    total_cells: totalCells > 0 ? totalCells : pointIds.length,
+    completed_cells: completed,
+    total_cells: total,
     failed_cells: failedPointIds.length,
     failed_point_ids: failedPointIds,
   });

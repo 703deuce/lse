@@ -52,6 +52,7 @@ import {
   parseMapsProviderMode,
   primaryProvidersForMode,
   secondaryProvidersForMode,
+  supportsBackgroundMapsRecovery,
   type MapsProviderMode,
 } from "@/lib/maps/provider-modes";
 import {
@@ -1214,8 +1215,10 @@ export async function runGridCellsLive(params: {
       ...secondaryProvidersForMode(providerMode),
     ])
   );
-  // Bright Data delayed recovery path is for Bright Data–primary modes only.
-  // DataForSEO standard uses its own Priority wait/retry loop (~10 min).
+  // DataForSEO + Bright Data: ~10 min active retry window, then delayed
+  // background generations (do not fail unfinished cells after one window).
+  const usePersistentBackgroundRecovery = supportsBackgroundMapsRecovery(providerMode);
+  // Bright Data delayed recovery rounds (in-window) are hybrid-only.
   const useBrightDataRecovery = providerMode === "hybrid";
 
   const allJobs = buildGridCellJobs(params);
@@ -1868,12 +1871,14 @@ export async function runGridCellsLive(params: {
   failedCells = failedPointIds.length;
 
   const successCells = Math.max(0, totalCells - failedCells);
-  const needsBackgroundRecovery = useBrightDataRecovery && failedCells > 0;
+  const needsBackgroundRecovery =
+    usePersistentBackgroundRecovery && failedCells > 0;
 
   if (needsBackgroundRecovery) {
-    // Do not mark pass=complete — background recovery will continue.
+    // Do not mark pass=complete — schedule delayed background recovery next.
     console.log(
-      `[Scan] scan=${params.scanBatchId} active-window EXPIRED completed=${successCells} unresolved=${failedCells}`
+      `[Scan] scan=${params.scanBatchId} active-window EXPIRED mode=${providerMode} ` +
+        `completed=${successCells} unresolved=${failedCells} — deferring to background recovery`
     );
     await scheduleCellProgress(
       params.scanBatchId,

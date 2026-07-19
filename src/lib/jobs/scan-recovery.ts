@@ -147,7 +147,7 @@ export async function scheduleScanRecoveryJob(params: {
 }
 
 /**
- * After an active Bright Data window ends with unresolved cells:
+ * After an active Maps window ends with unresolved cells (DataForSEO or Bright Data):
  * mark recovering, clear worker lease, schedule delayed recovery.
  */
 export async function transitionToBackgroundRecovery(params: {

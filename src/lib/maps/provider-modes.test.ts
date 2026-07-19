@@ -8,6 +8,7 @@ import {
   primaryProvidersForMode,
   scanBatchProviderColumn,
   secondaryProvidersForMode,
+  supportsBackgroundMapsRecovery,
 } from "@/lib/maps/provider-modes";
 
 describe("maps provider modes", () => {
@@ -45,5 +46,11 @@ describe("maps provider modes", () => {
     assert.deepEqual(secondaryProvidersForMode("dataforseo"), []);
     assert.deepEqual(integrityProvidersForMode("dataforseo"), ["dataforseo"]);
     assert.equal(scanBatchProviderColumn("dataforseo"), "dataforseo");
+  });
+
+  it("DataForSEO and hybrid keep unfinished cells in background recovery", () => {
+    assert.equal(supportsBackgroundMapsRecovery("dataforseo"), true);
+    assert.equal(supportsBackgroundMapsRecovery("hybrid"), true);
+    assert.equal(supportsBackgroundMapsRecovery("scrapingdog"), false);
   });
 });

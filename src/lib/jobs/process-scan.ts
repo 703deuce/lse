@@ -377,9 +377,12 @@ export async function processScanBatch(
         onLeaseHeartbeat: async () => {
           await extendScanLease(scanBatchId, leaseOwner);
         },
-        // Never soft-finalize mid-scan when persistent recovery is enabled for hybrid.
+        // Never soft-finalize mid-scan when persistent background recovery is enabled.
         onSoftReady: async () => {
-          if (providerMode === "hybrid") return;
+          const { supportsBackgroundMapsRecovery } = await import(
+            "@/lib/maps/provider-modes"
+          );
+          if (supportsBackgroundMapsRecovery(providerMode)) return;
           if (!rankReadyPromise) {
             rankReadyPromise = (async () => {
               const { data: progress } = await supabase
@@ -407,7 +410,11 @@ export async function processScanBatch(
           ? failedCells
           : 0;
 
-    if (unresolved > 0 && (providerMode === "hybrid" || recoveryMode)) {
+    const { supportsBackgroundMapsRecovery } = await import("@/lib/maps/provider-modes");
+    const deferToBackground =
+      unresolved > 0 &&
+      (supportsBackgroundMapsRecovery(providerMode) || recoveryMode);
+    if (deferToBackground) {
       // Keep completed cells; schedule delayed recovery — do not finalize incomplete.
       if (!resolvedOrgId) {
         throw new Error("Missing organizationId for background scan recovery");
@@ -422,10 +429,11 @@ export async function processScanBatch(
         unresolvedCells: unresolved,
         totalCells: progress.totalCells || totalCells,
       });
-      console.log("[Scan] Live batch deferred to background recovery:", {
+      console.log("[Scan] Batch deferred to background recovery:", {
         scanBatchId,
         resume,
         recoveryMode,
+        providerMode,
         unresolved,
         completed: progress.completedCells || successCells,
         totalCells,

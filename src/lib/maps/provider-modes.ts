@@ -114,3 +114,11 @@ export function scanBatchProviderColumn(mode: MapsProviderMode): string {
       return "dataforseo";
   }
 }
+
+/**
+ * Modes that keep retrying unfinished cells after the active window:
+ * ~10 min active retries, then delayed background generations (not fail-and-stop).
+ */
+export function supportsBackgroundMapsRecovery(mode: MapsProviderMode): boolean {
+  return mode === "dataforseo" || mode === "hybrid";
+}
