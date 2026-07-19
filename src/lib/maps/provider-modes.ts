@@ -1,14 +1,14 @@
 /**
  * Maps grid provider modes.
  *
- * - dataforseo: DataForSEO Maps Live Advanced (standard / recommended)
+ * - dataforseo: DataForSEO Maps Priority (standard / recommended)
  * - hybrid: Bright Data (alternate)
  * - scrapingdog: ScrapingDog (alternate A/B)
  *
- * DataForSEO is the primary Maps scraper. The Live Advanced client
- * (serp/google/maps/live/advanced) with location_coordinate `lat,lng,17z`
- * and search_this_area parity is the path that previously worked in
- * scripts/compare-grid-providers.mjs (Jul 2026 comparison run).
+ * DataForSEO is the primary Maps scraper. Grids submit all pins via
+ * serp/google/maps/task_post (priority=2) with location_coordinate
+ * `lat,lng,17z` and search_this_area=true, then poll task_get/advanced.
+ * Incomplete packs (<20 items) are never accepted.
  */
 
 import type { MapsProviderId } from "@/lib/providers/maps-grid/types";
@@ -16,7 +16,7 @@ import type { MapsProviderId } from "@/lib/providers/maps-grid/types";
 export const MAPS_PROVIDER_MODES = ["hybrid", "scrapingdog", "dataforseo"] as const;
 export type MapsProviderMode = (typeof MAPS_PROVIDER_MODES)[number];
 
-/** Standard scans use DataForSEO Maps Live Advanced. */
+/** Standard scans use DataForSEO Maps Priority (queued batch). */
 export const DEFAULT_MAPS_PROVIDER_MODE: MapsProviderMode = "dataforseo";
 
 export type MapsProviderModeOption = {
@@ -32,7 +32,7 @@ export const MAPS_PROVIDER_MODE_OPTIONS: MapsProviderModeOption[] = [
     label: "Standard (DataForSEO)",
     shortLabel: "Standard",
     description:
-      "Google Maps Live Advanced via DataForSEO — the default grid scraper for client work.",
+      "Google Maps Priority via DataForSEO — submit the full grid at once, then retrieve results.",
   },
   {
     id: "hybrid",

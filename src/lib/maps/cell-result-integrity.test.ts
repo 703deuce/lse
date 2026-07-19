@@ -42,8 +42,14 @@ describe("full pack required before 20+", () => {
     assert.equal(full.complete, true);
   });
 
-  it("accepts found ranks even with a shorter-but-valid pack (>=3)", () => {
+  it("rejects found ranks when the pack is short of depth (need 20)", () => {
     const found = validateLiveCellSerp(fakeItems(5, 2), target, 20);
+    assert.equal(found.complete, false);
+    assert.match(String(found.reason), /sparse SERP/i);
+  });
+
+  it("accepts found ranks only with a full top-20 pack", () => {
+    const found = validateLiveCellSerp(fakeItems(20, 2), target, 20);
     assert.equal(found.complete, true);
   });
 

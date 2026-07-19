@@ -51,6 +51,8 @@ import {
   secondaryProvidersForMode,
   type MapsProviderMode,
 } from "@/lib/maps/provider-modes";
+import { runDataForSeoPriorityPass } from "@/lib/jobs/run-dfs-priority-pass";
+import { mapsFallbackEnabled } from "@/lib/providers/maps-grid/config";
 
 /** Default wave size — overridden by BRIGHTDATA_GRID_BATCH_SIZE / FAIR_CHUNK (max 100). */
 const BRIGHTDATA_GRID_BATCH_SIZE = 10;
@@ -1223,55 +1225,87 @@ export async function runGridCellsLive(params: {
   let completedOffset = alreadyComplete;
   const failedFromPrimary: GridCellJob[] = [];
 
-  for (let batchIndex = 0; batchIndex < primaryChunks.length; batchIndex++) {
-    const chunk = primaryChunks[batchIndex];
-    const passLabel =
-      primaryChunks.length > 1 ? `primary-batch-${batchIndex + 1}` : "primary";
-    const waveStartedAt = Date.now();
+  // DataForSEO standard: fire all pins via Priority task_post (up to 100/POST),
+  // poll results, retry incomplete once on Priority, then Bright Data.
+  if (providerMode === "dataforseo") {
     console.log(
-      `[Scan] Primary batch ${batchIndex + 1}/${primaryChunks.length}: ${chunk.length} cells (paced wave)`
+      `[Scan] DataForSEO Priority batch primary: ${jobs.length} cells (search_this_area=true, depth=${depth})`
     );
-    const primaryStage: MapsRecoveryStage =
-      providerMode === "scrapingdog"
-        ? "fallback_scrapingdog"
-        : providerMode === "dataforseo"
-          ? "fallback_dataforseo"
-          : "scanning_brightdata";
-    // Paced primary — default wave of 10; wait for the wave to finish before the next.
-    const pass = await runJobsWithConcurrency(chunk, {
-      scanBatchId: params.scanBatchId,
-      depth,
-      timeoutMs,
-      maxAttempts: 1,
-      concurrency: mapsGridConcurrency(chunk.length),
-      totalCells,
-      passLabel,
-      providers: primaryProviders,
-      allowTransientRetry: providerMode !== "hybrid",
-      scanRetryRound: 0,
-      recoveryStage: primaryStage,
+    await scheduleCellProgress(
+      params.scanBatchId,
       completedOffset,
-      updateProgress: true,
-      // No mid-primary soft-ready — map waits until pass=complete after integrity.
-      onCellSettled,
+      totalCells,
+      0,
+      {
+        pass: "dfs-priority-primary",
+        recovery_stage: "fallback_dataforseo",
+        maps_provider_mode: providerMode,
+        method: "dfs_priority_batch",
+      },
+      { force: true }
+    );
+    const primaryPass = await runDataForSeoPriorityPass({
+      jobs,
+      depth,
+      passLabel: "dfs-priority-primary",
+      scanRetryRound: 0,
       organizationId: params.organizationId,
     });
-    allTimings.push(...pass.timings);
-    failedFromPrimary.push(...failedJobsFromPass(chunk, pass.results));
-    // Advance by successes only — failed cells stay off the public counter until retry/finish.
-    completedOffset += pass.successCount;
+    allTimings.push(...primaryPass.timings);
+    failedFromPrimary.push(...failedJobsFromPass(jobs, primaryPass.results));
+    completedOffset += primaryPass.successCount;
+    for (const r of primaryPass.results) {
+      if (r.success) await onCellSettled(true);
+    }
+  } else {
+    for (let batchIndex = 0; batchIndex < primaryChunks.length; batchIndex++) {
+      const chunk = primaryChunks[batchIndex];
+      const passLabel =
+        primaryChunks.length > 1 ? `primary-batch-${batchIndex + 1}` : "primary";
+      const waveStartedAt = Date.now();
+      console.log(
+        `[Scan] Primary batch ${batchIndex + 1}/${primaryChunks.length}: ${chunk.length} cells (paced wave)`
+      );
+      const primaryStage: MapsRecoveryStage =
+        providerMode === "scrapingdog"
+          ? "fallback_scrapingdog"
+          : "scanning_brightdata";
+      // Paced primary — default wave of 10; wait for the wave to finish before the next.
+      const pass = await runJobsWithConcurrency(chunk, {
+        scanBatchId: params.scanBatchId,
+        depth,
+        timeoutMs,
+        maxAttempts: 1,
+        concurrency: mapsGridConcurrency(chunk.length),
+        totalCells,
+        passLabel,
+        providers: primaryProviders,
+        allowTransientRetry: providerMode !== "hybrid",
+        scanRetryRound: 0,
+        recoveryStage: primaryStage,
+        completedOffset,
+        updateProgress: true,
+        // No mid-primary soft-ready — map waits until pass=complete after integrity.
+        onCellSettled,
+        organizationId: params.organizationId,
+      });
+      allTimings.push(...pass.timings);
+      failedFromPrimary.push(...failedJobsFromPass(chunk, pass.results));
+      // Advance by successes only — failed cells stay off the public counter until retry/finish.
+      completedOffset += pass.successCount;
 
-    // 10/min pacing: after the wave finishes, wait out the remainder of the minute
-    // before launching the next wave (skip after the last wave).
-    if (batchIndex < primaryChunks.length - 1) {
-      const intervalMs = brightDataWaveIntervalMs();
-      const elapsed = Date.now() - waveStartedAt;
-      const waitMs = Math.max(0, intervalMs - elapsed);
-      if (waitMs > 0) {
-        console.log(
-          `[Scan] Wave pacing: waiting ${waitMs}ms before next batch (${batchIndex + 2}/${primaryChunks.length})`
-        );
-        await sleep(waitMs);
+      // 10/min pacing: after the wave finishes, wait out the remainder of the minute
+      // before launching the next wave (skip after the last wave).
+      if (batchIndex < primaryChunks.length - 1) {
+        const intervalMs = brightDataWaveIntervalMs();
+        const elapsed = Date.now() - waveStartedAt;
+        const waitMs = Math.max(0, intervalMs - elapsed);
+        if (waitMs > 0) {
+          console.log(
+            `[Scan] Wave pacing: waiting ${waitMs}ms before next batch (${batchIndex + 2}/${primaryChunks.length})`
+          );
+          await sleep(waitMs);
+        }
       }
     }
   }
@@ -1280,23 +1314,92 @@ export async function runGridCellsLive(params: {
   let failedCells = remainingJobs.length;
 
   // ---- Recovery after primary ----
-  // Hybrid: burst primary, then unfinished-only Bright Data retries every
-  // 8–15s (jitter) until done or the ~10 min deadline (no ScrapingDog mix).
-  // Single-provider modes: one same-provider retry.
-  if (remainingJobs.length > 0 && !useBrightDataRecovery) {
+  // DataForSEO: one Priority retry for incomplete cells, then Bright Data.
+  // ScrapingDog: one same-provider retry.
+  // Hybrid: Bright Data recovery loop below.
+  if (remainingJobs.length > 0 && providerMode === "dataforseo") {
     console.log(
-      `[Scan] ${providerMode} retry for ${remainingJobs.length} cells (same provider, no Bright Data)`
+      `[Scan] DataForSEO Priority retry for ${remainingJobs.length} incomplete cells`
     );
-    await sleep(isolatedRetryDelayMs());
-    const stage: MapsRecoveryStage =
-      providerMode === "scrapingdog" ? "fallback_scrapingdog" : "fallback_dataforseo";
     await scheduleCellProgress(
       params.scanBatchId,
       completedOffset,
       totalCells,
       remainingJobs.length,
       {
-        pass: `${providerMode}-retry`,
+        pass: "dfs-priority-retry",
+        recovery_stage: "fallback_dataforseo",
+        maps_provider_mode: providerMode,
+        method: "dfs_priority_batch",
+      },
+      { force: true }
+    );
+    const retryPass = await runDataForSeoPriorityPass({
+      jobs: remainingJobs,
+      depth,
+      passLabel: "dfs-priority-retry",
+      scanRetryRound: 1,
+      organizationId: params.organizationId,
+    });
+    allTimings.push(...retryPass.timings);
+    completedOffset += retryPass.successCount;
+    for (const r of retryPass.results) {
+      if (r.success) await onCellSettled(true);
+    }
+    remainingJobs = failedJobsFromPass(remainingJobs, retryPass.results);
+    failedCells = remainingJobs.length;
+
+    if (remainingJobs.length > 0 && mapsFallbackEnabled()) {
+      console.log(
+        `[Scan] Bright Data fallback for ${remainingJobs.length} cells still incomplete after Priority`
+      );
+      await scheduleCellProgress(
+        params.scanBatchId,
+        completedOffset,
+        totalCells,
+        remainingJobs.length,
+        {
+          pass: "dfs-brightdata-fallback",
+          recovery_stage: "scanning_brightdata",
+          maps_provider_mode: providerMode,
+        },
+        { force: true }
+      );
+      const bdPass = await runJobsWithConcurrency(remainingJobs, {
+        scanBatchId: params.scanBatchId,
+        depth,
+        timeoutMs,
+        maxAttempts: 1,
+        concurrency: Math.min(remainingJobs.length, mapsGridConcurrency(remainingJobs.length)),
+        totalCells,
+        passLabel: "dfs-brightdata-fallback",
+        providers: brightDataOnlyProviders(),
+        allowTransientRetry: false,
+        scanRetryRound: 2,
+        recoveryStage: "scanning_brightdata",
+        completedOffset,
+        updateProgress: true,
+        onCellSettled,
+        organizationId: params.organizationId,
+      });
+      allTimings.push(...bdPass.timings);
+      completedOffset += bdPass.successCount;
+      remainingJobs = failedJobsFromPass(remainingJobs, bdPass.results);
+      failedCells = remainingJobs.length;
+    }
+  } else if (remainingJobs.length > 0 && providerMode === "scrapingdog") {
+    console.log(
+      `[Scan] scrapingdog retry for ${remainingJobs.length} cells (same provider, no Bright Data)`
+    );
+    await sleep(isolatedRetryDelayMs());
+    const stage: MapsRecoveryStage = "fallback_scrapingdog";
+    await scheduleCellProgress(
+      params.scanBatchId,
+      completedOffset,
+      totalCells,
+      remainingJobs.length,
+      {
+        pass: "scrapingdog-retry",
         recovery_stage: stage,
         maps_provider_mode: providerMode,
       },
@@ -1309,7 +1412,7 @@ export async function runGridCellsLive(params: {
       maxAttempts: 1,
       concurrency: Math.min(remainingJobs.length, mapsGridConcurrency(remainingJobs.length)),
       totalCells,
-      passLabel: `${providerMode}-retry`,
+      passLabel: "scrapingdog-retry",
       providers: primaryProviders,
       allowTransientRetry: true,
       scanRetryRound: 1,

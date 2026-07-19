@@ -224,6 +224,24 @@ export async function runMapsProviderAdapter(
       };
     }
 
+    // Never accept an incomplete pack — depth (usually 20) is required.
+    if (items.length < input.depth) {
+      return {
+        ok: false,
+        attempt: {
+          provider,
+          attemptNumber: input.attemptNumber,
+          success: false,
+          category: "sparse_maps_results",
+          latencyMs,
+          errorMessage:
+            items.length === 1
+              ? `target-only SERP: only 1 listing returned (need ${input.depth})`
+              : `sparse SERP: ${items.length} results returned (need ${input.depth})`,
+        },
+      };
+    }
+
     return {
       ok: true,
       items,

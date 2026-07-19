@@ -12,13 +12,14 @@ export type CellSerpValidation = {
 };
 
 /**
- * Minimum competitors when the target *is* found (reject target-only stubs).
- * Override with GRID_CELL_MIN_SERP_RESULTS.
+ * Minimum organics required for any accepted cell (found or not).
+ * Fewer than depth is an incomplete provider response — never accept it.
+ * Override with GRID_CELL_MIN_SERP_RESULTS (still capped at depth).
  */
 export function minCellSerpResults(depth = 20): number {
   const env = Number(process.env.GRID_CELL_MIN_SERP_RESULTS);
-  if (Number.isFinite(env) && env > 0) return Math.min(env, depth);
-  return Math.min(3, depth);
+  if (Number.isFinite(env) && env > 0) return Math.min(Math.floor(env), depth);
+  return Math.max(1, depth);
 }
 
 /**

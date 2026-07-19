@@ -204,8 +204,9 @@ export function dataForSeoMapsMaxTasksPerPost(): number {
   return envInt("DATAFORSEO_MAPS_MAX_TASKS_PER_POST", 100, { min: 1, max: 100 });
 }
 
+/** Outer adapter timeout for Priority post+poll (Priority ~1 min avg). */
 export function dataForSeoMapsTimeoutMs(): number {
-  return envInt("DATAFORSEO_MAPS_TIMEOUT_MS", 60_000, { min: 5_000, max: 180_000 });
+  return envInt("DATAFORSEO_MAPS_TIMEOUT_MS", 180_000, { min: 30_000, max: 600_000 });
 }
 
 export function scrapingDogMapsEnabled(): boolean {
