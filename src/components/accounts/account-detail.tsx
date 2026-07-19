@@ -350,9 +350,11 @@ export function AccountDetail({
           </div>
 
           {summary ? (
-            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
               <SummaryTile
                 title="Visibility"
+                icon={Radar}
+                iconWrap="bg-emerald-50 text-emerald-600"
                 lines={[
                   summary.visibility.avgRank != null
                     ? `Avg rank ${Number(summary.visibility.avgRank).toFixed(1)}`
@@ -372,6 +374,8 @@ export function AccountDetail({
               />
               <SummaryTile
                 title="Growth"
+                icon={FileSearch}
+                iconWrap="bg-amber-50 text-amber-600"
                 lines={[
                   summary.growthAudit
                     ? `Score ${summary.growthAudit.growthScore ?? "—"}`
@@ -387,6 +391,12 @@ export function AccountDetail({
               />
               <SummaryTile
                 title={mode === "prospect" ? "AI & reports" : "Authority & reviews"}
+                icon={mode === "prospect" ? Sparkles : Link2}
+                iconWrap={
+                  mode === "prospect"
+                    ? "bg-violet-50 text-violet-600"
+                    : "bg-sky-50 text-sky-600"
+                }
                 lines={
                   mode === "prospect"
                     ? [
@@ -414,6 +424,8 @@ export function AccountDetail({
               />
               <SummaryTile
                 title="Current work"
+                icon={FolderKanban}
+                iconWrap="bg-zinc-100 text-zinc-600"
                 lines={[
                   `${campaigns.length} campaigns`,
                   summary.report
@@ -426,8 +438,8 @@ export function AccountDetail({
             </section>
           ) : null}
 
-          <section className="rounded-xl border border-zinc-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-zinc-900">Overview</h2>
+          <section className="rounded-xl border border-zinc-200/80 bg-white p-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+            <h2 className="text-[13px] font-semibold text-zinc-900">Overview</h2>
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between gap-3">
                 <dt className="text-zinc-500">Type</dt>
@@ -489,13 +501,16 @@ export function AccountDetail({
             </label>
           </section>
 
-          <section id="notes" className="rounded-xl border border-zinc-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-zinc-900">Private notes</h2>
-            <p className="mt-1 text-xs text-zinc-500">
+          <section
+            id="notes"
+            className="rounded-xl border border-zinc-200/80 bg-white p-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+          >
+            <h2 className="text-[13px] font-semibold text-zinc-900">Private notes</h2>
+            <p className="mt-1 text-[11px] text-zinc-500">
               Never included in shared reports unless you copy them into a report section.
             </p>
             <textarea
-              className="mt-3 min-h-[120px] w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+              className="mt-3 min-h-[120px] w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Waiting on decision… Primary category change…"
@@ -504,7 +519,7 @@ export function AccountDetail({
               type="button"
               disabled={saving}
               onClick={() => void saveDetails()}
-              className="mt-3 inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
+              className={cn(btnPrimary, "mt-3 h-9 px-3 text-[13px]")}
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Save details
@@ -512,44 +527,51 @@ export function AccountDetail({
           </section>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           <NextBestActionsPanel actions={nba} title="What to do next" />
 
-          <section className="rounded-xl border border-zinc-200 bg-white p-4">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold text-zinc-900">Campaigns</h2>
+          <section className="overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+            <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-3.5 py-2.5">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-50 text-emerald-600">
+                  <FolderKanban className="h-3.5 w-3.5" />
+                </span>
+                <h2 className="text-[13px] font-semibold text-zinc-900">Campaigns</h2>
+              </div>
               <Link
                 href={`/businesses/${businessId}/campaigns`}
-                className="text-xs font-medium text-emerald-700 hover:underline"
+                className="text-[12px] font-medium text-emerald-600 hover:text-emerald-700"
               >
                 Manage
               </Link>
             </div>
-            {campaigns.length === 0 ? (
-              <p className="mt-3 text-sm text-zinc-500">
-                No campaigns yet. Create one to group keywords, set a baseline, and schedule scans.
-              </p>
-            ) : (
-              <ul className="mt-3 divide-y divide-zinc-100">
-                {campaigns.map((c) => (
-                  <li key={c.id} className="flex items-center justify-between py-2 text-sm">
-                    <Link
-                      href={`/campaigns/${c.id}`}
-                      className="font-medium text-zinc-900 hover:text-emerald-700"
-                    >
-                      {c.name}
-                    </Link>
-                    <span className="text-xs text-zinc-400">Open</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <Link
-              href={`/businesses/${businessId}/campaigns`}
-              className={cn(btnSecondary, "mt-3 h-8 w-full justify-center px-3 text-[12px]")}
-            >
-              {campaigns.length ? "Open campaigns" : "Create campaign"}
-            </Link>
+            <div className="px-3.5 py-2.5">
+              {campaigns.length === 0 ? (
+                <p className="text-[13px] text-zinc-500">
+                  No campaigns yet. Create one to group keywords, set a baseline, and schedule scans.
+                </p>
+              ) : (
+                <ul className="divide-y divide-zinc-100">
+                  {campaigns.map((c) => (
+                    <li key={c.id} className="flex items-center justify-between py-2 text-[13px]">
+                      <Link
+                        href={`/campaigns/${c.id}`}
+                        className="font-medium text-zinc-900 hover:text-emerald-700"
+                      >
+                        {c.name}
+                      </Link>
+                      <span className="text-[11px] text-zinc-400">Open</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Link
+                href={`/businesses/${businessId}/campaigns`}
+                className={cn(btnSecondary, "mt-3 h-8 w-full justify-center px-3 text-[12px]")}
+              >
+                {campaigns.length ? "Open campaigns" : "Create campaign"}
+              </Link>
+            </div>
           </section>
         </div>
       </div>
@@ -571,13 +593,15 @@ function QuickLink({
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-3 hover:border-zinc-300 hover:bg-zinc-50/50"
+      className={cn(
+        "flex items-center gap-3 rounded-xl border border-zinc-200/80 bg-white p-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition hover:border-emerald-200 hover:bg-emerald-50/30"
+      )}
     >
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-100">
         <Icon className="h-4 w-4" />
       </span>
-      <span>
-        <span className="block text-sm font-semibold text-zinc-900">{label}</span>
+      <span className="min-w-0">
+        <span className="block text-[13px] font-semibold text-zinc-900">{label}</span>
         <span className="block text-[11px] text-zinc-500">{hint}</span>
       </span>
     </Link>
@@ -588,24 +612,41 @@ function SummaryTile({
   title,
   lines,
   href,
+  icon: Icon,
+  iconWrap = "bg-emerald-50 text-emerald-600",
 }: {
   title: string;
   lines: string[];
   href: string;
+  icon: typeof Radar;
+  iconWrap?: string;
 }) {
   return (
     <Link
       href={href}
-      className="rounded-xl border border-zinc-200 bg-white p-3 hover:border-emerald-200 hover:bg-emerald-50/30"
+      className="group rounded-xl border border-zinc-200/80 bg-white p-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition hover:border-emerald-200 hover:bg-emerald-50/30"
     >
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{title}</p>
-      <ul className="mt-1.5 space-y-0.5">
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "flex h-7 w-7 items-center justify-center rounded-md ring-1 ring-inset ring-black/5",
+            iconWrap
+          )}
+        >
+          <Icon className="h-3.5 w-3.5" />
+        </span>
+        <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{title}</p>
+      </div>
+      <ul className="mt-2 space-y-0.5">
         {lines.map((line) => (
-          <li key={line} className="truncate text-[12px] text-zinc-700">
+          <li key={line} className="truncate text-[12px] leading-snug text-zinc-700">
             {line}
           </li>
         ))}
       </ul>
+      <p className="mt-2 text-[11px] font-medium text-emerald-600 opacity-0 transition group-hover:opacity-100">
+        Open →
+      </p>
     </Link>
   );
 }

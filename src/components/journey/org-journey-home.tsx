@@ -2,7 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Building2, FileText, Loader2, Play, Target } from "lucide-react";
+import {
+  Building2,
+  Compass,
+  FileText,
+  FolderKanban,
+  LayoutDashboard,
+  Loader2,
+  Play,
+  Target,
+} from "lucide-react";
 import { NextBestActionsPanel } from "@/components/journey/next-best-actions-panel";
 import { SetupProgressCard } from "@/components/journey/setup-progress-card";
 import {
@@ -12,7 +21,16 @@ import {
 } from "@/components/journey/dashboard-work-panels";
 import type { NextBestAction, SetupProgress } from "@/lib/journey/next-best-actions";
 import type { WorkingQueueItem } from "@/lib/workspace/working-queue";
-import { ModuleHeader, ModulePage, btnPrimary, btnSecondary } from "@/components/ui/design-system";
+import {
+  ContentCard,
+  ModuleHeader,
+  ModulePage,
+  btnPrimary,
+  btnSecondary,
+  cardClass,
+  cardLabelClass,
+  sectionTitleClass,
+} from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
 
 type RecentItem = {
@@ -22,6 +40,37 @@ type RecentItem = {
   href: string;
   kind?: string;
 };
+
+const QUICK_ACTIONS = [
+  {
+    href: "/businesses/new?as=prospect",
+    label: "Add prospect",
+    hint: "Win new work",
+    icon: Target,
+    wrap: "bg-sky-50 text-sky-600",
+  },
+  {
+    href: "/businesses/new?as=client",
+    label: "Add client",
+    hint: "Start tracking",
+    icon: Building2,
+    wrap: "bg-emerald-50 text-emerald-600",
+  },
+  {
+    href: "/scans/new",
+    label: "Run scan",
+    hint: "Maps visibility",
+    icon: Play,
+    wrap: "bg-violet-50 text-violet-600",
+  },
+  {
+    href: "/reports",
+    label: "Create report",
+    hint: "Deliver value",
+    icon: FileText,
+    wrap: "bg-amber-50 text-amber-600",
+  },
+] as const;
 
 export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
   const [actions, setActions] = useState<NextBestAction[]>([]);
@@ -59,84 +108,148 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
     })();
   }, []);
 
+  const activeCount =
+    scansRunning.length + schedulesUpcoming.length + draftReports.length;
+  const attentionCount = needsAttention.length;
+
   return (
     <ModulePage wide>
       <ModuleHeader
+        icon={LayoutDashboard}
         title={orgName ? `${orgName} workspace` : "Your workspace"}
         subtitle="What is happening now, what needs attention, and what to do next."
+        actions={
+          <Link href="/workspace" className={cn(btnPrimary, "h-9 px-3 text-[13px]")}>
+            <FolderKanban className="h-3.5 w-3.5" />
+            Open Workspace
+          </Link>
+        }
       />
 
-      <div className="mb-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          { href: "/businesses/new?as=prospect", label: "Add prospect", icon: Target },
-          { href: "/businesses/new?as=client", label: "Add client", icon: Building2 },
-          { href: "/scans/new", label: "Run scan", icon: Play },
-          { href: "/reports", label: "Create report", icon: FileText },
-        ].map((a) => {
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {QUICK_ACTIONS.map((a) => {
           const Icon = a.icon;
           return (
             <Link
               key={a.href}
               href={a.href}
-              className={cn(btnSecondary, "h-11 justify-start gap-2 px-3 text-[13px]")}
+              className={cn(
+                cardClass,
+                "flex items-center gap-3 p-3.5 transition hover:border-emerald-200 hover:bg-emerald-50/30"
+              )}
             >
-              <Icon className="h-4 w-4 text-emerald-600" />
-              {a.label}
+              <span
+                className={cn(
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ring-black/5",
+                  a.wrap
+                )}
+              >
+                <Icon className="h-4 w-4" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[13px] font-semibold text-zinc-900">
+                  {a.label}
+                </span>
+                <span className="block text-[11px] text-zinc-500">{a.hint}</span>
+              </span>
             </Link>
           );
         })}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)]">
-        <div className="space-y-4">
-          {loading ? (
-            <p className="flex items-center gap-2 text-sm text-zinc-500">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading your work queue…
+      {!loading ? (
+        <div className="grid gap-2 sm:grid-cols-3">
+          <div className={cn(cardClass, "p-3.5")}>
+            <p className={cardLabelClass}>Active work</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900">
+              {activeCount}
             </p>
+            <p className="mt-0.5 text-[11px] text-zinc-500">
+              {scansRunning.length} scans · {draftReports.length} drafts
+            </p>
+          </div>
+          <div className={cn(cardClass, "p-3.5")}>
+            <p className={cardLabelClass}>Needs attention</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900">
+              {attentionCount}
+            </p>
+            <p className="mt-0.5 text-[11px] text-zinc-500">
+              Overdue scans, drafts, follow-ups
+            </p>
+          </div>
+          <div className={cn(cardClass, "p-3.5")}>
+            <p className={cardLabelClass}>Recent results</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900">
+              {recent.length}
+            </p>
+            <p className="mt-0.5 text-[11px] text-zinc-500">
+              Scans, audits, AI, reports
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)]">
+        <div className="space-y-3">
+          {loading ? (
+            <ContentCard className="flex items-center gap-2 text-sm text-zinc-500">
+              <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+              Loading your work queue…
+            </ContentCard>
           ) : (
             <>
               <NextBestActionsPanel actions={actions} />
-              <ActiveWorkPanel
-                scansRunning={scansRunning}
-                schedulesUpcoming={schedulesUpcoming}
-                draftReports={draftReports}
-              />
-              <NeedsAttentionPanel items={needsAttention} />
+              <div className="grid gap-3 xl:grid-cols-2">
+                <ActiveWorkPanel
+                  scansRunning={scansRunning}
+                  schedulesUpcoming={schedulesUpcoming}
+                  draftReports={draftReports}
+                />
+                <NeedsAttentionPanel items={needsAttention} />
+              </div>
               <RecentResultsPanel items={recent} />
             </>
           )}
-          <div className="rounded-xl border border-zinc-200 bg-white p-4">
-            <h2 className="text-[13px] font-semibold text-zinc-900">Full work queue</h2>
-            <p className="mt-1 text-[12px] text-zinc-500">
-              Running scans, recovering jobs, reports due, and prospect follow-ups.
-            </p>
-            <Link href="/workspace" className={cn(btnPrimary, "mt-3 h-9 px-3 text-[13px]")}>
-              Open Workspace
-            </Link>
-          </div>
         </div>
-        <div className="space-y-4">
+
+        <div className="space-y-3">
           {setup ? <SetupProgressCard progress={setup} /> : null}
-          <div className="rounded-xl border border-zinc-200 bg-white p-4 text-[12px] text-zinc-600">
-            <p className="font-semibold text-zinc-900">How this product is organized</p>
-            <ul className="mt-2 space-y-1.5">
-              <li>
-                <strong>Nav</strong> — every tool stays visible
-              </li>
-              <li>
-                <strong>Prospects / Clients</strong> — what is happening with this business
-              </li>
-              <li>
-                <strong>Dashboard / Workspace</strong> — what to do next
-              </li>
-              <li>
-                <strong>Reports</strong> — how you communicate value
-              </li>
+
+          <ContentCard padding={false} className="overflow-hidden">
+            <div className="flex items-start gap-2.5 border-b border-zinc-100 px-3.5 py-2.5">
+              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600">
+                <Compass className="h-3.5 w-3.5" />
+              </span>
+              <div>
+                <h2 className={sectionTitleClass}>How this product works</h2>
+                <p className="mt-0.5 text-[11px] text-zinc-500">
+                  Keep every tool visible — follow the journey.
+                </p>
+              </div>
+            </div>
+            <ul className="divide-y divide-zinc-100 px-3.5">
+              {[
+                { label: "Nav", text: "every tool stays visible" },
+                { label: "Prospects / Clients", text: "what is happening with this business" },
+                { label: "Dashboard / Workspace", text: "what to do next" },
+                { label: "Reports", text: "how you communicate value" },
+              ].map((row) => (
+                <li key={row.label} className="py-2.5 text-[12px] leading-snug text-zinc-600">
+                  <span className="font-semibold text-zinc-900">{row.label}</span>
+                  {" — "}
+                  {row.text}
+                </li>
+              ))}
             </ul>
-            <Link href="/onboarding" className="mt-3 inline-block text-emerald-700 hover:underline">
-              Restart get-started guide
-            </Link>
-          </div>
+            <div className="border-t border-zinc-100 px-3.5 py-2.5">
+              <Link
+                href="/onboarding"
+                className={cn(btnSecondary, "h-8 w-full justify-center px-3 text-[12px]")}
+              >
+                Restart get-started guide
+              </Link>
+            </div>
+          </ContentCard>
         </div>
       </div>
     </ModulePage>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NextBestAction } from "@/lib/journey/next-best-actions";
+import { ContentCard, sectionTitleClass } from "@/components/ui/design-system";
 
 export function NextBestActionsPanel({
   title = "Suggested next actions",
@@ -17,22 +18,25 @@ export function NextBestActionsPanel({
   if (!actions.length) return null;
 
   return (
-    <section
+    <ContentCard
+      padding={false}
       className={cn(
-        "rounded-xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/80 to-white p-4",
+        "overflow-hidden border-emerald-200/80 bg-gradient-to-br from-emerald-50/70 to-white",
         className
       )}
     >
-      <div className="mb-3 flex items-center gap-2">
-        <Sparkles className="h-4 w-4 text-emerald-600" />
-        <h2 className="text-[13px] font-semibold text-zinc-900">{title}</h2>
+      <div className="flex items-center gap-2.5 border-b border-emerald-100/80 px-3.5 py-2.5">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-100 text-emerald-700">
+          <Sparkles className="h-3.5 w-3.5" />
+        </span>
+        <h2 className={sectionTitleClass}>{title}</h2>
       </div>
-      <ul className="space-y-2">
+      <ul className="divide-y divide-emerald-100/60">
         {actions.map((action) => (
           <li key={action.id}>
             <Link
               href={action.href}
-              className="group flex items-start justify-between gap-3 rounded-lg border border-zinc-200/80 bg-white px-3 py-2.5 transition hover:border-emerald-300 hover:bg-emerald-50/40"
+              className="group flex items-start justify-between gap-3 px-3.5 py-2.5 transition hover:bg-emerald-50/50"
             >
               <div className="min-w-0">
                 <p className="text-[13px] font-medium text-zinc-900">{action.title}</p>
@@ -45,6 +49,6 @@ export function NextBestActionsPanel({
           </li>
         ))}
       </ul>
-    </section>
+    </ContentCard>
   );
 }

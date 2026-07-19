@@ -103,7 +103,7 @@ export function MobileMoreSheet() {
             <X className="h-5 w-5" />
           </button>
         </div>
-        <ul className="grid grid-cols-2 gap-1 p-3">
+        <ul className="grid grid-cols-2 gap-2 p-3">
           {bizItems.map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -113,14 +113,25 @@ export function MobileMoreSheet() {
                   href={item.href}
                   onClick={close}
                   className={cn(
-                    "flex items-center gap-2 rounded-xl px-3 py-3 text-[13px] font-medium",
-                    active ? "bg-emerald-50 text-emerald-800" : "text-zinc-700 hover:bg-zinc-50"
+                    "flex items-center gap-2.5 rounded-xl border border-zinc-200/70 bg-white px-3 py-3 text-[13px] font-medium shadow-sm",
+                    active
+                      ? "border-emerald-200 bg-emerald-50/80 text-emerald-800"
+                      : "text-zinc-700 hover:border-emerald-200 hover:bg-emerald-50/40"
                   )}
                 >
-                  <Icon className="h-4 w-4 shrink-0 text-emerald-600" />
+                  <span
+                    className={cn(
+                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset",
+                      active
+                        ? "bg-emerald-100 text-emerald-700 ring-emerald-200"
+                        : "bg-emerald-50 text-emerald-600 ring-emerald-100"
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                  </span>
                   <span className="min-w-0 truncate">{item.label}</span>
                   {item.badge ? (
-                    <span className="ml-auto shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800">
+                    <span className="ml-auto shrink-0 rounded-md bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800">
                       {item.badge}
                     </span>
                   ) : null}
