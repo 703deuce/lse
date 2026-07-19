@@ -3,8 +3,8 @@ import { createServiceClient } from "@/lib/db/client";
 import { OrgJourneyHome } from "@/components/journey/org-journey-home";
 
 /**
- * Org dashboard = journey home (what is happening / what needs attention / what next).
- * Location overview remains at /businesses/[id]/overview.
+ * Workspace home — one place for clients/prospects, work queue, and next actions.
+ * Location overview remains at /businesses/[id]/overview when you open a client.
  */
 export default async function DashboardPage() {
   const auth = await requirePageAuth();

@@ -27,7 +27,7 @@ export function BusinessSwitcher({
   businessName,
   onNavigate,
 }: {
-  businessId: string;
+  businessId?: string | null;
   businessName?: string | null;
   onNavigate?: () => void;
 }) {
@@ -78,16 +78,28 @@ export function BusinessSwitcher({
   function switchTo(nextId: string) {
     setOpen(false);
     onNavigate?.();
-    if (nextId === businessId) return;
+    if (businessId && nextId === businessId) return;
     // Keep the user on the same module path under the other location silo.
-    const nextPath = pathname.replace(
-      /^\/businesses\/[^/]+/,
-      `/businesses/${nextId}`
-    );
-    router.push(nextPath.startsWith(`/businesses/${nextId}`) ? nextPath : `/businesses/${nextId}/overview`);
+    if (pathname.startsWith("/businesses/")) {
+      const nextPath = pathname.replace(
+        /^\/businesses\/[^/]+/,
+        `/businesses/${nextId}`
+      );
+      router.push(
+        nextPath.startsWith(`/businesses/${nextId}`)
+          ? nextPath
+          : `/businesses/${nextId}/overview`
+      );
+      return;
+    }
+    // From org pages / tool pickers — open the location overview.
+    router.push(`/businesses/${nextId}/overview`);
   }
 
-  const label = businessName ?? rows.find((b) => b.id === businessId)?.name ?? "Select location…";
+  const label =
+    businessName ??
+    (businessId ? rows.find((b) => b.id === businessId)?.name : null) ??
+    "Select client or prospect…";
   const tracked = rows.filter((b) => b.is_tracked !== false);
   const archived = rows.filter((b) => b.is_tracked === false);
 

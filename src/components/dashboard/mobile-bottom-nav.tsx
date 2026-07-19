@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Briefcase,
   Building2,
   FileText,
-  LayoutDashboard,
   Menu,
   Radar,
 } from "lucide-react";
@@ -13,10 +13,31 @@ import { cn } from "@/lib/utils";
 import { useDashboardUI } from "@/components/dashboard/dashboard-context";
 
 const TABS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, match: (p: string) => p === "/dashboard" || p.includes("/overview") },
-  { href: "/clients", label: "Clients", icon: Building2, match: (p: string) => p.startsWith("/clients") || p.startsWith("/prospects") },
-  { href: "/scans", label: "Scans", icon: Radar, match: (p: string) => p.startsWith("/scans") || p.includes("/scans") || p.includes("/grid/") },
-  { href: "/reports", label: "Reports", icon: FileText, match: (p: string) => p.startsWith("/reports") || p.includes("/reports") },
+  {
+    href: "/dashboard",
+    label: "Workspace",
+    icon: Briefcase,
+    match: (p: string) => p === "/dashboard" || p === "/workspace",
+  },
+  {
+    href: "/clients",
+    label: "Clients",
+    icon: Building2,
+    match: (p: string) => p.startsWith("/clients") || p.startsWith("/prospects"),
+  },
+  {
+    href: "/scans",
+    label: "Scans",
+    icon: Radar,
+    match: (p: string) =>
+      p.startsWith("/scans") || p.includes("/scans") || p.includes("/grid/"),
+  },
+  {
+    href: "/reports",
+    label: "Reports",
+    icon: FileText,
+    match: (p: string) => p.startsWith("/reports") || p.includes("/reports"),
+  },
 ] as const;
 
 /**

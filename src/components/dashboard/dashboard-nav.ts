@@ -2,21 +2,26 @@ import type { LucideIcon } from "lucide-react";
 import {
   Award,
   Bot,
+  Briefcase,
+  Building2,
   ClipboardList,
   FileSearch,
   FileText,
   FolderKanban,
   Grid3X3,
   KeyRound,
-  LayoutDashboard,
   Link2,
+  MapPin,
   MessageSquareText,
+  Palette,
+  Settings,
   Settings2,
   Star,
   TrendingUp,
   Users,
   Webhook,
 } from "lucide-react";
+import { toolHref, type LocationToolSlug } from "@/lib/dashboard/tool-modules";
 
 export type SidebarNavChild = {
   href: string;
@@ -46,99 +51,159 @@ export type SidebarReputationNav = {
   subLinks: SidebarNavChild[];
 };
 
+function loc(slug: LocationToolSlug, businessId?: string | null): string {
+  return toolHref(slug, businessId);
+}
+
 /**
- * Per-location sidebar grouped for the freelancer journey:
- * WORK → GROWTH TOOLS → REPUTATION → DELIVERABLES
- * All tools stay visible; grouping answers “what is this for?”
+ * One sidebar for the whole app — never swap menus when opening a client.
+ * Location tools deep-link into the selected business when available,
+ * otherwise they open an org picker / hub.
  */
+export function buildUnifiedSidebarNav(businessId?: string | null): {
+  getStarted: SidebarNavItem;
+  work: SidebarNavSection;
+  growthTools: SidebarNavSection;
+  reputation: SidebarReputationNav;
+  deliverables: SidebarNavSection;
+  account: SidebarNavSection;
+} {
+  return {
+    getStarted: {
+      href: "/onboarding",
+      label: "Get started",
+      icon: MapPin,
+    },
+    work: {
+      title: "Work",
+      items: [
+        { href: "/dashboard", label: "Workspace", icon: Briefcase },
+        { href: "/prospects", label: "Prospects", icon: Users },
+        { href: "/clients", label: "Clients", icon: Building2 },
+        {
+          href: loc("maps-scans", businessId),
+          label: "Maps Scans",
+          icon: Grid3X3,
+          isRankGrid: true,
+        },
+        {
+          href: loc("maps-campaigns", businessId),
+          label: "Maps Campaigns",
+          icon: FolderKanban,
+        },
+      ],
+    },
+    growthTools: {
+      title: "Growth Tools",
+      items: [
+        { href: loc("growth-audit", businessId), label: "Growth Audit", icon: FileSearch },
+        { href: loc("backlink-gap", businessId), label: "Backlink Gap", icon: Link2 },
+        { href: loc("trust", businessId), label: "Local Trust", icon: Award },
+        { href: loc("keywords", businessId), label: "Keywords", icon: KeyRound },
+        { href: loc("ai-visibility", businessId), label: "AI Visibility", icon: Bot },
+      ],
+    },
+    reputation: {
+      title: "Reputation",
+      items: [
+        { href: loc("reviews", businessId), label: "Review Feed", icon: Star },
+        { href: loc("review-momentum", businessId), label: "Review Momentum", icon: TrendingUp },
+        {
+          href: loc("review-requests", businessId),
+          label: "Review Requests",
+          icon: MessageSquareText,
+          badge: "Add-on",
+          children: [
+            {
+              href: businessId
+                ? `/businesses/${businessId}/review-campaigns`
+                : "/tools/go/review-requests",
+              label: "Campaigns",
+              badge: "Upgrade",
+            },
+          ],
+        },
+        { href: loc("contacts", businessId), label: "Contacts", icon: Users },
+        { href: loc("review-templates", businessId), label: "Templates", icon: FileText },
+        { href: loc("integrations", businessId), label: "Review Triggers", icon: Webhook },
+        { href: loc("review-settings", businessId), label: "Settings", icon: Settings2 },
+      ],
+      subLinks: [],
+    },
+    deliverables: {
+      title: "Deliverables",
+      items: [
+        { href: loc("reports", businessId), label: "Reports", icon: FileText },
+        { href: loc("tasks", businessId), label: "Growth Plan", icon: ClipboardList },
+      ],
+    },
+    account: {
+      title: "Account",
+      items: [
+        { href: "/branding", label: "Branding", icon: Palette },
+        { href: "/settings", label: "Settings", icon: Settings },
+      ],
+    },
+  };
+}
+
+/** @deprecated Use buildUnifiedSidebarNav — kept for older imports. */
 export function buildBusinessSidebarNav(businessId: string): {
   work: SidebarNavSection;
   growthTools: SidebarNavSection;
   reputation: SidebarReputationNav;
   deliverables: SidebarNavSection;
-  /** @deprecated aliases for older sidebar renderers */
   main: SidebarNavSection;
   research: SidebarNavSection;
   reports: SidebarNavSection;
 } {
-  const base = `/businesses/${businessId}`;
-
-  const work: SidebarNavSection = {
-    title: "Work",
-    items: [
-      { href: `${base}/overview`, label: "Dashboard", icon: LayoutDashboard },
-      { href: `${base}/scans`, label: "Maps Scans", icon: Grid3X3, isRankGrid: true },
-      { href: `${base}/campaigns`, label: "Maps Campaigns", icon: FolderKanban },
-    ],
-  };
-
-  const growthTools: SidebarNavSection = {
-    title: "Growth Tools",
-    items: [
-      { href: `${base}/growth-audit`, label: "Growth Audit", icon: FileSearch },
-      { href: `${base}/backlink-gap`, label: "Backlink Gap", icon: Link2 },
-      { href: `${base}/trust`, label: "Local Trust", icon: Award },
-      { href: `${base}/keywords`, label: "Keywords", icon: KeyRound },
-      { href: `${base}/ai-visibility`, label: "AI Visibility", icon: Bot },
-    ],
-  };
-
-  const reputation: SidebarReputationNav = {
-    title: "Reputation",
-    items: [
-      { href: `${base}/reviews`, label: "Review Feed", icon: Star },
-      { href: `${base}/review-momentum`, label: "Review Momentum", icon: TrendingUp },
-      {
-        href: `${base}/review-requests`,
-        label: "Review Requests",
-        icon: MessageSquareText,
-        badge: "Add-on",
-        children: [{ href: `${base}/review-campaigns`, label: "Campaigns", badge: "Upgrade" }],
-      },
-      { href: `${base}/contacts`, label: "Contacts", icon: Users },
-      { href: `${base}/review-templates`, label: "Templates", icon: FileText },
-      { href: `${base}/integrations`, label: "Review Triggers", icon: Webhook },
-      { href: `${base}/review-settings`, label: "Settings", icon: Settings2 },
-    ],
-    subLinks: [],
-  };
-
-  const deliverables: SidebarNavSection = {
-    title: "Deliverables",
-    items: [
-      { href: `${base}/reports`, label: "Reports", icon: FileText },
-      { href: `${base}/tasks`, label: "Growth Plan", icon: ClipboardList },
-    ],
-  };
-
+  const nav = buildUnifiedSidebarNav(businessId);
   return {
-    work,
-    growthTools,
-    reputation,
-    deliverables,
-    main: work,
-    research: growthTools,
-    reports: deliverables,
+    work: nav.work,
+    growthTools: nav.growthTools,
+    reputation: nav.reputation,
+    deliverables: nav.deliverables,
+    main: nav.work,
+    research: nav.growthTools,
+    reports: nav.deliverables,
   };
 }
 
 export function isSidebarHrefActive(
   pathname: string,
   href: string,
-  businessId: string,
+  businessId?: string | null,
   flags?: { isRankGrid?: boolean; exact?: boolean }
 ): boolean {
   if (flags?.isRankGrid) {
-    return pathname.includes(`/businesses/${businessId}/grid/`) || pathname === href;
+    if (businessId && pathname.includes(`/businesses/${businessId}/grid/`)) return true;
+    if (pathname.startsWith("/scans")) return true;
+    return pathname === href || pathname.startsWith(`${href}/`);
   }
+
+  if (href === "/clients") {
+    return (
+      pathname === "/clients" ||
+      pathname.startsWith("/clients/") ||
+      pathname === "/agency/clients"
+    );
+  }
+  if (href === "/dashboard") {
+    return pathname === "/dashboard" || pathname === "/workspace" || pathname.startsWith("/workspace?");
+  }
+  if (href === "/onboarding") {
+    return pathname === "/onboarding" || pathname.startsWith("/onboarding/");
+  }
+
   // Review Requests parent should not stay active on nested Campaigns.
-  if (flags?.exact || href.endsWith("/review-requests")) {
+  if (flags?.exact || href.endsWith("/review-requests") || href.endsWith("/tools/go/review-requests")) {
     return pathname === href || pathname.startsWith(`${href}?`);
   }
-  // Branding deep-link shares settings path — match settings prefix.
+
   if (href.includes("?tab=")) {
     const pathOnly = href.split("?")[0] ?? href;
     return pathname === pathOnly || pathname.startsWith(`${pathOnly}/`);
   }
+
   return pathname === href || pathname.startsWith(`${href}/`);
 }

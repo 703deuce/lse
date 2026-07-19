@@ -53,6 +53,49 @@ function QueueSection({
   );
 }
 
+export function WorkspaceQueueGrid({ queue }: { queue: WorkingQueue }) {
+  return (
+    <div className="grid gap-3 lg:grid-cols-2">
+      <QueueSection
+        title="Scans running"
+        empty="No scans in progress."
+        items={queue.scansRunning}
+      />
+      <QueueSection
+        title="Reports due"
+        empty="No monthly reports flagged."
+        items={queue.reportsDue}
+      />
+      <QueueSection
+        title="Scans completed"
+        empty="No recent completed scans."
+        items={queue.scansCompleted}
+      />
+      <QueueSection
+        title="Clients without a recent scan"
+        empty="Every active client has a recent scan."
+        items={queue.clientsNeedScan}
+      />
+      <QueueSection
+        title="Scheduled scans coming up"
+        empty="No scheduled campaign runs in the next week."
+        items={queue.schedulesUpcoming}
+      />
+      <QueueSection
+        title="Draft reports"
+        empty="No draft reports waiting."
+        items={queue.draftReports}
+      />
+      <QueueSection
+        title="Prospect audits recently shared"
+        empty="No prospect audits shared lately."
+        items={queue.prospectAudits}
+      />
+    </div>
+  );
+}
+
+/** @deprecated Prefer embedding WorkspaceQueueGrid on the main Workspace home. */
 export function WorkspaceQueue({
   queue,
   orgName,
@@ -77,50 +120,10 @@ export function WorkspaceQueue({
             <Link href="/clients" className={btnSecondary}>
               Open clients
             </Link>
-            <Link href="/dashboard" className={btnSecondary}>
-              Open dashboard
-            </Link>
           </div>
         }
       />
-
-      <div className="grid gap-3 lg:grid-cols-2">
-        <QueueSection
-          title="Scans running"
-          empty="No scans in progress."
-          items={queue.scansRunning}
-        />
-        <QueueSection
-          title="Reports due"
-          empty="No monthly reports flagged."
-          items={queue.reportsDue}
-        />
-        <QueueSection
-          title="Scans completed"
-          empty="No recent completed scans."
-          items={queue.scansCompleted}
-        />
-        <QueueSection
-          title="Clients without a recent scan"
-          empty="Every active client has a recent scan."
-          items={queue.clientsNeedScan}
-        />
-        <QueueSection
-          title="Scheduled scans coming up"
-          empty="No scheduled campaign runs in the next week."
-          items={queue.schedulesUpcoming}
-        />
-        <QueueSection
-          title="Draft reports"
-          empty="No draft reports waiting."
-          items={queue.draftReports}
-        />
-        <QueueSection
-          title="Prospect audits recently shared"
-          empty="No prospect audits shared lately."
-          items={queue.prospectAudits}
-        />
-      </div>
+      <WorkspaceQueueGrid queue={queue} />
     </ModulePage>
   );
 }
