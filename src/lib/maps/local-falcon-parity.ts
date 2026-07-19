@@ -11,8 +11,13 @@ export const LOCAL_FALCON_PARITY = {
   endpoint: MAPS_LIVE_ENDPOINT,
   /** LF uses Maps “search this area” viewport — DataForSEO default true */
   searchThisArea: true,
-  /** DataForSEO default; keeps local-intent keyword behavior on Maps */
-  searchPlaces: true,
+  /**
+   * DataForSEO docs: search_places=true can interfere with local-intent
+   * keywords and return the wrong/sparse pack. Set false for grid rank tracking.
+   * (task_post / live advanced — “to obtain correct results for keywords with
+   * local intent you may set this parameter to false”)
+   */
+  searchPlaces: false,
   /** United States */
   seDomain: "google.com",
   languageCode: MAPS_LANGUAGE,

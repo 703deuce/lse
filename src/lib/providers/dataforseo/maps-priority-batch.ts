@@ -20,6 +20,21 @@ import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
 import { dataForSeoMapsMaxTasksPerPost } from "@/lib/providers/maps-grid/config";
 import type { ScanDeviceProfile } from "@/lib/maps/scan-profiles";
 
+/** DataForSEO tags: keep alphanumeric + hyphen/underscore (no raw UUID colons). */
+export function sanitizeMapsTaskTag(tag: string): string {
+  return tag.replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 255);
+}
+
+/** Keep organic/paid Maps listings; drop refinement chips and other noise. */
+export function normalizeMapsSerpItems(items: MapsLiveResult[] | null | undefined): MapsLiveResult[] {
+  if (!items?.length) return [];
+  const filtered = items.filter((item) => {
+    const t = item.type;
+    return !t || t === "maps_search" || t === "maps_paid_item";
+  });
+  return filtered.length ? filtered : items;
+}
+
 export const MAPS_TASK_POST_ENDPOINT = "serp/google/maps/task_post";
 export const MAPS_TASK_GET_ADVANCED_PREFIX = "serp/google/maps/task_get/advanced";
 
@@ -84,7 +99,7 @@ function buildPriorityTaskBody(cell: MapsPriorityCellInput) {
   const body = {
     ...mapsLiveRequestBody(request),
     priority: DATAFORSEO_MAPS_PRIORITY_HIGH,
-    tag: cell.tag,
+    tag: sanitizeMapsTaskTag(cell.tag),
   };
   return {
     body,
@@ -109,9 +124,11 @@ export async function postMapsPriorityTasks(
   if (!cells.length) return [];
 
   const maxPerPost = dataForSeoMapsMaxTasksPerPost();
+  // Always key by the sanitized tag we actually send — task_post echoes that.
   const prepared = cells.map((cell) => {
     const { body, request } = buildPriorityTaskBody(cell);
-    return { tag: cell.tag, body, request };
+    const tag = sanitizeMapsTaskTag(cell.tag);
+    return { tag, body: { ...body, tag }, request };
   });
 
   const posted: PostedMapsPriorityTask[] = [];
@@ -134,11 +151,11 @@ export async function postMapsPriorityTasks(
 
     const byTag = new Map(chunk.map((c) => [c.tag, c] as const));
     for (const task of data.tasks ?? []) {
-      const tag = String(task.data?.tag ?? "");
+      const tag = sanitizeMapsTaskTag(String(task.data?.tag ?? ""));
       const preparedRow = byTag.get(tag);
       if (!task.id || !preparedRow) continue;
       posted.push({
-        tag,
+        tag: preparedRow.tag,
         taskId: task.id,
         request: preparedRow.request,
       });
@@ -201,14 +218,20 @@ async function getMapsTaskAdvanced(
   const task = data.tasks?.[0];
   const statusCode = task?.status_code ?? null;
   const statusMessage = task?.status_message ?? null;
-  const result = task?.result?.[0];
-  const items = (result?.items ?? []) as MapsLiveResult[];
+  const result = task?.result?.[0] as
+    | {
+        items?: MapsLiveResult[];
+        items_count?: number;
+        check_url?: string;
+        datetime?: string;
+      }
+    | undefined;
+  const items = normalizeMapsSerpItems(result?.items);
 
   const queued = isDataForSeoQueueStatus(statusCode);
-  const hardFail =
-    statusCode != null && statusCode >= 40000 && !queued;
-  // 20000 = Ok / Task Ready
-  const ready = statusCode === 20000 || (items.length > 0 && !queued && !hardFail);
+  const hardFail = statusCode != null && statusCode >= 40000 && !queued;
+  // 20000 = Ok / Task Ready. Do not treat a non-20000 partial payload as done.
+  const ready = statusCode === 20000;
 
   return {
     taskId,
@@ -292,9 +315,11 @@ export async function runMapsPriorityBatch(
 ): Promise<MapsPriorityCellResult[]> {
   if (!cells.length) return [];
 
-  const byTag = new Map(cells.map((c) => [c.tag, c] as const));
+  const byTag = new Map(
+    cells.map((c) => [sanitizeMapsTaskTag(c.tag), c] as const)
+  );
   console.log(
-    `[DataForSEO] Priority batch submit: ${cells.length} tasks (max ${dataForSeoMapsMaxTasksPerPost()}/POST, priority=${DATAFORSEO_MAPS_PRIORITY_HIGH}, search_this_area=true)`
+    `[DataForSEO] Priority batch submit: ${cells.length} tasks (max ${dataForSeoMapsMaxTasksPerPost()}/POST, priority=${DATAFORSEO_MAPS_PRIORITY_HIGH}, search_this_area=true, search_places=false)`
   );
 
   const posted = await postMapsPriorityTasks(cells, organizationId);
@@ -308,12 +333,13 @@ export async function runMapsPriorityBatch(
 
   const results: MapsPriorityCellResult[] = [];
   for (const cell of cells) {
-    const post = postedByTag.get(cell.tag);
+    const tag = sanitizeMapsTaskTag(cell.tag);
+    const post = postedByTag.get(tag);
     const { request } = buildPriorityTaskBody(cell);
 
     if (!post) {
       results.push({
-        tag: cell.tag,
+        tag,
         taskId: null,
         ok: false,
         items: [],
@@ -326,7 +352,7 @@ export async function runMapsPriorityBatch(
     const got = polled.get(post.taskId);
     if (!got) {
       results.push({
-        tag: cell.tag,
+        tag,
         taskId: post.taskId,
         ok: false,
         items: [],
@@ -338,7 +364,7 @@ export async function runMapsPriorityBatch(
 
     if (got.failed && !got.items.length) {
       results.push({
-        tag: cell.tag,
+        tag,
         taskId: post.taskId,
         ok: false,
         items: [],
@@ -351,9 +377,9 @@ export async function runMapsPriorityBatch(
     }
 
     results.push({
-      tag: cell.tag,
+      tag,
       taskId: post.taskId,
-      ok: true,
+      ok: got.statusCode === 20000,
       items: got.items,
       checkUrl: got.checkUrl,
       timestamp: got.timestamp,
@@ -361,7 +387,6 @@ export async function runMapsPriorityBatch(
       taskStatus: got.statusCode,
       taskMessage: got.statusMessage,
     });
-    void byTag;
   }
 
   const withItems = results.filter((r) => r.items.length > 0).length;

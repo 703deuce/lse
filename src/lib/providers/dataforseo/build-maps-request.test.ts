@@ -25,7 +25,7 @@ describe("DataForSEO Maps location_coordinate", () => {
     assert.equal(req.device, "mobile");
     assert.equal(req.os, "android");
     assert.equal(req.search_this_area, true);
-    assert.equal(req.search_places, true);
+    assert.equal(req.search_places, false);
     assert.equal(req.se_domain, "google.com");
     assert.equal(req._meta.endpoint, "serp/google/maps/live/advanced");
     const body = { ...req };

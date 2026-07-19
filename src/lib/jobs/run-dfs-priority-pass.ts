@@ -10,7 +10,10 @@ import {
   extractTopCompetitors,
   type MapsLiveResult,
 } from "@/lib/providers/dataforseo";
-import { runMapsPriorityBatch } from "@/lib/providers/dataforseo/maps-priority-batch";
+import {
+  runMapsPriorityBatch,
+  sanitizeMapsTaskTag,
+} from "@/lib/providers/dataforseo/maps-priority-batch";
 import { matchTargetInResults } from "@/lib/providers/dataforseo/match-target";
 import { validateLiveCellSerp } from "@/lib/maps/cell-result-integrity";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
@@ -29,7 +32,8 @@ import type {
 // Types-only import from run-grid-cells (runtime import is the reverse direction).
 
 function cellTag(job: GridCellJob): string {
-  return `${job.point.id}:${job.keyword.id}`;
+  // Avoid ":" — DataForSEO tags are sanitized; keep a stable reversible key.
+  return `${job.point.id}__${job.keyword.id}`;
 }
 
 function deviceProfile(job: GridCellJob) {
@@ -252,6 +256,11 @@ export async function runDataForSeoPriorityPass(params: {
   passLabel: string;
   scanRetryRound?: number;
   organizationId?: string;
+  /**
+   * Sparse mobile packs are common on edge pins. Retry passes can force
+   * desktop + windows while keeping search_this_area=true.
+   */
+  forceDesktop?: boolean;
 }): Promise<{
   results: GridCellRunResult[];
   successCount: number;
@@ -267,17 +276,20 @@ export async function runDataForSeoPriorityPass(params: {
   const batch = await runMapsPriorityBatch(
     jobs.map((job) => {
       const profile = deviceProfile(job);
+      const device = params.forceDesktop ? "desktop" : profile.device;
+      const os = params.forceDesktop ? "windows" : profile.os;
       return {
         tag: cellTag(job),
         keyword: job.keyword.keyword.trim(),
         lat: job.point.lat,
         lng: job.point.lng,
-        device: profile.device,
-        os: profile.os,
+        device,
+        os,
         browser: profile.browser,
         depth,
         languageCode: LOCAL_FALCON_PARITY.languageCode,
         zoom: LOCAL_FALCON_PARITY.locationZoom,
+        // Always STA for grid rank tracking (DataForSEO Maps requirement).
         searchThisArea: true,
       };
     }),
@@ -288,7 +300,7 @@ export async function runDataForSeoPriorityPass(params: {
 
   const results: GridCellRunResult[] = [];
   for (const job of jobs) {
-    const tag = cellTag(job);
+    const tag = sanitizeMapsTaskTag(cellTag(job));
     const row = byTag.get(tag);
 
     if (!row) {

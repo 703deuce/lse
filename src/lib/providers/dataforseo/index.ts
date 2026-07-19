@@ -8,7 +8,12 @@ import {
   logProviderRun,
   type ProviderRunLog,
 } from "@/lib/providers/dataforseo/client";
-import { mapsPriorityGridCell } from "@/lib/providers/dataforseo/maps-priority-batch";
+import {
+  mapsPriorityGridCell,
+  normalizeMapsSerpItems,
+} from "@/lib/providers/dataforseo/maps-priority-batch";
+
+export { normalizeMapsSerpItems };
 
 export function mapsDepthDefault(): number {
   const env = Number(process.env.DATAFORSEO_MAPS_DEPTH ?? LOCAL_FALCON_PARITY.gridDepth);
@@ -22,6 +27,7 @@ export type { ProviderRunLog };
 export { logProviderRun, dataForSeoRequest, dataForSeoGet, isDataForSeoQueueStatus };
 
 export interface MapsLiveResult {
+  type?: string;
   rank_group?: number;
   rank_absolute?: number;
   title?: string;
@@ -105,7 +111,7 @@ export async function mapsLiveAdvanced(params: {
   const task = data.tasks?.[0];
   const result = task?.result?.[0];
   return {
-    items: result?.items ?? [],
+    items: normalizeMapsSerpItems(result?.items),
     checkUrl: result?.check_url,
     timestamp: result?.datetime,
     request,

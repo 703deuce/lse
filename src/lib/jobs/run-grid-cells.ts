@@ -1334,12 +1334,14 @@ export async function runGridCellsLive(params: {
       },
       { force: true }
     );
+    // Desktop often returns a full pack when mobile STA is sparse/empty.
     const retryPass = await runDataForSeoPriorityPass({
       jobs: remainingJobs,
       depth,
-      passLabel: "dfs-priority-retry",
+      passLabel: "dfs-priority-retry-desktop",
       scanRetryRound: 1,
       organizationId: params.organizationId,
+      forceDesktop: true,
     });
     allTimings.push(...retryPass.timings);
     completedOffset += retryPass.successCount;
