@@ -1089,13 +1089,13 @@ export function GridScanView({
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Link
-                    href={`/clients/${businessId}`}
+                    href={`/businesses/${businessId}/overview`}
                     className="rounded-lg border border-zinc-200 px-2.5 py-1.5 font-medium text-zinc-700 hover:bg-zinc-50"
                   >
-                    Return to client
+                    Return to Dashboard
                   </Link>
                   <Link
-                    href={`/businesses/${businessId}/scans/new`}
+                    href={`/businesses/${businessId}/scans`}
                     className="rounded-lg border border-zinc-200 px-2.5 py-1.5 font-medium text-zinc-700 hover:bg-zinc-50"
                   >
                     Start another scan

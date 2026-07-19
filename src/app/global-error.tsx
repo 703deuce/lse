@@ -28,10 +28,10 @@ export default function GlobalError({
             Try again
           </button>
           <a
-            href="/businesses"
+            href="/workspace"
             className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
           >
-            Back to businesses
+            Back to Workspace
           </a>
         </div>
         {error.digest ? (

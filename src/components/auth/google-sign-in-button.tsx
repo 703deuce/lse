@@ -2,16 +2,26 @@
 
 import { createClient } from "@/lib/supabase/client";
 
+function safeNextPath(raw: string | null): string {
+  if (!raw) return "/workspace";
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) {
+    return "/workspace";
+  }
+  return raw;
+}
+
 export function GoogleSignInButton() {
   const supabase = createClient();
 
   async function signInWithGoogle() {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
+    const params = new URLSearchParams(window.location.search);
+    const next = safeNextPath(params.get("next"));
 
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${appUrl}/auth/callback?next=/workspace`,
+        redirectTo: `${appUrl}/auth/callback?next=${encodeURIComponent(next)}`,
         queryParams: {
           access_type: "offline",
           prompt: "consent",

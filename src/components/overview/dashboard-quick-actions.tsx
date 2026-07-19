@@ -20,14 +20,14 @@ export function DashboardQuickActions({ businessId }: { businessId: string }) {
       iconWrap: "bg-sky-50 text-sky-600 ring-1 ring-sky-100",
     },
     {
-      href: "/prospects",
+      href: "/businesses/new?as=prospect",
       title: "New prospect",
       description: "Start an audit for outreach.",
       icon: Target,
       iconWrap: "bg-amber-50 text-amber-700 ring-1 ring-amber-100",
     },
     {
-      href: "/clients",
+      href: "/businesses/new?as=client",
       title: "New client",
       description: "Add a client location to track.",
       icon: Building2,

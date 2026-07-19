@@ -243,15 +243,10 @@ export function isSidebarHrefActive(
     );
   }
 
-  // Dashboard — picker or selected location overview (same nav item either way)
+  // Dashboard — picker or location overview only (not CRM /clients|/prospects detail)
   if (href === "/tools/go/dashboard" || href.endsWith("/overview")) {
     if (pathname === "/tools/go/dashboard") return true;
-    if (
-      businessId &&
-      (pathname === `/businesses/${businessId}/overview` ||
-        pathname === `/clients/${businessId}` ||
-        pathname === `/prospects/${businessId}`)
-    ) {
+    if (businessId && pathname === `/businesses/${businessId}/overview`) {
       return true;
     }
     return false;

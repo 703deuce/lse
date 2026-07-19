@@ -219,7 +219,7 @@ export async function loadWorkingQueue(
         kind: "client_needs_scan",
         title: biz.name,
         subtitle: "No completed scan in the last 30 days",
-        href: `/clients/${id}`,
+        href: `/businesses/${id}/scans`,
         at: null,
       });
       if (clientsNeedScan.length >= 12) break;

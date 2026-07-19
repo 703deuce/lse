@@ -222,8 +222,6 @@ export function ActiveWorkPanel({
         items={items}
         empty="Nothing running right now."
         limit={PREVIEW_LIMIT}
-        viewAllHref="/scans"
-        viewAllLabel={`View all (${items.length})`}
       />
     </PanelShell>
   );
@@ -242,8 +240,6 @@ export function NeedsAttentionPanel({ items }: { items: WorkingQueueItem[] }) {
         items={items.map((i) => ({ ...i, kind: i.kind }))}
         empty="You're caught up — no urgent follow-ups."
         limit={PREVIEW_LIMIT}
-        viewAllHref="/clients"
-        viewAllLabel={`View all (${items.length})`}
       />
     </PanelShell>
   );
@@ -271,8 +267,6 @@ export function RecentResultsPanel({
         items={items}
         empty="Run a scan or audit to see results here."
         limit={PREVIEW_LIMIT}
-        viewAllHref="/scans"
-        viewAllLabel={`View all (${items.length})`}
       />
     </PanelShell>
   );

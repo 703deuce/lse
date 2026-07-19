@@ -163,7 +163,7 @@ export function JourneyNextActionsStrip({
             )
           )}
           <Link
-            href={`/businesses/${businessId}/scans/new`}
+            href={`/businesses/${businessId}/scans`}
             className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-2.5 text-[12px] font-medium text-emerald-900 hover:bg-emerald-50"
           >
             <Radar className="h-3.5 w-3.5" />

@@ -21,16 +21,14 @@ export async function resolvePostLoginPath(organizationId: string): Promise<stri
 
 /**
  * Soft home destinations — still run first-login vs Workspace resolution.
- * Deep links (e.g. /businesses/:id/scans) are honored as-is.
+ * Deep links and real hubs (/clients, /prospects, /scans, …) are honored as-is.
  */
 export function isSoftHomePath(path: string): boolean {
   const bare = path.split("?")[0] ?? path;
   return (
     bare === "/" ||
     bare === "/businesses" ||
-    bare === "/clients" ||
     bare === "/dashboard" ||
-    bare === "/workspace" ||
-    bare === "/onboarding"
+    bare === "/workspace"
   );
 }

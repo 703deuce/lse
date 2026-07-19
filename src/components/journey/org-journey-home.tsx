@@ -380,7 +380,14 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
         </div>
       ) : null}
 
-      {/* Clients + prospects — full-width split */}
+      {loading ? (
+        <ContentCard className="flex items-center gap-2 text-sm text-zinc-500">
+          <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+          Loading your workspace…
+        </ContentCard>
+      ) : (
+        <>
+      {/* Clients + prospects — wait for load so empty states do not flash */}
       <div className="grid gap-3 lg:grid-cols-2">
         <LocationRoster
           title="Clients"
@@ -404,20 +411,10 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
         />
       </div>
 
-      {loading ? (
-        <ContentCard className="flex items-center gap-2 text-sm text-zinc-500">
-          <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
-          Loading your workspace…
-        </ContentCard>
-      ) : (
         <div className="space-y-3">
           {setup && !setup.complete ? <SetupProgressCard progress={setup} /> : null}
 
-          <NextBestActionsPanel
-            actions={actions}
-            limit={5}
-            viewAllHref="/onboarding"
-          />
+          <NextBestActionsPanel actions={actions} limit={5} />
 
           {/* Active + attention — full-width halves */}
           <div className="grid gap-3 md:grid-cols-2">
@@ -443,6 +440,7 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
             <WorkspaceQueueGrid queue={queue} />
           </div>
         </div>
+        </>
       )}
     </ModulePage>
   );

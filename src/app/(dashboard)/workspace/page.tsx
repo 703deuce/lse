@@ -1,13 +1,20 @@
+import { redirect } from "next/navigation";
 import { requirePageAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
+import { resolvePostLoginPath } from "@/lib/auth/home-path";
 import { OrgJourneyHome } from "@/components/journey/org-journey-home";
 
 /**
  * Workspace = org home (clients, prospects, queue, next actions).
- * Client Dashboard lives at /businesses/[id]/overview after you pick a location.
+ * First login (no locations) still goes to Get started.
  */
 export default async function WorkspacePage() {
   const auth = await requirePageAuth();
+  const home = await resolvePostLoginPath(auth.organizationId);
+  if (home === "/onboarding") {
+    redirect("/onboarding");
+  }
+
   const supabase = createServiceClient();
   const { data: org } = await supabase
     .from("organizations")

@@ -92,7 +92,16 @@ export function BusinessSwitcher({
       );
       return;
     }
-    // From org pages / tool pickers — open the location overview.
+    // Stay in CRM when switching from a client/prospect detail page.
+    if (pathname.startsWith("/clients/")) {
+      router.push(`/clients/${nextId}`);
+      return;
+    }
+    if (pathname.startsWith("/prospects/")) {
+      router.push(`/prospects/${nextId}`);
+      return;
+    }
+    // From org pages / tool pickers — open the location Dashboard.
     router.push(`/businesses/${nextId}/overview`);
   }
 
@@ -194,14 +203,14 @@ export function BusinessSwitcher({
               </p>
             )}
             <Link
-              href="/businesses"
+              href="/clients"
               onClick={() => {
                 setOpen(false);
                 onNavigate?.();
               }}
               className="mt-0.5 flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
             >
-              Manage locations
+              Manage clients
             </Link>
           </div>
         </div>

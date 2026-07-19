@@ -23,7 +23,7 @@ const TABS = [
     href: "/clients",
     label: "Clients",
     icon: Building2,
-    match: (p: string) => p.startsWith("/clients") || p.startsWith("/prospects"),
+    match: (p: string) => p === "/clients" || p.startsWith("/clients/"),
   },
   {
     href: "/scans",

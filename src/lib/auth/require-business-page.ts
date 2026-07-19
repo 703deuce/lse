@@ -17,7 +17,7 @@ export async function requireBusinessPage(businessId: string): Promise<{
   email: string | null;
 }> {
   if (!UUID_RE.test(businessId)) {
-    redirect("/businesses?error=invalid_business");
+    redirect("/clients?error=invalid_business");
   }
 
   const auth = await getAuthContext();
@@ -33,7 +33,7 @@ export async function requireBusinessPage(businessId: string): Promise<{
     if (message.includes("authentication required")) {
       redirect("/sign-in");
     }
-    redirect("/businesses?error=access_denied");
+    redirect("/clients?error=access_denied");
   }
 }
 
@@ -49,7 +49,7 @@ export async function requireBusinessPageData(businessId: string): Promise<{
   const auth = await requireBusinessPage(businessId);
   const business = await getBusiness(businessId, auth.organizationId);
   if (!business) {
-    redirect("/businesses?error=access_denied");
+    redirect("/clients?error=access_denied");
   }
   return { ...auth, business };
 }

@@ -11,10 +11,10 @@ export default function NotFound() {
         the error banner.
       </p>
       <Link
-        href="/businesses"
+        href="/workspace"
         className="mt-6 inline-flex rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
       >
-        Back to businesses
+        Back to Workspace
       </Link>
     </main>
   );

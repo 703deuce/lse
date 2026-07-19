@@ -370,7 +370,7 @@ export function OnboardingWizard() {
             You can keep setting up the client or return to Workspace. Suggested next actions:
           </p>
           <div className="flex flex-wrap gap-2">
-            <Link href="/clients" className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
+            <Link href="/tools/go/growth-audit" className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
               Run Growth Audit
             </Link>
             <Link href="/branding" className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>

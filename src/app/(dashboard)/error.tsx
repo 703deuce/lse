@@ -34,10 +34,10 @@ export default function DashboardError({
           Try again
         </button>
         <Link
-          href="/businesses"
+          href="/workspace"
           className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
         >
-          Back to businesses
+          Back to Workspace
         </Link>
       </div>
       {error.digest ? (
