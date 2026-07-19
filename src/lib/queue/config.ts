@@ -69,8 +69,9 @@ export function brevoMaxInFlight(): number {
 }
 
 export function maxActiveMapsScansPerOrg(): number {
-  const n = Number(process.env.MAX_ACTIVE_MAPS_SCANS_PER_ORG ?? 3);
-  return Number.isFinite(n) && n > 0 ? n : 3;
+  // Default 1: same org runs one Maps scan at a time (others stay queued).
+  const n = Number(process.env.MAX_ACTIVE_MAPS_SCANS_PER_ORG ?? 1);
+  return Number.isFinite(n) && n > 0 ? n : 1;
 }
 
 export function maxQueuedMapsScansPerOrg(): number {

@@ -203,6 +203,31 @@ export async function clearScanLease(scanBatchId: string, leaseOwner?: string): 
   await q;
 }
 
+/**
+ * Put a freshly claimed scan back to `queued` when the org already has another
+ * scan running (serial-per-org fairness). Clears the lease so another worker
+ * can pick it up after the active scan finishes.
+ */
+export async function releaseClaimToQueued(
+  scanBatchId: string,
+  leaseOwner: string
+): Promise<void> {
+  const supabase = createServiceClient();
+  await supabase
+    .from("scan_batches")
+    .update({
+      status: "queued",
+      started_at: null,
+      lease_owner: null,
+      lease_expires_at: null,
+      heartbeat_at: null,
+      error_message: null,
+    })
+    .eq("id", scanBatchId)
+    .eq("lease_owner", leaseOwner)
+    .eq("status", "dispatching");
+}
+
 /** Find globally stale in-flight scans and return their ids (for cron reclaim). */
 export async function listStaleInFlightScanIds(limit = 5): Promise<string[]> {
   const supabase = createServiceClient();

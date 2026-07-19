@@ -16,9 +16,79 @@ const ACTIVE_SCAN_STATUSES = [
   "rank_ready",
 ] as const;
 
+/** Statuses that mean a scan is actually consuming a concurrent slot. */
+const RUNNING_SCAN_STATUSES = [
+  "dispatching",
+  "provider_running",
+  "normalizing",
+  "enriching",
+  "recovering",
+] as const;
+
 export type MapsFairnessResult =
   | { ok: true }
   | { ok: false; reason: string; code: "active_limit" | "queued_limit" | "duplicate" };
+
+export async function resolveOrgMapsConcurrentCap(organizationId: string): Promise<number> {
+  const plan = await getOrganizationPlan(organizationId).catch(() => null);
+  const freelancerLimits = resolveFreelancerLimits(plan?.id);
+  // Internal/admin testing uses the plan's high concurrent cap directly.
+  // Paid tiers stay within the global infrastructure ceiling (default 1).
+  if (plan?.id === "internal") return freelancerLimits.maxConcurrentScans;
+  return Math.min(maxActiveMapsScansPerOrg(), freelancerLimits.maxConcurrentScans);
+}
+
+async function orgBusinessIds(organizationId: string): Promise<string[]> {
+  const supabase = createServiceClient();
+  const { data: orgBusinesses } = await supabase
+    .from("businesses")
+    .select("id")
+    .eq("organization_id", organizationId);
+  return (orgBusinesses ?? []).map((b) => b.id as string);
+}
+
+/**
+ * After a worker claims a scan, decide whether this org still has a free slot.
+ * Uses oldest-started wins so two simultaneous claims do not both yield (deadlock).
+ */
+export async function assertOrgMapsScanSlotAvailable(params: {
+  organizationId: string;
+  scanBatchId: string;
+  businessId: string;
+}): Promise<MapsFairnessResult> {
+  const concurrentCap = await resolveOrgMapsConcurrentCap(params.organizationId);
+  if (concurrentCap >= 25) return { ok: true };
+
+  const businessIds = await orgBusinessIds(params.organizationId);
+  if (!businessIds.length) return { ok: true };
+
+  const supabase = createServiceClient();
+  const { data: running } = await supabase
+    .from("scan_batches")
+    .select("id, started_at, created_at")
+    .in("business_id", businessIds)
+    .in("status", [...RUNNING_SCAN_STATUSES])
+    .order("started_at", { ascending: true, nullsFirst: false })
+    .limit(Math.max(concurrentCap * 4, 8));
+
+  const rows = [...(running ?? [])].sort((a, b) => {
+    const aAt = String(a.started_at ?? a.created_at ?? "");
+    const bAt = String(b.started_at ?? b.created_at ?? "");
+    if (aAt !== bAt) return aAt.localeCompare(bAt);
+    return String(a.id).localeCompare(String(b.id));
+  });
+
+  const winners = new Set(rows.slice(0, concurrentCap).map((r) => r.id as string));
+  if (winners.has(params.scanBatchId) || winners.size < concurrentCap) {
+    return { ok: true };
+  }
+
+  return {
+    ok: false,
+    code: "active_limit",
+    reason: `Another scan is already running for this account (limit ${concurrentCap}). This scan stays queued and will start next.`,
+  };
+}
 
 /** Enforce per-org Maps concurrency before accepting another scan. */
 export async function assertCanEnqueueMapsScan(params: {
@@ -42,21 +112,12 @@ export async function assertCanEnqueueMapsScan(params: {
     // Allow queueing more for the org, but surface duplicate-like pressure.
   }
 
-  const { data: orgBusinesses } = await supabase
-    .from("businesses")
-    .select("id")
-    .eq("organization_id", params.organizationId);
-  const businessIds = (orgBusinesses ?? []).map((b) => b.id as string);
+  const businessIds = await orgBusinessIds(params.organizationId);
   if (!businessIds.length) return { ok: true };
 
   const plan = await getOrganizationPlan(params.organizationId).catch(() => null);
   const freelancerLimits = resolveFreelancerLimits(plan?.id);
-  // Internal/admin testing uses the plan's high concurrent cap directly.
-  // Paid tiers stay within the global infrastructure ceiling.
-  const concurrentCap =
-    plan?.id === "internal"
-      ? freelancerLimits.maxConcurrentScans
-      : Math.min(maxActiveMapsScansPerOrg(), freelancerLimits.maxConcurrentScans);
+  const concurrentCap = await resolveOrgMapsConcurrentCap(params.organizationId);
 
   if (params.gridSize != null && params.gridSize > freelancerLimits.maxGridSize) {
     return {
@@ -70,13 +131,7 @@ export async function assertCanEnqueueMapsScan(params: {
     .from("scan_batches")
     .select("id", { count: "exact", head: true })
     .in("business_id", businessIds)
-    .in("status", [
-      "dispatching",
-      "provider_running",
-      "normalizing",
-      "enriching",
-      "recovering",
-    ])
+    .in("status", [...RUNNING_SCAN_STATUSES])
     .neq("id", params.scanBatchId);
 
   if ((orgActive ?? 0) >= concurrentCap) {

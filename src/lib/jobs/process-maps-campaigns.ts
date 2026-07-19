@@ -142,7 +142,9 @@ export async function processDueMapsCampaigns(limit = 10): Promise<number> {
       scanBatchId: "00000000-0000-0000-0000-000000000000",
       gridSize,
     });
-    if (!fairness.ok && (fairness.code === "queued_limit" || fairness.code === "active_limit")) {
+    // Only the queued-depth cap should block schedule creation. An already-running
+    // scan must not prevent queueing the rest — execution is serial per org.
+    if (!fairness.ok && fairness.code === "queued_limit") {
       // Put back due so we retry soon instead of skipping a whole period.
       await supabase
         .from("maps_campaigns")
@@ -197,6 +199,22 @@ export async function processDueMapsCampaigns(limit = 10): Promise<number> {
 
     let enqueued = 0;
     for (const kw of activeKeywords) {
+      // Re-check per keyword so a full campaign still queues, but we stop when
+      // the org queued/active caps are hit (execution stays serial separately).
+      const keywordFairness = await assertCanEnqueueMapsScan({
+        organizationId: orgId,
+        businessId,
+        scanBatchId: "00000000-0000-0000-0000-000000000000",
+        gridSize,
+      });
+      if (!keywordFairness.ok && keywordFairness.code === "queued_limit") {
+        logger.warn("maps_campaign_fairness_blocked_mid_loop", {
+          campaignId: campaign.id,
+          reason: keywordFairness.reason,
+        });
+        break;
+      }
+
       const creditsNeeded = gridMapCredits(gridSize);
       let reserved = false;
       try {

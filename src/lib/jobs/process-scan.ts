@@ -15,8 +15,10 @@ import {
   extendScanLease,
   newScanLeaseOwner,
   reclaimStaleScan,
+  releaseClaimToQueued,
   scanLeaseTtlMs,
 } from "@/lib/jobs/scan-lease";
+import { assertOrgMapsScanSlotAvailable } from "@/lib/queue/fairness";
 import { CELLS_IN_FLIGHT_STATUSES } from "@/lib/scans/status";
 import {
   mapsProviderModeLabel,
@@ -117,6 +119,35 @@ export async function processScanBatch(
     // recovering with an active lease held by another worker
     if (status === "recovering") return "deferred";
     return "deferred";
+  }
+
+  // Serial-per-org: after claiming, yield if another scan for this account is
+  // already running. Oldest-started wins so simultaneous claims do not deadlock.
+  if (!resume && !recoveryMode) {
+    const { data: bizRow } = await supabase
+      .from("businesses")
+      .select("organization_id")
+      .eq("id", batch.business_id)
+      .maybeSingle();
+    const orgForSlot =
+      organizationId ||
+      (typeof bizRow?.organization_id === "string" ? bizRow.organization_id : null);
+    if (orgForSlot) {
+      const slot = await assertOrgMapsScanSlotAvailable({
+        organizationId: orgForSlot,
+        scanBatchId,
+        businessId: String(batch.business_id),
+      });
+      if (!slot.ok) {
+        await releaseClaimToQueued(scanBatchId, leaseOwner);
+        const { JobDeferredError } = await import("@/lib/queue/errors");
+        console.log(
+          `[Scan] Deferred ${scanBatchId} — org already has a running scan (serial per account)`
+        );
+        // Longer delay so we do not thrash while the active scan runs.
+        throw new JobDeferredError(slot.reason, 30_000);
+      }
+    }
   }
 
   await resetStaleRunningCells(scanBatchId);

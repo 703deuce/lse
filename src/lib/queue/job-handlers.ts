@@ -116,6 +116,9 @@ export async function executeJobType(
           if (outcome === "deferred") return { ok: true, markComplete: false };
           return { ok: true, markComplete: true };
         } catch (err) {
+          const { isDeferredError } = await import("@/lib/queue/errors");
+          // Org serial gate / lease defer — do not treat as a scan failure refund.
+          if (isDeferredError(err)) throw err;
           const message = err instanceof Error ? err.message : "Scan failed";
           if (orgId) {
             const { maybeReleaseUnusedMapCredits, PRE_PROVIDER_FAIL } = await import(

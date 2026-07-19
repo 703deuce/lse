@@ -14,7 +14,8 @@ export function resolveFreelancerLimits(planId: PlanId | string | null | undefin
     return {
       ...FREELANCER_PLAN_LIMITS.freelancer,
       maxActiveLocations: 50,
-      maxConcurrentScans: 5,
+      // Still serial per org; agency capacity is more locations, not parallel scans.
+      maxConcurrentScans: 1,
       maxGridSize: 13,
     };
   }

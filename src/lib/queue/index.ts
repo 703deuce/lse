@@ -36,7 +36,9 @@ export {
 } from "@/lib/queue/bright-data-limiter";
 export {
   assertCanEnqueueMapsScan,
+  assertOrgMapsScanSlotAvailable,
   findDuplicateActiveScan,
+  resolveOrgMapsConcurrentCap,
 } from "@/lib/queue/fairness";
 export { scheduleJitterMs, delayWithinWindowMs } from "@/lib/queue/schedule-jitter";
 export {

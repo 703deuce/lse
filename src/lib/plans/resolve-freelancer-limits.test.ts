@@ -17,9 +17,11 @@ describe("resolveFreelancerLimits", () => {
     assert.ok(limits.allowedScheduleFrequencies.includes("weekly"));
   });
 
-  it("gives agency more than freelancer default", () => {
+  it("keeps paid tiers at one concurrent scan (serial per org)", () => {
     const agency = resolveFreelancerLimits("agency");
     const pro = resolveFreelancerLimits("pro");
-    assert.ok(agency.maxConcurrentScans > pro.maxConcurrentScans);
+    assert.equal(pro.maxConcurrentScans, 1);
+    assert.equal(agency.maxConcurrentScans, 1);
+    assert.ok(agency.maxActiveLocations > pro.maxActiveLocations);
   });
 });

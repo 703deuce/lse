@@ -23,7 +23,8 @@ export const FREELANCER_PLAN_LIMITS = {
   },
   freelancer: {
     maxActiveLocations: 20,
-    maxConcurrentScans: 3,
+    // One at a time — parallel scans from the same book confuse schedules and burn credits.
+    maxConcurrentScans: 1,
     maxGridSize: 13,
     allowedScheduleFrequencies: ["manual", "weekly", "biweekly", "monthly"],
     historyRetentionMonths: 24,
