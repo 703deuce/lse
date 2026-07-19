@@ -1,9 +1,9 @@
 /**
  * DataForSEO Google Maps Priority (queued) batch client.
  *
- * Submit up to 100 tasks per POST with priority=2, then poll task_get until
- * ready. Used for grid scans so all pins can be fired at once without Live
- * synchronous waits.
+ * Submit via the fair queue (25-cell app chunks → ≤100-task POSTs, 50–100ms
+ * pacing, round-robin across concurrent scans), then poll task_get until ready.
+ * Never waits for task completion before the next POST.
  */
 
 import {
@@ -17,8 +17,20 @@ import {
 } from "@/lib/providers/dataforseo/client";
 import type { MapsLiveResult, MapsLiveResponse } from "@/lib/providers/dataforseo/index";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
-import { dataForSeoMapsMaxTasksPerPost } from "@/lib/providers/maps-grid/config";
+import {
+  dataForSeoMapsAppChunkSize,
+  dataForSeoMapsMaxTasksPerPost,
+  dataForSeoMapsPollGetConcurrency,
+} from "@/lib/providers/maps-grid/config";
 import type { ScanDeviceProfile } from "@/lib/maps/scan-profiles";
+import {
+  chunkPreparedMapsRows,
+  getMapsPriorityFairQueue,
+  mapsSubmitPriorityFromJob,
+  type MapsSubmitPriority,
+  type PreparedMapsPriorityRow,
+  type PostedMapsPriorityRow,
+} from "@/lib/providers/dataforseo/maps-priority-fair-queue";
 
 /** DataForSEO tags: keep alphanumeric + hyphen/underscore (no raw UUID colons). */
 export function sanitizeMapsTaskTag(tag: string): string {
@@ -69,14 +81,6 @@ export type MapsPriorityCellResult = {
   errorMessage?: string;
 };
 
-function chunkArray<T>(items: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    out.push(items.slice(i, i + size));
-  }
-  return out;
-}
-
 function buildPriorityTaskBody(cell: MapsPriorityCellInput) {
   const profile = {
     device: cell.device,
@@ -91,7 +95,6 @@ function buildPriorityTaskBody(cell: MapsPriorityCellInput) {
     depth: cell.depth,
     languageCode: cell.languageCode ?? LOCAL_FALCON_PARITY.languageCode,
     zoom: cell.zoom ?? LOCAL_FALCON_PARITY.locationZoom,
-    // Always keep search-this-area for Local Falcon parity grids.
     searchThisArea: cell.searchThisArea ?? LOCAL_FALCON_PARITY.searchThisArea,
     searchPlaces: LOCAL_FALCON_PARITY.searchPlaces,
     seDomain: LOCAL_FALCON_PARITY.seDomain,
@@ -107,70 +110,102 @@ function buildPriorityTaskBody(cell: MapsPriorityCellInput) {
   };
 }
 
-export type PostedMapsPriorityTask = {
-  tag: string;
-  taskId: string;
-  request: MapsPriorityCellResult["request"];
-};
+export type PostedMapsPriorityTask = PostedMapsPriorityRow;
 
 /**
- * Fire-and-forget style submit: post all cells immediately in chunks of ≤100.
- * No sleep between POSTs — DataForSEO queues the work.
+ * One DataForSEO task_post (≤100 tasks). Does not wait for task completion.
+ */
+export async function postOneMapsPriorityRequest(
+  rows: PreparedMapsPriorityRow[],
+  organizationId?: string
+): Promise<PostedMapsPriorityRow[]> {
+  if (!rows.length) return [];
+  if (rows.length > dataForSeoMapsMaxTasksPerPost()) {
+    throw new Error(
+      `DataForSEO task_post supports at most ${dataForSeoMapsMaxTasksPerPost()} tasks (got ${rows.length})`
+    );
+  }
+
+  const data = await dataForSeoRequest<{
+    tasks?: Array<{
+      id?: string;
+      status_code?: number;
+      status_message?: string;
+      data?: { tag?: string };
+    }>;
+  }>(
+    MAPS_TASK_POST_ENDPOINT,
+    rows.map((c) => c.body),
+    organizationId
+  );
+
+  const posted: PostedMapsPriorityRow[] = [];
+  const byTag = new Map(rows.map((c) => [c.tag, c] as const));
+  const claimed = new Set<string>();
+
+  for (const task of data.tasks ?? []) {
+    const tag = sanitizeMapsTaskTag(String(task.data?.tag ?? ""));
+    const preparedRow = byTag.get(tag);
+    if (!task.id || !preparedRow || claimed.has(tag)) continue;
+    claimed.add(tag);
+    posted.push({
+      tag: preparedRow.tag,
+      taskId: task.id,
+      request: preparedRow.request,
+    });
+  }
+
+  // Index zip for rows whose tags were not echoed.
+  if (posted.length < rows.length) {
+    rows.forEach((row, idx) => {
+      if (claimed.has(row.tag)) return;
+      const taskId = data.tasks?.[idx]?.id;
+      if (!taskId) return;
+      claimed.add(row.tag);
+      posted.push({ tag: row.tag, taskId, request: row.request });
+    });
+  }
+
+  return posted;
+}
+
+/**
+ * Fair submit: split into 25-cell app chunks, round-robin pack into ≤100-task
+ * POSTs across concurrent scans, pace 50–100ms between POSTs.
  */
 export async function postMapsPriorityTasks(
   cells: MapsPriorityCellInput[],
-  organizationId?: string
+  organizationId?: string,
+  options?: {
+    scanKey?: string;
+    submitPriority?: MapsSubmitPriority | string | number | null;
+  }
 ): Promise<PostedMapsPriorityTask[]> {
   if (!cells.length) return [];
 
-  const maxPerPost = dataForSeoMapsMaxTasksPerPost();
-  // Always key by the sanitized tag we actually send — task_post echoes that.
-  const prepared = cells.map((cell) => {
+  const prepared: PreparedMapsPriorityRow[] = cells.map((cell) => {
     const { body, request } = buildPriorityTaskBody(cell);
     const tag = sanitizeMapsTaskTag(cell.tag);
     return { tag, body: { ...body, tag }, request };
   });
 
-  const posted: PostedMapsPriorityTask[] = [];
-  const chunks = chunkArray(prepared, maxPerPost);
+  const chunks = chunkPreparedMapsRows(prepared, dataForSeoMapsAppChunkSize());
+  const queue = getMapsPriorityFairQueue(postOneMapsPriorityRequest);
+  const scanKey =
+    options?.scanKey ?? `batch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const priority = mapsSubmitPriorityFromJob(options?.submitPriority);
 
-  // Submit every chunk back-to-back — no inter-batch wait.
-  for (const chunk of chunks) {
-    const data = await dataForSeoRequest<{
-      tasks?: Array<{
-        id?: string;
-        status_code?: number;
-        status_message?: string;
-        data?: { tag?: string };
-      }>;
-    }>(
-      MAPS_TASK_POST_ENDPOINT,
-      chunk.map((c) => c.body),
-      organizationId
-    );
+  console.log(
+    `[DataForSEO] Fair Priority submit: ${cells.length} tasks → ${chunks.length}×${dataForSeoMapsAppChunkSize()}-cell chunks ` +
+      `(max ${dataForSeoMapsMaxTasksPerPost()}/POST, scan=${scanKey}, appPriority=${priority})`
+  );
 
-    const byTag = new Map(chunk.map((c) => [c.tag, c] as const));
-    for (const task of data.tasks ?? []) {
-      const tag = sanitizeMapsTaskTag(String(task.data?.tag ?? ""));
-      const preparedRow = byTag.get(tag);
-      if (!task.id || !preparedRow) continue;
-      posted.push({
-        tag: preparedRow.tag,
-        taskId: task.id,
-        request: preparedRow.request,
-      });
-    }
-
-    // Fallback: zip by index when tag echo is missing.
-    if ((data.tasks ?? []).length === chunk.length && posted.length < chunk.length) {
-      chunk.forEach((row, idx) => {
-        if (posted.some((p) => p.tag === row.tag)) return;
-        const taskId = data.tasks?.[idx]?.id;
-        if (!taskId) return;
-        posted.push({ tag: row.tag, taskId, request: row.request });
-      });
-    }
-  }
+  const posted = await queue.submitScanChunks({
+    scanKey,
+    priority,
+    organizationId,
+    chunks,
+  });
 
   if (posted.length !== cells.length) {
     console.warn(
@@ -230,7 +265,6 @@ async function getMapsTaskAdvanced(
 
   const queued = isDataForSeoQueueStatus(statusCode);
   const hardFail = statusCode != null && statusCode >= 40000 && !queued;
-  // 20000 = Ok / Task Ready. Do not treat a non-20000 partial payload as done.
   const ready = statusCode === 20000;
 
   return {
@@ -245,14 +279,33 @@ async function getMapsTaskAdvanced(
   };
 }
 
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  if (!items.length) return [];
+  const limit = Math.max(1, concurrency);
+  const results = new Array<R>(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i]!);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+  return results;
+}
+
 /**
  * Poll all task IDs until each is ready/failed or the timeout elapses.
- * GETs run in parallel each tick — no drip-feed.
+ * GETs are capped per tick so large grids do not stampede task_get.
  */
 export async function pollMapsPriorityTasks(
   taskIds: string[],
   organizationId?: string,
-  options?: { pollIntervalMs?: number; timeoutMs?: number }
+  options?: { pollIntervalMs?: number; timeoutMs?: number; getConcurrency?: number }
 ): Promise<Map<string, PolledTask>> {
   const pending = new Set(taskIds.filter(Boolean));
   const finished = new Map<string, PolledTask>();
@@ -260,24 +313,23 @@ export async function pollMapsPriorityTasks(
 
   const intervalMs = options?.pollIntervalMs ?? dataForSeoPriorityPollIntervalMs();
   const timeoutMs = options?.timeoutMs ?? dataForSeoPriorityPollTimeoutMs();
+  const getConcurrency = options?.getConcurrency ?? dataForSeoMapsPollGetConcurrency();
   const deadline = Date.now() + timeoutMs;
 
   while (pending.size > 0 && Date.now() < deadline) {
     const ids = [...pending];
-    const results = await Promise.all(
-      ids.map((id) =>
-        getMapsTaskAdvanced(id, organizationId).catch((err) => {
-          const message = err instanceof Error ? err.message : String(err);
-          return {
-            taskId: id,
-            statusCode: null,
-            statusMessage: message,
-            items: [] as MapsLiveResult[],
-            done: false,
-            failed: false,
-          } satisfies PolledTask;
-        })
-      )
+    const results = await mapPool(ids, getConcurrency, (id) =>
+      getMapsTaskAdvanced(id, organizationId).catch((err) => {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          taskId: id,
+          statusCode: null,
+          statusMessage: message,
+          items: [] as MapsLiveResult[],
+          done: false,
+          failed: false,
+        } satisfies PolledTask;
+      })
     );
 
     for (const row of results) {
@@ -305,13 +357,18 @@ export async function pollMapsPriorityTasks(
 }
 
 /**
- * Submit all cells via Priority, then retrieve finished tasks.
+ * Submit all cells via fair Priority queue, then retrieve finished tasks.
  * Does not enforce items>=depth — callers validate.
  */
 export async function runMapsPriorityBatch(
   cells: MapsPriorityCellInput[],
   organizationId?: string,
-  options?: { pollIntervalMs?: number; timeoutMs?: number }
+  options?: {
+    pollIntervalMs?: number;
+    timeoutMs?: number;
+    scanKey?: string;
+    submitPriority?: MapsSubmitPriority | string | number | null;
+  }
 ): Promise<MapsPriorityCellResult[]> {
   if (!cells.length) return [];
 
@@ -319,10 +376,13 @@ export async function runMapsPriorityBatch(
     cells.map((c) => [sanitizeMapsTaskTag(c.tag), c] as const)
   );
   console.log(
-    `[DataForSEO] Priority batch submit: ${cells.length} tasks (max ${dataForSeoMapsMaxTasksPerPost()}/POST, priority=${DATAFORSEO_MAPS_PRIORITY_HIGH}, search_this_area=${LOCAL_FALCON_PARITY.searchThisArea}, search_places=${LOCAL_FALCON_PARITY.searchPlaces})`
+    `[DataForSEO] Priority batch submit: ${cells.length} tasks (appChunk=${dataForSeoMapsAppChunkSize()}, max ${dataForSeoMapsMaxTasksPerPost()}/POST, priority=${DATAFORSEO_MAPS_PRIORITY_HIGH}, search_this_area=${LOCAL_FALCON_PARITY.searchThisArea}, search_places=${LOCAL_FALCON_PARITY.searchPlaces})`
   );
 
-  const posted = await postMapsPriorityTasks(cells, organizationId);
+  const posted = await postMapsPriorityTasks(cells, organizationId, {
+    scanKey: options?.scanKey,
+    submitPriority: options?.submitPriority,
+  });
   const postedByTag = new Map(posted.map((p) => [p.tag, p] as const));
 
   const polled = await pollMapsPriorityTasks(
@@ -437,7 +497,8 @@ export async function mapsPriorityGridCell(params: {
         searchThisArea: LOCAL_FALCON_PARITY.searchThisArea,
       },
     ],
-    params.organizationId
+    params.organizationId,
+    { scanKey: `single-${tag}`, submitPriority: 2 }
   );
 
   if (!result) {

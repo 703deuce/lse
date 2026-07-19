@@ -1,8 +1,9 @@
 /**
  * DataForSEO Priority batch pass for Maps grids.
  *
- * Submits all cells in one (or few) task_post calls, polls until ready,
- * then persists only packs with >= depth items.
+ * Submits cells through the fair Priority queue (25-cell app chunks → ≤100/POST,
+ * round-robin across concurrent scans), polls until ready, then persists only
+ * packs with >= depth items.
  */
 
 import { createServiceClient } from "@/lib/db/client";
@@ -262,6 +263,8 @@ export async function runDataForSeoPriorityPass(params: {
    */
   forceDesktop?: boolean;
   locationZoom?: number;
+  /** App fair-queue priority: 1 active, 2 paid, 3 scheduled, 4 retry. */
+  submitPriority?: 1 | 2 | 3 | 4 | "highest" | "normal" | "lower" | "retry";
 }): Promise<{
   results: GridCellRunResult[];
   successCount: number;
@@ -273,6 +276,15 @@ export async function runDataForSeoPriorityPass(params: {
   if (!jobs.length) {
     return { results: [], successCount: 0, timings: [] };
   }
+
+  const scanKey = jobs[0]?.scanBatchId ?? `pass-${passLabel}`;
+  const submitPriority =
+    params.submitPriority ??
+    (passLabel.includes("retry") || passLabel.includes("integrity")
+      ? 4
+      : passLabel.includes("scheduled")
+        ? 3
+        : 1);
 
   const apiStart = performance.now();
   const batch = await runMapsPriorityBatch(
@@ -294,7 +306,11 @@ export async function runDataForSeoPriorityPass(params: {
         searchThisArea: LOCAL_FALCON_PARITY.searchThisArea,
       };
     }),
-    params.organizationId ?? jobs[0]?.organizationId
+    params.organizationId ?? jobs[0]?.organizationId,
+    {
+      scanKey: `${scanKey}:${passLabel}`,
+      submitPriority,
+    }
   );
   const apiSec = elapsedSec(apiStart);
   const byTag = new Map(batch.map((r) => [r.tag, r] as const));

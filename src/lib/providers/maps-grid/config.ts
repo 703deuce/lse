@@ -204,6 +204,31 @@ export function dataForSeoMapsMaxTasksPerPost(): number {
   return envInt("DATAFORSEO_MAPS_MAX_TASKS_PER_POST", 100, { min: 1, max: 100 });
 }
 
+/**
+ * Application fairness chunk — cells reserved per scan before packing into a
+ * DataForSEO POST (up to 100). Lets the scheduler round-robin across maps.
+ */
+export function dataForSeoMapsAppChunkSize(): number {
+  return envInt("DATAFORSEO_MAPS_APP_CHUNK_SIZE", 25, { min: 1, max: 100 });
+}
+
+/** Min delay between successive DataForSEO task_post calls (smooth traffic). */
+export function dataForSeoMapsPostDelayMinMs(): number {
+  return envInt("DATAFORSEO_MAPS_POST_DELAY_MIN_MS", 50, { min: 0, max: 5_000 });
+}
+
+/** Max delay between successive DataForSEO task_post calls. */
+export function dataForSeoMapsPostDelayMaxMs(): number {
+  const min = dataForSeoMapsPostDelayMinMs();
+  const max = envInt("DATAFORSEO_MAPS_POST_DELAY_MAX_MS", 100, { min: 0, max: 5_000 });
+  return Math.max(min, max);
+}
+
+/** Cap parallel task_get GETs per poll tick (avoids stampeding DFS). */
+export function dataForSeoMapsPollGetConcurrency(): number {
+  return envInt("DATAFORSEO_MAPS_POLL_GET_CONCURRENCY", 50, { min: 1, max: 200 });
+}
+
 /** Outer adapter timeout for Priority post+poll (Priority ~1 min avg). */
 export function dataForSeoMapsTimeoutMs(): number {
   return envInt("DATAFORSEO_MAPS_TIMEOUT_MS", 180_000, { min: 30_000, max: 600_000 });

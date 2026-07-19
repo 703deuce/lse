@@ -1002,6 +1002,59 @@ async function runIntegrityPass(params: {
   console.log(
     `[Scan] Integrity retry for ${incompleteJobs.length} sparse/incomplete cells (concurrency=${params.concurrency} mode=${providerMode})`
   );
+
+  // DataForSEO: keep integrity on the fair Priority batch (no one-task POSTs).
+  if (providerMode === "dataforseo") {
+    await scheduleCellProgress(
+      params.scanBatchId,
+      Math.max(0, params.totalCells - incompleteJobs.length),
+      params.totalCells,
+      incompleteJobs.length,
+      {
+        pass: "dfs-priority-integrity",
+        recovery_stage: "finalizing",
+        maps_provider_mode: providerMode,
+        location_zoom: locationZoom,
+        method: "dfs_priority_batch",
+      },
+      { force: true }
+    );
+    const integrityPass = await runDataForSeoPriorityPass({
+      jobs: incompleteJobs,
+      depth: params.depth,
+      passLabel: "dfs-priority-integrity",
+      scanRetryRound: 5,
+      organizationId: params.organizationId,
+      forceDesktop: true,
+      locationZoom,
+      submitPriority: 4,
+    });
+    for (const r of integrityPass.results) {
+      if (r.success) await params.onCellSettled?.(true);
+    }
+
+    const { data: refreshedResults } = savedPointIds.length
+      ? await supabase
+          .from("scan_results")
+          .select("scan_point_id, keyword_id, target_found, top_competitors_json")
+          .in("scan_point_id", savedPointIds)
+      : { data: [] };
+
+    const stillIncomplete = params.jobs.filter((job) => {
+      const row = (refreshedResults ?? []).find(
+        (r) => r.scan_point_id === job.point.id && r.keyword_id === job.keyword.id
+      );
+      return !validateStoredCellResult(row, params.depth).complete;
+    });
+
+    return {
+      failedCells: stillIncomplete.length,
+      failedPointIds: [...new Set(stillIncomplete.map((j) => j.point.id))],
+      timings: integrityPass.timings,
+      successCount: integrityPass.successCount,
+    };
+  }
+
   // Mode-aware integrity chain. Always pass the full list so each provider
   // records an attempt even when credentials are missing on this worker.
   const integrityProviders = integrityProvidersForMode(providerMode);
@@ -1247,8 +1300,9 @@ export async function runGridCellsLive(params: {
   let completedOffset = alreadyComplete;
   const failedFromPrimary: GridCellJob[] = [];
 
-  // DataForSEO standard: fire all pins via Priority task_post (up to 100/POST),
-  // poll results, retry incomplete once on Priority. No ScrapingDog / Bright Data.
+  // DataForSEO standard: fair Priority queue — 25-cell app chunks packed into
+  // ≤100-task POSTs (paced 50–100ms). No wait for batch finish between POSTs.
+  // Retry incomplete once on Priority. No ScrapingDog / Bright Data.
   if (providerMode === "dataforseo") {
     console.log(
       `[Scan] DataForSEO Priority batch primary: ${jobs.length} cells (search_this_area=${LOCAL_FALCON_PARITY.searchThisArea}, search_places=${LOCAL_FALCON_PARITY.searchPlaces}, zoom=${locationZoom}, depth=${depth})`
