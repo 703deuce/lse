@@ -2,7 +2,7 @@
 
 export const MAPS_LIVE_ENDPOINT = "serp/google/maps/live/advanced";
 /** @deprecated Use LOCAL_FALCON_PARITY.locationZoom — kept for imports */
-export const MAPS_LOCATION_ZOOM = 13;
+export const MAPS_LOCATION_ZOOM = 14;
 export const MAPS_LANGUAGE = "en";
 
 export type ScanDeviceProfile = {
@@ -14,14 +14,17 @@ export type ScanDeviceProfile = {
   description?: string;
 };
 
-/** Local Falcon parity default — mobile-first Maps search */
+/**
+ * Local Falcon parity default — desktop Windows.
+ * Controlled DFS tests: desktop matched Falcon; mobile under-ranked edge pins.
+ */
 export const DEFAULT_SCAN_PROFILE: ScanDeviceProfile = {
-  id: "mobile-android-chrome",
-  label: "Mobile · Android · Chrome",
-  device: "mobile",
-  os: "android",
+  id: "desktop-windows-chrome",
+  label: "Desktop · Windows · Chrome",
+  device: "desktop",
+  os: "windows",
   browser: "chrome",
-  description: "Typical Google Maps mobile search (recommended for Local Falcon parity)",
+  description: "DataForSEO Maps settings that matched Local Falcon (desktop / windows)",
 };
 
 /** Run same 5×5 grid with each profile and compare to Local Falcon */

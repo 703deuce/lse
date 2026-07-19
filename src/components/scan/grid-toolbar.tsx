@@ -331,7 +331,7 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
               value={locationZoom}
               onChange={(e) => setLocationZoom(Number(e.target.value))}
               className={cn(fieldSelect, "mt-0.5")}
-              title="Local Falcon API defaults to 13. Higher = tighter neighborhood."
+              title="Production default is 14 (Falcon match). Higher = tighter neighborhood."
             >
               {MAPS_ZOOM_OPTIONS.map((z) => (
                 <option key={z} value={z}>

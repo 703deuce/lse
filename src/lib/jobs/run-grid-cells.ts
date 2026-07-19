@@ -52,7 +52,6 @@ import {
   type MapsProviderMode,
 } from "@/lib/maps/provider-modes";
 import { runDataForSeoPriorityPass } from "@/lib/jobs/run-dfs-priority-pass";
-import { mapsFallbackEnabled } from "@/lib/providers/maps-grid/config";
 import { parseMapsLocationZoom } from "@/lib/maps/maps-zoom";
 
 /** Default wave size — overridden by BRIGHTDATA_GRID_BATCH_SIZE / FAIR_CHUNK (max 100). */
@@ -1340,12 +1339,12 @@ export async function runGridCellsLive(params: {
   let failedCells = remainingJobs.length;
 
   // ---- Recovery after primary ----
-  // DataForSEO: one Priority retry for incomplete cells, then Bright Data.
+  // DataForSEO: one Priority retry with the same Falcon-parity recipe (no BD mix).
   // ScrapingDog: one same-provider retry.
   // Hybrid: Bright Data recovery loop below.
   if (remainingJobs.length > 0 && providerMode === "dataforseo") {
     console.log(
-      `[Scan] DataForSEO Priority retry for ${remainingJobs.length} incomplete cells`
+      `[Scan] DataForSEO Priority retry for ${remainingJobs.length} incomplete cells (desktop/zoom=${locationZoom}/STA=false)`
     );
     await scheduleCellProgress(
       params.scanBatchId,
@@ -1356,15 +1355,15 @@ export async function runGridCellsLive(params: {
         pass: "dfs-priority-retry",
         recovery_stage: "fallback_dataforseo",
         maps_provider_mode: providerMode,
+        location_zoom: locationZoom,
         method: "dfs_priority_batch",
       },
       { force: true }
     );
-    // Desktop often returns a full pack when mobile STA is sparse/empty.
     const retryPass = await runDataForSeoPriorityPass({
       jobs: remainingJobs,
       depth,
-      passLabel: "dfs-priority-retry-desktop",
+      passLabel: "dfs-priority-retry",
       scanRetryRound: 1,
       organizationId: params.organizationId,
       forceDesktop: true,
@@ -1377,46 +1376,6 @@ export async function runGridCellsLive(params: {
     }
     remainingJobs = failedJobsFromPass(remainingJobs, retryPass.results);
     failedCells = remainingJobs.length;
-
-    if (remainingJobs.length > 0 && mapsFallbackEnabled()) {
-      console.log(
-        `[Scan] Bright Data fallback for ${remainingJobs.length} cells still incomplete after Priority`
-      );
-      await scheduleCellProgress(
-        params.scanBatchId,
-        completedOffset,
-        totalCells,
-        remainingJobs.length,
-        {
-          pass: "dfs-brightdata-fallback",
-          recovery_stage: "scanning_brightdata",
-          maps_provider_mode: providerMode,
-        },
-        { force: true }
-      );
-      const bdPass = await runJobsWithConcurrency(remainingJobs, {
-        scanBatchId: params.scanBatchId,
-        depth,
-        timeoutMs,
-        maxAttempts: 1,
-        concurrency: Math.min(remainingJobs.length, mapsGridConcurrency(remainingJobs.length)),
-        totalCells,
-        passLabel: "dfs-brightdata-fallback",
-        providers: brightDataOnlyProviders(),
-        allowTransientRetry: false,
-        scanRetryRound: 2,
-        recoveryStage: "scanning_brightdata",
-        completedOffset,
-        updateProgress: true,
-        onCellSettled,
-        organizationId: params.organizationId,
-        locationZoom,
-      });
-      allTimings.push(...bdPass.timings);
-      completedOffset += bdPass.successCount;
-      remainingJobs = failedJobsFromPass(remainingJobs, bdPass.results);
-      failedCells = remainingJobs.length;
-    }
   } else if (remainingJobs.length > 0 && providerMode === "scrapingdog") {
     console.log(
       `[Scan] scrapingdog retry for ${remainingJobs.length} cells (same provider, no Bright Data)`

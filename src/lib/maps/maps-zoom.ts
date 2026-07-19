@@ -1,19 +1,17 @@
 /**
  * Maps SERP zoom for grid rank tracking.
  *
- * Local Falcon On-Demand API (`ranking-at-coordinate` / `keyword-at-coordinate`):
- * zoom is optional, range 0–18, **defaults to 13**
- * (docs.localfalcon.com/openapi.yaml).
- *
- * DataForSEO accepts 3z–21z. We expose the LF-comparable band for A/B tests.
+ * Production default: **14** — matched Local Falcon in DFS Priority tests.
+ * Local Falcon On-Demand API documents zoom 0–18 (API default 13); our Falcon
+ * parity recipe locks 14. DataForSEO accepts 3z–21z.
  */
 
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
 
-/** Local Falcon API default — use this unless the user overrides for A/B. */
-export const DEFAULT_MAPS_LOCATION_ZOOM = 13;
+/** Production / Local Falcon–matching zoom. */
+export const DEFAULT_MAPS_LOCATION_ZOOM = 14;
 
-/** Common zooms to A/B against Local Falcon / DataForSEO. */
+/** Zooms available for A/B in the UI. */
 export const MAPS_ZOOM_OPTIONS = [13, 14, 15, 16, 17] as const;
 export type MapsLocationZoom = (typeof MAPS_ZOOM_OPTIONS)[number];
 
@@ -35,7 +33,8 @@ export function parseMapsLocationZoom(value: unknown): number {
 }
 
 export function mapsZoomLabel(zoom: number): string {
-  if (zoom === 13) return "13 (Local Falcon default)";
+  if (zoom === 14) return "14 (recommended / Falcon match)";
+  if (zoom === 13) return "13 (Local Falcon API default)";
   if (zoom === 17) return "17 (tight neighborhood)";
   return String(zoom);
 }

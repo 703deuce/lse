@@ -32,10 +32,10 @@ describe("maps provider modes", () => {
     assert.equal(scanBatchProviderColumn("scrapingdog"), "scrapingdog");
   });
 
-  it("dataforseo is default with optional Bright Data secondary", () => {
+  it("dataforseo is production default with no secondary fallback", () => {
     assert.deepEqual(primaryProvidersForMode("dataforseo"), ["dataforseo"]);
-    assert.deepEqual(secondaryProvidersForMode("dataforseo"), ["brightdata"]);
-    assert.deepEqual(integrityProvidersForMode("dataforseo"), ["dataforseo", "brightdata"]);
+    assert.deepEqual(secondaryProvidersForMode("dataforseo"), []);
+    assert.deepEqual(integrityProvidersForMode("dataforseo"), ["dataforseo"]);
     assert.equal(scanBatchProviderColumn("dataforseo"), "dataforseo");
   });
 });

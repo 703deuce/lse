@@ -1,46 +1,47 @@
 /**
- * Fixed scan settings aligned with Local Falcon grid reports.
- * All grid scans use these defaults — no per-run toggles in the UI.
+ * Fixed scan settings that matched Local Falcon in controlled DFS tests
+ * (5×5 / 7×7, "near me" keywords, full 20-pack coverage).
+ *
+ * Production path: DataForSEO Maps Priority (task_post priority=2), not Live.
  */
 import { DEFAULT_GRID_SIZE, DEFAULT_RADIUS_METERS } from "@/lib/maps/grid-metrics";
 import { DEFAULT_SCAN_PROFILE, MAPS_LANGUAGE, MAPS_LIVE_ENDPOINT } from "@/lib/maps/scan-profiles";
 
 export const LOCAL_FALCON_PARITY = {
-  /** DataForSEO Google Maps Live (not Local Finder / organic local pack) */
+  /** DataForSEO Google Maps (not Local Finder / organic local pack) */
   searchEngine: "google_maps" as const,
+  /** Live endpoint label for debug meta only — grids use task_post Priority. */
   endpoint: MAPS_LIVE_ENDPOINT,
   /**
-   * Production A/B (Tampa 7×7): search_this_area=true + zoom 17 clipped the
-   * viewport so hard that many cells returned 0–15 pins. With
-   * search_this_area=false every cell returned a full top-20 pack.
-   * Keep false for DataForSEO grid rank tracking.
+   * Critical: search_this_area=true at typical zooms clipped packs to 0–15
+   * and caused not-found holes. false → full top-20 every cell in Falcon tests.
    */
   searchThisArea: false,
   /**
-   * DataForSEO docs: search_places=true can interfere with local-intent
-   * keywords and return the wrong/sparse pack. Keep false for grids.
+   * Keep true for local-intent Maps behavior (Falcon-matching recipe).
+   * Do not rewrite "near me" keywords — DFS handles them natively.
    */
-  searchPlaces: false,
+  searchPlaces: true,
   /** United States */
   seDomain: "google.com",
   languageCode: MAPS_LANGUAGE,
   countryCode: "US",
   /**
-   * Local Falcon On-Demand API default zoom is 13 (range 0–18).
-   * DataForSEO default when omitted is 17z — that was clipping packs too tight.
-   * Override per scan for A/B (13–17).
+   * Zoom 14 matched Local Falcon well. DFS ranks were nearly identical across
+   * 13–20; 14 is the fixed production choice (override in UI for A/B).
    */
-  locationZoom: 13,
-  /** LF reports top-20 pack; mobile Maps SERP max is 20 results */
+  locationZoom: 14,
+  /** Full top-20 pack */
   gridDepth: 20,
   gridSize: DEFAULT_GRID_SIZE,
   radiusMeters: DEFAULT_RADIUS_METERS,
+  /** Desktop matched Falcon; mobile under-ranked west-side pins by ~1. */
   device: DEFAULT_SCAN_PROFILE.device,
   os: DEFAULT_SCAN_PROFILE.os,
   browser: DEFAULT_SCAN_PROFILE.browser,
 } as const;
 
-/** Legacy Live STA flip — grids use searchThisArea=false by default now. */
+/** Never flip STA back on for grids — recipe is always false. */
 export const SEARCH_THIS_AREA_FALLBACK = false;
 
 export function isNoSearchResultsError(err: unknown): boolean {

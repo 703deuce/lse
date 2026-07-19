@@ -1,12 +1,12 @@
 /**
- * Maps grid provider modes (A/B).
+ * Maps grid provider modes.
  *
- * - dataforseo: DataForSEO Maps Priority (default)
- * - scrapingdog: ScrapingDog google_maps with ll=@lat,lng,17z
- * - hybrid: Bright Data (alternate)
+ * Production default: DataForSEO Maps Priority only
+ * (task_post priority=2, desktop/windows, zoom 14, search_this_area=false,
+ * search_places=true, depth 20). Never accept <20 items.
  *
- * DataForSEO grids: task_post priority=2, location_coordinate lat,lng,17z,
- * search_this_area=false, search_places=false. Never accept <20 items.
+ * ScrapingDog / Bright Data remain available for ops A/B but are not used
+ * as fallbacks for the standard DataForSEO path.
  */
 
 import type { MapsProviderId } from "@/lib/providers/maps-grid/types";
@@ -14,7 +14,7 @@ import type { MapsProviderId } from "@/lib/providers/maps-grid/types";
 export const MAPS_PROVIDER_MODES = ["dataforseo", "scrapingdog", "hybrid"] as const;
 export type MapsProviderMode = (typeof MAPS_PROVIDER_MODES)[number];
 
-/** Default: DataForSEO Priority batch. */
+/** Production: DataForSEO Priority batch. */
 export const DEFAULT_MAPS_PROVIDER_MODE: MapsProviderMode = "dataforseo";
 
 export type MapsProviderModeOption = {
@@ -30,20 +30,20 @@ export const MAPS_PROVIDER_MODE_OPTIONS: MapsProviderModeOption[] = [
     label: "DataForSEO (Priority)",
     shortLabel: "DataForSEO",
     description:
-      "Queued Maps Priority — full grid in one POST. search_this_area off so cells return a full top-20 pack.",
+      "Production default — batch Priority Maps (desktop, zoom 14, search_this_area off). Matches Local Falcon.",
   },
   {
     id: "scrapingdog",
-    label: "ScrapingDog",
+    label: "ScrapingDog (ops A/B)",
     shortLabel: "ScrapingDog",
     description:
-      "A/B alternate — Google Maps via ScrapingDog with ll=@lat,lng,17z per pin.",
+      "Ops-only A/B — not used for “near me” keywords (coverage fails). Not a production fallback.",
   },
   {
     id: "hybrid",
-    label: "Bright Data",
+    label: "Bright Data (ops A/B)",
     shortLabel: "Bright Data",
-    description: "Bright Data only — use when comparing against SERP API vendors.",
+    description: "Ops-only alternate — not used as a DataForSEO fallback.",
   },
 ];
 
@@ -73,13 +73,11 @@ export function primaryProvidersForMode(mode: MapsProviderMode): MapsProviderId[
 
 /**
  * Secondary provider fallbacks after the primary chain is exhausted.
- * DataForSEO can optionally try Bright Data when fallback is enabled.
- * ScrapingDog stays single-provider so A/B results stay pure.
+ * Standard DataForSEO stays pure Priority — no Bright Data mix.
  */
 export function secondaryProvidersForMode(mode: MapsProviderMode): MapsProviderId[] {
   switch (mode) {
     case "dataforseo":
-      return ["brightdata"];
     case "hybrid":
     case "scrapingdog":
     default:
@@ -87,7 +85,7 @@ export function secondaryProvidersForMode(mode: MapsProviderMode): MapsProviderI
   }
 }
 
-/** Integrity / last-chance chain for sparse cells. */
+/** Integrity / last-chance chain for sparse cells — same provider only. */
 export function integrityProvidersForMode(mode: MapsProviderMode): MapsProviderId[] {
   switch (mode) {
     case "scrapingdog":
@@ -96,7 +94,7 @@ export function integrityProvidersForMode(mode: MapsProviderMode): MapsProviderI
       return ["brightdata"];
     case "dataforseo":
     default:
-      return ["dataforseo", "brightdata"];
+      return ["dataforseo"];
   }
 }
 

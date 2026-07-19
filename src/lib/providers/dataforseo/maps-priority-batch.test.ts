@@ -10,15 +10,15 @@ import { buildMapsLiveRequest, mapsLiveRequestBody } from "@/lib/providers/dataf
 import type { MapsLiveResult } from "@/lib/providers/dataforseo/index";
 
 describe("DataForSEO Maps Priority batch shape", () => {
-  it("uses high priority, STA off, search_places off for full top-20 packs", () => {
+  it("uses high priority, STA off, search_places on, zoom 14 (Falcon recipe)", () => {
     assert.equal(DATAFORSEO_MAPS_PRIORITY_HIGH, 2);
     assert.equal(MAPS_TASK_POST_ENDPOINT, "serp/google/maps/task_post");
 
     const request = buildMapsLiveRequest({
-      keyword: "plumber near me",
-      lat: 38.7354825,
-      lng: -77.4445995,
-      profile: { device: "mobile", os: "android", browser: "chrome" },
+      keyword: "junk removal near me",
+      lat: 38.6631508,
+      lng: -77.3518246,
+      profile: { device: "desktop", os: "windows", browser: "chrome" },
       depth: 20,
     });
     const body = {
@@ -29,10 +29,11 @@ describe("DataForSEO Maps Priority batch shape", () => {
 
     assert.equal(body.priority, 2);
     assert.equal(body.search_this_area, false);
-    assert.equal(body.search_places, false);
+    assert.equal(body.search_places, true);
     assert.equal(body.depth, 20);
-    assert.equal(body.device, "mobile");
-    assert.match(body.location_coordinate, /13z$/);
+    assert.equal(body.device, "desktop");
+    assert.equal(body.os, "windows");
+    assert.match(body.location_coordinate, /14z$/);
     assert.equal(body.tag, "point_keyword");
   });
 

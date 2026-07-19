@@ -535,7 +535,7 @@ export function ScanSetupStudio({
                 value={locationZoom}
                 onChange={(e) => setLocationZoom(Number(e.target.value))}
                 className={fieldSelect}
-                title="Local Falcon API defaults to 13. Higher zoom = tighter neighborhood."
+                title="Production default is 14 (Falcon match). Higher = tighter neighborhood."
               >
                 {MAPS_ZOOM_OPTIONS.map((z) => (
                   <option key={z} value={z}>
@@ -545,7 +545,7 @@ export function ScanSetupStudio({
               </select>
             </label>
             <p className="text-[11px] leading-relaxed text-zinc-500">
-              A/B provider and zoom (LF default 13 vs tighter 17). Radius is center → outer edge.
+              A/B provider and zoom (default 14 / Falcon match). Radius is center → outer edge.
             </p>
             <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-[12px] leading-relaxed text-sky-900">
               <p className="flex gap-1.5">

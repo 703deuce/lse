@@ -352,8 +352,7 @@ export function brightDataOnlyProviders(): MapsProviderId[] {
 
 /** Secondary fallbacks after the primary provider is exhausted. */
 export function secondaryFallbackProviders(): MapsProviderId[] {
-  // Used by recovery helpers; standard DataForSEO mode wires Bright Data via
-  // secondaryProvidersForMode("dataforseo") in run-grid-cells.
+  // Ops helper only — standard DataForSEO mode has no secondary chain.
   return ["brightdata"];
 }
 
