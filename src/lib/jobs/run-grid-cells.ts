@@ -1300,9 +1300,8 @@ export async function runGridCellsLive(params: {
   let completedOffset = alreadyComplete;
   const failedFromPrimary: GridCellJob[] = [];
 
-  // DataForSEO standard: fair Priority queue — 25-cell app chunks packed into
-  // ≤100-task POSTs (paced 50–100ms). No wait for batch finish between POSTs.
-  // Retry incomplete once on Priority. No ScrapingDog / Bright Data.
+  // DataForSEO: adaptive Priority queue — solo fills ≤100/POST; when other
+  // maps wait, 25-cell round-robin. Never wait for batch finish between POSTs.
   if (providerMode === "dataforseo") {
     console.log(
       `[Scan] DataForSEO Priority batch primary: ${jobs.length} cells (search_this_area=${LOCAL_FALCON_PARITY.searchThisArea}, search_places=${LOCAL_FALCON_PARITY.searchPlaces}, zoom=${locationZoom}, depth=${depth})`

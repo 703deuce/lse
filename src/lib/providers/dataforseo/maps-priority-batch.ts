@@ -24,7 +24,6 @@ import {
 } from "@/lib/providers/maps-grid/config";
 import type { ScanDeviceProfile } from "@/lib/maps/scan-profiles";
 import {
-  chunkPreparedMapsRows,
   getMapsPriorityFairQueue,
   mapsSubmitPriorityFromJob,
   type MapsSubmitPriority,
@@ -170,8 +169,8 @@ export async function postOneMapsPriorityRequest(
 }
 
 /**
- * Fair submit: split into 25-cell app chunks, round-robin pack into ≤100-task
- * POSTs across concurrent scans, pace 50–100ms between POSTs.
+ * Adaptive fair submit: solo scans fill POSTs to 100; when other maps are
+ * waiting, 25-cell slices round-robin. Pace 50–100ms between POSTs.
  */
 export async function postMapsPriorityTasks(
   cells: MapsPriorityCellInput[],
@@ -189,22 +188,22 @@ export async function postMapsPriorityTasks(
     return { tag, body: { ...body, tag }, request };
   });
 
-  const chunks = chunkPreparedMapsRows(prepared, dataForSeoMapsAppChunkSize());
   const queue = getMapsPriorityFairQueue(postOneMapsPriorityRequest);
   const scanKey =
     options?.scanKey ?? `batch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const priority = mapsSubmitPriorityFromJob(options?.submitPriority);
 
   console.log(
-    `[DataForSEO] Fair Priority submit: ${cells.length} tasks → ${chunks.length}×${dataForSeoMapsAppChunkSize()}-cell chunks ` +
-      `(max ${dataForSeoMapsMaxTasksPerPost()}/POST, scan=${scanKey}, appPriority=${priority})`
+    `[DataForSEO] Adaptive Priority submit: ${cells.length} tasks ` +
+      `(solo→${dataForSeoMapsMaxTasksPerPost()}/POST, contended→${dataForSeoMapsAppChunkSize()}-cell RR, ` +
+      `scan=${scanKey}, appPriority=${priority})`
   );
 
-  const posted = await queue.submitScanChunks({
+  const posted = await queue.submitScan({
     scanKey,
     priority,
     organizationId,
-    chunks,
+    rows: prepared,
   });
 
   if (posted.length !== cells.length) {
