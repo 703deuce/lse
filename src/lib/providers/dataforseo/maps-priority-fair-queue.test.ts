@@ -13,7 +13,28 @@ function fakeRows(n: number, prefix: string): PreparedMapsPriorityRow[] {
   return Array.from({ length: n }, (_, i) => ({
     tag: `${prefix}-${i}`,
     body: { tag: `${prefix}-${i}` },
-    request: { priority: 2 },
+    request: {
+      keyword: "junk removal near me",
+      location_coordinate: "38.66,-77.35,14z",
+      language_code: "en",
+      device: "desktop",
+      os: "windows",
+      depth: 20,
+      search_this_area: false,
+      search_places: true,
+      se_domain: "google.com",
+      priority: 2,
+      _meta: {
+        endpoint: "serp/google/maps/live/advanced",
+        search_engine: "google_maps",
+        lat: 38.66,
+        lng: -77.35,
+        zoom: 14,
+        personalization: "none",
+        browser: "chrome",
+        country_code: "US",
+      },
+    },
   }));
 }
 

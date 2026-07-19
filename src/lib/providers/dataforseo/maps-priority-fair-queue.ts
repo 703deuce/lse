@@ -14,6 +14,7 @@ import {
   dataForSeoMapsPostDelayMaxMs,
   dataForSeoMapsPostDelayMinMs,
 } from "@/lib/providers/maps-grid/config";
+import type { MapsLiveRequestPayload } from "@/lib/providers/dataforseo/build-maps-request";
 import type { JobPriorityClass } from "@/lib/queue/types";
 
 /** App-level submit priority (1 = user waiting, 4 = retries). */
@@ -29,16 +30,18 @@ export function mapsSubmitPriorityFromJob(
   return 2;
 }
 
+export type MapsPriorityRequest = MapsLiveRequestPayload & { priority: number };
+
 export type PreparedMapsPriorityRow = {
   tag: string;
   body: Record<string, unknown>;
-  request: Record<string, unknown> & { priority: number };
+  request: MapsPriorityRequest;
 };
 
 export type PostedMapsPriorityRow = {
   tag: string;
   taskId: string;
-  request: PreparedMapsPriorityRow["request"];
+  request: MapsPriorityRequest;
 };
 
 export type FairQueueChunk = {

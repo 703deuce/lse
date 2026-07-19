@@ -26,6 +26,7 @@ import type { ScanDeviceProfile } from "@/lib/maps/scan-profiles";
 import {
   getMapsPriorityFairQueue,
   mapsSubmitPriorityFromJob,
+  type MapsPriorityRequest,
   type MapsSubmitPriority,
   type PreparedMapsPriorityRow,
   type PostedMapsPriorityRow,
@@ -74,7 +75,7 @@ export type MapsPriorityCellResult = {
   items: MapsLiveResult[];
   checkUrl?: string;
   timestamp?: string;
-  request: ReturnType<typeof buildMapsLiveRequest> & { priority: number };
+  request: MapsPriorityRequest;
   taskStatus?: number | null;
   taskMessage?: string | null;
   errorMessage?: string;
