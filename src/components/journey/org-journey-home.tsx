@@ -324,25 +324,25 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
       <div className="grid gap-3 lg:grid-cols-2">
         <LocationListCard
           title="Clients"
-          subtitle="Recent clients — open one to work the full toolset."
+          subtitle="Recent clients — open their Dashboard to work the full toolset."
           icon={Building2}
           iconWrap="bg-emerald-50 text-emerald-600"
           rows={recentClients}
           empty="No clients yet. Add a client to start recurring tracking."
           viewAllHref="/clients"
           viewAllLabel="View all"
-          hrefFor={(b) => `/clients/${b.id}`}
+          hrefFor={(b) => `/businesses/${b.id}/overview`}
         />
         <LocationListCard
           title="Prospects"
-          subtitle="Recent prospects — audit, report, then convert."
+          subtitle="Recent prospects — open Dashboard, then audit and convert."
           icon={Users}
           iconWrap="bg-sky-50 text-sky-600"
           rows={recentProspects}
           empty="No prospects yet. Add a prospect to run your first audit."
           viewAllHref="/prospects"
           viewAllLabel="View all"
-          hrefFor={(b) => `/prospects/${b.id}`}
+          hrefFor={(b) => `/businesses/${b.id}/overview`}
         />
       </div>
 

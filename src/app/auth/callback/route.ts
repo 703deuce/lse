@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ensureUserOrganization } from "@/lib/auth/onboarding";
 import { getAppBaseUrl } from "@/lib/app-url";
+import { isSoftHomePath, resolvePostLoginPath } from "@/lib/auth/home-path";
 
-function safeNextPath(raw: string | null): string {
-  if (!raw) return "/businesses";
+function safeNextPath(raw: string | null): string | null {
+  if (!raw) return null;
   if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) {
-    return "/businesses";
+    return null;
   }
   return raw;
 }
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
 
   const code = searchParams.get("code");
-  const next = safeNextPath(searchParams.get("next"));
+  const requestedNext = safeNextPath(searchParams.get("next"));
 
   if (code) {
     const supabase = await createClient();
@@ -44,12 +45,17 @@ export async function GET(request: Request) {
         data: { user },
       } = await supabase.auth.getUser();
 
+      let next = requestedNext && !isSoftHomePath(requestedNext) ? requestedNext : null;
+
       if (user) {
-        await ensureUserOrganization(user);
+        const organizationId = await ensureUserOrganization(user);
+        if (!next) {
+          next = await resolvePostLoginPath(organizationId);
+        }
       }
 
       const base = trustedRedirectBase(request, origin);
-      return NextResponse.redirect(`${base}${next}`);
+      return NextResponse.redirect(`${base}${next ?? "/workspace"}`);
     }
   }
 

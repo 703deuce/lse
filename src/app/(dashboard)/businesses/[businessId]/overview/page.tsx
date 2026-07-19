@@ -7,8 +7,6 @@ import { DashboardFeaturedReports } from "@/components/overview/dashboard-featur
 import { DashboardToolsRow } from "@/components/overview/dashboard-tools-row";
 import { loadDashboardRecentScans } from "@/lib/overview/load-dashboard-scans";
 import { loadDashboardFeatured } from "@/lib/overview/load-dashboard-featured";
-import { loadBusinessNextBestActions } from "@/lib/journey/next-best-actions";
-import { NextBestActionsPanel } from "@/components/journey/next-best-actions-panel";
 import { JourneyBreadcrumbs } from "@/components/journey/journey-breadcrumbs";
 import { ModulePage } from "@/components/ui/design-system";
 
@@ -67,10 +65,9 @@ export default async function BusinessOverviewPage({
     resolveDisplayName(supabase, auth.userId, auth.email),
   ]);
 
-  const [recentScans, featured, nextActions] = await Promise.all([
+  const [recentScans, featured] = await Promise.all([
     loadDashboardRecentScans(businessId, { preview: 3 }),
     loadDashboardFeatured(businessId),
-    loadBusinessNextBestActions(businessId, { limit: 5 }),
   ]);
 
   const accountType = (business as { account_type?: string | null }).account_type;
@@ -99,17 +96,14 @@ export default async function BusinessOverviewPage({
 
       <DashboardQuickActions businessId={businessId} />
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)]">
-        <div className="space-y-4">
-          <DashboardRecentScans
-            businessId={businessId}
-            rows={recentScans.rows}
-            total={recentScans.total}
-          />
-          <DashboardFeaturedReports businessId={businessId} data={featured} />
-          <DashboardToolsRow businessId={businessId} />
-        </div>
-        <NextBestActionsPanel actions={nextActions} title="Suggested next actions" />
+      <div className="mt-4 space-y-4">
+        <DashboardRecentScans
+          businessId={businessId}
+          rows={recentScans.rows}
+          total={recentScans.total}
+        />
+        <DashboardFeaturedReports businessId={businessId} data={featured} />
+        <DashboardToolsRow businessId={businessId} />
       </div>
     </ModulePage>
   );

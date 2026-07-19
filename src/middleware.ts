@@ -180,7 +180,8 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && (pathname === "/sign-in" || pathname === "/sign-up")) {
-    const redirect = NextResponse.redirect(new URL("/businesses", request.url));
+    // Home page decides Workspace vs Get started (first login).
+    const redirect = NextResponse.redirect(new URL("/", request.url));
     redirect.headers.set(REQUEST_ID_HEADER, requestId);
     return redirect;
   }

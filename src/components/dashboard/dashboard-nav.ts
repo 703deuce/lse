@@ -77,9 +77,15 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
     { href: "/clients", label: "Clients", icon: Building2 },
   ];
 
-  // When no location is selected, Maps entries live under Work and open pickers.
+  // When no location is selected: Dashboard + Maps open pickers under Work.
+  // When a location is selected: those move under "This location" (one Dashboard only).
   if (!businessId) {
     workItems.push(
+      {
+        href: loc("dashboard", null),
+        label: "Dashboard",
+        icon: LayoutDashboard,
+      },
       {
         href: loc("maps-scans", null),
         label: "Maps Scans",
@@ -99,7 +105,7 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
         title: "This location",
         items: [
           {
-            href: `/businesses/${businessId}/overview`,
+            href: loc("dashboard", businessId),
             label: "Dashboard",
             icon: LayoutDashboard,
           },
@@ -238,12 +244,16 @@ export function isSidebarHrefActive(
     );
   }
 
-  // Client Dashboard — only the location overview
-  if (businessId && href === `/businesses/${businessId}/overview`) {
+  // Client Dashboard — location overview (or the picker when none selected)
+  if (href === "/tools/go/dashboard") {
+    return pathname === "/tools/go/dashboard";
+  }
+  if (href.endsWith("/overview") || (businessId && href === `/businesses/${businessId}/overview`)) {
     return (
-      pathname === `/businesses/${businessId}/overview` ||
-      pathname === `/clients/${businessId}` ||
-      pathname === `/prospects/${businessId}`
+      Boolean(businessId) &&
+      (pathname === `/businesses/${businessId}/overview` ||
+        pathname === `/clients/${businessId}` ||
+        pathname === `/prospects/${businessId}`)
     );
   }
 

@@ -82,7 +82,7 @@ export function AccountsHub({
       }
       await load();
       router.refresh();
-      router.push(`/clients/${businessId}`);
+      router.push(`/businesses/${businessId}/overview`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not convert to client");
     } finally {
@@ -276,6 +276,7 @@ export function AccountsHub({
       ) : (
         <ul className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 bg-white">
           {list.map((b) => {
+            const dashboardHref = `/businesses/${b.id}/overview`;
             const detailHref =
               mode === "prospects" ? `/prospects/${b.id}` : `/clients/${b.id}`;
             return (
@@ -285,7 +286,7 @@ export function AccountsHub({
               >
                 <div className="min-w-0">
                   <Link
-                    href={detailHref}
+                    href={dashboardHref}
                     className="truncate text-sm font-semibold text-zinc-900 hover:text-emerald-700"
                   >
                     {b.name}
@@ -299,6 +300,18 @@ export function AccountsHub({
                   ) : null}
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <Link
+                    href={dashboardHref}
+                    className="rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                  >
+                    Dashboard
+                  </Link>
+                  <Link
+                    href={detailHref}
+                    className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                  >
+                    Details
+                  </Link>
                   <Link
                     href={`/businesses/${b.id}/scans`}
                     className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"

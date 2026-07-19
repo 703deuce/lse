@@ -3,6 +3,11 @@
  * Org nav links to `/tools/go/{slug}` when no location is selected.
  */
 export const LOCATION_TOOL_MODULES = {
+  dashboard: {
+    title: "Dashboard",
+    path: "overview",
+    description: "Performance snapshot for a client or prospect location.",
+  },
   "maps-scans": {
     title: "Maps Scans",
     path: "scans",
@@ -95,6 +100,7 @@ export function toolHref(slug: LocationToolSlug, businessId?: string | null): st
   const mod = LOCATION_TOOL_MODULES[slug];
   if (businessId) return `/businesses/${businessId}/${mod.path}`;
   // Prefer existing org hubs where we already have them.
+  if (slug === "dashboard") return "/tools/go/dashboard";
   if (slug === "maps-scans") return "/scans";
   if (slug === "ai-visibility") return "/ai-visibility";
   if (slug === "reports") return "/reports";

@@ -24,5 +24,5 @@ export function getDevAuthContext(): AuthContext {
 }
 
 export function getDevDefaultAppPath(): string {
-  return `/businesses/${DEV_PREVIEW_BUSINESS_ID}/reviews`;
+  return "/workspace";
 }
