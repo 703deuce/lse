@@ -13,17 +13,58 @@ import { dedupeScanResults, minResultsForNotFound } from "@/lib/maps/cell-result
 export type StoredCompetitor = {
   rank?: number;
   name?: string;
+  original_title?: string;
   cid?: string;
   place_id?: string;
+  feature_id?: string;
   rating?: number;
   review_count?: number;
+  rating_distribution?: Record<string, number>;
   category?: string;
+  additional_categories?: string[];
+  category_ids?: string[];
   address?: string;
+  snippet?: string;
+  address_info?: {
+    borough?: string | null;
+    address?: string | null;
+    city?: string | null;
+    zip?: string | null;
+    region?: string | null;
+    country_code?: string | null;
+  };
   phone?: string;
   url?: string;
+  domain?: string;
+  contact_url?: string;
+  book_online_url?: string;
+  main_image?: string;
+  total_photos?: number;
   lat?: number;
   lng?: number;
+  is_claimed?: boolean;
+  price_level?: string;
+  hotel_rating?: number;
+  work_hours?: unknown;
+  local_justifications?: unknown[];
 };
+
+/** Display helper for Google price_level strings. */
+export function formatPriceLevel(level?: string | null): string | null {
+  if (!level) return null;
+  switch (level) {
+    case "inexpensive":
+      return "$";
+    case "moderate":
+      return "$$";
+    case "expensive":
+      return "$$$";
+    case "very_expensive":
+      return "$$$$";
+    default:
+      return level;
+  }
+}
 
 export type GridEntityRef = {
   key: string;

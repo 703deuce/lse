@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  Camera,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -9,11 +10,12 @@ import {
   GitCompare,
   Globe,
   Loader2,
+  MapPin,
+  Phone,
   RefreshCw,
-  X,
 } from "lucide-react";
 import { rankLabel } from "@/lib/maps/grid-metrics";
-import type { StoredCompetitor } from "@/lib/maps/grid-entity";
+import { formatPriceLevel, type StoredCompetitor } from "@/lib/maps/grid-entity";
 import type { CellWhyResult } from "@/lib/maps/cell-why";
 import { GridStarRating, gridInspectorActionBtn } from "@/components/scan/grid-rank-ui";
 import { cn } from "@/lib/utils";
@@ -60,6 +62,8 @@ interface CellInspectorDrawerProps {
   businessId: string;
   selectedEntityKey?: string;
   variant?: "drawer" | "panel";
+  /** Keep the panel mounted even before a cell is selected (left SERP rail). */
+  alwaysVisible?: boolean;
   pointLabel?: string | null;
   onNavigatePrev?: () => void;
   onNavigateNext?: () => void;
@@ -67,11 +71,178 @@ interface CellInspectorDrawerProps {
   canNavigateNext?: boolean;
   onClose: () => void;
   onCompareCell?: (cellId: string) => void;
+  className?: string;
 }
 
 const isDev = process.env.NODE_ENV === "development";
 const INITIAL_RESULTS_SHOWN = 10;
 const MAX_RESULTS_SHOWN = 20;
+
+function isTargetListing(
+  r: StoredCompetitor,
+  matched: StoredCompetitor | null | undefined
+): boolean {
+  if (!matched) return false;
+  return (
+    (!!r.cid && r.cid === matched.cid) ||
+    (!!r.place_id && r.place_id === matched.place_id) ||
+    (!!r.name && r.name === matched.name)
+  );
+}
+
+function justificationTexts(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((j) => {
+      if (typeof j === "string") return j;
+      if (j && typeof j === "object" && "text" in j) {
+        const t = (j as { text?: unknown }).text;
+        return typeof t === "string" ? t : null;
+      }
+      return null;
+    })
+    .filter((t): t is string => !!t?.trim());
+}
+
+function SerpListingCard({
+  listing,
+  index,
+  isTarget,
+}: {
+  listing: StoredCompetitor;
+  index: number;
+  isTarget: boolean;
+}) {
+  const rank = listing.rank ?? index + 1;
+  const price = formatPriceLevel(listing.price_level);
+  const justifications = justificationTexts(listing.local_justifications);
+  const categories = [
+    listing.category,
+    ...(listing.additional_categories ?? []),
+  ].filter((c, i, arr): c is string => !!c && arr.indexOf(c) === i);
+
+  return (
+    <article
+      className={cn(
+        "flex gap-3 border-b border-zinc-100 px-3.5 py-3.5 last:border-b-0",
+        isTarget && "bg-emerald-50/50"
+      )}
+    >
+      <div className="relative h-[88px] w-[88px] shrink-0 overflow-hidden rounded-md bg-zinc-100">
+        {listing.main_image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={listing.main_image}
+            alt=""
+            className="h-full w-full object-cover"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-zinc-300">
+            <MapPin className="h-7 w-7" />
+          </div>
+        )}
+        <span className="absolute left-1 top-1 rounded bg-black/65 px-1.5 py-0.5 text-[10px] font-bold text-white">
+          {rank}
+        </span>
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <h4
+            className={cn(
+              "text-[14px] font-semibold leading-snug text-zinc-900",
+              isTarget && "text-[#0f6244]"
+            )}
+          >
+            {listing.name ?? "Untitled listing"}
+            {isTarget ? (
+              <span className="ml-1.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800">
+                You
+              </span>
+            ) : null}
+          </h4>
+          {price ? (
+            <span className="shrink-0 text-[12px] font-medium text-zinc-500">{price}</span>
+          ) : null}
+        </div>
+
+        <div className="mt-0.5">
+          <GridStarRating rating={listing.rating} reviewCount={listing.review_count} />
+        </div>
+
+        {categories.length > 0 ? (
+          <p className="mt-1 line-clamp-1 text-[12px] text-zinc-600">
+            {categories.slice(0, 2).join(" · ")}
+          </p>
+        ) : null}
+
+        {(listing.address || listing.snippet) && (
+          <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-zinc-500">
+            {listing.address || listing.snippet}
+          </p>
+        )}
+
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-zinc-500">
+          {listing.total_photos != null && listing.total_photos > 0 ? (
+            <span className="inline-flex items-center gap-1">
+              <Camera className="h-3 w-3" />
+              {listing.total_photos.toLocaleString()} photos
+            </span>
+          ) : null}
+          {listing.is_claimed === true ? (
+            <span className="font-medium text-zinc-600">Claimed</span>
+          ) : listing.is_claimed === false ? (
+            <span>Unclaimed</span>
+          ) : null}
+          {listing.hotel_rating != null ? (
+            <span>{listing.hotel_rating}-star</span>
+          ) : null}
+        </div>
+
+        {justifications.length > 0 ? (
+          <p className="mt-1.5 line-clamp-2 text-[11px] italic text-zinc-500">
+            {justifications[0]}
+          </p>
+        ) : null}
+
+        <div className="mt-2 flex flex-wrap gap-2">
+          {listing.phone ? (
+            <a
+              href={`tel:${listing.phone}`}
+              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              <Phone className="h-3 w-3" />
+              Call
+            </a>
+          ) : null}
+          {listing.url ? (
+            <a
+              href={listing.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2 py-1 text-[11px] font-medium text-[#137752] hover:bg-emerald-50/60"
+            >
+              <Globe className="h-3 w-3" />
+              Website
+            </a>
+          ) : null}
+          {listing.book_online_url ? (
+            <a
+              href={listing.book_online_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              Book
+            </a>
+          ) : null}
+        </div>
+      </div>
+    </article>
+  );
+}
 
 export function CellInspectorDrawer({
   scanId,
@@ -79,6 +250,7 @@ export function CellInspectorDrawer({
   keywordId,
   selectedEntityKey = "you",
   variant = "drawer",
+  alwaysVisible = false,
   pointLabel,
   onNavigatePrev,
   onNavigateNext,
@@ -86,6 +258,7 @@ export function CellInspectorDrawer({
   canNavigateNext = false,
   onClose,
   onCompareCell,
+  className,
 }: CellInspectorDrawerProps) {
   const [data, setData] = useState<CellInspectorData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -145,14 +318,17 @@ export function CellInspectorDrawer({
       setWhyData(null);
       setWhyError(null);
       setExpandedResults(false);
-    } else setData(null);
+    } else {
+      setData(null);
+      setError(null);
+    }
   }, [cellId, load]);
 
   useEffect(() => {
     if (tab === "why" && cellId && !whyData && !whyLoading) void loadWhy();
   }, [tab, cellId, whyData, whyLoading, loadWhy]);
 
-  if (!cellId) return null;
+  if (!cellId && !alwaysVisible) return null;
 
   async function copyCoordinates() {
     if (!data) return;
@@ -175,23 +351,45 @@ export function CellInspectorDrawer({
 
   const panelBody = (
     <div
-      className={
+      className={cn(
         variant === "panel"
-          ? "flex h-full w-[min(100vw,400px)] shrink-0 flex-col border-l border-zinc-200 bg-white"
-          : "flex h-full w-full max-w-xl flex-col bg-white shadow-xl"
-      }
+          ? "flex h-full w-full min-w-0 flex-col border-zinc-200 bg-white"
+          : "flex h-full w-full max-w-xl flex-col bg-white shadow-xl",
+        className
+      )}
       onClick={variant === "drawer" ? (e) => e.stopPropagation() : undefined}
     >
-      <div className="flex items-start justify-between border-b border-zinc-200 px-4 py-3">
-        <div>
-          <h2 className="text-[15px] font-semibold text-zinc-900">Cell Inspector</h2>
-          {(pointLabel || data) && (
-            <p className="mt-0.5 text-xs text-zinc-500">
-              Point <span className="font-semibold text-zinc-800">{pointLabel ?? data?.cell.label}</span>
-            </p>
-          )}
+      <div className="flex items-start justify-between border-b border-zinc-200 px-3.5 py-3">
+        <div className="min-w-0">
+          <h2 className="text-[15px] font-semibold text-zinc-900">
+            {data?.keyword?.keyword ?? "Local results"}
+          </h2>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            {pointLabel || data?.cell.label ? (
+              <>
+                Point{" "}
+                <span className="font-semibold text-zinc-800">
+                  {pointLabel ?? data?.cell.label}
+                </span>
+                {data?.target.found ? (
+                  <>
+                    {" · "}Your rank{" "}
+                    <span className="font-semibold text-[#137752]">
+                      #{rankLabel(data.target.rank)}
+                    </span>
+                  </>
+                ) : data ? (
+                  <>
+                    {" · "}Your rank <span className="font-semibold text-zinc-700">20+</span>
+                  </>
+                ) : null}
+              </>
+            ) : (
+              "Select a map pin to inspect listings"
+            )}
+          </p>
         </div>
-        <div className="flex items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-0.5">
           {variant === "panel" && onNavigatePrev && (
             <button
               type="button"
@@ -214,69 +412,53 @@ export function CellInspectorDrawer({
               <ChevronRight className="h-4 w-4" />
             </button>
           )}
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded p-1.5 text-zinc-500 hover:bg-zinc-100"
-            aria-label="Close inspector"
-          >
-            <X className="h-4 w-4" />
-          </button>
         </div>
       </div>
 
-      <div className="flex gap-0 border-b border-zinc-200 px-4">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={cn(
-              "-mb-px border-b-2 px-3.5 py-2.5 text-[13px] font-medium transition-colors",
-              tab === t.id
-                ? "border-[#137752] text-[#137752]"
-                : "border-transparent text-zinc-500 hover:text-zinc-800"
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {cellId ? (
+        <div className="flex gap-0 border-b border-zinc-200 px-3.5">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "-mb-px border-b-2 px-3 py-2.5 text-[13px] font-medium transition-colors",
+                tab === t.id
+                  ? "border-[#137752] text-[#137752]"
+                  : "border-transparent text-zinc-500 hover:text-zinc-800"
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 text-sm">
-        {loading && (
-          <div className="flex items-center gap-2 text-zinc-500">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading rank data…
+      <div className="min-h-0 flex-1 overflow-y-auto text-sm">
+        {!cellId && (
+          <div className="px-4 py-8 text-center text-[13px] text-zinc-500">
+            Waiting for the center pin to load…
           </div>
         )}
-        {error && <p className="text-red-600">{error}</p>}
+
+        {cellId && loading && (
+          <div className="flex items-center gap-2 px-4 py-6 text-zinc-500">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading local results…
+          </div>
+        )}
+        {cellId && error && <p className="px-4 py-4 text-red-600">{error}</p>}
 
         {data && !loading && tab === "results" && (
-          <div className="space-y-4">
-            <section className="rounded-lg border border-zinc-200 bg-white p-3.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-                Your rank
-              </p>
-              <p className="mt-0.5 text-[34px] font-bold leading-none text-[#137752]">
-                {data.target.found ? `#${rankLabel(data.target.rank)}` : "20+"}
-              </p>
-              <p className="mt-2 text-[13px] text-zinc-700">
-                <span className="text-zinc-500">Keyword:</span>{" "}
-                <span className="font-medium">{data.keyword?.keyword ?? "—"}</span>
-              </p>
-              <p className="mt-0.5 font-mono text-[11px] text-zinc-500">
-                Coords: {data.cell.lat.toFixed(6)}, {data.cell.lng.toFixed(6)}
-              </p>
-            </section>
-
-            <div className="flex flex-wrap items-center gap-2">
+          <div>
+            <div className="flex flex-wrap items-center gap-2 border-b border-zinc-100 px-3.5 py-2.5">
               {onCompareCell && (
                 <button
                   type="button"
                   onClick={() => onCompareCell(data.cell.id)}
                   className={gridInspectorActionBtn}
                 >
-                  <GitCompare className="h-3.5 w-3.5" /> Compare this cell
+                  <GitCompare className="h-3.5 w-3.5" /> Compare
                 </button>
               )}
               <button
@@ -284,7 +466,7 @@ export function CellInspectorDrawer({
                 onClick={() => void copyCoordinates()}
                 className={gridInspectorActionBtn}
               >
-                <Copy className="h-3.5 w-3.5" /> {copied ? "Copied!" : "Copy coordinates"}
+                <Copy className="h-3.5 w-3.5" /> {copied ? "Copied!" : "Coords"}
               </button>
               {data.checkUrl && (
                 <a
@@ -293,121 +475,59 @@ export function CellInspectorDrawer({
                   rel="noopener noreferrer"
                   className={gridInspectorActionBtn}
                 >
-                  <ExternalLink className="h-3.5 w-3.5" /> Verify on Maps
+                  <ExternalLink className="h-3.5 w-3.5" /> Maps
                 </a>
               )}
             </div>
 
-            <section>
-              <h3 className="text-[13px] font-semibold text-zinc-900">Top results at this point</h3>
-              {data.sparseResults && (
-                <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3.5 py-2 text-[12px] text-amber-900">
-                  {data.sparseReason ??
-                    "Maps returned too few listings for this point. Rerun the scan to retry this cell."}
-                </p>
-              )}
-              {!data.hasRawResults ? (
-                <p className="mt-2 text-zinc-500">No listings stored for this point.</p>
-              ) : (
-                <>
-                  <div className="mt-2 overflow-x-auto rounded-lg border border-zinc-200">
-                    <table className="min-w-full text-left text-xs">
-                      <thead className="bg-zinc-50 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-                        <tr>
-                          <th className="w-8 px-3.5 py-2">#</th>
-                          <th className="px-3.5 py-2">Business</th>
-                          <th className="px-3.5 py-2">Rating</th>
-                          <th className="hidden px-3.5 py-2 sm:table-cell">Category</th>
-                          <th className="hidden px-3.5 py-2 md:table-cell">Phone</th>
-                          <th className="px-3.5 py-2 text-right">Website</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-zinc-100">
-                        {visibleResults.map((r, i) => {
-                          const isTarget =
-                            data.target.matchedResult &&
-                            (r.cid === data.target.matchedResult.cid ||
-                              r.place_id === data.target.matchedResult.place_id ||
-                              r.name === data.target.matchedResult.name);
-                          return (
-                            <tr
-                              key={`${r.place_id ?? r.cid ?? r.name ?? i}`}
-                              className={cn(isTarget && "border-l-2 border-[#137752] bg-emerald-50/40")}
-                            >
-                              <td className="px-3.5 py-2.5 align-top font-semibold tabular-nums text-zinc-600">
-                                {r.rank ?? i + 1}
-                              </td>
-                              <td className="max-w-[140px] px-3.5 py-2.5 align-top">
-                                <p className="text-[13px] font-semibold text-zinc-900">{r.name ?? "—"}</p>
-                                {r.address && (
-                                  <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-zinc-500">
-                                    {r.address}
-                                  </p>
-                                )}
-                              </td>
-                              <td className="whitespace-nowrap px-3.5 py-2.5 align-top">
-                                <GridStarRating rating={r.rating} reviewCount={r.review_count} />
-                              </td>
-                              <td className="hidden max-w-[100px] px-3.5 py-2.5 align-top text-[11px] text-zinc-600 sm:table-cell">
-                                {r.category ?? "—"}
-                              </td>
-                              <td className="hidden whitespace-nowrap px-3.5 py-2.5 align-top text-[11px] text-zinc-600 md:table-cell">
-                                {r.phone ? (
-                                  <a href={`tel:${r.phone}`} className="hover:text-[#137752]">
-                                    {r.phone}
-                                  </a>
-                                ) : (
-                                  "—"
-                                )}
-                              </td>
-                              <td className="px-3.5 py-2.5 align-top text-right">
-                                {r.url ? (
-                                  <a
-                                    href={r.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-[11px] font-medium text-[#137752] hover:underline"
-                                  >
-                                    <Globe className="h-3 w-3" />
-                                    Open
-                                  </a>
-                                ) : (
-                                  <span className="text-[11px] text-zinc-300">—</span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                  {canLoadMore && (
-                    <button
-                      type="button"
-                      onClick={() => setExpandedResults(true)}
-                      className="mt-2 w-full rounded-md border border-zinc-200 py-2 text-[13px] font-medium text-[#137752] hover:bg-emerald-50/50"
-                    >
-                      Load more ({Math.min(MAX_RESULTS_SHOWN, data.rawResults.length) - INITIAL_RESULTS_SHOWN}{" "}
-                      more)
-                    </button>
-                  )}
-                  {expandedResults && data.rawResults.length > INITIAL_RESULTS_SHOWN && (
-                    <button
-                      type="button"
-                      onClick={() => setExpandedResults(false)}
-                      className="mt-2 w-full text-center text-[12px] font-medium text-zinc-500 hover:text-zinc-700"
-                    >
-                      Show fewer
-                    </button>
-                  )}
-                </>
-              )}
-            </section>
+            {data.sparseResults && (
+              <p className="mx-3.5 mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
+                {data.sparseReason ??
+                  "Maps returned too few listings for this point. Recovery may still retry it."}
+              </p>
+            )}
+
+            {!data.hasRawResults ? (
+              <p className="px-3.5 py-6 text-zinc-500">No listings stored for this point yet.</p>
+            ) : (
+              <>
+                <div className="divide-y divide-zinc-100">
+                  {visibleResults.map((r, i) => (
+                    <SerpListingCard
+                      key={`${r.place_id ?? r.cid ?? r.name ?? i}`}
+                      listing={r}
+                      index={i}
+                      isTarget={isTargetListing(r, data.target.matchedResult)}
+                    />
+                  ))}
+                </div>
+                {canLoadMore && (
+                  <button
+                    type="button"
+                    onClick={() => setExpandedResults(true)}
+                    className="w-full border-t border-zinc-100 py-3 text-[13px] font-medium text-[#137752] hover:bg-emerald-50/40"
+                  >
+                    Show more (
+                    {Math.min(MAX_RESULTS_SHOWN, data.rawResults.length) - INITIAL_RESULTS_SHOWN}{" "}
+                    more)
+                  </button>
+                )}
+                {expandedResults && data.rawResults.length > INITIAL_RESULTS_SHOWN && (
+                  <button
+                    type="button"
+                    onClick={() => setExpandedResults(false)}
+                    className="w-full border-t border-zinc-100 py-2.5 text-center text-[12px] font-medium text-zinc-500 hover:text-zinc-700"
+                  >
+                    Show fewer
+                  </button>
+                )}
+              </>
+            )}
           </div>
         )}
 
-        {tab === "why" && (
-          <div className="space-y-4">
+        {tab === "why" && cellId && (
+          <div className="space-y-4 px-3.5 py-4">
             {whyLoading && (
               <div className="flex items-center gap-2 text-zinc-500">
                 <Loader2 className="h-4 w-4 animate-spin" /> Analyzing…
@@ -473,27 +593,42 @@ export function CellInspectorDrawer({
         )}
 
         {tab === "raw" && data && (
-          <pre className="overflow-x-auto rounded bg-zinc-50 p-3 text-xs text-zinc-800">
+          <pre className="overflow-x-auto p-3 text-xs text-zinc-800">
             {JSON.stringify(data.rawResults, null, 2)}
           </pre>
         )}
       </div>
 
-      <div className="flex items-center justify-between border-t border-zinc-200 px-4 py-2.5">
-        <button
-          type="button"
-          onClick={() => void load()}
-          disabled={loading}
-          className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-800"
-        >
-          <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} /> Refresh
-        </button>
-        {data?.sourceTimestamp && (
-          <span className="text-[11px] text-zinc-400">
-            Updated {new Date(data.sourceTimestamp).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
-          </span>
-        )}
-      </div>
+      {cellId ? (
+        <div className="flex items-center justify-between border-t border-zinc-200 px-3.5 py-2">
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={loading}
+            className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-800"
+          >
+            <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} /> Refresh
+          </button>
+          {data?.sourceTimestamp && (
+            <span className="text-[11px] text-zinc-400">
+              Updated{" "}
+              {new Date(data.sourceTimestamp).toLocaleTimeString(undefined, {
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </span>
+          )}
+          {variant === "drawer" ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-xs font-medium text-zinc-500 hover:text-zinc-800"
+            >
+              Close
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 

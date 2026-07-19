@@ -30,21 +30,42 @@ export interface MapsLiveResult {
   type?: string;
   rank_group?: number;
   rank_absolute?: number;
-  title?: string;
-  place_id?: string;
-  cid?: string;
-  rating?: { value?: number; votes_count?: number };
-  category?: string;
-  additional_categories?: string[];
-  address?: string;
-  phone?: string;
-  url?: string;
   domain?: string;
+  title?: string;
+  original_title?: string | null;
+  url?: string | null;
+  contact_url?: string | null;
+  contributor_url?: string | null;
+  book_online_url?: string | null;
+  rating?: { rating_type?: string; value?: number; votes_count?: number; rating_max?: number } | null;
+  rating_distribution?: Record<string, number> | null;
+  snippet?: string | null;
+  address?: string | null;
+  address_info?: {
+    borough?: string | null;
+    address?: string | null;
+    city?: string | null;
+    zip?: string | null;
+    region?: string | null;
+    country_code?: string | null;
+  } | null;
+  place_id?: string;
+  phone?: string | null;
+  main_image?: string | null;
+  total_photos?: number | null;
+  category?: string | null;
+  additional_categories?: string[] | null;
+  category_ids?: string[] | null;
   work_hours?: unknown;
-  is_claimed?: boolean;
-  local_justifications?: unknown[];
+  feature_id?: string | null;
+  cid?: string;
   latitude?: number;
   longitude?: number;
+  is_claimed?: boolean | null;
+  local_justifications?: unknown[] | null;
+  is_directory_item?: boolean | null;
+  price_level?: string | null;
+  hotel_rating?: number | null;
 }
 
 export interface MapsLiveResponse {
@@ -360,18 +381,39 @@ export async function getMapsTaskResult(taskId: string, organizationId?: string)
   );
 }
 
+/** Persist the full useful Maps listing payload for the SERP side panel. */
 export function extractTopCompetitors(items: MapsLiveResult[], limit = 100) {
   return items.slice(0, limit).map((item, idx) => ({
-    rank: item.rank_group ?? idx + 1,
-    name: item.title,
-    cid: item.cid,
-    place_id: item.place_id,
-    rating: item.rating?.value,
-    review_count: item.rating?.votes_count,
-    category: item.category,
-    address: item.address,
-    phone: item.phone,
-    url: item.url,
-    local_justifications: item.local_justifications,
+    rank: item.rank_group ?? item.rank_absolute ?? idx + 1,
+    name: item.title ?? undefined,
+    original_title: item.original_title ?? undefined,
+    cid: item.cid ?? undefined,
+    place_id: item.place_id ?? undefined,
+    feature_id: item.feature_id ?? undefined,
+    rating: item.rating?.value ?? undefined,
+    review_count: item.rating?.votes_count ?? undefined,
+    rating_distribution: item.rating_distribution ?? undefined,
+    category: item.category ?? undefined,
+    additional_categories: item.additional_categories?.length
+      ? item.additional_categories
+      : undefined,
+    category_ids: item.category_ids?.length ? item.category_ids : undefined,
+    address: item.address ?? item.snippet ?? undefined,
+    snippet: item.snippet ?? undefined,
+    address_info: item.address_info ?? undefined,
+    phone: item.phone ?? undefined,
+    url: item.url ?? undefined,
+    domain: item.domain ?? undefined,
+    contact_url: item.contact_url ?? undefined,
+    book_online_url: item.book_online_url ?? undefined,
+    main_image: item.main_image ?? undefined,
+    total_photos: item.total_photos ?? undefined,
+    lat: item.latitude ?? undefined,
+    lng: item.longitude ?? undefined,
+    is_claimed: item.is_claimed ?? undefined,
+    price_level: item.price_level ?? undefined,
+    hotel_rating: item.hotel_rating ?? undefined,
+    work_hours: item.work_hours ?? undefined,
+    local_justifications: item.local_justifications ?? undefined,
   }));
 }

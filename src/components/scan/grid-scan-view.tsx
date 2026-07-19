@@ -947,6 +947,23 @@ export function GridScanView({
     () => cells.filter((c) => c.pointId).map((c) => c.pointId as string),
     [cells]
   );
+
+  // When scan/keyword changes, reopen on the center pin (not a blank map).
+  useEffect(() => {
+    setInspectorCellId(null);
+  }, [activeScanId, keywordId]);
+
+  // Auto-select the geometric center cell once points are available.
+  useEffect(() => {
+    if (!gridCells.length || gridSize < 1) return;
+    if (inspectorCellId && gridCells.some((c) => c.pointId === inspectorCellId)) return;
+    const mid = Math.floor(gridSize / 2);
+    const center =
+      gridCells.find((c) => c.row === mid && c.col === mid && c.pointId) ??
+      gridCells.find((c) => c.pointId);
+    if (center?.pointId) setInspectorCellId(center.pointId);
+  }, [gridCells, gridSize, inspectorCellId]);
+
   const inspectorIndex = inspectorCellId ? inspectorCellIds.indexOf(inspectorCellId) : -1;
   const inspectorPointLabel = useMemo(() => {
     const cell = cells.find((c) => c.pointId === inspectorCellId);
@@ -1294,11 +1311,49 @@ export function GridScanView({
                       className="mb-2"
                     />
                     <div
-                      className={`flex min-h-[min(52vh,420px)] overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-opacity duration-300 sm:min-h-[min(62vh,560px)] ${
+                      className={`flex min-h-[min(58vh,520px)] flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-opacity duration-300 lg:min-h-[min(70vh,640px)] lg:flex-row ${
                         timelineFetching ? "opacity-75" : "opacity-100"
                       }`}
                     >
-                      <div className="relative min-w-0 flex-1">
+                      <div className="flex max-h-[42vh] min-h-[280px] w-full shrink-0 flex-col border-b border-zinc-200 lg:max-h-none lg:min-h-0 lg:w-[34%] lg:max-w-[440px] lg:border-b-0 lg:border-r">
+                        <CellInspectorDrawer
+                          variant="panel"
+                          alwaysVisible
+                          scanId={activeScanId}
+                          cellId={inspectorCellId}
+                          keywordId={keywordId}
+                          businessId={businessId}
+                          selectedEntityKey={entityKey}
+                          pointLabel={inspectorPointLabel}
+                          canNavigatePrev={inspectorIndex > 0}
+                          canNavigateNext={
+                            inspectorIndex >= 0 && inspectorIndex < inspectorCellIds.length - 1
+                          }
+                          onNavigatePrev={() => {
+                            if (inspectorIndex > 0) {
+                              setInspectorCellId(inspectorCellIds[inspectorIndex - 1] ?? null);
+                            }
+                          }}
+                          onNavigateNext={() => {
+                            if (inspectorIndex < inspectorCellIds.length - 1) {
+                              setInspectorCellId(inspectorCellIds[inspectorIndex + 1] ?? null);
+                            }
+                          }}
+                          onClose={() => {
+                            /* Panel stays open — re-select center instead of blanking. */
+                            const mid = Math.floor(gridSize / 2);
+                            const center = gridCells.find(
+                              (c) => c.row === mid && c.col === mid && c.pointId
+                            );
+                            setInspectorCellId(center?.pointId ?? inspectorCellIds[0] ?? null);
+                          }}
+                          onCompareCell={() => {
+                            setCompareOpen(true);
+                          }}
+                          className="min-h-0 flex-1"
+                        />
+                      </div>
+                      <div className="relative min-h-[320px] min-w-0 flex-1 lg:min-h-0">
                         <div className="absolute right-3 top-3 z-[500] flex rounded-md border border-zinc-200 bg-white p-0.5 text-[11px] shadow-sm">
                           <button
                             type="button"
@@ -1323,17 +1378,13 @@ export function GridScanView({
                             Rings
                           </button>
                         </div>
-                        <div className="absolute bottom-12 right-3 z-[500]">
-                          <span className="inline-flex items-center rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 shadow-sm">
-                            Map ▾
-                          </span>
-                        </div>
                         <ScanMap
                           key={`${colorMode}-${entityKey}-${mapMode}`}
                           officeCenter={[officeLat, officeLng]}
                           cells={cells}
                           businessName={entityKey === "you" ? business?.name : viewingEntity?.label}
                           colorMode={colorMode}
+                          height="100%"
                           onCellClick={mapMode === "default" ? handleCellClick : undefined}
                           interactionMode={mapMode}
                           previewCenter={moveGridActive ? effectivePreviewCenter : undefined}
@@ -1377,39 +1428,11 @@ export function GridScanView({
                           </div>
                         )}
                       </div>
-                      <CellInspectorDrawer
-                        variant="panel"
-                        scanId={activeScanId}
-                        cellId={inspectorCellId}
-                        keywordId={keywordId}
-                        businessId={businessId}
-                        selectedEntityKey={entityKey}
-                        pointLabel={inspectorPointLabel}
-                        canNavigatePrev={inspectorIndex > 0}
-                        canNavigateNext={
-                          inspectorIndex >= 0 && inspectorIndex < inspectorCellIds.length - 1
-                        }
-                        onNavigatePrev={() => {
-                          if (inspectorIndex > 0) {
-                            setInspectorCellId(inspectorCellIds[inspectorIndex - 1] ?? null);
-                          }
-                        }}
-                        onNavigateNext={() => {
-                          if (inspectorIndex < inspectorCellIds.length - 1) {
-                            setInspectorCellId(inspectorCellIds[inspectorIndex + 1] ?? null);
-                          }
-                        }}
-                        onClose={() => setInspectorCellId(null)}
-                        onCompareCell={() => {
-                          setInspectorCellId(null);
-                          setCompareOpen(true);
-                        }}
-                      />
                     </div>
                     <p className="mt-2 text-center text-xs text-zinc-500">
                       ~{scanMeta.spacingMiles} miles between map pins
                       {notInPackCells > 0 ? ` · ${notInPackCells} cells outside local pack` : ""}
-                      {" · Click a bubble to open Cell Inspector"}
+                      {" · Center pin opens automatically · click any bubble to switch results"}
                     </p>
                   </div>
                 )}
