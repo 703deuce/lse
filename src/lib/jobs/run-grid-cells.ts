@@ -53,6 +53,7 @@ import {
 } from "@/lib/maps/provider-modes";
 import { runDataForSeoPriorityPass } from "@/lib/jobs/run-dfs-priority-pass";
 import { mapsFallbackEnabled } from "@/lib/providers/maps-grid/config";
+import { parseMapsLocationZoom } from "@/lib/maps/maps-zoom";
 
 /** Default wave size — overridden by BRIGHTDATA_GRID_BATCH_SIZE / FAIR_CHUNK (max 100). */
 const BRIGHTDATA_GRID_BATCH_SIZE = 10;
@@ -341,13 +342,20 @@ async function runOneCell(
   passLabel: string,
   concurrency: number,
   providers: MapsProviderId[],
-  options?: { allowTransientRetry?: boolean; scanRetryRound?: number }
+  options?: {
+    allowTransientRetry?: boolean;
+    scanRetryRound?: number;
+    locationZoom?: number;
+  }
 ): Promise<GridCellRunResult> {
   const supabase = createServiceClient();
   const kw = job.keyword.keyword.trim();
   const lat = job.point.lat;
   const lng = job.point.lng;
-  const locationCoordinate = `${lat},${lng},${LOCAL_FALCON_PARITY.locationZoom}`;
+  const locationZoom = parseMapsLocationZoom(
+    options?.locationZoom ?? LOCAL_FALCON_PARITY.locationZoom
+  );
+  const locationCoordinate = `${lat},${lng},${locationZoom}`;
   const cellStarted = performance.now();
   let matchingSec = 0;
   let dbSaveSec = 0;
@@ -422,6 +430,7 @@ async function runOneCell(
     os,
     browser,
     depth,
+    locationZoom,
     organizationId: job.organizationId,
     providers,
     allowTransientRetry: options?.allowTransientRetry,
@@ -730,6 +739,7 @@ async function runJobsWithConcurrency(
     onCellSettled?: (success: boolean) => Promise<void>;
     updateProgress?: boolean;
     organizationId?: string;
+    locationZoom?: number;
   }
 ): Promise<{
   results: GridCellRunResult[];
@@ -781,6 +791,7 @@ async function runJobsWithConcurrency(
           {
             allowTransientRetry: params.allowTransientRetry,
             scanRetryRound: params.scanRetryRound,
+            locationZoom: params.locationZoom,
           }
         );
         completed++;
@@ -954,6 +965,7 @@ async function runIntegrityPass(params: {
   organizationId?: string;
   onCellSettled?: (success: boolean) => Promise<void>;
   providerMode?: MapsProviderMode;
+  locationZoom?: number;
 }): Promise<{
   failedCells: number;
   failedPointIds: string[];
@@ -961,6 +973,9 @@ async function runIntegrityPass(params: {
   successCount: number;
 }> {
   const providerMode = parseMapsProviderMode(params.providerMode);
+  const locationZoom = parseMapsLocationZoom(
+    params.locationZoom ?? LOCAL_FALCON_PARITY.locationZoom
+  );
   const supabase = createServiceClient();
   const { data: pointRows } = await supabase
     .from("scan_points")
@@ -1015,6 +1030,7 @@ async function runIntegrityPass(params: {
     updateProgress: true,
     onCellSettled: params.onCellSettled,
     organizationId: params.organizationId,
+    locationZoom,
   });
 
   const { data: refreshedResults } = savedPointIds.length
@@ -1080,6 +1096,8 @@ export async function runGridCellsLive(params: {
   resume?: boolean;
   /** Hybrid / ScrapingDog-only / DataForSEO-only — for A/B testing. */
   providerMode?: MapsProviderMode;
+  /** Maps SERP zoom (Local Falcon API default 13). */
+  locationZoom?: number;
   onSoftReady?: () => Promise<void>;
   onLeaseHeartbeat?: () => Promise<void>;
 }): Promise<{
@@ -1094,6 +1112,9 @@ export async function runGridCellsLive(params: {
   const retryDelayMs = mapsGridRetryDelayMs();
   const batchSize = mapsCellBatchSize();
   const providerMode = parseMapsProviderMode(params.providerMode ?? DEFAULT_MAPS_PROVIDER_MODE);
+  const locationZoom = parseMapsLocationZoom(
+    params.locationZoom ?? LOCAL_FALCON_PARITY.locationZoom
+  );
   // Primary + optional secondary (e.g. DataForSEO → Bright Data when fallback enabled).
   const primaryProviders = Array.from(
     new Set([
@@ -1151,6 +1172,7 @@ export async function runGridCellsLive(params: {
     resume: !!params.resume,
     providerMode,
     providerModeLabel: mapsProviderModeLabel(providerMode),
+    locationZoom,
     primaryProviders,
     totalCells,
     pendingCells: jobs.length,
@@ -1204,6 +1226,7 @@ export async function runGridCellsLive(params: {
       organizationId: params.organizationId,
       onCellSettled,
       providerMode,
+      locationZoom,
     });
     const failedCells = integrity.failedCells;
     const successCells = Math.max(0, totalCells - failedCells);
@@ -1229,7 +1252,7 @@ export async function runGridCellsLive(params: {
   // poll results, retry incomplete once on Priority, then Bright Data.
   if (providerMode === "dataforseo") {
     console.log(
-      `[Scan] DataForSEO Priority batch primary: ${jobs.length} cells (search_this_area=${LOCAL_FALCON_PARITY.searchThisArea}, search_places=${LOCAL_FALCON_PARITY.searchPlaces}, depth=${depth})`
+      `[Scan] DataForSEO Priority batch primary: ${jobs.length} cells (search_this_area=${LOCAL_FALCON_PARITY.searchThisArea}, search_places=${LOCAL_FALCON_PARITY.searchPlaces}, zoom=${locationZoom}, depth=${depth})`
     );
     await scheduleCellProgress(
       params.scanBatchId,
@@ -1240,6 +1263,7 @@ export async function runGridCellsLive(params: {
         pass: "dfs-priority-primary",
         recovery_stage: "fallback_dataforseo",
         maps_provider_mode: providerMode,
+        location_zoom: locationZoom,
         method: "dfs_priority_batch",
       },
       { force: true }
@@ -1250,6 +1274,7 @@ export async function runGridCellsLive(params: {
       passLabel: "dfs-priority-primary",
       scanRetryRound: 0,
       organizationId: params.organizationId,
+      locationZoom,
     });
     allTimings.push(...primaryPass.timings);
     failedFromPrimary.push(...failedJobsFromPass(jobs, primaryPass.results));
@@ -1288,6 +1313,7 @@ export async function runGridCellsLive(params: {
         // No mid-primary soft-ready — map waits until pass=complete after integrity.
         onCellSettled,
         organizationId: params.organizationId,
+        locationZoom,
       });
       allTimings.push(...pass.timings);
       failedFromPrimary.push(...failedJobsFromPass(chunk, pass.results));
@@ -1342,6 +1368,7 @@ export async function runGridCellsLive(params: {
       scanRetryRound: 1,
       organizationId: params.organizationId,
       forceDesktop: true,
+      locationZoom,
     });
     allTimings.push(...retryPass.timings);
     completedOffset += retryPass.successCount;
@@ -1383,6 +1410,7 @@ export async function runGridCellsLive(params: {
         updateProgress: true,
         onCellSettled,
         organizationId: params.organizationId,
+        locationZoom,
       });
       allTimings.push(...bdPass.timings);
       completedOffset += bdPass.successCount;
@@ -1423,6 +1451,7 @@ export async function runGridCellsLive(params: {
       updateProgress: true,
       onCellSettled,
       organizationId: params.organizationId,
+      locationZoom,
     });
     allTimings.push(...retryPass.timings);
     completedOffset += retryPass.successCount;
@@ -1529,6 +1558,7 @@ export async function runGridCellsLive(params: {
         updateProgress: true,
         onCellSettled,
         organizationId: params.organizationId,
+        locationZoom,
       });
       allTimings.push(...pass.timings);
       completedOffset += pass.successCount;
@@ -1573,6 +1603,7 @@ export async function runGridCellsLive(params: {
     organizationId: params.organizationId,
     onCellSettled,
     providerMode,
+    locationZoom,
   });
   allTimings.push(...integrity.timings);
   // Prefer DB as source of truth after integrity.

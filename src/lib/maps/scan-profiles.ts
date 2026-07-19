@@ -2,7 +2,7 @@
 
 export const MAPS_LIVE_ENDPOINT = "serp/google/maps/live/advanced";
 /** @deprecated Use LOCAL_FALCON_PARITY.locationZoom — kept for imports */
-export const MAPS_LOCATION_ZOOM = 17;
+export const MAPS_LOCATION_ZOOM = 13;
 export const MAPS_LANGUAGE = "en";
 
 export type ScanDeviceProfile = {

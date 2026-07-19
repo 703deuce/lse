@@ -292,6 +292,8 @@ export async function processScanBatch(
     const totalTasks = insertedPoints.length * keywordList.length;
     const confSummary = (batch.confidence_summary ?? {}) as Record<string, unknown>;
     const providerMode = parseMapsProviderMode(confSummary.maps_provider_mode);
+    const { parseMapsLocationZoom } = await import("@/lib/maps/maps-zoom");
+    const locationZoom = parseMapsLocationZoom(confSummary.location_zoom);
 
     console.log("[Scan] Starting batch:", {
       scanBatchId,
@@ -301,6 +303,7 @@ export async function processScanBatch(
       providerMode,
       providerModeLabel: mapsProviderModeLabel(providerMode),
       provider: scanBatchProviderColumn(providerMode),
+      locationZoom,
       gridSize: batch.grid_size,
       radiusMeters: batch.radius_meters,
       keywordCount: keywordList.length,
@@ -326,6 +329,7 @@ export async function processScanBatch(
 
     await mergeScanConfidenceSummary(supabase, scanBatchId, {
       maps_provider_mode: providerMode,
+      location_zoom: locationZoom,
     }).catch(() => undefined);
 
     console.log(
@@ -363,6 +367,7 @@ export async function processScanBatch(
         os: (batch.os as string | null) ?? "android",
         browser: (batch as { browser?: string }).browser ?? "chrome",
         providerMode,
+        locationZoom,
         organizationId: resolvedOrgId,
         onLeaseHeartbeat: async () => {
           await extendScanLease(scanBatchId, leaseOwner);

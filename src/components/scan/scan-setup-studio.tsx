@@ -25,6 +25,11 @@ import {
   MAPS_PROVIDER_MODE_OPTIONS,
   type MapsProviderMode,
 } from "@/lib/maps/provider-modes";
+import {
+  DEFAULT_MAPS_LOCATION_ZOOM,
+  MAPS_ZOOM_OPTIONS,
+  mapsZoomLabel,
+} from "@/lib/maps/maps-zoom";
 import { RadiusMilesField } from "@/components/scan/radius-miles-field";
 import { updateBusinessSettings } from "@/lib/actions/mutations";
 import { cn } from "@/lib/utils";
@@ -88,6 +93,7 @@ export function ScanSetupStudio({
   const [mapsProviderMode, setMapsProviderMode] = useState<MapsProviderMode>(
     DEFAULT_MAPS_PROVIDER_MODE
   );
+  const [locationZoom, setLocationZoom] = useState(DEFAULT_MAPS_LOCATION_ZOOM);
   const [centerLat, setCenterLat] = useState(defaultCenterLat);
   const [centerLng, setCenterLng] = useState(defaultCenterLng);
   const [defaultLat, setDefaultLat] = useState(defaultCenterLat);
@@ -235,6 +241,7 @@ export function ScanSetupStudio({
             os: DEFAULT_SCAN_PROFILE.os,
             browser: DEFAULT_SCAN_PROFILE.browser,
             mapsProviderMode,
+            locationZoom,
             centerLat,
             centerLng,
             centerLabel: locationLabel,
@@ -522,8 +529,23 @@ export function ScanSetupStudio({
                 ))}
               </select>
             </label>
+            <label className={fieldLabel}>
+              Map zoom
+              <select
+                value={locationZoom}
+                onChange={(e) => setLocationZoom(Number(e.target.value))}
+                className={fieldSelect}
+                title="Local Falcon API defaults to 13. Higher zoom = tighter neighborhood."
+              >
+                {MAPS_ZOOM_OPTIONS.map((z) => (
+                  <option key={z} value={z}>
+                    {mapsZoomLabel(z)}
+                  </option>
+                ))}
+              </select>
+            </label>
             <p className="text-[11px] leading-relaxed text-zinc-500">
-              Switch DataForSEO vs ScrapingDog to A/B the same grid. Radius is center → outer edge.
+              A/B provider and zoom (LF default 13 vs tighter 17). Radius is center → outer edge.
             </p>
             <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-[12px] leading-relaxed text-sky-900">
               <p className="flex gap-1.5">

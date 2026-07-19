@@ -45,8 +45,10 @@ export const createScanSchema = z.object({
   device: z.enum(["desktop", "mobile"]).default("mobile"),
   os: z.enum(["android", "ios", "windows", "macos"]).default("android"),
   browser: z.enum(["chrome", "firefox"]).default("chrome"),
-  /** Standard = dataforseo (Maps Live Advanced). hybrid = Bright Data alternate. */
+  /** Standard = dataforseo (Maps Priority). hybrid = Bright Data alternate. */
   mapsProviderMode: mapsProviderModeSchema.default("dataforseo"),
+  /** Local Falcon API default is 13; DataForSEO historically used 17. */
+  locationZoom: z.number().int().min(0).max(18).default(13),
   parityLabel: z.string().optional(),
   centerLat: z.number().min(-90).max(90).optional(),
   centerLng: z.number().min(-180).max(180).optional(),

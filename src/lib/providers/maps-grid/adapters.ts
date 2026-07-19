@@ -29,6 +29,7 @@ export type AdapterInput = {
   os: ScanDeviceProfile["os"];
   browser: ScanDeviceProfile["browser"];
   depth: number;
+  locationZoom?: number;
   organizationId?: string;
   attemptNumber: number;
   timeoutMs?: number;
@@ -152,6 +153,8 @@ export async function runMapsProviderAdapter(
     let request: Record<string, unknown> = {};
     let timestamp = new Date().toISOString();
 
+    const zoom = input.locationZoom ?? LOCAL_FALCON_PARITY.locationZoom;
+
     if (provider === "brightdata") {
       const live = await withTimeout(
         brightDataMapsGridCell({
@@ -162,6 +165,7 @@ export async function runMapsProviderAdapter(
           os: input.os,
           browser: input.browser,
           depth: input.depth,
+          zoom,
           organizationId: input.organizationId,
         }),
         timeoutMs,
@@ -180,6 +184,7 @@ export async function runMapsProviderAdapter(
           os: input.os,
           browser: input.browser,
           depth: input.depth,
+          zoom,
           organizationId: input.organizationId,
           languageCode: LOCAL_FALCON_PARITY.languageCode,
         }),
@@ -199,7 +204,7 @@ export async function runMapsProviderAdapter(
           os: input.os,
           browser: input.browser,
           depth: input.depth,
-          zoom: LOCAL_FALCON_PARITY.locationZoom,
+          zoom,
           organizationId: input.organizationId,
         }),
         timeoutMs,

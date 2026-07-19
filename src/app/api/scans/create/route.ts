@@ -10,6 +10,7 @@ import {
   parseMapsProviderMode,
   scanBatchProviderColumn,
 } from "@/lib/maps/provider-modes";
+import { parseMapsLocationZoom } from "@/lib/maps/maps-zoom";
 import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
 import {
   gridMapCredits,
@@ -54,12 +55,14 @@ export async function POST(request: Request) {
       os,
       browser,
       mapsProviderMode: rawMode,
+      locationZoom: rawZoom,
       parityLabel,
       centerLat: bodyLat,
       centerLng: bodyLng,
       centerLabel: bodyLabel,
     } = parsed.data;
     const mapsProviderMode = parseMapsProviderMode(rawMode ?? DEFAULT_MAPS_PROVIDER_MODE);
+    const locationZoom = parseMapsLocationZoom(rawZoom);
     const auth = await requireBusinessAccess(businessId);
     const rate = await assertRateLimit({
       key: `scans-create:${auth.organizationId}`,
@@ -205,6 +208,7 @@ export async function POST(request: Request) {
           center_label: centerLabel,
           confidence_summary: {
             ...PARITY_SUMMARY,
+            location_zoom: locationZoom,
             scan_profile: { device, os, browser },
             maps_provider_mode: mapsProviderMode,
             ...(parityLabel ? { parity_profile: parityLabel } : {}),

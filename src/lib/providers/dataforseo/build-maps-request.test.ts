@@ -21,7 +21,8 @@ describe("DataForSEO Maps location_coordinate", () => {
       profile: { device: "mobile", os: "android", browser: "chrome" },
       depth: 20,
     });
-    assert.equal(req.location_coordinate, "38.7354825,-77.4445995,17z");
+    assert.equal(req.location_coordinate, "38.7354825,-77.4445995,13z");
+    assert.equal(req._meta.zoom, 13);
     assert.equal(req.device, "mobile");
     assert.equal(req.os, "android");
     assert.equal(req.search_this_area, false);

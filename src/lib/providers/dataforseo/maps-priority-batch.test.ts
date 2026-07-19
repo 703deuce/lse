@@ -32,7 +32,7 @@ describe("DataForSEO Maps Priority batch shape", () => {
     assert.equal(body.search_places, false);
     assert.equal(body.depth, 20);
     assert.equal(body.device, "mobile");
-    assert.match(body.location_coordinate, /17z$/);
+    assert.match(body.location_coordinate, /13z$/);
     assert.equal(body.tag, "point_keyword");
   });
 

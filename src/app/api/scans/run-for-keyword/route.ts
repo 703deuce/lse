@@ -24,6 +24,7 @@ import {
   parseMapsProviderMode,
   scanBatchProviderColumn,
 } from "@/lib/maps/provider-modes";
+import { parseMapsLocationZoom } from "@/lib/maps/maps-zoom";
 import { assertRateLimit } from "@/lib/security/rate-limit";
 import { trackProductEvent } from "@/lib/analytics/product-events";
 
@@ -43,6 +44,8 @@ const schema = z.object({
   os: z.enum(["android", "ios", "windows", "macos"]).default("android"),
   browser: z.enum(["chrome", "firefox"]).default("chrome"),
   mapsProviderMode: z.enum(["hybrid", "scrapingdog", "dataforseo"]).default("dataforseo"),
+  /** Local Falcon API default is 13 (0–18). Use to A/B vs DataForSEO 17z. */
+  locationZoom: z.number().int().min(0).max(18).default(13),
   locationId: z.string().uuid().optional().nullable(),
   centerLat: z.number().optional(),
   centerLng: z.number().optional(),
@@ -80,6 +83,7 @@ export async function POST(request: Request) {
       os,
       browser,
       mapsProviderMode: rawMode,
+      locationZoom: rawZoom,
       locationId,
       centerLat,
       centerLng,
@@ -88,6 +92,7 @@ export async function POST(request: Request) {
       excludedLabels = [],
     } = parsed.data;
     const mapsProviderMode = parseMapsProviderMode(rawMode ?? DEFAULT_MAPS_PROVIDER_MODE);
+    const locationZoom = parseMapsLocationZoom(rawZoom);
     const auth = await requireBusinessAccess(businessId);
     await requireOrganizationPermission("scan.run", auth.organizationId);
     const rate = await assertRateLimit({
@@ -239,6 +244,7 @@ export async function POST(request: Request) {
           moved_from_scan_id: movedFromScanId ?? null,
           confidence_summary: {
             ...PARITY_SUMMARY,
+            location_zoom: locationZoom,
             scan_profile: { device, os, browser },
             maps_provider_mode: mapsProviderMode,
             keyword_ids: [resolvedKeywordId],

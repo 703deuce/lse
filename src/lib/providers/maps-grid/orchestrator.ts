@@ -34,6 +34,8 @@ export type FetchMapsCellParams = {
   os: ScanDeviceProfile["os"];
   browser: ScanDeviceProfile["browser"];
   depth: number;
+  /** Maps SERP zoom (Local Falcon API default 13). */
+  locationZoom?: number;
   organizationId?: string;
   /** Explicit provider chain for this call. */
   providers: MapsProviderId[];
@@ -255,6 +257,7 @@ export async function fetchMapsCell(params: FetchMapsCellParams): Promise<MapsCe
         os: params.os,
         browser: params.browser,
         depth: params.depth,
+        locationZoom: params.locationZoom,
         organizationId: params.organizationId,
         attemptNumber: tryNum,
       });

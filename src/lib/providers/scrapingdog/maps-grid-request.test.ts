@@ -12,19 +12,19 @@ describe("ScrapingDog Maps request shape", () => {
       os: "android",
       browser: "chrome",
       depth: 20,
-      zoom: 17,
+      zoom: 13,
     });
     assert.equal(req.endpoint, "https://api.scrapingdog.com/google_maps");
     assert.equal(req.query, "junk removal woodbridge");
-    assert.equal(req.ll, "@38.7354825,-77.4445995,17z");
-    assert.equal(req._meta.location_zoom, 17);
+    assert.equal(req.ll, "@38.7354825,-77.4445995,13z");
+    assert.equal(req._meta.location_zoom, 13);
     assert.equal(req.domain, "google.com");
     assert.equal(req.language, "en");
     assert.equal(req.country, "us");
     assert.equal(req.search_engine, "google_maps");
   });
 
-  it("defaults zoom to 17 when omitted", () => {
+  it("defaults zoom to Local Falcon 13 when omitted", () => {
     const req = buildMapsGridRequest({
       keyword: "plumber",
       lat: 27.9506,
@@ -33,7 +33,7 @@ describe("ScrapingDog Maps request shape", () => {
       os: "android",
       browser: "chrome",
     });
-    assert.equal(req.ll, "@27.9506,-82.4572,17z");
-    assert.equal(req._meta.location_zoom, 17);
+    assert.equal(req.ll, "@27.9506,-82.4572,13z");
+    assert.equal(req._meta.location_zoom, 13);
   });
 });

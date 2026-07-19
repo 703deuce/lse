@@ -127,6 +127,7 @@ export async function mapsGridCell(params: {
   os: ScanDeviceProfile["os"];
   browser: ScanDeviceProfile["browser"];
   depth?: number;
+  zoom?: number;
   organizationId?: string;
 }): Promise<{
   items: MapsLiveResult[];

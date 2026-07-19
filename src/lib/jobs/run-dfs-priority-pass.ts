@@ -261,6 +261,7 @@ export async function runDataForSeoPriorityPass(params: {
    * desktop + windows (same search_this_area / search_places as parity).
    */
   forceDesktop?: boolean;
+  locationZoom?: number;
 }): Promise<{
   results: GridCellRunResult[];
   successCount: number;
@@ -268,6 +269,7 @@ export async function runDataForSeoPriorityPass(params: {
 }> {
   const { jobs, depth, passLabel } = params;
   const scanRetryRound = params.scanRetryRound ?? 0;
+  const locationZoom = params.locationZoom ?? LOCAL_FALCON_PARITY.locationZoom;
   if (!jobs.length) {
     return { results: [], successCount: 0, timings: [] };
   }
@@ -288,7 +290,7 @@ export async function runDataForSeoPriorityPass(params: {
         browser: profile.browser,
         depth,
         languageCode: LOCAL_FALCON_PARITY.languageCode,
-        zoom: LOCAL_FALCON_PARITY.locationZoom,
+        zoom: locationZoom,
         searchThisArea: LOCAL_FALCON_PARITY.searchThisArea,
       };
     }),

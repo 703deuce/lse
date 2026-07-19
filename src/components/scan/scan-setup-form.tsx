@@ -15,6 +15,11 @@ import {
   MAPS_PROVIDER_MODE_OPTIONS,
   type MapsProviderMode,
 } from "@/lib/maps/provider-modes";
+import {
+  DEFAULT_MAPS_LOCATION_ZOOM,
+  MAPS_ZOOM_OPTIONS,
+  mapsZoomLabel,
+} from "@/lib/maps/maps-zoom";
 import { RadiusMilesField } from "@/components/scan/radius-miles-field";
 
 export function ScanSetupForm({
@@ -42,6 +47,7 @@ export function ScanSetupForm({
   const [mapsProviderMode, setMapsProviderMode] = useState<MapsProviderMode>(
     DEFAULT_MAPS_PROVIDER_MODE
   );
+  const [locationZoom, setLocationZoom] = useState(DEFAULT_MAPS_LOCATION_ZOOM);
 
   useEffect(() => {
     setForm((prev) => ({
@@ -91,6 +97,7 @@ export function ScanSetupForm({
           os: DEFAULT_SCAN_PROFILE.os,
           browser: DEFAULT_SCAN_PROFILE.browser,
           mapsProviderMode,
+          locationZoom,
           centerLat: lat,
           centerLng: lng,
         }),
@@ -148,6 +155,20 @@ export function ScanSetupForm({
             {MAPS_PROVIDER_MODE_OPTIONS.map((opt) => (
               <option key={opt.id} value={opt.id}>
                 {opt.shortLabel}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-xs font-medium text-text-muted">
+          Map zoom
+          <select
+            className={selectClass}
+            value={locationZoom}
+            onChange={(e) => setLocationZoom(Number(e.target.value))}
+          >
+            {MAPS_ZOOM_OPTIONS.map((z) => (
+              <option key={z} value={z}>
+                {mapsZoomLabel(z)}
               </option>
             ))}
           </select>

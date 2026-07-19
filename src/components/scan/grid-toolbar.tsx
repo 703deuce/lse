@@ -17,6 +17,11 @@ import {
   MAPS_PROVIDER_MODE_OPTIONS,
   type MapsProviderMode,
 } from "@/lib/maps/provider-modes";
+import {
+  DEFAULT_MAPS_LOCATION_ZOOM,
+  MAPS_ZOOM_OPTIONS,
+  mapsZoomLabel,
+} from "@/lib/maps/maps-zoom";
 import { RadiusMilesField } from "@/components/scan/radius-miles-field";
 import {
   gridRankCardClass,
@@ -75,6 +80,7 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
   const [mapsProviderMode, setMapsProviderMode] = useState<MapsProviderMode>(
     DEFAULT_MAPS_PROVIDER_MODE
   );
+  const [locationZoom, setLocationZoom] = useState(DEFAULT_MAPS_LOCATION_ZOOM);
 
   useEffect(() => {
     setRunGridSize(initialGridSize);
@@ -136,6 +142,7 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
             os: DEFAULT_SCAN_PROFILE.os,
             browser: DEFAULT_SCAN_PROFILE.browser,
             mapsProviderMode,
+            locationZoom,
             locationId: selectedLocationId,
             ...scanRunExtras,
             ...extras,
@@ -160,6 +167,7 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
       runGridSize,
       runRadiusMeters,
       mapsProviderMode,
+      locationZoom,
       selectedLocationId,
       scanRunExtras,
     ]
@@ -201,6 +209,7 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
               os: DEFAULT_SCAN_PROFILE.os,
               browser: DEFAULT_SCAN_PROFILE.browser,
               mapsProviderMode,
+              locationZoom,
               locationId: selectedLocationId,
             }),
           });
@@ -312,6 +321,21 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
               {MAPS_PROVIDER_MODE_OPTIONS.map((opt) => (
                 <option key={opt.id} value={opt.id}>
                   {opt.shortLabel}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="col-span-2 xl:col-span-1">
+            <label className={fieldLabel}>Map zoom</label>
+            <select
+              value={locationZoom}
+              onChange={(e) => setLocationZoom(Number(e.target.value))}
+              className={cn(fieldSelect, "mt-0.5")}
+              title="Local Falcon API defaults to 13. Higher = tighter neighborhood."
+            >
+              {MAPS_ZOOM_OPTIONS.map((z) => (
+                <option key={z} value={z}>
+                  {mapsZoomLabel(z)}
                 </option>
               ))}
             </select>

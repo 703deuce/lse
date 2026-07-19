@@ -25,8 +25,12 @@ export const LOCAL_FALCON_PARITY = {
   seDomain: "google.com",
   languageCode: MAPS_LANGUAGE,
   countryCode: "US",
-  /** DataForSEO default zoom when omitted; matches Maps pin viewport */
-  locationZoom: 17,
+  /**
+   * Local Falcon On-Demand API default zoom is 13 (range 0–18).
+   * DataForSEO default when omitted is 17z — that was clipping packs too tight.
+   * Override per scan for A/B (13–17).
+   */
+  locationZoom: 13,
   /** LF reports top-20 pack; mobile Maps SERP max is 20 results */
   gridDepth: 20,
   gridSize: DEFAULT_GRID_SIZE,
