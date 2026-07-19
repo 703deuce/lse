@@ -15,7 +15,12 @@ import {
 } from "lucide-react";
 import { createBrowserClient } from "@/lib/db/client";
 import { GridMetricCard, GridTopCellsGroup, KpiRow, StatusBadge } from "@/components/ui/metric-card";
-import { gridRankHeaderBtn, gridRankPageBg, gridRankPrimaryBtn } from "@/components/scan/grid-rank-ui";
+import {
+  gridRankHeaderBtn,
+  gridRankPageBg,
+  gridRankPrimaryBtn,
+  gridRankWorkspaceClass,
+} from "@/components/scan/grid-rank-ui";
 import { computeScanTrend, buildGridTopCompetitors, type ScanAggregateMetrics } from "@/lib/maps/grid";
 import { ScanSetupForm, defaultScanSetupValues } from "@/components/scan/scan-setup-form";
 import { computeSolv, computeWeightedSolv, gridScanMeta } from "@/lib/maps/grid-metrics";
@@ -987,11 +992,13 @@ export function GridScanView({
           </button>
         </div>
       )}
-      <div className="border-b border-zinc-200 bg-white px-3 py-2 sm:px-4">
+      <div className="border-b border-zinc-200/80 bg-white/90 px-3 py-2.5 backdrop-blur sm:px-5">
             <div className="flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex min-w-0 flex-wrap items-center gap-2.5">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <h1 className="text-base font-bold tracking-tight text-zinc-900 sm:text-lg">Rank Grid</h1>
+                <h1 className="text-[17px] font-bold tracking-tight text-zinc-900 sm:text-[19px]">
+                  Rank Grid
+                </h1>
                 {batch?.status ? <StatusBadge status={String(batch.status)} /> : null}
                 {enrichmentRunning ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900">
@@ -1079,7 +1086,7 @@ export function GridScanView({
           </div>
         </div>
 
-        <div className="flex-1 overflow-x-hidden overflow-y-auto px-3 py-2.5 sm:px-4">
+        <div className="flex-1 overflow-x-hidden overflow-y-auto px-3 py-3 sm:px-5">
         {!data ? (
           <div className="flex items-center gap-2 text-zinc-500">
             <Loader2 className="h-5 w-5 animate-spin" /> Loading scan…
@@ -1234,8 +1241,8 @@ export function GridScanView({
                       }
                       trendPositive={trend.avgRankDelta != null ? trend.avgRankDelta > 0 : undefined}
                       icon={TrendingDown}
-                      iconWrapClassName="bg-violet-50"
-                      iconClassName="text-violet-600"
+                      iconWrapClassName="bg-sky-50"
+                      iconClassName="text-sky-600"
                     />
                     <GridMetricCard
                       label="Visibility"
@@ -1311,11 +1318,13 @@ export function GridScanView({
                       className="mb-2"
                     />
                     <div
-                      className={`flex min-h-[min(58vh,520px)] flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-opacity duration-300 lg:min-h-[min(70vh,640px)] lg:flex-row ${
+                      className={cn(
+                        gridRankWorkspaceClass,
+                        "flex min-h-[min(58vh,520px)] flex-col transition-opacity duration-300 lg:min-h-[min(72vh,680px)] lg:flex-row",
                         timelineFetching ? "opacity-75" : "opacity-100"
-                      }`}
+                      )}
                     >
-                      <div className="flex max-h-[42vh] min-h-[280px] w-full shrink-0 flex-col border-b border-zinc-200 lg:max-h-none lg:min-h-0 lg:w-[34%] lg:max-w-[440px] lg:border-b-0 lg:border-r">
+                      <div className="flex max-h-[44vh] min-h-[300px] w-full shrink-0 flex-col border-b border-zinc-200/80 lg:max-h-none lg:min-h-0 lg:w-[36%] lg:max-w-[460px] lg:border-b-0 lg:border-r">
                         <CellInspectorDrawer
                           variant="panel"
                           alwaysVisible
@@ -1355,11 +1364,24 @@ export function GridScanView({
                       </div>
                       <div className="flex min-h-[320px] min-w-0 flex-1 flex-col lg:min-h-0">
                         <div className="relative min-h-[280px] flex-1">
-                          <div className="absolute right-3 top-3 z-[500] flex rounded-md border border-zinc-200 bg-white p-0.5 text-[11px] shadow-sm">
+                          {batch?.finished_at || batch?.created_at ? (
+                            <div className="absolute left-3 top-3 z-[500] rounded-full border border-zinc-200/80 bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-zinc-600 shadow-[0_4px_16px_rgba(15,23,42,0.08)] backdrop-blur">
+                              {new Date(
+                                String(batch.finished_at ?? batch.created_at)
+                              ).toLocaleString(undefined, {
+                                month: "long",
+                                day: "numeric",
+                                year: "numeric",
+                                hour: "numeric",
+                                minute: "2-digit",
+                              })}
+                            </div>
+                          ) : null}
+                          <div className="absolute right-3 top-3 z-[500] flex rounded-full border border-zinc-200/80 bg-white/95 p-0.5 text-[11px] shadow-[0_4px_16px_rgba(15,23,42,0.08)] backdrop-blur">
                             <button
                               type="button"
                               onClick={() => setShowRadiusRings(false)}
-                              className={`rounded px-2.5 py-1 font-semibold ${
+                              className={`rounded-full px-3 py-1 font-semibold ${
                                 !showRadiusRings
                                   ? "bg-[#137752] text-white"
                                   : "text-zinc-600 hover:bg-zinc-50"
@@ -1370,7 +1392,7 @@ export function GridScanView({
                             <button
                               type="button"
                               onClick={() => setShowRadiusRings(true)}
-                              className={`rounded px-2.5 py-1 font-semibold ${
+                              className={`rounded-full px-3 py-1 font-semibold ${
                                 showRadiusRings
                                   ? "bg-[#137752] text-white"
                                   : "text-zinc-600 hover:bg-zinc-50"
@@ -1431,10 +1453,10 @@ export function GridScanView({
                         )}
                       </div>
                     </div>
-                    <p className="mt-2 text-center text-xs text-zinc-500">
+                    <p className="mt-3 text-center text-[12px] text-zinc-500">
                       ~{scanMeta.spacingMiles} miles between map pins
                       {notInPackCells > 0 ? ` · ${notInPackCells} cells outside local pack` : ""}
-                      {" · Center pin opens automatically · click any bubble to switch results"}
+                      {" · Results open on the center pin · click any bubble to switch"}
                     </p>
                   </div>
                 )}

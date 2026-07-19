@@ -104,6 +104,12 @@ function justificationTexts(value: unknown): string[] {
     .filter((t): t is string => !!t?.trim());
 }
 
+function rankTone(rank: number): string {
+  if (rank <= 3) return "text-emerald-600";
+  if (rank <= 10) return "text-amber-600";
+  return "text-rose-500";
+}
+
 function SerpListingCard({
   listing,
   index,
@@ -116,19 +122,16 @@ function SerpListingCard({
   const rank = listing.rank ?? index + 1;
   const price = formatPriceLevel(listing.price_level);
   const justifications = justificationTexts(listing.local_justifications);
-  const categories = [
-    listing.category,
-    ...(listing.additional_categories ?? []),
-  ].filter((c, i, arr): c is string => !!c && arr.indexOf(c) === i);
+  const category = listing.category ?? listing.additional_categories?.[0] ?? null;
 
   return (
     <article
       className={cn(
-        "flex gap-3 border-b border-zinc-100 px-3.5 py-3.5 last:border-b-0",
-        isTarget && "bg-emerald-50/50"
+        "flex gap-3 px-4 py-3.5 transition-colors",
+        isTarget ? "bg-emerald-50/70" : "hover:bg-zinc-50/80"
       )}
     >
-      <div className="relative h-[88px] w-[88px] shrink-0 overflow-hidden rounded-md bg-zinc-100">
+      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-zinc-100 ring-1 ring-zinc-200/80">
         {listing.main_image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -140,104 +143,77 @@ function SerpListingCard({
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-zinc-300">
-            <MapPin className="h-7 w-7" />
+            <MapPin className="h-5 w-5" />
           </div>
         )}
-        <span className="absolute left-1 top-1 rounded bg-black/65 px-1.5 py-0.5 text-[10px] font-bold text-white">
-          {rank}
-        </span>
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-2">
-          <h4
-            className={cn(
-              "text-[14px] font-semibold leading-snug text-zinc-900",
-              isTarget && "text-[#0f6244]"
-            )}
-          >
-            {listing.name ?? "Untitled listing"}
-            {isTarget ? (
-              <span className="ml-1.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800">
-                You
-              </span>
+        <div className="flex items-start gap-2">
+          <span className={cn("mt-0.5 w-6 shrink-0 text-[13px] font-bold tabular-nums", rankTone(rank))}>
+            {rank}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <h4 className="truncate text-[14px] font-semibold leading-snug text-zinc-900">
+                {listing.name ?? "Untitled listing"}
+                {isTarget ? (
+                  <span className="ml-1.5 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                    You
+                  </span>
+                ) : null}
+              </h4>
+              {price ? (
+                <span className="shrink-0 text-[11px] font-semibold text-zinc-400">{price}</span>
+              ) : null}
+            </div>
+
+            {category ? (
+              <p className="mt-0.5 truncate text-[12px] text-zinc-500">{category}</p>
             ) : null}
-          </h4>
-          {price ? (
-            <span className="shrink-0 text-[12px] font-medium text-zinc-500">{price}</span>
-          ) : null}
-        </div>
 
-        <div className="mt-0.5">
-          <GridStarRating rating={listing.rating} reviewCount={listing.review_count} />
-        </div>
+            <div className="mt-1">
+              <GridStarRating rating={listing.rating} reviewCount={listing.review_count} />
+            </div>
 
-        {categories.length > 0 ? (
-          <p className="mt-1 line-clamp-1 text-[12px] text-zinc-600">
-            {categories.slice(0, 2).join(" · ")}
-          </p>
-        ) : null}
+            {(listing.address || listing.snippet) && (
+              <p className="mt-1 line-clamp-1 text-[11px] text-zinc-500">
+                {listing.address || listing.snippet}
+              </p>
+            )}
 
-        {(listing.address || listing.snippet) && (
-          <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-zinc-500">
-            {listing.address || listing.snippet}
-          </p>
-        )}
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-zinc-500">
+              {listing.total_photos != null && listing.total_photos > 0 ? (
+                <span className="inline-flex items-center gap-1 font-medium">
+                  <Camera className="h-3 w-3" />
+                  {listing.total_photos.toLocaleString()}
+                </span>
+              ) : null}
+              {listing.phone ? (
+                <a href={`tel:${listing.phone}`} className="inline-flex items-center gap-1 hover:text-[#137752]">
+                  <Phone className="h-3 w-3" />
+                  Call
+                </a>
+              ) : null}
+              {listing.url ? (
+                <a
+                  href={listing.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 font-medium text-[#137752] hover:underline"
+                >
+                  <Globe className="h-3 w-3" />
+                  Site
+                </a>
+              ) : null}
+            </div>
 
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-zinc-500">
-          {listing.total_photos != null && listing.total_photos > 0 ? (
-            <span className="inline-flex items-center gap-1">
-              <Camera className="h-3 w-3" />
-              {listing.total_photos.toLocaleString()} photos
-            </span>
-          ) : null}
-          {listing.is_claimed === true ? (
-            <span className="font-medium text-zinc-600">Claimed</span>
-          ) : listing.is_claimed === false ? (
-            <span>Unclaimed</span>
-          ) : null}
-          {listing.hotel_rating != null ? (
-            <span>{listing.hotel_rating}-star</span>
-          ) : null}
-        </div>
-
-        {justifications.length > 0 ? (
-          <p className="mt-1.5 line-clamp-2 text-[11px] italic text-zinc-500">
-            {justifications[0]}
-          </p>
-        ) : null}
-
-        <div className="mt-2 flex flex-wrap gap-2">
-          {listing.phone ? (
-            <a
-              href={`tel:${listing.phone}`}
-              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50"
-            >
-              <Phone className="h-3 w-3" />
-              Call
-            </a>
-          ) : null}
-          {listing.url ? (
-            <a
-              href={listing.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2 py-1 text-[11px] font-medium text-[#137752] hover:bg-emerald-50/60"
-            >
-              <Globe className="h-3 w-3" />
-              Website
-            </a>
-          ) : null}
-          {listing.book_online_url ? (
-            <a
-              href={listing.book_online_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50"
-            >
-              Book
-            </a>
-          ) : null}
+            {justifications[0] ? (
+              <p className="mt-1.5 line-clamp-1 text-[11px] italic text-zinc-400">
+                {justifications[0]}
+              </p>
+            ) : null}
+          </div>
         </div>
       </div>
     </article>
@@ -349,44 +325,43 @@ export function CellInspectorDrawer({
   const canLoadMore =
     (data?.rawResults.length ?? 0) > INITIAL_RESULTS_SHOWN && !expandedResults;
 
+  const yourRankLabel = data?.target.found
+    ? `Rank ${rankLabel(data.target.rank)}`
+    : data
+      ? "Rank 20+"
+      : null;
+  const matched = data?.target.matchedResult;
+  const packShare =
+    data && data.rawResults.length > 0
+      ? Math.round(
+          (data.rawResults.filter((r) => isTargetListing(r, data.target.matchedResult)).length /
+            Math.max(1, data.rawResults.length)) *
+            100
+        )
+      : null;
+
   const panelBody = (
     <div
       className={cn(
         variant === "panel"
-          ? "flex h-full w-full min-w-0 flex-col border-zinc-200 bg-white"
+          ? "flex h-full w-full min-w-0 flex-col bg-[#FAFBFC]"
           : "flex h-full w-full max-w-xl flex-col bg-white shadow-xl",
         className
       )}
       onClick={variant === "drawer" ? (e) => e.stopPropagation() : undefined}
     >
-      <div className="flex items-start justify-between border-b border-zinc-200 px-3.5 py-3">
+      <div className="flex items-start justify-between border-b border-zinc-200/80 bg-white px-4 py-3.5">
         <div className="min-w-0">
-          <h2 className="text-[15px] font-semibold text-zinc-900">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
+            Search point
+          </p>
+          <h2 className="mt-0.5 truncate text-[16px] font-bold tracking-tight text-zinc-900">
             {data?.keyword?.keyword ?? "Local results"}
           </h2>
-          <p className="mt-0.5 text-xs text-zinc-500">
-            {pointLabel || data?.cell.label ? (
-              <>
-                Point{" "}
-                <span className="font-semibold text-zinc-800">
-                  {pointLabel ?? data?.cell.label}
-                </span>
-                {data?.target.found ? (
-                  <>
-                    {" · "}Your rank{" "}
-                    <span className="font-semibold text-[#137752]">
-                      #{rankLabel(data.target.rank)}
-                    </span>
-                  </>
-                ) : data ? (
-                  <>
-                    {" · "}Your rank <span className="font-semibold text-zinc-700">20+</span>
-                  </>
-                ) : null}
-              </>
-            ) : (
-              "Select a map pin to inspect listings"
-            )}
+          <p className="mt-0.5 text-[12px] text-zinc-500">
+            {pointLabel || data?.cell.label
+              ? `Pin ${pointLabel ?? data?.cell.label}`
+              : "Center pin loads automatically"}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
@@ -395,7 +370,7 @@ export function CellInspectorDrawer({
               type="button"
               disabled={!canNavigatePrev}
               onClick={onNavigatePrev}
-              className="rounded p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
+              className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
               aria-label="Previous point"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -406,7 +381,7 @@ export function CellInspectorDrawer({
               type="button"
               disabled={!canNavigateNext}
               onClick={onNavigateNext}
-              className="rounded p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
+              className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
               aria-label="Next point"
             >
               <ChevronRight className="h-4 w-4" />
@@ -416,14 +391,14 @@ export function CellInspectorDrawer({
       </div>
 
       {cellId ? (
-        <div className="flex gap-0 border-b border-zinc-200 px-3.5">
+        <div className="flex gap-1 border-b border-zinc-200/80 bg-white px-3">
           {tabs.map((t) => (
             <button
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
               className={cn(
-                "-mb-px border-b-2 px-3 py-2.5 text-[13px] font-medium transition-colors",
+                "-mb-px border-b-2 px-3 py-2.5 text-[13px] font-semibold transition-colors",
                 tab === t.id
                   ? "border-[#137752] text-[#137752]"
                   : "border-transparent text-zinc-500 hover:text-zinc-800"
@@ -437,13 +412,13 @@ export function CellInspectorDrawer({
 
       <div className="min-h-0 flex-1 overflow-y-auto text-sm">
         {!cellId && (
-          <div className="px-4 py-8 text-center text-[13px] text-zinc-500">
+          <div className="px-4 py-10 text-center text-[13px] text-zinc-500">
             Waiting for the center pin to load…
           </div>
         )}
 
         {cellId && loading && (
-          <div className="flex items-center gap-2 px-4 py-6 text-zinc-500">
+          <div className="flex items-center gap-2 px-4 py-8 text-zinc-500">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading local results…
           </div>
         )}
@@ -451,47 +426,107 @@ export function CellInspectorDrawer({
 
         {data && !loading && tab === "results" && (
           <div>
-            <div className="flex flex-wrap items-center gap-2 border-b border-zinc-100 px-3.5 py-2.5">
-              {onCompareCell && (
+            <section className="border-b border-zinc-200/80 bg-white px-4 py-4">
+              <div className="flex items-start gap-3">
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-zinc-100 ring-1 ring-zinc-200/80">
+                  {matched?.main_image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={matched.main_image}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-zinc-300">
+                      <MapPin className="h-6 w-6" />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={cn(
+                        "inline-flex rounded-full px-2.5 py-1 text-[12px] font-bold",
+                        data.target.found
+                          ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                          : "bg-rose-50 text-rose-600 ring-1 ring-rose-200"
+                      )}
+                    >
+                      {yourRankLabel}
+                    </span>
+                    {packShare != null ? (
+                      <span className="inline-flex rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700 ring-1 ring-sky-100">
+                        In pack · {data.resultCount} listings
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 truncate text-[14px] font-semibold text-zinc-900">
+                    {matched?.name ?? "Your business"}
+                  </p>
+                  {matched?.category ? (
+                    <p className="mt-0.5 truncate text-[12px] text-zinc-500">{matched.category}</p>
+                  ) : null}
+                  <div className="mt-1.5">
+                    <GridStarRating
+                      rating={matched?.rating}
+                      reviewCount={matched?.review_count}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3.5 flex flex-wrap gap-2">
+                {data.checkUrl ? (
+                  <a
+                    href={data.checkUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#137752] px-3 py-2 text-[12px] font-semibold text-white shadow-[0_4px_14px_rgba(19,119,82,0.22)] hover:bg-[#0f6344]"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" /> Open in Google
+                  </a>
+                ) : null}
+                {onCompareCell ? (
+                  <button
+                    type="button"
+                    onClick={() => onCompareCell(data.cell.id)}
+                    className={gridInspectorActionBtn}
+                  >
+                    <GitCompare className="h-3.5 w-3.5" /> Compare
+                  </button>
+                ) : null}
                 <button
                   type="button"
-                  onClick={() => onCompareCell(data.cell.id)}
+                  onClick={() => void copyCoordinates()}
                   className={gridInspectorActionBtn}
                 >
-                  <GitCompare className="h-3.5 w-3.5" /> Compare
+                  <Copy className="h-3.5 w-3.5" /> {copied ? "Copied" : "Coords"}
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={() => void copyCoordinates()}
-                className={gridInspectorActionBtn}
-              >
-                <Copy className="h-3.5 w-3.5" /> {copied ? "Copied!" : "Coords"}
-              </button>
-              {data.checkUrl && (
-                <a
-                  href={data.checkUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={gridInspectorActionBtn}
-                >
-                  <ExternalLink className="h-3.5 w-3.5" /> Maps
-                </a>
-              )}
-            </div>
+              </div>
+            </section>
 
             {data.sparseResults && (
-              <p className="mx-3.5 mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
+              <p className="mx-4 mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
                 {data.sparseReason ??
                   "Maps returned too few listings for this point. Recovery may still retry it."}
               </p>
             )}
 
+            <div className="flex items-center justify-between px-4 pb-1 pt-3.5">
+              <h3 className="text-[13px] font-bold text-zinc-900">
+                Competitors ({data.resultCount})
+              </h3>
+              <span className="text-[11px] font-medium text-zinc-400">
+                Showing {Math.min(visibleLimit, data.resultCount)}
+              </span>
+            </div>
+
             {!data.hasRawResults ? (
-              <p className="px-3.5 py-6 text-zinc-500">No listings stored for this point yet.</p>
+              <p className="px-4 py-6 text-zinc-500">No listings stored for this point yet.</p>
             ) : (
               <>
-                <div className="divide-y divide-zinc-100">
+                <div className="divide-y divide-zinc-100/90 border-t border-zinc-100 bg-white">
                   {visibleResults.map((r, i) => (
                     <SerpListingCard
                       key={`${r.place_id ?? r.cid ?? r.name ?? i}`}
@@ -505,7 +540,7 @@ export function CellInspectorDrawer({
                   <button
                     type="button"
                     onClick={() => setExpandedResults(true)}
-                    className="w-full border-t border-zinc-100 py-3 text-[13px] font-medium text-[#137752] hover:bg-emerald-50/40"
+                    className="w-full border-t border-zinc-100 bg-white py-3.5 text-[13px] font-semibold text-[#137752] hover:bg-emerald-50/50"
                   >
                     Show more (
                     {Math.min(MAX_RESULTS_SHOWN, data.rawResults.length) - INITIAL_RESULTS_SHOWN}{" "}
@@ -516,7 +551,7 @@ export function CellInspectorDrawer({
                   <button
                     type="button"
                     onClick={() => setExpandedResults(false)}
-                    className="w-full border-t border-zinc-100 py-2.5 text-center text-[12px] font-medium text-zinc-500 hover:text-zinc-700"
+                    className="w-full border-t border-zinc-100 bg-white py-2.5 text-center text-[12px] font-medium text-zinc-500 hover:text-zinc-700"
                   >
                     Show fewer
                   </button>

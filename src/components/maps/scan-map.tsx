@@ -510,7 +510,7 @@ export function ScanMap({
   return (
     <div
       style={{ height }}
-      className="relative w-full overflow-hidden rounded-xl border border-border dark:border-zinc-800"
+      className="relative w-full overflow-hidden rounded-none border-0"
     >
       <div ref={containerRef} style={{ height: "100%", width: "100%", cursor: cursorStyle }} />
       {status !== "ready" && (
