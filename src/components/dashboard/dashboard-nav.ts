@@ -59,7 +59,8 @@ function loc(slug: LocationToolSlug, businessId?: string | null): string {
  *
  * Naming rules:
  * - Workspace = org home (clients, prospects, work queue)
- * - Dashboard = selected client's overview only (never at org level, never under Account)
+ * - Dashboard = always under Work (picker if no location; overview if selected)
+ * - Never under Account; never appears/disappears when switching locations
  */
 export function buildUnifiedSidebarNav(businessId?: string | null): {
   getStarted: SidebarNavItem;
@@ -71,21 +72,24 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
   deliverables: SidebarNavSection;
   account: SidebarNavSection;
 } {
+  // Dashboard always stays under Work in the same slot — never disappears / pops
+  // into another section when a client is selected. No location → picker; with
+  // location → that client's overview.
   const workItems: SidebarNavItem[] = [
     { href: "/workspace", label: "Workspace", icon: Briefcase },
     { href: "/prospects", label: "Prospects", icon: Users },
     { href: "/clients", label: "Clients", icon: Building2 },
+    {
+      href: loc("dashboard", businessId),
+      label: "Dashboard",
+      icon: LayoutDashboard,
+    },
   ];
 
-  // When no location is selected: Dashboard + Maps open pickers under Work.
-  // When a location is selected: those move under "This location" (one Dashboard only).
+  // Maps stay under Work when nothing is selected (pickers). When a location is
+  // selected they move under "This location" with scoped links — Dashboard does not.
   if (!businessId) {
     workItems.push(
-      {
-        href: loc("dashboard", null),
-        label: "Dashboard",
-        icon: LayoutDashboard,
-      },
       {
         href: loc("maps-scans", null),
         label: "Maps Scans",
@@ -104,11 +108,6 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
     ? {
         title: "This location",
         items: [
-          {
-            href: loc("dashboard", businessId),
-            label: "Dashboard",
-            icon: LayoutDashboard,
-          },
           {
             href: loc("maps-scans", businessId),
             label: "Maps Scans",
@@ -244,17 +243,18 @@ export function isSidebarHrefActive(
     );
   }
 
-  // Client Dashboard — location overview (or the picker when none selected)
-  if (href === "/tools/go/dashboard") {
-    return pathname === "/tools/go/dashboard";
-  }
-  if (href.endsWith("/overview") || (businessId && href === `/businesses/${businessId}/overview`)) {
-    return (
-      Boolean(businessId) &&
+  // Dashboard — picker or selected location overview (same nav item either way)
+  if (href === "/tools/go/dashboard" || href.endsWith("/overview")) {
+    if (pathname === "/tools/go/dashboard") return true;
+    if (
+      businessId &&
       (pathname === `/businesses/${businessId}/overview` ||
         pathname === `/clients/${businessId}` ||
         pathname === `/prospects/${businessId}`)
-    );
+    ) {
+      return true;
+    }
+    return false;
   }
 
   if (href === "/onboarding") {

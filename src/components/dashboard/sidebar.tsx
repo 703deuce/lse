@@ -255,7 +255,7 @@ export function DashboardSidebarPanel({
           onNavigate={onNavigate}
         />
 
-        {/* Client Dashboard only appears here — never under Account, never at org level */}
+        {/* Location-scoped Maps tools — Dashboard stays under Work always */}
         {nav.thisLocation ? (
           <NavSection
             title={
