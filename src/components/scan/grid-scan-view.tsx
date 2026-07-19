@@ -1353,58 +1353,60 @@ export function GridScanView({
                           className="min-h-0 flex-1"
                         />
                       </div>
-                      <div className="relative min-h-[320px] min-w-0 flex-1 lg:min-h-0">
-                        <div className="absolute right-3 top-3 z-[500] flex rounded-md border border-zinc-200 bg-white p-0.5 text-[11px] shadow-sm">
-                          <button
-                            type="button"
-                            onClick={() => setShowRadiusRings(false)}
-                            className={`rounded px-2.5 py-1 font-semibold ${
-                              !showRadiusRings
-                                ? "bg-[#137752] text-white"
-                                : "text-zinc-600 hover:bg-zinc-50"
-                            }`}
-                          >
-                            Grid
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowRadiusRings(true)}
-                            className={`rounded px-2.5 py-1 font-semibold ${
-                              showRadiusRings
-                                ? "bg-[#137752] text-white"
-                                : "text-zinc-600 hover:bg-zinc-50"
-                            }`}
-                          >
-                            Rings
-                          </button>
+                      <div className="flex min-h-[320px] min-w-0 flex-1 flex-col lg:min-h-0">
+                        <div className="relative min-h-[280px] flex-1">
+                          <div className="absolute right-3 top-3 z-[500] flex rounded-md border border-zinc-200 bg-white p-0.5 text-[11px] shadow-sm">
+                            <button
+                              type="button"
+                              onClick={() => setShowRadiusRings(false)}
+                              className={`rounded px-2.5 py-1 font-semibold ${
+                                !showRadiusRings
+                                  ? "bg-[#137752] text-white"
+                                  : "text-zinc-600 hover:bg-zinc-50"
+                              }`}
+                            >
+                              Grid
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowRadiusRings(true)}
+                              className={`rounded px-2.5 py-1 font-semibold ${
+                                showRadiusRings
+                                  ? "bg-[#137752] text-white"
+                                  : "text-zinc-600 hover:bg-zinc-50"
+                              }`}
+                            >
+                              Rings
+                            </button>
+                          </div>
+                          <ScanMap
+                            key={`${colorMode}-${entityKey}-${mapMode}`}
+                            officeCenter={[officeLat, officeLng]}
+                            cells={cells}
+                            businessName={entityKey === "you" ? business?.name : viewingEntity?.label}
+                            colorMode={colorMode}
+                            height="100%"
+                            onCellClick={mapMode === "default" ? handleCellClick : undefined}
+                            interactionMode={mapMode}
+                            previewCenter={moveGridActive ? effectivePreviewCenter : undefined}
+                            previewCells={moveGridActive ? previewCells : undefined}
+                            onPreviewCenterChange={
+                              moveGridActive
+                                ? (lat, lng) => setPreviewCenter([lat, lng])
+                                : undefined
+                            }
+                            onMapClick={handleMapClick}
+                            cellsFaded={moveGridActive}
+                            spotChecks={spotChecks}
+                            onSpotCheckClick={setActiveSpotCheckId}
+                            showRadiusRings={showRadiusRings}
+                            radiusCenter={[officeLat, officeLng]}
+                            radiusRingMiles={scanMeta.ringDistancesMiles}
+                            gridSize={gridSize}
+                            radiusMeters={radiusMeters}
+                          />
                         </div>
-                        <ScanMap
-                          key={`${colorMode}-${entityKey}-${mapMode}`}
-                          officeCenter={[officeLat, officeLng]}
-                          cells={cells}
-                          businessName={entityKey === "you" ? business?.name : viewingEntity?.label}
-                          colorMode={colorMode}
-                          height="100%"
-                          onCellClick={mapMode === "default" ? handleCellClick : undefined}
-                          interactionMode={mapMode}
-                          previewCenter={moveGridActive ? effectivePreviewCenter : undefined}
-                          previewCells={moveGridActive ? previewCells : undefined}
-                          onPreviewCenterChange={
-                            moveGridActive
-                              ? (lat, lng) => setPreviewCenter([lat, lng])
-                              : undefined
-                          }
-                          onMapClick={handleMapClick}
-                          cellsFaded={moveGridActive}
-                          spotChecks={spotChecks}
-                          onSpotCheckClick={setActiveSpotCheckId}
-                          showRadiusRings={showRadiusRings}
-                          radiusCenter={[officeLat, officeLng]}
-                          radiusRingMiles={scanMeta.ringDistancesMiles}
-                          gridSize={gridSize}
-                          radiusMeters={radiusMeters}
-                        />
-                        <div className="border-t border-zinc-100 bg-white px-3.5 py-2">
+                        <div className="shrink-0 border-t border-zinc-100 bg-white px-3.5 py-2">
                           <GridRankLegend
                             mode={colorMode}
                             onModeChange={handleColorModeChange}
@@ -1423,7 +1425,7 @@ export function GridScanView({
                           </div>
                         </div>
                         {showRadiusRings && (
-                          <div className="border-t border-zinc-100 px-4 py-2">
+                          <div className="shrink-0 border-t border-zinc-100 px-4 py-2">
                             <RankByDistanceCard buckets={rankByDistance} />
                           </div>
                         )}
