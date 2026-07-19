@@ -150,7 +150,7 @@ Paced trial defaults: each scan launches waves of 10 cells, waits for that wave 
 
 ## Per-tenant Maps fairness
 
-- `MAX_ACTIVE_MAPS_SCANS_PER_ORG` (default `3`)
+- `MAX_ACTIVE_MAPS_SCANS_PER_ORG` (default `1` — serial per account; others stay queued)
 - `MAX_QUEUED_MAPS_SCANS_PER_ORG` (default `10`)
 - Duplicate equivalent scans (same business / keyword / grid / radius) return HTTP `409`
 
