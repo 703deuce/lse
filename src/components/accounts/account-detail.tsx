@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Award,
-  Bot,
   FileSearch,
   FileText,
   FolderKanban,
@@ -188,7 +187,6 @@ export function AccountDetail({
       { href: `${base}/trust`, label: "Local Trust" },
       { href: `${base}/keywords`, label: "Keywords" },
       { href: `${base}/ai-visibility`, label: "AI Visibility" },
-      { href: `${base}/competitors`, label: "Competitors" },
       { href: `${base}/reports`, label: "Reports" },
       { href: `/clients/${businessId}#notes`, label: "Notes" },
     ];
@@ -330,7 +328,6 @@ export function AccountDetail({
                   { href: `/businesses/${businessId}/scans`, icon: Radar, label: "Maps Scans", hint: "Baseline visibility" },
                   { href: `/businesses/${businessId}/growth-audit`, icon: FileSearch, label: "Growth Audit", hint: "Find pitch opportunities" },
                   { href: `/businesses/${businessId}/ai-visibility`, icon: Sparkles, label: "AI Visibility", hint: "Optional mentions" },
-                  { href: `/businesses/${businessId}/competitors`, icon: Bot, label: "Competitors", hint: "Pack share" },
                   { href: `/businesses/${businessId}/reports`, icon: FileText, label: "Reports", hint: "Shareable audits" },
                   { href: `/businesses/${businessId}/keywords`, icon: FolderKanban, label: "Keywords", hint: "Research terms" },
                 ]

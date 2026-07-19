@@ -9,7 +9,6 @@ import {
   Grid3X3,
   KeyRound,
   LayoutDashboard,
-  Library,
   Link2,
   MessageSquareText,
   Settings2,
@@ -81,8 +80,6 @@ export function buildBusinessSidebarNav(businessId: string): {
       { href: `${base}/trust`, label: "Local Trust", icon: Award },
       { href: `${base}/keywords`, label: "Keywords", icon: KeyRound },
       { href: `${base}/ai-visibility`, label: "AI Visibility", icon: Bot },
-      { href: `${base}/competitors`, label: "Competitors", icon: Users },
-      { href: `${base}/citations`, label: "Citations", icon: Library },
     ],
   };
 

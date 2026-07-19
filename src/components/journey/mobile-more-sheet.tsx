@@ -66,9 +66,8 @@ export function MobileMoreSheet() {
         { href: `/businesses/${businessId}/trust`, label: "Local Trust", icon: Award },
         { href: `/businesses/${businessId}/keywords`, label: "Keywords", icon: KeyRound },
         { href: `/businesses/${businessId}/ai-visibility`, label: "AI Visibility", icon: Bot },
-        { href: `/businesses/${businessId}/competitors`, label: "Competitors", icon: Radar },
         { href: `/businesses/${businessId}/reviews`, label: "Review Feed", icon: Star },
-        { href: `/businesses/${businessId}/reviews/momentum`, label: "Review Momentum", icon: Star },
+        { href: `/businesses/${businessId}/review-momentum`, label: "Review Momentum", icon: Star },
         {
           href: `/businesses/${businessId}/review-requests`,
           label: "Review Requests",
