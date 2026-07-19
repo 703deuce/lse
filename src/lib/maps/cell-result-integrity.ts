@@ -13,23 +13,27 @@ export type CellSerpValidation = {
 
 /**
  * Minimum organics required for any accepted cell (found or not).
- * Fewer than depth is an incomplete provider response — never accept it.
- * Override with GRID_CELL_MIN_SERP_RESULTS (still capped at depth).
+ * We still *request* depth (usually 20), but some Maps packs legitimately
+ * return 10–19 listings — treat those as complete. Below this floor, retry.
+ * Override with GRID_CELL_MIN_SERP_RESULTS (capped at depth).
  */
+export const DEFAULT_MIN_CELL_SERP_RESULTS = 10;
+
 export function minCellSerpResults(depth = 20): number {
   const env = Number(process.env.GRID_CELL_MIN_SERP_RESULTS);
-  if (Number.isFinite(env) && env > 0) return Math.min(Math.floor(env), depth);
-  return Math.max(1, depth);
+  const floor = Number.isFinite(env) && env > 0 ? Math.floor(env) : DEFAULT_MIN_CELL_SERP_RESULTS;
+  return Math.max(1, Math.min(floor, depth));
 }
 
 /**
  * Minimum organics required before we may claim "not in pack" / 20+.
- * A short SERP (e.g. 3 results) is not proof the business ranks 20+.
+ * Same floor as found cells — a very short SERP is not proof of 20+.
+ * Override with GRID_CELL_NOT_FOUND_MIN_SERP_RESULTS (capped at depth).
  */
 export function minResultsForNotFound(depth = 20): number {
   const env = Number(process.env.GRID_CELL_NOT_FOUND_MIN_SERP_RESULTS);
-  if (Number.isFinite(env) && env > 0) return Math.min(Math.floor(env), depth);
-  return Math.max(1, depth);
+  const floor = Number.isFinite(env) && env > 0 ? Math.floor(env) : DEFAULT_MIN_CELL_SERP_RESULTS;
+  return Math.max(1, Math.min(floor, depth));
 }
 
 function competitorCount(value: unknown): number {

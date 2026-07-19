@@ -17,6 +17,7 @@ import {
 } from "@/lib/providers/dataforseo/client";
 import type { MapsLiveResult, MapsLiveResponse } from "@/lib/providers/dataforseo/index";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
+import { minCellSerpResults } from "@/lib/maps/cell-result-integrity";
 import {
   dataForSeoMapsAppChunkSize,
   dataForSeoMapsMaxTasksPerPost,
@@ -450,9 +451,11 @@ export async function runMapsPriorityBatch(
   }
 
   const withItems = results.filter((r) => r.items.length > 0).length;
-  const full = results.filter((r) => r.items.length >= (byTag.get(r.tag)?.depth ?? 20)).length;
+  const fullEnough = results.filter(
+    (r) => r.items.length >= minCellSerpResults(byTag.get(r.tag)?.depth ?? 20)
+  ).length;
   console.log(
-    `[DataForSEO] Priority batch done: ${results.length} cells, ${withItems} with items, ${full} with full depth`
+    `[DataForSEO] Priority batch done: ${results.length} cells, ${withItems} with items, ${fullEnough} meeting min SERP`
   );
 
   return results;
@@ -510,9 +513,9 @@ export async function mapsPriorityGridCell(params: {
   if (!result.items.length) {
     throw new Error("DataForSEO returned no map results for this cell");
   }
-  if (result.items.length < depth) {
+  if (result.items.length < minCellSerpResults(depth)) {
     throw new Error(
-      `sparse SERP: ${result.items.length} results returned (need ${depth})`
+      `sparse SERP: ${result.items.length} results returned (need ${minCellSerpResults(depth)})`
     );
   }
 

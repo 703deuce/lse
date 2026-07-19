@@ -1,4 +1,5 @@
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
+import { minCellSerpResults } from "@/lib/maps/cell-result-integrity";
 import type { ScanDeviceProfile } from "@/lib/maps/scan-profiles";
 import { mapsGridCell as brightDataMapsGridCell } from "@/lib/providers/brightdata/maps-grid";
 import { BrightDataMapsFailure } from "@/lib/providers/brightdata/failure-diagnostics";
@@ -230,8 +231,9 @@ export async function runMapsProviderAdapter(
       };
     }
 
-    // Never accept an incomplete pack — depth (usually 20) is required.
-    if (items.length < input.depth) {
+    // Accept packs at the shared min floor (default 10). Still request depth 20.
+    const minSerp = minCellSerpResults(input.depth);
+    if (items.length < minSerp) {
       return {
         ok: false,
         attempt: {
@@ -242,8 +244,8 @@ export async function runMapsProviderAdapter(
           latencyMs,
           errorMessage:
             items.length === 1
-              ? `target-only SERP: only 1 listing returned (need ${input.depth})`
-              : `sparse SERP: ${items.length} results returned (need ${input.depth})`,
+              ? `target-only SERP: only 1 listing returned (need ${minSerp})`
+              : `sparse SERP: ${items.length} results returned (need ${minSerp})`,
         },
       };
     }

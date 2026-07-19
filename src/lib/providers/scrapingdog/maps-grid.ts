@@ -1,5 +1,6 @@
 import type { MapsLiveResult } from "@/lib/providers/dataforseo";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
+import { minCellSerpResults } from "@/lib/maps/cell-result-integrity";
 import type { ScanDeviceProfile } from "@/lib/maps/scan-profiles";
 import { mapsSearchAtCoordinate, type MapsSearchResult } from "@/lib/providers/scrapingdog/index";
 
@@ -137,9 +138,10 @@ export async function mapsGridCell(params: {
   if (!items.length) {
     throw new Error("ScrapingDog returned no map results for this cell");
   }
-  if (items.length < depth) {
+  const minSerp = minCellSerpResults(depth);
+  if (items.length < minSerp) {
     throw new Error(
-      `sparse SERP: ${items.length} results returned (need ${depth})`
+      `sparse SERP: ${items.length} results returned (need ${minSerp})`
     );
   }
 

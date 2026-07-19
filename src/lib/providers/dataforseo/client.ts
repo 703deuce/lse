@@ -132,7 +132,7 @@ function logDataForSeoResponse(
     endpoint.includes("maps") &&
     summary.taskStatus === 20000 &&
     summary.itemCount > 0 &&
-    summary.itemCount < 20;
+    summary.itemCount < 10;
 
   if (isQueue) {
     if (!options?.quietQueue) {
@@ -155,7 +155,7 @@ function logDataForSeoResponse(
 
   if (isSparseMaps) {
     console.warn(
-      "[DataForSEO] Request OK but incomplete Maps pack (<20 items):",
+      "[DataForSEO] Request OK but incomplete Maps pack (<10 items):",
       summary
     );
     return;

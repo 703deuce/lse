@@ -8,7 +8,7 @@ import {
   type ScanAggregateMetrics,
 } from "@/lib/maps/grid";
 import { computeSolv } from "@/lib/maps/grid-metrics";
-import { dedupeScanResults } from "@/lib/maps/cell-result-integrity";
+import { dedupeScanResults, minResultsForNotFound } from "@/lib/maps/cell-result-integrity";
 
 export type StoredCompetitor = {
   rank?: number;
@@ -276,14 +276,14 @@ export function buildEntityGridCells(
       if (useTargetRank) {
         rank = (result?.target_rank as number | null) ?? null;
         matchReason = (result?.confidence as string | null) ?? null;
-        // Only true "20+": null rank after a full top-20 pack. Short SERPs are pending.
-        const fullPack = packSize >= 20;
+        // "20+" when not in pack and we have enough organics to trust the miss.
+        const fullPack = packSize >= minResultsForNotFound(20);
         notInResults = rank == null && fullPack;
       } else {
         const match = findEntityInCompetitors(competitors, entity);
         rank = match.rank;
         matchReason = match.matchReason;
-        const fullPack = packSize >= 20;
+        const fullPack = packSize >= minResultsForNotFound(20);
         notInResults = (!match.found || rank == null) && fullPack;
       }
     }

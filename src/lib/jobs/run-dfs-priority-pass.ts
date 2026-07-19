@@ -3,7 +3,7 @@
  *
  * Submits cells through the fair Priority queue (25-cell app chunks → ≤100/POST,
  * round-robin across concurrent scans), polls until ready, then persists only
- * packs with >= depth items.
+ * packs with >= min SERP results (default 10; still request depth 20).
  */
 
 import { createServiceClient } from "@/lib/db/client";
@@ -16,7 +16,7 @@ import {
   sanitizeMapsTaskTag,
 } from "@/lib/providers/dataforseo/maps-priority-batch";
 import { matchTargetInResults } from "@/lib/providers/dataforseo/match-target";
-import { validateLiveCellSerp } from "@/lib/maps/cell-result-integrity";
+import { minCellSerpResults, validateLiveCellSerp } from "@/lib/maps/cell-result-integrity";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
 import { invalidateScanGridCache } from "@/lib/maps/scan-queries";
 import {
@@ -344,16 +344,17 @@ export async function runDataForSeoPriorityPass(params: {
       continue;
     }
 
-    if (!row.ok || row.items.length < depth) {
+    const minSerp = minCellSerpResults(depth);
+    if (!row.ok || row.items.length < minSerp) {
       const category: MapsFailureCategory =
         row.items.length === 0 ? "valid_empty_maps_results" : "sparse_maps_results";
       const reason =
         row.errorMessage ??
         (row.items.length === 0
           ? "DataForSEO Priority returned no map results for this cell"
-          : `sparse SERP: ${row.items.length} results returned (need ${depth})`);
+          : `sparse SERP: ${row.items.length} results returned (need ${minSerp})`);
       console.warn(
-        `[Scan] Priority incomplete grid=${job.point.grid_label} items=${row.items.length} need=${depth}: ${reason}`
+        `[Scan] Priority incomplete grid=${job.point.grid_label} items=${row.items.length} need=${minSerp}: ${reason}`
       );
       results.push({
         success: false,
@@ -423,7 +424,7 @@ export async function runDataForSeoPriorityPass(params: {
 
   const successCount = results.filter((r) => r.success).length;
   console.log(
-    `[Scan] Priority pass ${passLabel}: ${successCount}/${jobs.length} complete (>=${depth} items)`
+    `[Scan] Priority pass ${passLabel}: ${successCount}/${jobs.length} complete (>=${minCellSerpResults(depth)} items)`
   );
 
   return {
