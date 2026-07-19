@@ -24,6 +24,8 @@ export async function buildTrendReport(params: {
   gridSize?: number | null;
   radiusMeters?: number | null;
   whiteLabel?: Partial<WhiteLabelConfig>;
+  dateFrom?: string | null;
+  dateTo?: string | null;
 }): Promise<TrendReportPayload> {
   const supabase = createServiceClient();
 
@@ -55,10 +57,30 @@ export async function buildTrendReport(params: {
     throw new Error("Need at least 2 scans to build a trend report");
   }
 
-  const recompute = history.length <= RECOMPUTE_GRID_THRESHOLD;
+  const fromMs = params.dateFrom ? new Date(params.dateFrom).getTime() : null;
+  const toMs = params.dateTo ? new Date(params.dateTo).getTime() : null;
+  const filteredHistory =
+    fromMs != null && toMs != null && Number.isFinite(fromMs) && Number.isFinite(toMs)
+      ? history.filter((entry) => {
+          const t = new Date(entry.completed_at).getTime();
+          return Number.isFinite(t) && t >= fromMs && t <= toMs;
+        })
+      : history;
+
+  // Need prior point for deltas — if period filter leaves <2, keep last 2 overall.
+  const workingHistory =
+    filteredHistory.length >= 2
+      ? filteredHistory
+      : history.slice(-2);
+
+  if (workingHistory.length < 2) {
+    throw new Error("Need at least 2 scans to build a trend report");
+  }
+
+  const recompute = workingHistory.length <= RECOMPUTE_GRID_THRESHOLD;
   const series: TrendReportPayload["series"] = [];
 
-  for (const entry of history) {
+  for (const entry of workingHistory) {
     if (recompute) {
       const gridData = await loadScanGridData(supabase, entry.scan_id, entry.keyword_id);
       if (gridData) {
@@ -102,8 +124,8 @@ export async function buildTrendReport(params: {
 
   const previousPoint = series[series.length - 2]!;
   const currentPoint = series[series.length - 1]!;
-  const first = history[0]!;
-  const last = history[history.length - 1]!;
+  const first = workingHistory[0]!;
+  const last = workingHistory[workingHistory.length - 1]!;
 
   const whiteLabel = await resolveOrgWhiteLabel(supabase, business, params.whiteLabel);
 
@@ -117,6 +139,25 @@ export async function buildTrendReport(params: {
     if (kw?.keyword) keywordLabel = String(kw.keyword);
   }
 
+  const { buildComparisonSection } = await import(
+    "@/lib/reporting/comparison-heatmaps"
+  );
+  let comparison = null;
+  try {
+    comparison = await buildComparisonSection({
+      businessId: params.businessId,
+      baselineScanId: previousPoint.scanId,
+      currentScanId: currentPoint.scanId,
+      mode: "prior_period",
+      keywordId: params.keywordId,
+    });
+  } catch {
+    comparison = null;
+  }
+
+  const dateFrom = params.dateFrom ?? first.completed_at;
+  const dateTo = params.dateTo ?? last.completed_at;
+
   return {
     reportType: "trend",
     business: { id: business.id, name: business.name },
@@ -125,8 +166,8 @@ export async function buildTrendReport(params: {
       gridSize: last.grid_size,
       radiusMeters: last.radius_meters,
       locationId,
-      dateFrom: first.completed_at,
-      dateTo: last.completed_at,
+      dateFrom,
+      dateTo,
       scanCount: series.length,
     },
     series,
@@ -149,5 +190,7 @@ export async function buildTrendReport(params: {
     },
     whiteLabel,
     generatedAt: new Date().toISOString(),
+    comparison,
+    periodLabel: `${new Date(dateFrom).toLocaleDateString()} – ${new Date(dateTo).toLocaleDateString()}`,
   };
 }

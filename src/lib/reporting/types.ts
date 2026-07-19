@@ -40,6 +40,49 @@ export type HeatmapCell = {
   textColor: string;
 };
 
+/** Optional AI Visibility block embedded in client HTML/PDF reports. */
+export type ReportAiVisibilitySection = {
+  hasData: boolean;
+  runAt: string | null;
+  previousRunAt: string | null;
+  visibilityScore: number | null;
+  previousVisibilityScore: number | null;
+  targetMentioned: boolean | null;
+  previousTargetMentioned: boolean | null;
+  promptsChecked: number;
+  enginesChecked: number;
+  engines: Array<{ engine: string; mentioned: boolean; status: string }>;
+  prompts: Array<{ text: string; mentioned: boolean | null }>;
+  competitors: Array<{ name: string; mentions: number }>;
+  summary: string | null;
+  methodology: string;
+};
+
+/** Before/after Maps grids for baseline or prior-period comparison. */
+export type ReportComparisonSection = {
+  mode: "baseline" | "prior_period";
+  baselineLabel: string;
+  currentLabel: string;
+  baselineScanId: string | null;
+  currentScanId: string | null;
+  keyword: string | null;
+  baselineHeatmap: { gridSize: number; cells: HeatmapCell[] } | null;
+  currentHeatmap: { gridSize: number; cells: HeatmapCell[] } | null;
+  kpiDelta: { arp: number | null; atrp: number | null; solv: number | null };
+};
+
+/** Shared optional fields attached to any report payload after enrichment. */
+export type ReportCommonFields = {
+  executiveSummary?: string | null;
+  sections?: Partial<Record<string, boolean>> | null;
+  aiVisibility?: ReportAiVisibilitySection | null;
+  comparison?: ReportComparisonSection | null;
+  workCompleted?: string | null;
+  freelancerNotes?: string | null;
+  nextSteps?: string | null;
+  periodLabel?: string | null;
+};
+
 export type ReportCompetitorRow = {
   key: string;
   name: string;
@@ -59,7 +102,7 @@ export type ReportCompetitorRow = {
   isTarget?: boolean;
 };
 
-export type SingleScanReportPayload = {
+export type SingleScanReportPayload = ReportCommonFields & {
   reportType: "single_scan";
   business: {
     id: string;
@@ -87,11 +130,9 @@ export type SingleScanReportPayload = {
   rankDistribution: { label: string; count: number }[];
   whiteLabel: WhiteLabelConfig;
   generatedAt: string;
-  executiveSummary?: string | null;
-  sections?: Partial<Record<string, boolean>> | null;
 };
 
-export type TrendReportPayload = {
+export type TrendReportPayload = ReportCommonFields & {
   reportType: "trend";
   business: { id: string; name: string };
   parameters: {
@@ -120,7 +161,7 @@ export type TrendReportPayload = {
   generatedAt: string;
 };
 
-export type CompetitorReportPayload = {
+export type CompetitorReportPayload = ReportCommonFields & {
   reportType: "competitor";
   business: { id: string; name: string };
   parameters: {
@@ -137,7 +178,7 @@ export type CompetitorReportPayload = {
   generatedAt: string;
 };
 
-export type LocationReportPayload = {
+export type LocationReportPayload = ReportCommonFields & {
   reportType: "location";
   business: { id: string; name: string; address: string | null };
   parameters: { dateFrom: string; dateTo: string; keywordCount: number };
@@ -147,6 +188,8 @@ export type LocationReportPayload = {
     keywordId: string | null;
     scanId: string | null;
     scannedAt: string | null;
+    priorScanId?: string | null;
+    priorScannedAt?: string | null;
     arp: number | null;
     atrp: number | null;
     solv: number | null;
@@ -158,7 +201,7 @@ export type LocationReportPayload = {
   generatedAt: string;
 };
 
-export type KeywordReportPayload = {
+export type KeywordReportPayload = ReportCommonFields & {
   reportType: "keyword";
   business: { id: string; name: string; address: string | null };
   parameters: {
@@ -186,7 +229,7 @@ export type KeywordReportPayload = {
   generatedAt: string;
 };
 
-export type MapsCampaignReportPayload = {
+export type MapsCampaignReportPayload = ReportCommonFields & {
   reportType: "maps_campaign";
   business: { id: string; name: string; address: string | null };
   parameters: {
@@ -201,6 +244,8 @@ export type MapsCampaignReportPayload = {
     keywordCount: number;
     dateFrom: string;
     dateTo: string;
+    baselineScanBatchId?: string | null;
+    comparisonMode?: "baseline" | "prior_period" | null;
   };
   aggregate: ReportKpis;
   keywords: Array<{
@@ -208,6 +253,8 @@ export type MapsCampaignReportPayload = {
     keywordId: string | null;
     scanId: string | null;
     scannedAt: string | null;
+    priorScanId?: string | null;
+    priorScannedAt?: string | null;
     arp: number | null;
     atrp: number | null;
     solv: number | null;
@@ -219,7 +266,7 @@ export type MapsCampaignReportPayload = {
   generatedAt: string;
 };
 
-export type ReviewsReportPayload = {
+export type ReviewsReportPayload = ReportCommonFields & {
   reportType: "reviews";
   business: { id: string; name: string };
   parameters: {
@@ -259,7 +306,7 @@ export type ReviewsReportPayload = {
   generatedAt: string;
 };
 
-export type ReviewCampaignReportPayload = {
+export type ReviewCampaignReportPayload = ReportCommonFields & {
   reportType: "review_campaign";
   business: { id: string; name: string };
   parameters: {

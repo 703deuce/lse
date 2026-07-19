@@ -68,8 +68,6 @@ function aggregateKeywordKpis(rows: KeywordMetric[]): ReportKpis {
         ) / 100
       : 0;
 
-  // Rollup aggregate: ARP/ATRP/SoLV are averages across keywords.
-  // Do not fabricate Top-10 / visibility from SoLV — those need grid ranks.
   return {
     ...emptyKpis(),
     arp,
@@ -106,7 +104,6 @@ function fallbackMetrics(entry: ScanEntry): {
   const arp = round1(entry.metrics.averageRank ?? null);
   return {
     arp,
-    // aggregate_metrics.averageRank is ARP, not ATRP — leave ATRP null when unrecomputed
     atrp: null,
     solv:
       entry.metrics.top3Cells != null && entry.metrics.totalCells
@@ -127,9 +124,25 @@ function preferBusinessLocationScans(scans: ScanEntry[]): ScanEntry[] {
   return scans.filter((s) => s.locationId === anchorId);
 }
 
+function inRange(iso: string, fromMs: number | null, toMs: number | null): boolean {
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return false;
+  if (fromMs != null && t < fromMs) return false;
+  if (toMs != null && t > toMs) return false;
+  return true;
+}
+
 export async function buildLocationReport(params: {
   businessId: string;
   whiteLabel?: Partial<WhiteLabelConfig>;
+  /** Inclusive period start (ISO). When set with dateTo, latest scans are taken from this window. */
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  /**
+   * When set, keyword Δ uses this scan as the prior when it matches the keyword
+   * (campaign baseline), otherwise falls back to previous scan in series.
+   */
+  baselineScanBatchId?: string | null;
 }): Promise<LocationReportPayload> {
   const supabase = createServiceClient();
 
@@ -140,6 +153,14 @@ export async function buildLocationReport(params: {
     .single();
   if (!business) throw new Error("Business not found");
 
+  const fromMs = params.dateFrom ? new Date(params.dateFrom).getTime() : null;
+  const toMs = params.dateTo ? new Date(params.dateTo).getTime() : null;
+  const hasPeriod =
+    fromMs != null &&
+    toMs != null &&
+    Number.isFinite(fromMs) &&
+    Number.isFinite(toMs);
+
   const { data: batches } = await supabase
     .from("scan_batches")
     .select(
@@ -148,7 +169,7 @@ export async function buildLocationReport(params: {
     .eq("business_id", params.businessId)
     .in("status", ["ready", "partial", "rank_ready"])
     .order("created_at", { ascending: false })
-    .limit(120);
+    .limit(200);
 
   const byKeyword = new Map<string, ScanEntry[]>();
 
@@ -178,12 +199,30 @@ export async function buildLocationReport(params: {
   }
 
   const keywords: KeywordMetric[] = [];
+  const baselineId = params.baselineScanBatchId?.trim() || null;
 
   for (const [, allScans] of byKeyword) {
-    // Keep order newest-first within preferred location scope.
     const scans = preferBusinessLocationScans(allScans);
-    const latest = scans[0]!;
-    const previous = scans[1];
+    // Newest first already from batch query; keep that order.
+    const ordered = [...scans].sort(
+      (a, b) => new Date(b.scannedAt).getTime() - new Date(a.scannedAt).getTime()
+    );
+
+    let latest: ScanEntry | undefined;
+    if (hasPeriod) {
+      latest = ordered.find((s) => inRange(s.scannedAt, fromMs, toMs));
+    } else {
+      latest = ordered[0];
+    }
+    if (!latest) continue;
+
+    let previous: ScanEntry | undefined;
+    if (baselineId) {
+      previous = ordered.find((s) => s.scanId === baselineId);
+    }
+    if (!previous) {
+      previous = ordered.find((s) => s.scanId !== latest!.scanId);
+    }
 
     let latestMetrics = fallbackMetrics(latest);
     const recomputed = await metricsForBatch(
@@ -207,7 +246,6 @@ export async function buildLocationReport(params: {
       const prevFallback = fallbackMetrics(previous);
       const prevArp = prevRecomputed.arp ?? prevFallback.arp;
       if (latestMetrics.arp != null && prevArp != null) {
-        // Positive = improved (lower ARP)
         changeArp = Math.round((prevArp - latestMetrics.arp) * 10) / 10;
       }
     }
@@ -217,6 +255,8 @@ export async function buildLocationReport(params: {
       keywordId: latest.keywordId,
       scanId: latest.scanId,
       scannedAt: latest.scannedAt,
+      priorScanId: previous?.scanId ?? null,
+      priorScannedAt: previous?.scannedAt ?? null,
       arp: latestMetrics.arp,
       atrp: latestMetrics.atrp,
       solv: latestMetrics.solv,
@@ -225,7 +265,11 @@ export async function buildLocationReport(params: {
   }
 
   if (keywords.length === 0) {
-    throw new Error("No completed scans to include. Run a grid scan first.");
+    throw new Error(
+      hasPeriod
+        ? "No completed scans in the selected period. Widen the dates or run a grid scan."
+        : "No completed scans to include. Run a grid scan first."
+    );
   }
 
   keywords.sort((a, b) => (a.arp ?? 99) - (b.arp ?? 99));
@@ -250,6 +294,28 @@ export async function buildLocationReport(params: {
     params.whiteLabel
   );
 
+  const periodFrom = params.dateFrom ?? dates[0] ?? new Date().toISOString();
+  const periodTo = params.dateTo ?? dates[dates.length - 1] ?? new Date().toISOString();
+
+  const { buildComparisonSection } = await import(
+    "@/lib/reporting/comparison-heatmaps"
+  );
+  let comparison = null;
+  const compareKeyword = keywords.find((k) => k.scanId && k.priorScanId) ?? null;
+  if (compareKeyword?.scanId && compareKeyword.priorScanId) {
+    try {
+      comparison = await buildComparisonSection({
+        businessId: params.businessId,
+        baselineScanId: compareKeyword.priorScanId,
+        currentScanId: compareKeyword.scanId,
+        mode: baselineId ? "baseline" : "prior_period",
+        keywordId: compareKeyword.keywordId,
+      });
+    } catch {
+      comparison = null;
+    }
+  }
+
   return {
     reportType: "location",
     business: {
@@ -258,8 +324,8 @@ export async function buildLocationReport(params: {
       address: business.address_text ?? null,
     },
     parameters: {
-      dateFrom: dates[0] ?? new Date().toISOString(),
-      dateTo: dates[dates.length - 1] ?? new Date().toISOString(),
+      dateFrom: periodFrom,
+      dateTo: periodTo,
       keywordCount: keywords.length,
     },
     aggregate: aggregateKeywordKpis(keywords),
@@ -268,5 +334,7 @@ export async function buildLocationReport(params: {
     falling,
     whiteLabel,
     generatedAt: new Date().toISOString(),
+    periodLabel: `${new Date(periodFrom).toLocaleDateString()} – ${new Date(periodTo).toLocaleDateString()}`,
+    comparison,
   };
 }

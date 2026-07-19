@@ -469,12 +469,63 @@ export async function executeJobType(
 
         // Binary scan artifacts (PDF / map / heatmap / CSV splits)
         if (artifactKind) {
+          const reportTypeHint = optionalString(payload.reportType) ?? "single_scan";
+          const { createSignedArtifactUrl } = await import("@/lib/reporting/artifacts");
+          // Rollup PDF (monthly / location / campaign) — no scanBatchId required.
+          if (
+            artifactKind === "pdf" &&
+            (reportTypeHint === "trend" ||
+              reportTypeHint === "location" ||
+              reportTypeHint === "maps_campaign")
+          ) {
+            const { generateRollupPdfArtifact } = await import(
+              "@/lib/reporting/pdf/generate-rollup-artifact"
+            );
+            const artifact = await generateRollupPdfArtifact({
+              businessId,
+              reportType: reportTypeHint as import("@/lib/reporting/types").ReportType,
+              keywordId: optionalString(payload.keywordId),
+              locationId: optionalString(payload.locationId),
+              campaignId: optionalString(payload.campaignId),
+              gridSize: typeof payload.gridSize === "number" ? payload.gridSize : undefined,
+              radiusMeters:
+                typeof payload.radiusMeters === "number" ? payload.radiusMeters : undefined,
+              dateFrom: optionalString(payload.dateFrom),
+              dateTo: optionalString(payload.dateTo),
+              force: payload.force === true,
+            });
+            let downloadUrl: string | null = null;
+            try {
+              downloadUrl = await createSignedArtifactUrl({ path: artifact.storagePath });
+            } catch {
+              downloadUrl = null;
+            }
+            if (ledgerJobId) {
+              const { updateJobProgress } = await import("@/lib/queue/ledger");
+              await updateJobProgress(
+                ledgerJobId,
+                {
+                  result: {
+                    reportId: artifact.reportId,
+                    kind: artifact.kind,
+                    downloadUrl,
+                    downloadPath: artifact.downloadPath,
+                    reused: artifact.reused,
+                    bytes: artifact.bytes,
+                  },
+                },
+                { completed: 1, total: 1 },
+                { force: true }
+              );
+            }
+            return { ok: true };
+          }
+
           const scanBatchId = optionalString(payload.scanBatchId);
           if (!scanBatchId) return permanent("scanBatchId required for artifacts");
           const { generateScanArtifact } = await import(
             "@/lib/reporting/pdf/generate-scan-artifacts"
           );
-          const { createSignedArtifactUrl } = await import("@/lib/reporting/artifacts");
           const limitRaw = payload.competitorLimit;
           const competitorLimit =
             limitRaw === "all" || limitRaw === 10 || limitRaw === 20
@@ -529,6 +580,16 @@ export async function executeJobType(
             selectedCompetitorKeys: Array.isArray(payload.selectedCompetitorKeys)
               ? (payload.selectedCompetitorKeys as string[])
               : undefined,
+            dateFrom: optionalString(payload.dateFrom),
+            dateTo: optionalString(payload.dateTo),
+            workCompleted: optionalString(payload.workCompleted),
+            freelancerNotes: optionalString(payload.freelancerNotes),
+            nextSteps: optionalString(payload.nextSteps),
+            periodLabel: optionalString(payload.periodLabel),
+            publishStatus:
+              payload.publishStatus === "draft" || payload.publishStatus === "published"
+                ? payload.publishStatus
+                : null,
             persist: payload.persist !== false,
             reportId: optionalString(payload.reportId),
             shareToken: optionalString(payload.shareToken),

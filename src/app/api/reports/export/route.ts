@@ -96,19 +96,116 @@ export async function POST(request: Request) {
 
     const format = data.format ?? "share";
 
-    // CSV variants stay synchronous (small payloads).
-    if (format === "csv" || format === "summary_csv" || format === "points_csv") {
-      stage = "csv_generate";
+    const commonGenerate = {
+      businessId: data.businessId,
+      scanBatchId: data.scanBatchId,
+      reportType,
+      keywordId: data.keywordId,
+      locationId: data.locationId,
+      campaignId: data.campaignId,
+      gridSize: data.gridSize,
+      radiusMeters: data.radiusMeters,
+      selectedCompetitorKeys: data.selectedCompetitorKeys,
+      dateFrom: data.dateFrom,
+      dateTo: data.dateTo,
+      executiveSummary: data.executiveSummary,
+      sections: data.sections ?? undefined,
+      workCompleted: data.workCompleted,
+      freelancerNotes: data.freelancerNotes,
+      nextSteps: data.nextSteps,
+      periodLabel: data.periodLabel,
+      publishStatus: data.publishStatus,
+    };
+
+    // In-app preview — build HTML without persisting a share row.
+    if (format === "preview") {
+      stage = "preview_generate";
       const result = await generateTypedReport({
+        ...commonGenerate,
+        persist: false,
+      });
+      return NextResponse.json({
+        html: result.html,
+        reportType: result.payload.reportType,
+        periodLabel: result.payload.periodLabel ?? null,
+        summary: {
+          arp:
+            "aggregate" in result.payload
+              ? result.payload.aggregate.arp
+              : "current" in result.payload
+                ? result.payload.current.arp
+                : "kpis" in result.payload
+                  ? result.payload.kpis.arp
+                  : null,
+          keywordCount:
+            "keywords" in result.payload
+              ? result.payload.keywords.length
+              : "parameters" in result.payload &&
+                  "scanCount" in result.payload.parameters
+                ? result.payload.parameters.scanCount
+                : null,
+          hasComparison: Boolean(result.payload.comparison),
+          hasAiVisibility: Boolean(result.payload.aiVisibility?.hasData),
+        },
+        requestId,
+      });
+    }
+
+    // Dedicated PDF for monthly / location / campaign rollups.
+    if (format === "pdf") {
+      stage = "pdf_generate";
+      if (
+        reportType !== "trend" &&
+        reportType !== "location" &&
+        reportType !== "maps_campaign"
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Dedicated PDF is available for Monthly, Location, and Campaign reports. Use single-scan PDF exports for grid audits.",
+            requestId,
+          },
+          { status: 400 }
+        );
+      }
+      const { generateRollupPdfArtifact } = await import(
+        "@/lib/reporting/pdf/generate-rollup-artifact"
+      );
+      const { createSignedArtifactUrl } = await import("@/lib/reporting/artifacts");
+      const artifact = await generateRollupPdfArtifact({
         businessId: data.businessId,
-        scanBatchId: data.scanBatchId,
         reportType,
         keywordId: data.keywordId,
         locationId: data.locationId,
         campaignId: data.campaignId,
         gridSize: data.gridSize,
         radiusMeters: data.radiusMeters,
-        selectedCompetitorKeys: data.selectedCompetitorKeys,
+        dateFrom: data.dateFrom,
+        dateTo: data.dateTo,
+        force: data.force === true,
+      });
+      let downloadUrl: string | null = null;
+      try {
+        downloadUrl = await createSignedArtifactUrl({ path: artifact.storagePath });
+      } catch {
+        downloadUrl = null;
+      }
+      return NextResponse.json({
+        reportId: artifact.reportId,
+        kind: artifact.kind,
+        downloadUrl,
+        downloadPath: artifact.downloadPath,
+        reused: artifact.reused,
+        bytes: artifact.bytes,
+        requestId,
+      });
+    }
+
+    // CSV variants stay synchronous (small payloads).
+    if (format === "csv" || format === "summary_csv" || format === "points_csv") {
+      stage = "csv_generate";
+      const result = await generateTypedReport({
+        ...commonGenerate,
         persist: false,
       });
       let csv = "";
@@ -182,6 +279,8 @@ export async function POST(request: Request) {
       gridSize: data.gridSize,
       radiusMeters: data.radiusMeters,
       selectedCompetitorKeys: data.selectedCompetitorKeys,
+      dateFrom: data.dateFrom,
+      dateTo: data.dateTo,
     });
 
     stage = "share_reuse";
@@ -273,6 +372,7 @@ export async function POST(request: Request) {
       identityKey,
       scanBatchId: data.scanBatchId,
       campaignId: data.campaignId,
+      publishStatus: data.publishStatus,
     });
 
     await writeSecurityAuditEvent({
@@ -300,6 +400,15 @@ export async function POST(request: Request) {
         gridSize: data.gridSize,
         radiusMeters: data.radiusMeters,
         selectedCompetitorKeys: data.selectedCompetitorKeys,
+        dateFrom: data.dateFrom,
+        dateTo: data.dateTo,
+        executiveSummary: data.executiveSummary,
+        sections: data.sections,
+        workCompleted: data.workCompleted,
+        freelancerNotes: data.freelancerNotes,
+        nextSteps: data.nextSteps,
+        periodLabel: data.periodLabel,
+        publishStatus: data.publishStatus ?? "published",
         persist: true,
         reportId: pending.reportId,
         shareToken: pending.shareToken,

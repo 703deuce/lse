@@ -13,7 +13,13 @@ export function shareIdentityKey(params: {
   gridSize?: number | null;
   radiusMeters?: number | null;
   selectedCompetitorKeys?: string[];
+  dateFrom?: string | null;
+  dateTo?: string | null;
 }): string {
+  const periodKey =
+    params.dateFrom || params.dateTo
+      ? `${params.dateFrom ?? ""}..${params.dateTo ?? ""}`
+      : "all";
   switch (params.reportType) {
     case "single_scan":
       return `single_scan:${params.scanBatchId ?? "na"}`;
@@ -28,9 +34,10 @@ export function shareIdentityKey(params: {
         params.locationId ?? "biz",
         params.gridSize ?? "g",
         params.radiusMeters ?? "r",
+        periodKey,
       ].join(":");
     case "location":
-      return "location";
+      return `location:${periodKey}`;
     case "keyword":
       return [
         "keyword",
@@ -39,7 +46,7 @@ export function shareIdentityKey(params: {
         params.radiusMeters ?? "r",
       ].join(":");
     case "maps_campaign":
-      return `maps_campaign:${params.campaignId ?? "default"}`;
+      return `maps_campaign:${params.campaignId ?? "default"}:${periodKey}`;
     case "reviews":
       return "reviews";
     case "review_campaign":
@@ -114,7 +121,9 @@ export async function createGeneratingShareRecord(params: {
   identityKey: string;
   scanBatchId?: string | null;
   campaignId?: string | null;
+  publishStatus?: "draft" | "published" | null;
 }): Promise<{ reportId: string; shareToken: string; shareUrl: string }> {
+  const publishStatus = params.publishStatus === "draft" ? "draft" : "published";
   const supabase = createServiceClient();
   const shareToken = generateShareToken();
   const shareTokenHash = hashShareToken(shareToken);
@@ -179,7 +188,7 @@ export async function createGeneratingShareRecord(params: {
         html_content: null,
         artifact_kind: "html_share",
         artifact_status: "generating",
-        publish_status: "published",
+        publish_status: publishStatus,
         error_message: null,
         scan_batch_id: scanBatchId,
         metadata_json: nextMeta,
@@ -210,7 +219,7 @@ export async function createGeneratingShareRecord(params: {
       html_content: null,
       artifact_kind: "html_share",
       artifact_status: "generating",
-      publish_status: "published",
+      publish_status: publishStatus,
       metadata_json: nextMeta,
     })
     .select("id")
@@ -236,7 +245,7 @@ export async function createGeneratingShareRecord(params: {
           share_expires_at: shareExpiresAt,
           html_content: null,
           artifact_status: "generating",
-          publish_status: "published",
+          publish_status: publishStatus,
           error_message: null,
           metadata_json: nextMeta,
           generated_at: new Date().toISOString(),

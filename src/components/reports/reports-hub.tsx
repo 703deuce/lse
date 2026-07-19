@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import type { ReportType } from "@/lib/reporting/types";
 import { ScanExportMenu } from "@/components/reports/scan-export-menu";
 import { ReportShareControls } from "@/components/reports/report-share-controls";
+import { MonthlyReportWizard } from "@/components/reports/monthly-report-wizard";
 import { useActiveJobStatus } from "@/components/jobs/use-active-job-status";
 import { isTerminalJobStatus } from "@/lib/jobs/active-job-status";
 
@@ -158,7 +159,7 @@ export function ReportsHub({
   const [campaignId, setCampaignId] = useState("");
   const [mapsCampaignId, setMapsCampaignId] = useState(initialMapsCampaignId ?? "");
   const [activeType, setActiveType] = useState<ReportType>(initialType ?? "single_scan");
-  const [busy, setBusy] = useState<"share" | "csv" | "revoke" | null>(null);
+  const [busy, setBusy] = useState<"share" | "csv" | "pdf" | "revoke" | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [reportId, setReportId] = useState<string | null>(null);
   const [shareJobId, setShareJobId] = useState<string | null>(null);
@@ -485,6 +486,13 @@ export function ReportsHub({
           ) : null}
         </div>
 
+        {activeType === "trend" ? (
+          <MonthlyReportWizard
+            businessId={businessId}
+            scans={scans}
+            keywords={keywords}
+          />
+        ) : (
         <ContentCard className="h-fit xl:sticky xl:top-4">
           <h2 className="text-[13px] font-semibold text-zinc-900">{activeCard.title}</h2>
           <p className="mt-0.5 text-[12px] leading-snug text-zinc-500">{activeCard.description}</p>
@@ -492,11 +500,7 @@ export function ReportsHub({
           {needsScanPicker && (
             <div className="mt-3">
               <label className={fieldLabelClass}>
-                {activeType === "trend"
-                  ? "Anchor scan (keyword / grid)"
-                  : activeType === "keyword"
-                    ? "Grid settings (from scan)"
-                    : "Scan"}
+                {activeType === "keyword" ? "Grid settings (from scan)" : "Scan"}
               </label>
               {loadingScans ? (
                 <p className="mt-1 flex items-center gap-2 text-[12px] text-zinc-500">
@@ -617,13 +621,74 @@ export function ReportsHub({
             {activeType === "single_scan" && scanId ? (
               <ScanExportMenu businessId={businessId} scanBatchId={scanId} className="mb-2" />
             ) : null}
+            {(activeType === "maps_campaign" || activeType === "location") && (
+              <button
+                type="button"
+                disabled={
+                  busy != null ||
+                  (activeCard.needsMapsCampaign && !mapsCampaignId)
+                }
+                onClick={() => {
+                  void (async () => {
+                    setBusy("pdf");
+                    setError(null);
+                    try {
+                      const body: Record<string, unknown> = {
+                        businessId,
+                        reportType: activeType,
+                        format: "pdf",
+                        force: true,
+                      };
+                      if (activeType === "maps_campaign" && mapsCampaignId) {
+                        body.campaignId = mapsCampaignId;
+                      }
+                      const res = await fetch("/api/reports/export", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(body),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error ?? "PDF failed");
+                      const path = data.downloadPath || data.downloadUrl;
+                      if (!path) throw new Error("No download URL");
+                      if (String(path).startsWith("http")) {
+                        window.open(String(path), "_blank", "noopener,noreferrer");
+                      } else {
+                        const dl = await fetch(String(path), {
+                          credentials: "same-origin",
+                        });
+                        if (!dl.ok) throw new Error("PDF download failed");
+                        const blob = await dl.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `${activeType}-report.pdf`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : "PDF failed");
+                    } finally {
+                      setBusy(null);
+                    }
+                  })();
+                }}
+                className={cn(btnSecondary, "h-9 w-full justify-center px-3 text-[13px]")}
+              >
+                {busy === "pdf" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <FileText className="h-3.5 w-3.5" />
+                )}
+                Download PDF
+              </button>
+            )}
             <button
               type="button"
               disabled={
                 busy != null ||
                 shareStatus === "generating" ||
-                ((activeCard.needsScan || activeType === "trend") && !scanId) ||
-                (activeType === "trend" && !resolvedTrendKeywordId) ||
+                (activeCard.needsScan && !scanId) ||
                 (activeCard.needsCampaign && !campaignId) ||
                 (activeCard.needsMapsCampaign && !mapsCampaignId) ||
                 (activeCard.needsKeyword && !keywordId)
@@ -647,8 +712,7 @@ export function ReportsHub({
               type="button"
               disabled={
                 busy != null ||
-                ((activeCard.needsScan || activeType === "trend") && !scanId) ||
-                (activeType === "trend" && !resolvedTrendKeywordId) ||
+                (activeCard.needsScan && !scanId) ||
                 (activeCard.needsCampaign && !campaignId) ||
                 (activeCard.needsMapsCampaign && !mapsCampaignId) ||
                 (activeCard.needsKeyword && !keywordId)
@@ -713,12 +777,13 @@ export function ReportsHub({
           <div className="mt-4 border-t border-zinc-100 pt-3 text-[11px] leading-relaxed text-zinc-500">
             <p className="font-semibold text-zinc-700">Exports</p>
             <p className="mt-1">
-              Share link = interactive report. Use the in-report <strong>Print / Save as PDF</strong>{" "}
-              button for client PDFs. CSV is for spreadsheet analysis. Branding (logo/colors) is under
-              Settings → Report branding.
+              Share link = interactive report. Campaign and location reports include a dedicated PDF
+              download; single-scan audits use the PDF export menu. Branding is under Settings →
+              Report branding.
             </p>
           </div>
         </ContentCard>
+        )}
       </div>
     </ModulePage>
   );

@@ -186,6 +186,153 @@ function trendChartSvg(series: TrendReportPayload["series"]): string {
   </svg>`;
 }
 
+function comparisonBlock(payload: AnyReportPayload): string {
+  if (!isSectionEnabled(payloadSections(payload), "comparison")) return "";
+  const comparison = payload.comparison;
+  if (!comparison) return "";
+  const before = comparison.baselineHeatmap
+    ? heatmapHtml(comparison.baselineHeatmap.gridSize, comparison.baselineHeatmap.cells)
+    : `<p class="muted">Baseline grid unavailable</p>`;
+  const after = comparison.currentHeatmap
+    ? heatmapHtml(comparison.currentHeatmap.gridSize, comparison.currentHeatmap.cells)
+    : `<p class="muted">Current grid unavailable</p>`;
+  return `<section class="page-break">
+    <h2>Before-and-after comparison</h2>
+    <p class="muted">${escapeHtml(comparison.keyword ?? "Maps grid")}${
+      comparison.mode === "baseline" ? " · vs campaign baseline" : " · vs prior period"
+    }</p>
+    <div class="delta-row">
+      <span>Avg. rank change ${escapeHtml(fmt(comparison.kpiDelta.arp))} <small class="muted">(+ = improved)</small></span>
+      <span>Top 3 % change ${escapeHtml(fmt(comparison.kpiDelta.solv))} <small class="muted">(+ = improved)</small></span>
+    </div>
+    <div class="compare-grids">
+      <div>
+        <h3>${escapeHtml(comparison.baselineLabel)}</h3>
+        ${before}
+      </div>
+      <div>
+        <h3>${escapeHtml(comparison.currentLabel)}</h3>
+        ${after}
+      </div>
+    </div>
+  </section>`;
+}
+
+function aiVisibilityBlock(payload: AnyReportPayload): string {
+  if (!isSectionEnabled(payloadSections(payload), "ai_visibility")) return "";
+  const ai = payload.aiVisibility;
+  if (!ai?.hasData) {
+    return `<section class="page-break">
+      <h2>AI visibility</h2>
+      <p class="muted">No AI Visibility runs yet for this location. Run a check from AI Visibility, or turn this section off for Maps-only deliverables.</p>
+    </section>`;
+  }
+  const scoreDelta =
+    ai.visibilityScore != null && ai.previousVisibilityScore != null
+      ? Math.round((ai.visibilityScore - ai.previousVisibilityScore) * 10) / 10
+      : null;
+  const engines = ai.engines
+    .map(
+      (e) =>
+        `<tr><td>${escapeHtml(e.engine)}</td><td>${e.mentioned ? "Mentioned" : "Not mentioned"}</td><td>${escapeHtml(e.status)}</td></tr>`
+    )
+    .join("");
+  const prompts = ai.prompts
+    .map(
+      (p) =>
+        `<tr><td>${escapeHtml(p.text)}</td><td>${
+          p.mentioned == null ? "—" : p.mentioned ? "Yes" : "No"
+        }</td></tr>`
+    )
+    .join("");
+  const comps = ai.competitors
+    .map(
+      (c) =>
+        `<tr><td>${escapeHtml(c.name)}</td><td>${c.mentions}</td></tr>`
+    )
+    .join("");
+  return `<section class="page-break">
+    <h2>AI visibility</h2>
+    <p class="muted">Latest run ${escapeHtml(ai.runAt ?? "—")}${
+      ai.previousRunAt ? ` · prior ${escapeHtml(ai.previousRunAt)}` : ""
+    }</p>
+    ${simpleKpiRow([
+      { label: "Coverage score", value: fmt(ai.visibilityScore, 0) },
+      {
+        label: "vs prior",
+        value: scoreDelta == null ? "—" : `${scoreDelta > 0 ? "+" : ""}${scoreDelta}`,
+      },
+      {
+        label: "Mentioned",
+        value:
+          ai.targetMentioned == null ? "—" : ai.targetMentioned ? "Yes" : "No",
+      },
+      {
+        label: "Engines / prompts",
+        value: `${ai.enginesChecked} / ${ai.promptsChecked}`,
+      },
+    ])}
+    ${ai.summary ? `<p>${escapeHtml(ai.summary)}</p>` : ""}
+    ${
+      engines
+        ? `<h3>Platforms checked</h3><table class="data"><thead><tr><th>Platform</th><th>Your business</th><th>Status</th></tr></thead><tbody>${engines}</tbody></table>`
+        : ""
+    }
+    ${
+      prompts
+        ? `<h3>Prompts</h3><table class="data"><thead><tr><th>Prompt</th><th>Mentioned</th></tr></thead><tbody>${prompts}</tbody></table>`
+        : ""
+    }
+    ${
+      comps
+        ? `<h3>Competitor mentions</h3><table class="data"><thead><tr><th>Name</th><th>Mentions</th></tr></thead><tbody>${comps}</tbody></table>`
+        : ""
+    }
+    <p class="muted">${escapeHtml(ai.methodology)}</p>
+  </section>`;
+}
+
+function narrativeBlocks(payload: AnyReportPayload): string {
+  const sections = payloadSections(payload);
+  const parts: string[] = [];
+  if (
+    isSectionEnabled(sections, "work_completed") &&
+    payload.workCompleted?.trim()
+  ) {
+    parts.push(
+      `<section><h2>Work completed</h2><p>${escapeHtml(payload.workCompleted.trim())}</p></section>`
+    );
+  }
+  if (
+    isSectionEnabled(sections, "freelancer_notes") &&
+    payload.freelancerNotes?.trim()
+  ) {
+    parts.push(
+      `<section><h2>Notes</h2><p>${escapeHtml(payload.freelancerNotes.trim())}</p></section>`
+    );
+  }
+  if (isSectionEnabled(sections, "next_steps") && payload.nextSteps?.trim()) {
+    parts.push(
+      `<section><h2>Next steps</h2><p>${escapeHtml(payload.nextSteps.trim())}</p></section>`
+    );
+  }
+  return parts.join("");
+}
+
+function coverBlock(payload: AnyReportPayload, bizName: string): string {
+  if (!isSectionEnabled(payloadSections(payload), "cover")) return "";
+  const wl = payload.whiteLabel;
+  const period = payload.periodLabel?.trim() || periodLabel(payload);
+  return `<section class="cover">
+    ${wl.logoUrl ? `<img class="cover-logo" src="${escapeHtml(wl.logoUrl)}" alt="${escapeHtml(wl.companyName)}"/>` : ""}
+    <div class="cover-brand">${escapeHtml(wl.companyName)}</div>
+    <h1 class="cover-title">${escapeHtml(reportTitle(payload.reportType))}</h1>
+    <p class="cover-client">${escapeHtml(bizName)}</p>
+    <p class="cover-period">${escapeHtml(period)}</p>
+    <p class="muted">Prepared ${escapeHtml(new Date(payload.generatedAt).toLocaleDateString())}</p>
+  </section>`;
+}
+
 function shell(
   payload: AnyReportPayload,
   body: string
@@ -204,14 +351,7 @@ function shell(
     ? `<section><h2>Executive summary</h2><p>${escapeHtml(executiveSummary)}</p></section>`
     : "";
   const footerEnabled = isSectionEnabled(payloadSections(payload), "footer");
-  const aiBlock =
-    isSectionEnabled(payloadSections(payload), "ai_visibility")
-      ? `<section class="page-break">
-      <h2>AI visibility</h2>
-      <p class="muted">Optional module: exact prompts, platforms checked, whether this business was mentioned, competitor mentions, coverage, and change vs the prior comparable run. Methodology is shown plainly — not a mysterious score.</p>
-      <p class="muted">Add AI Visibility runs from your workspace when this is part of the client engagement; leave this section off when it is not.</p>
-    </section>`
-      : "";
+  const hidePlatform = Boolean(wl.hidePlatformBranding);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -232,6 +372,7 @@ function shell(
     .meta strong { color: var(--ink); font-weight: 650; }
     h1 { font-size: 1.15rem; margin: 0 0 0.25rem; font-family: system-ui, -apple-system, Segoe UI, sans-serif; }
     h2 { font-size: 0.95rem; margin: 1.4rem 0 0.55rem; color: var(--ink); font-family: system-ui, -apple-system, Segoe UI, sans-serif; }
+    h3 { font-size: 0.82rem; margin: 0.85rem 0 0.4rem; font-family: system-ui, -apple-system, Segoe UI, sans-serif; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
     .muted { color: var(--muted); font-size: 0.85rem; font-family: system-ui, -apple-system, Segoe UI, sans-serif; }
     .kpi-row { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 0.5rem; margin: 0.75rem 0 1rem; font-family: system-ui, -apple-system, Segoe UI, sans-serif; }
     .kpi { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 0.45rem 0.65rem; display: flex; flex-direction: column; min-height: 58px; }
@@ -240,6 +381,7 @@ function shell(
     .heatmap { display: grid; gap: 3px; margin: 0.5rem 0 1rem; }
     .heat-cell { aspect-ratio: 1; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; }
     .heat-label { font-size: 0.55rem; font-weight: 500; opacity: 0.85; }
+    .compare-grids { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
     table.data { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
     table.data th, table.data td { border-bottom: 1px solid var(--line); padding: 0.4rem 0.35rem; text-align: left; }
     table.data th { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); }
@@ -258,6 +400,12 @@ function shell(
     .chip { font-size: 0.75rem; border: 1px solid var(--line); border-radius: 999px; padding: 0.15rem 0.55rem; }
     .chip.up { color: #047857; border-color: #a7f3d0; background: #ecfdf5; }
     .chip.down { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
+    .cover { min-height: 70vh; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 0.35rem; border-bottom: 2px solid var(--accent); margin-bottom: 1.5rem; padding: 2rem 0 2.5rem; page-break-after: always; break-after: page; }
+    .cover-logo { max-height: 56px; max-width: 200px; object-fit: contain; margin-bottom: 0.75rem; }
+    .cover-brand { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; font-size: 1.75rem; font-weight: 700; color: var(--accent); letter-spacing: -0.02em; }
+    .cover-title { font-size: 1.35rem; margin: 0.5rem 0 0; font-family: system-ui, -apple-system, Segoe UI, sans-serif; }
+    .cover-client { font-size: 1.05rem; margin: 0.35rem 0 0; font-weight: 600; }
+    .cover-period { margin: 0.15rem 0 0; color: var(--muted); font-family: system-ui, -apple-system, Segoe UI, sans-serif; font-size: 0.9rem; }
     @page { margin: 12mm; }
     @media print {
       body { background: #fff; counter-reset: page; }
@@ -266,7 +414,8 @@ function shell(
       .page-num::after { counter-increment: page; content: "Page " counter(page); }
     }
     @media (max-width: 720px) {
-      .kpi-row, .dist { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .kpi-row, .dist, .compare-grids { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .compare-grids { grid-template-columns: 1fr; }
       header.report-header { flex-direction: column; }
       .meta { text-align: left; }
     }
@@ -274,6 +423,7 @@ function shell(
 </head>
 <body>
   <div class="wrap">
+    ${coverBlock(payload, bizName)}
     <header class="report-header">
       <div class="brand">
         ${wl.logoUrl ? `<img src="${escapeHtml(wl.logoUrl)}" alt="${escapeHtml(wl.companyName)}"/>` : ""}
@@ -284,16 +434,20 @@ function shell(
       </div>
       <div class="meta">
         <div><strong>${escapeHtml(bizName)}</strong></div>
-        <div>${escapeHtml(periodLabel(payload))}</div>
+        <div>${escapeHtml(payload.periodLabel?.trim() || periodLabel(payload))}</div>
       </div>
     </header>
     ${summaryBlock}
     ${body}
-    ${aiBlock}
+    ${comparisonBlock(payload)}
+    ${aiVisibilityBlock(payload)}
+    ${narrativeBlocks(payload)}
     ${
       footerEnabled
         ? `<footer class="report-footer">
-      <div>${footerBits.map((b) => escapeHtml(String(b))).join(" · ")}</div>
+      <div>${footerBits.map((b) => escapeHtml(String(b))).join(" · ")}${
+          hidePlatform ? "" : ""
+        }</div>
       <div class="page-num"></div>
     </footer>`
         : ""
@@ -349,15 +503,17 @@ function renderSingleScan(payload: SingleScanReportPayload): string {
 }
 
 function renderTrend(payload: TrendReportPayload): string {
-  const body = `
-    <p class="muted">${escapeHtml(payload.parameters.keyword)} · ${payload.parameters.gridSize}×${payload.parameters.gridSize} · ${payload.parameters.radiusMeters}m · ${payload.parameters.scanCount} scans</p>
-    <div class="delta-row">
+  const sections = payloadSections(payload);
+  const overview = isSectionEnabled(sections, "maps_overview")
+    ? `<div class="delta-row">
       <span>Avg. rank ${escapeHtml(fmt(payload.current.arp))} <small class="muted">(change ${escapeHtml(fmt(payload.deltas.arp))} vs prior · + = improved)</small></span>
       <span>Avg. rank (all cells) ${escapeHtml(fmt(payload.current.atrp))} <small class="muted">(change ${escapeHtml(fmt(payload.deltas.atrp))} · + = improved)</small></span>
       <span>Top 3 % ${escapeHtml(fmt(payload.current.solv))}% <small class="muted">(change ${escapeHtml(fmt(payload.deltas.solv))} · + = improved)</small></span>
-    </div>
-    <h2>Trend</h2>
-    ${trendChartSvg(payload.series)}
+    </div>`
+    : "";
+  const trend =
+    isSectionEnabled(sections, "trend") || isSectionEnabled(sections, "maps_overview")
+      ? `<h2>Trend</h2>${trendChartSvg(payload.series)}
     <h2>Series</h2>
     <table class="data">
       <thead><tr><th>Date</th><th>Avg. rank</th><th>Avg. rank (all)</th><th>Top 3 %</th><th>Visibility</th></tr></thead>
@@ -374,7 +530,12 @@ function renderTrend(payload: TrendReportPayload): string {
           )
           .join("")}
       </tbody>
-    </table>`;
+    </table>`
+      : "";
+  const body = `
+    <p class="muted">${escapeHtml(payload.parameters.keyword)} · ${payload.parameters.gridSize}×${payload.parameters.gridSize} · ${payload.parameters.radiusMeters}m · ${payload.parameters.scanCount} scans</p>
+    ${overview}
+    ${trend}`;
   return shell(payload, body);
 }
 
@@ -402,6 +563,7 @@ function renderCompetitor(payload: CompetitorReportPayload): string {
 }
 
 function renderLocation(payload: LocationReportPayload): string {
+  const sections = payloadSections(payload);
   const rising = payload.rising
     .slice(0, 8)
     .map((k) => `<span class="chip up">${escapeHtml(k)}</span>`)
@@ -412,8 +574,10 @@ function renderLocation(payload: LocationReportPayload): string {
     .join("");
   const body = `
     <p class="muted">${payload.parameters.keywordCount} keywords · ${escapeHtml(payload.parameters.dateFrom)} → ${escapeHtml(payload.parameters.dateTo)}</p>
-    ${rollupKpiCards(payload.aggregate, "Keywords with rank")}
-    <h2>Rising / falling</h2>
+    ${isSectionEnabled(sections, "maps_overview") ? rollupKpiCards(payload.aggregate, "Keywords with rank") : ""}
+    ${
+      isSectionEnabled(sections, "keyword_summary")
+        ? `<h2>Rising / falling</h2>
     <div class="chips">${rising || '<span class="muted">No rising keywords</span>'}</div>
     <div class="chips">${falling || '<span class="muted">No falling keywords</span>'}</div>
     <h2>Keywords</h2>
@@ -433,7 +597,9 @@ function renderLocation(payload: LocationReportPayload): string {
           )
           .join("")}
       </tbody>
-    </table>`;
+    </table>`
+        : ""
+    }`;
   return shell(payload, body);
 }
 
@@ -462,6 +628,7 @@ function renderKeyword(payload: KeywordReportPayload): string {
 }
 
 function renderMapsCampaign(payload: MapsCampaignReportPayload): string {
+  const sections = payloadSections(payload);
   const rising = payload.rising
     .slice(0, 8)
     .map((k) => `<span class="chip up">${escapeHtml(k)}</span>`)
@@ -473,10 +640,18 @@ function renderMapsCampaign(payload: MapsCampaignReportPayload): string {
   const scheduleLine = payload.parameters.scheduleEnabled
     ? `Weekly schedule on · next ${escapeHtml(payload.parameters.nextRunAt ?? "—")}`
     : "Weekly schedule off";
+  const baselineLine = payload.parameters.baselineScanBatchId
+    ? " · change vs campaign baseline"
+    : " · change vs prior scan";
+  const campaignName = payload.parameters.campaignName
+    ? `${escapeHtml(payload.parameters.campaignName)} · `
+    : "";
   const body = `
-    <p class="muted">${scheduleLine} · ${payload.parameters.keywordCount} keywords</p>
-    ${rollupKpiCards(payload.aggregate, "Keywords with rank")}
-    <h2>Rising / falling</h2>
+    <p class="muted">${campaignName}${scheduleLine} · ${payload.parameters.keywordCount} keywords${baselineLine}</p>
+    ${isSectionEnabled(sections, "maps_overview") ? rollupKpiCards(payload.aggregate, "Keywords with rank") : ""}
+    ${
+      isSectionEnabled(sections, "keyword_summary")
+        ? `<h2>Rising / falling</h2>
     <div class="chips">${rising || '<span class="muted">No rising keywords</span>'}</div>
     <div class="chips">${falling || '<span class="muted">No falling keywords</span>'}</div>
     <h2>Tracked keywords</h2>
@@ -496,7 +671,9 @@ function renderMapsCampaign(payload: MapsCampaignReportPayload): string {
           )
           .join("")}
       </tbody>
-    </table>`;
+    </table>`
+        : ""
+    }`;
   return shell(payload, body);
 }
 

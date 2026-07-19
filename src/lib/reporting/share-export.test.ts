@@ -18,14 +18,23 @@ describe("shareIdentityKey", () => {
     );
   });
 
-  it("scopes maps campaign shares by campaign id", () => {
+  it("scopes maps campaign shares by campaign id and period", () => {
     assert.equal(
       shareIdentityKey({ reportType: "maps_campaign", campaignId: "camp-1" }),
-      "maps_campaign:camp-1"
+      "maps_campaign:camp-1:all"
     );
     assert.equal(
       shareIdentityKey({ reportType: "maps_campaign" }),
-      "maps_campaign:default"
+      "maps_campaign:default:all"
+    );
+    assert.equal(
+      shareIdentityKey({
+        reportType: "maps_campaign",
+        campaignId: "camp-1",
+        dateFrom: "2026-06-01",
+        dateTo: "2026-06-30",
+      }),
+      "maps_campaign:camp-1:2026-06-01..2026-06-30"
     );
   });
 });

@@ -227,13 +227,20 @@ export default async function ShareReportPage({
     }
   })();
 
+  const { SharePrintChrome } = await import(
+    "@/components/reports/share-print-chrome"
+  );
+
   return (
-    <iframe
-      title="Shared report"
-      className="h-dvh w-full border-0 bg-white"
-      srcDoc={report.html_content}
-      sandbox="allow-popups allow-popups-to-escape-sandbox"
-      referrerPolicy="no-referrer"
-    />
+    <div className="flex h-dvh flex-col bg-white">
+      <SharePrintChrome html={String(report.html_content)} />
+      <iframe
+        title="Shared report"
+        className="min-h-0 w-full flex-1 border-0 bg-white"
+        srcDoc={report.html_content}
+        sandbox="allow-popups allow-popups-to-escape-sandbox"
+        referrerPolicy="no-referrer"
+      />
+    </div>
   );
 }

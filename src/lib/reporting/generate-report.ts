@@ -39,6 +39,14 @@ export type GenerateReportParams = {
   identityKey?: string | null;
   executiveSummary?: string | null;
   sections?: Partial<Record<string, boolean>> | null;
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  workCompleted?: string | null;
+  freelancerNotes?: string | null;
+  nextSteps?: string | null;
+  periodLabel?: string | null;
+  /** Initial publish status when creating/updating the share row. */
+  publishStatus?: "draft" | "published" | null;
 };
 
 export type GenerateReportResult = {
@@ -175,6 +183,7 @@ async function persistReport(params: {
   identityKey: string;
   reportId?: string | null;
   preferShareToken?: string | null;
+  publishStatus?: "draft" | "published" | null;
 }): Promise<GenerateReportResult> {
   const supabase = createServiceClient();
   const scanBatchId = persistScanBatchId(params.payload);
@@ -211,6 +220,25 @@ async function persistReport(params: {
     prevMeta = (prev?.metadata_json as Record<string, unknown>) ?? {};
   }
 
+  const workCompleted =
+    typeof params.payload.workCompleted === "string"
+      ? params.payload.workCompleted
+      : typeof prevMeta.workCompleted === "string"
+        ? prevMeta.workCompleted
+        : null;
+  const freelancerNotes =
+    typeof params.payload.freelancerNotes === "string"
+      ? params.payload.freelancerNotes
+      : typeof prevMeta.freelancerNotes === "string"
+        ? prevMeta.freelancerNotes
+        : null;
+  const nextSteps =
+    typeof params.payload.nextSteps === "string"
+      ? params.payload.nextSteps
+      : typeof prevMeta.nextSteps === "string"
+        ? prevMeta.nextSteps
+        : null;
+
   const metadata = {
     ...prevMeta,
     reportType: params.payload.reportType,
@@ -228,6 +256,9 @@ async function persistReport(params: {
       : prevMeta.sections
         ? { sections: prevMeta.sections }
         : {}),
+    ...(workCompleted != null ? { workCompleted } : {}),
+    ...(freelancerNotes != null ? { freelancerNotes } : {}),
+    ...(nextSteps != null ? { nextSteps } : {}),
     ...(params.payload.reportType === "maps_campaign" ||
     params.payload.reportType === "review_campaign"
       ? {
@@ -239,6 +270,8 @@ async function persistReport(params: {
         }
       : {}),
   } satisfies ReportMeta & Record<string, unknown>;
+
+  const publishStatus = params.publishStatus === "draft" ? "draft" : "published";
 
   if (existingReportId) {
     const { data: report, error } = await supabase
@@ -253,7 +286,7 @@ async function persistReport(params: {
         scan_batch_id: scanBatchId,
         artifact_kind: "html_share",
         artifact_status: "ready",
-        publish_status: "published",
+        publish_status: publishStatus,
         error_message: null,
       })
       .eq("id", existingReportId)
@@ -281,6 +314,7 @@ async function persistReport(params: {
       metadata_json: metadata,
       artifact_kind: "html_share",
       artifact_status: "ready",
+      publish_status: publishStatus,
     })
     .select("id")
     .single();
@@ -352,6 +386,8 @@ export async function buildTypedReportPayload(
       gridSize: params.gridSize,
       radiusMeters: params.radiusMeters,
       whiteLabel: params.whiteLabel,
+      dateFrom: params.dateFrom,
+      dateTo: params.dateTo,
     });
   }
 
@@ -369,6 +405,8 @@ export async function buildTypedReportPayload(
     return buildLocationReport({
       businessId: params.businessId,
       whiteLabel: params.whiteLabel,
+      dateFrom: params.dateFrom,
+      dateTo: params.dateTo,
     });
   }
 
@@ -387,6 +425,8 @@ export async function buildTypedReportPayload(
       businessId: params.businessId,
       campaignId: params.campaignId,
       whiteLabel: params.whiteLabel,
+      dateFrom: params.dateFrom,
+      dateTo: params.dateTo,
     });
   }
 
@@ -415,6 +455,7 @@ export async function generateTypedReport(
   params: GenerateReportParams
 ): Promise<GenerateReportResult> {
   const { withReportGenerationTimeout } = await import("@/lib/reporting/report-timeout");
+  const { enrichReportPayload } = await import("@/lib/reporting/enrich-report");
   return withReportGenerationTimeout(async () => {
     let payload = await buildTypedReportPayload(params);
     if (
@@ -455,8 +496,27 @@ export async function generateTypedReport(
           params.sections ??
           (payload as { sections?: Partial<Record<string, boolean>> | null }).sections ??
           fromMetaSections,
+        workCompleted:
+          params.workCompleted ??
+          (typeof meta.workCompleted === "string" ? meta.workCompleted : null),
+        freelancerNotes:
+          params.freelancerNotes ??
+          (typeof meta.freelancerNotes === "string" ? meta.freelancerNotes : null),
+        nextSteps:
+          params.nextSteps ??
+          (typeof meta.nextSteps === "string" ? meta.nextSteps : null),
       } as AnyReportPayload;
     }
+
+    payload = await enrichReportPayload(payload, {
+      executiveSummary: params.executiveSummary,
+      sections: params.sections ?? payload.sections,
+      workCompleted: params.workCompleted,
+      freelancerNotes: params.freelancerNotes,
+      nextSteps: params.nextSteps,
+      periodLabel: params.periodLabel,
+    });
+
     const html = renderReportHtml(payload);
     const identityKey = params.identityKey?.trim() || reportIdentityKey(payload, params);
 
@@ -476,6 +536,7 @@ export async function generateTypedReport(
       identityKey,
       reportId: params.reportId,
       preferShareToken: params.shareToken,
+      publishStatus: params.publishStatus,
     });
   });
 }

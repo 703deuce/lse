@@ -100,8 +100,17 @@ export const exportReportSchema = z.object({
   selectedCompetitorKeys: z.array(z.string()).optional(),
   /** Bust ready-share reuse and regenerate HTML from current data. */
   force: z.boolean().optional(),
+  dateFrom: z.string().datetime({ offset: true }).or(z.string().min(8).max(40)).optional().nullable(),
+  dateTo: z.string().datetime({ offset: true }).or(z.string().min(8).max(40)).optional().nullable(),
+  executiveSummary: z.string().max(8000).optional().nullable(),
+  sections: z.record(z.string(), z.boolean()).optional().nullable(),
+  workCompleted: z.string().max(4000).optional().nullable(),
+  freelancerNotes: z.string().max(4000).optional().nullable(),
+  nextSteps: z.string().max(4000).optional().nullable(),
+  periodLabel: z.string().max(120).optional().nullable(),
+  publishStatus: z.enum(["draft", "published"]).optional().nullable(),
   format: z
-    .enum(["share", "csv", "summary_csv", "points_csv"])
+    .enum(["share", "csv", "summary_csv", "points_csv", "preview", "pdf"])
     .optional()
     .default("share"),
 });

@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/db/client";
+import { buildComparisonSection } from "@/lib/reporting/comparison-heatmaps";
 import { buildLocationReport } from "@/lib/reporting/build-location";
 import { resolveOrgWhiteLabel } from "@/lib/reporting/white-label";
 import type {
@@ -9,18 +10,16 @@ import type {
 /**
  * Maps Campaign report = keyword-group progress for a maps_campaigns row
  * (falls back to scheduled_scans when no campaignId is provided).
+ * Uses campaign.baseline_scan_batch_id for Δ and before/after grids when set.
  */
 export async function buildMapsCampaignReport(params: {
   businessId: string;
   campaignId?: string | null;
   whiteLabel?: Partial<WhiteLabelConfig>;
+  dateFrom?: string | null;
+  dateTo?: string | null;
 }): Promise<MapsCampaignReportPayload> {
   const supabase = createServiceClient();
-
-  const location = await buildLocationReport({
-    businessId: params.businessId,
-    whiteLabel: params.whiteLabel,
-  });
 
   let campaign: {
     id: string;
@@ -30,19 +29,30 @@ export async function buildMapsCampaignReport(params: {
     next_scheduled_at: string | null;
     default_grid_size: number | null;
     default_radius_meters: number | null;
+    baseline_scan_batch_id: string | null;
   } | null = null;
 
   if (params.campaignId) {
     const { data } = await supabase
       .from("maps_campaigns")
       .select(
-        "id, name, schedule_enabled, schedule_type, next_scheduled_at, default_grid_size, default_radius_meters"
+        "id, name, schedule_enabled, schedule_type, next_scheduled_at, default_grid_size, default_radius_meters, baseline_scan_batch_id"
       )
       .eq("id", params.campaignId)
       .eq("business_id", params.businessId)
       .maybeSingle();
     campaign = data;
   }
+
+  const baselineScanBatchId = campaign?.baseline_scan_batch_id ?? null;
+
+  const location = await buildLocationReport({
+    businessId: params.businessId,
+    whiteLabel: params.whiteLabel,
+    dateFrom: params.dateFrom,
+    dateTo: params.dateTo,
+    baselineScanBatchId,
+  });
 
   const { data: business } = await supabase
     .from("businesses")
@@ -68,6 +78,18 @@ export async function buildMapsCampaignReport(params: {
       .limit(1)
       .maybeSingle();
 
+    const topKeyword = location.keywords[0];
+    let comparison = null;
+    if (topKeyword?.scanId && topKeyword.priorScanId) {
+      comparison = await buildComparisonSection({
+        businessId: params.businessId,
+        baselineScanId: topKeyword.priorScanId,
+        currentScanId: topKeyword.scanId,
+        mode: "prior_period",
+        keywordId: topKeyword.keywordId,
+      });
+    }
+
     return {
       reportType: "maps_campaign",
       business: {
@@ -87,6 +109,8 @@ export async function buildMapsCampaignReport(params: {
         keywordCount: location.parameters.keywordCount,
         dateFrom: location.parameters.dateFrom,
         dateTo: location.parameters.dateTo,
+        baselineScanBatchId: null,
+        comparisonMode: "prior_period",
       },
       aggregate: location.aggregate,
       keywords: location.keywords,
@@ -94,6 +118,8 @@ export async function buildMapsCampaignReport(params: {
       falling: location.falling,
       whiteLabel,
       generatedAt: new Date().toISOString(),
+      comparison,
+      periodLabel: location.periodLabel,
     };
   }
 
@@ -114,6 +140,33 @@ export async function buildMapsCampaignReport(params: {
         )
       : location.keywords;
 
+  const rising = location.rising.filter((k) =>
+    keywordFilter.size ? keywordFilter.has(k.trim().toLowerCase()) : true
+  );
+  const falling = location.falling.filter((k) =>
+    keywordFilter.size ? keywordFilter.has(k.trim().toLowerCase()) : true
+  );
+
+  // Prefer before/after for the keyword that owns the baseline scan, else top keyword.
+  let comparison = null;
+  const baselineKeyword =
+    baselineScanBatchId != null
+      ? keywords.find((k) => k.priorScanId === baselineScanBatchId) ??
+        keywords.find((k) => k.scanId === baselineScanBatchId)
+      : null;
+  const compareKeyword = baselineKeyword ?? keywords[0];
+  if (compareKeyword?.scanId && compareKeyword.priorScanId) {
+    comparison = await buildComparisonSection({
+      businessId: params.businessId,
+      baselineScanId: compareKeyword.priorScanId,
+      currentScanId: compareKeyword.scanId,
+      mode: baselineScanBatchId ? "baseline" : "prior_period",
+      baselineLabel: baselineScanBatchId ? "Campaign baseline" : undefined,
+      currentLabel: "Latest scan",
+      keywordId: compareKeyword.keywordId,
+    });
+  }
+
   return {
     reportType: "maps_campaign",
     business: {
@@ -133,16 +186,16 @@ export async function buildMapsCampaignReport(params: {
       keywordCount: keywords.length || location.parameters.keywordCount,
       dateFrom: location.parameters.dateFrom,
       dateTo: location.parameters.dateTo,
+      baselineScanBatchId,
+      comparisonMode: baselineScanBatchId ? "baseline" : "prior_period",
     },
     aggregate: location.aggregate,
     keywords,
-    rising: location.rising.filter((k) =>
-      keywordFilter.size ? keywordFilter.has(k.trim().toLowerCase()) : true
-    ),
-    falling: location.falling.filter((k) =>
-      keywordFilter.size ? keywordFilter.has(k.trim().toLowerCase()) : true
-    ),
+    rising,
+    falling,
     whiteLabel,
     generatedAt: new Date().toISOString(),
+    comparison,
+    periodLabel: location.periodLabel,
   };
 }
