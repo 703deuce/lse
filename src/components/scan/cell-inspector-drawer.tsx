@@ -115,15 +115,93 @@ function SerpListingCard({
   listing,
   index,
   isTarget,
+  compact = false,
 }: {
   listing: StoredCompetitor;
   index: number;
   isTarget: boolean;
+  /** Denser row so ~5 listings fit above the fold in the Rank Grid rail. */
+  compact?: boolean;
 }) {
   const rank = listing.rank ?? index + 1;
   const price = formatPriceLevel(listing.price_level);
   const justifications = justificationTexts(listing.local_justifications);
   const category = listing.category ?? listing.additional_categories?.[0] ?? null;
+
+  if (compact) {
+    return (
+      <article
+        className={cn(
+          "flex items-center gap-2 px-3 py-1.5 transition-colors",
+          isTarget ? "bg-emerald-50/70" : "hover:bg-zinc-50/80"
+        )}
+      >
+        <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-zinc-100 ring-1 ring-zinc-200/80">
+          {listing.main_image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={listing.main_image}
+              alt=""
+              className="h-full w-full object-cover"
+              loading="lazy"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-zinc-300">
+              <MapPin className="h-3.5 w-3.5" />
+            </div>
+          )}
+        </div>
+        <span className={cn("w-4 shrink-0 text-[12px] font-bold tabular-nums", rankTone(rank))}>
+          {rank}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <h4 className="truncate text-[12px] font-semibold leading-tight text-zinc-900">
+              {listing.name ?? "Untitled listing"}
+            </h4>
+            {isTarget ? (
+              <span className="shrink-0 rounded-full bg-emerald-600 px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-white">
+                You
+              </span>
+            ) : null}
+            {price ? (
+              <span className="shrink-0 text-[10px] font-semibold text-zinc-400">{price}</span>
+            ) : null}
+          </div>
+          <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[10px] text-zinc-500">
+            <GridStarRating rating={listing.rating} reviewCount={listing.review_count} />
+            {category ? <span className="truncate">· {category}</span> : null}
+            {listing.total_photos != null && listing.total_photos > 0 ? (
+              <span className="inline-flex shrink-0 items-center gap-0.5 font-medium">
+                <Camera className="h-2.5 w-2.5" />
+                {listing.total_photos.toLocaleString()}
+              </span>
+            ) : null}
+          </div>
+        </div>
+        {listing.url ? (
+          <a
+            href={listing.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 rounded-full p-1.5 text-[#137752] hover:bg-emerald-50"
+            aria-label="Website"
+          >
+            <Globe className="h-3.5 w-3.5" />
+          </a>
+        ) : listing.phone ? (
+          <a
+            href={`tel:${listing.phone}`}
+            className="shrink-0 rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100"
+            aria-label="Call"
+          >
+            <Phone className="h-3.5 w-3.5" />
+          </a>
+        ) : null}
+      </article>
+    );
+  }
 
   return (
     <article
@@ -335,48 +413,69 @@ export function CellInspectorDrawer({
         )
       : null;
 
+  const isPanel = variant === "panel";
+
   const panelBody = (
     <div
       className={cn(
-        variant === "panel"
+        isPanel
           ? "flex h-full w-full min-w-0 flex-col bg-[#FAFBFC]"
           : "flex h-full w-full max-w-xl flex-col bg-white shadow-xl",
         className
       )}
       onClick={variant === "drawer" ? (e) => e.stopPropagation() : undefined}
     >
-      <div className="flex items-start justify-between border-b border-zinc-200/80 bg-white px-4 py-3.5">
+      <div
+        className={cn(
+          "flex items-center justify-between border-b border-zinc-200/80 bg-white",
+          isPanel ? "px-3 py-2" : "items-start px-4 py-3.5"
+        )}
+      >
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
-            Search point
-          </p>
-          <h2 className="mt-0.5 truncate text-[16px] font-bold tracking-tight text-zinc-900">
+          {!isPanel ? (
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
+              Search point
+            </p>
+          ) : null}
+          <h2
+            className={cn(
+              "truncate font-bold tracking-tight text-zinc-900",
+              isPanel ? "text-[13px]" : "mt-0.5 text-[16px]"
+            )}
+          >
             {data?.keyword?.keyword ?? "Local results"}
+            {isPanel && (pointLabel || data?.cell.label) ? (
+              <span className="ml-1.5 font-medium text-zinc-400">
+                · Pin {pointLabel ?? data?.cell.label}
+              </span>
+            ) : null}
           </h2>
-          <p className="mt-0.5 text-[12px] text-zinc-500">
-            {pointLabel || data?.cell.label
-              ? `Pin ${pointLabel ?? data?.cell.label}`
-              : "Center pin loads automatically"}
-          </p>
+          {!isPanel ? (
+            <p className="mt-0.5 text-[12px] text-zinc-500">
+              {pointLabel || data?.cell.label
+                ? `Pin ${pointLabel ?? data?.cell.label}`
+                : "Center pin loads automatically"}
+            </p>
+          ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
-          {variant === "panel" && onNavigatePrev && (
+          {isPanel && onNavigatePrev && (
             <button
               type="button"
               disabled={!canNavigatePrev}
               onClick={onNavigatePrev}
-              className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
+              className="rounded-full p-1 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
               aria-label="Previous point"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
           )}
-          {variant === "panel" && onNavigateNext && (
+          {isPanel && onNavigateNext && (
             <button
               type="button"
               disabled={!canNavigateNext}
               onClick={onNavigateNext}
-              className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
+              className="rounded-full p-1 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
               aria-label="Next point"
             >
               <ChevronRight className="h-4 w-4" />
@@ -386,14 +485,15 @@ export function CellInspectorDrawer({
       </div>
 
       {cellId ? (
-        <div className="flex gap-1 border-b border-zinc-200/80 bg-white px-3">
+        <div className={cn("flex gap-1 border-b border-zinc-200/80 bg-white", isPanel ? "px-2" : "px-3")}>
           {tabs.map((t) => (
             <button
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
               className={cn(
-                "-mb-px border-b-2 px-3 py-2.5 text-[13px] font-semibold transition-colors",
+                "-mb-px border-b-2 font-semibold transition-colors",
+                isPanel ? "px-2.5 py-1.5 text-[12px]" : "px-3 py-2.5 text-[13px]",
                 tab === t.id
                   ? "border-[#137752] text-[#137752]"
                   : "border-transparent text-zinc-500 hover:text-zinc-800"
@@ -421,9 +521,19 @@ export function CellInspectorDrawer({
 
         {data && !loading && tab === "results" && (
           <div>
-            <section className="border-b border-zinc-200/80 bg-white px-3.5 py-3">
-              <div className="flex items-start gap-2.5">
-                <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-zinc-100 ring-1 ring-zinc-200/80">
+            <section
+              className={cn(
+                "border-b border-zinc-200/80 bg-white",
+                isPanel ? "px-3 py-2" : "px-3.5 py-3"
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <div
+                  className={cn(
+                    "relative shrink-0 overflow-hidden bg-zinc-100 ring-1 ring-zinc-200/80",
+                    isPanel ? "h-9 w-9 rounded-lg" : "h-11 w-11 rounded-xl"
+                  )}
+                >
                   {matched?.main_image ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -434,7 +544,7 @@ export function CellInspectorDrawer({
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-zinc-300">
-                      <MapPin className="h-5 w-5" />
+                      <MapPin className={isPanel ? "h-4 w-4" : "h-5 w-5"} />
                     </div>
                   )}
                 </div>
@@ -442,7 +552,8 @@ export function CellInspectorDrawer({
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span
                       className={cn(
-                        "inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold",
+                        "inline-flex rounded-full font-bold",
+                        isPanel ? "px-1.5 py-px text-[10px]" : "px-2 py-0.5 text-[11px]",
                         data.target.found
                           ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
                           : "bg-rose-50 text-rose-600 ring-1 ring-rose-200"
@@ -450,66 +561,119 @@ export function CellInspectorDrawer({
                     >
                       {yourRankLabel}
                     </span>
-                    {packShare != null ? (
+                    <p
+                      className={cn(
+                        "min-w-0 truncate font-semibold text-zinc-900",
+                        isPanel ? "text-[12px]" : "text-[13px]"
+                      )}
+                    >
+                      {matched?.name ?? "Your business"}
+                    </p>
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-2">
+                    <GridStarRating
+                      rating={matched?.rating}
+                      reviewCount={matched?.review_count}
+                    />
+                    {!isPanel && packShare != null ? (
                       <span className="inline-flex rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-100">
                         {data.resultCount} listings
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-1 truncate text-[13px] font-semibold text-zinc-900">
-                    {matched?.name ?? "Your business"}
-                  </p>
-                  <div className="mt-0.5">
-                    <GridStarRating
-                      rating={matched?.rating}
-                      reviewCount={matched?.review_count}
-                    />
-                  </div>
                 </div>
+                {isPanel ? (
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    {data.checkUrl ? (
+                      <a
+                        href={data.checkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-full p-1.5 text-[#137752] hover:bg-emerald-50"
+                        aria-label="Open in Google"
+                        title="Open in Google"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    ) : null}
+                    {onCompareCell ? (
+                      <button
+                        type="button"
+                        onClick={() => onCompareCell(data.cell.id)}
+                        className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100"
+                        aria-label="Compare"
+                        title="Compare"
+                      >
+                        <GitCompare className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => void copyCoordinates()}
+                      className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100"
+                      aria-label={copied ? "Copied" : "Copy coordinates"}
+                      title={copied ? "Copied" : "Copy coordinates"}
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : null}
               </div>
 
-              <div className="mt-2.5 flex flex-wrap gap-1.5">
-                {data.checkUrl ? (
-                  <a
-                    href={data.checkUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#137752] px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_4px_14px_rgba(19,119,82,0.22)] hover:bg-[#0f6344]"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" /> Open in Google
-                  </a>
-                ) : null}
-                {onCompareCell ? (
+              {!isPanel ? (
+                <div className="mt-2.5 flex flex-wrap gap-1.5">
+                  {data.checkUrl ? (
+                    <a
+                      href={data.checkUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#137752] px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_4px_14px_rgba(19,119,82,0.22)] hover:bg-[#0f6344]"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" /> Open in Google
+                    </a>
+                  ) : null}
+                  {onCompareCell ? (
+                    <button
+                      type="button"
+                      onClick={() => onCompareCell(data.cell.id)}
+                      className={gridInspectorActionBtn}
+                    >
+                      <GitCompare className="h-3.5 w-3.5" /> Compare
+                    </button>
+                  ) : null}
                   <button
                     type="button"
-                    onClick={() => onCompareCell(data.cell.id)}
+                    onClick={() => void copyCoordinates()}
                     className={gridInspectorActionBtn}
                   >
-                    <GitCompare className="h-3.5 w-3.5" /> Compare
+                    <Copy className="h-3.5 w-3.5" /> {copied ? "Copied" : "Coords"}
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => void copyCoordinates()}
-                  className={gridInspectorActionBtn}
-                >
-                  <Copy className="h-3.5 w-3.5" /> {copied ? "Copied" : "Coords"}
-                </button>
-              </div>
+                </div>
+              ) : null}
             </section>
 
             {data.sparseResults && (
-              <p className="mx-4 mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
+              <p
+                className={cn(
+                  "rounded-xl border border-amber-200 bg-amber-50 text-amber-900",
+                  isPanel ? "mx-3 mt-2 px-2.5 py-1.5 text-[11px]" : "mx-4 mt-3 px-3 py-2 text-[12px]"
+                )}
+              >
                 {data.sparseReason ??
                   "Maps returned too few listings for this point. Recovery may still retry it."}
               </p>
             )}
 
-            <div className="flex items-center justify-between px-4 pb-1 pt-3.5">
-              <h3 className="text-[13px] font-bold text-zinc-900">
+            <div
+              className={cn(
+                "flex items-center justify-between",
+                isPanel ? "px-3 pb-0.5 pt-2" : "px-4 pb-1 pt-3.5"
+              )}
+            >
+              <h3 className={cn("font-bold text-zinc-900", isPanel ? "text-[12px]" : "text-[13px]")}>
                 Competitors ({data.resultCount})
               </h3>
-              <span className="text-[11px] font-medium text-zinc-400">
+              <span className="text-[10px] font-medium text-zinc-400">
                 Showing {Math.min(visibleLimit, data.resultCount)}
               </span>
             </div>
@@ -525,6 +689,7 @@ export function CellInspectorDrawer({
                       listing={r}
                       index={i}
                       isTarget={isTargetListing(r, data.target.matchedResult)}
+                      compact={isPanel}
                     />
                   ))}
                 </div>
@@ -532,7 +697,10 @@ export function CellInspectorDrawer({
                   <button
                     type="button"
                     onClick={() => setExpandedResults(true)}
-                    className="w-full border-t border-zinc-100 bg-white py-3.5 text-[13px] font-semibold text-[#137752] hover:bg-emerald-50/50"
+                    className={cn(
+                      "w-full border-t border-zinc-100 bg-white font-semibold text-[#137752] hover:bg-emerald-50/50",
+                      isPanel ? "py-2 text-[12px]" : "py-3.5 text-[13px]"
+                    )}
                   >
                     Show more (
                     {Math.min(MAX_RESULTS_SHOWN, data.rawResults.length) - INITIAL_RESULTS_SHOWN}{" "}
@@ -543,7 +711,7 @@ export function CellInspectorDrawer({
                   <button
                     type="button"
                     onClick={() => setExpandedResults(false)}
-                    className="w-full border-t border-zinc-100 bg-white py-2.5 text-center text-[12px] font-medium text-zinc-500 hover:text-zinc-700"
+                    className="w-full border-t border-zinc-100 bg-white py-2 text-center text-[12px] font-medium text-zinc-500 hover:text-zinc-700"
                   >
                     Show fewer
                   </button>

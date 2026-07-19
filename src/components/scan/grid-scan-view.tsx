@@ -1251,12 +1251,12 @@ export function GridScanView({
                     <div
                       className={cn(
                         gridRankWorkspaceClass,
-                        // Fixed height so the SERP rail scrolls inside instead of stretching the map.
-                        "flex h-[min(68vh,620px)] min-h-[420px] flex-col overflow-hidden transition-opacity duration-300 lg:h-[min(72vh,680px)] lg:flex-row",
+                        // Tall enough for your business + 5 competitor rows; map keeps a little top/bottom room.
+                        "flex h-[min(74vh,700px)] min-h-[460px] flex-col overflow-hidden transition-opacity duration-300 lg:h-[min(78vh,760px)] lg:flex-row",
                         timelineFetching ? "opacity-75" : "opacity-100"
                       )}
                     >
-                      <div className="flex max-h-[38vh] min-h-0 w-full shrink-0 flex-col overflow-hidden border-b border-zinc-200/80 lg:max-h-none lg:h-full lg:w-[34%] lg:max-w-[420px] lg:border-b-0 lg:border-r">
+                      <div className="flex max-h-[42vh] min-h-0 w-full shrink-0 flex-col overflow-hidden border-b border-zinc-200/80 lg:max-h-none lg:h-full lg:w-[36%] lg:max-w-[440px] lg:border-b-0 lg:border-r">
                         <CellInspectorDrawer
                           variant="panel"
                           alwaysVisible
