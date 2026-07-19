@@ -172,8 +172,8 @@ export function AccountsHub({
   const emptyTitle = mode === "clients" ? "No clients yet" : "No prospects yet";
   const emptyBody =
     mode === "clients"
-      ? "Add your first client to organize their locations, keywords, scans, and reports."
-      : "Create a prospect to run an audit and produce a report you can use during outreach or a sales call.";
+      ? "Add a client to run Maps scans, create campaigns, and deliver monthly white-label reports. Start with a baseline scan, then schedule recurring tracking."
+      : "Create a prospect, run a Prospect Audit (Maps + Growth Audit), share a branded report, then convert to a client when they sign — history stays attached.";
 
   const newHref =
     mode === "clients" ? "/businesses/new?as=client" : "/businesses/new?as=prospect";

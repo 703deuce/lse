@@ -22,6 +22,7 @@ import {
 export type SidebarNavChild = {
   href: string;
   label: string;
+  badge?: string;
 };
 
 export type SidebarNavItem = {
@@ -29,6 +30,7 @@ export type SidebarNavItem = {
   label: string;
   icon: LucideIcon;
   isRankGrid?: boolean;
+  badge?: string;
   /** Nested links indented under this item (e.g. Campaigns under Review Requests). */
   children?: SidebarNavChild[];
 };
@@ -46,63 +48,80 @@ export type SidebarReputationNav = {
 };
 
 /**
- * Full per-location sidebar — Maps + research + reviews in one menu.
- * Freelancer CRM (prospects/clients) stays on the org strip; modules stay here.
+ * Per-location sidebar grouped for the freelancer journey:
+ * WORK → GROWTH TOOLS → REPUTATION → DELIVERABLES
+ * All tools stay visible; grouping answers “what is this for?”
  */
 export function buildBusinessSidebarNav(businessId: string): {
-  main: SidebarNavSection;
+  work: SidebarNavSection;
+  growthTools: SidebarNavSection;
   reputation: SidebarReputationNav;
+  deliverables: SidebarNavSection;
+  /** @deprecated aliases for older sidebar renderers */
+  main: SidebarNavSection;
   research: SidebarNavSection;
   reports: SidebarNavSection;
 } {
   const base = `/businesses/${businessId}`;
 
+  const work: SidebarNavSection = {
+    title: "Work",
+    items: [
+      { href: `${base}/overview`, label: "Dashboard", icon: LayoutDashboard },
+      { href: `${base}/scans`, label: "Maps Scans", icon: Grid3X3, isRankGrid: true },
+      { href: `${base}/campaigns`, label: "Maps Campaigns", icon: FolderKanban },
+    ],
+  };
+
+  const growthTools: SidebarNavSection = {
+    title: "Growth Tools",
+    items: [
+      { href: `${base}/growth-audit`, label: "Growth Audit", icon: FileSearch },
+      { href: `${base}/backlink-gap`, label: "Backlink Gap", icon: Link2 },
+      { href: `${base}/trust`, label: "Local Trust", icon: Award },
+      { href: `${base}/keywords`, label: "Keywords", icon: KeyRound },
+      { href: `${base}/ai-visibility`, label: "AI Visibility", icon: Bot },
+      { href: `${base}/competitors`, label: "Competitors", icon: Users },
+      { href: `${base}/citations`, label: "Citations", icon: Library },
+    ],
+  };
+
+  const reputation: SidebarReputationNav = {
+    title: "Reputation",
+    items: [
+      { href: `${base}/reviews`, label: "Review Feed", icon: Star },
+      { href: `${base}/review-momentum`, label: "Review Momentum", icon: TrendingUp },
+      {
+        href: `${base}/review-requests`,
+        label: "Review Requests",
+        icon: MessageSquareText,
+        badge: "Add-on",
+        children: [{ href: `${base}/review-campaigns`, label: "Campaigns", badge: "Upgrade" }],
+      },
+      { href: `${base}/contacts`, label: "Contacts", icon: Users },
+      { href: `${base}/review-templates`, label: "Templates", icon: FileText },
+      { href: `${base}/integrations`, label: "Review Triggers", icon: Webhook },
+      { href: `${base}/review-settings`, label: "Settings", icon: Settings2 },
+    ],
+    subLinks: [],
+  };
+
+  const deliverables: SidebarNavSection = {
+    title: "Deliverables",
+    items: [
+      { href: `${base}/reports`, label: "Reports", icon: FileText },
+      { href: `${base}/tasks`, label: "Growth Plan", icon: ClipboardList },
+    ],
+  };
+
   return {
-    main: {
-      title: "Main",
-      items: [
-        { href: `${base}/overview`, label: "Dashboard", icon: LayoutDashboard },
-        { href: `${base}/scans`, label: "Maps Scans", icon: Grid3X3, isRankGrid: true },
-        { href: `${base}/campaigns`, label: "Maps Campaigns", icon: FolderKanban },
-        { href: `${base}/growth-audit`, label: "Growth Audit", icon: FileSearch },
-      ],
-    },
-    reputation: {
-      title: "Reviews",
-      items: [
-        { href: `${base}/reviews`, label: "Review Feed", icon: Star },
-        { href: `${base}/review-momentum`, label: "Review Momentum", icon: TrendingUp },
-        {
-          href: `${base}/review-requests`,
-          label: "Review Requests",
-          icon: MessageSquareText,
-          children: [{ href: `${base}/review-campaigns`, label: "Campaigns" }],
-        },
-        { href: `${base}/contacts`, label: "Contacts", icon: Users },
-        { href: `${base}/review-templates`, label: "Templates", icon: FileText },
-        { href: `${base}/integrations`, label: "Review Triggers", icon: Webhook },
-        { href: `${base}/review-settings`, label: "Settings", icon: Settings2 },
-      ],
-      subLinks: [],
-    },
-    research: {
-      title: "Research",
-      items: [
-        { href: `${base}/backlink-gap`, label: "Backlink Gap", icon: Link2 },
-        { href: `${base}/trust`, label: "Local Trust", icon: Award },
-        { href: `${base}/citations`, label: "Citations", icon: Library },
-        { href: `${base}/keywords`, label: "Keywords", icon: KeyRound },
-        { href: `${base}/ai-visibility`, label: "AI Visibility", icon: Bot },
-        { href: `${base}/competitors`, label: "Competitors", icon: Users },
-      ],
-    },
-    reports: {
-      title: "Reports",
-      items: [
-        { href: `${base}/tasks`, label: "Growth Plan", icon: ClipboardList },
-        { href: `${base}/reports`, label: "Reports", icon: FileText },
-      ],
-    },
+    work,
+    growthTools,
+    reputation,
+    deliverables,
+    main: work,
+    research: growthTools,
+    reports: deliverables,
   };
 }
 

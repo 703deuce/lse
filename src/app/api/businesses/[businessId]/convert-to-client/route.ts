@@ -10,7 +10,7 @@ import { trackProductEvent } from "@/lib/analytics/product-events";
  * Convert prospect → client without duplicating locations, scans, or reports.
  */
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ businessId: string }> }
 ) {
   try {
@@ -18,6 +18,20 @@ export async function POST(
     const auth = await requireBusinessAccess(businessId);
     await requireOrganizationPermission("business.update", auth.organizationId);
     const supabase = createServiceClient();
+
+    // Optional journey flags from ConvertToClientWizard (best-effort; conversion always preserves history).
+    let markBaseline = true;
+    let createCampaign = true;
+    try {
+      const body = (await request.json()) as {
+        markBaseline?: boolean;
+        createCampaign?: boolean;
+      };
+      if (typeof body.markBaseline === "boolean") markBaseline = body.markBaseline;
+      if (typeof body.createCampaign === "boolean") createCampaign = body.createCampaign;
+    } catch {
+      /* empty body is fine */
+    }
 
     const { data: business } = await supabase
       .from("businesses")
@@ -82,7 +96,7 @@ export async function POST(
       .maybeSingle();
 
     let campaignId = existingCampaign?.id as string | undefined;
-    if (!campaignId) {
+    if (!campaignId && createCampaign) {
       const { data: created } = await supabase
         .from("maps_campaigns")
         .insert({
@@ -103,7 +117,7 @@ export async function POST(
       }
     }
 
-    if (campaignId && baselineScan?.id) {
+    if (markBaseline && campaignId && baselineScan?.id) {
       // Optional until migration 073 is applied — ignore missing-column errors.
       await supabase
         .from("maps_campaigns")

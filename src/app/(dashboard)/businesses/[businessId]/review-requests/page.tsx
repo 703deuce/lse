@@ -1,14 +1,23 @@
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
+import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { hasEntitlement } from "@/lib/auth/entitlements";
 import { ReviewRequestsDashboard } from "@/components/reputation/review-requests-dashboard";
+import { ReviewRequestsUpgrade } from "@/components/reputation/review-requests-upgrade";
 
-/** Review Requests kit (poster, templates, quick send, tracking). Campaigns are nested nav. */
+/** Review Requests stays in nav; gated users see a full upgrade preview — not a dead lock. */
 export default async function ReviewRequestsPage({
   params,
 }: {
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
+  const auth = await requireBusinessAccess(businessId);
+  const allowed = await hasEntitlement(auth.organizationId, "review_campaigns");
+
+  if (!allowed) {
+    return <ReviewRequestsUpgrade businessId={businessId} />;
+  }
 
   return (
     <Suspense

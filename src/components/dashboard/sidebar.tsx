@@ -25,21 +25,47 @@ import {
   type SidebarNavItem,
 } from "@/components/dashboard/dashboard-nav";
 
-/** Org-level strip — always available; location modules add below when a client is open. */
-const orgNavItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/workspace", label: "Workspace", icon: Briefcase },
-  { href: "/prospects", label: "Prospects", icon: Users },
-  { href: "/clients", label: "Clients", icon: Building2 },
-  { href: "/scans", label: "Scans", icon: Radar },
-  { href: "/reports", label: "Reports", icon: FileText },
-  { href: "/ai-visibility", label: "AI Visibility", icon: Sparkles },
-  { href: "/branding", label: "Branding", icon: Palette },
-  { href: "/settings", label: "Settings", icon: Settings },
+type OrgNavItem = {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+};
+
+type OrgNavGroup = { title: string; items: OrgNavItem[] };
+
+/** Org-level nav grouped for the freelancer journey (tools stay visible). */
+const orgNavGroups: OrgNavGroup[] = [
+  {
+    title: "Work",
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/workspace", label: "Workspace", icon: Briefcase },
+      { href: "/prospects", label: "Prospects", icon: Users },
+      { href: "/clients", label: "Clients", icon: Building2 },
+      { href: "/scans", label: "Maps Scans", icon: Radar },
+    ],
+  },
+  {
+    title: "Growth Tools",
+    items: [{ href: "/ai-visibility", label: "AI Visibility", icon: Sparkles }],
+  },
+  {
+    title: "Deliverables",
+    items: [{ href: "/reports", label: "Reports", icon: FileText }],
+  },
+  {
+    title: "Account",
+    items: [
+      { href: "/branding", label: "Branding", icon: Palette },
+      { href: "/settings", label: "Settings", icon: Settings },
+      { href: "/onboarding", label: "Get started", icon: MapPin },
+    ],
+  },
 ];
 
 /** When inside a location, keep CRM/workspace reachable without swapping menus away. */
 const orgStripWhenInBusiness = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/workspace", label: "Workspace", icon: Briefcase },
   { href: "/prospects", label: "Prospects", icon: Users },
   { href: "/clients", label: "Clients", icon: Building2 },
@@ -273,16 +299,25 @@ export function DashboardSidebarPanel({
       </div>
       <nav className="flex-1 space-y-0.5 overflow-y-auto overscroll-contain p-2.5" suppressHydrationWarning>
         {!businessId &&
-          orgNavItems.map((item) => (
-            <SidebarNavItemRow
-              key={item.href}
-              href={item.href}
-              label={item.label}
-              icon={item.icon}
-              active={isOrgNavActive(pathname, item.href)}
-              staticLinks={staticLinks}
-              onNavigate={onNavigate}
-            />
+          orgNavGroups.map((group) => (
+            <div key={group.title} className="mb-2">
+              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                {group.title}
+              </p>
+              <div className="space-y-0.5">
+                {group.items.map((item) => (
+                  <SidebarNavItemRow
+                    key={item.href}
+                    href={item.href}
+                    label={item.label}
+                    icon={item.icon}
+                    active={isOrgNavActive(pathname, item.href)}
+                    staticLinks={staticLinks}
+                    onNavigate={onNavigate}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         {nav && businessId && (
           <>
@@ -306,8 +341,16 @@ export function DashboardSidebarPanel({
             </div>
             <div className="border-t border-sidebar-border pt-3">
               <NavSection
-                title={nav.main.title}
-                items={nav.main.items}
+                title={nav.work.title}
+                items={nav.work.items}
+                businessId={businessId}
+                pathname={pathname}
+                staticLinks={staticLinks}
+                onNavigate={onNavigate}
+              />
+              <NavSection
+                title={nav.growthTools.title}
+                items={nav.growthTools.items}
                 businessId={businessId}
                 pathname={pathname}
                 staticLinks={staticLinks}
@@ -323,7 +366,9 @@ export function DashboardSidebarPanel({
                       <div key={item.href}>
                         <SidebarNavItemRow
                           href={item.href}
-                          label={item.label}
+                          label={
+                            item.badge ? `${item.label} · ${item.badge}` : item.label
+                          }
                           icon={item.icon}
                           active={isSidebarHrefActive(pathname, item.href, businessId, {
                             exact: Boolean(item.children?.length),
@@ -335,7 +380,9 @@ export function DashboardSidebarPanel({
                           <SidebarNavSubItemRow
                             key={child.href}
                             href={child.href}
-                            label={child.label}
+                            label={
+                              child.badge ? `${child.label} · ${child.badge}` : child.label
+                            }
                             active={isSidebarHrefActive(pathname, child.href, businessId)}
                             dot
                             staticLinks={staticLinks}
@@ -359,16 +406,8 @@ export function DashboardSidebarPanel({
                 </div>
               ) : null}
               <NavSection
-                title={nav.research.title}
-                items={nav.research.items}
-                businessId={businessId}
-                pathname={pathname}
-                staticLinks={staticLinks}
-                onNavigate={onNavigate}
-              />
-              <NavSection
-                title={nav.reports.title}
-                items={nav.reports.items}
+                title={nav.deliverables.title}
+                items={nav.deliverables.items}
                 businessId={businessId}
                 pathname={pathname}
                 staticLinks={staticLinks}

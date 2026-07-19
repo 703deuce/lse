@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, MapPin, X } from "lucide-react";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
+import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
 import { DashboardUIProvider, useDashboardUI } from "@/components/dashboard/dashboard-context";
 import { WorkspaceSearch } from "@/components/dashboard/workspace-search";
 import { cn } from "@/lib/utils";
@@ -102,7 +103,9 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
         <main
           className={cn(
             "flex min-w-0 flex-1 flex-col overflow-x-hidden",
-            fullBleed ? "overflow-y-hidden p-0" : "overflow-y-auto px-3 py-4 sm:px-5 sm:py-6 lg:px-8"
+            fullBleed
+              ? "overflow-y-hidden p-0"
+              : "overflow-y-auto px-3 py-4 pb-20 sm:px-5 sm:py-6 lg:px-8 lg:pb-6"
           )}
         >
           {!fullBleed ? (
@@ -112,6 +115,7 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
           ) : null}
           {children}
         </main>
+        <MobileBottomNav />
       </div>
     </div>
   );
