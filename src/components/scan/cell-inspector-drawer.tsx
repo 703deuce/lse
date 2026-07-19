@@ -75,7 +75,8 @@ interface CellInspectorDrawerProps {
 }
 
 const isDev = process.env.NODE_ENV === "development";
-const INITIAL_RESULTS_SHOWN = 10;
+/** Keep the rail short so the map stays visible without a tall workspace. */
+const INITIAL_RESULTS_SHOWN = 5;
 const MAX_RESULTS_SHOWN = 20;
 
 function isTargetListing(
@@ -127,11 +128,11 @@ function SerpListingCard({
   return (
     <article
       className={cn(
-        "flex gap-3 px-4 py-3.5 transition-colors",
+        "flex gap-2.5 px-3.5 py-2.5 transition-colors",
         isTarget ? "bg-emerald-50/70" : "hover:bg-zinc-50/80"
       )}
     >
-      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-zinc-100 ring-1 ring-zinc-200/80">
+      <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-zinc-100 ring-1 ring-zinc-200/80">
         {listing.main_image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -143,19 +144,19 @@ function SerpListingCard({
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-zinc-300">
-            <MapPin className="h-5 w-5" />
+            <MapPin className="h-4 w-4" />
           </div>
         )}
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-start gap-2">
-          <span className={cn("mt-0.5 w-6 shrink-0 text-[13px] font-bold tabular-nums", rankTone(rank))}>
+        <div className="flex items-start gap-1.5">
+          <span className={cn("mt-0.5 w-5 shrink-0 text-[12px] font-bold tabular-nums", rankTone(rank))}>
             {rank}
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
-              <h4 className="truncate text-[14px] font-semibold leading-snug text-zinc-900">
+              <h4 className="truncate text-[13px] font-semibold leading-snug text-zinc-900">
                 {listing.name ?? "Untitled listing"}
                 {isTarget ? (
                   <span className="ml-1.5 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
@@ -169,20 +170,14 @@ function SerpListingCard({
             </div>
 
             {category ? (
-              <p className="mt-0.5 truncate text-[12px] text-zinc-500">{category}</p>
+              <p className="mt-0.5 truncate text-[11px] text-zinc-500">{category}</p>
             ) : null}
 
-            <div className="mt-1">
+            <div className="mt-0.5">
               <GridStarRating rating={listing.rating} reviewCount={listing.review_count} />
             </div>
 
-            {(listing.address || listing.snippet) && (
-              <p className="mt-1 line-clamp-1 text-[11px] text-zinc-500">
-                {listing.address || listing.snippet}
-              </p>
-            )}
-
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-zinc-500">
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-zinc-500">
               {listing.total_photos != null && listing.total_photos > 0 ? (
                 <span className="inline-flex items-center gap-1 font-medium">
                   <Camera className="h-3 w-3" />
@@ -209,7 +204,7 @@ function SerpListingCard({
             </div>
 
             {justifications[0] ? (
-              <p className="mt-1.5 line-clamp-1 text-[11px] italic text-zinc-400">
+              <p className="mt-1 line-clamp-1 text-[11px] italic text-zinc-400">
                 {justifications[0]}
               </p>
             ) : null}
@@ -426,9 +421,9 @@ export function CellInspectorDrawer({
 
         {data && !loading && tab === "results" && (
           <div>
-            <section className="border-b border-zinc-200/80 bg-white px-4 py-4">
-              <div className="flex items-start gap-3">
-                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-zinc-100 ring-1 ring-zinc-200/80">
+            <section className="border-b border-zinc-200/80 bg-white px-3.5 py-3">
+              <div className="flex items-start gap-2.5">
+                <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-zinc-100 ring-1 ring-zinc-200/80">
                   {matched?.main_image ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -439,15 +434,15 @@ export function CellInspectorDrawer({
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-zinc-300">
-                      <MapPin className="h-6 w-6" />
+                      <MapPin className="h-5 w-5" />
                     </div>
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span
                       className={cn(
-                        "inline-flex rounded-full px-2.5 py-1 text-[12px] font-bold",
+                        "inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold",
                         data.target.found
                           ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
                           : "bg-rose-50 text-rose-600 ring-1 ring-rose-200"
@@ -456,18 +451,15 @@ export function CellInspectorDrawer({
                       {yourRankLabel}
                     </span>
                     {packShare != null ? (
-                      <span className="inline-flex rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700 ring-1 ring-sky-100">
-                        In pack · {data.resultCount} listings
+                      <span className="inline-flex rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-100">
+                        {data.resultCount} listings
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-2 truncate text-[14px] font-semibold text-zinc-900">
+                  <p className="mt-1 truncate text-[13px] font-semibold text-zinc-900">
                     {matched?.name ?? "Your business"}
                   </p>
-                  {matched?.category ? (
-                    <p className="mt-0.5 truncate text-[12px] text-zinc-500">{matched.category}</p>
-                  ) : null}
-                  <div className="mt-1.5">
+                  <div className="mt-0.5">
                     <GridStarRating
                       rating={matched?.rating}
                       reviewCount={matched?.review_count}
@@ -476,13 +468,13 @@ export function CellInspectorDrawer({
                 </div>
               </div>
 
-              <div className="mt-3.5 flex flex-wrap gap-2">
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {data.checkUrl ? (
                   <a
                     href={data.checkUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#137752] px-3 py-2 text-[12px] font-semibold text-white shadow-[0_4px_14px_rgba(19,119,82,0.22)] hover:bg-[#0f6344]"
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#137752] px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_4px_14px_rgba(19,119,82,0.22)] hover:bg-[#0f6344]"
                   >
                     <ExternalLink className="h-3.5 w-3.5" /> Open in Google
                   </a>

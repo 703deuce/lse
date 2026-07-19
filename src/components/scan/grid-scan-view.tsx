@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   BarChart3,
@@ -11,18 +11,15 @@ import {
   MapPinned,
   Target,
   TrendingDown,
-  Zap,
 } from "lucide-react";
 import { createBrowserClient } from "@/lib/db/client";
 import { GridMetricCard, GridTopCellsGroup, KpiRow, StatusBadge } from "@/components/ui/metric-card";
 import {
   gridRankHeaderBtn,
   gridRankPageBg,
-  gridRankPrimaryBtn,
   gridRankWorkspaceClass,
 } from "@/components/scan/grid-rank-ui";
 import { computeScanTrend, buildGridTopCompetitors, type ScanAggregateMetrics } from "@/lib/maps/grid";
-import { ScanSetupForm, defaultScanSetupValues } from "@/components/scan/scan-setup-form";
 import { computeSolv, computeWeightedSolv, gridScanMeta } from "@/lib/maps/grid-metrics";
 import { GRID_COLOR_MODE_STORAGE_KEY, type GridColorMode } from "@/lib/maps/colors";
 import { GridRankLegend } from "@/components/maps/grid-rank-legend";
@@ -61,7 +58,6 @@ import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
 import { ScanTimelineSlider, type TimelineMode } from "@/components/scan/scan-timeline-slider";
 import { computeGridRankByDistance } from "@/lib/maps/rank-by-distance";
 import { entityKeyFromParts } from "@/lib/maps/grid-entity";
-import { GridToolbar, type GridToolbarHandle } from "@/components/scan/grid-toolbar";
 import { GridCompareView } from "@/components/scan/grid-compare-view";
 import { GridScanTrendChart } from "@/components/scan/grid-scan-trend-chart";
 import { GridScanCompetitorsTable } from "@/components/scan/grid-scan-competitors-table";
@@ -72,7 +68,6 @@ import {
   type SpotCheckDetail,
   type SpotCheckMarker,
 } from "@/components/scan/single-point-check";
-import type { LocationScanSummary } from "@/lib/maps/scan-queries";
 import type { MapInteractionMode } from "@/components/maps/scan-map";
 import type { GridCell } from "@/components/maps/scan-map";
 import Link from "next/link";
@@ -158,10 +153,7 @@ export function GridScanView({
   const [showRadiusRings, setShowRadiusRings] = useState(false);
   const [timelineMode, setTimelineMode] = useState<TimelineMode>("target");
   const [timelineCompetitorKey, setTimelineCompetitorKey] = useState<string | null>(null);
-  const toolbarRef = useRef<GridToolbarHandle>(null);
-  const [toolbarRunning, setToolbarRunning] = useState(false);
-  const [locationId, setLocationId] = useState<string | null>(null);
-  const [locationCenter, setLocationCenter] = useState<[number, number] | null>(null);
+  const [locationId] = useState<string | null>(null);
   const [moveGridActive, setMoveGridActive] = useState(false);
   const [previewCenter, setPreviewCenter] = useState<[number, number] | null>(null);
   const [moveScanRunning, setMoveScanRunning] = useState(false);
@@ -686,17 +678,9 @@ export function GridScanView({
   const batchCenterLng = (batch?.center_lng as number | null) ?? null;
   const batchCenterLabel = (batch?.center_label as string | null) ?? null;
   const officeLat =
-    locationCenter?.[0] ??
-    batchCenterLat ??
-    business?.scan_center_lat ??
-    business?.lat ??
-    gridCenterLat;
+    batchCenterLat ?? business?.scan_center_lat ?? business?.lat ?? gridCenterLat;
   const officeLng =
-    locationCenter?.[1] ??
-    batchCenterLng ??
-    business?.scan_center_lng ??
-    business?.lng ??
-    gridCenterLng;
+    batchCenterLng ?? business?.scan_center_lng ?? business?.lng ?? gridCenterLng;
   const checkUrl = (data?.results?.[0]?.check_url as string) ?? null;
   const rawProgressCompleted = Math.max(
     batchCellsCompleted,
@@ -804,14 +788,6 @@ export function GridScanView({
       setEntityKey("you");
     }
   }, [timelineMode, timelineCompetitorKey, pinCompetitor]);
-
-  function handleLocationChange(loc: LocationScanSummary, newScanId: string | null) {
-    setLocationId(loc.id);
-    setLocationCenter([loc.lat, loc.lng]);
-    if (newScanId && newScanId !== activeScanId) {
-      switchScan(newScanId);
-    }
-  }
 
   function handleMoveGridToggle() {
     setMoveGridActive((v) => {
@@ -929,21 +905,6 @@ export function GridScanView({
     }
   }
 
-  function handleKeywordChange(newKeywordId: string, newScanId: string | null) {
-    setEntityKey("you");
-    if (newScanId && newScanId !== activeScanId) {
-      switchScan(newScanId, newKeywordId);
-    } else {
-      switchScan(activeScanId, newKeywordId);
-    }
-  }
-
-  function handleScanStarted(_newScanId: string, _newKeywordId?: string) {
-    void import("@/lib/scans/after-scan-start").then(({ goToDashboardAfterScanStart }) => {
-      goToDashboardAfterScanStart(businessId);
-    });
-  }
-
   function handleCellClick(cell: GridCell) {
     if (cell.pointId) setInspectorCellId(cell.pointId);
   }
@@ -976,7 +937,6 @@ export function GridScanView({
   }, [cells, inspectorCellId]);
 
   const headerBtn = gridRankHeaderBtn;
-  const headerBtnPrimary = gridRankPrimaryBtn;
 
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", gridRankPageBg)}>
@@ -1066,22 +1026,6 @@ export function GridScanView({
               >
                 <Crosshair className="h-4 w-4" /> Single-Point
               </button>
-              <button
-                type="button"
-                disabled={toolbarRunning}
-                onClick={() => {
-                  setToolbarRunning(true);
-                  void toolbarRef.current?.runScan().finally(() => setToolbarRunning(false));
-                }}
-                className={headerBtnPrimary}
-              >
-                {toolbarRunning ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Zap className="h-4 w-4 fill-current" />
-                )}
-                Run Scan
-              </button>
             </div>
           </div>
         </div>
@@ -1093,43 +1037,6 @@ export function GridScanView({
           </div>
         ) : (
           <>
-            <GridToolbar
-              ref={toolbarRef}
-              businessId={businessId}
-              scanId={activeScanId}
-              gridSize={gridSize}
-              radiusMeters={radiusMeters}
-              selectedKeywordId={keywordId}
-              selectedLocationId={locationId}
-              onKeywordChange={handleKeywordChange}
-              onLocationChange={handleLocationChange}
-              onScanStarted={handleScanStarted}
-            />
-
-            {scanActive || waitingForMap ? (
-              <div className="mb-3 rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[12px] text-zinc-600">
-                <p className="font-semibold text-zinc-900">Scan queued / running</p>
-                <p className="mt-0.5">
-                  This continues in the background. You can cancel it, return to the client, or start another scan.
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <CancelScanButton scanId={activeScanId} />
-                  <Link
-                    href={`/businesses/${businessId}/overview`}
-                    className="rounded-lg border border-zinc-200 px-2.5 py-1.5 font-medium text-zinc-700 hover:bg-zinc-50"
-                  >
-                    Return to Dashboard
-                  </Link>
-                  <Link
-                    href={`/businesses/${businessId}/scans`}
-                    className="rounded-lg border border-zinc-200 px-2.5 py-1.5 font-medium text-zinc-700 hover:bg-zinc-50"
-                  >
-                    Start another scan
-                  </Link>
-                </div>
-              </div>
-            ) : null}
-
             {!scanActive &&
             !waitingForMap &&
             (USABLE_SCAN_STATUSES as readonly string[]).includes(batchStatus) ? (
@@ -1166,6 +1073,30 @@ export function GridScanView({
                     },
                   ]}
                 />
+              </div>
+            ) : null}
+
+            {scanActive || waitingForMap ? (
+              <div className="mb-3 rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[12px] text-zinc-600">
+                <p className="font-semibold text-zinc-900">Scan queued / running</p>
+                <p className="mt-0.5">
+                  This continues in the background. You can cancel it, return to the client, or start another scan.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <CancelScanButton scanId={activeScanId} />
+                  <Link
+                    href={`/businesses/${businessId}/overview`}
+                    className="rounded-lg border border-zinc-200 px-2.5 py-1.5 font-medium text-zinc-700 hover:bg-zinc-50"
+                  >
+                    Return to Dashboard
+                  </Link>
+                  <Link
+                    href={`/businesses/${businessId}/scans`}
+                    className="rounded-lg border border-zinc-200 px-2.5 py-1.5 font-medium text-zinc-700 hover:bg-zinc-50"
+                  >
+                    Start another scan
+                  </Link>
+                </div>
               </div>
             ) : null}
 
@@ -1320,11 +1251,12 @@ export function GridScanView({
                     <div
                       className={cn(
                         gridRankWorkspaceClass,
-                        "flex min-h-[min(58vh,520px)] flex-col transition-opacity duration-300 lg:min-h-[min(72vh,680px)] lg:flex-row",
+                        // Fixed height so the SERP rail scrolls inside instead of stretching the map.
+                        "flex h-[min(68vh,620px)] min-h-[420px] flex-col overflow-hidden transition-opacity duration-300 lg:h-[min(72vh,680px)] lg:flex-row",
                         timelineFetching ? "opacity-75" : "opacity-100"
                       )}
                     >
-                      <div className="flex max-h-[44vh] min-h-[300px] w-full shrink-0 flex-col border-b border-zinc-200/80 lg:max-h-none lg:min-h-0 lg:w-[36%] lg:max-w-[460px] lg:border-b-0 lg:border-r">
+                      <div className="flex max-h-[38vh] min-h-0 w-full shrink-0 flex-col overflow-hidden border-b border-zinc-200/80 lg:max-h-none lg:h-full lg:w-[34%] lg:max-w-[420px] lg:border-b-0 lg:border-r">
                         <CellInspectorDrawer
                           variant="panel"
                           alwaysVisible
@@ -1362,8 +1294,8 @@ export function GridScanView({
                           className="min-h-0 flex-1"
                         />
                       </div>
-                      <div className="flex min-h-[320px] min-w-0 flex-1 flex-col lg:min-h-0">
-                        <div className="relative min-h-[280px] flex-1">
+                      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                        <div className="relative min-h-0 flex-1">
                           {batch?.finished_at || batch?.created_at ? (
                             <div className="absolute left-3 top-3 z-[500] rounded-full border border-zinc-200/80 bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-zinc-600 shadow-[0_4px_16px_rgba(15,23,42,0.08)] backdrop-blur">
                               {new Date(
@@ -1466,7 +1398,16 @@ export function GridScanView({
             {loadedCells === 0 && !scanActive && (
               <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
                 <p className="font-medium">No scan yet for this keyword</p>
-                <p className="mt-1">Run a scan from the toolbar above to load rank data.</p>
+                <p className="mt-1">
+                  Start a new scan from{" "}
+                  <Link
+                    href={`/businesses/${businessId}/scans`}
+                    className="font-semibold underline hover:text-amber-950"
+                  >
+                    Rank Grid setup
+                  </Link>{" "}
+                  to load rank data.
+                </p>
               </div>
             )}
 
@@ -1508,17 +1449,6 @@ export function GridScanView({
                 <ScanExportMenu businessId={businessId} scanBatchId={activeScanId} />
               </section>
             ) : null}
-
-            <section className="mt-3 rounded-lg border border-zinc-200 bg-white p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-              <h3 className="mb-2.5 text-[13px] font-semibold text-zinc-900">Run new scan</h3>
-              <ScanSetupForm
-                businessId={businessId}
-                defaults={defaultScanSetupValues(officeLat, officeLng)}
-                scanCenter={[officeLat, officeLng]}
-                compact
-                footerBar
-              />
-            </section>
           </>
         )}
         </div>
