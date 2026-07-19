@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { btnPrimary, btnSecondary } from "@/components/ui/design-system";
 
 /**
  * Catches uncaught render errors under the dashboard so users never see
@@ -26,17 +27,10 @@ export default function DashboardError({
         background — go back to the business and refresh the module.
       </p>
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-        <button
-          type="button"
-          onClick={() => reset()}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
-        >
+        <button type="button" onClick={() => reset()} className={btnPrimary}>
           Try again
         </button>
-        <Link
-          href="/workspace"
-          className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-        >
+        <Link href="/workspace" className={btnSecondary}>
           Back to Workspace
         </Link>
       </div>

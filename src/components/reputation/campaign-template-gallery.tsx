@@ -239,7 +239,7 @@ export function CampaignTemplateGallery({
                     type="button"
                     disabled={busyId === t.id}
                     onClick={() => void useTemplate(t.id)}
-                    className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                    className="inline-flex items-center gap-1 rounded-full bg-[#137752] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#0f6344] disabled:opacity-50"
                   >
                     {busyId === t.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                     Use template

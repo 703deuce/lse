@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { btnPrimary, listClass } from "@/components/ui/design-system";
 import { CampaignSetupWizard } from "@/components/campaigns/campaign-setup-wizard";
 import { ModuleEmptyState } from "@/components/journey/module-empty-state";
 
@@ -47,7 +48,7 @@ export default function BusinessCampaignsPage() {
           <button
             type="button"
             onClick={() => setShowWizard(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+            className={btnPrimary}
           >
             <Plus className="h-4 w-4" />
             New campaign
@@ -85,13 +86,13 @@ export default function BusinessCampaignsPage() {
           onAction={() => setShowWizard(true)}
         />
       ) : (
-        <ul className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 bg-white">
+        <ul className={listClass}>
           {campaigns.map((c) => (
             <li key={c.id} className="flex items-center justify-between px-4 py-3">
               <div>
                 <Link
                   href={`/campaigns/${c.id}`}
-                  className="text-sm font-semibold text-zinc-900 hover:text-emerald-700"
+                  className="text-sm font-semibold text-zinc-900 hover:text-[#137752]"
                 >
                   {c.name}
                 </Link>
@@ -99,7 +100,7 @@ export default function BusinessCampaignsPage() {
               </div>
               <Link
                 href={`/campaigns/${c.id}`}
-                className="text-xs font-medium text-emerald-700 hover:underline"
+                className="text-xs font-medium text-[#137752] hover:underline"
               >
                 Open
               </Link>

@@ -314,7 +314,7 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
             <button
               type="button"
               onClick={() => void runScan({})}
-              className="mt-3 inline-flex h-9 items-center rounded-lg bg-emerald-600 px-3 text-[13px] font-semibold text-white hover:bg-emerald-700"
+              className="mt-3 inline-flex h-9 items-center rounded-full bg-[#137752] px-3 text-[13px] font-semibold text-white hover:bg-[#0f6344]"
             >
               Find Local Trust Opportunities
             </button>

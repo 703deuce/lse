@@ -6,10 +6,10 @@ import { cn } from "@/lib/utils";
 
 /** Canonical KPI surface — used by GridMetricCard and module-specific KPI variants. */
 export const kpiCardSurface =
-  "rounded-lg border border-zinc-200/80 bg-white px-3.5 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]";
+  "rounded-2xl border border-zinc-200/80 bg-white px-3.5 py-3.5 shadow-[0_8px_30px_rgba(15,23,42,0.06)]";
 
 export const kpiLabelClass =
-  "text-[10px] font-medium uppercase tracking-wide text-zinc-500";
+  "text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400";
 
 export const kpiValueClass = "mt-0.5 text-base font-bold tabular-nums leading-none text-zinc-900";
 
@@ -19,7 +19,7 @@ export const kpiValuePrimaryClass =
 export const kpiSubClass = "mt-0.5 text-[11px] leading-snug text-zinc-500";
 
 export const kpiIconWrapClass =
-  "flex h-5 w-5 shrink-0 items-center justify-center rounded-md";
+  "flex h-6 w-6 shrink-0 items-center justify-center rounded-full";
 
 const kpiRowCols: Record<3 | 4 | 5 | 6, string> = {
   3: "grid-cols-2 xl:grid-cols-3",

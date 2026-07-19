@@ -51,7 +51,7 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
   }, [mobileNavOpen, setMobileNavOpen]);
 
   return (
-    <div className="flex min-h-screen overflow-x-hidden bg-surface-muted">
+    <div className="flex min-h-screen overflow-x-hidden bg-[#F3F5F7]">
       {/* Desktop sidebar — unchanged */}
       <DashboardSidebar
         businessId={businessId}
@@ -67,14 +67,14 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
           <button
             type="button"
             onClick={() => setMobileNavOpen(true)}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-700 shadow-sm"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm"
             aria-label="Open menu"
             aria-expanded={mobileNavOpen}
           >
             {mobileNavOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
           <div className="flex min-w-0 items-center gap-2">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-600">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#137752]">
               <MapPin className="h-3.5 w-3.5 text-white" />
             </div>
             <div className="min-w-0">

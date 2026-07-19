@@ -332,7 +332,7 @@ export function ScanSetupStudio({
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] lg:grid lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
+      <div className={`${dashboardCard} overflow-hidden lg:grid lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]`}>
         {/* Left config panel */}
         <aside className="border-b border-zinc-200 lg:border-b-0 lg:border-r">
           <div className="flex items-center gap-2 border-b border-zinc-100 px-3.5 py-3">

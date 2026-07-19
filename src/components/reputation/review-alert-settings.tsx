@@ -112,7 +112,7 @@ export function ReviewAlertSettings({ businessId }: { businessId: string }) {
         type="button"
         disabled={busy}
         onClick={() => void save()}
-        className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-60"
+        className="inline-flex items-center gap-1 rounded-full bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-60"
       >
         {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
         Save alerts

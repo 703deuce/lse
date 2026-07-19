@@ -192,7 +192,7 @@ export function AccountsHub({
           ) : (
             <Link
               href={newHref}
-              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700"
+              className="inline-flex items-center gap-2 rounded-full bg-[#137752] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#0f6344]"
             >
               <Plus className="h-4 w-4" />
               {newLabel}
@@ -261,20 +261,20 @@ export function AccountsHub({
           Loading…
         </div>
       ) : list.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/80 px-6 py-12 text-center">
+        <div className="rounded-2xl border border-dashed border-zinc-200 bg-white/80 px-6 py-12 text-center shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
           <MapPin className="mx-auto h-8 w-8 text-zinc-300" />
           <h2 className="mt-3 text-base font-semibold text-zinc-900">{emptyTitle}</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-zinc-600">{emptyBody}</p>
           <Link
             href={newHref}
-            className="mt-5 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#137752] px-4 py-2 text-sm font-medium text-white hover:bg-[#0f6344]"
           >
             <Plus className="h-4 w-4" />
             {newLabel}
           </Link>
         </div>
       ) : (
-        <ul className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 bg-white">
+        <ul className="divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.06)]">
           {list.map((b) => {
             const dashboardHref = `/businesses/${b.id}/overview`;
             const detailHref =
@@ -302,7 +302,7 @@ export function AccountsHub({
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <Link
                     href={dashboardHref}
-                    className="rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                    className="rounded-full bg-[#137752] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#0f6344]"
                   >
                     Dashboard
                   </Link>
@@ -329,7 +329,7 @@ export function AccountsHub({
                       type="button"
                       disabled={busyId === b.id}
                       onClick={() => void convertToClient(b.id)}
-                      className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[#137752] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#0f6344] disabled:opacity-50"
                     >
                       {busyId === b.id ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -359,7 +359,7 @@ export function AccountsHub({
                       type="button"
                       disabled={busyId === b.id}
                       onClick={() => void restoreClient(b.id)}
-                      className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[#137752] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#0f6344] disabled:opacity-50"
                     >
                       {busyId === b.id ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />

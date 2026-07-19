@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Archive, Loader2, MapPin, Plus, RotateCcw } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { btnPrimary, cardClass, emptyStateClass } from "@/components/ui/design-system";
+import { cn } from "@/lib/utils";
 
 type BusinessRow = {
   id: string;
@@ -115,10 +117,7 @@ export function BusinessesHub({
         subtitle="Each location is its own silo — scans, keywords, backlinks, and audits stay with that business."
         actions={
           canAdd ? (
-            <Link
-              href="/businesses/new"
-              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700"
-            >
+            <Link href="/businesses/new" className={btnPrimary}>
               <Plus className="h-4 w-4" />
               Add location
             </Link>
@@ -154,17 +153,14 @@ export function BusinessesHub({
           <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
         </div>
       ) : !rows.length ? (
-        <div className="rounded-xl border border-dashed border-zinc-300 p-12 text-center">
+        <div className={cn(emptyStateClass, "p-12")}>
           <MapPin className="mx-auto h-10 w-10 text-zinc-400" />
           <h2 className="mt-4 text-lg font-medium">No locations yet</h2>
           <p className="mt-2 text-sm text-zinc-500">
             Add your first business location to run scans and module audits. Everything you run
             stays with that location.
           </p>
-          <Link
-            href="/businesses/new"
-            className="mt-6 inline-flex rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-          >
+          <Link href="/businesses/new" className={cn(btnPrimary, "mt-6")}>
             Get started
           </Link>
         </div>
@@ -176,10 +172,10 @@ export function BusinessesHub({
               {tracked.map((b) => (
                 <article
                   key={b.id}
-                  className="flex flex-col rounded-xl border border-zinc-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+                  className={cn(cardClass, "flex flex-col p-5")}
                 >
                   <Link href={`/businesses/${b.id}/overview`} className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-zinc-900 hover:text-emerald-700">{b.name}</h3>
+                    <h3 className="font-semibold text-zinc-900 hover:text-[#137752]">{b.name}</h3>
                     <p className="mt-1 text-sm text-zinc-500">
                       {locationSubtitle(b)}
                     </p>
@@ -192,7 +188,7 @@ export function BusinessesHub({
                   <div className="mt-4 flex items-center gap-2 border-t border-zinc-100 pt-3">
                     <Link
                       href={`/businesses/${b.id}/overview`}
-                      className="text-sm font-medium text-emerald-700 hover:underline"
+                      className="text-sm font-medium text-[#137752] hover:underline"
                     >
                       Open
                     </Link>

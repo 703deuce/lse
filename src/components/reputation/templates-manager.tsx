@@ -286,7 +286,7 @@ export function TemplatesManager({ businessId }: { businessId: string }) {
                 type="button"
                 disabled={saving}
                 onClick={() => void save(!activeId)}
-                className="rounded-md bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-60"
+                className="rounded-full bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-60"
               >
                 Save
               </button>

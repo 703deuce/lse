@@ -51,7 +51,7 @@ export function ResearchPanel({ businessId }: { businessId: string }) {
         <button
           type="submit"
           disabled={loading}
-          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-full bg-[#137752] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#0f6344] disabled:opacity-50"
         >
           {loading && <Loader2 className="h-4 w-4 animate-spin" />}
           Research

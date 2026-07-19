@@ -312,7 +312,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
               type="button"
               disabled={busy || keywords.filter((k) => k.active !== false).length < 1}
               onClick={() => void runAllKeywords()}
-              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-full bg-[#137752] px-3 py-2 text-sm font-medium text-white hover:bg-[#0f6344] disabled:opacity-50"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
               Run all

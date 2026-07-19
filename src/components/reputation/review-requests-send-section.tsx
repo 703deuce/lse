@@ -445,7 +445,7 @@ export function ReviewRequestsSendSection({
                 </p>
                 <p className="whitespace-pre-wrap leading-relaxed text-zinc-700">{previewBody}</p>
                 <div className="pt-2 text-center">
-                  <span className="inline-block rounded-lg bg-emerald-600 px-4 py-2 text-[13px] font-semibold text-white">
+                  <span className="inline-block rounded-full bg-[#137752] px-4 py-2 text-[13px] font-semibold text-white">
                     Leave a review on Google
                   </span>
                 </div>

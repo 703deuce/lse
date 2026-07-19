@@ -1,6 +1,8 @@
 import { requirePageAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
 import { PageHeader } from "@/components/ui/page-header";
+import { cardClass } from "@/components/ui/design-system";
+import { cn } from "@/lib/utils";
 
 export default async function ProfileSettingsPage() {
   const auth = await requirePageAuth();
@@ -14,7 +16,7 @@ export default async function ProfileSettingsPage() {
   return (
     <>
       <PageHeader title="Profile" subtitle="Your freelancer account details." />
-      <div className="max-w-lg rounded-xl border border-zinc-200 bg-white p-5 text-sm">
+      <div className={cn(cardClass, "max-w-lg p-5 text-sm")}>
         <dl className="space-y-3">
           <div>
             <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">Name</dt>
@@ -35,7 +37,7 @@ export default async function ProfileSettingsPage() {
         </dl>
         <p className="mt-4 text-xs text-zinc-500">
           Invite assistants under{" "}
-          <a href="/settings/team" className="font-medium text-emerald-700 hover:underline">
+          <a href="/settings/team" className="font-medium text-[#137752] hover:underline">
             Settings → Team
           </a>
           . Owners manage billing, branding, and deletion.

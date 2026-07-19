@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requirePageAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
 import { PageHeader } from "@/components/ui/page-header";
+import { btnPrimary, emptyStateClass, listClass } from "@/components/ui/design-system";
 import { customerSafeScanError } from "@/lib/scans/customer-safe-error";
 import { isCancellableScanStatus } from "@/lib/scans/cancel-scan";
 import {
@@ -44,10 +45,7 @@ export default async function OrgScansPage() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {hasActive ? <CancelActiveScansButton /> : null}
-            <Link
-              href="/scans/new"
-              className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-            >
+            <Link href="/scans/new" className={btnPrimary}>
               New scan
             </Link>
           </div>
@@ -55,20 +53,20 @@ export default async function OrgScansPage() {
       />
 
       {!scans?.length ? (
-        <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/80 px-6 py-10 text-center">
+        <div className={emptyStateClass}>
           <h2 className="text-base font-semibold text-zinc-900">No scans yet</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-zinc-600">
             Run a Maps scan for a prospect or client to track local rankings over time.
           </p>
           <Link
             href="/scans/new"
-            className="mt-4 inline-block text-sm font-medium text-emerald-700 hover:underline"
+            className="mt-4 inline-block text-sm font-medium text-[#137752] hover:underline"
           >
             Start a scan
           </Link>
         </div>
       ) : (
-        <ul className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 bg-white">
+        <ul className={listClass}>
           {scans.map((s) => {
             const conf = (s.confidence_summary ?? {}) as { keyword?: string; keyword_label?: string };
             const keyword = conf.keyword_label ?? conf.keyword ?? "—";
@@ -78,7 +76,7 @@ export default async function OrgScansPage() {
                 <div className="min-w-0">
                   <Link
                     href={`/businesses/${s.business_id}/grid/${s.id}`}
-                    className="text-sm font-semibold text-zinc-900 hover:text-emerald-700"
+                    className="text-sm font-semibold text-zinc-900 hover:text-[#137752]"
                   >
                     {nameById.get(s.business_id as string) ?? "Location"} · {keyword}
                   </Link>
@@ -96,7 +94,7 @@ export default async function OrgScansPage() {
                   ) : null}
                   <Link
                     href={`/businesses/${s.business_id}/grid/${s.id}`}
-                    className="text-xs font-medium text-emerald-700 hover:underline"
+                    className="text-xs font-medium text-[#137752] hover:underline"
                   >
                     Open
                   </Link>
