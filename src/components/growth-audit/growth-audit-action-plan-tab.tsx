@@ -320,7 +320,7 @@ export function GrowthAuditActionPlanTab({
               className={`mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-[13px] font-semibold text-white ${
                 doneKeys.has(taskKey(topTask))
                   ? "bg-zinc-700 hover:bg-zinc-800"
-                  : "bg-emerald-600 hover:bg-emerald-700"
+                  : "bg-emerald-600 hover:bg-[#0f6344]"
               }`}
             >
               {doneKeys.has(taskKey(topTask)) ? "Mark as not started" : "Mark as done"}

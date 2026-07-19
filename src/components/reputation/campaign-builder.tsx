@@ -804,7 +804,7 @@ export function CampaignBuilder({
             type="button"
             disabled={!canNext() || busy}
             onClick={() => void goNext()}
-            className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-full bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
           >
             Next <ArrowRight className="h-3.5 w-3.5" />
           </button>
@@ -822,7 +822,7 @@ export function CampaignBuilder({
               type="button"
               disabled={!canNext() || busy}
               onClick={() => void launch(startDate > new Date().toISOString().slice(0, 10) ? "scheduled" : "active")}
-              className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-full bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
             >
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
               {isAutomatic ? "Activate campaign" : "Launch campaign"}

@@ -237,7 +237,7 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
             type="button"
             onClick={() => void runAudit()}
             disabled={running}
-            className="mt-4 inline-flex h-9 items-center rounded-lg bg-emerald-600 px-3 text-[13px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+            className="mt-4 inline-flex h-9 items-center rounded-full bg-[#137752] px-3 text-[13px] font-semibold text-white hover:bg-[#0f6344] disabled:opacity-50"
           >
             {running ? "Running…" : "Run Growth Audit"}
           </button>

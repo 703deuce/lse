@@ -135,7 +135,7 @@ export function ContactsPageClient({
           <button
             type="button"
             onClick={() => setShowAdd((v) => !v)}
-            className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-emerald-500"
+            className="inline-flex items-center gap-1.5 rounded-full bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#0f6344]"
           >
             <Plus className="h-3.5 w-3.5" />
             Add Customer
@@ -204,7 +204,7 @@ export function ContactsPageClient({
             type="button"
             disabled={saving}
             onClick={() => void saveContact()}
-            className="h-8 rounded-md bg-emerald-600 px-2.5 text-[12px] font-semibold text-white disabled:opacity-60 sm:col-span-4 sm:w-fit"
+            className="h-8 rounded-full bg-[#137752] px-2.5 text-[12px] font-semibold text-white disabled:opacity-60 sm:col-span-4 sm:w-fit"
           >
             {saving ? "Saving…" : "Save contact"}
           </button>

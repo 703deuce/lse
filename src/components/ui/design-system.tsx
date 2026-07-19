@@ -18,35 +18,42 @@ export const cardGrid3 = "grid gap-2 sm:grid-cols-2 lg:grid-cols-3";
 /* ── Surface tokens ──────────────────────────────────────────── */
 
 export const cardClass =
-  "rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]";
-export const cardPadding = "p-3.5";
+  "rounded-2xl border border-zinc-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.06)]";
+export const cardPadding = "p-4";
+/** Divided list surface for location / scan pickers. */
+export const listClass =
+  "divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.06)]";
+/** Dashed empty-state panel. */
+export const emptyStateClass =
+  "rounded-2xl border border-dashed border-zinc-200 bg-white/80 px-6 py-10 text-center shadow-[0_8px_30px_rgba(15,23,42,0.04)]";
 /** Canonical table cell inset when the card shell is p-0 / overflow-hidden. */
-export const tableCellClass = "px-3.5 py-2";
-export const tableHeadCellClass = "px-3.5 py-2";
+export const tableCellClass = "px-3.5 py-2.5";
+export const tableHeadCellClass = "px-3.5 py-2.5";
 export const filterBarClass =
-  "flex flex-wrap items-end gap-2 rounded-xl border border-zinc-200/80 bg-white p-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]";
+  "flex flex-wrap items-end gap-2 rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.06)]";
 
 /* ── Typography tokens ───────────────────────────────────────── */
 
-export const pageTitleClass = "text-lg font-semibold tracking-tight text-zinc-900 sm:text-xl";
+export const pageTitleClass = "text-lg font-bold tracking-tight text-zinc-900 sm:text-xl";
 export const pageSubtitleClass = "mt-1 max-w-3xl text-[13px] leading-snug text-zinc-500";
-export const sectionTitleClass = "text-[13px] font-semibold text-zinc-900";
-export const cardLabelClass = "text-[10px] font-medium uppercase tracking-wide text-zinc-500";
+export const sectionTitleClass = "text-[14px] font-semibold text-zinc-900";
+export const cardLabelClass =
+  "text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400";
 export const bodyClass = "text-[13px] leading-snug text-zinc-600";
 
 /* ── Button tokens ───────────────────────────────────────────── */
 
 export const btnPrimary =
-  "inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:opacity-50";
+  "inline-flex items-center justify-center gap-2 rounded-full bg-[#137752] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(19,119,82,0.28)] transition hover:bg-[#0f6344] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#137752] disabled:opacity-50";
 
 export const btnSecondary =
-  "inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300 disabled:opacity-50";
+  "inline-flex items-center justify-center gap-2 rounded-full border border-zinc-200/90 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300 disabled:opacity-50";
 
 export const btnIcon =
-  "inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-500 shadow-sm transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300";
+  "inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200/90 bg-white text-zinc-500 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300";
 
 export const inputClass =
-  "w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20";
+  "w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-[#137752] focus:ring-1 focus:ring-[#137752]/20";
 
 export const fieldLabelClass = "text-xs font-medium text-zinc-600";
 
@@ -154,7 +161,7 @@ export function TabBar<T extends string>({
             className={cn(
               "-mb-px shrink-0 border-b-2 px-1 pb-2 pt-0.5 text-[13px] transition-colors",
               active === tab.id
-                ? "border-emerald-600 font-semibold text-emerald-700"
+                ? "border-[#137752] font-semibold text-[#137752]"
                 : tab.muted
                   ? "border-transparent font-medium text-zinc-400 hover:text-zinc-600"
                   : "border-transparent font-medium text-zinc-500 hover:text-zinc-800"

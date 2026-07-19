@@ -312,7 +312,7 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
           type="button"
           onClick={() => setShowAdd(true)}
           disabled={!!busy}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[13px] font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
+          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#137752] px-3 text-[13px] font-semibold text-white shadow-sm hover:bg-[#0f6344] disabled:opacity-50"
         >
           <Plus className="h-4 w-4" />
           Add Keyword

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { requirePageAuth } from "@/lib/auth/context";
 import { PageHeader } from "@/components/ui/page-header";
+import { cardClass } from "@/components/ui/design-system";
 import { AccountPlanUsageCard } from "@/components/settings/account-plan-usage-card";
+import { cn } from "@/lib/utils";
 
 export default async function SettingsPage() {
   await requirePageAuth();
@@ -45,7 +47,7 @@ function SettingsLink({
   return (
     <Link
       href={href}
-      className="rounded-xl border border-zinc-200 bg-white p-4 hover:border-zinc-300 hover:bg-zinc-50/40"
+      className={cn(cardClass, "p-4 transition hover:border-zinc-300 hover:bg-zinc-50/40")}
     >
       <p className="text-sm font-semibold text-zinc-900">{title}</p>
       <p className="mt-1 text-xs text-zinc-500">{body}</p>

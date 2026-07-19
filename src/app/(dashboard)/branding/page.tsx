@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import {
+  btnPrimary,
+  cardClass,
+  emptyStateClass,
+  inputClass,
+} from "@/components/ui/design-system";
 import { trackProductEvent } from "@/lib/analytics/product-events";
+import { cn } from "@/lib/utils";
 
 type Branding = {
   companyName: string;
@@ -82,14 +89,14 @@ export default function BrandingPage() {
           Loading…
         </div>
       ) : !branding ? (
-        <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/80 px-6 py-10 text-center">
+        <div className={emptyStateClass}>
           <h2 className="text-base font-semibold text-zinc-900">No branding yet</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-zinc-600">
             Add your logo and contact information so shared reports look like your own.
           </p>
         </div>
       ) : (
-        <div className="max-w-xl space-y-4 rounded-xl border border-zinc-200 bg-white p-5">
+        <div className={cn(cardClass, "max-w-xl space-y-4 p-5")}>
           {error ? (
             <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
               {error}
@@ -109,7 +116,7 @@ export default function BrandingPage() {
           <label className="block text-sm">
             <span className="font-medium text-zinc-700">Logo URL</span>
             <input
-              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+              className={cn(inputClass, "mt-1")}
               value={branding.logoUrl ?? ""}
               onChange={(e) =>
                 setBranding({ ...branding, logoUrl: e.target.value || null })
@@ -121,7 +128,7 @@ export default function BrandingPage() {
           <label className="block text-sm">
             <span className="font-medium text-zinc-700">Primary brand color</span>
             <input
-              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+              className={cn(inputClass, "mt-1")}
               value={branding.accentColor ?? ""}
               onChange={(e) =>
                 setBranding({ ...branding, accentColor: e.target.value || null })
@@ -133,7 +140,7 @@ export default function BrandingPage() {
           <label className="block text-sm">
             <span className="font-medium text-zinc-700">Contact line</span>
             <input
-              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+              className={cn(inputClass, "mt-1")}
               value={branding.contactLine ?? ""}
               onChange={(e) =>
                 setBranding({ ...branding, contactLine: e.target.value || null })
@@ -145,7 +152,7 @@ export default function BrandingPage() {
           <label className="block text-sm">
             <span className="font-medium text-zinc-700">Report footer</span>
             <textarea
-              className="mt-1 min-h-[80px] w-full rounded-lg border border-zinc-300 px-3 py-2"
+              className={cn(inputClass, "mt-1 min-h-[80px]")}
               value={branding.footerText ?? ""}
               onChange={(e) =>
                 setBranding({ ...branding, footerText: e.target.value || null })
@@ -168,7 +175,7 @@ export default function BrandingPage() {
             type="button"
             disabled={saving}
             onClick={() => void save()}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+            className={btnPrimary}
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             Save branding

@@ -206,7 +206,7 @@ export function CampaignCreateWizard({
             disabled={!endpointId}
             onClick={() => setStep("template")}
             className={cn(
-              "rounded-md bg-emerald-600 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-emerald-500",
+              "rounded-full bg-[#137752] px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-[#0f6344]",
               !endpointId && "opacity-50"
             )}
           >

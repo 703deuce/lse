@@ -1,4 +1,5 @@
 import { BusinessModuleShell } from "@/components/dashboard/business-module-shell";
+import { emptyStateClass } from "@/components/ui/design-system";
 
 export default async function ProgressPage({
   params,
@@ -13,7 +14,7 @@ export default async function ProgressPage({
       title="Monthly Progress Report"
       subtitle="Track scan trends, task completion, and visibility changes over time"
     >
-      <div className="rounded-xl border border-dashed border-zinc-300 p-8 text-center dark:border-zinc-700">
+      <div className={emptyStateClass}>
         <p className="text-zinc-500">
           Monthly reports will aggregate rank grid trends, completed action items, and audit score improvements.
         </p>

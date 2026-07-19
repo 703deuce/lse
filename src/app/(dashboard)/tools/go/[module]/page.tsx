@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requirePageAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
 import { PageHeader } from "@/components/ui/page-header";
+import { listClass } from "@/components/ui/design-system";
 import {
   isLocationToolSlug,
   LOCATION_TOOL_MODULES,
@@ -39,7 +40,7 @@ export default async function ToolLocationPickerPage({
           actionHref="/businesses/new?as=client"
         />
       ) : (
-        <ul className="divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <ul className={listClass}>
           {active.map((b) => {
             const isProspect =
               b.account_type === "prospect" || b.is_tracked === false;
@@ -56,7 +57,7 @@ export default async function ToolLocationPickerPage({
                 </div>
                 <Link
                   href={`/businesses/${b.id}/${mod.path}`}
-                  className="shrink-0 text-xs font-medium text-emerald-700 hover:underline"
+                  className="shrink-0 text-xs font-medium text-[#137752] hover:underline"
                 >
                   Open {mod.title}
                 </Link>

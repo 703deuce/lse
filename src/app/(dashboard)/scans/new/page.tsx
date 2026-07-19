@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { btnPrimary, emptyStateClass, listClass } from "@/components/ui/design-system";
 
 type Row = {
   id: string;
@@ -48,21 +49,21 @@ export default function NewScanPickerPage() {
           Loading locations…
         </div>
       ) : active.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/80 px-6 py-10 text-center">
+        <div className={emptyStateClass}>
           <p className="text-sm text-zinc-600">
             Add a prospect or client first, then run a scan.
           </p>
           <div className="mt-4 flex justify-center gap-3">
-            <Link href="/businesses/new?as=prospect" className="text-sm font-medium text-emerald-700">
+            <Link href="/businesses/new?as=prospect" className="text-sm font-medium text-[#137752]">
               New prospect
             </Link>
-            <Link href="/businesses/new?as=client" className="text-sm font-medium text-emerald-700">
+            <Link href="/businesses/new?as=client" className="text-sm font-medium text-[#137752]">
               New client
             </Link>
           </div>
         </div>
       ) : (
-        <ul className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 bg-white">
+        <ul className={listClass}>
           {active.map((b) => (
             <li key={b.id} className="flex items-center justify-between px-4 py-3">
               <div>
@@ -73,10 +74,7 @@ export default function NewScanPickerPage() {
                     : "Client"}
                 </p>
               </div>
-              <Link
-                href={`/businesses/${b.id}/scans`}
-                className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
-              >
+              <Link href={`/businesses/${b.id}/scans`} className={btnPrimary}>
                 Configure scan
               </Link>
             </li>

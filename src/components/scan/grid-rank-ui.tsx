@@ -1,41 +1,37 @@
 "use client";
 
 import {
+  dashboardBtnPrimary,
+  dashboardBtnSecondary,
   dashboardCard,
   dashboardCardTitle,
   dashboardControl,
   dashboardMicro,
+  dashboardPageBg,
   dashboardSectionLabel,
+  dashboardWorkspace,
 } from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
 
-/** Soft studio canvas — closer to modern local-SEO product pages. */
-export const gridRankPageBg = "bg-[#F3F5F7]";
+/** @deprecated Prefer dashboardPageBg — kept for grid call sites. */
+export const gridRankPageBg = dashboardPageBg;
 
 export const gridRankFieldLabel = dashboardSectionLabel;
 
 export const gridRankFieldSelect = cn(
   dashboardControl,
-  "mt-0.5 h-auto w-full rounded-xl px-2.5 py-1.5 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
+  "mt-0.5 h-auto w-full px-2.5 py-1.5 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
 );
 
-export const gridInspectorActionBtn =
-  "inline-flex items-center gap-1.5 rounded-full border border-zinc-200/90 bg-white px-2.5 py-1 text-[11px] font-semibold text-zinc-700 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:bg-zinc-50";
+export const gridInspectorActionBtn = dashboardBtnSecondary;
 
-/** Elevated white surface used for the map workspace and side panels. */
-export const gridRankCardClass = cn(
-  dashboardCard,
-  "rounded-2xl border-zinc-200/80 shadow-[0_8px_30px_rgba(15,23,42,0.06)]"
-);
+export const gridRankCardClass = dashboardCard;
 
-export const gridRankWorkspaceClass =
-  "overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-[0_10px_40px_rgba(15,23,42,0.07)]";
+export const gridRankWorkspaceClass = dashboardWorkspace;
 
-export const gridRankHeaderBtn =
-  "inline-flex items-center gap-1.5 rounded-full border border-zinc-200/90 bg-white px-3 py-1.5 text-[12px] font-semibold text-zinc-700 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:bg-zinc-50";
+export const gridRankHeaderBtn = dashboardBtnSecondary;
 
-export const gridRankPrimaryBtn =
-  "inline-flex items-center gap-1.5 rounded-full bg-[#137752] px-3.5 py-1.5 text-[12px] font-semibold text-white shadow-[0_4px_14px_rgba(19,119,82,0.28)] hover:bg-[#0f6344] disabled:opacity-50";
+export const gridRankPrimaryBtn = dashboardBtnPrimary;
 
 export const gridRankSectionTitle = dashboardCardTitle;
 

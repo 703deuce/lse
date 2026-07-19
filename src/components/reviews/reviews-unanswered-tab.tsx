@@ -107,7 +107,7 @@ export function ReviewsUnansweredTab({ data, businessId }: { data: ReviewsPageDa
               </div>
               <Link
                 href={`/businesses/${businessId}/review-requests`}
-                className="rounded-lg bg-emerald-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-emerald-700"
+                className="rounded-full bg-[#137752] px-2 py-1 text-[11px] font-medium text-white hover:bg-[#0f6344]"
               >
                 Request reviews
               </Link>
@@ -140,7 +140,7 @@ export function ReviewsUnansweredTab({ data, businessId }: { data: ReviewsPageDa
                   <button
                     type="button"
                     onClick={() => void copyReply()}
-                    className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-medium text-white"
+                    className="rounded-full bg-[#137752] px-2.5 py-1 text-[11px] font-medium text-white"
                   >
                     {copied ? "Copied" : "Copy reply"}
                   </button>

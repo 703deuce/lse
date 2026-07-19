@@ -140,7 +140,7 @@ export function JourneyNextActionsStrip({
                 className={cn(
                   "inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium",
                   a.primary
-                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                    ? "bg-emerald-600 text-white hover:bg-[#0f6344]"
                     : "border border-emerald-200 bg-white text-emerald-900 hover:bg-emerald-50"
                 )}
               >
@@ -154,7 +154,7 @@ export function JourneyNextActionsStrip({
                 className={cn(
                   "inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium",
                   a.primary
-                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                    ? "bg-emerald-600 text-white hover:bg-[#0f6344]"
                     : "border border-emerald-200 bg-white text-emerald-900 hover:bg-emerald-50"
                 )}
               >

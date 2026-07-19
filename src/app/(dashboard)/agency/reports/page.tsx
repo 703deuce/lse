@@ -1,7 +1,9 @@
 import { PageHeader } from "@/components/ui/page-header";
+import { cardClass } from "@/components/ui/design-system";
 import { requirePageAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
 import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 export default async function AgencyReportsPage() {
@@ -42,7 +44,7 @@ export default async function AgencyReportsPage() {
         {rows.map((r) => (
           <div
             key={r.businessId}
-            className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200/80 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+            className={cn(cardClass, "flex items-center justify-between gap-3 p-4")}
           >
             <div className="min-w-0">
               <span className="font-medium">{r.businessName}</span>
@@ -54,7 +56,7 @@ export default async function AgencyReportsPage() {
             </div>
             <Link
               href={`/businesses/${r.businessId}/reports`}
-              className="shrink-0 text-sm text-emerald-600 hover:underline"
+              className="shrink-0 text-sm text-[#137752] hover:underline"
             >
               Open reports →
             </Link>
