@@ -11,7 +11,6 @@ import {
   MapPin,
   Play,
   Target,
-  Users,
 } from "lucide-react";
 import { NextBestActionsPanel } from "@/components/journey/next-best-actions-panel";
 import { SetupProgressCard } from "@/components/journey/setup-progress-card";
