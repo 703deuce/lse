@@ -245,6 +245,7 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
               createdAt={run.created_at}
             />
             <TrustActionBar
+              businessId={businessId}
               isRunning={isRunning}
               loading={loading}
               onRefresh={() => void load()}
@@ -265,6 +266,7 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
         {!run && (
           <div className="flex justify-end">
             <TrustActionBar
+              businessId={businessId}
               isRunning={isRunning}
               loading={loading}
               onRefresh={() => void load()}
@@ -306,8 +308,17 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
 
       {!loading && !run && (
         <EmptyState
-          title="No local trust scan yet"
-          description="Run the finder for your primary city to discover sponsorship and community opportunities."
+          title="No Local Trust analysis yet"
+          description="Run Local Trust to review market opportunities, competitor trust signals, and authority gaps — then save tasks and include selected findings in a client report."
+          action={
+            <button
+              type="button"
+              onClick={() => void runScan({})}
+              className="mt-3 inline-flex h-9 items-center rounded-lg bg-emerald-600 px-3 text-[13px] font-semibold text-white hover:bg-emerald-700"
+            >
+              Find Local Trust Opportunities
+            </button>
+          }
         />
       )}
 
@@ -383,7 +394,14 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
             />
           )}
 
-          {tab === "tasks" && <LocalTrustTasksTab tasks={data?.tasks ?? []} />}
+          {tab === "tasks" && (
+            <LocalTrustTasksTab
+              tasks={data?.tasks ?? []}
+              businessId={businessId}
+              runId={data?.run?.id ?? null}
+              onTasksCreated={() => void load()}
+            />
+          )}
 
           <TrustFooter message={footerMessage} />
         </>

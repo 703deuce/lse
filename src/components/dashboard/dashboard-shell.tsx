@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Menu, MapPin, X } from "lucide-react";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
+import { MobileMoreSheet } from "@/components/journey/mobile-more-sheet";
 import { DashboardUIProvider, useDashboardUI } from "@/components/dashboard/dashboard-context";
 import { WorkspaceSearch } from "@/components/dashboard/workspace-search";
 import { cn } from "@/lib/utils";
@@ -58,25 +59,8 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
         className="hidden lg:flex"
       />
 
-      {/* Mobile drawer */}
-      {mobileNavOpen ? (
-        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
-          <button
-            type="button"
-            className="absolute inset-0 bg-zinc-950/45"
-            aria-label="Close menu"
-            onClick={() => setMobileNavOpen(false)}
-          />
-          <div className="absolute inset-y-0 left-0 flex max-w-[min(18rem,88vw)] shadow-2xl">
-            <DashboardSidebar
-              businessId={businessId}
-              compareActive={compareActive}
-              className="flex h-full max-h-dvh"
-              onNavigate={() => setMobileNavOpen(false)}
-            />
-          </div>
-        </div>
-      ) : null}
+      {/* Mobile More sheet — curated tools (brief), not full desktop sidebar */}
+      <MobileMoreSheet />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-40 flex items-center gap-2.5 border-b border-zinc-200 bg-white/95 px-3 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-white/80 lg:hidden">

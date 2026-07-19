@@ -5,23 +5,53 @@ import Link from "next/link";
 import { Building2, FileText, Loader2, Play, Target } from "lucide-react";
 import { NextBestActionsPanel } from "@/components/journey/next-best-actions-panel";
 import { SetupProgressCard } from "@/components/journey/setup-progress-card";
+import {
+  ActiveWorkPanel,
+  NeedsAttentionPanel,
+  RecentResultsPanel,
+} from "@/components/journey/dashboard-work-panels";
 import type { NextBestAction, SetupProgress } from "@/lib/journey/next-best-actions";
+import type { WorkingQueueItem } from "@/lib/workspace/working-queue";
 import { ModuleHeader, ModulePage, btnPrimary, btnSecondary } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
+
+type RecentItem = {
+  id: string;
+  title: string;
+  subtitle: string;
+  href: string;
+  kind?: string;
+};
 
 export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
   const [actions, setActions] = useState<NextBestAction[]>([]);
   const [setup, setSetup] = useState<SetupProgress | null>(null);
   const [loading, setLoading] = useState(true);
+  const [scansRunning, setScansRunning] = useState<WorkingQueueItem[]>([]);
+  const [schedulesUpcoming, setSchedulesUpcoming] = useState<WorkingQueueItem[]>([]);
+  const [draftReports, setDraftReports] = useState<WorkingQueueItem[]>([]);
+  const [needsAttention, setNeedsAttention] = useState<WorkingQueueItem[]>([]);
+  const [recent, setRecent] = useState<RecentItem[]>([]);
 
   useEffect(() => {
     void (async () => {
       try {
-        const res = await fetch("/api/journey/next-actions?setup=1");
-        const json = await res.json();
-        if (res.ok) {
-          setActions(json.actions ?? []);
-          setSetup(json.setup ?? null);
+        const [nbaRes, queueRes] = await Promise.all([
+          fetch("/api/journey/next-actions?setup=1"),
+          fetch("/api/journey/work-queue"),
+        ]);
+        const nbaJson = await nbaRes.json();
+        if (nbaRes.ok) {
+          setActions(nbaJson.actions ?? []);
+          setSetup(nbaJson.setup ?? null);
+        }
+        const queueJson = await queueRes.json();
+        if (queueRes.ok) {
+          setScansRunning(queueJson.activeWork?.scansRunning ?? []);
+          setSchedulesUpcoming(queueJson.activeWork?.schedulesUpcoming ?? []);
+          setDraftReports(queueJson.activeWork?.draftReports ?? []);
+          setNeedsAttention(queueJson.needsAttention ?? []);
+          setRecent(queueJson.recent ?? []);
         }
       } finally {
         setLoading(false);
@@ -61,15 +91,24 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
         <div className="space-y-4">
           {loading ? (
             <p className="flex items-center gap-2 text-sm text-zinc-500">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading next actions…
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading your work queue…
             </p>
           ) : (
-            <NextBestActionsPanel actions={actions} />
+            <>
+              <NextBestActionsPanel actions={actions} />
+              <ActiveWorkPanel
+                scansRunning={scansRunning}
+                schedulesUpcoming={schedulesUpcoming}
+                draftReports={draftReports}
+              />
+              <NeedsAttentionPanel items={needsAttention} />
+              <RecentResultsPanel items={recent} />
+            </>
           )}
           <div className="rounded-xl border border-zinc-200 bg-white p-4">
-            <h2 className="text-[13px] font-semibold text-zinc-900">Work queue</h2>
+            <h2 className="text-[13px] font-semibold text-zinc-900">Full work queue</h2>
             <p className="mt-1 text-[12px] text-zinc-500">
-              Running scans, reports due, and prospect follow-ups live in Workspace.
+              Running scans, recovering jobs, reports due, and prospect follow-ups.
             </p>
             <Link href="/workspace" className={cn(btnPrimary, "mt-3 h-9 px-3 text-[13px]")}>
               Open Workspace

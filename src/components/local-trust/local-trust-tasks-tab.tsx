@@ -29,9 +29,21 @@ function progressPct(status: string, index: number) {
   return 0;
 }
 
-export function LocalTrustTasksTab({ tasks }: { tasks: TaskRow[] }) {
+export function LocalTrustTasksTab({
+  tasks,
+  businessId,
+  runId,
+  onTasksCreated,
+}: {
+  tasks: TaskRow[];
+  businessId?: string;
+  runId?: string | null;
+  onTasksCreated?: () => void;
+}) {
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [creating, setCreating] = useState(false);
+  const [createMsg, setCreateMsg] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     return tasks.filter((t) => {
@@ -45,12 +57,44 @@ export function LocalTrustTasksTab({ tasks }: { tasks: TaskRow[] }) {
   const completed = filtered.filter((t) => t.status === "complete");
   const highImpact = filtered.filter((t) => t.impact === "high" || t.priority === "high");
 
+  async function createTasksFromRun() {
+    if (!businessId || !runId) return;
+    setCreating(true);
+    setCreateMsg(null);
+    try {
+      const res = await fetch("/api/trust/tasks/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId, runId }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Failed to create tasks");
+      setCreateMsg(`Created ${json.created ?? 0} tasks`);
+      onTasksCreated?.();
+    } catch (e) {
+      setCreateMsg(e instanceof Error ? e.message : "Failed to create tasks");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   if (!tasks.length) {
     return (
       <div className={cn(dashboardCard, "px-3.5 py-8 text-center")}>
         <p className="text-[13px] text-zinc-500">
-          No tasks yet. Run the finder to generate recommended actions.
+          No tasks yet. Run the finder, then create tasks from the opportunities.
         </p>
+        {businessId && runId ? (
+          <button
+            type="button"
+            disabled={creating}
+            onClick={() => void createTasksFromRun()}
+            className="mt-3 inline-flex h-9 items-center rounded-lg bg-emerald-600 px-3 text-[13px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {creating ? "Creating…" : "Create tasks from findings"}
+          </button>
+        ) : null}
+        {createMsg ? <p className="mt-2 text-[12px] text-zinc-500">{createMsg}</p> : null}
       </div>
     );
   }

@@ -29,6 +29,11 @@ import {
 } from "@/components/growth-audit/growth-audit-ui";
 import { cn } from "@/lib/utils";
 import type { GrowthAuditSections, GrowthTask } from "@/lib/growth-audit/types";
+import {
+  AddToReportButton,
+  CreateTaskButton,
+} from "@/components/journey/journey-actions";
+import Link from "next/link";
 
 const CATEGORY_META: Record<string, { label: string; icon: typeof Target }> = {
   "service-coverage": { label: "Quick Wins", icon: QuickWinIcon },
@@ -321,6 +326,45 @@ export function GrowthAuditActionPlanTab({
               {doneKeys.has(taskKey(topTask)) ? "Mark as not started" : "Mark as done"}
               <ChevronRight className="h-4 w-4" />
             </button>
+            {businessId ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <AddToReportButton
+                  businessId={businessId}
+                  source="growth_audit"
+                  title={topTask.title}
+                  href={`/businesses/${businessId}/growth-audit`}
+                  meta={{ task: topTask.title, priority: topTask.priority }}
+                />
+                <CreateTaskButton
+                  label="Dismiss"
+                  onClick={() => toggleDone(topTask)}
+                />
+                {/backlink|authority|link/i.test(`${topTask.title} ${topTask.description}`) ? (
+                  <Link
+                    href={`/businesses/${businessId}/backlink-gap`}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
+                  >
+                    Open Backlink Gap
+                  </Link>
+                ) : null}
+                {/review|reputation/i.test(`${topTask.title} ${topTask.description}`) ? (
+                  <Link
+                    href={`/businesses/${businessId}/reviews`}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
+                  >
+                    Open Reviews
+                  </Link>
+                ) : null}
+                {/trust|citation|directory/i.test(`${topTask.title} ${topTask.description}`) ? (
+                  <Link
+                    href={`/businesses/${businessId}/trust`}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
+                  >
+                    Open Local Trust
+                  </Link>
+                ) : null}
+              </div>
+            ) : null}
             <div className="mt-3 grid grid-cols-3 gap-2 text-center">
               <div>
                 <p className="text-[10px] font-medium uppercase text-zinc-400">Est. Time</p>

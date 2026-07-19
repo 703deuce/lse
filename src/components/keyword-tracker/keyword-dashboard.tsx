@@ -545,7 +545,81 @@ export function KeywordTrackerDashboard({ businessId }: { businessId: string }) 
                               <MoreHorizontal className="h-4 w-4" />
                             </button>
                             {menuOpen === k.id && (
-                              <div className="absolute right-3 top-10 z-10 w-36 rounded-md border border-border bg-white py-1 shadow-lg">
+                              <div className="absolute right-3 top-10 z-10 w-48 rounded-md border border-border bg-white py-1 shadow-lg">
+                                <button
+                                  type="button"
+                                  disabled={!!busy}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setMenuOpen(null);
+                                    void runAction("spot-check", async () => {
+                                      const res = await fetch("/api/keywords/check", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ businessId, keywordIds: [k.id] }),
+                                      });
+                                      if (!res.ok) {
+                                        const json = await res.json().catch(() => ({}));
+                                        throw new Error(json.error ?? "Spot check failed");
+                                      }
+                                    });
+                                  }}
+                                  className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50"
+                                >
+                                  <Target className="h-3.5 w-3.5" />
+                                  Run spot check
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!!busy}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setMenuOpen(null);
+                                    void runAction("scan", async () => {
+                                      const res = await fetch("/api/scans/run-for-keyword", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ businessId, keywordId: k.id }),
+                                      });
+                                      if (!res.ok) {
+                                        const json = await res.json().catch(() => ({}));
+                                        throw new Error(json.error ?? "Scan failed");
+                                      }
+                                    });
+                                  }}
+                                  className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50"
+                                >
+                                  <Play className="h-3.5 w-3.5" />
+                                  Start Maps scan
+                                </button>
+                                <a
+                                  href={`/businesses/${businessId}/campaigns`}
+                                  className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Medal className="h-3.5 w-3.5" />
+                                  Add to campaign
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setMenuOpen(null);
+                                    void import("@/lib/journey/report-staging").then(({ stageReportItem }) => {
+                                      stageReportItem({
+                                        businessId,
+                                        source: "keywords",
+                                        title: k.keyword,
+                                        href: `/businesses/${businessId}/keywords`,
+                                        meta: { keywordId: k.id },
+                                      });
+                                    });
+                                  }}
+                                  className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50"
+                                >
+                                  <BarChart3 className="h-3.5 w-3.5" />
+                                  Add to report notes
+                                </button>
                                 <button
                                   type="button"
                                   disabled={!!busy}

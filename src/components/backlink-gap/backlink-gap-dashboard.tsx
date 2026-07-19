@@ -221,8 +221,10 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
 
       {!loading && !run && (
         <div className="rounded-xl border border-dashed border-border bg-white px-3.5 py-8 text-center text-[13px]">
-          <p className="text-[13px] text-text-muted">
-            No backlink gap analysis yet. Run your first analysis to find competitor link opportunities.
+          <h2 className="text-[15px] font-semibold text-zinc-900">No Backlink Gap yet</h2>
+          <p className="mx-auto mt-2 max-w-md text-[13px] text-text-muted">
+            Compare your client with competitors to find local and industry backlink opportunities —
+            then save, create tasks, and include a summary in the next report.
           </p>
         </div>
       )}
@@ -286,6 +288,7 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
 
       {selected && (
         <SourceDetailDrawer
+          businessId={businessId}
           opportunity={selected}
           updating={updating}
           onClose={() => setSelected(null)}
@@ -311,6 +314,7 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
 }
 
 function SourceDetailDrawer({
+  businessId,
   opportunity: o,
   updating,
   onClose,
@@ -318,6 +322,7 @@ function SourceDetailDrawer({
   onIgnore,
   onComplete,
 }: {
+  businessId: string;
   opportunity: EnrichedOpportunity;
   updating: boolean;
   onClose: () => void;
@@ -444,7 +449,7 @@ function SourceDetailDrawer({
             onClick={onIgnore}
             className="rounded-lg border border-border px-3.5 py-2 text-[13px] font-medium hover:bg-surface-subtle disabled:opacity-50"
           >
-            Mark Ignore
+            Dismiss
           </button>
           <button
             type="button"
@@ -452,8 +457,28 @@ function SourceDetailDrawer({
             onClick={onComplete}
             className="rounded-lg border border-border px-3.5 py-2 text-[13px] font-medium hover:bg-surface-subtle disabled:opacity-50"
           >
-            Mark Completed
+            Mark acquired
           </button>
+          {businessId && o ? (
+            <button
+              type="button"
+              disabled={updating}
+              onClick={() => {
+                void import("@/lib/journey/report-staging").then(({ stageReportItem }) => {
+                  stageReportItem({
+                    businessId,
+                    source: "backlink_gap",
+                    title: String(o.referring_domain ?? o.source_url ?? "Backlink opportunity"),
+                    href: `/businesses/${businessId}/backlink-gap`,
+                    meta: { opportunityId: String(o.id), status: String(o.status ?? "open") },
+                  });
+                });
+              }}
+              className="rounded-lg border border-border px-3.5 py-2 text-[13px] font-medium hover:bg-surface-subtle disabled:opacity-50"
+            >
+              Add to report
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

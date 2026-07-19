@@ -228,7 +228,19 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
 
       {!sections ? (
         <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-3.5 py-8 text-center">
-          <p className="text-[13px] text-zinc-500">No audit yet. Run your first Full Growth Audit to see results.</p>
+          <h2 className="text-[15px] font-semibold text-zinc-900">No Growth Audit yet</h2>
+          <p className="mx-auto mt-2 max-w-md text-[13px] text-zinc-500">
+            Run a Growth Audit to identify gaps across the business profile, website, local coverage
+            and competitors — then create tasks and add findings to a client report.
+          </p>
+          <button
+            type="button"
+            onClick={() => void runAudit()}
+            disabled={running}
+            className="mt-4 inline-flex h-9 items-center rounded-lg bg-emerald-600 px-3 text-[13px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {running ? "Running…" : "Run Growth Audit"}
+          </button>
         </div>
       ) : (
         <>

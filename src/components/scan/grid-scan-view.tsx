@@ -48,6 +48,11 @@ import {
   shouldPollUntilMapReady,
 } from "@/lib/scans/status";
 import { RankByDistanceCard } from "@/components/maps/rank-by-distance-card";
+import {
+  OpenReportWithStagingLink,
+  JourneyNextActionsStrip,
+} from "@/components/journey/journey-actions";
+import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
 import { ScanTimelineSlider, type TimelineMode } from "@/components/scan/scan-timeline-slider";
 import { computeGridRankByDistance } from "@/lib/maps/rank-by-distance";
 import { entityKeyFromParts } from "@/lib/maps/grid-entity";
@@ -984,12 +989,28 @@ export function GridScanView({
                 <Link href={`/businesses/${businessId}/scans`} className={headerBtn}>
                   History
                 </Link>
-                <Link
-                  href={`/businesses/${businessId}/reports`}
+                <OpenReportWithStagingLink
+                  businessId={businessId}
+                  source="maps_scan"
+                  title={`Maps scan ${String((confidence as { keyword_label?: string }).keyword_label ?? "").trim() || activeScanId}`}
+                  href={`/businesses/${businessId}/grid/${activeScanId}`}
+                  meta={{ scanId: activeScanId }}
+                  reportType="single_scan"
+                  label="Add to report"
                   className={headerBtn}
-                  title="Create Single Scan, Trend, or Competitor reports"
+                />
+                <Link
+                  href={`/businesses/${businessId}/campaigns`}
+                  className={headerBtn}
+                  title="Create or update a Maps campaign"
                 >
-                  Reports
+                  Campaign
+                </Link>
+                <Link
+                  href={`/businesses/${businessId}/competitors`}
+                  className={headerBtn}
+                >
+                  Competitors
                 </Link>
                 {isDev && (
                   <Link
@@ -1059,6 +1080,68 @@ export function GridScanView({
               onLocationChange={handleLocationChange}
               onScanStarted={handleScanStarted}
             />
+
+            {scanActive || waitingForMap ? (
+              <div className="mb-3 rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[12px] text-zinc-600">
+                <p className="font-semibold text-zinc-900">Scan queued / running</p>
+                <p className="mt-0.5">
+                  This continues in the background. You can return to the client or start another scan.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Link
+                    href={`/clients/${businessId}`}
+                    className="rounded-lg border border-zinc-200 px-2.5 py-1.5 font-medium text-zinc-700 hover:bg-zinc-50"
+                  >
+                    Return to client
+                  </Link>
+                  <Link
+                    href={`/businesses/${businessId}/scans/new`}
+                    className="rounded-lg border border-zinc-200 px-2.5 py-1.5 font-medium text-zinc-700 hover:bg-zinc-50"
+                  >
+                    Start another scan
+                  </Link>
+                </div>
+              </div>
+            ) : null}
+
+            {!scanActive &&
+            !waitingForMap &&
+            (USABLE_SCAN_STATUSES as readonly string[]).includes(batchStatus) ? (
+              <div className="mb-3">
+                <JourneyNextActionsStrip
+                  businessId={businessId}
+                  title="Scan complete — what next?"
+                  actions={[
+                    {
+                      id: "compare",
+                      label: "Compare to previous",
+                      onClick: () => setCompareOpen(true),
+                    },
+                    {
+                      id: "report",
+                      label: "Add to report",
+                      href: `/businesses/${businessId}/reports?type=single_scan&from=journey`,
+                      primary: true,
+                    },
+                    {
+                      id: "campaign",
+                      label: "Create campaign",
+                      href: `/businesses/${businessId}/campaigns`,
+                    },
+                    {
+                      id: "competitors",
+                      label: "View competitors",
+                      href: `/businesses/${businessId}/competitors`,
+                    },
+                    {
+                      id: "baseline",
+                      label: "Set as baseline",
+                      href: `/businesses/${businessId}/campaigns?baselineScan=${activeScanId}`,
+                    },
+                  ]}
+                />
+              </div>
+            ) : null}
 
             {moveGridActive && (
               <MoveGridPanel

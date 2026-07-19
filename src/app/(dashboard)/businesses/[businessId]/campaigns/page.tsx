@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { CampaignSetupWizard } from "@/components/campaigns/campaign-setup-wizard";
+import { ModuleEmptyState } from "@/components/journey/module-empty-state";
 
 type Campaign = { id: string; name: string; description: string | null; schedule_type: string };
 
@@ -14,8 +16,7 @@ export default function BusinessCampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
 
   const load = useCallback(async () => {
     if (!businessId) return;
@@ -37,32 +38,21 @@ export default function BusinessCampaignsPage() {
     void load();
   }, [load]);
 
-  async function createCampaign() {
-    if (!name.trim()) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/campaigns", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId, name: name.trim() }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error ?? "Create failed");
-      setName("");
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Create failed");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <>
       <PageHeader
         title="Campaigns"
-        subtitle="Group keywords and schedule recurring Maps scans for this location."
+        subtitle="Group keywords, establish a baseline, and run recurring Maps scans for this location."
+        actions={
+          <button
+            type="button"
+            onClick={() => setShowWizard(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+          >
+            <Plus className="h-4 w-4" />
+            New campaign
+          </button>
+        }
       />
       {error ? (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -70,40 +60,30 @@ export default function BusinessCampaignsPage() {
         </div>
       ) : null}
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        <input
-          className="min-w-[200px] flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
-          placeholder="New campaign name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <button
-          type="button"
-          disabled={busy || !name.trim()}
-          onClick={() => void createCampaign()}
-          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-        >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-          Create campaign
-        </button>
-      </div>
+      {showWizard ? (
+        <div className="mb-4">
+          <CampaignSetupWizard
+            businessId={businessId}
+            onClose={() => {
+              setShowWizard(false);
+              void load();
+            }}
+          />
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-zinc-500">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading…
         </div>
-      ) : campaigns.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/80 px-6 py-10 text-center">
-          <h2 className="text-base font-semibold text-zinc-900">No campaigns yet</h2>
-          <p className="mx-auto mt-2 max-w-md text-sm text-zinc-600">
-            Create a campaign to group client keywords, establish a baseline, and run recurring
-            Maps scans — then turn results into a monthly report.
-          </p>
-          <p className="mx-auto mt-2 text-[12px] text-zinc-500">
-            Lifecycle: create → baseline → schedule → compare → report.
-          </p>
-        </div>
+      ) : campaigns.length === 0 && !showWizard ? (
+        <ModuleEmptyState
+          title="No campaigns yet"
+          description="Create a campaign to group client keywords, establish a baseline, and run recurring Maps scans — then turn results into a monthly report."
+          actionLabel="Create campaign"
+          onAction={() => setShowWizard(true)}
+        />
       ) : (
         <ul className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 bg-white">
           {campaigns.map((c) => (

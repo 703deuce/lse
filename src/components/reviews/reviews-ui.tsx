@@ -245,6 +245,22 @@ export function ReviewsHeader({
             <Plus className="h-3.5 w-3.5" />
             Run Momentum Audit
           </button>
+          <button
+            type="button"
+            className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
+            onClick={() => {
+              void import("@/lib/journey/report-staging").then(({ stageReportItem }) => {
+                stageReportItem({
+                  businessId,
+                  source: "reviews",
+                  title: "Review feed insight",
+                  href: `/businesses/${businessId}/reviews`,
+                });
+              });
+            }}
+          >
+            Add insight to report
+          </button>
         </>
       }
     />

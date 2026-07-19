@@ -7,7 +7,7 @@ import {
   dashboardCard,
   dashboardSectionLabel,
 } from "@/components/overview/dashboard-ui";
-import { ModuleHeader, btnPrimary } from "@/components/ui/design-system";
+import { ModuleHeader, btnPrimary, btnSecondary } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
 
 export function formatPace(value: number): string {
@@ -38,9 +38,11 @@ export function MomentumPageHeader() {
 export function MomentumTopBar({
   running,
   onRun,
+  businessId,
 }: {
   running: boolean;
   onRun: () => void;
+  businessId?: string;
 }) {
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -57,6 +59,32 @@ export function MomentumTopBar({
         )}
         Run Momentum Audit
       </button>
+      {businessId ? (
+        <>
+          <a
+            href={`/businesses/${businessId}/review-requests`}
+            className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
+          >
+            Open Review Requests
+          </a>
+          <button
+            type="button"
+            className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
+            onClick={() => {
+              void import("@/lib/journey/report-staging").then(({ stageReportItem }) => {
+                stageReportItem({
+                  businessId,
+                  source: "reviews",
+                  title: "Review momentum insight",
+                  href: `/businesses/${businessId}/reviews/momentum`,
+                });
+              });
+            }}
+          >
+            Add to report
+          </button>
+        </>
+      ) : null}
     </div>
   );
 }

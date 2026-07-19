@@ -62,15 +62,44 @@ export function AccountDetail({
   const [showAudit, setShowAudit] = useState(false);
   const [showConvert, setShowConvert] = useState(false);
   const [nba, setNba] = useState<NextBestAction[]>([]);
+  const [summary, setSummary] = useState<{
+    visibility: {
+      latestScanId: string | null;
+      latestKeyword: string | null;
+      avgRank: number | null;
+      top3Pct: number | null;
+      scanCount: number;
+      campaignCount: number;
+    };
+    growthAudit: { growthScore: number | null; status: string; at: string } | null;
+    aiVisibility: {
+      visibilityScore: number | null;
+      targetMentioned: boolean | null;
+      at: string;
+    } | null;
+    authority: {
+      openBacklinkOpportunities: number;
+      acquiredBacklinks: number;
+      openTrustTasks: number;
+    };
+    reputation: { rating: number | null; reviewCount: number | null };
+    report: {
+      id: string;
+      publishStatus: string | null;
+      viewedAt: string | null;
+      type: string | null;
+    } | null;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [acctRes, campRes, nbaRes] = await Promise.all([
+      const [acctRes, campRes, nbaRes, sumRes] = await Promise.all([
         fetch(`/api/businesses/${businessId}/account`),
         fetch(`/api/campaigns?businessId=${businessId}`),
         fetch(`/api/journey/next-actions?businessId=${businessId}&mode=${mode}`),
+        fetch(`/api/journey/account-summary?businessId=${businessId}`),
       ]);
       const acctJson = await acctRes.json();
       if (!acctRes.ok) throw new Error(acctJson.error ?? "Failed to load");
@@ -88,6 +117,10 @@ export function AccountDetail({
       if (nbaRes.ok) {
         const nbaJson = await nbaRes.json();
         setNba((nbaJson.actions ?? []) as NextBestAction[]);
+      }
+      if (sumRes.ok) {
+        const sumJson = await sumRes.json();
+        setSummary(sumJson);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
@@ -316,6 +349,83 @@ export function AccountDetail({
             ))}
           </div>
 
+          {summary ? (
+            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <SummaryTile
+                title="Visibility"
+                lines={[
+                  summary.visibility.avgRank != null
+                    ? `Avg rank ${Number(summary.visibility.avgRank).toFixed(1)}`
+                    : "No baseline scan yet",
+                  summary.visibility.top3Pct != null
+                    ? `Top 3 coverage ${summary.visibility.top3Pct}%`
+                    : `${summary.visibility.scanCount} scans`,
+                  summary.visibility.latestKeyword
+                    ? `Latest: ${summary.visibility.latestKeyword}`
+                    : `${summary.visibility.campaignCount} campaigns`,
+                ]}
+                href={
+                  summary.visibility.latestScanId
+                    ? `/businesses/${businessId}/grid/${summary.visibility.latestScanId}`
+                    : `/businesses/${businessId}/scans`
+                }
+              />
+              <SummaryTile
+                title="Growth"
+                lines={[
+                  summary.growthAudit
+                    ? `Score ${summary.growthAudit.growthScore ?? "—"}`
+                    : "No Growth Audit yet",
+                  summary.growthAudit
+                    ? String(summary.growthAudit.status).replace(/_/g, " ")
+                    : "Run audit for opportunities",
+                  mode === "client"
+                    ? `${summary.authority.openTrustTasks} trust tasks open`
+                    : "Pitch-ready findings",
+                ]}
+                href={`/businesses/${businessId}/growth-audit`}
+              />
+              <SummaryTile
+                title={mode === "prospect" ? "AI & reports" : "Authority & reviews"}
+                lines={
+                  mode === "prospect"
+                    ? [
+                        summary.aiVisibility
+                          ? `AI score ${summary.aiVisibility.visibilityScore ?? "—"}`
+                          : "AI check optional",
+                        summary.report
+                          ? `Report ${summary.report.publishStatus ?? "ready"}`
+                          : "No report yet",
+                        summary.report?.viewedAt ? "Client viewed share link" : "Share when ready",
+                      ]
+                    : [
+                        `${summary.authority.openBacklinkOpportunities} backlink opps`,
+                        `${summary.authority.acquiredBacklinks} acquired`,
+                        summary.reputation.rating != null
+                          ? `${summary.reputation.rating}★ · ${summary.reputation.reviewCount ?? 0} reviews`
+                          : "Reviews not loaded",
+                      ]
+                }
+                href={
+                  mode === "prospect"
+                    ? `/businesses/${businessId}/reports`
+                    : `/businesses/${businessId}/backlink-gap`
+                }
+              />
+              <SummaryTile
+                title="Current work"
+                lines={[
+                  `${campaigns.length} campaigns`,
+                  summary.report
+                    ? `Latest report · ${String(summary.report.type ?? "report").replace(/_/g, " ")}`
+                    : "Create first report",
+                  nba[0]?.title ?? "See next actions →",
+                ]}
+                href={nba[0]?.href ?? `/businesses/${businessId}/reports`}
+              />
+            </section>
+          ) : null}
+
           <section className="rounded-xl border border-zinc-200 bg-white p-4">
             <h2 className="text-sm font-semibold text-zinc-900">Overview</h2>
             <dl className="mt-3 space-y-2 text-sm">
@@ -470,6 +580,32 @@ function QuickLink({
         <span className="block text-sm font-semibold text-zinc-900">{label}</span>
         <span className="block text-[11px] text-zinc-500">{hint}</span>
       </span>
+    </Link>
+  );
+}
+
+function SummaryTile({
+  title,
+  lines,
+  href,
+}: {
+  title: string;
+  lines: string[];
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="rounded-xl border border-zinc-200 bg-white p-3 hover:border-emerald-200 hover:bg-emerald-50/30"
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{title}</p>
+      <ul className="mt-1.5 space-y-0.5">
+        {lines.map((line) => (
+          <li key={line} className="truncate text-[12px] text-zinc-700">
+            {line}
+          </li>
+        ))}
+      </ul>
     </Link>
   );
 }

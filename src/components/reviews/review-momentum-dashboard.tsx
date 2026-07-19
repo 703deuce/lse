@@ -272,7 +272,11 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
     <ModulePage>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <MomentumPageHeader />
-        <MomentumTopBar running={running} onRun={() => void runAudit()} />
+        <MomentumTopBar
+          businessId={businessId}
+          running={running}
+          onRun={() => void runAudit()}
+        />
       </div>
 
       {error && <AlertBanner variant="error">{error}</AlertBanner>}

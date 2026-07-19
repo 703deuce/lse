@@ -102,6 +102,34 @@ export function AiVisibilityHeaderRow({
             <Settings className="h-3.5 w-3.5" />
             Manage Prompts
           </Link>
+          <Link
+            href={`/businesses/${businessId}/ai-visibility?tab=history`}
+            className={cn(btnSecondary, "h-8 px-3 text-[13px]")}
+          >
+            <TrendingUp className="h-3.5 w-3.5" />
+            Compare period
+          </Link>
+          <button
+            type="button"
+            className={cn(btnSecondary, "h-8 px-3 text-[13px]")}
+            onClick={() => {
+              void import("@/lib/journey/report-staging").then(({ stageReportItem, reportsHrefForStaging }) => {
+                stageReportItem({
+                  businessId,
+                  source: "ai_visibility",
+                  title: "AI Visibility check",
+                  href: `/businesses/${businessId}/ai-visibility`,
+                });
+                window.location.href = reportsHrefForStaging(businessId, {
+                  type: "monthly",
+                  source: "ai_visibility",
+                });
+              });
+            }}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            Add to report
+          </button>
         </>
       }
     />

@@ -145,6 +145,49 @@ export function MonthlyReportWizard({
     }
   }, [periodPreset, thisMonth, lastMonth]);
 
+  // Auto-select sections from cross-tool "Add to report" staging + available data.
+  useEffect(() => {
+    void import("@/lib/journey/report-staging").then(({ listStagedReportItems }) => {
+      const staged = listStagedReportItems(businessId);
+      if (!staged.length) return;
+      setSections((prev) => {
+        const next = { ...prev };
+        for (const item of staged) {
+          if (item.source === "ai_visibility") next.ai_visibility = true;
+          if (item.source === "maps_scan") {
+            next.maps_overview = true;
+            next.comparison = true;
+          }
+          if (
+            item.source === "growth_audit" ||
+            item.source === "backlink_gap" ||
+            item.source === "local_trust" ||
+            item.source === "reviews"
+          ) {
+            next.work_completed = true;
+            next.next_steps = true;
+          }
+          if (item.source === "keywords") next.freelancer_notes = true;
+        }
+        return next;
+      });
+      const notes = staged
+        .map((s) => `• ${s.title} (${s.source.replace(/_/g, " ")})`)
+        .join("\n");
+      setFreelancerNotes((prev) => (prev.trim() ? prev : `Staged from tools:\n${notes}`));
+      setWorkCompleted((prev) =>
+        prev.trim()
+          ? prev
+          : staged
+              .filter((s) =>
+                ["growth_audit", "backlink_gap", "local_trust", "reviews"].includes(s.source)
+              )
+              .map((s) => `• ${s.title}`)
+              .join("\n")
+      );
+    });
+  }, [businessId]);
+
   const { status: shareJobStatus, error: sharePollError } = useActiveJobStatus({
     statusUrl: shareJobId ? `/api/jobs/${shareJobId}/status` : null,
     enabled: Boolean(shareJobId),
