@@ -207,7 +207,7 @@ export function DashboardSidebarPanel({
               <p className="truncate text-sm font-bold text-white">Maps Rank Tracker</p>
             ) : (
               <Link
-                href="/dashboard"
+                href="/workspace"
                 className="block truncate text-sm font-bold text-white"
                 onClick={() => onNavigate?.()}
               >
@@ -235,7 +235,6 @@ export function DashboardSidebarPanel({
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto overscroll-contain p-2.5" suppressHydrationWarning>
-        {/* Get started stays at the top of the one menu */}
         <div className="mb-2">
           <SidebarNavItemRow
             href={nav.getStarted.href}
@@ -255,6 +254,23 @@ export function DashboardSidebarPanel({
           staticLinks={staticLinks}
           onNavigate={onNavigate}
         />
+
+        {/* Client Dashboard only appears here — never under Account, never at org level */}
+        {nav.thisLocation ? (
+          <NavSection
+            title={
+              businessName?.trim()
+                ? `Location · ${businessName.trim()}`
+                : nav.thisLocation.title
+            }
+            items={nav.thisLocation.items}
+            businessId={businessId}
+            pathname={pathname}
+            staticLinks={staticLinks}
+            onNavigate={onNavigate}
+          />
+        ) : null}
+
         <NavSection
           title={nav.growthTools.title}
           items={nav.growthTools.items}

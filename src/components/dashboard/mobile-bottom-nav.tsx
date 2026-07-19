@@ -14,10 +14,10 @@ import { useDashboardUI } from "@/components/dashboard/dashboard-context";
 
 const TABS = [
   {
-    href: "/dashboard",
+    href: "/workspace",
     label: "Workspace",
     icon: Briefcase,
-    match: (p: string) => p === "/dashboard" || p === "/workspace",
+    match: (p: string) => p === "/workspace" || p === "/dashboard",
   },
   {
     href: "/clients",

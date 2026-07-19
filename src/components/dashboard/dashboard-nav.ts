@@ -10,6 +10,7 @@ import {
   FolderKanban,
   Grid3X3,
   KeyRound,
+  LayoutDashboard,
   Link2,
   MapPin,
   MessageSquareText,
@@ -35,7 +36,6 @@ export type SidebarNavItem = {
   icon: LucideIcon;
   isRankGrid?: boolean;
   badge?: string;
-  /** Nested links indented under this item (e.g. Campaigns under Review Requests). */
   children?: SidebarNavChild[];
 };
 
@@ -47,7 +47,6 @@ export type SidebarNavSection = {
 export type SidebarReputationNav = {
   title: string;
   items: SidebarNavItem[];
-  /** @deprecated Prefer item.children for nesting under a parent. */
   subLinks: SidebarNavChild[];
 };
 
@@ -56,18 +55,69 @@ function loc(slug: LocationToolSlug, businessId?: string | null): string {
 }
 
 /**
- * One sidebar for the whole app — never swap menus when opening a client.
- * Location tools deep-link into the selected business when available,
- * otherwise they open an org picker / hub.
+ * One sidebar for the whole app.
+ *
+ * Naming rules:
+ * - Workspace = org home (clients, prospects, work queue)
+ * - Dashboard = selected client's overview only (never at org level, never under Account)
  */
 export function buildUnifiedSidebarNav(businessId?: string | null): {
   getStarted: SidebarNavItem;
   work: SidebarNavSection;
+  /** Present only when a client/prospect location is selected */
+  thisLocation: SidebarNavSection | null;
   growthTools: SidebarNavSection;
   reputation: SidebarReputationNav;
   deliverables: SidebarNavSection;
   account: SidebarNavSection;
 } {
+  const workItems: SidebarNavItem[] = [
+    { href: "/workspace", label: "Workspace", icon: Briefcase },
+    { href: "/prospects", label: "Prospects", icon: Users },
+    { href: "/clients", label: "Clients", icon: Building2 },
+  ];
+
+  // When no location is selected, Maps entries live under Work and open pickers.
+  if (!businessId) {
+    workItems.push(
+      {
+        href: loc("maps-scans", null),
+        label: "Maps Scans",
+        icon: Grid3X3,
+        isRankGrid: true,
+      },
+      {
+        href: loc("maps-campaigns", null),
+        label: "Maps Campaigns",
+        icon: FolderKanban,
+      }
+    );
+  }
+
+  const thisLocation: SidebarNavSection | null = businessId
+    ? {
+        title: "This location",
+        items: [
+          {
+            href: `/businesses/${businessId}/overview`,
+            label: "Dashboard",
+            icon: LayoutDashboard,
+          },
+          {
+            href: loc("maps-scans", businessId),
+            label: "Maps Scans",
+            icon: Grid3X3,
+            isRankGrid: true,
+          },
+          {
+            href: loc("maps-campaigns", businessId),
+            label: "Maps Campaigns",
+            icon: FolderKanban,
+          },
+        ],
+      }
+    : null;
+
   return {
     getStarted: {
       href: "/onboarding",
@@ -76,23 +126,9 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
     },
     work: {
       title: "Work",
-      items: [
-        { href: "/dashboard", label: "Workspace", icon: Briefcase },
-        { href: "/prospects", label: "Prospects", icon: Users },
-        { href: "/clients", label: "Clients", icon: Building2 },
-        {
-          href: loc("maps-scans", businessId),
-          label: "Maps Scans",
-          icon: Grid3X3,
-          isRankGrid: true,
-        },
-        {
-          href: loc("maps-campaigns", businessId),
-          label: "Maps Campaigns",
-          icon: FolderKanban,
-        },
-      ],
+      items: workItems,
     },
+    thisLocation,
     growthTools: {
       title: "Growth Tools",
       items: [
@@ -126,7 +162,11 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
         { href: loc("contacts", businessId), label: "Contacts", icon: Users },
         { href: loc("review-templates", businessId), label: "Templates", icon: FileText },
         { href: loc("integrations", businessId), label: "Review Triggers", icon: Webhook },
-        { href: loc("review-settings", businessId), label: "Settings", icon: Settings2 },
+        {
+          href: loc("review-settings", businessId),
+          label: "Review settings",
+          icon: Settings2,
+        },
       ],
       subLinks: [],
     },
@@ -147,7 +187,7 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
   };
 }
 
-/** @deprecated Use buildUnifiedSidebarNav — kept for older imports. */
+/** @deprecated Use buildUnifiedSidebarNav */
 export function buildBusinessSidebarNav(businessId: string): {
   work: SidebarNavSection;
   growthTools: SidebarNavSection;
@@ -188,14 +228,29 @@ export function isSidebarHrefActive(
       pathname === "/agency/clients"
     );
   }
-  if (href === "/dashboard") {
-    return pathname === "/dashboard" || pathname === "/workspace" || pathname.startsWith("/workspace?");
+
+  // Workspace home (org) — never treat client overview as Workspace
+  if (href === "/workspace" || href === "/dashboard") {
+    return (
+      pathname === "/workspace" ||
+      pathname === "/dashboard" ||
+      pathname.startsWith("/workspace?")
+    );
   }
+
+  // Client Dashboard — only the location overview
+  if (businessId && href === `/businesses/${businessId}/overview`) {
+    return (
+      pathname === `/businesses/${businessId}/overview` ||
+      pathname === `/clients/${businessId}` ||
+      pathname === `/prospects/${businessId}`
+    );
+  }
+
   if (href === "/onboarding") {
     return pathname === "/onboarding" || pathname.startsWith("/onboarding/");
   }
 
-  // Review Requests parent should not stay active on nested Campaigns.
   if (flags?.exact || href.endsWith("/review-requests") || href.endsWith("/tools/go/review-requests")) {
     return pathname === href || pathname.startsWith(`${href}?`);
   }

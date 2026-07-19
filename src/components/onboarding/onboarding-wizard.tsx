@@ -367,7 +367,7 @@ export function OnboardingWizard() {
         <div className="space-y-3 rounded-xl border border-zinc-200 bg-white p-5">
           <h2 className="text-[14px] font-semibold text-zinc-900">Scan runs in the background</h2>
           <p className="text-[13px] text-zinc-600">
-            You can keep setting up the client or return to the dashboard. Suggested next actions:
+            You can keep setting up the client or return to Workspace. Suggested next actions:
           </p>
           <div className="flex flex-wrap gap-2">
             <Link href="/clients" className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
@@ -376,8 +376,8 @@ export function OnboardingWizard() {
             <Link href="/branding" className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
               Set up branding
             </Link>
-            <Link href="/dashboard" className={cn(btnPrimary, "h-9 px-3 text-[13px]")}>
-              Go to dashboard
+            <Link href="/workspace" className={cn(btnPrimary, "h-9 px-3 text-[13px]")}>
+              Go to Workspace
             </Link>
             <button
               type="button"
@@ -394,15 +394,12 @@ export function OnboardingWizard() {
         <div className="space-y-3 rounded-xl border border-zinc-200 bg-white p-5">
           <h2 className="text-[14px] font-semibold text-zinc-900">You&apos;re ready</h2>
           <p className="text-[13px] text-zinc-600">
-            The dashboard shows what needs attention. Prospects and clients keep every tool
-            connected. Reports are where you deliver the value.
+            Workspace shows what needs attention. Pick a client or prospect for their
+            Dashboard and tools. Reports are where you deliver the value.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Link href="/dashboard" className={cn(btnPrimary, "h-9 px-3 text-[13px]")}>
-              Open dashboard
-            </Link>
-            <Link href="/workspace" className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
-              Workspace queue
+            <Link href="/workspace" className={cn(btnPrimary, "h-9 px-3 text-[13px]")}>
+              Open Workspace
             </Link>
             <Link href="/reports" className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
               Reports
