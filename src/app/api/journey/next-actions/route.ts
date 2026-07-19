@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
     const auth = await requireAuth();
     const [actions, setup] = await Promise.all([
-      loadOrgNextBestActions(auth.organizationId, { limit: 8 }),
+      loadOrgNextBestActions(auth.organizationId, { limit: 5 }),
       includeSetup ? loadOrgSetupProgress(auth.organizationId) : Promise.resolve(null),
     ]);
     return NextResponse.json({ actions, setup });

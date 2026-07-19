@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
 
+const PREVIEW_LIMIT = 5;
+
 function kindIcon(kind?: string): { icon: LucideIcon; wrap: string } {
   switch (kind) {
     case "scan_running":
@@ -48,6 +50,7 @@ function PanelShell({
   icon: Icon,
   iconWrap,
   tone = "default",
+  footer,
   children,
 }: {
   title: string;
@@ -55,13 +58,14 @@ function PanelShell({
   icon: LucideIcon;
   iconWrap: string;
   tone?: "default" | "warning";
+  footer?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <ContentCard
       padding={false}
       className={cn(
-        "overflow-hidden",
+        "flex h-full flex-col overflow-hidden",
         tone === "warning" && "border-amber-200/80 bg-amber-50/30"
       )}
     >
@@ -98,7 +102,8 @@ function PanelShell({
           </p>
         </div>
       </div>
-      {children}
+      <div className="min-h-0 flex-1">{children}</div>
+      {footer}
     </ContentCard>
   );
 }
@@ -106,6 +111,9 @@ function PanelShell({
 function ItemList({
   items,
   empty,
+  limit = PREVIEW_LIMIT,
+  viewAllHref,
+  viewAllLabel,
 }: {
   items: Array<{
     id: string;
@@ -115,41 +123,64 @@ function ItemList({
     kind?: string;
   }>;
   empty: string;
+  limit?: number;
+  viewAllHref?: string;
+  viewAllLabel?: string;
 }) {
   if (!items.length) {
     return <p className={cn(bodyClass, "px-3.5 py-3.5 text-zinc-500")}>{empty}</p>;
   }
+
+  const visible = items.slice(0, limit);
+  const remaining = items.length - visible.length;
+
   return (
-    <ul className="divide-y divide-zinc-100">
-      {items.map((item) => {
-        const meta = kindIcon(item.kind);
-        const RowIcon = meta.icon;
-        return (
-          <li key={item.id}>
-            <Link
-              href={item.href}
-              className="group flex items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-zinc-50/80"
-            >
-              <span
-                className={cn(
-                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ring-black/5",
-                  meta.wrap
-                )}
+    <>
+      <ul className="divide-y divide-zinc-100">
+        {visible.map((item) => {
+          const meta = kindIcon(item.kind);
+          const RowIcon = meta.icon;
+          return (
+            <li key={item.id}>
+              <Link
+                href={item.href}
+                className="group flex items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-zinc-50/80"
               >
-                <RowIcon className="h-3.5 w-3.5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-medium text-zinc-900">
-                  {item.title}
-                </p>
-                <p className="truncate text-[11px] text-zinc-500">{item.subtitle}</p>
-              </div>
-              <ArrowRight className="h-3.5 w-3.5 shrink-0 text-zinc-300 transition group-hover:text-emerald-600" />
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
+                <span
+                  className={cn(
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ring-black/5",
+                    meta.wrap
+                  )}
+                >
+                  <RowIcon className="h-3.5 w-3.5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-medium text-zinc-900">
+                    {item.title}
+                  </p>
+                  <p className="truncate text-[11px] text-zinc-500">{item.subtitle}</p>
+                </div>
+                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-zinc-300 transition group-hover:text-emerald-600" />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+      {remaining > 0 && viewAllHref ? (
+        <div className="border-t border-zinc-100 px-3.5 py-2">
+          <Link
+            href={viewAllHref}
+            className="text-[12px] font-medium text-emerald-700 hover:text-emerald-800"
+          >
+            {viewAllLabel ?? `View all (${items.length})`}
+          </Link>
+        </div>
+      ) : remaining > 0 ? (
+        <p className="border-t border-zinc-100 px-3.5 py-2 text-[11px] text-zinc-400">
+          +{remaining} more
+        </p>
+      ) : null}
+    </>
   );
 }
 
@@ -168,17 +199,17 @@ export function ActiveWorkPanel({
       kind: i.kind ?? "scan_running",
       subtitle: `Active · ${i.subtitle}`,
     })),
-    ...schedulesUpcoming.slice(0, 4).map((i) => ({
+    ...schedulesUpcoming.map((i) => ({
       ...i,
       kind: i.kind ?? "schedule_upcoming",
       subtitle: `Upcoming · ${i.subtitle}`,
     })),
-    ...draftReports.slice(0, 3).map((i) => ({
+    ...draftReports.map((i) => ({
       ...i,
       kind: i.kind ?? "draft_report",
       subtitle: `Draft · ${i.subtitle}`,
     })),
-  ].slice(0, 8);
+  ];
 
   return (
     <PanelShell
@@ -187,7 +218,13 @@ export function ActiveWorkPanel({
       icon={Radar}
       iconWrap="bg-emerald-50 text-emerald-600"
     >
-      <ItemList items={items} empty="Nothing running right now." />
+      <ItemList
+        items={items}
+        empty="Nothing running right now."
+        limit={PREVIEW_LIMIT}
+        viewAllHref="/scans"
+        viewAllLabel={`View all (${items.length})`}
+      />
     </PanelShell>
   );
 }
@@ -202,8 +239,11 @@ export function NeedsAttentionPanel({ items }: { items: WorkingQueueItem[] }) {
       tone="warning"
     >
       <ItemList
-        items={items.slice(0, 8).map((i) => ({ ...i, kind: i.kind }))}
+        items={items.map((i) => ({ ...i, kind: i.kind }))}
         empty="You're caught up — no urgent follow-ups."
+        limit={PREVIEW_LIMIT}
+        viewAllHref="/clients"
+        viewAllLabel={`View all (${items.length})`}
       />
     </PanelShell>
   );
@@ -227,7 +267,44 @@ export function RecentResultsPanel({
       icon={Sparkles}
       iconWrap="bg-violet-50 text-violet-600"
     >
-      <ItemList items={items} empty="Run a scan or audit to see results here." />
+      <ItemList
+        items={items}
+        empty="Run a scan or audit to see results here."
+        limit={PREVIEW_LIMIT}
+        viewAllHref="/scans"
+        viewAllLabel={`View all (${items.length})`}
+      />
+    </PanelShell>
+  );
+}
+
+/** Full-width half panels: scans running | reports due */
+export function QueueHalfPanel({
+  title,
+  subtitle,
+  icon,
+  iconWrap,
+  items,
+  empty,
+  viewAllHref,
+}: {
+  title: string;
+  subtitle: string;
+  icon: LucideIcon;
+  iconWrap: string;
+  items: WorkingQueueItem[];
+  empty: string;
+  viewAllHref: string;
+}) {
+  return (
+    <PanelShell title={title} subtitle={subtitle} icon={icon} iconWrap={iconWrap}>
+      <ItemList
+        items={items.map((i) => ({ ...i, kind: i.kind }))}
+        empty={empty}
+        limit={PREVIEW_LIMIT}
+        viewAllHref={viewAllHref}
+        viewAllLabel={`View all (${items.length})`}
+      />
     </PanelShell>
   );
 }

@@ -6,16 +6,26 @@ import { cn } from "@/lib/utils";
 import type { NextBestAction } from "@/lib/journey/next-best-actions";
 import { ContentCard, sectionTitleClass } from "@/components/ui/design-system";
 
+const DEFAULT_LIMIT = 5;
+
 export function NextBestActionsPanel({
   title = "Suggested next actions",
   actions,
   className,
+  limit = DEFAULT_LIMIT,
+  viewAllHref,
 }: {
   title?: string;
   actions: NextBestAction[];
   className?: string;
+  /** Cap visible rows — Workspace should never dump a long list. */
+  limit?: number;
+  viewAllHref?: string;
 }) {
   if (!actions.length) return null;
+
+  const visible = actions.slice(0, limit);
+  const remaining = Math.max(0, actions.length - visible.length);
 
   return (
     <ContentCard
@@ -25,14 +35,26 @@ export function NextBestActionsPanel({
         className
       )}
     >
-      <div className="flex items-center gap-2.5 border-b border-emerald-100/80 px-3.5 py-2.5">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-100 text-emerald-700">
-          <Sparkles className="h-3.5 w-3.5" />
-        </span>
-        <h2 className={sectionTitleClass}>{title}</h2>
+      <div className="flex items-center justify-between gap-2 border-b border-emerald-100/80 px-3.5 py-2.5">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-100 text-emerald-700">
+            <Sparkles className="h-3.5 w-3.5" />
+          </span>
+          <h2 className={sectionTitleClass}>{title}</h2>
+        </div>
+        {remaining > 0 && viewAllHref ? (
+          <Link
+            href={viewAllHref}
+            className="shrink-0 text-[12px] font-medium text-emerald-700 hover:text-emerald-800"
+          >
+            View all ({actions.length})
+          </Link>
+        ) : remaining > 0 ? (
+          <span className="text-[11px] text-zinc-400">+{remaining} more</span>
+        ) : null}
       </div>
       <ul className="divide-y divide-emerald-100/60">
-        {actions.map((action) => (
+        {visible.map((action) => (
           <li key={action.id}>
             <Link
               href={action.href}

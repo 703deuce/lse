@@ -8,6 +8,7 @@ import {
   Building2,
   FileText,
   Loader2,
+  MapPin,
   Play,
   Target,
   Users,
@@ -26,7 +27,6 @@ import {
   ContentCard,
   ModuleHeader,
   ModulePage,
-  btnSecondary,
   cardClass,
   cardLabelClass,
   sectionTitleClass,
@@ -47,6 +47,10 @@ type BizRow = {
   account_type?: string | null;
   is_tracked?: boolean | null;
   prospect_status?: string | null;
+  primary_category?: string | null;
+  address_text?: string | null;
+  scan_center_label?: string | null;
+  primary_contact_name?: string | null;
   created_at?: string | null;
   archived_at?: string | null;
 };
@@ -94,83 +98,138 @@ function emptyQueue(): WorkingQueue {
   };
 }
 
-function LocationListCard({
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase();
+}
+
+function locationMeta(b: BizRow, mode: "clients" | "prospects"): string {
+  const category = b.primary_category?.trim();
+  const place =
+    b.scan_center_label?.trim() ||
+    b.address_text?.trim()?.split(",")[0]?.trim() ||
+    "";
+  if (mode === "prospects") {
+    const status = b.prospect_status
+      ? String(b.prospect_status).replace(/_/g, " ")
+      : "Prospect";
+    if (place) return `${status} · ${place}`;
+    if (category) return `${status} · ${category}`;
+    return status;
+  }
+  if (category && place) return `${category} · ${place}`;
+  return category || place || "Active client";
+}
+
+function LocationRoster({
   title,
   subtitle,
-  icon: Icon,
-  iconWrap,
+  mode,
+  accent,
   rows,
   empty,
   viewAllHref,
-  viewAllLabel,
   hrefFor,
 }: {
   title: string;
   subtitle: string;
-  icon: typeof Building2;
-  iconWrap: string;
+  mode: "clients" | "prospects";
+  accent: "emerald" | "sky";
   rows: BizRow[];
   empty: string;
   viewAllHref: string;
-  viewAllLabel: string;
   hrefFor: (b: BizRow) => string;
 }) {
+  const band =
+    accent === "emerald"
+      ? "from-emerald-600/90 via-emerald-700/80 to-teal-800/90"
+      : "from-sky-600/90 via-sky-700/80 to-cyan-800/90";
+  const chip =
+    accent === "emerald"
+      ? "bg-emerald-50 text-emerald-800 ring-emerald-100"
+      : "bg-sky-50 text-sky-800 ring-sky-100";
+  const avatar =
+    accent === "emerald"
+      ? "bg-emerald-100 text-emerald-800 ring-emerald-200/80"
+      : "bg-sky-100 text-sky-800 ring-sky-200/80";
+
   return (
     <ContentCard padding={false} className="overflow-hidden">
-      <div className="flex items-start justify-between gap-2 border-b border-zinc-100 px-3.5 py-2.5">
-        <div className="flex items-start gap-2.5">
-          <span
-            className={cn(
-              "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
-              iconWrap
-            )}
-          >
-            <Icon className="h-3.5 w-3.5" />
-          </span>
+      <div className={cn("relative overflow-hidden bg-gradient-to-br px-4 py-3.5 text-white", band)}>
+        <div className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative flex items-start justify-between gap-3">
           <div>
-            <h2 className={sectionTitleClass}>{title}</h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">{subtitle}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">
+              {mode === "clients" ? "Your book" : "Pipeline"}
+            </p>
+            <h2 className="mt-0.5 text-[15px] font-semibold tracking-tight">{title}</h2>
+            <p className="mt-1 max-w-sm text-[12px] leading-snug text-white/75">{subtitle}</p>
           </div>
+          <Link
+            href={viewAllHref}
+            className="shrink-0 rounded-lg bg-white/15 px-2.5 py-1.5 text-[12px] font-medium text-white ring-1 ring-inset ring-white/20 transition hover:bg-white/25"
+          >
+            View all
+          </Link>
         </div>
-        <Link
-          href={viewAllHref}
-          className="shrink-0 text-[12px] font-medium text-emerald-600 hover:text-emerald-700"
-        >
-          {viewAllLabel}
-        </Link>
       </div>
+
       {!rows.length ? (
-        <p className="px-3.5 py-3.5 text-[12px] text-zinc-500">{empty}</p>
+        <div className="px-4 py-5">
+          <p className="text-[13px] text-zinc-500">{empty}</p>
+          <Link
+            href={mode === "clients" ? "/businesses/new?as=client" : "/businesses/new?as=prospect"}
+            className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-semibold text-emerald-700 hover:text-emerald-800"
+          >
+            Add {mode === "clients" ? "client" : "prospect"}
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
       ) : (
-        <ul className="divide-y divide-zinc-100">
+        <ul className="grid gap-2 p-3 sm:grid-cols-1">
           {rows.map((b) => (
             <li key={b.id}>
               <Link
                 href={hrefFor(b)}
-                className="group flex items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-zinc-50/80"
+                className="group flex items-center gap-3 rounded-xl border border-zinc-200/70 bg-zinc-50/40 px-3 py-3 transition hover:border-emerald-200 hover:bg-white hover:shadow-sm"
               >
                 <span
                   className={cn(
-                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset",
-                    iconWrap,
-                    "ring-black/5"
+                    "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[13px] font-bold tracking-wide ring-1 ring-inset",
+                    avatar
                   )}
                 >
-                  <Icon className="h-3.5 w-3.5" />
+                  {initials(b.name)}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-medium text-zinc-900 group-hover:text-emerald-700">
-                    {b.name}
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-[13px] font-semibold text-zinc-900 group-hover:text-emerald-800">
+                      {b.name}
+                    </p>
+                    <span
+                      className={cn(
+                        "hidden shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset sm:inline",
+                        chip
+                      )}
+                    >
+                      {mode === "clients" ? "Client" : "Prospect"}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-zinc-500">
+                    <MapPin className="h-3 w-3 shrink-0 text-zinc-400" />
+                    <span className="truncate">{locationMeta(b, mode)}</span>
                   </p>
-                  <p className="truncate text-[11px] capitalize text-zinc-500">
-                    {b.prospect_status
-                      ? String(b.prospect_status).replace(/_/g, " ")
-                      : title === "Prospects"
-                        ? "Prospect"
-                        : "Client"}
-                  </p>
+                  {b.primary_contact_name?.trim() ? (
+                    <p className="mt-0.5 truncate text-[11px] text-zinc-400">
+                      {b.primary_contact_name.trim()}
+                    </p>
+                  ) : null}
                 </div>
-                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-zinc-300 group-hover:text-emerald-600" />
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-zinc-300 ring-1 ring-inset ring-zinc-200 transition group-hover:bg-emerald-50 group-hover:text-emerald-600 group-hover:ring-emerald-200">
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </span>
               </Link>
             </li>
           ))}
@@ -225,7 +284,7 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
     })();
   }, []);
 
-  const { recentClients, recentProspects } = useMemo(() => {
+  const { recentClients, recentProspects, locationCount } = useMemo(() => {
     const active = businesses.filter((b) => !b.archived_at);
     const byRecent = [...active].sort((a, b) =>
       String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""))
@@ -236,7 +295,11 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
     const clients = byRecent
       .filter((b) => b.account_type !== "prospect" && b.is_tracked !== false)
       .slice(0, 3);
-    return { recentClients: clients, recentProspects: prospects };
+    return {
+      recentClients: clients,
+      recentProspects: prospects,
+      locationCount: active.length,
+    };
   }, [businesses]);
 
   const activeCount =
@@ -250,8 +313,8 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
         title="Workspace"
         subtitle={
           orgName?.trim()
-            ? `${orgName.trim()} — what is happening now, who needs attention, and what to do next.`
-            : "What is happening now, who needs attention, and what to do next."
+            ? `${orgName.trim()} — pick a location, clear the queue, deliver the work.`
+            : "Pick a location, clear the queue, deliver the work."
         }
       />
 
@@ -309,9 +372,7 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
           <div className={cn(cardClass, "p-3.5")}>
             <p className={cardLabelClass}>Locations</p>
             <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900">
-              {recentClients.length + recentProspects.length > 0
-                ? businesses.filter((b) => !b.archived_at).length
-                : 0}
+              {locationCount}
             </p>
             <p className="mt-0.5 text-[11px] text-zinc-500">
               Clients + prospects in your org
@@ -320,94 +381,70 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
         </div>
       ) : null}
 
-      {/* Clients + prospects first — pick without leaving the page */}
+      {/* Clients + prospects — full-width split */}
       <div className="grid gap-3 lg:grid-cols-2">
-        <LocationListCard
+        <LocationRoster
           title="Clients"
-          subtitle="Recent clients — open their Dashboard to work the full toolset."
-          icon={Building2}
-          iconWrap="bg-emerald-50 text-emerald-600"
+          subtitle="Open a Dashboard and run the full toolset."
+          mode="clients"
+          accent="emerald"
           rows={recentClients}
           empty="No clients yet. Add a client to start recurring tracking."
           viewAllHref="/clients"
-          viewAllLabel="View all"
           hrefFor={(b) => `/businesses/${b.id}/overview`}
         />
-        <LocationListCard
+        <LocationRoster
           title="Prospects"
-          subtitle="Recent prospects — open Dashboard, then audit and convert."
-          icon={Users}
-          iconWrap="bg-sky-50 text-sky-600"
+          subtitle="Audit, report, then convert when they sign."
+          mode="prospects"
+          accent="sky"
           rows={recentProspects}
           empty="No prospects yet. Add a prospect to run your first audit."
           viewAllHref="/prospects"
-          viewAllLabel="View all"
           hrefFor={(b) => `/businesses/${b.id}/overview`}
         />
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)]">
+      {loading ? (
+        <ContentCard className="flex items-center gap-2 text-sm text-zinc-500">
+          <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+          Loading your workspace…
+        </ContentCard>
+      ) : (
         <div className="space-y-3">
-          {loading ? (
-            <ContentCard className="flex items-center gap-2 text-sm text-zinc-500">
-              <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
-              Loading your workspace…
-            </ContentCard>
-          ) : (
-            <>
-              <NextBestActionsPanel actions={actions} />
-              <div className="grid gap-3 xl:grid-cols-2">
-                <ActiveWorkPanel
-                  scansRunning={scansRunning}
-                  schedulesUpcoming={schedulesUpcoming}
-                  draftReports={draftReports}
-                />
-                <NeedsAttentionPanel items={needsAttention} />
-              </div>
-              <RecentResultsPanel items={recent} />
-              <div>
-                <div className="mb-2 flex items-end justify-between gap-2">
-                  <div>
-                    <h2 className={sectionTitleClass}>Full work queue</h2>
-                    <p className="mt-0.5 text-[11px] text-zinc-500">
-                      Scans, reports due, schedules, and prospect follow-ups.
-                    </p>
-                  </div>
-                </div>
-                <WorkspaceQueueGrid queue={queue} />
-              </div>
-            </>
-          )}
-        </div>
+          {setup && !setup.complete ? <SetupProgressCard progress={setup} /> : null}
 
-        <div className="space-y-3">
-          {setup ? <SetupProgressCard progress={setup} /> : null}
-          <ContentCard padding={false} className="overflow-hidden">
-            <div className="border-b border-zinc-100 px-3.5 py-2.5">
-              <h2 className={sectionTitleClass}>Quick jumps</h2>
+          <NextBestActionsPanel
+            actions={actions}
+            limit={5}
+            viewAllHref="/onboarding"
+          />
+
+          {/* Active + attention — full-width halves */}
+          <div className="grid gap-3 md:grid-cols-2">
+            <ActiveWorkPanel
+              scansRunning={scansRunning}
+              schedulesUpcoming={schedulesUpcoming}
+              draftReports={draftReports}
+            />
+            <NeedsAttentionPanel items={needsAttention} />
+          </div>
+
+          {/* Recent results — full width */}
+          <RecentResultsPanel items={recent} />
+
+          {/* Live ops only: scans running + reports due */}
+          <div>
+            <div className="mb-2">
+              <h2 className={sectionTitleClass}>Live queue</h2>
               <p className="mt-0.5 text-[11px] text-zinc-500">
-                Same menu everywhere — tools stay visible.
+                What is running now and which reports are due — completed work lives in Recent results.
               </p>
             </div>
-            <div className="grid gap-1.5 p-2.5">
-              {[
-                { href: "/scans/new", label: "New Maps scan" },
-                { href: "/reports", label: "Reports home" },
-                { href: "/onboarding", label: "Get started guide" },
-                { href: "/branding", label: "Branding" },
-              ].map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(btnSecondary, "h-9 justify-start px-3 text-[12px]")}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          </ContentCard>
+            <WorkspaceQueueGrid queue={queue} />
+          </div>
         </div>
-      </div>
+      )}
     </ModulePage>
   );
 }

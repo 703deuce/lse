@@ -120,17 +120,18 @@ export async function GET() {
 
     recent.sort((a, b) => String(b.at ?? "").localeCompare(String(a.at ?? "")));
 
+    // Keep the payload tight — UI previews ~5; View all goes to dedicated pages.
     const needsAttention = [
-      ...queue.clientsNeedScan.slice(0, 5),
-      ...queue.reportsDue.slice(0, 5),
-      ...queue.draftReports.slice(0, 4),
-      ...queue.prospectAudits.slice(0, 4),
-    ];
+      ...queue.clientsNeedScan.slice(0, 4),
+      ...queue.reportsDue.slice(0, 3),
+      ...queue.draftReports.slice(0, 2),
+      ...queue.prospectAudits.slice(0, 2),
+    ].slice(0, 8);
 
     return NextResponse.json({
       queue,
       needsAttention,
-      recent: recent.slice(0, 12),
+      recent: recent.slice(0, 8),
       activeWork: {
         scansRunning: queue.scansRunning,
         schedulesUpcoming: queue.schedulesUpcoming,
