@@ -165,7 +165,7 @@ export async function assertCanEnqueueMapsScan(params: {
   return { ok: true };
 }
 
-/** Find an already-running equivalent scan for dedupe. */
+/** Find an already-running equivalent scan (unused by create/run — re-runs allowed). */
 export async function findDuplicateActiveScan(params: {
   businessId: string;
   keywordLabel?: string | null;

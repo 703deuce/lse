@@ -17,13 +17,17 @@ import {
   assertGridSizeAllowed,
   resolveFreelancerLimits,
 } from "@/lib/plans/resolve-freelancer-limits";
-import { assertCanEnqueueMapsScan, findDuplicateActiveScan } from "@/lib/queue/fairness";
+import { assertCanEnqueueMapsScan } from "@/lib/queue/fairness";
 import { DEFAULT_RADIUS_METERS, MAX_RADIUS_METERS, MIN_RADIUS_METERS } from "@/lib/maps/grid-metrics";
 import {
   DEFAULT_MAPS_PROVIDER_MODE,
   parseMapsProviderMode,
   scanBatchProviderColumn,
 } from "@/lib/maps/provider-modes";
+import {
+  DEFAULT_DFS_EXECUTION_MODE,
+  parseDfsExecutionMode,
+} from "@/lib/maps/dfs-execution-modes";
 import { parseMapsLocationZoom } from "@/lib/maps/maps-zoom";
 import { assertRateLimit } from "@/lib/security/rate-limit";
 import { trackProductEvent } from "@/lib/analytics/product-events";
@@ -44,6 +48,7 @@ const schema = z.object({
   os: z.enum(["android", "ios", "windows", "macos"]).default("windows"),
   browser: z.enum(["chrome", "firefox"]).default("chrome"),
   mapsProviderMode: z.enum(["hybrid", "scrapingdog", "dataforseo"]).default("dataforseo"),
+  dfsExecutionMode: z.enum(["priority", "standard", "live"]).default("priority"),
   /** Production Falcon-match zoom is 14. */
   locationZoom: z.number().int().min(0).max(18).default(14),
   locationId: z.string().uuid().optional().nullable(),
@@ -83,6 +88,7 @@ export async function POST(request: Request) {
       os,
       browser,
       mapsProviderMode: rawMode,
+      dfsExecutionMode: rawDfsMode,
       locationZoom: rawZoom,
       locationId,
       centerLat,
@@ -92,6 +98,7 @@ export async function POST(request: Request) {
       excludedLabels = [],
     } = parsed.data;
     const mapsProviderMode = parseMapsProviderMode(rawMode ?? DEFAULT_MAPS_PROVIDER_MODE);
+    const dfsExecutionMode = parseDfsExecutionMode(rawDfsMode ?? DEFAULT_DFS_EXECUTION_MODE);
     const locationZoom = parseMapsLocationZoom(rawZoom);
     const auth = await requireBusinessAccess(businessId);
     await requireOrganizationPermission("scan.run", auth.organizationId);
@@ -190,23 +197,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const duplicate = await findDuplicateActiveScan({
-      businessId,
-      keywordLabel: String(kwRow.keyword),
-      gridSize,
-      radiusMeters,
-    });
-    if (duplicate) {
-      return NextResponse.json(
-        {
-          error: "An equivalent scan is already queued or running for this keyword and grid.",
-          scan: { id: duplicate.id, status: duplicate.status },
-          duplicate: true,
-        },
-        { status: 409 }
-      );
-    }
-
     const fairness = await assertCanEnqueueMapsScan({
       organizationId: auth.organizationId,
       businessId,
@@ -247,6 +237,7 @@ export async function POST(request: Request) {
             location_zoom: locationZoom,
             scan_profile: { device, os, browser },
             maps_provider_mode: mapsProviderMode,
+            dfs_execution_mode: dfsExecutionMode,
             keyword_ids: [resolvedKeywordId],
             keyword_label: String(kwRow.keyword).trim(),
             method: "live_parallel",

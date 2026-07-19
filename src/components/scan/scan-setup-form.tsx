@@ -12,6 +12,12 @@ import {
 import { DEFAULT_SCAN_PROFILE } from "@/lib/maps/scan-profiles";
 import { DEFAULT_MAPS_PROVIDER_MODE } from "@/lib/maps/provider-modes";
 import {
+  DEFAULT_DFS_EXECUTION_MODE,
+  DFS_EXECUTION_MODE_OPTIONS,
+  osForScanDevice,
+  type DfsExecutionMode,
+} from "@/lib/maps/dfs-execution-modes";
+import {
   DEFAULT_MAPS_LOCATION_ZOOM,
   MAPS_ZOOM_OPTIONS,
   mapsZoomLabel,
@@ -41,6 +47,10 @@ export function ScanSetupForm({
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(defaults);
   const [locationZoom, setLocationZoom] = useState(DEFAULT_MAPS_LOCATION_ZOOM);
+  const [device, setDevice] = useState<"desktop" | "mobile">(DEFAULT_SCAN_PROFILE.device);
+  const [dfsExecutionMode, setDfsExecutionMode] = useState<DfsExecutionMode>(
+    DEFAULT_DFS_EXECUTION_MODE
+  );
 
   useEffect(() => {
     setForm((prev) => ({
@@ -86,10 +96,11 @@ export function ScanSetupForm({
           businessId,
           gridSize: form.gridSize,
           radiusMeters: form.radiusMeters,
-          device: DEFAULT_SCAN_PROFILE.device,
-          os: DEFAULT_SCAN_PROFILE.os,
+          device,
+          os: osForScanDevice(device),
           browser: DEFAULT_SCAN_PROFILE.browser,
           mapsProviderMode: DEFAULT_MAPS_PROVIDER_MODE,
+          dfsExecutionMode,
           locationZoom,
           centerLat: lat,
           centerLng: lng,
@@ -148,6 +159,31 @@ export function ScanSetupForm({
             {MAPS_ZOOM_OPTIONS.map((z) => (
               <option key={z} value={z}>
                 {mapsZoomLabel(z)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-xs font-medium text-text-muted">
+          Device
+          <select
+            className={selectClass}
+            value={device}
+            onChange={(e) => setDevice(e.target.value as "desktop" | "mobile")}
+          >
+            <option value="desktop">Desktop</option>
+            <option value="mobile">Mobile</option>
+          </select>
+        </label>
+        <label className="text-xs font-medium text-text-muted">
+          DataForSEO mode
+          <select
+            className={selectClass}
+            value={dfsExecutionMode}
+            onChange={(e) => setDfsExecutionMode(e.target.value as DfsExecutionMode)}
+          >
+            {DFS_EXECUTION_MODE_OPTIONS.map((opt) => (
+              <option key={opt.id} value={opt.id}>
+                {opt.label}
               </option>
             ))}
           </select>

@@ -54,9 +54,16 @@ import {
   secondaryProvidersForMode,
   type MapsProviderMode,
 } from "@/lib/maps/provider-modes";
+import {
+  DEFAULT_DFS_EXECUTION_MODE,
+  dfsApiPriorityForMode,
+  dfsExecutionModeLabel,
+  dfsMethodForMode,
+  parseDfsExecutionMode,
+  type DfsExecutionMode,
+} from "@/lib/maps/dfs-execution-modes";
 import { runDataForSeoLivePass, runDataForSeoPriorityPass, persistDataForSeoCellSuccess } from "@/lib/jobs/run-dfs-priority-pass";
 import {
-  dfsLiveTailThreshold,
   fingerprintSerp,
   findConsensusGroup,
   serpConsensusRequired,
@@ -977,6 +984,7 @@ async function runIntegrityPass(params: {
   organizationId?: string;
   onCellSettled?: (success: boolean) => Promise<void>;
   providerMode?: MapsProviderMode;
+  dfsExecutionMode?: DfsExecutionMode;
   locationZoom?: number;
 }): Promise<{
   failedCells: number;
@@ -985,6 +993,7 @@ async function runIntegrityPass(params: {
   successCount: number;
 }> {
   const providerMode = parseMapsProviderMode(params.providerMode);
+  const dfsMode = parseDfsExecutionMode(params.dfsExecutionMode);
   const locationZoom = parseMapsLocationZoom(
     params.locationZoom ?? LOCAL_FALCON_PARITY.locationZoom
   );
@@ -1013,35 +1022,48 @@ async function runIntegrityPass(params: {
   }
 
   console.log(
-    `[Scan] Integrity retry for ${incompleteJobs.length} sparse/incomplete cells (concurrency=${params.concurrency} mode=${providerMode})`
+    `[Scan] Integrity retry for ${incompleteJobs.length} sparse/incomplete cells (concurrency=${params.concurrency} mode=${providerMode} dfs=${dfsMode})`
   );
 
-  // DataForSEO: keep integrity on the fair Priority batch (no one-task POSTs).
+  // DataForSEO: integrity stays on the same execution mode as the scan (pure A/B).
   if (providerMode === "dataforseo") {
+    const method = dfsMethodForMode(dfsMode);
     await scheduleCellProgress(
       params.scanBatchId,
       Math.max(0, params.totalCells - incompleteJobs.length),
       params.totalCells,
       incompleteJobs.length,
       {
-        pass: "dfs-priority-integrity",
+        pass: `dfs-${dfsMode}-integrity`,
         recovery_stage: "finalizing",
         maps_provider_mode: providerMode,
+        dfs_execution_mode: dfsMode,
         location_zoom: locationZoom,
-        method: "dfs_priority_batch",
+        method,
       },
       { force: true }
     );
-    const integrityPass = await runDataForSeoPriorityPass({
-      jobs: incompleteJobs,
-      depth: params.depth,
-      passLabel: "dfs-priority-integrity",
-      scanRetryRound: 5,
-      organizationId: params.organizationId,
-      forceDesktop: true,
-      locationZoom,
-      submitPriority: 4,
-    });
+    const integrityPass =
+      dfsMode === "live"
+        ? await runDataForSeoLivePass({
+            jobs: incompleteJobs,
+            depth: params.depth,
+            passLabel: "dfs-live-integrity",
+            scanRetryRound: 5,
+            organizationId: params.organizationId,
+            locationZoom,
+            concurrency: Math.min(10, incompleteJobs.length),
+          })
+        : await runDataForSeoPriorityPass({
+            jobs: incompleteJobs,
+            depth: params.depth,
+            passLabel: `dfs-${dfsMode}-integrity`,
+            scanRetryRound: 5,
+            organizationId: params.organizationId,
+            locationZoom,
+            dfsApiPriority: dfsApiPriorityForMode(dfsMode),
+            submitPriority: 4,
+          });
     for (const r of integrityPass.results) {
       if (r.success) await params.onCellSettled?.(true);
     }
@@ -1161,6 +1183,8 @@ export async function runGridCellsLive(params: {
   resume?: boolean;
   /** Hybrid / ScrapingDog-only / DataForSEO-only — for A/B testing. */
   providerMode?: MapsProviderMode;
+  /** DataForSEO Priority / Standard / Live — for A/B testing. */
+  dfsExecutionMode?: DfsExecutionMode;
   /** Maps SERP zoom (Local Falcon API default 13). */
   locationZoom?: number;
   onSoftReady?: () => Promise<void>;
@@ -1177,6 +1201,9 @@ export async function runGridCellsLive(params: {
   const retryDelayMs = mapsGridRetryDelayMs();
   const batchSize = mapsCellBatchSize();
   const providerMode = parseMapsProviderMode(params.providerMode ?? DEFAULT_MAPS_PROVIDER_MODE);
+  const dfsMode = parseDfsExecutionMode(
+    params.dfsExecutionMode ?? DEFAULT_DFS_EXECUTION_MODE
+  );
   const locationZoom = parseMapsLocationZoom(
     params.locationZoom ?? LOCAL_FALCON_PARITY.locationZoom
   );
@@ -1237,6 +1264,8 @@ export async function runGridCellsLive(params: {
     resume: !!params.resume,
     providerMode,
     providerModeLabel: mapsProviderModeLabel(providerMode),
+    dfsExecutionMode: dfsMode,
+    dfsExecutionModeLabel: dfsExecutionModeLabel(dfsMode),
     locationZoom,
     primaryProviders,
     totalCells,
@@ -1291,6 +1320,7 @@ export async function runGridCellsLive(params: {
       organizationId: params.organizationId,
       onCellSettled,
       providerMode,
+      dfsExecutionMode: dfsMode,
       locationZoom,
     });
     const failedCells = integrity.failedCells;
@@ -1315,11 +1345,15 @@ export async function runGridCellsLive(params: {
   /** Sparse SERP observations from the DataForSEO primary pass (for consensus). */
   const primarySerpSeed: Array<{ job: GridCellJob; items: MapsLiveResult[] }> = [];
 
-  // DataForSEO: adaptive Priority queue — solo fills ≤100/POST; when other
-  // maps wait, 25-cell round-robin. Never wait for batch finish between POSTs.
+  // DataForSEO: mode-pure primary — Priority (p=2), Standard (p=1), or Live.
+  // Each mode stays on that path through recovery/integrity for clean A/B tests.
   if (providerMode === "dataforseo") {
+    const method = dfsMethodForMode(dfsMode);
+    const dfsApiPriority = dfsApiPriorityForMode(dfsMode);
     console.log(
-      `[Scan] DataForSEO Priority batch primary: ${jobs.length} cells (search_this_area=${LOCAL_FALCON_PARITY.searchThisArea}, search_places=${LOCAL_FALCON_PARITY.searchPlaces}, zoom=${locationZoom}, depth=${depth})`
+      `[Scan] DataForSEO ${dfsExecutionModeLabel(dfsMode)} primary: ${jobs.length} cells ` +
+        `(mode=${dfsMode}, search_this_area=${LOCAL_FALCON_PARITY.searchThisArea}, ` +
+        `search_places=${LOCAL_FALCON_PARITY.searchPlaces}, zoom=${locationZoom}, depth=${depth})`
     );
     await scheduleCellProgress(
       params.scanBatchId,
@@ -1327,22 +1361,35 @@ export async function runGridCellsLive(params: {
       totalCells,
       0,
       {
-        pass: "dfs-priority-primary",
+        pass: `dfs-${dfsMode}-primary`,
         recovery_stage: "fallback_dataforseo",
         maps_provider_mode: providerMode,
+        dfs_execution_mode: dfsMode,
         location_zoom: locationZoom,
-        method: "dfs_priority_batch",
+        method,
       },
       { force: true }
     );
-    const primaryPass = await runDataForSeoPriorityPass({
-      jobs,
-      depth,
-      passLabel: "dfs-priority-primary",
-      scanRetryRound: 0,
-      organizationId: params.organizationId,
-      locationZoom,
-    });
+    const primaryPass =
+      dfsMode === "live"
+        ? await runDataForSeoLivePass({
+            jobs,
+            depth,
+            passLabel: "dfs-live-primary",
+            scanRetryRound: 0,
+            organizationId: params.organizationId,
+            locationZoom,
+            concurrency: Math.min(15, jobs.length),
+          })
+        : await runDataForSeoPriorityPass({
+            jobs,
+            depth,
+            passLabel: `dfs-${dfsMode}-primary`,
+            scanRetryRound: 0,
+            organizationId: params.organizationId,
+            locationZoom,
+            dfsApiPriority,
+          });
     allTimings.push(...primaryPass.timings);
     failedFromPrimary.push(...failedJobsFromPass(jobs, primaryPass.results));
     completedOffset += primaryPass.successCount;
@@ -1420,7 +1467,7 @@ export async function runGridCellsLive(params: {
   // DataForSEO: wait + retry unfinished cells until done or ~10 min.
   // 20+ / 10–19 accept immediately; 0–9 keep retrying until the same SERP
   // (place_id overlap) appears 3 times, then accept as legitimate.
-  // When <5 cells remain, switch those retries to Live advanced.
+  // Mode stays pure: Priority/Standard never switch to Live (and vice versa).
   // ScrapingDog: one same-provider retry.
   // Hybrid: Bright Data recovery loop below.
   if (remainingJobs.length > 0 && providerMode === "dataforseo") {
@@ -1428,7 +1475,8 @@ export async function runGridCellsLive(params: {
     const deadlineMs = dataForSeoRecoveryDeadlineMs();
     const maxRounds = dataForSeoRetryMaxRounds();
     const consensusNeed = serpConsensusRequired();
-    const liveTailAt = dfsLiveTailThreshold();
+    const method = dfsMethodForMode(dfsMode);
+    const dfsApiPriority = dfsApiPriorityForMode(dfsMode);
     const sparseHistory = new Map<string, SerpObservation[]>();
     const consensusAcceptedLabels: string[] = [];
 
@@ -1440,8 +1488,8 @@ export async function runGridCellsLive(params: {
 
     console.log(
       `[Scan] DataForSEO recovery plan: ${remainingJobs.length} unfinished · ` +
-        `deadline=${Math.round(deadlineMs / 1000)}s · consensus=${consensusNeed}×same SERP · ` +
-        `liveTail=<${liveTailAt} cells`
+        `mode=${dfsMode} · deadline=${Math.round(deadlineMs / 1000)}s · ` +
+        `consensus=${consensusNeed}×same SERP`
     );
 
     for (let round = 1; round <= maxRounds; round++) {
@@ -1462,7 +1510,7 @@ export async function runGridCellsLive(params: {
         const sleepFor = Math.min(delayMs, remainingBudget);
         console.log(
           `[Scan] DataForSEO recovery wait ${round}: ` +
-            `sleeping ${sleepFor}ms then retrying ${remainingJobs.length} unfinished`
+            `sleeping ${sleepFor}ms then retrying ${remainingJobs.length} unfinished via ${dfsMode}`
         );
         await scheduleCellProgress(
           params.scanBatchId,
@@ -1473,9 +1521,9 @@ export async function runGridCellsLive(params: {
             pass: `dfs-recovery-wait-${round}`,
             recovery_stage: "fallback_dataforseo",
             maps_provider_mode: providerMode,
+            dfs_execution_mode: dfsMode,
             location_zoom: locationZoom,
-            method:
-              remainingJobs.length < liveTailAt ? "dfs_live_advanced" : "dfs_priority_batch",
+            method,
             recovery_round: round,
             unresolved_after_dataforseo: remainingJobs.length,
           },
@@ -1492,12 +1540,10 @@ export async function runGridCellsLive(params: {
         break;
       }
 
-      const useLive = remainingJobs.length < liveTailAt;
-      const method = useLive ? "dfs_live_advanced" : "dfs_priority_batch";
       console.log(
         `[Scan] DataForSEO recovery ${round} START ` +
-          `for ${remainingJobs.length} unfinished via ${useLive ? "Live" : "Priority"} ` +
-          `(desktop/zoom=${locationZoom}/STA=false)`
+          `for ${remainingJobs.length} unfinished via ${dfsExecutionModeLabel(dfsMode)} ` +
+          `(zoom=${locationZoom}/STA=false)`
       );
       await scheduleCellProgress(
         params.scanBatchId,
@@ -1508,6 +1554,7 @@ export async function runGridCellsLive(params: {
           pass: `dfs-recovery-${round}`,
           recovery_stage: "fallback_dataforseo",
           maps_provider_mode: providerMode,
+          dfs_execution_mode: dfsMode,
           location_zoom: locationZoom,
           method,
           recovery_round: round,
@@ -1515,26 +1562,27 @@ export async function runGridCellsLive(params: {
         { force: true }
       );
 
-      const retryPass = useLive
-        ? await runDataForSeoLivePass({
-            jobs: remainingJobs,
-            depth,
-            passLabel: `dfs-live-recovery-${round}`,
-            scanRetryRound: round,
-            organizationId: params.organizationId,
-            forceDesktop: true,
-            locationZoom,
-          })
-        : await runDataForSeoPriorityPass({
-            jobs: remainingJobs,
-            depth,
-            passLabel: `dfs-priority-recovery-${round}`,
-            scanRetryRound: round,
-            organizationId: params.organizationId,
-            forceDesktop: true,
-            locationZoom,
-            submitPriority: 4,
-          });
+      const retryPass =
+        dfsMode === "live"
+          ? await runDataForSeoLivePass({
+              jobs: remainingJobs,
+              depth,
+              passLabel: `dfs-live-recovery-${round}`,
+              scanRetryRound: round,
+              organizationId: params.organizationId,
+              locationZoom,
+              concurrency: Math.min(10, remainingJobs.length),
+            })
+          : await runDataForSeoPriorityPass({
+              jobs: remainingJobs,
+              depth,
+              passLabel: `dfs-${dfsMode}-recovery-${round}`,
+              scanRetryRound: round,
+              organizationId: params.organizationId,
+              locationZoom,
+              dfsApiPriority,
+              submitPriority: 4,
+            });
 
       allTimings.push(...retryPass.timings);
 
@@ -1810,6 +1858,7 @@ export async function runGridCellsLive(params: {
     organizationId: params.organizationId,
     onCellSettled,
     providerMode,
+    dfsExecutionMode: dfsMode,
     locationZoom,
   });
   allTimings.push(...integrity.timings);

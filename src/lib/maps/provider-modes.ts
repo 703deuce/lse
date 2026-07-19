@@ -1,9 +1,9 @@
 /**
  * Maps grid provider modes.
  *
- * Production: DataForSEO Maps Priority only
- * (task_post priority=2, desktop/windows, zoom 14, search_this_area=false,
- * search_places=true, depth 20). Accept packs with ≥10 items (retry below that).
+ * Production: DataForSEO Maps (Priority / Standard / Live selectable in UI).
+ * Default recipe: task_post priority=2, desktop/windows, zoom 14,
+ * search_this_area=false, search_places=true, depth 20.
  *
  * ScrapingDog / Bright Data code paths remain for legacy batches and ops
  * tooling, but are not offered in the product UI and are never used as

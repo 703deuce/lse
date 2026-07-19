@@ -10,6 +10,10 @@ import {
   parseMapsProviderMode,
   scanBatchProviderColumn,
 } from "@/lib/maps/provider-modes";
+import {
+  DEFAULT_DFS_EXECUTION_MODE,
+  parseDfsExecutionMode,
+} from "@/lib/maps/dfs-execution-modes";
 import { parseMapsLocationZoom } from "@/lib/maps/maps-zoom";
 import { USABLE_SCAN_STATUSES } from "@/lib/scans/status";
 import {
@@ -18,7 +22,7 @@ import {
   releaseUsage,
   reserveUsageOrThrow,
 } from "@/lib/plans";
-import { assertCanEnqueueMapsScan, findDuplicateActiveScan } from "@/lib/queue";
+import { assertCanEnqueueMapsScan } from "@/lib/queue";
 import { assertRateLimit } from "@/lib/security/rate-limit";
 
 const PARITY_SUMMARY = {
@@ -55,6 +59,7 @@ export async function POST(request: Request) {
       os,
       browser,
       mapsProviderMode: rawMode,
+      dfsExecutionMode: rawDfsMode,
       locationZoom: rawZoom,
       parityLabel,
       centerLat: bodyLat,
@@ -62,6 +67,7 @@ export async function POST(request: Request) {
       centerLabel: bodyLabel,
     } = parsed.data;
     const mapsProviderMode = parseMapsProviderMode(rawMode ?? DEFAULT_MAPS_PROVIDER_MODE);
+    const dfsExecutionMode = parseDfsExecutionMode(rawDfsMode ?? DEFAULT_DFS_EXECUTION_MODE);
     const locationZoom = parseMapsLocationZoom(rawZoom);
     const auth = await requireBusinessAccess(businessId);
     const rate = await assertRateLimit({
@@ -155,22 +161,6 @@ export async function POST(request: Request) {
     }
 
     const keywordLabel = primaryKw?.keyword ?? null;
-    const duplicate = await findDuplicateActiveScan({
-      businessId,
-      keywordLabel,
-      gridSize,
-      radiusMeters,
-    });
-    if (duplicate) {
-      return NextResponse.json(
-        {
-          error: "An equivalent scan is already queued or running for this keyword and grid.",
-          scan: { id: duplicate.id, status: duplicate.status },
-          duplicate: true,
-        },
-        { status: 409 }
-      );
-    }
 
     const fairness = await assertCanEnqueueMapsScan({
       organizationId: auth.organizationId,
@@ -211,6 +201,7 @@ export async function POST(request: Request) {
             location_zoom: locationZoom,
             scan_profile: { device, os, browser },
             maps_provider_mode: mapsProviderMode,
+            dfs_execution_mode: dfsExecutionMode,
             ...(parityLabel ? { parity_profile: parityLabel } : {}),
             // Scope baseline Settings scans to the primary keyword — otherwise
             // processScanBatch fans out to every keyword for the same credit cost.

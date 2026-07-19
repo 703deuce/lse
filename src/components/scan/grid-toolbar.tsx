@@ -14,6 +14,12 @@ import { LocationSwitcher } from "@/components/scan/location-switcher";
 import { DEFAULT_SCAN_PROFILE } from "@/lib/maps/scan-profiles";
 import { DEFAULT_MAPS_PROVIDER_MODE } from "@/lib/maps/provider-modes";
 import {
+  DEFAULT_DFS_EXECUTION_MODE,
+  DFS_EXECUTION_MODE_OPTIONS,
+  osForScanDevice,
+  type DfsExecutionMode,
+} from "@/lib/maps/dfs-execution-modes";
+import {
   DEFAULT_MAPS_LOCATION_ZOOM,
   MAPS_ZOOM_OPTIONS,
   mapsZoomLabel,
@@ -74,6 +80,10 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
   const [runRadiusMeters, setRunRadiusMeters] = useState(initialRadiusMeters);
   const [runKeywordId, setRunKeywordId] = useState(selectedKeywordId ?? "");
   const [locationZoom, setLocationZoom] = useState(DEFAULT_MAPS_LOCATION_ZOOM);
+  const [device, setDevice] = useState<"desktop" | "mobile">(DEFAULT_SCAN_PROFILE.device);
+  const [dfsExecutionMode, setDfsExecutionMode] = useState<DfsExecutionMode>(
+    DEFAULT_DFS_EXECUTION_MODE
+  );
 
   useEffect(() => {
     setRunGridSize(initialGridSize);
@@ -131,10 +141,11 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
             keywordId: selected.id,
             gridSize: runGridSize,
             radiusMeters: runRadiusMeters,
-            device: DEFAULT_SCAN_PROFILE.device,
-            os: DEFAULT_SCAN_PROFILE.os,
+            device,
+            os: osForScanDevice(device),
             browser: DEFAULT_SCAN_PROFILE.browser,
             mapsProviderMode: DEFAULT_MAPS_PROVIDER_MODE,
+            dfsExecutionMode,
             locationZoom,
             locationId: selectedLocationId,
             ...scanRunExtras,
@@ -159,6 +170,8 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
       businessId,
       runGridSize,
       runRadiusMeters,
+      device,
+      dfsExecutionMode,
       locationZoom,
       selectedLocationId,
       scanRunExtras,
@@ -197,10 +210,11 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
               keywordId: json.keyword.id,
               gridSize: runGridSize,
               radiusMeters: runRadiusMeters,
-              device: DEFAULT_SCAN_PROFILE.device,
-              os: DEFAULT_SCAN_PROFILE.os,
+              device,
+              os: osForScanDevice(device),
               browser: DEFAULT_SCAN_PROFILE.browser,
               mapsProviderMode: DEFAULT_MAPS_PROVIDER_MODE,
+              dfsExecutionMode,
               locationZoom,
               locationId: selectedLocationId,
             }),
@@ -310,6 +324,35 @@ export const GridToolbar = forwardRef<GridToolbarHandle, GridToolbarProps>(funct
               {MAPS_ZOOM_OPTIONS.map((z) => (
                 <option key={z} value={z}>
                   {mapsZoomLabel(z)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={fieldLabel}>Device</label>
+            <select
+              value={device}
+              onChange={(e) => setDevice(e.target.value as "desktop" | "mobile")}
+              className={cn(fieldSelect, "mt-0.5")}
+              title="Desktop uses Windows; mobile uses Android."
+            >
+              <option value="desktop">Desktop</option>
+              <option value="mobile">Mobile</option>
+            </select>
+          </div>
+          <div className="col-span-2 xl:col-span-2">
+            <label className={fieldLabel}>DataForSEO mode</label>
+            <select
+              value={dfsExecutionMode}
+              onChange={(e) =>
+                setDfsExecutionMode(e.target.value as DfsExecutionMode)
+              }
+              className={cn(fieldSelect, "mt-0.5")}
+              title="Priority = task_post p=2 · Standard = task_post p=1 · Live = live/advanced"
+            >
+              {DFS_EXECUTION_MODE_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
                 </option>
               ))}
             </select>

@@ -22,6 +22,12 @@ import {
 import { DEFAULT_SCAN_PROFILE } from "@/lib/maps/scan-profiles";
 import { DEFAULT_MAPS_PROVIDER_MODE } from "@/lib/maps/provider-modes";
 import {
+  DEFAULT_DFS_EXECUTION_MODE,
+  DFS_EXECUTION_MODE_OPTIONS,
+  osForScanDevice,
+  type DfsExecutionMode,
+} from "@/lib/maps/dfs-execution-modes";
+import {
   DEFAULT_MAPS_LOCATION_ZOOM,
   MAPS_ZOOM_OPTIONS,
   mapsZoomLabel,
@@ -87,6 +93,10 @@ export function ScanSetupStudio({
   const [gridSize, setGridSize] = useState(DEFAULT_GRID_SIZE);
   const [radiusMeters, setRadiusMeters] = useState(DEFAULT_RADIUS_METERS);
   const [locationZoom, setLocationZoom] = useState(DEFAULT_MAPS_LOCATION_ZOOM);
+  const [device, setDevice] = useState<"desktop" | "mobile">(DEFAULT_SCAN_PROFILE.device);
+  const [dfsExecutionMode, setDfsExecutionMode] = useState<DfsExecutionMode>(
+    DEFAULT_DFS_EXECUTION_MODE
+  );
   const [centerLat, setCenterLat] = useState(defaultCenterLat);
   const [centerLng, setCenterLng] = useState(defaultCenterLng);
   const [defaultLat, setDefaultLat] = useState(defaultCenterLat);
@@ -230,10 +240,11 @@ export function ScanSetupStudio({
             keywordId: id,
             gridSize,
             radiusMeters,
-            device: DEFAULT_SCAN_PROFILE.device,
-            os: DEFAULT_SCAN_PROFILE.os,
+            device,
+            os: osForScanDevice(device),
             browser: DEFAULT_SCAN_PROFILE.browser,
             mapsProviderMode: DEFAULT_MAPS_PROVIDER_MODE,
+            dfsExecutionMode,
             locationZoom,
             centerLat,
             centerLng,
@@ -520,8 +531,38 @@ export function ScanSetupStudio({
                 ))}
               </select>
             </label>
+            <label className={fieldLabel}>
+              Device
+              <select
+                value={device}
+                onChange={(e) => setDevice(e.target.value as "desktop" | "mobile")}
+                className={fieldSelect}
+                title="Desktop uses Windows; mobile uses Android. Other settings stay the same."
+              >
+                <option value="desktop">Desktop</option>
+                <option value="mobile">Mobile</option>
+              </select>
+            </label>
+            <label className={fieldLabel}>
+              DataForSEO mode
+              <select
+                value={dfsExecutionMode}
+                onChange={(e) =>
+                  setDfsExecutionMode(e.target.value as DfsExecutionMode)
+                }
+                className={fieldSelect}
+                title="Priority = task_post p=2 · Standard = task_post p=1 · Live = live/advanced"
+              >
+                {DFS_EXECUTION_MODE_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <p className="text-[11px] leading-relaxed text-zinc-500">
-              DataForSEO Priority · zoom default 14 (Falcon match). Radius is center → outer edge.
+              Mode stays pure for A/B tests. Zoom default 14 (Falcon match). Radius is center →
+              outer edge.
             </p>
             <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-[12px] leading-relaxed text-sky-900">
               <p className="flex gap-1.5">

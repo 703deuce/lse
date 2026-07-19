@@ -53,6 +53,8 @@ export const MAPS_TASK_GET_ADVANCED_PREFIX = "serp/google/maps/task_get/advanced
 
 /** High priority — ~1 minute average per DataForSEO docs. */
 export const DATAFORSEO_MAPS_PRIORITY_HIGH = 2;
+/** Standard (normal) queue priority. */
+export const DATAFORSEO_MAPS_PRIORITY_STANDARD = 1;
 
 export type MapsPriorityCellInput = {
   /** Stable id used as DataForSEO `tag` and result key. */
@@ -67,6 +69,8 @@ export type MapsPriorityCellInput = {
   languageCode?: string;
   zoom?: number;
   searchThisArea?: boolean;
+  /** DataForSEO task_post priority (1=standard, 2=high). Defaults to 2. */
+  dfsApiPriority?: 1 | 2;
 };
 
 export type MapsPriorityCellResult = {
@@ -88,6 +92,10 @@ function buildPriorityTaskBody(cell: MapsPriorityCellInput) {
     os: cell.os,
     browser: cell.browser,
   };
+  const dfsPriority =
+    cell.dfsApiPriority === 1
+      ? DATAFORSEO_MAPS_PRIORITY_STANDARD
+      : DATAFORSEO_MAPS_PRIORITY_HIGH;
   const request = buildMapsLiveRequest({
     keyword: cell.keyword,
     lat: cell.lat,
@@ -102,12 +110,12 @@ function buildPriorityTaskBody(cell: MapsPriorityCellInput) {
   });
   const body = {
     ...mapsLiveRequestBody(request),
-    priority: DATAFORSEO_MAPS_PRIORITY_HIGH,
+    priority: dfsPriority,
     tag: sanitizeMapsTaskTag(cell.tag),
   };
   return {
     body,
-    request: { ...request, priority: DATAFORSEO_MAPS_PRIORITY_HIGH as number },
+    request: { ...request, priority: dfsPriority as number },
   };
 }
 
@@ -376,8 +384,9 @@ export async function runMapsPriorityBatch(
   const byTag = new Map(
     cells.map((c) => [sanitizeMapsTaskTag(c.tag), c] as const)
   );
+  const samplePriority = cells[0]?.dfsApiPriority === 1 ? 1 : 2;
   console.log(
-    `[DataForSEO] Priority batch submit: ${cells.length} tasks (appChunk=${dataForSeoMapsAppChunkSize()}, max ${dataForSeoMapsMaxTasksPerPost()}/POST, priority=${DATAFORSEO_MAPS_PRIORITY_HIGH}, search_this_area=${LOCAL_FALCON_PARITY.searchThisArea}, search_places=${LOCAL_FALCON_PARITY.searchPlaces})`
+    `[DataForSEO] Priority batch submit: ${cells.length} tasks (appChunk=${dataForSeoMapsAppChunkSize()}, max ${dataForSeoMapsMaxTasksPerPost()}/POST, dfsPriority=${samplePriority}, search_this_area=${LOCAL_FALCON_PARITY.searchThisArea}, search_places=${LOCAL_FALCON_PARITY.searchPlaces})`
   );
 
   const posted = await postMapsPriorityTasks(cells, organizationId, {

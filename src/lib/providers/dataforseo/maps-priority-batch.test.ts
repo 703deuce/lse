@@ -37,6 +37,13 @@ describe("DataForSEO Maps Priority batch shape", () => {
     assert.equal(body.tag, "point_keyword");
   });
 
+  it("supports standard (priority=1) task_post bodies", async () => {
+    const { DATAFORSEO_MAPS_PRIORITY_STANDARD } = await import(
+      "@/lib/providers/dataforseo/maps-priority-batch"
+    );
+    assert.equal(DATAFORSEO_MAPS_PRIORITY_STANDARD, 1);
+  });
+
   it("sanitizes tags and keeps maps_search items", () => {
     assert.equal(sanitizeMapsTaskTag("a:b:c"), "a_b_c");
     const items = [

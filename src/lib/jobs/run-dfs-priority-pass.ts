@@ -408,6 +408,8 @@ export async function runDataForSeoPriorityPass(params: {
   organizationId?: string;
   forceDesktop?: boolean;
   locationZoom?: number;
+  /** DataForSEO task_post priority: 1=standard, 2=high (default). */
+  dfsApiPriority?: 1 | 2;
   submitPriority?: 1 | 2 | 3 | 4 | "highest" | "normal" | "lower" | "retry";
 }): Promise<{
   results: GridCellRunResult[];
@@ -417,6 +419,7 @@ export async function runDataForSeoPriorityPass(params: {
   const { jobs, depth, passLabel } = params;
   const scanRetryRound = params.scanRetryRound ?? 0;
   const locationZoom = params.locationZoom ?? LOCAL_FALCON_PARITY.locationZoom;
+  const dfsApiPriority = params.dfsApiPriority === 1 ? 1 : 2;
   if (!jobs.length) {
     return { results: [], successCount: 0, timings: [] };
   }
@@ -450,6 +453,7 @@ export async function runDataForSeoPriorityPass(params: {
         languageCode: LOCAL_FALCON_PARITY.languageCode,
         zoom: locationZoom,
         searchThisArea: LOCAL_FALCON_PARITY.searchThisArea,
+        dfsApiPriority,
       };
     }),
     params.organizationId ?? jobs[0]?.organizationId,
@@ -546,9 +550,11 @@ export async function runDataForSeoLivePass(params: {
     return { results: [], successCount: 0, timings: [] };
   }
 
-  const limit = pLimit(Math.max(1, Math.min(params.concurrency ?? jobs.length, 5)));
+  const requested = params.concurrency ?? Math.min(5, jobs.length);
+  const concurrency = Math.max(1, Math.min(requested, 25));
+  const limit = pLimit(concurrency);
   console.log(
-    `[Scan] DataForSEO Live tail pass ${passLabel}: ${jobs.length} cells (concurrency≤5)`
+    `[Scan] DataForSEO Live pass ${passLabel}: ${jobs.length} cells (concurrency=${concurrency})`
   );
 
   const results = await Promise.all(

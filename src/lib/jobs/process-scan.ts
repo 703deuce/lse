@@ -292,6 +292,8 @@ export async function processScanBatch(
     const totalTasks = insertedPoints.length * keywordList.length;
     const confSummary = (batch.confidence_summary ?? {}) as Record<string, unknown>;
     const providerMode = parseMapsProviderMode(confSummary.maps_provider_mode);
+    const { parseDfsExecutionMode } = await import("@/lib/maps/dfs-execution-modes");
+    const dfsExecutionMode = parseDfsExecutionMode(confSummary.dfs_execution_mode);
     const { parseMapsLocationZoom } = await import("@/lib/maps/maps-zoom");
     const locationZoom = parseMapsLocationZoom(confSummary.location_zoom);
 
@@ -302,6 +304,7 @@ export async function processScanBatch(
       scanType: batch.scan_type,
       providerMode,
       providerModeLabel: mapsProviderModeLabel(providerMode),
+      dfsExecutionMode,
       provider: scanBatchProviderColumn(providerMode),
       locationZoom,
       gridSize: batch.grid_size,
@@ -329,6 +332,7 @@ export async function processScanBatch(
 
     await mergeScanConfidenceSummary(supabase, scanBatchId, {
       maps_provider_mode: providerMode,
+      dfs_execution_mode: dfsExecutionMode,
       location_zoom: locationZoom,
     }).catch(() => undefined);
 
@@ -367,6 +371,7 @@ export async function processScanBatch(
         os: (batch.os as string | null) ?? "windows",
         browser: (batch as { browser?: string }).browser ?? "chrome",
         providerMode,
+        dfsExecutionMode,
         locationZoom,
         organizationId: resolvedOrgId,
         onLeaseHeartbeat: async () => {

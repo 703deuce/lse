@@ -31,6 +31,7 @@ export const createBusinessSchema = z.object({
 });
 
 export const mapsProviderModeSchema = z.enum(["hybrid", "scrapingdog", "dataforseo"]);
+export const dfsExecutionModeSchema = z.enum(["priority", "standard", "live"]);
 
 export const createScanSchema = z.object({
   businessId: z.string().uuid(),
@@ -47,6 +48,8 @@ export const createScanSchema = z.object({
   browser: z.enum(["chrome", "firefox"]).default("chrome"),
   /** Standard = dataforseo (Maps Priority). */
   mapsProviderMode: mapsProviderModeSchema.default("dataforseo"),
+  /** Priority / Standard / Live — A/B test modes (default Priority). */
+  dfsExecutionMode: dfsExecutionModeSchema.default("priority"),
   /** Production Falcon-match zoom is 14. */
   locationZoom: z.number().int().min(0).max(18).default(14),
   parityLabel: z.string().optional(),
