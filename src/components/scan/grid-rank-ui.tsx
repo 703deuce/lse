@@ -47,19 +47,19 @@ export function GridStarRating({
   if (rating == null) return <span className="text-zinc-400">—</span>;
   const full = Math.round(rating);
   return (
-    <span className="inline-flex items-center gap-1 whitespace-nowrap">
-      <span className="inline-flex text-[12px] leading-none text-amber-400">
+    <span className="inline-flex items-center gap-0.5 whitespace-nowrap">
+      <span className="inline-flex text-[11px] leading-none text-amber-400">
         {Array.from({ length: 5 }).map((_, i) => (
           <span key={i} className={i < full ? "text-amber-400" : "text-zinc-200"}>
             ★
           </span>
         ))}
       </span>
-      <span className="text-[12px] font-semibold tabular-nums text-zinc-800">
+      <span className="text-[11px] font-semibold tabular-nums text-zinc-800">
         {rating.toFixed(1)}
       </span>
       {reviewCount != null ? (
-        <span className="text-[11px] tabular-nums text-zinc-500">
+        <span className="text-[10px] tabular-nums text-zinc-500">
           ({reviewCount.toLocaleString()})
         </span>
       ) : null}
