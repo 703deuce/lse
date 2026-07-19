@@ -12,6 +12,8 @@ const STRIP_CONFIDENCE_KEYS = new Set([
   "cookie",
   "recovery_stage",
   "internal_error",
+  "dfs_sparse_serp_history",
+  "dfs_execution_mode",
 ]);
 
 /** Remove provider/credential internals from a scan batch before returning to the client. */

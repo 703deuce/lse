@@ -2,12 +2,16 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { MapsLiveResult } from "@/lib/providers/dataforseo";
 import {
+  appendSparseObservation,
   decideSerpAccept,
   findConsensusGroup,
   fingerprintSerp,
   listingOverlap,
+  loadSparseHistory,
   observationsAreConsistent,
+  pickConsensusItems,
   rankOrderSimilarity,
+  serializeSparseHistory,
 } from "@/lib/maps/serp-consensus";
 
 function itemsFromIds(ids: string[]): MapsLiveResult[] {
@@ -57,5 +61,23 @@ describe("SERP consensus", () => {
       fingerprintSerp(itemsFromIds(["x", "y", "z", "q", "w", "e", "r", "t", "u"])),
     ];
     assert.equal(findConsensusGroup(obs, 3), null);
+  });
+
+  it("persists fingerprints across generations and can still reach consensus", () => {
+    const nine = itemsFromIds(["a", "b", "c", "d", "e", "f", "g", "h", "i"]);
+    const history = new Map<string, ReturnType<typeof fingerprintSerp>[]>();
+    appendSparseObservation(history, "p1:k1", fingerprintSerp(nine));
+    appendSparseObservation(history, "p1:k1", fingerprintSerp(nine));
+    appendSparseObservation(history, "p1:k1", fingerprintSerp(nine));
+    const stored = serializeSparseHistory(history);
+    const reloaded = loadSparseHistory(stored);
+    assert.equal(reloaded.get("p1:k1")?.length, 3);
+    // Reloaded fingerprints have no items — need a live matching fetch to save.
+    assert.equal(reloaded.get("p1:k1")?.[0]?.items.length, 0);
+
+    const hit = findConsensusGroup(reloaded.get("p1:k1")!, 3);
+    assert.ok(hit);
+    assert.equal(pickConsensusItems(hit!.group, itemsFromIds(["z"])).length, 0);
+    assert.equal(pickConsensusItems(hit!.group, nine).length, 9);
   });
 });

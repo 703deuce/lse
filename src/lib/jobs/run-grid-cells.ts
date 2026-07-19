@@ -65,8 +65,13 @@ import {
 } from "@/lib/maps/dfs-execution-modes";
 import { runDataForSeoLivePass, runDataForSeoPriorityPass, persistDataForSeoCellSuccess } from "@/lib/jobs/run-dfs-priority-pass";
 import {
+  DFS_SPARSE_HISTORY_KEY,
+  appendSparseObservation,
   fingerprintSerp,
   findConsensusGroup,
+  loadSparseHistory,
+  pickConsensusItems,
+  serializeSparseHistory,
   serpConsensusRequired,
   type SerpObservation,
 } from "@/lib/maps/serp-consensus";
@@ -1480,20 +1485,101 @@ export async function runGridCellsLive(params: {
     const consensusNeed = serpConsensusRequired();
     const method = dfsMethodForMode(dfsMode);
     const dfsApiPriority = dfsApiPriorityForMode(dfsMode);
-    const sparseHistory = new Map<string, SerpObservation[]>();
     const consensusAcceptedLabels: string[] = [];
 
     const jobKey = (j: GridCellJob) => `${j.point.id}:${j.keyword.id}`;
 
+    // Load prior sparse fingerprints so consensus accumulates across the
+    // active window AND later background recovery generations.
+    const sparseHistory = await (async () => {
+      try {
+        const { data } = await createServiceClient()
+          .from("scan_batches")
+          .select("confidence_summary")
+          .eq("id", params.scanBatchId)
+          .maybeSingle();
+        const conf = (data?.confidence_summary ?? {}) as Record<string, unknown>;
+        return loadSparseHistory(conf[DFS_SPARSE_HISTORY_KEY]);
+      } catch {
+        return new Map<string, SerpObservation[]>();
+      }
+    })();
+
     for (const seed of primarySerpSeed) {
-      sparseHistory.set(jobKey(seed.job), [fingerprintSerp(seed.items)]);
+      appendSparseObservation(sparseHistory, jobKey(seed.job), fingerprintSerp(seed.items));
     }
 
+    const priorObs = [...sparseHistory.values()].reduce((n, arr) => n + arr.length, 0);
     console.log(
       `[Scan] DataForSEO recovery plan: ${remainingJobs.length} unfinished · ` +
         `mode=${dfsMode} · deadline=${Math.round(deadlineMs / 1000)}s · ` +
-        `consensus=${consensusNeed}×same SERP`
+        `consensus=${consensusNeed}×same SERP · prior_obs=${priorObs}`
     );
+
+    const persistSparseHistory = async () => {
+      await mergeScanConfidenceSummary(createServiceClient(), params.scanBatchId, {
+        [DFS_SPARSE_HISTORY_KEY]: serializeSparseHistory(sparseHistory),
+      }).catch(() => undefined);
+    };
+
+    // Accept immediately when prior history + this primary already hit consensus
+    // (common after a background generation that was one observation short).
+    {
+      const stillNeedFetch: GridCellJob[] = [];
+      for (const job of remainingJobs) {
+        const key = jobKey(job);
+        const hist = sparseHistory.get(key) ?? [];
+        const consensus = findConsensusGroup(hist, consensusNeed);
+        if (!consensus) {
+          stillNeedFetch.push(job);
+          continue;
+        }
+        const seed = primarySerpSeed.find(
+          (s) => s.job.point.id === job.point.id && s.job.keyword.id === job.keyword.id
+        );
+        const itemsToSave = pickConsensusItems(consensus.group, seed?.items ?? []);
+        if (!itemsToSave.length) {
+          stillNeedFetch.push(job);
+          continue;
+        }
+        console.log(
+          `[Scan] Sparse consensus pre-check (${consensusNeed}× count=${consensus.representative.count}) ` +
+            `grid=${job.point.grid_label} hist=${hist.length} — accepting`
+        );
+        const accepted = await persistDataForSeoCellSuccess({
+          job,
+          items: itemsToSave,
+          request: {
+            _cell_meta: {
+              accept_reason: "consensus_sparse",
+              consensus_observations: hist.length,
+              consensus_count: consensus.representative.count,
+            },
+          },
+          depth,
+          passLabel: "dfs-consensus-precheck",
+          apiSec: 0,
+          scanRetryRound: 0,
+          forceAccept: true,
+          unstable: false,
+          acceptReason: "consensus_sparse",
+          method,
+        });
+        if (accepted.success) {
+          sparseHistory.delete(key);
+          completedOffset += 1;
+          consensusAcceptedLabels.push(job.point.grid_label);
+          await onCellSettled(true);
+        } else {
+          stillNeedFetch.push(job);
+        }
+      }
+      remainingJobs = stillNeedFetch;
+      failedCells = remainingJobs.length;
+      if (remainingJobs.length === 0) {
+        await persistSparseHistory();
+      }
+    }
 
     for (let round = 1; round <= maxRounds; round++) {
       if (remainingJobs.length === 0) break;
@@ -1605,19 +1691,22 @@ export async function runGridCellsLive(params: {
 
         const items = row?.serpItems ?? [];
         const obs = fingerprintSerp(items);
-        const hist = sparseHistory.get(key) ?? [];
-        hist.push(obs);
-        sparseHistory.set(key, hist);
+        const hist = appendSparseObservation(sparseHistory, key, obs);
 
         const consensus = findConsensusGroup(hist, consensusNeed);
         if (consensus) {
+          const itemsToSave = pickConsensusItems(consensus.group, items);
+          if (!itemsToSave.length) {
+            stillUnresolved.push(job);
+            continue;
+          }
           console.log(
             `[Scan] Sparse consensus (${consensusNeed}× count=${consensus.representative.count}) ` +
-              `grid=${job.point.grid_label} — accepting as legitimate SERP`
+              `grid=${job.point.grid_label} hist=${hist.length} — accepting as legitimate SERP`
           );
           const accepted = await persistDataForSeoCellSuccess({
             job,
-            items: consensus.representative.items,
+            items: itemsToSave,
             request: {
               _cell_meta: {
                 accept_reason: "consensus_sparse",
@@ -1635,6 +1724,7 @@ export async function runGridCellsLive(params: {
             method,
           });
           if (accepted.success) {
+            sparseHistory.delete(key);
             completedOffset += 1;
             consensusAcceptedLabels.push(job.point.grid_label);
             await onCellSettled(true);
@@ -1654,12 +1744,18 @@ export async function runGridCellsLive(params: {
           `still_unresolved=${remainingJobs.length}`
       );
 
+      // Persist fingerprints every round so a worker restart / background
+      // generation can keep building toward consensus.
+      await persistSparseHistory();
+
       if (remainingJobs.length > 0) {
         const dbIncomplete = await loadIncompleteJobsFromDb(params.scanBatchId, allJobs, depth);
         remainingJobs = mergeUnresolvedJobs(remainingJobs, dbIncomplete);
         failedCells = remainingJobs.length;
       }
     }
+
+    await persistSparseHistory();
 
     if (consensusAcceptedLabels.length > 0) {
       await mergeScanConfidenceSummary(createServiceClient(), params.scanBatchId, {
@@ -1672,7 +1768,8 @@ export async function runGridCellsLive(params: {
       console.log("[Scan] All cells recovered via DataForSEO (pack or sparse consensus)");
     } else {
       console.warn(
-        `[Scan] ${remainingJobs.length} cells still unresolved after DataForSEO recovery — integrity next`
+        `[Scan] ${remainingJobs.length} cells still unresolved after DataForSEO recovery — ` +
+          `history persisted for background recovery · integrity next`
       );
     }
   } else if (remainingJobs.length > 0 && providerMode === "scrapingdog") {

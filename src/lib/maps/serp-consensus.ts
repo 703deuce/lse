@@ -1,8 +1,13 @@
 /**
  * SERP consensus for sparse DataForSEO Maps packs.
  *
- * Preferred pack size is still 20, but Google can legitimately return fewer.
- * Low packs (0–9) are retried until the same place_id pattern appears N times.
+ * Preferred pack size is still 20, but Google can legitimately return fewer
+ * (especially far outer cells). Packs under 10 are retried until the same
+ * count + place_id pattern appears N times, then accepted as legitimate.
+ *
+ * Observation history is persisted across active windows / background
+ * recovery generations so consensus can accumulate (3 matches can't happen
+ * if each short window starts from zero).
  */
 
 import type { MapsLiveResult } from "@/lib/providers/dataforseo";
@@ -25,10 +30,22 @@ export const SERP_LISTING_OVERLAP_MIN = 0.8;
 /** When this many cells remain unfinished, use Live instead of Priority. */
 export const DFS_LIVE_TAIL_THRESHOLD = 5;
 
+/** Cap stored observations per cell so confidence_summary stays bounded. */
+export const SPARSE_HISTORY_MAX_PER_CELL = 40;
+
+/** confidence_summary key for cross-generation sparse SERP fingerprints. */
+export const DFS_SPARSE_HISTORY_KEY = "dfs_sparse_serp_history";
+
 export type SerpObservation = {
   count: number;
   placeIds: string[];
   items: MapsLiveResult[];
+};
+
+/** Persisted fingerprint (no full item payloads). */
+export type SerpObservationFingerprint = {
+  count: number;
+  placeIds: string[];
 };
 
 export type SerpAcceptDecision =
@@ -160,13 +177,82 @@ export function selectMostRepresentative(group: SerpObservation[]): SerpObservat
       if (other === cand) continue;
       sum += listingOverlap(cand, other);
     }
-    const score = sum / Math.max(1, group.length - 1);
+    // Prefer observations that still have live item payloads (history loads don't).
+    const itemsBonus = cand.items.length > 0 ? 0.01 : 0;
+    const score = sum / Math.max(1, group.length - 1) + itemsBonus;
     if (score > bestScore) {
       bestScore = score;
       best = cand;
     }
   }
   return best;
+}
+
+/**
+ * Items to persist for a consensus accept. Prefer a group member that still
+ * has payloads; otherwise use the latest fetch only when it matches the group.
+ */
+export function pickConsensusItems(
+  group: SerpObservation[],
+  fallbackItems: MapsLiveResult[]
+): MapsLiveResult[] {
+  const withItems = group.find((o) => o.items.length > 0);
+  if (withItems?.items.length) return withItems.items;
+  if (!fallbackItems.length || !group.length) return [];
+  const rep = selectMostRepresentative(group);
+  const fallbackObs = fingerprintSerp(fallbackItems);
+  return observationsAreConsistent(rep, fallbackObs) ? fallbackItems : [];
+}
+
+export function serializeSparseHistory(
+  history: Map<string, SerpObservation[]>,
+  maxPerCell = SPARSE_HISTORY_MAX_PER_CELL
+): Record<string, SerpObservationFingerprint[]> {
+  const out: Record<string, SerpObservationFingerprint[]> = {};
+  for (const [key, obs] of history) {
+    if (!key || !obs.length) continue;
+    out[key] = obs.slice(-maxPerCell).map((o) => ({
+      count: o.count,
+      placeIds: o.placeIds.slice(0, 40),
+    }));
+  }
+  return out;
+}
+
+export function loadSparseHistory(
+  raw: unknown,
+  maxPerCell = SPARSE_HISTORY_MAX_PER_CELL
+): Map<string, SerpObservation[]> {
+  const map = new Map<string, SerpObservation[]>();
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return map;
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!key || !Array.isArray(value)) continue;
+    const obs: SerpObservation[] = [];
+    for (const row of value.slice(-maxPerCell)) {
+      if (!row || typeof row !== "object") continue;
+      const count = Number((row as { count?: unknown }).count ?? 0);
+      const placeIdsRaw = (row as { placeIds?: unknown }).placeIds;
+      const placeIds = Array.isArray(placeIdsRaw)
+        ? placeIdsRaw.filter((id): id is string => typeof id === "string" && id.length > 0)
+        : [];
+      if (!Number.isFinite(count) || count < 0) continue;
+      obs.push({ count: Math.floor(count), placeIds, items: [] });
+    }
+    if (obs.length) map.set(key, obs);
+  }
+  return map;
+}
+
+/** Merge a new observation into history (append; cap length). */
+export function appendSparseObservation(
+  history: Map<string, SerpObservation[]>,
+  key: string,
+  observation: SerpObservation,
+  maxPerCell = SPARSE_HISTORY_MAX_PER_CELL
+): SerpObservation[] {
+  const next = [...(history.get(key) ?? []), observation].slice(-maxPerCell);
+  history.set(key, next);
+  return next;
 }
 
 export function serpConsensusRequired(): number {
