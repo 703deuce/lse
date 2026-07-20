@@ -1573,8 +1573,24 @@
 .page-tool .footer-about .social-links {
   margin: 16px 0;
 }
-/* Responsive */
-@media (max-width: 1024px) {
+
+/* Mobile-only nav CTAs (hidden on desktop) */
+.page-tool .nav-item--mobile-only {
+  display: none;
+}
+
+/* Prevent horizontal scroll from shadows / full-bleed media */
+.page-tool {
+  overflow-x: clip;
+}
+.page-tool img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ---------- Responsive breakpoints ---------- */
+/* Large tablet / small laptop: stack splits, keep readable columns */
+@media (max-width: 1100px) {
   .tool-hero-grid,
   .tool-split,
   .layout-5050,
@@ -1587,13 +1603,23 @@
   .icon-benefit-row {
     grid-template-columns: 1fr;
   }
+
   .tool-hero {
-    padding: 36px 0 44px;
+    padding: 40px 0 48px;
   }
+
   .tool-hero-visual img {
-    max-height: min(360px, 48vh);
+    max-height: none;
+    object-fit: contain;
+    object-position: center top;
   }
-  /* Stacked: no side-by-side image, center all copy */
+
+  .shot-frame--constrained img {
+    max-height: none;
+    object-fit: contain;
+  }
+
+  /* Stacked: center copy when image is no longer beside text */
   .tool-hero-intro,
   .layout-5050 > .tool-section-header,
   .layout-13-23 > .tool-section-header,
@@ -1602,55 +1628,230 @@
   .tool-section-header--left {
     text-align: center;
   }
+
   .tool-hero-sub,
   .tool-hero-proof {
     margin-left: auto;
     margin-right: auto;
   }
+
   .tool-hero-actions {
     justify-content: center;
   }
+
+  .tool-section {
+    padding: 72px 0;
+  }
+
+  .tool-section-header {
+    margin-bottom: 36px;
+  }
+
+  .tool-mid-banner {
+    padding: 36px 0;
+  }
+
   .tool-triple,
   .tool-icon-row,
   .tool-service-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
   .audience-grid {
     grid-template-columns: 1fr;
   }
+
   .audience-card {
     border-right: none;
     border-bottom: 1px solid var(--gray-200);
+    padding: 28px 24px;
   }
+
   .audience-card:last-child {
     border-bottom: none;
   }
+
+  .tool-cta-banner {
+    padding: 56px 0;
+  }
+
   .tool-cta-banner-inner {
     flex-direction: column;
     text-align: center;
+    gap: 28px;
   }
+
   .tool-cta-content {
     flex-direction: column;
     align-items: center;
+    min-width: 0;
+  }
+
+  .tool-cta-banner p {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .tool-cta-actions {
+    width: 100%;
+    max-width: 360px;
+  }
+
+  .tool-cta-actions .btn {
+    width: 100%;
+    justify-content: center;
   }
 }
+
+/* iPad / large phone landscape */
+@media (max-width: 900px) {
+  .page-tool .container {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .tool-hero h1 {
+    font-size: clamp(1.45rem, 4.2vw, 2rem);
+  }
+
+  .tool-section-header h2,
+  .page-tool .faq-section h2 {
+    font-size: clamp(1.35rem, 3.6vw, 1.85rem);
+  }
+
+  .icon-benefit {
+    padding: 22px 20px;
+  }
+
+  .page-tool .faq-question {
+    padding: 16px 16px;
+    gap: 12px;
+    text-align: left;
+  }
+
+  .page-tool .faq-answer-inner {
+    padding: 0 16px 16px;
+  }
+}
+
+/* Phones + small tablets */
 @media (max-width: 768px) {
+  .page-tool .header-inner {
+    gap: 12px;
+  }
+
+  .page-tool .logo {
+    font-size: 17px;
+  }
+
+  .page-tool .logo-pin {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* Keep primary CTA visible — global styles hide .btn-header on mobile */
   .page-tool .header-signin {
     display: none;
   }
-  .tool-hero {
-    padding: 28px 0 36px;
+
+  .page-tool .btn-header {
+    display: inline-flex !important;
+    align-items: center;
+    padding: 8px 14px;
+    font-size: 12px;
+    white-space: nowrap;
   }
+
+  .page-tool .header-actions {
+    gap: 8px;
+    margin-left: auto;
+    margin-right: 4px;
+  }
+
+  .page-tool .nav-item--mobile-only {
+    display: list-item;
+  }
+
+  .page-tool .nav-link--cta {
+    color: var(--tool-blue) !important;
+    font-weight: 700;
+  }
+
+  .tool-hero {
+    padding: 28px 0 32px;
+  }
+
   .tool-hero-intro {
     padding: 0;
   }
+
+  .tool-hero-sub,
+  .tool-hero-proof {
+    max-width: none;
+    font-size: 14px;
+  }
+
+  .tool-hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .tool-hero-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .tool-hero-visual {
+    margin-top: 8px;
+  }
+
   .tool-hero-visual img {
-    max-height: min(280px, 42vh);
-    object-position: left top;
+    border-radius: 12px;
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.12);
   }
+
   .tool-section {
-    padding: 56px 0;
+    padding: 48px 0;
   }
+
+  .tool-section-header {
+    margin-bottom: 28px;
+  }
+
+  .tool-section-header p {
+    font-size: 15px;
+  }
+
+  .layout-5050,
+  .layout-23-13,
+  .layout-13-23,
+  .layout-333,
+  .icon-benefit-row {
+    gap: 20px;
+  }
+
+  .shot-frame,
+  .shot-frame--card {
+    border-radius: 12px;
+  }
+
+  .tool-mid-banner {
+    padding: 28px 0;
+  }
+
+  .tool-mid-banner-inner {
+    padding: 0 16px;
+  }
+
+  .tool-mid-banner h2 {
+    font-size: clamp(1.15rem, 4.5vw, 1.45rem);
+  }
+
+  .tool-mid-banner p {
+    font-size: 14px;
+  }
+
   .tool-icon-row,
   .tool-triple,
   .audience-grid,
@@ -1658,14 +1859,105 @@
   .tool-service-grid {
     grid-template-columns: 1fr;
   }
+
   .tool-check-list--center,
   .tool-capability-list {
     columns: 1;
   }
-  .tool-cta-actions {
-    width: 100%;
+
+  .tool-cta-banner {
+    padding: 48px 0;
   }
+
+  .tool-cta-pin {
+    width: 44px;
+    height: 44px;
+  }
+
+  .tool-cta-actions {
+    max-width: none;
+  }
+
   .benefit-icon-row {
     gap: 12px;
   }
+
+  .page-tool .faq-section {
+    padding: 48px 0;
+  }
+
+  .page-tool .faq-section h2 {
+    margin-bottom: 28px;
+  }
+
+  .tool-footer-seo {
+    padding: 36px 0;
+  }
 }
+
+/* Small phones */
+@media (max-width: 540px) {
+  .page-tool .container {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .page-tool {
+    --header-h: 64px;
+  }
+
+  .page-tool .btn-header {
+    padding: 7px 12px;
+    font-size: 11px;
+  }
+
+  .tool-hero h1 {
+    font-size: clamp(1.35rem, 6.5vw, 1.7rem);
+    letter-spacing: -0.03em;
+  }
+
+  .tool-hero-problem {
+    font-size: clamp(0.98rem, 4vw, 1.1rem);
+  }
+
+  .tool-section {
+    padding: 40px 0;
+  }
+
+  .layout-full {
+    max-width: none;
+  }
+
+  .icon-benefit-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .audience-card {
+    padding: 24px 18px;
+  }
+
+  .page-tool .faq-question {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+}
+
+/* Smallest phones */
+@media (max-width: 380px) {
+  .page-tool .logo strong {
+    letter-spacing: -0.03em;
+  }
+
+  .page-tool .btn-header {
+    padding: 7px 10px;
+    font-size: 10.5px;
+  }
+
+  .tool-hero-actions .btn,
+  .tool-cta-actions .btn {
+    font-size: 14px;
+    padding: 12px 16px;
+  }
+}
+
