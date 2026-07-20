@@ -123,17 +123,17 @@
 }
 .tool-hero h1 {
   font-family: var(--font-display);
-  font-size: clamp(1.15rem, 2vw, 1.45rem);
+  font-size: clamp(1.05rem, 1.8vw, 1.35rem);
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.4;
   color: var(--gray-600);
   letter-spacing: -0.02em;
   margin: 0 0 12px;
 }
 .tool-hero-sub {
   margin: 0 0 28px;
-  max-width: 36ch;
-  font-size: 16px;
+  max-width: 38ch;
+  font-size: 15px;
   line-height: 1.55;
   color: var(--gray-500);
 }
