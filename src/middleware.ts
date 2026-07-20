@@ -10,7 +10,9 @@ import { mergeCookieOptions } from "@/lib/supabase/cookie-options";
 const PUBLIC_PREFIXES = [
   "/sign-in",
   "/sign-up",
+  "/forgot-password",
   "/auth/callback",
+  "/auth/update-password",
   "/r/",
   "/reports/share/",
   "/api/webhooks/",
@@ -106,7 +108,12 @@ export async function middleware(request: NextRequest) {
     return nextWithRequestId(request, requestId);
   }
 
-  if (pathname === "/auth/callback" || pathname === "/sign-in") {
+  if (
+    pathname === "/auth/callback" ||
+    pathname === "/sign-in" ||
+    pathname === "/sign-up" ||
+    pathname === "/forgot-password"
+  ) {
     const ip =
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
       request.headers.get("x-real-ip") ??

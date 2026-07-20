@@ -1,16 +1,13 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { safeNextPath } from "@/lib/auth/safe-next";
 
-function safeNextPath(raw: string | null): string {
-  if (!raw) return "/workspace";
-  if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) {
-    return "/workspace";
-  }
-  return raw;
-}
-
-export function GoogleSignInButton() {
+export function GoogleSignInButton({
+  label = "Continue with Google",
+}: {
+  label?: string;
+}) {
   const supabase = createClient();
 
   async function signInWithGoogle() {
@@ -34,7 +31,7 @@ export function GoogleSignInButton() {
     <button
       type="button"
       onClick={signInWithGoogle}
-      className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-900 shadow-sm hover:bg-zinc-50"
+      className="flex h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-800 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300"
     >
       <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden>
         <path
@@ -54,7 +51,7 @@ export function GoogleSignInButton() {
           d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
         />
       </svg>
-      Continue with Google
+      {label}
     </button>
   );
 }
