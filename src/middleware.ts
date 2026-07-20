@@ -128,6 +128,8 @@ export async function middleware(request: NextRequest) {
     return nextWithRequestId(request, requestId);
   }
 
+  // TEMPORARY: auth login bypass — skip Supabase session checks below.
+  // Restore by making isDevBypassEnabled() require login again (see src/lib/auth/dev.ts).
   const devBypass = isDevBypassEnabled();
 
   if (devBypass) {
@@ -137,12 +139,14 @@ export async function middleware(request: NextRequest) {
       redirect.headers.set(REQUEST_ID_HEADER, requestId);
       return redirect;
     }
-  }
-
-  if (devBypass || !isProtectedPath(pathname)) {
     return nextWithRequestId(request, requestId);
   }
 
+  if (!isProtectedPath(pathname)) {
+    return nextWithRequestId(request, requestId);
+  }
+
+  // --- Auth gate (kept for later; currently skipped while isDevBypassEnabled()) ---
   let response = nextWithRequestId(request, requestId);
 
   const supabase = createServerClient(

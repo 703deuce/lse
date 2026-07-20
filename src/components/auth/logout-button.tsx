@@ -4,8 +4,10 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 
+// TEMPORARY: match auth bypass while login walls are off.
 const devBypass =
-  process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+  process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true" ||
+  process.env.NODE_ENV === "development";
 
 export function LogoutButton({ className }: { className?: string }) {
   const router = useRouter();

@@ -10,7 +10,8 @@ export function SidebarUserMenu() {
 
   useEffect(() => {
     const devBypass =
-      process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+      process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true" ||
+      process.env.NODE_ENV === "development";
 
     if (devBypass) {
       setName("Dev User");

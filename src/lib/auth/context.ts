@@ -34,6 +34,8 @@ function isDevBypass(): boolean {
 }
 
 export async function getAuthContext(): Promise<AuthContext> {
+  // TEMPORARY: login bypass — returns a signed-in context without Supabase session.
+  // Real auth path below is unchanged. Flip off via AUTH_LOGIN_REQUIRED=true (see lib/auth/dev.ts).
   if (isDevBypass()) {
     if (isDevMockAuthEnabled()) {
       return getDevAuthContext();
@@ -61,6 +63,7 @@ export async function getAuthContext(): Promise<AuthContext> {
     };
   }
 
+  // --- Real Supabase auth (kept for later) ---
   const supabase = await createClient();
   const {
     data: { user },

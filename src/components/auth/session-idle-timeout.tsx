@@ -7,8 +7,10 @@ import { useRouter } from "next/navigation";
 const IDLE_MS = 60 * 60 * 1000;
 const ACTIVITY_EVENTS = ["mousedown", "keydown", "scroll", "touchstart", "click"] as const;
 
+// TEMPORARY: match auth bypass — idle logout disabled while login walls are off.
 const devBypass =
-  process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+  process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true" ||
+  process.env.NODE_ENV === "development";
 
 export function SessionIdleTimeout() {
   const router = useRouter();
