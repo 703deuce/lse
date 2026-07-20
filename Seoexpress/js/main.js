@@ -74,7 +74,7 @@
 
   /* Close mobile menu on resize */
   window.addEventListener('resize', function () {
-    if (window.innerWidth > 768 && mainNav) {
+    if (window.innerWidth > 1024 && mainNav) {
       mainNav.classList.remove('open');
       if (mobileToggle) {
         mobileToggle.classList.remove('active');

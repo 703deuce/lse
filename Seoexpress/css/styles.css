@@ -45,6 +45,7 @@
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
+  overflow-x: clip;
 }
 
 body {
@@ -54,6 +55,7 @@ body {
   color: var(--gray-600);
   background: var(--canvas);
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
 }
 
 h1, h2, h3, h4, .logo, .btn {
@@ -1389,13 +1391,18 @@ ul {
     justify-content: flex-start;
     padding: 16px 24px 32px;
     transform: translateX(100%);
-    transition: transform 0.3s ease;
+    transition: transform 0.3s ease, visibility 0.3s ease;
     overflow-y: auto;
+    overflow-x: hidden;
     z-index: 999;
+    visibility: hidden;
+    pointer-events: none;
   }
 
   .main-nav.open {
     transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
   }
 
   .nav-list {
