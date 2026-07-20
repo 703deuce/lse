@@ -99,9 +99,13 @@
   z-index: 1;
   max-width: none;
   margin: 0;
-  text-align: center;
+  text-align: left;
   padding: 4px 0;
   animation: hero-fade 0.7s ease both;
+}
+.tool-hero h1,
+.tool-hero-problem {
+  text-align: right;
 }
 .tool-hero h1 {
   font-family: var(--font-display);
@@ -122,14 +126,15 @@
   letter-spacing: -0.015em;
 }
 .tool-hero-sub {
-  margin: 0 auto 14px;
+  margin: 0 0 14px;
   max-width: 42ch;
   font-size: 15px;
   line-height: 1.55;
   color: var(--gray-600);
+  text-align: left;
 }
 .tool-hero-proof {
-  margin: 0 auto 22px;
+  margin: 0 0 22px;
   max-width: 42ch;
   padding: 10px 14px;
   font-size: 14px;
@@ -144,7 +149,7 @@
 .tool-hero-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 12px;
 }
 .tool-hero-visual {
@@ -432,32 +437,9 @@
   background: #e8edf1;
 }
 .tool-section-header {
-  text-align: center;
+  text-align: left;
   max-width: 680px;
   margin: 0 auto 48px;
-}
-/* Toward image when image is on the left (text sits in the right column) */
-.tool-section-header--left,
-.layout-23-13 > .tool-section-header {
-  text-align: left;
-  margin-left: 0;
-  margin-right: 0;
-  max-width: none;
-}
-/* Toward image when image is on the right (text sits in the left column) */
-.tool-section-header--right,
-.layout-13-23 > .tool-section-header {
-  text-align: right;
-  margin-left: 0;
-  margin-right: 0;
-  max-width: none;
-}
-/* 50/50 copy columns stay centered */
-.layout-5050 > .tool-section-header {
-  text-align: center;
-  margin-left: 0;
-  margin-right: 0;
-  max-width: none;
 }
 .tool-section-header h2 {
   font-family: var(--font-display);
@@ -466,11 +448,13 @@
   color: var(--text-dark);
   letter-spacing: -0.03em;
   margin-bottom: 14px;
+  text-align: center; /* full-width default */
 }
 .tool-section-header p {
   font-size: 16px;
   color: var(--gray-600);
   line-height: 1.65;
+  text-align: left; /* body copy always left */
 }
 .tool-section-header p + p {
   margin-top: 12px;
@@ -501,10 +485,42 @@
   gap: 24px;
   align-items: stretch;
 }
+
+/* Full-width blocks: heading centered, paragraphs left */
 .layout-full {
   max-width: 820px;
   margin: 0 auto;
+  text-align: left;
+}
+.layout-full h2 {
   text-align: center;
+}
+
+/* Split headers: fill the column */
+.layout-5050 > .tool-section-header,
+.layout-23-13 > .tool-section-header,
+.layout-13-23 > .tool-section-header,
+.tool-section-header--left,
+.tool-section-header--right {
+  margin-left: 0;
+  margin-right: 0;
+  max-width: none;
+}
+
+/*
+  Headings face the other column (toward the image):
+  - text on LEFT  → headings RIGHT
+  - text on RIGHT → headings LEFT
+  Body paragraphs stay left-aligned always.
+*/
+.layout-5050 > .tool-section-header h2,
+.layout-13-23 > .tool-section-header h2,
+.tool-section-header--right h2 {
+  text-align: right;
+}
+.layout-23-13 > .tool-section-header h2,
+.tool-section-header--left h2 {
+  text-align: left;
 }
 
 /* Mid-page banners */
@@ -1589,12 +1605,23 @@
   .tool-hero-visual img {
     max-height: min(360px, 48vh);
   }
-  .tool-section-header--left,
-  .tool-section-header--right,
-  .layout-23-13 > .tool-section-header,
-  .layout-13-23 > .tool-section-header,
-  .layout-5050 > .tool-section-header {
+  /* Stacked: no side-by-side image, so center headings */
+  .tool-hero h1,
+  .tool-hero-problem,
+  .layout-5050 > .tool-section-header h2,
+  .layout-13-23 > .tool-section-header h2,
+  .layout-23-13 > .tool-section-header h2,
+  .tool-section-header--right h2,
+  .tool-section-header--left h2 {
     text-align: center;
+  }
+  .tool-hero-sub,
+  .tool-hero-proof,
+  .tool-section-header p {
+    text-align: left;
+  }
+  .tool-hero-actions {
+    justify-content: center;
   }
   .tool-triple,
   .tool-icon-row,
