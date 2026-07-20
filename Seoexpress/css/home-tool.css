@@ -1,14 +1,14 @@
 /* Homepage – Google Maps Grid Rank Tracker (SaaS tool) */
 .page-tool {
-  --tool-blue: #0066FF;
-  --tool-blue-dark: #0052CC;
-  --tool-blue-light: #E8F1FF;
+  --tool-blue: #137752;
+  --tool-blue-dark: #0f6344;
+  --tool-blue-light: #ecfdf5;
   --rank-green: #22c55e;
   --rank-yellow: #f59e0b;
   --rank-orange: #f97316;
   --rank-red: #ef4444;
-  --text-dark: #1A202C;
-  --section-gray: #F8F9FA;
+  --text-dark: #0b1220;
+  --section-gray: #f3f5f7;
 }
 .page-tool {
   --blue-600: var(--tool-blue);
@@ -20,6 +20,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  font-family: var(--font-display);
 }
 .page-tool .logo-pin {
   width: 28px;
@@ -33,7 +34,7 @@
 .page-tool .header-actions {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
   flex-shrink: 0;
 }
 .page-tool .header-signin {
@@ -48,43 +49,137 @@
 .page-tool .btn-primary {
   background: var(--tool-blue);
   border-color: var(--tool-blue);
-  border-radius: 8px;
+  border-radius: 999px;
 }
 .page-tool .btn-primary:hover {
   background: var(--tool-blue-dark);
   border-color: var(--tool-blue-dark);
-  box-shadow: 0 4px 14px rgba(0, 102, 255, 0.35);
+  box-shadow: 0 4px 14px rgba(19, 119, 82, 0.32);
 }
 .page-tool .btn-outline {
-  border-radius: 8px;
-  border-color: var(--gray-200);
+  border-radius: 999px;
+  border-color: rgba(15, 23, 42, 0.12);
 }
 .page-tool .btn-outline:hover {
-  border-color: var(--tool-blue);
+  border-color: rgba(19, 119, 82, 0.35);
   color: var(--tool-blue-dark);
 }
 .page-tool .btn-sm {
   padding: 10px 18px;
   font-size: 13px;
 }
-/* ---- Hero ---- */
+
+/* ---- Hero: brand-first, full-bleed product ---- */
 .tool-hero {
-  padding: 56px 0 72px;
-  background: var(--white);
+  position: relative;
+  padding: 48px 0 0;
+  overflow: hidden;
+  background: transparent;
 }
+.tool-hero-atmosphere {
+  position: absolute;
+  inset: 0 0 28%;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 55% at 18% 10%, rgba(19, 119, 82, 0.14), transparent 58%),
+    radial-gradient(ellipse 55% 45% at 88% 18%, rgba(15, 99, 68, 0.08), transparent 55%),
+    linear-gradient(180deg, #eef5f1 0%, var(--section-gray) 55%, #e8eef2 100%);
+  z-index: 0;
+}
+.tool-hero-intro {
+  position: relative;
+  z-index: 1;
+  max-width: 780px;
+  margin: 0 auto;
+  text-align: center;
+  padding-bottom: 36px;
+}
+.tool-hero-brand {
+  margin: 0 0 16px;
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 5vw, 3.4rem);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+  color: var(--text-dark);
+}
+.tool-hero-brand::after {
+  content: '';
+  display: block;
+  width: 48px;
+  height: 4px;
+  margin: 16px auto 0;
+  border-radius: 999px;
+  background: var(--tool-blue);
+}
+.tool-hero h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 2.4vw, 1.55rem);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--gray-600);
+  letter-spacing: -0.02em;
+  margin: 0 0 12px;
+}
+.tool-hero-sub {
+  margin: 0 auto 28px;
+  max-width: 480px;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--gray-500);
+}
+.tool-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+.tool-hero-bleed {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  width: 100%;
+}
+.tool-hero-bleed::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28%;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 0%, rgba(243, 245, 247, 0.55) 70%, var(--section-gray) 100%);
+  z-index: 1;
+}
+.tool-hero-bleed img {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  animation: hero-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.tool-hero-intro {
+  animation: hero-fade 0.7s ease both;
+}
+@keyframes hero-fade {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Legacy split hero helpers (kept for older pages) */
 .tool-hero-grid {
   display: grid;
   grid-template-columns: 1fr 1.05fr;
   gap: 56px;
   align-items: center;
-}
-.tool-hero h1 {
-  font-size: clamp(2.125rem, 4.2vw, 2.875rem);
-  font-weight: 800;
-  line-height: 1.12;
-  color: var(--text-dark);
-  letter-spacing: -0.03em;
-  margin-bottom: 20px;
 }
 .tool-hero-lead {
   font-size: 17px;
@@ -95,18 +190,6 @@
 .tool-hero-lead strong {
   color: var(--text-dark);
   font-weight: 600;
-}
-.tool-hero-sub {
-  font-size: 15px;
-  color: var(--gray-500);
-  margin-bottom: 28px;
-  line-height: 1.6;
-}
-.tool-hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 20px;
 }
 .btn-play {
   gap: 10px;
@@ -147,9 +230,9 @@
   width: 100%;
   height: auto;
   display: block;
-  border-radius: 12px;
-  border: 1px solid var(--gray-200);
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.1);
 }
 
 .competitor-showcase {
@@ -346,22 +429,24 @@
 }
 /* ---- Sections ---- */
 .tool-section {
-  padding: 80px 0;
+  padding: 88px 0;
+  background: var(--white);
 }
 .tool-section--alt {
   background: var(--section-gray);
 }
 .tool-section-header {
   text-align: center;
-  max-width: 720px;
+  max-width: 680px;
   margin: 0 auto 48px;
 }
 .tool-section-header h2 {
+  font-family: var(--font-display);
   font-size: clamp(1.625rem, 3vw, 2.125rem);
-  font-weight: 800;
+  font-weight: 750;
   color: var(--text-dark);
-  letter-spacing: -0.02em;
-  margin-bottom: 16px;
+  letter-spacing: -0.03em;
+  margin-bottom: 14px;
 }
 .tool-section-header p {
   font-size: 16px;
@@ -422,6 +507,17 @@
   justify-content: center;
   flex-shrink: 0;
 }
+.section-location-shot {
+  margin: 0;
+}
+.section-location-shot img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+}
 .location-grid-card {
   background: var(--white);
   border: 1px solid var(--gray-200);
@@ -456,33 +552,35 @@
   gap: 20px;
 }
 .tool-icon-card {
-  background: var(--white);
-  border: 1px solid var(--gray-200);
-  border-radius: 12px;
-  padding: 28px 22px;
-  text-align: center;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 8px 10px;
+  text-align: left;
+  box-shadow: none;
 }
 .tool-section--alt .tool-icon-card {
-  background: var(--white);
+  background: transparent;
 }
 .tool-icon-card-icon {
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
   background: var(--tool-blue-light);
-  border-radius: 50%;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 16px;
+  margin: 0 0 14px;
   color: var(--tool-blue);
 }
 .tool-icon-card h3 {
-  font-size: 14px;
+  font-family: var(--font-display);
+  font-size: 15px;
   font-weight: 700;
   color: var(--text-dark);
   margin-bottom: 8px;
-  line-height: 1.4;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
 }
 .tool-icon-card p {
   font-size: 13px;
@@ -1121,9 +1219,9 @@
 /* Final CTA banner */
 .tool-cta-banner {
   background:
-    linear-gradient(135deg, var(--tool-blue) 0%, var(--tool-blue-dark) 100%),
-    repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(255,255,255,0.03) 20px, rgba(255,255,255,0.03) 40px);
-  padding: 64px 0;
+    radial-gradient(ellipse 60% 80% at 12% 20%, rgba(255,255,255,0.12), transparent 55%),
+    linear-gradient(135deg, #137752 0%, #0b4f36 100%);
+  padding: 72px 0;
 }
 .tool-cta-banner-inner {
   display: flex;
@@ -1166,14 +1264,15 @@
 }
 .btn-white {
   background: var(--white);
-  color: var(--tool-blue);
+  color: var(--tool-blue-dark);
   border-color: var(--white);
-  border-radius: 8px;
+  border-radius: 999px;
+  box-shadow: 0 4px 16px rgba(11, 18, 32, 0.12);
 }
 .btn-white:hover {
-  background: var(--tool-blue-light);
+  background: #f0fdf4;
   color: var(--tool-blue-dark);
-  border-color: var(--tool-blue-light);
+  border-color: #f0fdf4;
 }
 .tool-cta-secondary {
   font-size: 14px;
@@ -1264,7 +1363,15 @@
     display: none;
   }
   .tool-hero {
-    padding: 32px 0 48px;
+    padding: 28px 0 0;
+  }
+  .tool-hero-intro {
+    padding-bottom: 24px;
+  }
+  .tool-hero-bleed img {
+    max-height: min(52vh, 420px);
+    object-fit: cover;
+    object-position: center top;
   }
   .tool-section {
     padding: 56px 0;
