@@ -69,35 +69,44 @@
   font-size: 13px;
 }
 
-/* ---- Hero: brand-first, full-bleed product ---- */
+/* ---- Hero: brand-first split — copy left, product right (~2/5 · 3/5) ---- */
 .tool-hero {
   position: relative;
-  padding: 48px 0 0;
+  padding: 56px 0 64px;
   overflow: hidden;
   background: transparent;
 }
 .tool-hero-atmosphere {
   position: absolute;
-  inset: 0 0 28%;
+  inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 70% 55% at 18% 10%, rgba(19, 119, 82, 0.14), transparent 58%),
-    radial-gradient(ellipse 55% 45% at 88% 18%, rgba(15, 99, 68, 0.08), transparent 55%),
+    radial-gradient(ellipse 55% 70% at 12% 35%, rgba(19, 119, 82, 0.14), transparent 60%),
+    radial-gradient(ellipse 50% 55% at 88% 40%, rgba(15, 99, 68, 0.09), transparent 58%),
     linear-gradient(180deg, #eef5f1 0%, var(--section-gray) 55%, #e8eef2 100%);
   z-index: 0;
+}
+.tool-hero-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.45fr);
+  gap: clamp(28px, 4vw, 56px);
+  align-items: center;
 }
 .tool-hero-intro {
   position: relative;
   z-index: 1;
-  max-width: 780px;
-  margin: 0 auto;
-  text-align: center;
-  padding-bottom: 36px;
+  max-width: 440px;
+  margin: 0;
+  text-align: left;
+  padding: 8px 0;
+  animation: hero-fade 0.7s ease both;
 }
 .tool-hero-brand {
-  margin: 0 0 16px;
+  margin: 0 0 18px;
   font-family: var(--font-display);
-  font-size: clamp(2.4rem, 5vw, 3.4rem);
+  font-size: clamp(2.15rem, 4.2vw, 3.15rem);
   font-weight: 800;
   letter-spacing: -0.045em;
   line-height: 1.05;
@@ -108,13 +117,13 @@
   display: block;
   width: 48px;
   height: 4px;
-  margin: 16px auto 0;
+  margin: 16px 0 0;
   border-radius: 999px;
   background: var(--tool-blue);
 }
 .tool-hero h1 {
   font-family: var(--font-display);
-  font-size: clamp(1.2rem, 2.4vw, 1.55rem);
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
   font-weight: 600;
   line-height: 1.35;
   color: var(--gray-600);
@@ -122,8 +131,8 @@
   margin: 0 0 12px;
 }
 .tool-hero-sub {
-  margin: 0 auto 28px;
-  max-width: 480px;
+  margin: 0 0 28px;
+  max-width: 36ch;
   font-size: 16px;
   line-height: 1.55;
   color: var(--gray-500);
@@ -131,55 +140,34 @@
 .tool-hero-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 12px;
 }
-.tool-hero-bleed {
+.tool-hero-visual {
   position: relative;
   z-index: 1;
   margin: 0;
-  width: 100%;
-}
-.tool-hero-bleed::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 28%;
-  pointer-events: none;
-  background: linear-gradient(180deg, transparent 0%, rgba(243, 245, 247, 0.55) 70%, var(--section-gray) 100%);
-  z-index: 1;
-}
-.tool-hero-bleed img {
-  display: block;
-  width: 100%;
-  max-width: none;
-  height: auto;
-  margin: 0;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
+  min-width: 0;
   animation: hero-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.tool-hero-intro {
-  animation: hero-fade 0.7s ease both;
+.tool-hero-visual img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(460px, 58vh);
+  object-fit: cover;
+  object-position: left center;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 22px 56px rgba(15, 23, 42, 0.14);
 }
 @keyframes hero-fade {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 @keyframes hero-rise {
-  from { opacity: 0; transform: translateY(28px); }
+  from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-/* Legacy split hero helpers (kept for older pages) */
-.tool-hero-grid {
-  display: grid;
-  grid-template-columns: 1fr 1.05fr;
-  gap: 56px;
-  align-items: center;
 }
 .tool-hero-lead {
   font-size: 17px;
@@ -219,13 +207,11 @@
   margin-top: 1px;
 }
 
-/* Product screenshots */
-.tool-hero-visual,
+/* Product screenshots (non-hero) */
 .tool-screenshot {
   margin: 0;
 }
 
-.tool-hero-visual img,
 .tool-screenshot img {
   width: 100%;
   height: auto;
@@ -1327,6 +1313,15 @@
   .report-preview {
     grid-template-columns: 1fr;
   }
+  .tool-hero {
+    padding: 40px 0 48px;
+  }
+  .tool-hero-intro {
+    max-width: 560px;
+  }
+  .tool-hero-visual img {
+    max-height: min(420px, 52vh);
+  }
   .grid-dashboard-body {
     grid-template-columns: 1fr;
   }
@@ -1363,15 +1358,14 @@
     display: none;
   }
   .tool-hero {
-    padding: 28px 0 0;
+    padding: 28px 0 36px;
   }
   .tool-hero-intro {
-    padding-bottom: 24px;
+    padding: 0;
   }
-  .tool-hero-bleed img {
-    max-height: min(52vh, 420px);
-    object-fit: cover;
-    object-position: center top;
+  .tool-hero-visual img {
+    max-height: min(280px, 42vh);
+    object-position: left top;
   }
   .tool-section {
     padding: 56px 0;
