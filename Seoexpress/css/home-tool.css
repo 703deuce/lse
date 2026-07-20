@@ -610,6 +610,15 @@
   max-width: 1100px;
   margin: 0 auto;
 }
+.shot-frame--constrained {
+  max-width: 920px;
+  margin: 0 auto;
+}
+.shot-frame--constrained img {
+  max-height: 520px;
+  object-fit: cover;
+  object-position: top center;
+}
 .shot-frame--card {
   border-radius: 14px;
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
@@ -697,6 +706,49 @@
   columns: 1;
   max-width: 420px;
   margin: 0;
+}
+
+/* Icon benefit grids */
+.icon-benefit-row {
+  margin-top: 8px;
+}
+.icon-benefit {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  padding: 24px 22px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+  min-width: 0;
+}
+.tool-section--soft .icon-benefit,
+.tool-section--alt .icon-benefit {
+  background: #fff;
+}
+.icon-benefit-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  color: var(--tool-blue);
+  background: var(--tool-blue-light);
+  border: 1px solid rgba(19, 119, 82, 0.12);
+}
+.icon-benefit h3 {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-dark);
+  letter-spacing: -0.02em;
+}
+.icon-benefit p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--gray-600);
 }
 .location-grid-card {
   background: var(--white);
@@ -1509,7 +1561,8 @@
   .layout-333,
   .competitor-showcase,
   .growth-plan-grid,
-  .report-preview {
+  .report-preview,
+  .icon-benefit-row {
     grid-template-columns: 1fr;
   }
   .tool-hero {
