@@ -99,7 +99,7 @@
   z-index: 1;
   max-width: none;
   margin: 0;
-  text-align: left;
+  text-align: center;
   padding: 4px 0;
   animation: hero-fade 0.7s ease both;
 }
@@ -122,14 +122,14 @@
   letter-spacing: -0.015em;
 }
 .tool-hero-sub {
-  margin: 0 0 14px;
+  margin: 0 auto 14px;
   max-width: 42ch;
   font-size: 15px;
   line-height: 1.55;
   color: var(--gray-600);
 }
 .tool-hero-proof {
-  margin: 0 0 22px;
+  margin: 0 auto 22px;
   max-width: 42ch;
   padding: 10px 14px;
   font-size: 14px;
@@ -139,11 +139,12 @@
   background: rgba(19, 119, 82, 0.1);
   border-left: 3px solid var(--tool-blue);
   border-radius: 0 10px 10px 0;
+  text-align: left;
 }
 .tool-hero-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 12px;
 }
 .tool-hero-visual {
@@ -435,8 +436,25 @@
   max-width: 680px;
   margin: 0 auto 48px;
 }
-.tool-section-header--left {
+/* Toward image when image is on the left (text sits in the right column) */
+.tool-section-header--left,
+.layout-23-13 > .tool-section-header {
   text-align: left;
+  margin-left: 0;
+  margin-right: 0;
+  max-width: none;
+}
+/* Toward image when image is on the right (text sits in the left column) */
+.tool-section-header--right,
+.layout-13-23 > .tool-section-header {
+  text-align: right;
+  margin-left: 0;
+  margin-right: 0;
+  max-width: none;
+}
+/* 50/50 copy columns stay centered */
+.layout-5050 > .tool-section-header {
+  text-align: center;
   margin-left: 0;
   margin-right: 0;
   max-width: none;
@@ -1570,6 +1588,13 @@
   }
   .tool-hero-visual img {
     max-height: min(360px, 48vh);
+  }
+  .tool-section-header--left,
+  .tool-section-header--right,
+  .layout-23-13 > .tool-section-header,
+  .layout-13-23 > .tool-section-header,
+  .layout-5050 > .tool-section-header {
+    text-align: center;
   }
   .tool-triple,
   .tool-icon-row,
