@@ -46,7 +46,7 @@
   align-items: center;
   justify-content: center;
   padding: 32px 20px;
-  background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 55%, #bfdbfe 100%);
+  background: linear-gradient(145deg, #ecfdf5 0%, #dbeafe 55%, #bfdbfe 100%);
 }
 
 .about-owner-visual-bg::before {
@@ -63,7 +63,7 @@
   z-index: 1;
   width: 112px;
   height: 112px;
-  background: linear-gradient(135deg, var(--blue-600) 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, var(--blue-600) 0%, #0f6344 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
