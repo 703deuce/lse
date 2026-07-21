@@ -1,7 +1,8 @@
 import { requirePageAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
-import { PageHeader } from "@/components/ui/page-header";
+import { ModuleHeader, ModulePage } from "@/components/ui/design-system";
 import { OrgReportsHome } from "@/components/reports/org-reports-home";
+import { FileText } from "lucide-react";
 
 export default async function ReportsIndexPage() {
   const auth = await requirePageAuth();
@@ -16,12 +17,13 @@ export default async function ReportsIndexPage() {
   const active = (businesses ?? []).filter((b) => !b.archived_at);
 
   return (
-    <>
-      <PageHeader
+    <ModulePage>
+      <ModuleHeader
+        icon={FileText}
         title="Reports"
         subtitle="Drafts, published links, and monthly deliverables — the completion point of your client work."
       />
       <OrgReportsHome businesses={active} />
-    </>
+    </ModulePage>
   );
 }

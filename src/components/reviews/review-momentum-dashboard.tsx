@@ -47,7 +47,8 @@ import {
   formatChartDate,
   momentumCardClass,
 } from "@/components/reviews/review-momentum-ui";
-import { ModulePage, AlertBanner, btnSecondary } from "@/components/ui/design-system";
+import { ModulePage, AlertBanner } from "@/components/ui/design-system";
+import { ModuleEmptyState } from "@/components/journey/module-empty-state";
 import { KpiRow } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 
@@ -282,13 +283,13 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
       {error && <AlertBanner variant="error">{error}</AlertBanner>}
 
       {!data?.run ? (
-        <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-3.5 py-8 text-center text-[13px]">
-          <TrendingUp className="mx-auto h-10 w-10 text-zinc-400" />
-          <p className="mt-4 font-medium text-zinc-900">No momentum report yet.</p>
-          <p className="mt-1 text-[13px] text-zinc-500">
-            Run a grid scan first, then click Run Momentum Audit.
-          </p>
-        </div>
+        <ModuleEmptyState
+          icon={TrendingUp}
+          title="No momentum report yet"
+          description="Run a grid scan first, then click Run Momentum Audit."
+          actionLabel="Run Momentum Audit"
+          onAction={() => void runAudit()}
+        />
       ) : (
         <>
           {(data.run.warnings as string[])?.length > 0 && (

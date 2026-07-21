@@ -1,11 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Loader2, Plus } from "lucide-react";
-import { ModulePage } from "@/components/ui/design-system";
-import { PageHeader } from "@/components/ui/page-header";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2, Plus, Users } from "lucide-react";
+import {
+  ModuleHeader,
+  ModulePage,
+  btnPrimary,
+  btnSecondary,
+  cardClass,
+} from "@/components/ui/design-system";
 import { ReviewCampaignsUpgrade } from "@/components/reputation/review-campaigns-upgrade";
 import { ContactsImportWizard } from "@/components/reputation/contacts-import-wizard";
+import { ClientPager } from "@/components/ui/show-more-list";
+import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 5;
 
 type ContactRow = {
   id: string;
@@ -40,6 +49,7 @@ export function ContactsPageClient({
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
 
   const load = useCallback(
     async (opts?: { reset?: boolean; cursor?: string | null }) => {
@@ -80,6 +90,12 @@ export function ContactsPageClient({
     if (params.get("import") === "1") setShowImport(true);
   }, []);
 
+  const currentPage = Math.min(page, Math.max(1, Math.ceil(items.length / PAGE_SIZE)));
+  const pageItems = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return items.slice(start, start + PAGE_SIZE);
+  }, [items, currentPage]);
+
   if (!allowed) {
     return <ReviewCampaignsUpgrade businessId={businessId} />;
   }
@@ -119,29 +135,30 @@ export function ContactsPageClient({
 
   return (
     <ModulePage>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <PageHeader
-          title="Contacts"
-          subtitle="Customers eligible for review campaigns. Opted-out contacts stay suppressed even after CSV re-upload."
-        />
-        <div className="flex flex-wrap gap-1.5">
+      <ModuleHeader
+        icon={Users}
+        title="Contacts"
+        subtitle="Customers eligible for review campaigns. Opted-out contacts stay suppressed even after CSV re-upload."
+        actions={
+          <>
           <button
             type="button"
             onClick={() => setShowImport((v) => !v)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
+            className={cn(btnSecondary, "h-8 px-3 text-xs")}
           >
             Import CSV
           </button>
           <button
             type="button"
             onClick={() => setShowAdd((v) => !v)}
-            className="inline-flex items-center gap-1.5 rounded-full bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#0f6344]"
+            className={cn(btnPrimary, "h-8 px-3 text-xs")}
           >
             <Plus className="h-3.5 w-3.5" />
             Add Customer
           </button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <div className="mt-3 flex flex-wrap gap-2">
         <input
@@ -154,9 +171,10 @@ export function ContactsPageClient({
           type="button"
           onClick={() => {
             setCursor(null);
+            setPage(1);
             void load({ reset: true });
           }}
-          className="h-8 rounded-md border border-zinc-200 px-2.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
+          className={cn(btnSecondary, "h-8 px-3 text-xs")}
         >
           Search
         </button>
@@ -168,6 +186,7 @@ export function ContactsPageClient({
             businessId={businessId}
             onDone={() => {
               setCursor(null);
+              setPage(1);
               void load({ reset: true });
             }}
           />
@@ -175,7 +194,7 @@ export function ContactsPageClient({
       )}
 
       {showAdd && (
-        <div className="mt-3 grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 sm:grid-cols-4">
+        <div className={cn(cardClass, "mt-3 grid gap-2 p-3 sm:grid-cols-4")}>
           <input
             className="h-8 rounded-md border border-zinc-200 px-2 text-[13px]"
             placeholder="First name"
@@ -204,7 +223,7 @@ export function ContactsPageClient({
             type="button"
             disabled={saving}
             onClick={() => void saveContact()}
-            className="h-8 rounded-full bg-[#137752] px-2.5 text-[12px] font-semibold text-white disabled:opacity-60 sm:col-span-4 sm:w-fit"
+            className={cn(btnPrimary, "h-8 px-3 text-xs disabled:opacity-60 sm:col-span-4 sm:w-fit")}
           >
             {saving ? "Saving…" : "Save contact"}
           </button>
@@ -213,7 +232,7 @@ export function ContactsPageClient({
 
       {error && <p className="mt-2 text-[12px] text-red-600">{error}</p>}
 
-      <div className="mt-3 overflow-x-auto rounded-lg border border-zinc-200 bg-white">
+      <div className={cn(cardClass, "mt-3 overflow-x-auto")}>
         <table className="min-w-full text-left text-[12px]">
           <thead className="border-b border-zinc-100 bg-zinc-50/80 text-[10px] uppercase tracking-wide text-zinc-500">
             <tr>
@@ -225,7 +244,7 @@ export function ContactsPageClient({
             </tr>
           </thead>
           <tbody>
-            {items.map((c) => (
+            {pageItems.map((c) => (
               <tr key={c.id} className="border-b border-zinc-50">
                 <td className="px-2.5 py-1.5 font-medium text-zinc-900">
                   {c.customer_name ||
@@ -288,10 +307,11 @@ export function ContactsPageClient({
           <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
         </div>
       )}
+      <ClientPager page={currentPage} pageSize={PAGE_SIZE} total={items.length} onPageChange={setPage} />
       {nextCursor && (
         <button
           type="button"
-          className="mt-2 text-[12px] font-medium text-emerald-700 hover:underline"
+          className={cn(btnSecondary, "mt-2 h-8 px-3 text-xs")}
           onClick={() => {
             void load({ cursor: nextCursor });
           }}

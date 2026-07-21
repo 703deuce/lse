@@ -2,8 +2,8 @@ import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { hasEntitlement } from "@/lib/auth/entitlements";
 import { ReviewCampaignsUpgrade } from "@/components/reputation/review-campaigns-upgrade";
 import { TemplatesManager } from "@/components/reputation/templates-manager";
-import { ModulePage } from "@/components/ui/design-system";
-import { PageHeader } from "@/components/ui/page-header";
+import { ModuleHeader, ModulePage } from "@/components/ui/design-system";
+import { FileText } from "lucide-react";
 
 export default async function ReviewTemplatesPage({
   params,
@@ -17,7 +17,8 @@ export default async function ReviewTemplatesPage({
 
   return (
     <ModulePage>
-      <PageHeader
+      <ModuleHeader
+        icon={FileText}
         title="Templates"
         subtitle="Create, edit, and test SMS/email templates. Tracked {{review_link}} tokens redirect through /r/ then to Google."
       />

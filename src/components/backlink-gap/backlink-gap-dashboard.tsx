@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, X, ExternalLink } from "lucide-react";
+import { Link2, Loader2, X, ExternalLink } from "lucide-react";
 import { OpportunitiesPanel, type EnrichedOpportunity } from "@/components/backlink-gap/opportunities-panel";
 import { enrichOpportunities } from "@/lib/backlink-gap/enrich";
 import type { BusinessContext } from "@/lib/backlink-gap/enrich";
@@ -19,6 +19,7 @@ import {
   priorityBadge,
 } from "@/components/backlink-gap/backlink-gap-ui";
 import { ModulePage, AlertBanner } from "@/components/ui/design-system";
+import { ModuleEmptyState } from "@/components/journey/module-empty-state";
 import { BacklinkGapOverviewTab } from "@/components/backlink-gap/backlink-gap-overview-tab";
 import { BacklinkGapMatrixTab } from "@/components/backlink-gap/backlink-gap-matrix-tab";
 import { BacklinkGapTasksTab } from "@/components/backlink-gap/backlink-gap-tasks-tab";
@@ -220,13 +221,13 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
       )}
 
       {!loading && !run && (
-        <div className="rounded-xl border border-dashed border-border bg-white px-3.5 py-8 text-center text-[13px]">
-          <h2 className="text-[15px] font-semibold text-zinc-900">No Backlink Gap yet</h2>
-          <p className="mx-auto mt-2 max-w-md text-[13px] text-text-muted">
-            Compare your client with competitors to find local and industry backlink opportunities —
-            then save, create tasks, and include a summary in the next report.
-          </p>
-        </div>
+        <ModuleEmptyState
+          icon={Link2}
+          title="No Backlink Gap yet"
+          description="Compare your client with competitors to find local and industry backlink opportunities - then save, create tasks, and include a summary in the next report."
+          actionLabel="Run Backlink Gap"
+          onAction={() => void runGap(false)}
+        />
       )}
 
       {tab === "overview" && run && (

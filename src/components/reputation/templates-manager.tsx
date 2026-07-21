@@ -3,7 +3,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { renderTemplate } from "@/lib/reputation/template-vars";
+import {
+  ContentCard,
+  btnPrimary,
+  btnSecondary,
+} from "@/components/ui/design-system";
+import { ClientPager } from "@/components/ui/show-more-list";
 import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 5;
 
 type Template = {
   id: string;
@@ -29,6 +37,7 @@ export function TemplatesManager({ businessId }: { businessId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [testTo, setTestTo] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [templatePage, setTemplatePage] = useState(1);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -52,6 +61,15 @@ export function TemplatesManager({ businessId }: { businessId: string }) {
     () => templates.filter((t) => t.channel === channel),
     [templates, channel]
   );
+
+  const currentTemplatePage = Math.min(
+    templatePage,
+    Math.max(1, Math.ceil(channelTemplates.length / PAGE_SIZE))
+  );
+  const pageTemplates = useMemo(() => {
+    const start = (currentTemplatePage - 1) * PAGE_SIZE;
+    return channelTemplates.slice(start, start + PAGE_SIZE);
+  }, [channelTemplates, currentTemplatePage]);
 
   useEffect(() => {
     const preferred =
@@ -189,55 +207,68 @@ export function TemplatesManager({ businessId }: { businessId: string }) {
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      <div className="space-y-2 rounded-lg border border-zinc-200 bg-white p-3">
+      <ContentCard className="space-y-3">
         <div className="flex flex-wrap gap-1">
           {(["sms", "email"] as const).map((c) => (
             <button
               key={c}
               type="button"
-              onClick={() => setChannel(c)}
+              onClick={() => {
+                setChannel(c);
+                setTemplatePage(1);
+              }}
               className={cn(
-                "rounded-md px-2.5 py-1 text-[12px] font-medium uppercase",
-                channel === c ? "bg-emerald-600 text-white" : "bg-zinc-50 text-zinc-600"
+                "h-8 rounded-full px-3 text-xs font-semibold uppercase",
+                channel === c
+                  ? "bg-emerald-600 text-white"
+                  : "border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
               )}
             >
               {c}
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap gap-1">
-          {channelTemplates.map((t) => (
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-1">
+            {pageTemplates.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setActiveId(t.id)}
+                className={cn(
+                  "rounded-full border px-2.5 py-1 text-[11px] font-medium",
+                  activeId === t.id
+                    ? "border-emerald-600 bg-emerald-50 text-emerald-800"
+                    : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                )}
+              >
+                {t.name}
+                {t.is_default ? " ★" : ""}
+              </button>
+            ))}
             <button
-              key={t.id}
               type="button"
-              onClick={() => setActiveId(t.id)}
-              className={cn(
-                "rounded border px-2 py-1 text-[11px]",
-                activeId === t.id
-                  ? "border-emerald-600 text-emerald-800"
-                  : "border-zinc-200 text-zinc-600"
-              )}
+              className="rounded-full border border-dashed border-zinc-300 px-2.5 py-1 text-[11px] font-medium text-zinc-500 hover:bg-zinc-50"
+              onClick={() => {
+                setActiveId(null);
+                setName(`New ${channel} template`);
+                setSubject(channel === "email" ? "How was your experience?" : "");
+                setBody(
+                  channel === "sms"
+                    ? "Hi {{first_name}}, thanks for choosing {{business_name}}. Honest feedback welcome: {{review_link}} Reply STOP to opt out."
+                    : "Hi {{first_name}},\n\nThanks for choosing {{business_name}}. Leave honest feedback here:\n{{review_link}}"
+                );
+              }}
             >
-              {t.name}
-              {t.is_default ? " ★" : ""}
+              + New
             </button>
-          ))}
-          <button
-            type="button"
-            className="rounded border border-dashed border-zinc-300 px-2 py-1 text-[11px] text-zinc-500"
-            onClick={() => {
-              setActiveId(null);
-              setName(`New ${channel} template`);
-              setSubject(channel === "email" ? "How was your experience?" : "");
-              setBody(
-                channel === "sms"
-                  ? "Hi {{first_name}}, thanks for choosing {{business_name}}. Honest feedback welcome: {{review_link}} Reply STOP to opt out."
-                  : "Hi {{first_name}},\n\nThanks for choosing {{business_name}}. Leave honest feedback here:\n{{review_link}}"
-              );
-            }}
-          >
-            + New
-          </button>
+          </div>
+          <ClientPager
+            page={currentTemplatePage}
+            pageSize={PAGE_SIZE}
+            total={channelTemplates.length}
+            onPageChange={setTemplatePage}
+          />
         </div>
 
         {loading ? (
@@ -278,7 +309,7 @@ export function TemplatesManager({ businessId }: { businessId: string }) {
                 type="button"
                 disabled={saving}
                 onClick={() => void generateAi()}
-                className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-[12px] font-medium text-zinc-700"
+                className={cn(btnSecondary, "h-8 px-3 text-xs")}
               >
                 Generate with AI
               </button>
@@ -286,7 +317,7 @@ export function TemplatesManager({ businessId }: { businessId: string }) {
                 type="button"
                 disabled={saving}
                 onClick={() => void save(!activeId)}
-                className="rounded-full bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-60"
+                className={cn(btnPrimary, "h-8 px-3 text-xs disabled:opacity-60")}
               >
                 Save
               </button>
@@ -294,21 +325,21 @@ export function TemplatesManager({ businessId }: { businessId: string }) {
                 <>
                   <button
                     type="button"
-                    className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-[12px]"
+                    className={cn(btnSecondary, "h-8 px-3 text-xs")}
                     onClick={() => void act("set_default")}
                   >
                     Set default
                   </button>
                   <button
                     type="button"
-                    className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-[12px]"
+                    className={cn(btnSecondary, "h-8 px-3 text-xs")}
                     onClick={() => void act("duplicate")}
                   >
                     Duplicate
                   </button>
                   <button
                     type="button"
-                    className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-[12px] text-red-700"
+                    className={cn(btnSecondary, "h-8 px-3 text-xs text-red-700")}
                     onClick={() => void act("archive")}
                   >
                     Archive
@@ -327,7 +358,7 @@ export function TemplatesManager({ businessId }: { businessId: string }) {
                 type="button"
                 disabled={saving || !activeId || !testTo.trim()}
                 onClick={() => void testSend()}
-                className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-[12px] font-medium disabled:opacity-50"
+                className={cn(btnSecondary, "h-8 px-3 text-xs disabled:opacity-50")}
               >
                 Test send
               </button>
@@ -336,9 +367,9 @@ export function TemplatesManager({ businessId }: { businessId: string }) {
             {msg && <p className="text-[12px] text-emerald-700">{msg}</p>}
           </>
         )}
-      </div>
+      </ContentCard>
 
-      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+      <ContentCard className="bg-zinc-50">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
           Live preview
         </p>
@@ -362,7 +393,7 @@ export function TemplatesManager({ businessId }: { businessId: string }) {
         <p className="mt-3 text-[11px] text-zinc-500">
           Tokens: {"{{first_name}}"} {"{{business_name}}"} {"{{review_link}}"} {"{{location_name}}"}
         </p>
-      </div>
+      </ContentCard>
     </div>
   );
 }

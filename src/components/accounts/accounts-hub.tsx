@@ -6,15 +6,26 @@ import { useCallback, useEffect, useMemo, useState, type DragEvent } from "react
 import {
   Archive,
   ArrowRight,
+  Building2,
   FileText,
   Loader2,
   MapPin,
+  MoreHorizontal,
   Plus,
   Radar,
   RotateCcw,
   UserCheck,
+  Users,
 } from "lucide-react";
-import { PageHeader } from "@/components/ui/page-header";
+import {
+  ModuleHeader,
+  ModulePage,
+  btnPrimary,
+  btnSecondary,
+  listClass,
+} from "@/components/ui/design-system";
+import { ModuleEmptyState } from "@/components/journey/module-empty-state";
+import { ClientPager, ShowMoreList } from "@/components/ui/show-more-list";
 import {
   isClientRow,
   isProspectRow,
@@ -25,6 +36,9 @@ import {
   type ProspectPipelineStatus,
   type ProspectStatus,
 } from "@/lib/accounts/types";
+import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 5;
 
 function locationSubtitle(b: AccountListRow): string {
   return b.address_text?.trim() || b.scan_center_label?.trim() || b.primary_category || "—";
@@ -62,6 +76,7 @@ export function AccountsHub({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "archived">("all");
   const [clientFilter, setClientFilter] = useState<"active" | "archived">("active");
+  const [page, setPage] = useState(1);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -230,6 +245,12 @@ export function AccountsHub({
     return rows.filter(isProspectRow);
   }, [mode, rows, statusFilter, clientFilter]);
 
+  const currentPage = Math.min(page, Math.max(1, Math.ceil(list.length / PAGE_SIZE)));
+  const pagedList = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return list.slice(start, start + PAGE_SIZE);
+  }, [list, currentPage]);
+
   const prospectColumns = useMemo(() => {
     const columns: Record<ProspectPipelineStatus, AccountListRow[]> = {
       new: [],
@@ -279,8 +300,9 @@ export function AccountsHub({
   const newLabel = mode === "clients" ? "New client" : "New prospect";
 
   return (
-    <>
-      <PageHeader
+    <ModulePage>
+      <ModuleHeader
+        icon={mode === "clients" ? Building2 : Users}
         title={title}
         subtitle={subtitle}
         actions={
@@ -291,7 +313,7 @@ export function AccountsHub({
           ) : (
             <Link
               href={newHref}
-              className="inline-flex items-center gap-2 rounded-full bg-[#137752] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#0f6344]"
+              className={btnPrimary}
             >
               <Plus className="h-4 w-4" />
               {newLabel}
@@ -309,12 +331,18 @@ export function AccountsHub({
           <div className="flex gap-2">
             <FilterChip
               active={clientFilter === "active"}
-              onClick={() => setClientFilter("active")}
+              onClick={() => {
+                setClientFilter("active");
+                setPage(1);
+              }}
               label="Active"
             />
             <FilterChip
               active={clientFilter === "archived"}
-              onClick={() => setClientFilter("archived")}
+              onClick={() => {
+                setClientFilter("archived");
+                setPage(1);
+              }}
               label="Archived"
             />
           </div>
@@ -326,12 +354,18 @@ export function AccountsHub({
           </span>
           <FilterChip
             active={statusFilter === "all"}
-            onClick={() => setStatusFilter("all")}
+            onClick={() => {
+              setStatusFilter("all");
+              setPage(1);
+            }}
             label="Pipeline board"
           />
           <FilterChip
             active={statusFilter === "archived"}
-            onClick={() => setStatusFilter("archived")}
+            onClick={() => {
+              setStatusFilter("archived");
+              setPage(1);
+            }}
             label={`Archived${archivedProspectCount ? ` (${archivedProspectCount})` : ""}`}
           />
         </div>
@@ -356,18 +390,13 @@ export function AccountsHub({
         </div>
       ) : mode === "prospects" && statusFilter !== "archived" ? (
         activeProspectCount === 0 ? (
-          <div className="rounded-2xl border border-dashed border-zinc-200 bg-white/80 px-6 py-12 text-center shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
-            <MapPin className="mx-auto h-8 w-8 text-zinc-300" />
-            <h2 className="mt-3 text-base font-semibold text-zinc-900">{emptyTitle}</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-zinc-600">{emptyBody}</p>
-            <Link
-              href={newHref}
-              className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#137752] px-4 py-2 text-sm font-medium text-white hover:bg-[#0f6344]"
-            >
-              <Plus className="h-4 w-4" />
-              {newLabel}
-            </Link>
-          </div>
+          <ModuleEmptyState
+            icon={MapPin}
+            title={emptyTitle}
+            description={emptyBody}
+            actionLabel={newLabel}
+            actionHref={newHref}
+          />
         ) : (
           <ProspectKanban
             columns={prospectColumns}
@@ -380,21 +409,17 @@ export function AccountsHub({
           />
         )
       ) : list.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-zinc-200 bg-white/80 px-6 py-12 text-center shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
-          <MapPin className="mx-auto h-8 w-8 text-zinc-300" />
-          <h2 className="mt-3 text-base font-semibold text-zinc-900">{emptyTitle}</h2>
-          <p className="mx-auto mt-2 max-w-md text-sm text-zinc-600">{emptyBody}</p>
-          <Link
-            href={newHref}
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#137752] px-4 py-2 text-sm font-medium text-white hover:bg-[#0f6344]"
-          >
-            <Plus className="h-4 w-4" />
-            {newLabel}
-          </Link>
-        </div>
+        <ModuleEmptyState
+          icon={MapPin}
+          title={emptyTitle}
+          description={emptyBody}
+          actionLabel={newLabel}
+          actionHref={newHref}
+        />
       ) : (
-        <ul className="divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.06)]">
-          {list.map((b) => {
+        <div className="space-y-3">
+          <ul className={listClass}>
+            {pagedList.map((b) => {
             const dashboardHref = `/businesses/${b.id}/overview`;
             const detailHref =
               mode === "prospects" ? `/prospects/${b.id}` : `/clients/${b.id}`;
@@ -418,44 +443,33 @@ export function AccountsHub({
                     </p>
                   ) : null}
                 </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                   <Link
                     href={dashboardHref}
-                    className="rounded-full bg-[#137752] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#0f6344]"
+                    className={cn(btnPrimary, "h-8 px-3 text-xs")}
                   >
                     Dashboard
                   </Link>
                   <Link
                     href={detailHref}
-                    className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                    className={cn(btnSecondary, "h-8 px-3 text-xs")}
                   >
                     Details
                   </Link>
-                  <Link
-                    href={`/businesses/${b.id}/scans`}
-                    className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-                  >
-                    Scans
-                  </Link>
-                  <Link
-                    href={`/businesses/${b.id}/reports`}
-                    className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-                  >
-                    Reports
-                  </Link>
+                  <RowOverflowLinks businessId={b.id} />
                   {mode === "prospects" && !b.archived_at ? (
                     <button
                       type="button"
                       disabled={busyId === b.id}
                       onClick={() => void convertToClient(b.id)}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#137752] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#0f6344] disabled:opacity-50"
+                      className={cn(btnSecondary, "h-8 px-3 text-xs disabled:opacity-50")}
                     >
                       {busyId === b.id ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
                         <UserCheck className="h-3.5 w-3.5" />
                       )}
-                      Convert to client
+                      Convert
                     </button>
                   ) : null}
                   {mode === "clients" && clientFilter === "active" ? (
@@ -463,7 +477,7 @@ export function AccountsHub({
                       type="button"
                       disabled={busyId === b.id}
                       onClick={() => void archiveClient(b.id)}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+                      className={cn(btnSecondary, "h-8 px-3 text-xs disabled:opacity-50")}
                     >
                       {busyId === b.id ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -478,7 +492,7 @@ export function AccountsHub({
                       type="button"
                       disabled={busyId === b.id}
                       onClick={() => void restoreClient(b.id)}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#137752] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#0f6344] disabled:opacity-50"
+                      className={cn(btnSecondary, "h-8 px-3 text-xs disabled:opacity-50")}
                     >
                       {busyId === b.id ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -492,9 +506,41 @@ export function AccountsHub({
               </li>
             );
           })}
-        </ul>
+          </ul>
+          <ClientPager page={currentPage} pageSize={PAGE_SIZE} total={list.length} onPageChange={setPage} />
+        </div>
       )}
-    </>
+    </ModulePage>
+  );
+}
+
+function RowOverflowLinks({ businessId }: { businessId: string }) {
+  return (
+    <details className="relative">
+      <summary
+        className={cn(
+          btnSecondary,
+          "h-8 cursor-pointer list-none px-2.5 text-xs [&::-webkit-details-marker]:hidden"
+        )}
+      >
+        <MoreHorizontal className="h-3.5 w-3.5" />
+        More
+      </summary>
+      <div className="absolute right-0 z-20 mt-1 w-36 overflow-hidden rounded-xl border border-zinc-200 bg-white py-1 text-xs shadow-lg">
+        <Link
+          href={`/businesses/${businessId}/scans`}
+          className="block px-3 py-2 font-medium text-zinc-700 hover:bg-zinc-50"
+        >
+          Scans
+        </Link>
+        <Link
+          href={`/businesses/${businessId}/reports`}
+          className="block px-3 py-2 font-medium text-zinc-700 hover:bg-zinc-50"
+        >
+          Reports
+        </Link>
+      </div>
+    </details>
   );
 }
 
@@ -550,19 +596,23 @@ function ProspectKanban({
                   Drop prospects here
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {prospects.map((prospect) => (
-                    <ProspectCard
-                      key={prospect.id}
-                      prospect={prospect}
-                      busy={busyId === prospect.id}
-                      onDragStart={onDragStart}
-                      onDragEnd={onDragEnd}
-                      onMove={onMove}
-                      onConvert={onConvert}
-                    />
-                  ))}
-                </div>
+                <ShowMoreList
+                  items={prospects}
+                  renderItem={(item) => {
+                    const prospect = item as AccountListRow;
+                    return (
+                      <ProspectCard
+                        key={prospect.id}
+                        prospect={prospect}
+                        busy={busyId === prospect.id}
+                        onDragStart={onDragStart}
+                        onDragEnd={onDragEnd}
+                        onMove={onMove}
+                        onConvert={onConvert}
+                      />
+                    );
+                  }}
+                />
               )}
             </section>
           );

@@ -29,7 +29,7 @@ import {
 } from "@/components/backlink-gap/backlink-gap-ui";
 import { dashboardCard, dashboardCardTitle, dashboardControl, dashboardMicro } from "@/components/overview/dashboard-ui";
 
-const PAGE_SIZES = [10, 25, 50, 100] as const;
+const PAGE_SIZES = [5, 10, 25, 50, 100] as const;
 
 const COMPETITOR_COLORS = ["bg-sky-500", "bg-violet-500", "bg-amber-500", "bg-rose-500", "bg-teal-500"];
 
@@ -253,6 +253,7 @@ function Pagination({
       </span>
       <div className="flex items-center gap-2">
         <select className="rounded border border-zinc-200 px-2 py-0.5 text-[12px]" defaultValue={pageSize}>
+          <option value={5}>5 per page</option>
           <option value={10}>10 per page</option>
           <option value={25}>25 per page</option>
         </select>
@@ -315,7 +316,7 @@ export function OpportunitiesPanel({
   status: "open" | "ignored";
   onSelect: (o: EnrichedOpportunity) => void;
 }) {
-  const [pageSize, setPageSize] = useState<number>(25);
+  const [pageSize, setPageSize] = useState<number>(5);
   const [linkFilter, setLinkFilter] = useState<"all" | "dofollow" | "nofollow">("all");
   const [topicalFilter, setTopicalFilter] = useState<"all" | "topical" | "random">("all");
   const [priorityFilter, setPriorityFilter] = useState<"all" | "high" | "medium" | "low">("all");
