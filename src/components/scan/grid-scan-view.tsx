@@ -7,18 +7,23 @@ import {
   Crosshair,
   Eye,
   GitCompare,
+  History,
   Loader2,
   MapPinned,
+  RefreshCw,
   Target,
   TrendingDown,
+  Users,
 } from "lucide-react";
 import { createBrowserClient } from "@/lib/db/client";
-import { GridMetricCard, GridTopCellsGroup, KpiRow, StatusBadge } from "@/components/ui/metric-card";
+import { GridTopCellsGroup, StatusBadge } from "@/components/ui/metric-card";
+import { MockMetricCard, mock } from "@/components/mockup/ui";
 import {
   gridRankHeaderBtn,
   gridRankPageBg,
   gridRankWorkspaceClass,
 } from "@/components/scan/grid-rank-ui";
+import { cn } from "@/lib/utils";
 import { computeScanTrend, buildGridTopCompetitors, type ScanAggregateMetrics } from "@/lib/maps/grid";
 import { computeSolv, computeWeightedSolv, gridScanMeta } from "@/lib/maps/grid-metrics";
 import { GRID_COLOR_MODE_STORAGE_KEY, type GridColorMode } from "@/lib/maps/colors";
@@ -67,7 +72,6 @@ import {
 import type { MapInteractionMode } from "@/components/maps/scan-map";
 import type { GridCell } from "@/components/maps/scan-map";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 import { ScanExportMenu } from "@/components/reports/scan-export-menu";
 import { CancelScanButton } from "@/components/scan/cancel-active-scans-button";
 
@@ -933,6 +937,20 @@ export function GridScanView({
   }, [cells, inspectorCellId]);
 
   const headerBtn = gridRankHeaderBtn;
+  const scanFinished =
+    batch?.status === "ready" ||
+    batch?.status === "partial" ||
+    batch?.status === "rank_ready";
+  const scanTimestamp =
+    batch?.finished_at || batch?.created_at
+      ? new Date(String(batch.finished_at ?? batch.created_at)).toLocaleString(undefined, {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : null;
 
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", gridRankPageBg)}>
@@ -948,94 +966,101 @@ export function GridScanView({
           </button>
         </div>
       )}
-      <div className="border-b border-zinc-200/80 bg-white/90 px-3 py-2.5 backdrop-blur sm:px-5">
-            <div className="flex flex-wrap items-center justify-between gap-2.5">
-            <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <h1 className="text-[17px] font-bold tracking-tight text-zinc-900 sm:text-[19px]">
-                  Rank Grid
-                </h1>
-                {batch?.status ? <StatusBadge status={String(batch.status)} /> : null}
-                {enrichmentRunning ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900">
-                    <Loader2 className="h-3 w-3 animate-spin" /> Enriching…
-                  </span>
-                ) : null}
-                {scanActive ? <Loader2 className="h-4 w-4 animate-spin text-emerald-600" /> : null}
-              </div>
-              <div className="flex flex-wrap items-center gap-2 sm:border-l sm:border-zinc-200 sm:pl-3">
-                <button type="button" onClick={() => setCompareOpen(true)} className={headerBtn}>
-                  <GitCompare className="h-3.5 w-3.5" /> Compare
-                </button>
-                <Link href={`/businesses/${businessId}/scans`} className={headerBtn}>
-                  History
-                </Link>
-                <OpenReportWithStagingLink
-                  businessId={businessId}
-                  source="maps_scan"
-                  title={`Maps scan ${String((confidence as { keyword_label?: string }).keyword_label ?? "").trim() || activeScanId}`}
-                  href={`/businesses/${businessId}/grid/${activeScanId}`}
-                  meta={{ scanId: activeScanId }}
-                  reportType="single_scan"
-                  label="Add to report"
-                  className={headerBtn}
-                />
-                <Link
-                  href={`/businesses/${businessId}/campaigns`}
-                  className={headerBtn}
-                  title="Create or update a Maps campaign"
-                >
-                  Campaign
-                </Link>
-                <Link
-                  href={`/businesses/${businessId}/competitors`}
-                  className={headerBtn}
-                >
-                  Competitors
-                </Link>
-                {isDev && (
-                  <Link
-                    href={`/businesses/${businessId}/grid/${activeScanId}/debug`}
-                    className={headerBtn}
-                  >
-                    Debug Requests
-                  </Link>
-                )}
-              </div>
+      <div className="border-b border-[#E6EAF0] bg-white px-3 py-3 sm:px-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-[22px] font-bold tracking-tight text-[#101828] sm:text-[26px]">
+                Rank Grid
+              </h1>
+              {scanFinished ? (
+                <span className={mock.badgeGreen}>Scan Success</span>
+              ) : batch?.status ? (
+                <StatusBadge status={String(batch.status)} />
+              ) : null}
+              {enrichmentRunning ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#FFFAEB] px-2 py-0.5 text-[11px] font-semibold text-[#B54708]">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Enriching…
+                </span>
+              ) : null}
+              {scanActive ? <Loader2 className="h-4 w-4 animate-spin text-[#137752]" /> : null}
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={handleMoveGridToggle}
-                className={`${headerBtn} ${
-                  moveGridActive ? "border-blue-400 bg-blue-50 text-blue-800" : ""
-                }`}
+            {scanTimestamp ? (
+              <p className="mt-1 text-sm text-[#667085]">{scanTimestamp}</p>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href={`/businesses/${businessId}/scans`} className={headerBtn} title="Re-scan">
+              <RefreshCw className="h-3.5 w-3.5" /> Re-Scan
+            </Link>
+            <button type="button" onClick={() => setCompareOpen(true)} className={headerBtn}>
+              <GitCompare className="h-3.5 w-3.5" /> Compare
+            </button>
+            <Link href={`/businesses/${businessId}/scans`} className={headerBtn}>
+              <History className="h-3.5 w-3.5" /> History
+            </Link>
+            <OpenReportWithStagingLink
+              businessId={businessId}
+              source="maps_scan"
+              title={`Maps scan ${String((confidence as { keyword_label?: string }).keyword_label ?? "").trim() || activeScanId}`}
+              href={`/businesses/${businessId}/grid/${activeScanId}`}
+              meta={{ scanId: activeScanId }}
+              reportType="single_scan"
+              label="Reports"
+              className={headerBtn}
+            />
+            <Link
+              href={`/businesses/${businessId}/campaigns`}
+              className={headerBtn}
+              title="Create or update a Maps campaign"
+            >
+              Campaign
+            </Link>
+            <Link href={`/businesses/${businessId}/competitors`} className={headerBtn}>
+              <Users className="h-3.5 w-3.5" /> Competitors
+            </Link>
+            <button
+              type="button"
+              onClick={handleMoveGridToggle}
+              className={cn(
+                headerBtn,
+                moveGridActive && "border-[#84CAFF] bg-[#F0F9FF] text-[#026AA2]"
+              )}
+            >
+              <MapPinned className="h-4 w-4" /> Move Grid
+            </button>
+            <button
+              type="button"
+              onClick={handleSinglePointToggle}
+              className={cn(
+                headerBtn,
+                singlePointActive && "border-[#FEC84B] bg-[#FFFAEB] text-[#B54708]"
+              )}
+            >
+              <Crosshair className="h-4 w-4" /> Single-Point
+            </button>
+            {isDev && (
+              <Link
+                href={`/businesses/${businessId}/grid/${activeScanId}/debug`}
+                className={headerBtn}
               >
-                <MapPinned className="h-4 w-4" /> Move Grid
-              </button>
-              <button
-                type="button"
-                onClick={handleSinglePointToggle}
-                className={`${headerBtn} ${
-                  singlePointActive ? "border-amber-400 bg-amber-50 text-amber-800" : ""
-                }`}
-              >
-                <Crosshair className="h-4 w-4" /> Single-Point
-              </button>
-            </div>
+                Debug
+              </Link>
+            )}
           </div>
         </div>
+      </div>
 
-        <div className="flex-1 overflow-x-hidden overflow-y-auto px-3 py-3 sm:px-5">
+        <div className="flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-5">
         {!data ? (
-          <div className="flex items-center gap-2 text-zinc-500">
+          <div className="flex items-center gap-2 text-[#667085]">
             <Loader2 className="h-5 w-5 animate-spin" /> Loading scan…
           </div>
         ) : (
           <>
             {scanActive || waitingForMap ? (
-              <div className="mb-3 rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[12px] text-zinc-600">
-                <p className="font-semibold text-zinc-900">Scan queued / running</p>
+              <div className="mb-3 rounded-xl border border-[#E6EAF0] bg-white px-3 py-2.5 text-[12px] text-[#667085]">
+                <p className="font-semibold text-[#101828]">Scan queued / running</p>
                 <p className="mt-0.5">
                   This continues in the background. You can cancel it, return to the client, or start another scan.
                 </p>
@@ -1043,13 +1068,13 @@ export function GridScanView({
                   <CancelScanButton scanId={activeScanId} />
                   <Link
                     href={`/businesses/${businessId}/overview`}
-                    className="rounded-lg border border-zinc-200 px-2.5 py-1.5 font-medium text-zinc-700 hover:bg-zinc-50"
+                    className={cn(mock.btnSecondary, "h-8 px-2.5 text-[12px]")}
                   >
                     Return to Dashboard
                   </Link>
                   <Link
                     href={`/businesses/${businessId}/scans`}
-                    className="rounded-lg border border-zinc-200 px-2.5 py-1.5 font-medium text-zinc-700 hover:bg-zinc-50"
+                    className={cn(mock.btnSecondary, "h-8 px-2.5 text-[12px]")}
                   >
                     Start another scan
                   </Link>
@@ -1105,63 +1130,67 @@ export function GridScanView({
             ) : (
               <>
                 <div
-                  className={`mb-3 space-y-2 transition-opacity duration-300 ${
+                  className={`mb-4 space-y-3 transition-opacity duration-300 ${
                     timelineFetching ? "opacity-70" : "opacity-100"
                   }`}
                 >
-                  <KpiRow cols={4}>
-                    <GridMetricCard
-                      variant="primary"
+                  <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                    <MockMetricCard
                       label="SoLV"
                       value={`${solv}%`}
-                      sub="Top-3 map pack"
+                      hint="Top-3 map pack · Out of 100%"
                       icon={Target}
-                      iconWrapClassName="bg-emerald-50"
-                      iconClassName="text-emerald-600"
                     />
-                    <GridMetricCard
-                      label="Avg Rank"
+                    <MockMetricCard
+                      label="Avg. Rank"
                       value={displayMetrics.averageRank ?? "—"}
-                      sub={
+                      hint={
                         trend.avgRankDelta != null
-                          ? `${trend.avgRankDelta > 0 ? "↑" : "↓"} ${Math.abs(trend.avgRankDelta)} vs last`
+                          ? `Previous trend ${trend.avgRankDelta > 0 ? "↑" : "↓"} ${Math.abs(trend.avgRankDelta)}`
+                          : "Across settled cells"
+                      }
+                      icon={TrendingDown}
+                      trend={
+                        trend.avgRankDelta != null
+                          ? `${trend.avgRankDelta > 0 ? "↑" : "↓"} ${Math.abs(trend.avgRankDelta)}`
                           : undefined
                       }
-                      trendPositive={trend.avgRankDelta != null ? trend.avgRankDelta > 0 : undefined}
-                      icon={TrendingDown}
-                      iconWrapClassName="bg-sky-50"
-                      iconClassName="text-sky-600"
+                      trendPositive={
+                        trend.avgRankDelta != null ? trend.avgRankDelta > 0 : undefined
+                      }
                     />
-                    <GridMetricCard
+                    <MockMetricCard
                       label="Visibility"
                       value={`${displayMetrics.visibilityScore ?? 0}%`}
-                      sub={
+                      hint={
                         trend.visibilityDelta != null
-                          ? `${trend.visibilityDelta >= 0 ? "+" : ""}${trend.visibilityDelta}% vs last`
-                          : "Top-10 share"
+                          ? `vs last ${trend.visibilityDelta >= 0 ? "+" : ""}${trend.visibilityDelta}%`
+                          : "Top-10 share · Out of 100%"
+                      }
+                      icon={Eye}
+                      trend={
+                        trend.visibilityDelta != null
+                          ? `${trend.visibilityDelta >= 0 ? "+" : ""}${trend.visibilityDelta}%`
+                          : undefined
                       }
                       trendPositive={
                         trend.visibilityDelta != null ? trend.visibilityDelta >= 0 : undefined
                       }
-                      icon={Eye}
-                      iconWrapClassName="bg-emerald-50"
-                      iconClassName="text-emerald-600"
                     />
-                    <GridMetricCard
+                    <MockMetricCard
                       label="Weighted SoLV"
                       value={`${weightedSolv}%`}
-                      sub="Ranks 4–20"
+                      hint="Ranks 4–20 · Out of 100%"
                       icon={BarChart3}
-                      iconWrapClassName="bg-emerald-50"
-                      iconClassName="text-emerald-600"
                     />
-                  </KpiRow>
+                  </div>
                   <GridTopCellsGroup
                     top3={displayMetrics.top3Cells ?? 0}
                     top10={displayMetrics.top10Cells ?? 0}
                     top20={displayMetrics.top20Cells ?? 0}
                     total={displayMetrics.totalCells || totalGridCells}
                     top10Delta={trend.top10Delta}
+                    className="rounded-xl border-[#E6EAF0] shadow-[0_1px_2px_rgba(16,24,40,0.04)]"
                   />
                 </div>
 
@@ -1180,13 +1209,39 @@ export function GridScanView({
                 )}
 
                 {enrichmentRunning && progressMessage && (
-                  <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50/80 px-3.5 py-2 dark:border-amber-900 dark:bg-amber-950/40">
-                    <p className="text-xs text-amber-900 dark:text-amber-100">{progressMessage}</p>
+                  <div className="mb-3 rounded-lg border border-[#FEDF89] bg-[#FFFAEB] px-3.5 py-2">
+                    <p className="text-xs text-[#B54708]">{progressMessage}</p>
                   </div>
                 )}
 
                 {cells.length > 0 && mapReady && (
                   <div className="mb-3">
+                    <div className="mb-3 flex items-center gap-1 overflow-x-auto border-b border-[#E6EAF0]">
+                      <span className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#137752] text-white">
+                        <Target className="h-3.5 w-3.5" />
+                      </span>
+                      {(
+                        [
+                          { id: "map", label: "Map & Grid View" },
+                          { id: "competitors", label: "Top Competitors" },
+                          { id: "trends", label: "Ranking History" },
+                        ] as const
+                      ).map((tab) => (
+                        <a
+                          key={tab.id}
+                          href={`#rank-grid-${tab.id}`}
+                          className={cn(
+                            "-mb-px shrink-0 border-b-2 px-3 py-2 text-[13px] font-semibold transition-colors",
+                            tab.id === "map"
+                              ? "border-[#137752] text-[#137752]"
+                              : "border-transparent text-[#667085] hover:text-[#101828]"
+                          )}
+                        >
+                          {tab.label}
+                        </a>
+                      ))}
+                    </div>
+                    <div id="rank-grid-map">
                     <ScanTimelineSlider
                       businessId={businessId}
                       currentScanId={activeScanId}
@@ -1213,7 +1268,7 @@ export function GridScanView({
                         timelineFetching ? "opacity-75" : "opacity-100"
                       )}
                     >
-                      <div className="flex max-h-[42vh] min-h-0 w-full shrink-0 flex-col overflow-hidden border-b border-zinc-200/80 lg:max-h-none lg:h-full lg:w-[36%] lg:max-w-[440px] lg:border-b-0 lg:border-r">
+                      <div className="flex max-h-[42vh] min-h-0 w-full shrink-0 flex-col overflow-hidden border-b border-[#E6EAF0] lg:max-h-none lg:h-full lg:w-[36%] lg:max-w-[440px] lg:border-b-0 lg:border-r">
                         <CellInspectorDrawer
                           variant="panel"
                           alwaysVisible
@@ -1342,24 +1397,25 @@ export function GridScanView({
                         )}
                       </div>
                     </div>
-                    <p className="mt-3 text-center text-[12px] text-zinc-500">
+                    <p className="mt-3 text-center text-[12px] text-[#667085]">
                       ~{scanMeta.spacingMiles} miles between map pins
                       {notInPackCells > 0 ? ` · ${notInPackCells} cells outside local pack` : ""}
                       {" · Results open on the center pin · click any bubble to switch"}
                     </p>
+                    </div>
                   </div>
                 )}
               </>
             )}
 
             {loadedCells === 0 && !scanActive && (
-              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+              <div className="mt-4 rounded-lg border border-[#FEDF89] bg-[#FFFAEB] p-4 text-sm text-[#B54708]">
                 <p className="font-medium">No scan yet for this keyword</p>
                 <p className="mt-1">
                   Start a new scan from{" "}
                   <Link
                     href={`/businesses/${businessId}/scans`}
-                    className="font-semibold underline hover:text-amber-950"
+                    className="font-semibold underline hover:text-[#93370D]"
                   >
                     Rank Grid setup
                   </Link>{" "}
@@ -1373,7 +1429,7 @@ export function GridScanView({
               failedCellsCount === 0 &&
               displayMetrics.notFoundCells === displayMetrics.totalCells &&
               displayMetrics.totalCells > 0 && (
-              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
+              <div className="mt-4 rounded-lg border border-[#FECDCA] bg-[#FEF3F2] p-4 text-sm text-[#B42318]">
                 <p className="font-medium">No ranking data returned</p>
                 <p className="mt-1">
                   Rank data came back empty for every search point. The scan may still recover in
@@ -1384,12 +1440,13 @@ export function GridScanView({
             )}
 
             {entityKey === "you" && topCompetitors.length > 0 && (
-              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              <div id="rank-grid-competitors" className="mt-4 grid gap-3 scroll-mt-4 lg:grid-cols-2">
                 <GridScanCompetitorsTable
                   competitors={topCompetitors}
                   keyword={data?.primaryKeyword}
                   onSelectCompetitor={(key) => pinCompetitor(key)}
                 />
+                <div id="rank-grid-trends">
                 <GridScanTrendChart
                   businessId={businessId}
                   currentScanId={activeScanId}
@@ -1398,12 +1455,18 @@ export function GridScanView({
                   gridSize={gridSize}
                   radiusMeters={radiusMeters}
                 />
+                </div>
               </div>
             )}
 
             {activeScanId && mapReady ? (
-              <section className="mt-3 rounded-lg border border-zinc-200 bg-white p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-                <ScanExportMenu businessId={businessId} scanBatchId={activeScanId} />
+              <section className={cn(mock.card, "mt-4 p-4")}>
+                <p className={cn(mock.label, "mb-3")}>Downloads</p>
+                <ScanExportMenu
+                  businessId={businessId}
+                  scanBatchId={activeScanId}
+                  layout="row"
+                />
               </section>
             ) : null}
           </>

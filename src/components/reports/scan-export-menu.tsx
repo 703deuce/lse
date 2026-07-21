@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Download, FileText, Image, Loader2, MapPinned } from "lucide-react";
-import { btnSecondary } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
 import { useActiveJobStatus } from "@/components/jobs/use-active-job-status";
 import { isTerminalJobStatus } from "@/lib/jobs/active-job-status";
@@ -13,6 +12,8 @@ type Props = {
   businessId: string;
   scanBatchId: string;
   className?: string;
+  /** Horizontal footer row (mockup) or stacked list. */
+  layout?: "stack" | "row";
 };
 
 const ITEMS: Array<{
@@ -45,7 +46,12 @@ async function downloadSameOrigin(path: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export function ScanExportMenu({ businessId, scanBatchId, className }: Props) {
+export function ScanExportMenu({
+  businessId,
+  scanBatchId,
+  className,
+  layout = "stack",
+}: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busyKind, setBusyKind] = useState<ReportArtifactKind | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -139,8 +145,16 @@ export function ScanExportMenu({ businessId, scanBatchId, className }: Props) {
 
   return (
     <div className={cn("space-y-2", className)}>
-      <p className="text-[12px] font-medium text-zinc-700">Scan downloads</p>
-      <div className="flex flex-col gap-1.5">
+      {layout === "stack" ? (
+        <p className="text-[12px] font-medium text-[#344054]">Scan downloads</p>
+      ) : null}
+      <div
+        className={cn(
+          layout === "row"
+            ? "flex flex-wrap items-center gap-2"
+            : "flex flex-col gap-1.5"
+        )}
+      >
         {ITEMS.map((item) => {
           const Icon = item.icon;
           const itemBusy = busyKind === item.kind;
@@ -150,7 +164,10 @@ export function ScanExportMenu({ businessId, scanBatchId, className }: Props) {
               type="button"
               disabled={busy}
               onClick={() => void download(item.kind)}
-              className={cn(btnSecondary, "h-9 w-full justify-start px-3 text-[13px]")}
+              className={cn(
+                "inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#D0D5DD] bg-white px-3 text-[13px] font-semibold text-[#344054] transition hover:bg-[#F9FAFB] disabled:opacity-60",
+                layout === "stack" && "w-full justify-start"
+              )}
             >
               {itemBusy ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -164,7 +181,7 @@ export function ScanExportMenu({ businessId, scanBatchId, className }: Props) {
       </div>
       {error ? <p className="text-[12px] text-red-600">{error}</p> : null}
       {busyKind && jobId ? (
-        <p className="text-[11px] text-zinc-500">Generating… this can take up to a minute.</p>
+        <p className="text-[11px] text-[#667085]">Generating… this can take up to a minute.</p>
       ) : null}
     </div>
   );

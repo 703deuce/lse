@@ -2,11 +2,7 @@
 
 import type { StoredCompetitor } from "@/lib/maps/grid-entity";
 import { entityKeyFromParts } from "@/lib/maps/grid-entity";
-import {
-  dashboardCard,
-  dashboardCardTitle,
-  dashboardMicro,
-} from "@/components/overview/dashboard-ui";
+import { mock } from "@/components/mockup/ui";
 import { cn } from "@/lib/utils";
 
 export type TopCompetitorRow = StoredCompetitor & {
@@ -40,34 +36,30 @@ export function GridScanCompetitorsTable({
   if (!competitors.length) return null;
 
   return (
-    <div
-      className={cn(
-        dashboardCard,
-        "rounded-2xl border-zinc-200/80 p-4 shadow-[0_8px_30px_rgba(15,23,42,0.06)]",
-        className
-      )}
-    >
-      <h3 className={dashboardCardTitle}>Top competitors this scan</h3>
-      <p className={cn("mt-0.5", dashboardMicro)}>
+    <div className={cn(mock.cardPad, className)}>
+      <h3 className="text-[15px] font-bold tracking-tight text-[#101828]">
+        Top competitors this scan
+      </h3>
+      <p className="mt-0.5 text-[12px] text-[#667085]">
         Top-3 local pack{keyword ? ` · “${keyword}”` : ""}
       </p>
       <div className="mt-3 overflow-x-auto">
         <table className="min-w-full text-left text-[12px]">
-          <thead className="border-b border-zinc-100 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+          <thead className={cn(mock.tableHead, "border-b border-[#E6EAF0]")}>
             <tr>
               <th className="pb-2 pr-3">Competitor</th>
               <th className="pb-2 pr-3">Category</th>
               <th className="pb-2 text-right">Top 3 / SoLV</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-50">
+          <tbody className="divide-y divide-[#F2F4F7]">
             {competitors.map((c, i) => {
               const solv = Math.round((c.top3Appearances / c.totalCells) * 10000) / 100;
               return (
                 <tr key={c.cid ?? c.place_id ?? c.name ?? i}>
                   <td className="py-2.5 pr-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-zinc-100 ring-1 ring-zinc-200/80">
+                      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-[#F2F4F7] ring-1 ring-[#E6EAF0]">
                         {c.main_image ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -86,19 +78,19 @@ export function GridScanCompetitorsTable({
                       <button
                         type="button"
                         onClick={() => onSelectCompetitor(entityKeyFromParts(c), c)}
-                        className="text-left text-[13px] font-semibold text-zinc-900 hover:text-[#137752]"
+                        className="text-left text-[13px] font-semibold text-[#101828] hover:text-[#137752]"
                         title="View on map"
                       >
                         {c.name}
                       </button>
                     </div>
                   </td>
-                  <td className="py-2 pr-3 text-zinc-500">{c.category ?? "—"}</td>
-                  <td className="py-2 text-right tabular-nums text-zinc-600">
-                    <span className="font-semibold text-zinc-900">
+                  <td className="py-2 pr-3 text-[#667085]">{c.category ?? "—"}</td>
+                  <td className="py-2 text-right tabular-nums text-[#667085]">
+                    <span className="font-semibold text-[#101828]">
                       {c.top3Appearances}/{c.totalCells}
                     </span>{" "}
-                    cells · SoLV {solv}% · avg #{c.avgTop3Rank}
+                    · {solv}%
                   </td>
                 </tr>
               );

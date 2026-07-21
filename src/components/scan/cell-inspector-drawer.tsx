@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { rankLabel } from "@/lib/maps/grid-metrics";
 import { formatPriceLevel, type StoredCompetitor } from "@/lib/maps/grid-entity";
+import { haversineMiles } from "@/lib/maps/distance";
 import type { CellWhyResult } from "@/lib/maps/cell-why";
 import { GridStarRating, gridInspectorActionBtn } from "@/components/scan/grid-rank-ui";
 import { cn } from "@/lib/utils";
@@ -105,10 +106,67 @@ function justificationTexts(value: unknown): string[] {
     .filter((t): t is string => !!t?.trim());
 }
 
-function rankTone(rank: number): string {
-  if (rank <= 3) return "text-emerald-600";
-  if (rank <= 10) return "text-amber-600";
-  return "text-rose-500";
+/** Rank-colored ring around the profile bubble (replaces numbered 1/2/3 circles). */
+function rankRingColor(rank: number): string {
+  if (rank <= 3) return "#0B7A29";
+  if (rank <= 10) return "#D8BD31";
+  if (rank <= 20) return "#E86520";
+  return "#98A2B3";
+}
+
+function formatListingDistance(
+  listing: StoredCompetitor,
+  cellLat?: number | null,
+  cellLng?: number | null
+): string | null {
+  if (listing.lat == null || listing.lng == null || cellLat == null || cellLng == null) {
+    return null;
+  }
+  const miles = haversineMiles(cellLat, cellLng, listing.lat, listing.lng);
+  if (!Number.isFinite(miles)) return null;
+  if (miles < 0.05) return "0.0 mi";
+  return `${Math.round(miles * 10) / 10} mi`;
+}
+
+function ProfileRankBubble({
+  listing,
+  rank,
+  size = "md",
+}: {
+  listing: StoredCompetitor;
+  rank: number;
+  size?: "sm" | "md";
+}) {
+  const dim = size === "sm" ? "h-10 w-10" : "h-12 w-12";
+  const ring = rankRingColor(rank);
+  return (
+    <div
+      className={cn("relative shrink-0 overflow-hidden rounded-full bg-[#F2F4F7]", dim)}
+      style={{ boxShadow: `0 0 0 2.5px ${ring}` }}
+      title={`Rank ${rank}`}
+    >
+      {listing.main_image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={listing.main_image}
+          alt=""
+          className="h-full w-full object-cover"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-[#D0D5DD]">
+          <MapPin className={size === "sm" ? "h-4 w-4" : "h-5 w-5"} />
+        </div>
+      )}
+      <span
+        className="absolute -bottom-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white shadow-sm"
+        style={{ backgroundColor: ring }}
+      >
+        {rank}
+      </span>
+    </div>
+  );
 }
 
 function SerpListingCard({
@@ -116,175 +174,126 @@ function SerpListingCard({
   index,
   isTarget,
   compact = false,
+  cellLat,
+  cellLng,
 }: {
   listing: StoredCompetitor;
   index: number;
   isTarget: boolean;
   /** Denser row so ~5 listings fit above the fold in the Rank Grid rail. */
   compact?: boolean;
+  cellLat?: number | null;
+  cellLng?: number | null;
 }) {
   const rank = listing.rank ?? index + 1;
   const price = formatPriceLevel(listing.price_level);
   const justifications = justificationTexts(listing.local_justifications);
   const category = listing.category ?? listing.additional_categories?.[0] ?? null;
-
-  if (compact) {
-    return (
-      <article
-        className={cn(
-          "flex items-center gap-2 px-3 py-1.5 transition-colors",
-          isTarget ? "bg-emerald-50/70" : "hover:bg-zinc-50/80"
-        )}
-      >
-        <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-zinc-100 ring-1 ring-zinc-200/80">
-          {listing.main_image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={listing.main_image}
-              alt=""
-              className="h-full w-full object-cover"
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-zinc-300">
-              <MapPin className="h-3.5 w-3.5" />
-            </div>
-          )}
-        </div>
-        <span className={cn("w-4 shrink-0 text-[12px] font-bold tabular-nums", rankTone(rank))}>
-          {rank}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <h4 className="truncate text-[12px] font-semibold leading-tight text-zinc-900">
-              {listing.name ?? "Untitled listing"}
-            </h4>
-            {isTarget ? (
-              <span className="shrink-0 rounded-full bg-emerald-600 px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-white">
-                You
-              </span>
-            ) : null}
-            {price ? (
-              <span className="shrink-0 text-[10px] font-semibold text-zinc-400">{price}</span>
-            ) : null}
-          </div>
-          <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[10px] text-zinc-500">
-            <GridStarRating rating={listing.rating} reviewCount={listing.review_count} />
-            {category ? <span className="truncate">· {category}</span> : null}
-            {listing.total_photos != null && listing.total_photos > 0 ? (
-              <span className="inline-flex shrink-0 items-center gap-0.5 font-medium">
-                <Camera className="h-2.5 w-2.5" />
-                {listing.total_photos.toLocaleString()}
-              </span>
-            ) : null}
-          </div>
-        </div>
-        {listing.url ? (
-          <a
-            href={listing.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 rounded-full p-1.5 text-[#137752] hover:bg-emerald-50"
-            aria-label="Website"
-          >
-            <Globe className="h-3.5 w-3.5" />
-          </a>
-        ) : listing.phone ? (
-          <a
-            href={`tel:${listing.phone}`}
-            className="shrink-0 rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100"
-            aria-label="Call"
-          >
-            <Phone className="h-3.5 w-3.5" />
-          </a>
-        ) : null}
-      </article>
-    );
-  }
+  const distance = formatListingDistance(listing, cellLat, cellLng);
+  const addressParts = [listing.address_info?.address, listing.address_info?.city]
+    .filter(Boolean)
+    .join(", ");
+  const address = listing.address ?? (addressParts || null);
 
   return (
     <article
       className={cn(
-        "flex gap-2.5 px-3.5 py-2.5 transition-colors",
-        isTarget ? "bg-emerald-50/70" : "hover:bg-zinc-50/80"
+        "flex gap-2.5 transition-colors",
+        compact ? "items-start px-3 py-2" : "items-start px-3.5 py-2.5",
+        isTarget ? "bg-[#ECFDF3]/70" : "hover:bg-[#F9FAFB]"
       )}
     >
-      <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-zinc-100 ring-1 ring-zinc-200/80">
-        {listing.main_image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={listing.main_image}
-            alt=""
-            className="h-full w-full object-cover"
-            loading="lazy"
-            referrerPolicy="no-referrer"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-zinc-300">
-            <MapPin className="h-4 w-4" />
-          </div>
-        )}
-      </div>
+      <ProfileRankBubble listing={listing} rank={rank} size={compact ? "sm" : "md"} />
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-start gap-1.5">
-          <span className={cn("mt-0.5 w-5 shrink-0 text-[12px] font-bold tabular-nums", rankTone(rank))}>
-            {rank}
-          </span>
+        <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <h4 className="truncate text-[13px] font-semibold leading-snug text-zinc-900">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <h4
+                className={cn(
+                  "truncate font-semibold leading-snug text-[#101828]",
+                  compact ? "text-[12px]" : "text-[13px]"
+                )}
+              >
                 {listing.name ?? "Untitled listing"}
-                {isTarget ? (
-                  <span className="ml-1.5 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                    You
-                  </span>
-                ) : null}
               </h4>
+              {isTarget ? (
+                <span className="shrink-0 rounded-full bg-[#137752] px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-white">
+                  You
+                </span>
+              ) : null}
               {price ? (
-                <span className="shrink-0 text-[11px] font-semibold text-zinc-400">{price}</span>
+                <span className="shrink-0 text-[10px] font-semibold text-[#98A2B3]">{price}</span>
               ) : null}
             </div>
 
-            {category ? (
-              <p className="mt-0.5 truncate text-[11px] text-zinc-500">{category}</p>
-            ) : null}
-
-            <div className="mt-0.5">
+            <div
+              className={cn(
+                "mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[#667085]",
+                compact ? "text-[10px]" : "text-[11px]"
+              )}
+            >
               <GridStarRating rating={listing.rating} reviewCount={listing.review_count} />
-            </div>
-
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-zinc-500">
+              {category ? <span className="truncate">· {category}</span> : null}
+              {distance ? (
+                <span className="inline-flex shrink-0 items-center gap-0.5 font-medium tabular-nums">
+                  · <MapPin className="h-2.5 w-2.5" />
+                  {distance}
+                </span>
+              ) : null}
               {listing.total_photos != null && listing.total_photos > 0 ? (
-                <span className="inline-flex items-center gap-1 font-medium">
-                  <Camera className="h-3 w-3" />
+                <span className="inline-flex shrink-0 items-center gap-0.5 font-medium">
+                  · <Camera className="h-2.5 w-2.5" />
                   {listing.total_photos.toLocaleString()}
                 </span>
               ) : null}
-              {listing.phone ? (
-                <a href={`tel:${listing.phone}`} className="inline-flex items-center gap-1 hover:text-[#137752]">
-                  <Phone className="h-3 w-3" />
-                  Call
-                </a>
-              ) : null}
-              {listing.url ? (
-                <a
-                  href={listing.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 font-medium text-[#137752] hover:underline"
-                >
-                  <Globe className="h-3 w-3" />
-                  Site
-                </a>
-              ) : null}
             </div>
 
-            {justifications[0] ? (
-              <p className="mt-1 line-clamp-1 text-[11px] italic text-zinc-400">
+            {!compact && address ? (
+              <p className="mt-0.5 truncate text-[11px] text-[#98A2B3]">{address}</p>
+            ) : null}
+
+            {!compact && justifications[0] ? (
+              <p className="mt-1 line-clamp-1 text-[11px] italic text-[#98A2B3]">
                 {justifications[0]}
               </p>
+            ) : null}
+          </div>
+
+          <div className="flex shrink-0 items-center gap-0.5">
+            {listing.url ? (
+              <a
+                href={listing.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full p-1.5 text-[#137752] hover:bg-[#ECFDF3]"
+                aria-label="Website"
+                title="Website"
+              >
+                <Globe className="h-3.5 w-3.5" />
+              </a>
+            ) : null}
+            {listing.phone ? (
+              <a
+                href={`tel:${listing.phone}`}
+                className="rounded-full p-1.5 text-[#667085] hover:bg-[#F2F4F7]"
+                aria-label="Call"
+                title="Call"
+              >
+                <Phone className="h-3.5 w-3.5" />
+              </a>
+            ) : null}
+            {listing.place_id ? (
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=Google&query_place_id=${encodeURIComponent(listing.place_id)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full p-1.5 text-[#667085] hover:bg-[#F2F4F7]"
+                aria-label="Open in Google Maps"
+                title="Google Maps"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
             ) : null}
           </div>
         </div>
@@ -523,31 +532,29 @@ export function CellInspectorDrawer({
           <div>
             <section
               className={cn(
-                "border-b border-zinc-200/80 bg-white",
+                "border-b border-[#E6EAF0] bg-white",
                 isPanel ? "px-3 py-2" : "px-3.5 py-3"
               )}
             >
               <div className="flex items-center gap-2">
-                <div
-                  className={cn(
-                    "relative shrink-0 overflow-hidden bg-zinc-100 ring-1 ring-zinc-200/80",
-                    isPanel ? "h-9 w-9 rounded-lg" : "h-11 w-11 rounded-xl"
-                  )}
-                >
-                  {matched?.main_image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={matched.main_image}
-                      alt=""
-                      className="h-full w-full object-cover"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-zinc-300">
+                {matched ? (
+                  <ProfileRankBubble
+                    listing={matched}
+                    rank={data.target.rank ?? 20}
+                    size={isPanel ? "sm" : "md"}
+                  />
+                ) : (
+                  <div
+                    className={cn(
+                      "relative shrink-0 overflow-hidden rounded-full bg-[#F2F4F7] ring-2 ring-[#E6EAF0]",
+                      isPanel ? "h-10 w-10" : "h-12 w-12"
+                    )}
+                  >
+                    <div className="flex h-full w-full items-center justify-center text-[#D0D5DD]">
                       <MapPin className={isPanel ? "h-4 w-4" : "h-5 w-5"} />
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span
@@ -555,15 +562,15 @@ export function CellInspectorDrawer({
                         "inline-flex rounded-full font-bold",
                         isPanel ? "px-1.5 py-px text-[10px]" : "px-2 py-0.5 text-[11px]",
                         data.target.found
-                          ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                          : "bg-rose-50 text-rose-600 ring-1 ring-rose-200"
+                          ? "bg-[#ECFDF3] text-[#027A48] ring-1 ring-[#A6F4C5]"
+                          : "bg-[#FEF3F2] text-[#B42318] ring-1 ring-[#FECDCA]"
                       )}
                     >
                       {yourRankLabel}
                     </span>
                     <p
                       className={cn(
-                        "min-w-0 truncate font-semibold text-zinc-900",
+                        "min-w-0 truncate font-semibold text-[#101828]",
                         isPanel ? "text-[12px]" : "text-[13px]"
                       )}
                     >
@@ -576,7 +583,7 @@ export function CellInspectorDrawer({
                       reviewCount={matched?.review_count}
                     />
                     {!isPanel && packShare != null ? (
-                      <span className="inline-flex rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-100">
+                      <span className="inline-flex rounded-full bg-[#F0F9FF] px-2 py-0.5 text-[10px] font-semibold text-[#026AA2] ring-1 ring-[#B9E6FE]">
                         {data.resultCount} listings
                       </span>
                     ) : null}
@@ -589,7 +596,7 @@ export function CellInspectorDrawer({
                         href={data.checkUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="rounded-full p-1.5 text-[#137752] hover:bg-emerald-50"
+                        className="rounded-full p-1.5 text-[#137752] hover:bg-[#ECFDF3]"
                         aria-label="Open in Google"
                         title="Open in Google"
                       >
@@ -600,7 +607,7 @@ export function CellInspectorDrawer({
                       <button
                         type="button"
                         onClick={() => onCompareCell(data.cell.id)}
-                        className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100"
+                        className="rounded-full p-1.5 text-[#667085] hover:bg-[#F2F4F7]"
                         aria-label="Compare"
                         title="Compare"
                       >
@@ -610,7 +617,7 @@ export function CellInspectorDrawer({
                     <button
                       type="button"
                       onClick={() => void copyCoordinates()}
-                      className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100"
+                      className="rounded-full p-1.5 text-[#667085] hover:bg-[#F2F4F7]"
                       aria-label={copied ? "Copied" : "Copy coordinates"}
                       title={copied ? "Copied" : "Copy coordinates"}
                     >
@@ -627,7 +634,7 @@ export function CellInspectorDrawer({
                       href={data.checkUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#137752] px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_4px_14px_rgba(19,119,82,0.22)] hover:bg-[#0f6344]"
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#137752] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#0f6244]"
                     >
                       <ExternalLink className="h-3.5 w-3.5" /> Open in Google
                     </a>
@@ -682,7 +689,7 @@ export function CellInspectorDrawer({
               <p className="px-4 py-6 text-zinc-500">No listings stored for this point yet.</p>
             ) : (
               <>
-                <div className="divide-y divide-zinc-100/90 border-t border-zinc-100 bg-white">
+                <div className="divide-y divide-[#F2F4F7] border-t border-[#E6EAF0] bg-white">
                   {visibleResults.map((r, i) => (
                     <SerpListingCard
                       key={`${r.place_id ?? r.cid ?? r.name ?? i}`}
@@ -690,6 +697,8 @@ export function CellInspectorDrawer({
                       index={i}
                       isTarget={isTargetListing(r, data.target.matchedResult)}
                       compact={isPanel}
+                      cellLat={data.cell.lat}
+                      cellLng={data.cell.lng}
                     />
                   ))}
                 </div>
@@ -698,11 +707,11 @@ export function CellInspectorDrawer({
                     type="button"
                     onClick={() => setExpandedResults(true)}
                     className={cn(
-                      "w-full border-t border-zinc-100 bg-white font-semibold text-[#137752] hover:bg-emerald-50/50",
+                      "w-full border-t border-[#E6EAF0] bg-white font-semibold text-[#137752] hover:bg-[#ECFDF3]/50",
                       isPanel ? "py-2 text-[12px]" : "py-3.5 text-[13px]"
                     )}
                   >
-                    Show more (
+                    View more results (
                     {Math.min(MAX_RESULTS_SHOWN, data.rawResults.length) - INITIAL_RESULTS_SHOWN}{" "}
                     more)
                   </button>

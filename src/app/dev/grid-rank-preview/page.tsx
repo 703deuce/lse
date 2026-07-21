@@ -9,6 +9,7 @@ import {
   GRID_RANK_PREVIEW_BUSINESS_ID,
   GRID_RANK_PREVIEW_SCAN_B,
   gridRankPreviewBusinessScans,
+  gridRankPreviewCell,
   gridRankPreviewCompare,
   gridRankPreviewCompetitors,
   gridRankPreviewHistory,
@@ -35,6 +36,23 @@ function patchGridRankPreviewFetch() {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
+    }
+    const cellMatch = url.match(/\/api\/scans\/([^/]+)\/cells\/([^/?]+)/);
+    if (cellMatch) {
+      return new Response(JSON.stringify(gridRankPreviewCell(cellMatch[1], cellMatch[2])), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (url.includes("/api/scans/") && url.includes("/why")) {
+      return new Response(
+        JSON.stringify({
+          selectedEntity: { name: "Premier Junk Removal", rank: 2 },
+          businessesAbove: [],
+          visibleGaps: [],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
     }
     if (url.includes("/api/scans/latest")) {
       return new Response(JSON.stringify(gridRankPreviewLatest), {
