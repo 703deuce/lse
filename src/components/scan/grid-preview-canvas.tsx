@@ -44,6 +44,8 @@ export function GridPreviewCanvas({
   excludedLabels,
   onToggleLabel,
   locationLabel,
+  centerDetail,
+  spacingMiles,
   className,
 }: {
   centerLat: number;
@@ -53,6 +55,8 @@ export function GridPreviewCanvas({
   excludedLabels: Set<string>;
   onToggleLabel: (label: string) => void;
   locationLabel?: string | null;
+  centerDetail?: string | null;
+  spacingMiles?: number | null;
   className?: string;
 }) {
   const apiKey = useGoogleMapsApiKey();
@@ -173,16 +177,18 @@ export function GridPreviewCanvas({
   }, [centerLat, centerLng, points, excludedLabels, gridSize, radiusMeters, locationLabel, status]);
 
   return (
-    <div className={cn("relative overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100", className)}>
-      <div className="relative aspect-square w-full min-h-[280px] sm:min-h-[360px] lg:min-h-[440px]">
+    <div className={cn("relative overflow-hidden rounded-xl border border-[#E6EAF0] bg-[#F2F4F7]", className)}>
+      <div className="relative aspect-square w-full min-h-[280px] sm:min-h-[360px] lg:min-h-[480px]">
         <div ref={containerRef} className="absolute inset-0 h-full w-full" />
 
         {status !== "ready" && (
-          <div className="absolute inset-0 flex items-center justify-center bg-zinc-100/90">
+          <div className="absolute inset-0 flex items-center justify-center bg-[#F2F4F7]/95">
             {status === "error" ? (
-              <p className="max-w-xs px-4 text-center text-[13px] text-red-600">{error ?? "Map unavailable"}</p>
+              <p className="max-w-xs px-4 text-center text-sm text-[#B42318]">
+                {error ?? "Map unavailable"}
+              </p>
             ) : (
-              <span className="inline-flex items-center gap-2 text-[13px] text-zinc-600">
+              <span className="inline-flex items-center gap-2 text-sm text-[#667085]">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading map…
               </span>
@@ -190,17 +196,43 @@ export function GridPreviewCanvas({
           </div>
         )}
 
-        <div className="pointer-events-none absolute left-3 top-3 flex max-w-[70%] items-center gap-1.5 rounded-md bg-white/95 px-2 py-1 text-[11px] font-medium text-zinc-700 shadow-sm ring-1 ring-zinc-200/80">
-          <MapPin className="h-3 w-3 shrink-0 text-emerald-600" />
+        <div className="pointer-events-none absolute left-3 top-3 flex max-w-[75%] items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-medium text-[#344054] shadow-sm ring-1 ring-[#E6EAF0]">
+          <MapPin className="h-3.5 w-3.5 shrink-0 text-[#137752]" />
           <span className="truncate">{locationLabel?.trim() || "Preview · not started"}</span>
         </div>
-        <div className="pointer-events-none absolute bottom-3 left-3 right-3 flex flex-wrap items-center justify-between gap-2 rounded-md bg-white/95 px-2.5 py-1.5 text-[11px] text-zinc-600 shadow-sm ring-1 ring-zinc-200/80">
-          <span>
-            {meta.gridSize}×{meta.gridSize} · {meta.radiusMiles} mi · ~{meta.spacingMiles} mi spacing
-          </span>
-          <span className="font-semibold text-zinc-800">
-            {included}/{points.length} cells included
-          </span>
+
+        <div className="pointer-events-none absolute bottom-3 left-3 right-3">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-xl bg-white/95 px-3.5 py-2.5 text-[11px] shadow-sm ring-1 ring-[#E6EAF0] sm:grid-cols-4">
+            <div>
+              <p className="font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">Grid</p>
+              <p className="mt-0.5 font-semibold text-[#101828]">
+                {meta.gridSize} × {meta.gridSize}
+              </p>
+            </div>
+            <div>
+              <p className="font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">Spacing</p>
+              <p className="mt-0.5 font-semibold text-[#101828]">
+                {(spacingMiles ?? meta.spacingMiles).toFixed(2)} mi
+                <span className="font-normal text-[#667085]">
+                  {" "}
+                  (~{Math.round((spacingMiles ?? meta.spacingMiles) * 1609)} m)
+                </span>
+              </p>
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">Center</p>
+              <p className="mt-0.5 truncate font-semibold text-[#101828]">
+                {(centerDetail ?? locationLabel)?.trim() || "—"}
+              </p>
+            </div>
+            <div>
+              <p className="font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">Cells included</p>
+              <p className="mt-0.5 flex items-center gap-1.5 font-semibold text-[#101828]">
+                <span className="inline-block h-2 w-2 rounded-full bg-[#3b82f6]" />
+                {included} / {points.length}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

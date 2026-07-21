@@ -1,5 +1,4 @@
 import { requireBusinessPageData } from "@/lib/auth/require-business-page";
-import { PageHeader } from "@/components/ui/page-header";
 import { createServiceClient } from "@/lib/db/client";
 import { ScansHub } from "@/components/scan/scans-hub";
 
@@ -120,32 +119,24 @@ export default async function ScansPage({
   });
 
   return (
-    <>
-      <PageHeader
-        title="Maps Scans"
-        subtitle="Configure your local search grid, exclude unused points, then run — nothing bills until you click Run scan."
-        className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
+    <div className="mt-1">
+      <ScansHub
+        businessId={businessId}
+        scans={scanItems}
+        keywords={keywordOptions}
+        defaultCenterLat={
+          (business.scan_center_lat as number | null) ?? (business.lat as number) ?? 0
+        }
+        defaultCenterLng={
+          (business.scan_center_lng as number | null) ?? (business.lng as number) ?? 0
+        }
+        defaultAddress={
+          ((business.scan_center_label as string | null) ??
+            (business.address_text as string | null) ??
+            null)
+        }
+        businessName={business.name as string}
       />
-
-      <div className="mt-4">
-        <ScansHub
-          businessId={businessId}
-          scans={scanItems}
-          keywords={keywordOptions}
-          defaultCenterLat={
-            (business.scan_center_lat as number | null) ?? (business.lat as number) ?? 0
-          }
-          defaultCenterLng={
-            (business.scan_center_lng as number | null) ?? (business.lng as number) ?? 0
-          }
-          defaultAddress={
-            ((business.scan_center_label as string | null) ??
-              (business.address_text as string | null) ??
-              null)
-          }
-          businessName={business.name as string}
-        />
-      </div>
-    </>
+    </div>
   );
 }

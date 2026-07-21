@@ -4,10 +4,17 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  Bookmark,
+  ChevronDown,
+  ChevronRight,
+  Download,
   ExternalLink,
+  Eye,
   Grid3X3,
+  History,
   Info,
   Loader2,
+  MapPin,
   Play,
   Plus,
   RotateCcw,
@@ -16,14 +23,14 @@ import {
 } from "lucide-react";
 import { GridPreviewCanvas } from "@/components/scan/grid-preview-canvas";
 import {
-  dashboardCard,
-  dashboardControl,
-  dashboardMicro,
-} from "@/components/overview/dashboard-ui";
-import {
   DEFAULT_GRID_SIZE,
   DEFAULT_RADIUS_METERS,
   GRID_SIZE_OPTIONS,
+  formatRadiusMiles,
+  metersToMiles,
+  milesToMeters,
+  nearestRadiusMileOption,
+  RADIUS_MILE_OPTIONS,
 } from "@/lib/maps/grid-metrics";
 import { DEFAULT_SCAN_PROFILE } from "@/lib/maps/scan-profiles";
 import { DEFAULT_MAPS_PROVIDER_MODE } from "@/lib/maps/provider-modes";
@@ -38,16 +45,15 @@ import {
   MAPS_ZOOM_OPTIONS,
   mapsZoomLabel,
 } from "@/lib/maps/maps-zoom";
-import { RadiusMilesField } from "@/components/scan/radius-miles-field";
 import { updateBusinessSettings } from "@/lib/actions/mutations";
 import { cn } from "@/lib/utils";
 import type { KeywordOption, ScanListItem } from "@/components/scan/scans-hub-types";
 import { customerSafeScanError } from "@/lib/scans/customer-safe-error";
+import { mock } from "@/components/mockup/ui";
 
-const fieldLabel = "text-[10px] font-semibold uppercase tracking-wide text-zinc-500";
-const fieldSelect = cn(dashboardControl, "mt-1 h-auto w-full px-2.5 py-1.5");
-const accordionBtn =
-  "flex w-full items-center justify-between px-3.5 py-2.5 text-left text-[13px] font-semibold text-zinc-900 hover:bg-zinc-50";
+const fieldLabel = mock.label;
+const fieldControl =
+  "mt-1.5 h-10 w-full rounded-lg border border-[#E6EAF0] bg-white px-3 text-sm text-[#101828] shadow-sm outline-none transition focus:border-[#137752] focus:ring-1 focus:ring-[#137752]/25";
 
 function formatScanDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -68,10 +74,15 @@ function formatAvgRank(value: number | null | undefined): string {
 }
 
 function ChangeBadge({ value }: { value: number | null | undefined }) {
-  if (value == null || value === 0) return <span className="text-zinc-400">—</span>;
+  if (value == null || value === 0) return <span className="text-[#98A2B3]">—</span>;
   const positive = value > 0;
   return (
-    <span className={cn("font-semibold tabular-nums", positive ? "text-emerald-700" : "text-red-600")}>
+    <span
+      className={cn(
+        "font-semibold tabular-nums",
+        positive ? "text-[#027A48]" : "text-[#B42318]"
+      )}
+    >
       {positive ? "+" : ""}
       {value}
     </span>
@@ -102,7 +113,11 @@ export function ScanSetupStudio({
 }) {
   const router = useRouter();
   const [accountAddress, setAccountAddress] = useState((defaultAddress ?? "").trim());
-  const [openSection, setOpenSection] = useState<"location" | "keywords" | "general">("location");
+  const [openSections, setOpenSections] = useState<Record<"location" | "keywords" | "general", boolean>>({
+    location: true,
+    keywords: false,
+    general: true,
+  });
   const [selectedKeywordId, setSelectedKeywordId] = useState(
     keywords.find((k) => k.is_primary)?.id ?? keywords[0]?.id ?? ""
   );
@@ -131,7 +146,6 @@ export function ScanSetupStudio({
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset exclusions when grid geometry changes
   useEffect(() => {
     setExcludedLabels(new Set());
   }, [gridSize, radiusMeters, centerLat, centerLng]);
@@ -151,7 +165,12 @@ export function ScanSetupStudio({
   const totalPoints = gridSize * gridSize;
   const includedCount = totalPoints - excludedLabels.size;
   const selectedKeyword = keywords.find((k) => k.id === selectedKeywordId);
+  const radiusMiles = nearestRadiusMileOption(radiusMeters);
   void scans;
+
+  function toggleSection(id: "location" | "keywords" | "general") {
+    setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
+  }
 
   function toggleLabel(label: string) {
     setExcludedLabels((prev) => {
@@ -172,13 +191,22 @@ export function ScanSetupStudio({
     setError(null);
   }
 
+  function resetSetup() {
+    setGridSize(DEFAULT_GRID_SIZE);
+    setRadiusMeters(DEFAULT_RADIUS_METERS);
+    setLocationZoom(DEFAULT_MAPS_LOCATION_ZOOM);
+    setDevice(DEFAULT_SCAN_PROFILE.device);
+    setDfsExecutionMode(DEFAULT_DFS_EXECUTION_MODE);
+    setExcludedLabels(new Set());
+    resetToAccountLocation();
+  }
+
   async function applyLocationFromAddress() {
     const q = locationQuery.trim();
     if (!q) {
       setError("Enter an address, or a city and state.");
       return;
     }
-    // Same text as account default → restore without re-geocoding
     if (accountAddress && q.toLowerCase() === accountAddress.toLowerCase()) {
       resetToAccountLocation();
       return;
@@ -204,8 +232,6 @@ export function ScanSetupStudio({
       setCenterLat(json.lat);
       setCenterLng(json.lng);
       setLocationLabel(label);
-      // Persist as the location's private scan center so service-area businesses
-      // don't re-enter this on every scan.
       await updateBusinessSettings(businessId, {
         scan_center_lat: json.lat,
         scan_center_lng: json.lng,
@@ -215,7 +241,7 @@ export function ScanSetupStudio({
       setDefaultLat(json.lat);
       setDefaultLng(json.lng);
       setUsingAccountLocation(true);
-      setOpenSection("general");
+      setOpenSections((s) => ({ ...s, general: true }));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not find that location");
     } finally {
@@ -225,11 +251,7 @@ export function ScanSetupStudio({
 
   async function runScan(keywordId: string) {
     const ids =
-      selectedKeywordIds.length > 0
-        ? selectedKeywordIds
-        : keywordId
-          ? [keywordId]
-          : [];
+      selectedKeywordIds.length > 0 ? selectedKeywordIds : keywordId ? [keywordId] : [];
     if (!ids.length) {
       setError("Select at least one keyword.");
       return;
@@ -244,7 +266,7 @@ export function ScanSetupStudio({
       (centerLat === 0 && centerLng === 0)
     ) {
       setError("Set a scan center before running a Maps scan.");
-      setOpenSection("location");
+      setOpenSections((s) => ({ ...s, location: true }));
       return;
     }
     if (ids.length > 1) {
@@ -286,7 +308,6 @@ export function ScanSetupStudio({
           );
         }
       }
-      // Must leave setup immediately — scan runs in the worker.
       const { goToDashboardAfterScanStart } = await import("@/lib/scans/after-scan-start");
       goToDashboardAfterScanStart(businessId);
       return;
@@ -373,64 +394,107 @@ export function ScanSetupStudio({
     title: string;
     children: ReactNode;
   }) {
-    const open = openSection === id;
+    const open = openSections[id];
     return (
-      <div className="border-b border-zinc-100 last:border-b-0">
+      <div className="border-b border-[#F2F4F7] last:border-b-0">
         <button
           type="button"
-          className={accordionBtn}
-          onClick={() => setOpenSection(open ? "general" : id)}
+          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-[#101828] hover:bg-[#F9FAFB]"
+          onClick={() => toggleSection(id)}
           aria-expanded={open}
         >
           <span>{title}</span>
-          <span className="text-zinc-400">{open ? "▾" : "▸"}</span>
+          {open ? (
+            <ChevronDown className="h-4 w-4 text-[#98A2B3]" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-[#98A2B3]" />
+          )}
         </button>
-        {open && <div className="space-y-3 px-3.5 pb-3.5">{children}</div>}
+        {open && <div className="space-y-3 px-4 pb-4">{children}</div>}
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className={`${dashboardCard} overflow-hidden lg:grid lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]`}>
-        {/* Left config panel */}
-        <aside className="border-b border-zinc-200 lg:border-b-0 lg:border-r">
-          <div className="flex items-center gap-2 border-b border-zinc-100 px-3.5 py-3">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-2 text-[28px] font-bold tracking-tight text-[#101828]">
+            <MapPin className="h-6 w-6 text-[#137752]" />
+            Maps Scans
+          </h1>
+          <p className="mt-1 text-sm text-[#667085]">
+            Configure your local search grid, exclude unused points, then run a scan to see how you
+            rank in the map pack.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className={mock.btnSecondary} onClick={resetSetup}>
+            <Bookmark className="h-4 w-4" />
+            Save template
+          </button>
+          <button
+            type="button"
+            className={mock.btnSecondary}
+            onClick={() => setOpenSections({ location: true, keywords: true, general: true })}
+          >
+            <Eye className="h-4 w-4" />
+            Preview
+          </button>
+          <button type="button" className={mock.btnSecondary} onClick={resetSetup}>
+            <RotateCcw className="h-4 w-4" />
+            Reset
+          </button>
+          <Link href="/scans" className={mock.btnSecondary}>
+            <History className="h-4 w-4" />
+            History
+          </Link>
+          <button type="button" className={mock.btnSecondary}>
+            <Download className="h-4 w-4" />
+            Export
+          </button>
+        </div>
+      </div>
+
+      <div className={cn(mock.card, "overflow-hidden lg:grid lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)]")}>
+        <aside className="border-b border-[#E6EAF0] lg:border-b-0 lg:border-r">
+          <div className="flex items-center gap-2.5 border-b border-[#F2F4F7] px-4 py-3.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#ECFDF3] text-[#137752]">
               <Grid3X3 className="h-4 w-4" />
             </span>
-            <div>
-              <h2 className="text-[14px] font-bold text-zinc-900">Local Search Grid</h2>
-              <p className={dashboardMicro}>{businessName ?? "Configure then preview"}</p>
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold text-[#101828]">Local Search Grid</h2>
+              <p className="truncate text-xs text-[#667085]">{businessName ?? "Configure then preview"}</p>
             </div>
           </div>
 
           <Section id="location" title="Location and business details">
-            <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-2.5 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-                Active scan center
-              </p>
-              <p className="mt-0.5 text-[13px] font-medium leading-snug text-zinc-900">
-                {locationLabel}
-              </p>
-              <p className="mt-0.5 text-[11px] text-zinc-500">
-                {accountAddress
-                  ? usingAccountLocation
-                    ? "Using your saved scan-center address"
-                    : "Updating saved scan center"
-                  : "No saved address yet — add one below (common for service-area listings)"}
-              </p>
+            <div className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2.5">
+              <p className={fieldLabel}>Active scan center</p>
+              <div className="mt-1.5 flex items-start gap-2">
+                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#137752]" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold leading-snug text-[#101828]">{locationLabel}</p>
+                  <p className="mt-0.5 text-[12px] text-[#667085]">
+                    {accountAddress
+                      ? usingAccountLocation
+                        ? "Using your saved scan-center address"
+                        : "Updating saved scan center"
+                      : "No saved address yet — add one below (common for service-area listings)"}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {!accountAddress ? (
-              <p className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] leading-relaxed text-amber-900">
+              <p className="rounded-lg border border-[#FEDF89] bg-[#FFFAEB] px-3 py-2 text-[12px] leading-relaxed text-[#93370D]">
                 This location has no public Google address. Set a private scan center once — we save
                 it on the location so you don&apos;t re-enter it every scan.
               </p>
             ) : null}
 
-            <label className={fieldLabel}>
-              Address or city &amp; state
+            <label className="block">
+              <span className={fieldLabel}>Address or city &amp; state</span>
               <input
                 type="text"
                 value={locationQuery}
@@ -442,10 +506,10 @@ export function ScanSetupStudio({
                   }
                 }}
                 placeholder='e.g. "Woodbridge, VA" or full street address'
-                className={fieldSelect}
+                className={fieldControl}
               />
             </label>
-            <p className="text-[11px] leading-relaxed text-zinc-500">
+            <p className="text-[12px] leading-relaxed text-[#667085]">
               Type an address or city and state — we set the map pin and save it to this location.
             </p>
             <div className="flex flex-wrap gap-2">
@@ -453,21 +517,17 @@ export function ScanSetupStudio({
                 type="button"
                 disabled={geocoding || !locationQuery.trim()}
                 onClick={() => void applyLocationFromAddress()}
-                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-zinc-900 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+                className={cn(mock.btnSecondary, "flex-1 disabled:opacity-50")}
               >
                 {geocoding ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <Search className="h-3.5 w-3.5" />
+                  <MapPin className="h-3.5 w-3.5" />
                 )}
                 Update map
               </button>
               {!usingAccountLocation && (
-                <button
-                  type="button"
-                  onClick={resetToAccountLocation}
-                  className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
-                >
+                <button type="button" onClick={resetToAccountLocation} className={mock.btnSecondary}>
                   <RotateCcw className="h-3.5 w-3.5" />
                   Account default
                 </button>
@@ -476,11 +536,12 @@ export function ScanSetupStudio({
           </Section>
 
           <Section id="keywords" title="Keywords">
-            <p className="text-[11px] text-zinc-500">
-              Select one or more Maps keywords. Each selected keyword becomes its own background scan.
+            <p className="text-[12px] text-[#667085]">
+              Select one or more Maps keywords. Each selected keyword becomes its own background
+              scan.
             </p>
-            <div className="mt-1 overflow-hidden rounded-lg border border-zinc-100">
-              <div className="grid grid-cols-[minmax(92px,1fr)_42px_54px_48px_38px_26px] gap-1.5 bg-zinc-50 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+            <div className="mt-1 overflow-hidden rounded-xl border border-[#E6EAF0]">
+              <div className="grid grid-cols-[minmax(92px,1fr)_42px_54px_48px_38px_26px] gap-1.5 bg-[#F9FAFB] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">
                 <span>Keyword</span>
                 <span>Volume</span>
                 <span>Last scan</span>
@@ -488,15 +549,15 @@ export function ScanSetupStudio({
                 <span>Change</span>
                 <span className="sr-only">Remove</span>
               </div>
-              <ul className="max-h-60 divide-y divide-zinc-100 overflow-y-auto">
+              <ul className="max-h-60 divide-y divide-[#F2F4F7] overflow-y-auto">
                 {keywords.map((k) => {
                   const checked = selectedKeywordIds.includes(k.id);
                   return (
                     <li
                       key={k.id}
                       className={cn(
-                        "grid grid-cols-[minmax(92px,1fr)_42px_54px_48px_38px_26px] items-center gap-1.5 px-2.5 py-2 text-[12px]",
-                        checked ? "bg-emerald-50/60" : "bg-white hover:bg-zinc-50"
+                        "grid grid-cols-[minmax(92px,1fr)_42px_54px_48px_38px_26px] items-center gap-1.5 px-3 py-2.5 text-[12px]",
+                        checked ? "bg-[#ECFDF3]/70" : "bg-white hover:bg-[#F9FAFB]"
                       )}
                     >
                       <label className="flex min-w-0 cursor-pointer items-center gap-2">
@@ -504,10 +565,11 @@ export function ScanSetupStudio({
                           type="checkbox"
                           checked={checked}
                           onChange={() => toggleKeywordSelection(k.id)}
+                          className="rounded border-[#D0D5DD] text-[#137752] focus:ring-[#137752]"
                         />
                         <span className="min-w-0">
-                          <span className="block truncate font-medium text-zinc-900">{k.keyword}</span>
-                          <span className="mt-0.5 flex flex-wrap items-center gap-1 text-[10px] text-zinc-400">
+                          <span className="block truncate font-medium text-[#101828]">{k.keyword}</span>
+                          <span className="mt-0.5 flex flex-wrap items-center gap-1 text-[10px] text-[#98A2B3]">
                             {k.is_primary ? <span>Primary</span> : null}
                             {k.latest_center_label ? (
                               <span className="truncate">{k.latest_center_label}</span>
@@ -515,7 +577,7 @@ export function ScanSetupStudio({
                             {k.latest_scan_id ? (
                               <Link
                                 href={`/businesses/${businessId}/grid/${k.latest_scan_id}`}
-                                className="inline-flex items-center gap-0.5 text-emerald-700 hover:underline"
+                                className="inline-flex items-center gap-0.5 text-[#137752] hover:underline"
                               >
                                 Open grid
                                 <ExternalLink className="h-2.5 w-2.5" />
@@ -524,11 +586,11 @@ export function ScanSetupStudio({
                           </span>
                         </span>
                       </label>
-                      <span className="tabular-nums text-zinc-600">{formatVolume(k.search_volume)}</span>
-                      <span className="tabular-nums text-zinc-500">
+                      <span className="tabular-nums text-[#475467]">{formatVolume(k.search_volume)}</span>
+                      <span className="tabular-nums text-[#667085]">
                         {k.last_scan_at ? formatScanDate(k.last_scan_at) : "—"}
                       </span>
-                      <span className="tabular-nums font-medium text-zinc-800">
+                      <span className="tabular-nums font-medium text-[#101828]">
                         {formatAvgRank(k.latest_average_rank)}
                       </span>
                       <span className="text-[11px]">
@@ -538,7 +600,7 @@ export function ScanSetupStudio({
                         type="button"
                         disabled={running}
                         onClick={() => void removeKeyword(k.id)}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[#98A2B3] hover:bg-[#FEF3F2] hover:text-[#B42318] disabled:opacity-50"
                         aria-label={`Remove ${k.keyword}`}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -547,7 +609,7 @@ export function ScanSetupStudio({
                   );
                 })}
                 {!keywords.length ? (
-                  <li className="px-2.5 py-3 text-[12px] text-zinc-500">
+                  <li className="px-3 py-3 text-[12px] text-[#667085]">
                     Add a keyword to start tracking Maps scans for this location.
                   </li>
                 ) : null}
@@ -556,7 +618,7 @@ export function ScanSetupStudio({
             <button
               type="button"
               onClick={() => setShowAddKeyword((v) => !v)}
-              className="inline-flex items-center gap-1 text-[12px] font-medium text-emerald-700 hover:underline"
+              className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#137752] hover:underline"
             >
               <Plus className="h-3.5 w-3.5" />
               Add keyword
@@ -568,13 +630,13 @@ export function ScanSetupStudio({
                   value={newKeyword}
                   onChange={(e) => setNewKeyword(e.target.value)}
                   placeholder='e.g. "junk removal woodbridge"'
-                  className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-[13px]"
+                  className={fieldControl}
                 />
                 <button
                   type="button"
                   disabled={running || !newKeyword.trim()}
                   onClick={() => void addKeyword()}
-                  className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-[12px] font-medium disabled:opacity-50"
+                  className={cn(mock.btnSecondary, "disabled:opacity-50")}
                 >
                   Save keyword
                 </button>
@@ -583,149 +645,135 @@ export function ScanSetupStudio({
           </Section>
 
           <Section id="general" title="General settings">
-            <div>
-              <p className={fieldLabel}>Presets</p>
-              <div className="mt-1 flex flex-wrap gap-1.5">
-                {(
-                  [
-                    { label: "Quick", size: 5 },
-                    { label: "Standard", size: 7 },
-                    { label: "Detailed", size: 9 },
-                  ] as const
-                ).map((preset) => (
-                  <button
-                    key={preset.label}
-                    type="button"
-                    onClick={() => setGridSize(preset.size)}
-                    className={cn(
-                      "rounded-md border px-2.5 py-1 text-[12px] font-medium",
-                      gridSize === preset.size
-                        ? "border-emerald-600 bg-emerald-50 text-emerald-800"
-                        : "border-zinc-200 text-zinc-700 hover:bg-zinc-50"
-                    )}
-                  >
-                    {preset.label} · {preset.size}×{preset.size}
-                  </button>
-                ))}
-              </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className={fieldLabel}>Grid size</span>
+                <select
+                  value={gridSize}
+                  onChange={(e) => setGridSize(Number(e.target.value))}
+                  className={fieldControl}
+                >
+                  {GRID_SIZE_OPTIONS.map((n) => (
+                    <option key={n} value={n}>
+                      {n} × {n} ({n * n} cells)
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className={fieldLabel}>Spacing</span>
+                <select
+                  value={radiusMiles}
+                  onChange={(e) => setRadiusMeters(milesToMeters(Number(e.target.value)))}
+                  className={fieldControl}
+                >
+                  {RADIUS_MILE_OPTIONS.filter((m) => m === 0.5 || m === 1 || m === 2 || m === 5 || m === 10 || m === 25 || m % 5 === 0).map(
+                    (m) => (
+                      <option key={m} value={m}>
+                        {formatRadiusMiles(m)}
+                        {m === 5 ? " — recommended" : ""}
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+              <label className="block">
+                <span className={fieldLabel}>Search term</span>
+                <select
+                  value={selectedKeywordId}
+                  onChange={(e) => {
+                    setSelectedKeywordId(e.target.value);
+                    if (e.target.value && !selectedKeywordIds.includes(e.target.value)) {
+                      setSelectedKeywordIds((prev) => [...prev, e.target.value]);
+                    }
+                  }}
+                  className={fieldControl}
+                >
+                  {keywords.length === 0 ? (
+                    <option value="">No keywords yet</option>
+                  ) : (
+                    keywords.map((k) => (
+                      <option key={k.id} value={k.id}>
+                        {k.is_primary ? "Primary keyword" : k.keyword}
+                        {k.is_primary ? ` · ${k.keyword}` : ""}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+              <label className="block">
+                <span className={fieldLabel}>Scan type</span>
+                <select
+                  value={device}
+                  onChange={(e) => setDevice(e.target.value as "desktop" | "mobile")}
+                  className={fieldControl}
+                >
+                  <option value="desktop">Standard scan</option>
+                  <option value="mobile">Mobile scan</option>
+                </select>
+              </label>
             </div>
-            <label className={fieldLabel}>
-              Grid size
-              <select
-                value={gridSize}
-                onChange={(e) => setGridSize(Number(e.target.value))}
-                className={fieldSelect}
-              >
-                {GRID_SIZE_OPTIONS.map((n) => (
-                  <option key={n} value={n}>
-                    {n}×{n} ({n * n} cells)
-                  </option>
-                ))}
-              </select>
-            </label>
-            <RadiusMilesField
-              valueMeters={radiusMeters}
-              onChangeMeters={setRadiusMeters}
-              labelClassName={fieldLabel}
-              selectClassName={fieldSelect}
-              inputClassName={cn(dashboardControl, "h-auto w-full px-2.5 py-1.5")}
-            />
-            <label className={fieldLabel}>
-              Map zoom
-              <select
-                value={locationZoom}
-                onChange={(e) => setLocationZoom(Number(e.target.value))}
-                className={fieldSelect}
-                title="Default 14 matched Local Falcon. Higher = tighter neighborhood."
-              >
-                {MAPS_ZOOM_OPTIONS.map((z) => (
-                  <option key={z} value={z}>
-                    {mapsZoomLabel(z)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={fieldLabel}>
-              Device
-              <select
-                value={device}
-                onChange={(e) => setDevice(e.target.value as "desktop" | "mobile")}
-                className={fieldSelect}
-                title="Desktop uses Windows; mobile uses Android. Other settings stay the same."
-              >
-                <option value="desktop">Desktop</option>
-                <option value="mobile">Mobile</option>
-              </select>
-            </label>
-            <label className={fieldLabel}>
-              DataForSEO mode
-              <select
-                value={dfsExecutionMode}
-                onChange={(e) =>
-                  setDfsExecutionMode(e.target.value as DfsExecutionMode)
-                }
-                className={fieldSelect}
-                title="Priority = task_post p=2 · Standard = task_post p=1 · Live = live/advanced"
-              >
-                {DFS_EXECUTION_MODE_OPTIONS.map((opt) => (
-                  <option key={opt.id} value={opt.id}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <p className="text-[11px] leading-relaxed text-zinc-500">
-              Mode stays pure for A/B tests. Zoom default 14 (Falcon match). Radius is center →
-              outer edge.
-            </p>
-            <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-[12px] leading-relaxed text-sky-900">
-              <p className="flex gap-1.5">
-                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <span>
-                  Click bubbles on the map to exclude empty areas before you run — excluded cells are
-                  skipped and do not affect metrics.
-                </span>
-              </p>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className={fieldLabel}>Map zoom</span>
+                <select
+                  value={locationZoom}
+                  onChange={(e) => setLocationZoom(Number(e.target.value))}
+                  className={fieldControl}
+                >
+                  {MAPS_ZOOM_OPTIONS.map((z) => (
+                    <option key={z} value={z}>
+                      {mapsZoomLabel(z)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className={fieldLabel}>DataForSEO mode</span>
+                <select
+                  value={dfsExecutionMode}
+                  onChange={(e) => setDfsExecutionMode(e.target.value as DfsExecutionMode)}
+                  className={fieldControl}
+                >
+                  {DFS_EXECUTION_MODE_OPTIONS.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
-            <p className="text-[12px] text-zinc-600">
-              Keywords:{" "}
-              <strong>
-                {selectedKeywordIds.length > 1
-                  ? `${selectedKeywordIds.length} selected`
-                  : selectedKeyword?.keyword ?? "—"}
-              </strong>
-              <br />
-              Grid: <strong>{includedCount}</strong> of {totalPoints} cells
-              {excludedLabels.size > 0 ? ` (${excludedLabels.size} excluded)` : ""}.
+
+            <p className="flex items-start gap-2 text-[12px] leading-relaxed text-[#667085]">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#1570EF]" />
+              <span>
+                Scanning Google Maps results for the selected search term. Click bubbles on the map
+                to exclude empty areas before you run.
+              </span>
             </p>
           </Section>
 
-          <div className="space-y-2 border-t border-zinc-100 p-3.5">
-            {error && <p className="text-[12px] text-red-600">{error}</p>}
+          <div className="space-y-2 border-t border-[#F2F4F7] p-4">
+            {error && <p className="text-[12px] text-[#B42318]">{error}</p>}
             <button
               type="button"
-              disabled={
-                running ||
-                geocoding ||
-                selectedKeywordIds.length < 1 ||
-                includedCount < 1
-              }
+              disabled={running || geocoding || selectedKeywordIds.length < 1 || includedCount < 1}
               onClick={() => void runScan(selectedKeywordId)}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#137752] px-3.5 py-2.5 text-[13px] font-semibold text-white hover:bg-[#0f6244] disabled:opacity-50"
+              className={cn(mock.btnPrimary, "w-full disabled:opacity-50")}
             >
-              {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+              {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 fill-current" />}
               {selectedKeywordIds.length > 1
                 ? `Run ${selectedKeywordIds.length} scans · ${includedCount} cells each`
                 : `Run scan · ${includedCount} cells`}
             </button>
-            <p className="text-center text-[11px] text-zinc-400">
+            <p className="text-center text-[12px] text-[#98A2B3]">
               Manual Maps scans are unlimited. The scan continues in the background after you start.
             </p>
           </div>
         </aside>
 
-        {/* Right preview — live map */}
-        <div className="bg-zinc-50/80 p-3 sm:p-4">
+        <div className="bg-[#F9FAFB] p-3 sm:p-4">
           <GridPreviewCanvas
             centerLat={centerLat}
             centerLng={centerLng}
@@ -734,22 +782,30 @@ export function ScanSetupStudio({
             excludedLabels={excludedLabels}
             onToggleLabel={toggleLabel}
             locationLabel={locationLabel}
+            centerDetail={locationLabel}
+            spacingMiles={metersToMiles(
+              gridSize > 1 ? (2 * radiusMeters) / (gridSize - 1) : 0
+            )}
           />
           {excludedLabels.size > 0 && (
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[12px] text-zinc-600">
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[12px] text-[#667085]">
               <span>{excludedLabels.size} point(s) excluded</span>
               <button
                 type="button"
-                className="font-medium text-emerald-700 hover:underline"
+                className="font-semibold text-[#137752] hover:underline"
                 onClick={() => setExcludedLabels(new Set())}
               >
                 Reset all points
               </button>
             </div>
           )}
+          {selectedKeyword ? (
+            <p className="mt-2 text-center text-[12px] text-[#667085]">
+              Search term: <span className="font-semibold text-[#101828]">{selectedKeyword.keyword}</span>
+            </p>
+          ) : null}
         </div>
       </div>
-
     </div>
   );
 }
