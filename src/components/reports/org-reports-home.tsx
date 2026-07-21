@@ -20,8 +20,8 @@ import {
 import { ModuleEmptyState } from "@/components/journey/module-empty-state";
 import {
   ContentCard,
+  PageHeader,
   btnPrimary,
-  btnSecondary,
   cardClass,
   cardLabelClass,
   sectionTitleClass,
@@ -170,6 +170,8 @@ export function OrgReportsHome({ businesses }: { businesses: BusinessOption[] })
     );
   }
 
+  const defaultReportBusiness = firstClient ?? firstProspect ?? businesses[0]!;
+
   const quickCreates = [
     {
       href: firstProspect
@@ -209,6 +211,17 @@ export function OrgReportsHome({ businesses }: { businesses: BusinessOption[] })
 
   return (
     <div className="space-y-3">
+      <PageHeader
+        title="Reports"
+        description="Create client-ready deliverables from scans and audits."
+        primaryAction={
+          <Link href={`/businesses/${defaultReportBusiness.id}/reports`} className={btnPrimary}>
+            <FileText className="h-4 w-4" />
+            Create report
+          </Link>
+        }
+      />
+
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {quickCreates.map((a) => {
           const Icon = a.icon;

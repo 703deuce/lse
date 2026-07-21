@@ -4,24 +4,20 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from "react";
 import {
-  Archive,
   ArrowRight,
-  Building2,
   Calendar,
   FileText,
   GripVertical,
   Loader2,
   MapPin,
-  MoreHorizontal,
   Plus,
   Radar,
-  RotateCcw,
   User,
   UserCheck,
-  Users,
 } from "lucide-react";
 import {
-  ModuleHeader,
+  MetricStrip,
+  PageHeader,
   ModulePage,
   ModuleSkeleton,
   btnPrimary,
@@ -286,7 +282,22 @@ export function AccountsHub({
     [rows]
   );
 
+  const activeClientCount = useMemo(() => rows.filter(isClientRow).length, [rows]);
+  const archivedClientCount = useMemo(
+    () =>
+      rows.filter(
+        (b) =>
+          !!b.archived_at ||
+          (b.account_type === "client" && b.is_tracked === false)
+      ).length,
+    [rows]
+  );
+
   const title = mode === "clients" ? "Clients" : "Prospects";
+  const description =
+    mode === "clients"
+      ? "Manage client locations and open their operating overview."
+      : "Track pipeline locations and convert the best opportunities.";
 
   const emptyTitle = mode === "clients" ? "No clients yet" : "No prospects yet";
   const emptyBody =
@@ -300,10 +311,10 @@ export function AccountsHub({
 
   return (
     <ModulePage>
-      <ModuleHeader
-        icon={mode === "clients" ? Building2 : Users}
+      <PageHeader
         title={title}
-        actions={
+        description={description}
+        primaryAction={
           mode === "clients" && !canAdd ? (
             <span className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-[12px] text-amber-900">
               {trackedCount}/{maxBusinesses} active — upgrade to add more
@@ -317,11 +328,30 @@ export function AccountsHub({
         }
       />
 
+      {!loading ? (
+        <MetricStrip
+          items={
+            mode === "clients"
+              ? [
+                  { label: "Active clients", value: String(activeClientCount) },
+                  { label: "Archived", value: String(archivedClientCount) },
+                  ...(maxBusinesses > 0
+                    ? [{ label: "Capacity", value: `${trackedCount}/${maxBusinesses}` }]
+                    : []),
+                ]
+              : [
+                  { label: "Active prospects", value: String(activeProspectCount) },
+                  { label: "Archived", value: String(archivedProspectCount) },
+                  ...(maxBusinesses > 0
+                    ? [{ label: "Client capacity", value: `${trackedCount}/${maxBusinesses}` }]
+                    : []),
+                ]
+          }
+        />
+      ) : null}
+
       {mode === "clients" ? (
         <div className="mb-4 flex flex-wrap items-center gap-3 text-sm text-zinc-600">
-          <span className="rounded-md bg-zinc-100 px-2.5 py-1 font-medium text-zinc-800">
-            {trackedCount} / {maxBusinesses || "—"} active locations
-          </span>
           {planName ? <span>{planName} plan</span> : null}
           <div className="flex gap-2">
             <FilterChip

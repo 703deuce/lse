@@ -8,7 +8,7 @@ import {
   Plus,
 } from "lucide-react";
 import {
-  ModuleHeader,
+  PageHeader,
   ModulePage,
   ModuleSkeleton,
   btnPrimary,
@@ -76,13 +76,13 @@ export default function BusinessCampaignsPage() {
 
   return (
     <ModulePage>
-      <ModuleHeader
-        icon={FolderKanban}
+      <PageHeader
         title="Maps Campaigns"
-        actions={
+        description="Group keywords into recurring Maps scans and turn ranking progress into client-ready reports."
+        primaryAction={
           <button type="button" onClick={() => setShowWizard(true)} className={btnPrimary}>
             <Plus className="h-4 w-4" />
-            New campaign
+            Create campaign
           </button>
         }
       />

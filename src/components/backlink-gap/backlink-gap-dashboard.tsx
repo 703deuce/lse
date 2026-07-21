@@ -1,29 +1,36 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Link2, Loader2, X, ExternalLink } from "lucide-react";
+import Link from "next/link";
+import { Link2, ListPlus, Loader2, Play, RefreshCw, X, ExternalLink } from "lucide-react";
 import { OpportunitiesPanel, type EnrichedOpportunity } from "@/components/backlink-gap/opportunities-panel";
 import { enrichOpportunities } from "@/lib/backlink-gap/enrich";
 import type { BusinessContext } from "@/lib/backlink-gap/enrich";
 import type { RawOpportunity } from "@/lib/backlink-gap/enrich";
 import {
   BacklinkGapTabId,
-  GapActionBar,
   GapIgnoredKpiRow,
   GapKpiRow,
   GapPageFooter,
-  GapPageHeader,
   GapTabs,
   GapTargetLine,
-  GapTopBar,
   priorityBadge,
 } from "@/components/backlink-gap/backlink-gap-ui";
-import { ModulePage, AlertBanner, ModuleSkeleton, btnPrimaryLg } from "@/components/ui/design-system";
+import {
+  ModulePage,
+  PageHeader,
+  AlertBanner,
+  ModuleSkeleton,
+  btnGhost,
+  btnPrimary,
+  btnSecondary,
+} from "@/components/ui/design-system";
 import { ModuleEmptyState } from "@/components/journey/module-empty-state";
 import { BacklinkGapOverviewTab } from "@/components/backlink-gap/backlink-gap-overview-tab";
 import { BacklinkGapMatrixTab } from "@/components/backlink-gap/backlink-gap-matrix-tab";
 import { BacklinkGapTasksTab } from "@/components/backlink-gap/backlink-gap-tasks-tab";
 import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
+import { cn } from "@/lib/utils";
 
 type GapData = {
   run: {
@@ -167,21 +174,55 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
 
   return (
     <ModulePage>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <GapPageHeader />
-        <GapTopBar businessId={businessId} />
-      </div>
-
-      <GapActionBar
-          isRunning={isRunning}
-          hasRun={!!run}
-          loading={loading}
-          onRun={() => runGap(false)}
-          onRerun={() => runGap(true)}
-          onCreateTasks={createTasks}
-          onRefresh={load}
-          compact={!!run && tab !== "ignored"}
-        />
+      <PageHeader
+        title="Backlink Gap"
+        description="Identify the most valuable domains linking to competitors but not to you."
+        primaryAction={
+          <button
+            type="button"
+            onClick={() => runGap(false)}
+            disabled={isRunning}
+            className={btnPrimary}
+          >
+            {isRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 fill-current" />}
+            {isRunning ? "Analyzing..." : "Run analysis"}
+          </button>
+        }
+        secondaryActions={
+          <>
+            <Link href={`/businesses/${businessId}/scans`} className={cn(btnGhost, "h-9 px-3 text-[13px]")}>
+              Maps scans
+            </Link>
+            <button
+              type="button"
+              onClick={() => runGap(true)}
+              disabled={isRunning || !run}
+              className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Re-run
+            </button>
+            <button
+              type="button"
+              onClick={createTasks}
+              disabled={!run || isRunning}
+              className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
+            >
+              <ListPlus className="h-3.5 w-3.5" />
+              Create tasks
+            </button>
+            <button
+              type="button"
+              onClick={load}
+              disabled={loading}
+              className={cn(btnGhost, "h-9 px-3 text-[13px]")}
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+              Refresh
+            </button>
+          </>
+        }
+      />
 
       {error && <AlertBanner variant="error">{error}</AlertBanner>}
 
@@ -205,21 +246,6 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
           competitorDomains={run.competitor_ref_domain_count ?? "—"}
           missing={run.missing_opportunity_count ?? "—"}
           highPriority={run.high_priority_count ?? "—"}
-          actions={
-            <button
-              type="button"
-              onClick={() => runGap(false)}
-              disabled={isRunning}
-              className={btnPrimaryLg}
-            >
-              {isRunning ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Link2 className="h-4 w-4" />
-              )}
-              {isRunning ? "Analyzing…" : "Run gap analysis"}
-            </button>
-          }
         />
       ) : null}
 

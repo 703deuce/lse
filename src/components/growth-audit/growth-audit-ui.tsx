@@ -2,7 +2,6 @@
 
 import type { LucideIcon } from "lucide-react";
 import {
-  BadgeCheck,
   ChevronRight,
   Info,
   Loader2,
@@ -21,7 +20,7 @@ import { GridMetricCard } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 import {
   TabBar,
-  ModuleHeader,
+  PageHeader,
   btnPrimary,
 } from "@/components/ui/design-system";
 
@@ -294,9 +293,9 @@ export function GrowthAuditHeader({
   onRun: () => void;
 }) {
   return (
-    <ModuleHeader
+    <PageHeader
       title="Growth Audit"
-      icon={BadgeCheck}
+      description="Find the highest-impact gaps across profile, website, coverage, and competitors."
       className="[&_h1]:text-lg sm:[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
       meta={
         startedAt ? (
@@ -312,19 +311,16 @@ export function GrowthAuditHeader({
           </p>
         ) : undefined
       }
-      actions={
-        <>
-          <button
-            type="button"
-            disabled={running}
-            onClick={onRun}
-            className={cn(btnPrimary, "h-9 w-full px-3 text-[13px] sm:w-auto")}
-          >
-            {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5 fill-current" />}
-            <span className="sm:hidden">Run Audit</span>
-            <span className="hidden sm:inline">Run Full Growth Audit</span>
-          </button>
-        </>
+      primaryAction={
+        <button
+          type="button"
+          disabled={running}
+          onClick={onRun}
+          className={cn(btnPrimary, "h-9 w-full px-3 text-[13px] sm:w-auto")}
+        >
+          {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5 fill-current" />}
+          Run full growth audit
+        </button>
       }
     />
   );

@@ -19,8 +19,9 @@ import {
 import {
   HeroPanel,
   MetricStrip,
-  ModuleHeader,
+  PageHeader,
   TabBar,
+  btnGhost,
   btnPrimary,
   btnSecondary,
   heroMetricClass,
@@ -39,8 +40,9 @@ export const BACKLINK_GAP_TABS: { id: BacklinkGapTabId; label: string }[] = [
 
 export function GapPageHeader() {
   return (
-    <ModuleHeader
+    <PageHeader
       title="Backlink Gap"
+      description="Identify the most valuable domains linking to competitors but not to you."
     />
   );
 }
@@ -91,7 +93,7 @@ export function GapActionBar({
           className={cn(btnPrimary, "h-9 px-3.5 text-[13px]")}
         >
           <Play className="h-3.5 w-3.5 fill-current" />
-          Run Backlink Gap
+          Run analysis
         </button>
       ) : null}
       <button
@@ -110,13 +112,13 @@ export function GapActionBar({
         className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
       >
         <ListPlus className="h-3.5 w-3.5" />
-        Create Tasks
+        Create tasks
       </button>
       <button
         type="button"
         onClick={onRefresh}
         disabled={loading}
-        className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
+        className={cn(btnGhost, "h-9 px-3 text-[13px]")}
       >
         <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
         Refresh

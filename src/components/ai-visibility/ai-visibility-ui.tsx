@@ -29,7 +29,6 @@ import {
   dashboardCard,
   dashboardCardTitle,
   dashboardMicro,
-  dashboardSectionLabel,
 } from "@/components/overview/dashboard-ui";
 import {
   GridMetricCard,
@@ -40,7 +39,8 @@ import {
   kpiValueClass,
 } from "@/components/ui/metric-card";
 import {
-  ModuleHeader,
+  PageHeader,
+  btnGhost,
   btnPrimary,
   btnSecondary,
   inputClass,
@@ -81,20 +81,23 @@ export function AiVisibilityHeaderRow({
   onRefresh: () => void;
 }) {
   return (
-    <ModuleHeader
+    <PageHeader
       title="AI Visibility"
-      actions={
+      description="Understand whether AI platforms mention this business — and why."
+      primaryAction={
+        <button
+          type="button"
+          onClick={onRun}
+          disabled={isRunning || !hasPrimary}
+          className={cn(btnPrimary, "h-9 px-4 text-sm")}
+        >
+          <Play className="h-3.5 w-3.5" />
+          Run check
+        </button>
+      }
+      secondaryActions={
         <>
-          <button
-            type="button"
-            onClick={onRun}
-            disabled={isRunning || !hasPrimary}
-            className={cn(btnPrimary, "h-9 px-4 text-sm")}
-          >
-            <Play className="h-3.5 w-3.5" />
-            Run Check
-          </button>
-          <button type="button" onClick={onRefresh} disabled={loading} className={cn(btnSecondary, "h-9 px-3 text-sm")}>
+          <button type="button" onClick={onRefresh} disabled={loading} className={cn(btnGhost, "h-9 px-3 text-sm")}>
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             Refresh
           </button>
@@ -104,7 +107,7 @@ export function AiVisibilityHeaderRow({
           </Link>
           <button
             type="button"
-            className={cn(btnSecondary, "h-9 px-3 text-sm")}
+            className={cn(btnGhost, "h-9 px-3 text-sm")}
             onClick={() => {
               void import("@/lib/journey/report-staging").then(({ stageReportItem, reportsHrefForStaging }) => {
                 stageReportItem({

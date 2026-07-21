@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { BarChart3, CheckCircle2, KeyRound, Lightbulb, Search, Sparkles, Target } from "lucide-react";
+import { CheckCircle2, Lightbulb, Target } from "lucide-react";
 import type { EnrichedOpportunity } from "@/components/backlink-gap/opportunities-panel";
 import { PanelCard, priorityBadge } from "@/components/backlink-gap/backlink-gap-ui";
 import { dashboardAccentLink, dashboardBody, dashboardMicro } from "@/components/overview/dashboard-ui";
+import { ContentCard, InsightPanel } from "@/components/ui/design-system";
 
 type Analytics = {
   linkTypes: { dofollow: number; nofollow: number; unknown: number };
@@ -69,42 +70,20 @@ export function BacklinkGapOverviewTab({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
-        <PanelCard title="AI Summary" icon={Sparkles}>
-          {aiSummary ? (
-            <div className="space-y-3">
-              <p className={dashboardBody}>{aiSummary}</p>
-              <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3.5 py-2.5">
-                <div className="flex gap-2">
-                  <KeyRound className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
-                  <div>
-                    <p className="text-[11px] font-semibold text-zinc-900">Key Takeaway</p>
-                    <p className={`mt-0.5 ${dashboardMicro}`}>
-                      Focus on medium to high power, relevant local directories and home-services sites
-                      where multiple competitors are listed but you are not.
-                    </p>
-                  </div>
-                </div>
-              </div>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.85fr)]">
+        <ContentCard padding={false} className="overflow-hidden">
+          <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-3.5 py-2.5">
+            <div>
+              <h2 className="text-[15px] font-semibold text-zinc-900">Best opportunities</h2>
+              <p className="mt-0.5 text-[11px] text-zinc-500">
+                Ranked by link power, relevance, and competitor overlap.
+              </p>
             </div>
-          ) : (
-            <p className={dashboardMicro}>No summary available.</p>
-          )}
-        </PanelCard>
-
-        <PanelCard
-          title="Top Opportunities by Link Power"
-          icon={BarChart3}
-          action={
-            <button
-              type="button"
-              onClick={onViewOpportunities}
-              className={dashboardAccentLink}
-            >
+            <button type="button" onClick={onViewOpportunities} className={dashboardAccentLink}>
               View all opportunities →
             </button>
-          }
-        >
+          </div>
+          <div className="p-3.5">
           {topOpportunities.length === 0 ? (
             <p className={dashboardMicro}>No opportunities yet.</p>
           ) : (
@@ -132,7 +111,37 @@ export function BacklinkGapOverviewTab({
               ))}
             </ol>
           )}
-        </PanelCard>
+          </div>
+        </ContentCard>
+
+        {(aiSummary || totalOpps > 0 || categoryData.length > 0) && (
+          <InsightPanel
+            title="Competitive pattern"
+            action={
+              onViewTasks ? (
+                <button type="button" onClick={onViewTasks} className={dashboardAccentLink}>
+                  Create tasks →
+                </button>
+              ) : undefined
+            }
+          >
+            <div className="space-y-2.5">
+              {aiSummary ? <p className={dashboardBody}>{aiSummary}</p> : null}
+              <p>
+                Focus first on domains where multiple competitors are listed and you are absent.
+                {categoryData[0]
+                  ? ` The strongest pattern is ${categoryData[0].name}, representing ${categoryData[0].count} opportunities.`
+                  : ""}
+              </p>
+              {analytics?.priorities.high ? (
+                <p>
+                  <strong className="text-zinc-900">{analytics.priorities.high}</strong> high-priority gaps are
+                  ready for outreach.
+                </p>
+              ) : null}
+            </div>
+          </InsightPanel>
+        )}
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
