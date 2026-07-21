@@ -199,23 +199,31 @@ export function DashboardSidebarPanel({
     >
       <div className="border-b border-sidebar-border px-4 py-3.5">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#137752]">
-            <MapPin className="h-4 w-4 text-white" />
-          </div>
-          <div className="min-w-0">
-            {staticLinks ? (
-              <p className="truncate text-sm font-bold text-white">Local SEO Express</p>
-            ) : (
-              <Link
-                href="/workspace"
-                className="block truncate text-sm font-bold text-white"
-                onClick={() => onNavigate?.()}
-              >
-                Local SEO Express
-              </Link>
-            )}
-            <p className="text-[11px] text-slate-400">Independent consultants · 1–20 clients</p>
-          </div>
+          {staticLinks ? (
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#137752]">
+                <MapPin className="h-4 w-4 text-white" aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-white">Local SEO Express</p>
+                <p className="text-[11px] text-slate-400">Independent consultants · 1–20 clients</p>
+              </div>
+            </div>
+          ) : (
+            <Link
+              href="/workspace"
+              className="flex min-w-0 items-center gap-2.5"
+              onClick={() => onNavigate?.()}
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#137752]">
+                <MapPin className="h-4 w-4 text-white" aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-white">Local SEO Express</p>
+                <p className="text-[11px] text-slate-400">Independent consultants · 1–20 clients</p>
+              </div>
+            </Link>
+          )}
         </div>
         {staticLinks ? (
           <div className="mx-1 mt-2.5 flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-slate-300">

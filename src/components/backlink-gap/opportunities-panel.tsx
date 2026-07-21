@@ -467,14 +467,12 @@ export function OpportunitiesPanel({
 
   useEffect(() => {
     if (competitorFilter !== "all" || status !== "open") return;
+    // Prefetch every competitor group so switching companies is instant (no full reload).
     for (const c of competitors) {
-      const isOpen = expanded[c.name] ?? competitors.indexOf(c) === 0;
-      if (isOpen) {
-        const p = groupPages[c.name] ?? 1;
-        loadGroupPage(c.name, p);
-      }
+      const p = groupPages[c.name] ?? 1;
+      loadGroupPage(c.name, p);
     }
-  }, [competitorFilter, competitors, expanded, groupPages, pageSize, linkFilter, topicalFilter, priorityFilter, loadGroupPage]);
+  }, [competitorFilter, competitors, groupPages, pageSize, linkFilter, topicalFilter, priorityFilter, loadGroupPage, status]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 

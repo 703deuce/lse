@@ -9,6 +9,7 @@ import {
   FileText,
   FolderKanban,
   Grid3X3,
+  History,
   LayoutDashboard,
   Link2,
   MapPin,
@@ -100,7 +101,7 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
     {
       href: "/scans",
       label: "Recent Scans",
-      icon: FileSearch,
+      icon: History,
     }
   );
 
@@ -194,7 +195,13 @@ export function isSidebarHrefActive(
 ): boolean {
   if (flags?.isRankGrid) {
     if (businessId && pathname.includes(`/businesses/${businessId}/grid/`)) return true;
+    // Do not treat org /scans (Recent Scans) as Maps Scans.
+    if (pathname === "/scans" || pathname.startsWith("/scans?")) return false;
     return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  if (href === "/scans") {
+    return pathname === "/scans" || pathname.startsWith("/scans?");
   }
 
   if (href === "/clients") {
