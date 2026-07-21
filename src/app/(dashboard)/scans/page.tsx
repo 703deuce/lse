@@ -7,7 +7,6 @@ import {
   ModulePage,
   MetricStrip,
   btnPrimary,
-  btnSecondary,
   btnGhost,
   listClass,
   tableHeadClass,
@@ -210,7 +209,7 @@ export default async function OrgScansPage({
                             ) : null}
                             <Link
                               href={`/businesses/${s.business_id}/grid/${s.id}`}
-                              className={cn(btnSecondary, "h-8 px-3 text-xs")}
+                              className={cn(btnGhost, "h-8 px-3 text-xs")}
                             >
                               Open
                             </Link>

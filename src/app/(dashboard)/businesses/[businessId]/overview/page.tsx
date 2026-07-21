@@ -7,9 +7,7 @@ import { loadDashboardRecentScans } from "@/lib/overview/load-dashboard-scans";
 import { loadDashboardFeatured } from "@/lib/overview/load-dashboard-featured";
 import { JourneyBreadcrumbs } from "@/components/journey/journey-breadcrumbs";
 import {
-  ContentCard,
   HeroPanel,
-  InsightPanel,
   MetricStrip,
   ModulePage,
   PageHeader,
@@ -18,6 +16,7 @@ import {
   btnPrimary,
   btnPrimaryLg,
   heroMetricClass,
+  listClass,
   sectionTitleClass,
 } from "@/components/ui/design-system";
 import { getLatestGrowthAuditRun } from "@/lib/growth-audit/queries";
@@ -159,26 +158,6 @@ export default async function BusinessOverviewPage({
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {(
-          [
-            ["Local visibility", health.visibility, `/businesses/${businessId}/scans`],
-            ["Reviews", health.reviews, `/businesses/${businessId}/reviews`],
-            ["AI visibility", health.ai, `/businesses/${businessId}/ai-visibility`],
-            ["Backlinks / trust", health.backlinks, `/businesses/${businessId}/trust`],
-          ] as const
-        ).map(([label, value, href]) => (
-          <Link key={label} href={href}>
-            <ContentCard className="h-full transition hover:border-[var(--primary)]/30">
-              <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
-                {label}
-              </p>
-              <p className="mt-2 text-lg font-semibold text-[var(--text)]">{value}</p>
-            </ContentCard>
-          </Link>
-        ))}
-      </div>
-
       <HeroPanel
         eyebrow="Maps visibility"
         title={
@@ -206,23 +185,31 @@ export default async function BusinessOverviewPage({
       <MetricStrip
         items={[
           {
+            label: "Local visibility",
+            value: health.visibility,
+            href: `/businesses/${businessId}/scans`,
+          },
+          {
             label: "Reviews",
-            value: reviewValue,
+            value: `${health.reviews} · ${reviewValue}`,
             href: `/businesses/${businessId}/reviews`,
           },
           {
-            label: "Opportunities",
-            value: String(featured.local.total),
-            href: `/businesses/${businessId}/trust`,
-          },
-          {
-            label: "AI score",
+            label: "AI visibility",
             value: featured.ai.hasData
               ? featured.ai.visibilityScore != null
-                ? String(featured.ai.visibilityScore)
-                : "—"
-              : "—",
+                ? `${health.ai} · ${featured.ai.visibilityScore}`
+                : health.ai
+              : health.ai,
             href: `/businesses/${businessId}/ai-visibility`,
+          },
+          {
+            label: "Backlinks / trust",
+            value:
+              featured.local.total > 0
+                ? `${health.backlinks} · ${featured.local.total}`
+                : health.backlinks,
+            href: `/businesses/${businessId}/trust`,
           },
           {
             label: "Growth audit",
@@ -235,22 +222,37 @@ export default async function BusinessOverviewPage({
       />
 
       {actions.length > 0 ? (
-        <PageSection title="Recommended actions" description="Highest-leverage next steps for this location.">
-          <div className="grid gap-3 lg:grid-cols-3">
+        <PageSection
+          title="Recommended next steps"
+          description="Highest-leverage work for this location — ranked, not equal cards."
+        >
+          <ol className={listClass}>
             {actions.slice(0, 3).map((a, i) => (
-              <InsightPanel
+              <li
                 key={a.href}
-                title={`${i + 1}. ${a.title}`}
-                action={
-                  <Link href={a.href} className={btnPrimary}>
-                    Open
-                  </Link>
-                }
+                className="flex flex-col gap-2 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between"
               >
-                {a.why}
-              </InsightPanel>
+                <div className="min-w-0 flex items-start gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--primary-subtle)] text-[11px] font-bold text-[var(--primary)]">
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[var(--text)]">{a.title}</p>
+                    <p className="mt-0.5 text-sm leading-snug text-[var(--text-secondary)]">{a.why}</p>
+                  </div>
+                </div>
+                <Link
+                  href={a.href}
+                  className={cn(
+                    i === 0 ? btnPrimary : btnGhost,
+                    "h-8 shrink-0 px-3 text-xs"
+                  )}
+                >
+                  {i === 0 ? "Start" : "Open"}
+                </Link>
+              </li>
             ))}
-          </div>
+          </ol>
         </PageSection>
       ) : null}
 

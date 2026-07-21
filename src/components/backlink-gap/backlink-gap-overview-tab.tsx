@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 import { CheckCircle2, Lightbulb, Target } from "lucide-react";
 import type { EnrichedOpportunity } from "@/components/backlink-gap/opportunities-panel";
 import { PanelCard, priorityBadge } from "@/components/backlink-gap/backlink-gap-ui";
@@ -15,7 +15,7 @@ type Analytics = {
   powerBuckets: Array<{ label: string; count: number }>;
 };
 
-const PIE_COLORS = ["#16A34A", "#3b82f6", "#f59e0b", "#8b5cf6", "#06b6d4", "#ec4899", "#64748b", "#84cc16"];
+const PIE_COLORS = ["#137752", "#3b82f6", "#f59e0b", "#0ea5e9", "#06b6d4", "#64748b", "#84cc16", "#e11d48"];
 
 function panelFooterLink(label: string, onClick?: () => void) {
   return (
@@ -63,7 +63,6 @@ export function BacklinkGapOverviewTab({
 
   const categoryData = (analytics?.sourceTypes ?? []).slice(0, 6);
   const categoryTotal = categoryData.reduce((s, d) => s + d.count, 0);
-  const linkTypeTotal = linkTypeData.reduce((s, d) => s + d.value, 0);
   const totalOpps = analytics?.priorities
     ? analytics.priorities.high + analytics.priorities.medium + analytics.priorities.low
     : categoryTotal;
@@ -85,7 +84,18 @@ export function BacklinkGapOverviewTab({
           </div>
           <div className="p-3.5">
           {topOpportunities.length === 0 ? (
-            <p className={dashboardMicro}>No opportunities yet.</p>
+            <div className="space-y-2 py-2">
+              <p className={dashboardMicro}>
+                {totalOpps > 0
+                  ? `${totalOpps} gaps are ready — open the Opportunities tab to prioritize outreach.`
+                  : "No ranked opportunities loaded yet. Open Opportunities or re-run analysis if this persists."}
+              </p>
+              {onViewOpportunities ? (
+                <button type="button" onClick={onViewOpportunities} className={dashboardAccentLink}>
+                  Browse opportunities →
+                </button>
+              ) : null}
+            </div>
           ) : (
             <ol className="divide-y divide-zinc-100">
               {topOpportunities.map((o, i) => (
@@ -144,14 +154,18 @@ export function BacklinkGapOverviewTab({
         )}
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 lg:grid-cols-2">
         <PanelCard
           title="Opportunity Categories"
           className="[&>div:nth-child(2)]:p-3"
           footer={panelFooterLink("View opportunities tab →", onViewOpportunities)}
         >
           {categoryData.length === 0 ? (
-            <p className={dashboardMicro}>No category data.</p>
+            <p className={dashboardMicro}>
+              {totalOpps > 0
+                ? "Category breakdown is still loading — check Opportunities for the full list."
+                : "No category data yet."}
+            </p>
           ) : (
             <div className="flex items-center gap-2">
               <div className="relative mx-auto h-28 w-28 shrink-0">
@@ -196,70 +210,6 @@ export function BacklinkGapOverviewTab({
         </PanelCard>
 
         <PanelCard
-          title="Link Power Distribution"
-          className="[&>div:nth-child(2)]:p-3"
-          footer={panelFooterLink("See full breakdown →", onViewOpportunities)}
-        >
-          <div className="h-32">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={analytics?.powerBuckets ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                <XAxis dataKey="label" tick={{ fontSize: 9 }} interval={1} />
-                <YAxis tick={{ fontSize: 9 }} width={28} />
-                <Tooltip />
-                <Bar dataKey="count" radius={[3, 3, 0, 0]}>
-                  {(analytics?.powerBuckets ?? []).map((_, idx) => (
-                    <Cell
-                      key={idx}
-                      fill={idx >= 7 ? "#16A34A" : idx >= 4 ? "#f59e0b" : "#ef4444"}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </PanelCard>
-
-        <PanelCard
-          title="Link Type Overview"
-          className="[&>div:nth-child(2)]:p-3"
-          footer={panelFooterLink("Explore opportunities →", onViewOpportunities)}
-        >
-          {linkTypeData.length === 0 ? (
-            <p className={dashboardMicro}>No link type data.</p>
-          ) : (
-            <div className="flex items-center gap-2">
-              <div className="relative mx-auto h-28 w-28 shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={linkTypeData} dataKey="value" nameKey="name" innerRadius={42} outerRadius={62}>
-                      {linkTypeData.map((d) => (
-                        <Cell key={d.name} fill={d.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                  <p className="text-base font-bold text-zinc-900">{linkTypeTotal}</p>
-                  <p className="text-[10px] text-zinc-500">Total</p>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                {linkTypeData.map((d) => {
-                  const pct = linkTypeTotal > 0 ? Math.round((d.value / linkTypeTotal) * 100) : 0;
-                  return (
-                    <div key={d.name} className="text-[11px] text-zinc-600">
-                      <span className="font-medium text-zinc-900">{d.name}</span>{" "}
-                      <span>({pct}%)</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </PanelCard>
-
-        <PanelCard
           title="Quick Insights"
           className="[&>div:nth-child(2)]:p-3"
           footer={panelFooterLink("View Tasks →", onViewTasks)}
@@ -286,6 +236,15 @@ export function BacklinkGapOverviewTab({
                 {categoryData[0]?.count ?? 0} domains)
               </span>
             </li>
+            {linkTypeData.length > 0 ? (
+              <li className="flex gap-2">
+                <span className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded-full bg-zinc-200" />
+                <span>
+                  Link mix:{" "}
+                  {linkTypeData.map((d) => `${d.name} ${d.value}`).join(" · ")}
+                </span>
+              </li>
+            ) : null}
           </ul>
         </PanelCard>
       </div>

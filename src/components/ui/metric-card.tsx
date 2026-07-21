@@ -190,7 +190,7 @@ const statusColors: Record<string, string> = {
   rank_ready: "bg-sky-100 text-sky-800",
   enriching: "bg-amber-100 text-amber-800",
   scoring: "bg-amber-100 text-amber-800",
-  ai_planning: "bg-violet-100 text-violet-800",
+  ai_planning: "bg-sky-100 text-sky-800",
   partial: "bg-emerald-100 text-emerald-800",
   failed: "bg-red-100 text-red-800",
   queued: "bg-amber-100 text-amber-800",
@@ -198,6 +198,8 @@ const statusColors: Record<string, string> = {
   provider_running: "bg-blue-100 text-blue-800",
   normalizing: "bg-blue-100 text-blue-800",
   draft: "bg-zinc-100 text-zinc-700",
+  canceled: "bg-zinc-100 text-zinc-600",
+  cancelled: "bg-zinc-100 text-zinc-600",
 };
 
 export function StatusBadge({ status }: StatusBadgeProps) {
@@ -205,7 +207,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex rounded-full px-2 py-0.5 text-xs font-semibold capitalize",
+        "inline-flex rounded-md px-2 py-0.5 text-xs font-semibold capitalize",
         statusColors[status] ?? "bg-zinc-100 text-zinc-700"
       )}
     >

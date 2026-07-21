@@ -23,7 +23,6 @@ import {
   ModuleSkeleton,
   btnGhost,
   btnPrimary,
-  btnSecondary,
 } from "@/components/ui/design-system";
 import { ModuleEmptyState } from "@/components/journey/module-empty-state";
 import { BacklinkGapOverviewTab } from "@/components/backlink-gap/backlink-gap-overview-tab";
@@ -101,10 +100,10 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
   }, [load, loadStats]);
 
   useEffect(() => {
-    if (data?.run?.status === "ready" || data?.run?.status === "partial") {
+    if (data?.run && data.run.status !== "running" && data.run.status !== "queued") {
       void loadTopOpportunities();
     }
-  }, [data?.run?.status, loadTopOpportunities]);
+  }, [data?.run?.status, data?.run?.id, loadTopOpportunities]);
 
   const {
     start: startJob,
@@ -189,38 +188,33 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
           </button>
         }
         secondaryActions={
-          <>
+          run ? (
+            <>
+              <button
+                type="button"
+                onClick={createTasks}
+                disabled={isRunning}
+                className={cn(btnGhost, "h-9 px-3 text-[13px]")}
+              >
+                <ListPlus className="h-3.5 w-3.5" />
+                Create tasks
+              </button>
+              <button
+                type="button"
+                onClick={() => runGap(true)}
+                disabled={isRunning}
+                className={cn(btnGhost, "h-9 px-3 text-[13px]")}
+                title="Force a fresh analysis"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Re-run
+              </button>
+            </>
+          ) : (
             <Link href={`/businesses/${businessId}/scans`} className={cn(btnGhost, "h-9 px-3 text-[13px]")}>
               Maps scans
             </Link>
-            <button
-              type="button"
-              onClick={() => runGap(true)}
-              disabled={isRunning || !run}
-              className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Re-run
-            </button>
-            <button
-              type="button"
-              onClick={createTasks}
-              disabled={!run || isRunning}
-              className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
-            >
-              <ListPlus className="h-3.5 w-3.5" />
-              Create tasks
-            </button>
-            <button
-              type="button"
-              onClick={load}
-              disabled={loading}
-              className={cn(btnGhost, "h-9 px-3 text-[13px]")}
-            >
-              <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-              Refresh
-            </button>
-          </>
+          )
         }
       />
 

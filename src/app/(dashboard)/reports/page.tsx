@@ -1,8 +1,7 @@
 import { requirePageAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
-import { ModuleHeader, ModulePage } from "@/components/ui/design-system";
+import { ModulePage } from "@/components/ui/design-system";
 import { OrgReportsHome } from "@/components/reports/org-reports-home";
-import { FileText } from "lucide-react";
 
 export default async function ReportsIndexPage() {
   const auth = await requirePageAuth();
@@ -18,11 +17,6 @@ export default async function ReportsIndexPage() {
 
   return (
     <ModulePage>
-      <ModuleHeader
-        icon={<FileText className="h-5 w-5 shrink-0 text-emerald-600" />}
-        title="Reports"
-        subtitle="Drafts, published links, and monthly deliverables — the completion point of your client work."
-      />
       <OrgReportsHome businesses={active} />
     </ModulePage>
   );

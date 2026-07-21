@@ -461,22 +461,54 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
                 title="Review growth over the last 90 days"
                 description="Your pace versus the competitive set — units are new reviews."
               >
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={trend90} margin={{ top: 12, right: 12, left: -8, bottom: 4 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef0f3" />
-                    <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#87909E" }} axisLine={false} tickLine={false} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#87909E" }} axisLine={false} tickLine={false} />
-                    <Tooltip />
-                    <Line
-                      type="monotone"
-                      dataKey="count"
-                      name="Your reviews"
-                      stroke="#137752"
-                      strokeWidth={2.5}
-                      dot={{ r: 3.5, fill: "#137752" }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                {trend90.filter((d) => (d.count ?? 0) > 0).length < 2 ? (
+                  <div className="flex min-h-[180px] flex-col items-start justify-center gap-2 px-1 py-6">
+                    <p className="text-sm font-semibold text-[var(--text)]">
+                      Not enough review activity to chart yet
+                    </p>
+                    <p className="max-w-lg text-sm leading-relaxed text-[var(--text-secondary)]">
+                      {target.reviews_30d > 0
+                        ? `You gained ${target.reviews_30d} review${target.reviews_30d === 1 ? "" : "s"} in the last 30 days. Keep requesting reviews to build a readable trend line.`
+                        : "Once new reviews land, this chart will show your pace against the competitive set."}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-6 text-sm">
+                      <div>
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--text-muted)]">
+                          Current pace
+                        </p>
+                        <p className="mt-1 text-xl font-bold tabular-nums text-[var(--text)]">
+                          {formatPace(target.avg_reviews_per_week)}
+                          <span className="ml-1 text-sm font-medium text-[var(--text-muted)]">/week</span>
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--text-muted)]">
+                          Market (30d)
+                        </p>
+                        <p className="mt-1 text-xl font-bold tabular-nums text-[var(--text)]">
+                          {market?.marketReviews30d ?? "—"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <LineChart data={trend90} margin={{ top: 12, right: 12, left: -8, bottom: 4 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef0f3" />
+                      <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#87909E" }} axisLine={false} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#87909E" }} axisLine={false} tickLine={false} />
+                      <Tooltip />
+                      <Line
+                        type="monotone"
+                        dataKey="count"
+                        name="Your reviews"
+                        stroke="#137752"
+                        strokeWidth={2.5}
+                        dot={{ r: 3.5, fill: "#137752" }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </ChartCard>
 
               <div className="grid gap-4 sm:grid-cols-3">

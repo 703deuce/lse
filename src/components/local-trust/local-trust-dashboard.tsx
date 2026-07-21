@@ -243,33 +243,22 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
           </button>
         }
         secondaryActions={
-          <>
-            <button
-              type="button"
-              onClick={() => void load()}
-              disabled={loading}
-              className={cn(btnGhost, "h-9 px-3 text-[13px]")}
-            >
-              <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-              Refresh
-            </button>
-            <button
-              type="button"
-              className={cn(btnGhost, "h-9 px-3 text-[13px]")}
-              onClick={() => {
-                void import("@/lib/journey/report-staging").then(({ stageReportItem }) => {
-                  stageReportItem({
-                    businessId,
-                    source: "local_trust",
-                    title: "Local Trust findings",
-                    href: `/businesses/${businessId}/trust`,
-                  });
+          <button
+            type="button"
+            className={cn(btnGhost, "h-9 px-3 text-[13px]")}
+            onClick={() => {
+              void import("@/lib/journey/report-staging").then(({ stageReportItem }) => {
+                stageReportItem({
+                  businessId,
+                  source: "local_trust",
+                  title: "Local Trust findings",
+                  href: `/businesses/${businessId}/trust`,
                 });
-              }}
-            >
-              Add to report
-            </button>
-          </>
+              });
+            }}
+          >
+            Add to report
+          </button>
         }
       />
 

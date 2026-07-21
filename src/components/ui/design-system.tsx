@@ -651,21 +651,38 @@ export function ModuleSkeleton({
   className?: string;
 }) {
   return (
-    <div className={cn(cardClass, "overflow-hidden", className)} aria-busy="true" aria-live="polite">
-      <div className="border-b border-zinc-100 bg-zinc-50/80 px-3.5 py-2.5">
-        <div className="h-3 w-28 animate-pulse rounded bg-zinc-200" />
+    <div className={cn("space-y-4", className)} aria-busy="true" aria-live="polite">
+      <div className={cn(heroClass, "px-5 py-5")}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="h-2.5 w-24 animate-pulse rounded bg-emerald-100" />
+            <div className="h-6 max-w-xs animate-pulse rounded bg-zinc-200" />
+            <div className="h-3 max-w-md animate-pulse rounded bg-zinc-100" />
+          </div>
+          <div className="h-10 w-28 animate-pulse rounded-[8px] bg-zinc-100" />
+        </div>
       </div>
-      <div className="divide-y divide-zinc-100">
-        {Array.from({ length: rows }).map((_, i) => (
-          <div key={i} className="flex items-center gap-3 px-3.5 py-3">
-            <div className="h-8 w-8 shrink-0 animate-pulse rounded-md bg-zinc-100" />
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="h-3 max-w-[40%] animate-pulse rounded bg-zinc-200" />
-              <div className="h-2.5 max-w-[70%] animate-pulse rounded bg-zinc-100" />
-            </div>
-            <div className="hidden h-6 w-16 animate-pulse rounded bg-zinc-100 sm:block" />
+      <div className={cn(insetClass, "grid sm:grid-cols-4")}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="px-4 py-3">
+            <div className="h-2.5 w-16 animate-pulse rounded bg-zinc-200" />
+            <div className="mt-2 h-5 w-12 animate-pulse rounded bg-zinc-100" />
           </div>
         ))}
+      </div>
+      <div className={cn(cardClass, "overflow-hidden")}>
+        <div className="divide-y divide-zinc-100">
+          {Array.from({ length: rows }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 px-3.5 py-3">
+              <div className="h-8 w-8 shrink-0 animate-pulse rounded-md bg-zinc-100" />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="h-3 max-w-[40%] animate-pulse rounded bg-zinc-200" />
+                <div className="h-2.5 max-w-[70%] animate-pulse rounded bg-zinc-100" />
+              </div>
+              <div className="hidden h-6 w-16 animate-pulse rounded bg-zinc-100 sm:block" />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -673,12 +690,11 @@ export function ModuleSkeleton({
 
 export function KpiSkeleton({ count = 4, className }: { count?: number; className?: string }) {
   return (
-    <div className={cn(cardGrid, className)} aria-busy="true">
+    <div className={cn(insetClass, "grid", count <= 3 ? "sm:grid-cols-3" : "sm:grid-cols-4", className)} aria-busy="true">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className={cn(cardClass, "px-3.5 py-3")}>
+        <div key={i} className="px-4 py-3">
           <div className="h-2.5 w-16 animate-pulse rounded bg-zinc-200" />
-          <div className="mt-2.5 h-5 w-20 animate-pulse rounded bg-zinc-100" />
-          <div className="mt-2 h-2 w-24 animate-pulse rounded bg-zinc-100" />
+          <div className="mt-2 h-5 w-14 animate-pulse rounded bg-zinc-100" />
         </div>
       ))}
     </div>

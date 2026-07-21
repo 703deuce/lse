@@ -453,7 +453,7 @@ export function ScanSetupStudio({
                 type="button"
                 disabled={geocoding || !locationQuery.trim()}
                 onClick={() => void applyLocationFromAddress()}
-                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-zinc-900 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
               >
                 {geocoding ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />

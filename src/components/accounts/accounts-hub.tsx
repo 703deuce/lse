@@ -20,6 +20,7 @@ import {
   PageHeader,
   ModulePage,
   ModuleSkeleton,
+  btnGhost,
   btnPrimary,
   btnSecondary,
 } from "@/components/ui/design-system";
@@ -481,11 +482,17 @@ export function AccountsHub({
                           : b.primary_category ?? "—"}
                       </td>
                       <td className="px-3 py-2.5">
-                        <div className="flex flex-wrap items-center justify-end gap-1.5">
-                          <Link href={dashboardHref} className={cn(btnPrimary, "h-7 px-2.5 text-[11px]")}>
+                        <div className="flex flex-wrap items-center justify-end gap-1">
+                          <Link
+                            href={dashboardHref}
+                            className={cn(btnPrimary, "h-7 px-2.5 text-[11px]")}
+                          >
                             Open
                           </Link>
-                          <Link href={detailHref} className={cn(btnSecondary, "h-7 px-2.5 text-[11px]")}>
+                          <Link
+                            href={detailHref}
+                            className={cn(btnGhost, "h-7 px-2 text-[11px] font-medium")}
+                          >
                             Details
                           </Link>
                           {mode === "prospects" && !b.archived_at ? (
@@ -493,7 +500,7 @@ export function AccountsHub({
                               type="button"
                               disabled={busyId === b.id}
                               onClick={() => void convertToClient(b.id)}
-                              className={cn(btnSecondary, "h-7 px-2.5 text-[11px] disabled:opacity-50")}
+                              className={cn(btnGhost, "h-7 px-2 text-[11px] font-medium disabled:opacity-50")}
                             >
                               {busyId === b.id ? (
                                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -507,7 +514,10 @@ export function AccountsHub({
                               type="button"
                               disabled={busyId === b.id}
                               onClick={() => void archiveClient(b.id)}
-                              className={cn(btnSecondary, "h-7 px-2.5 text-[11px] disabled:opacity-50")}
+                              className={cn(
+                                btnGhost,
+                                "h-7 px-2 text-[11px] font-medium text-zinc-400 hover:text-red-700 disabled:opacity-50"
+                              )}
                             >
                               Archive
                             </button>
@@ -517,7 +527,7 @@ export function AccountsHub({
                               type="button"
                               disabled={busyId === b.id}
                               onClick={() => void restoreClient(b.id)}
-                              className={cn(btnSecondary, "h-7 px-2.5 text-[11px] disabled:opacity-50")}
+                              className={cn(btnGhost, "h-7 px-2 text-[11px] font-medium disabled:opacity-50")}
                             >
                               Restore
                             </button>
