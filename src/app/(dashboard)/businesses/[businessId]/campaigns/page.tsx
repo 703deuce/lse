@@ -2,14 +2,27 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { btnPrimary, listClass } from "@/components/ui/design-system";
-import { CampaignSetupWizard } from "@/components/campaigns/campaign-setup-wizard";
+import {
+  CampaignSetupWizard,
+  MapsCampaignsWizardPageHeader,
+  type WizardExistingCampaign,
+} from "@/components/campaigns/campaign-setup-wizard";
 import { ModuleEmptyState } from "@/components/journey/module-empty-state";
 
-type Campaign = { id: string; name: string; description: string | null; schedule_type: string };
+type Campaign = {
+  id: string;
+  name: string;
+  description: string | null;
+  schedule_type: string;
+  keywordCount?: number;
+  default_grid_size?: number;
+  updated_at?: string | null;
+  status?: "active" | "paused" | "draft";
+};
 
 export default function BusinessCampaignsPage() {
   const params = useParams();
@@ -39,17 +52,48 @@ export default function BusinessCampaignsPage() {
     void load();
   }, [load]);
 
+  const wizardCampaigns: WizardExistingCampaign[] = useMemo(
+    () =>
+      campaigns.map((c) => ({
+        id: c.id,
+        name: c.name,
+        schedule_type: c.schedule_type,
+        keywordCount: c.keywordCount,
+        default_grid_size: c.default_grid_size,
+        updated_at: c.updated_at ?? null,
+        status: c.status ?? "active",
+      })),
+    [campaigns]
+  );
+
+  if (showWizard) {
+    return (
+      <div className="space-y-5">
+        <MapsCampaignsWizardPageHeader />
+        {error ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            {error}
+          </div>
+        ) : null}
+        <CampaignSetupWizard
+          businessId={businessId}
+          existingCampaigns={wizardCampaigns}
+          onClose={() => {
+            setShowWizard(false);
+            void load();
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <>
       <PageHeader
         title="Maps Campaigns"
         subtitle="Group keywords, establish a baseline, and run recurring Maps scans for this location."
         actions={
-          <button
-            type="button"
-            onClick={() => setShowWizard(true)}
-            className={btnPrimary}
-          >
+          <button type="button" onClick={() => setShowWizard(true)} className={btnPrimary}>
             <Plus className="h-4 w-4" />
             New campaign
           </button>
@@ -61,24 +105,12 @@ export default function BusinessCampaignsPage() {
         </div>
       ) : null}
 
-      {showWizard ? (
-        <div className="mb-4">
-          <CampaignSetupWizard
-            businessId={businessId}
-            onClose={() => {
-              setShowWizard(false);
-              void load();
-            }}
-          />
-        </div>
-      ) : null}
-
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-zinc-500">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading…
         </div>
-      ) : campaigns.length === 0 && !showWizard ? (
+      ) : campaigns.length === 0 ? (
         <ModuleEmptyState
           title="No campaigns yet"
           description="Create a campaign to group client keywords, establish a baseline, and run recurring Maps scans — then turn results into a monthly report."
