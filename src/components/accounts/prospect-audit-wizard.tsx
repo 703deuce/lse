@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Loader2, Rocket } from "lucide-react";
+import { ArrowRight, Loader2, Rocket } from "lucide-react";
 import {
   btnPrimary,
   btnSecondary,
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
 
-type Step = "keywords" | "modules" | "run" | "done";
+type Step = "keywords" | "run" | "done";
 
 export function ProspectAuditWizard({
   businessId,
@@ -24,14 +24,6 @@ export function ProspectAuditWizard({
 }) {
   const [step, setStep] = useState<Step>("keywords");
   const [keywords, setKeywords] = useState("");
-  const [modules, setModules] = useState({
-    maps: true,
-    growthAudit: true,
-    competitors: true,
-    aiVisibility: false,
-    reviews: false,
-    backlinks: false,
-  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [started, setStarted] = useState<string[]>([]);
@@ -47,7 +39,7 @@ export function ProspectAuditWizard({
         .filter(Boolean);
       const primary = lines[0];
 
-      if (modules.maps && primary) {
+      if (primary) {
         const res = await fetch("/api/scans/run-for-keyword", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -63,26 +55,15 @@ export function ProspectAuditWizard({
         launched.push("Maps visibility scan");
       }
 
-      if (modules.growthAudit) {
-        const res = await fetch("/api/growth-audit/run", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ businessId }),
-        });
-        if (res.ok) launched.push("Growth Audit");
-        else {
-          // Non-fatal — route may differ by deployment
-          launched.push("Growth Audit (open tab to run)");
-        }
-      }
-
-      if (modules.aiVisibility) {
-        const res = await fetch("/api/ai-visibility/run", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ businessId }),
-        });
-        if (res.ok) launched.push("AI Visibility check");
+      const res = await fetch("/api/growth-audit/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId }),
+      });
+      if (res.ok) launched.push("Opportunity audit");
+      else {
+        // Some deployments run Growth Audit from its page; keep the prospect flow moving.
+        launched.push("Opportunity audit (open tab to run)");
       }
 
       setStarted(launched);
@@ -102,7 +83,7 @@ export function ProspectAuditWizard({
             Prospect audit — {businessName}
           </h2>
           <p className="mt-0.5 text-[12px] text-zinc-600">
-            Guided workflow: keywords → modules → run → create report.
+            Focused workflow: primary keyword → Maps baseline + opportunity audit → prospect report.
           </p>
         </div>
         {onClose ? (
@@ -127,67 +108,24 @@ export function ProspectAuditWizard({
             type="button"
             className={cn(btnPrimary, "h-9 px-3 text-[13px]")}
             disabled={!keywords.trim()}
-            onClick={() => setStep("modules")}
+            onClick={() => setStep("run")}
           >
             Continue <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>
       ) : null}
 
-      {step === "modules" ? (
-        <div className="space-y-3">
-          <p className={fieldLabelClass}>Include in this audit</p>
-          {(
-            [
-              ["maps", "Maps visibility"],
-              ["growthAudit", "Growth Audit"],
-              ["competitors", "Competitor comparison"],
-              ["aiVisibility", "AI visibility"],
-              ["reviews", "Review snapshot"],
-              ["backlinks", "Backlink opportunities"],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key} className="flex items-center gap-2 text-[13px] text-zinc-800">
-              <input
-                type="checkbox"
-                checked={modules[key]}
-                onChange={(e) =>
-                  setModules((m) => ({ ...m, [key]: e.target.checked }))
-                }
-              />
-              {label}
-            </label>
-          ))}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
-              onClick={() => setStep("keywords")}
-            >
-              <ArrowLeft className="h-3.5 w-3.5" /> Back
-            </button>
-            <button
-              type="button"
-              className={cn(btnPrimary, "h-9 px-3 text-[13px]")}
-              onClick={() => setStep("run")}
-            >
-              Continue
-            </button>
-          </div>
-        </div>
-      ) : null}
-
       {step === "run" ? (
         <div className="space-y-3">
           <p className="text-[13px] text-zinc-700">
-            Ready to queue selected modules. Work continues in the background.
+            Ready to queue the focused prospect audit for the first keyword. Add the rest as research context for your notes/report.
           </p>
           {error ? <p className="text-[12px] text-red-600">{error}</p> : null}
           <div className="flex gap-2">
             <button
               type="button"
               className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
-              onClick={() => setStep("modules")}
+              onClick={() => setStep("keywords")}
             >
               Back
             </button>
@@ -230,7 +168,7 @@ export function ProspectAuditWizard({
               Growth Audit
             </Link>
             <Link
-              href={`/businesses/${businessId}/reports?type=single_scan`}
+              href={`/businesses/${businessId}/reports?type=single_scan&scope=prospect`}
               className={cn(btnPrimary, "h-9 px-3 text-[13px]")}
             >
               Create prospect report

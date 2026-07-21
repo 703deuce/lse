@@ -19,6 +19,35 @@ export const PROSPECT_STATUSES: ProspectStatus[] = [
   "archived",
 ];
 
+export const PROSPECT_PIPELINE_STATUSES = [
+  "new",
+  "contacted",
+  "audit_sent",
+  "proposal_sent",
+  "won",
+  "lost",
+] as const satisfies readonly ProspectStatus[];
+
+export const PROSPECT_STATUS_LABELS: Record<ProspectStatus, string> = {
+  new: "New",
+  contacted: "Contacted",
+  audit_sent: "Audit sent",
+  proposal_sent: "Proposal sent",
+  won: "Won",
+  lost: "Lost",
+  archived: "Archived",
+};
+
+export type ProspectPipelineStatus = (typeof PROSPECT_PIPELINE_STATUSES)[number];
+
+export function prospectPipelineStatus(
+  status: ProspectStatus | string | null | undefined
+): ProspectPipelineStatus {
+  return PROSPECT_PIPELINE_STATUSES.includes(status as ProspectPipelineStatus)
+    ? (status as ProspectPipelineStatus)
+    : "new";
+}
+
 export type AccountListRow = {
   id: string;
   name: string;

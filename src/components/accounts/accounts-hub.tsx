@@ -2,14 +2,27 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, MapPin, Plus, UserCheck, Archive, RotateCcw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type DragEvent } from "react";
+import {
+  Archive,
+  ArrowRight,
+  FileText,
+  Loader2,
+  MapPin,
+  Plus,
+  Radar,
+  RotateCcw,
+  UserCheck,
+} from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import {
   isClientRow,
   isProspectRow,
-  PROSPECT_STATUSES,
+  PROSPECT_PIPELINE_STATUSES,
+  PROSPECT_STATUS_LABELS,
+  prospectPipelineStatus,
   type AccountListRow,
+  type ProspectPipelineStatus,
   type ProspectStatus,
 } from "@/lib/accounts/types";
 
@@ -19,7 +32,15 @@ function locationSubtitle(b: AccountListRow): string {
 
 function statusLabel(status: string | null | undefined): string {
   if (!status) return "—";
+  if (status in PROSPECT_STATUS_LABELS) {
+    return PROSPECT_STATUS_LABELS[status as ProspectStatus];
+  }
   return status.replace(/_/g, " ");
+}
+
+function nextPipelineStatus(status: ProspectPipelineStatus): ProspectPipelineStatus | null {
+  const index = PROSPECT_PIPELINE_STATUSES.indexOf(status);
+  return PROSPECT_PIPELINE_STATUSES[index + 1] ?? null;
 }
 
 export function AccountsHub({
@@ -38,7 +59,8 @@ export function AccountsHub({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<"all" | ProspectStatus | "archived">("all");
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "archived">("all");
   const [clientFilter, setClientFilter] = useState<"active" | "archived">("active");
 
   const load = useCallback(async () => {
@@ -139,6 +161,54 @@ export function AccountsHub({
     }
   }
 
+  async function updateProspectStatus(
+    businessId: string,
+    nextStatus: ProspectPipelineStatus
+  ) {
+    const current = rows.find((row) => row.id === businessId);
+    if (!current) return;
+    const currentStatus = prospectPipelineStatus(current.prospect_status);
+    if (currentStatus === nextStatus) return;
+
+    const previousRows = rows;
+    setBusyId(businessId);
+    setError(null);
+    setRows((prev) =>
+      prev.map((row) =>
+        row.id === businessId
+          ? {
+              ...row,
+              account_type: "prospect",
+              prospect_status: nextStatus,
+              archived_at: null,
+            }
+          : row
+      )
+    );
+
+    try {
+      const res = await fetch(`/api/businesses/${businessId}/account`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prospectStatus: nextStatus }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Could not update prospect status");
+      if (json.account) {
+        setRows((prev) =>
+          prev.map((row) => (row.id === businessId ? { ...row, ...json.account } : row))
+        );
+      }
+      router.refresh();
+    } catch (e) {
+      setRows(previousRows);
+      setError(e instanceof Error ? e.message : "Could not update prospect status");
+    } finally {
+      setBusyId(null);
+      setDraggingId(null);
+    }
+  }
+
   const list = useMemo(() => {
     if (mode === "clients") {
       if (clientFilter === "archived") {
@@ -150,7 +220,6 @@ export function AccountsHub({
       }
       return rows.filter(isClientRow);
     }
-    if (statusFilter === "all") return rows.filter(isProspectRow);
     if (statusFilter === "archived") {
       return rows.filter(
         (b) =>
@@ -158,10 +227,40 @@ export function AccountsHub({
           (b.account_type === "prospect" || b.account_type == null)
       );
     }
-    return rows.filter(
-      (b) => isProspectRow(b) && b.prospect_status === statusFilter
-    );
+    return rows.filter(isProspectRow);
   }, [mode, rows, statusFilter, clientFilter]);
+
+  const prospectColumns = useMemo(() => {
+    const columns: Record<ProspectPipelineStatus, AccountListRow[]> = {
+      new: [],
+      contacted: [],
+      audit_sent: [],
+      proposal_sent: [],
+      won: [],
+      lost: [],
+    };
+
+    for (const prospect of rows.filter(isProspectRow)) {
+      columns[prospectPipelineStatus(prospect.prospect_status)].push(prospect);
+    }
+
+    return columns;
+  }, [rows]);
+
+  const activeProspectCount = useMemo(
+    () => rows.filter(isProspectRow).length,
+    [rows]
+  );
+
+  const archivedProspectCount = useMemo(
+    () =>
+      rows.filter(
+        (b) =>
+          !!b.archived_at &&
+          (b.account_type === "prospect" || b.account_type == null)
+      ).length,
+    [rows]
+  );
 
   const title = mode === "clients" ? "Clients" : "Prospects";
   const subtitle =
@@ -221,24 +320,19 @@ export function AccountsHub({
           </div>
         </div>
       ) : (
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-sm text-zinc-600">
+          <span className="rounded-md bg-zinc-100 px-2.5 py-1 font-medium text-zinc-800">
+            {activeProspectCount} active prospects
+          </span>
           <FilterChip
             active={statusFilter === "all"}
             onClick={() => setStatusFilter("all")}
-            label="All"
+            label="Pipeline board"
           />
-          {PROSPECT_STATUSES.filter((s) => s !== "archived").map((s) => (
-            <FilterChip
-              key={s}
-              active={statusFilter === s}
-              onClick={() => setStatusFilter(s)}
-              label={statusLabel(s)}
-            />
-          ))}
           <FilterChip
             active={statusFilter === "archived"}
             onClick={() => setStatusFilter("archived")}
-            label="Archived"
+            label={`Archived${archivedProspectCount ? ` (${archivedProspectCount})` : ""}`}
           />
         </div>
       )}
@@ -260,6 +354,31 @@ export function AccountsHub({
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading…
         </div>
+      ) : mode === "prospects" && statusFilter !== "archived" ? (
+        activeProspectCount === 0 ? (
+          <div className="rounded-2xl border border-dashed border-zinc-200 bg-white/80 px-6 py-12 text-center shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+            <MapPin className="mx-auto h-8 w-8 text-zinc-300" />
+            <h2 className="mt-3 text-base font-semibold text-zinc-900">{emptyTitle}</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-zinc-600">{emptyBody}</p>
+            <Link
+              href={newHref}
+              className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#137752] px-4 py-2 text-sm font-medium text-white hover:bg-[#0f6344]"
+            >
+              <Plus className="h-4 w-4" />
+              {newLabel}
+            </Link>
+          </div>
+        ) : (
+          <ProspectKanban
+            columns={prospectColumns}
+            busyId={busyId}
+            draggingId={draggingId}
+            onDragStart={(businessId) => setDraggingId(businessId)}
+            onDragEnd={() => setDraggingId(null)}
+            onMove={(businessId, status) => void updateProspectStatus(businessId, status)}
+            onConvert={(businessId) => void convertToClient(businessId)}
+          />
+        )
       ) : list.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-zinc-200 bg-white/80 px-6 py-12 text-center shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
           <MapPin className="mx-auto h-8 w-8 text-zinc-300" />
@@ -376,6 +495,194 @@ export function AccountsHub({
         </ul>
       )}
     </>
+  );
+}
+
+function ProspectKanban({
+  columns,
+  busyId,
+  draggingId,
+  onDragStart,
+  onDragEnd,
+  onMove,
+  onConvert,
+}: {
+  columns: Record<ProspectPipelineStatus, AccountListRow[]>;
+  busyId: string | null;
+  draggingId: string | null;
+  onDragStart: (businessId: string) => void;
+  onDragEnd: () => void;
+  onMove: (businessId: string, status: ProspectPipelineStatus) => void;
+  onConvert: (businessId: string) => void;
+}) {
+  function handleDrop(
+    event: DragEvent<HTMLElement>,
+    status: ProspectPipelineStatus
+  ) {
+    event.preventDefault();
+    const businessId = event.dataTransfer.getData("text/plain") || draggingId;
+    if (businessId) onMove(businessId, status);
+  }
+
+  return (
+    <div className="-mx-2 overflow-x-auto px-2 pb-3">
+      <div className="grid min-w-[1120px] grid-cols-6 gap-3">
+        {PROSPECT_PIPELINE_STATUSES.map((status) => {
+          const prospects = columns[status];
+          return (
+            <section
+              key={status}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => handleDrop(event, status)}
+              className="min-h-[360px] rounded-2xl border border-zinc-200 bg-zinc-50/80 p-2"
+            >
+              <div className="mb-2 flex items-center justify-between px-1">
+                <h2 className="text-[12px] font-semibold uppercase tracking-wide text-zinc-600">
+                  {statusLabel(status)}
+                </h2>
+                <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-500 ring-1 ring-zinc-200">
+                  {prospects.length}
+                </span>
+              </div>
+
+              {prospects.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-zinc-200 bg-white/60 px-3 py-6 text-center text-[12px] text-zinc-400">
+                  Drop prospects here
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {prospects.map((prospect) => (
+                    <ProspectCard
+                      key={prospect.id}
+                      prospect={prospect}
+                      busy={busyId === prospect.id}
+                      onDragStart={onDragStart}
+                      onDragEnd={onDragEnd}
+                      onMove={onMove}
+                      onConvert={onConvert}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ProspectCard({
+  prospect,
+  busy,
+  onDragStart,
+  onDragEnd,
+  onMove,
+  onConvert,
+}: {
+  prospect: AccountListRow;
+  busy: boolean;
+  onDragStart: (businessId: string) => void;
+  onDragEnd: () => void;
+  onMove: (businessId: string, status: ProspectPipelineStatus) => void;
+  onConvert: (businessId: string) => void;
+}) {
+  const status = prospectPipelineStatus(prospect.prospect_status);
+  const nextStatus = nextPipelineStatus(status);
+
+  return (
+    <article
+      draggable={!busy}
+      onDragStart={(event) => {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", prospect.id);
+        onDragStart(prospect.id);
+      }}
+      onDragEnd={onDragEnd}
+      className="rounded-xl border border-zinc-200 bg-white p-3 shadow-[0_1px_3px_rgba(15,23,42,0.06)] transition hover:border-emerald-200 hover:shadow-[0_6px_18px_rgba(15,23,42,0.08)]"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <Link
+            href={`/prospects/${prospect.id}`}
+            className="block truncate text-[13px] font-semibold text-zinc-900 hover:text-emerald-700"
+          >
+            {prospect.name}
+          </Link>
+          <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+            {locationSubtitle(prospect)}
+          </p>
+        </div>
+        <span className="cursor-grab rounded-md border border-zinc-100 bg-zinc-50 px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+          Drag
+        </span>
+      </div>
+
+      {prospect.primary_contact_name || prospect.primary_contact_email ? (
+        <p className="mt-2 truncate text-[11px] text-zinc-500">
+          {prospect.primary_contact_name || prospect.primary_contact_email}
+          {prospect.primary_contact_name && prospect.primary_contact_email
+            ? ` · ${prospect.primary_contact_email}`
+            : ""}
+        </p>
+      ) : null}
+
+      <div className="mt-2 grid grid-cols-2 gap-1.5">
+        <Link
+          href={`/prospects/${prospect.id}?audit=1`}
+          className="inline-flex h-7 items-center justify-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100"
+        >
+          <Radar className="h-3 w-3" />
+          Audit
+        </Link>
+        <Link
+          href={`/businesses/${prospect.id}/reports?type=single_scan&scope=prospect`}
+          className="inline-flex h-7 items-center justify-center gap-1 rounded-md border border-zinc-200 px-2 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50"
+        >
+          <FileText className="h-3 w-3" />
+          Report
+        </Link>
+      </div>
+
+      <div className="mt-2 flex items-center gap-1.5">
+        <select
+          value={status}
+          disabled={busy}
+          onChange={(event) =>
+            onMove(prospect.id, event.target.value as ProspectPipelineStatus)
+          }
+          className="min-w-0 flex-1 rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] capitalize text-zinc-700 disabled:opacity-50"
+          aria-label={`Move ${prospect.name} to status`}
+        >
+          {PROSPECT_PIPELINE_STATUSES.map((option) => (
+            <option key={option} value={option}>
+              {statusLabel(option)}
+            </option>
+          ))}
+        </select>
+        {nextStatus ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onMove(prospect.id, nextStatus)}
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 px-2 text-[11px] font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+            title={`Move to ${statusLabel(nextStatus)}`}
+          >
+            <ArrowRight className="h-3 w-3" />
+          </button>
+        ) : null}
+      </div>
+
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => onConvert(prospect.id)}
+        className="mt-2 inline-flex h-7 w-full items-center justify-center gap-1 rounded-md bg-[#137752] px-2 text-[11px] font-medium text-white hover:bg-[#0f6344] disabled:opacity-50"
+      >
+        {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserCheck className="h-3 w-3" />}
+        Convert to client
+      </button>
+    </article>
   );
 }
 

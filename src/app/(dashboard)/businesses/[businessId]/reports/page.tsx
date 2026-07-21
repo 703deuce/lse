@@ -19,16 +19,22 @@ export default async function ReportsPage({
   searchParams,
 }: {
   params: Promise<{ businessId: string }>;
-  searchParams: Promise<{ type?: string; campaignId?: string }>;
+  searchParams: Promise<{ type?: string; campaignId?: string; scope?: string }>;
 }) {
   const { businessId } = await params;
   const sp = await searchParams;
-  await requireBusinessPageData(businessId);
+  const { business } = await requireBusinessPageData(businessId);
   const latestScan = await getLatestScan(businessId);
+  const prospectOnly =
+    sp.scope === "prospect" ||
+    business.account_type === "prospect" ||
+    business.is_tracked === false;
   const initialType =
-    sp.type && REPORT_TYPES.has(sp.type as ReportType)
+    sp.type && REPORT_TYPES.has(sp.type as ReportType) && !prospectOnly
       ? (sp.type as ReportType)
-      : undefined;
+      : prospectOnly
+        ? "single_scan"
+        : undefined;
 
   return (
     <ReportsHub
@@ -36,6 +42,7 @@ export default async function ReportsPage({
       latestScanId={latestScan?.id ?? null}
       initialType={initialType}
       initialMapsCampaignId={sp.campaignId ?? null}
+      prospectOnly={prospectOnly}
     />
   );
 }

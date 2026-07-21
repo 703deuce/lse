@@ -142,11 +142,13 @@ export function ReportsHub({
   latestScanId,
   initialType,
   initialMapsCampaignId,
+  prospectOnly = false,
 }: {
   businessId: string;
   latestScanId?: string | null;
   initialType?: ReportType;
   initialMapsCampaignId?: string | null;
+  prospectOnly?: boolean;
 }) {
   const [scans, setScans] = useState<ScanOption[]>([]);
   const [keywords, setKeywords] = useState<KeywordOption[]>([]);
@@ -158,7 +160,9 @@ export function ReportsHub({
   const [keywordId, setKeywordId] = useState("");
   const [campaignId, setCampaignId] = useState("");
   const [mapsCampaignId, setMapsCampaignId] = useState(initialMapsCampaignId ?? "");
-  const [activeType, setActiveType] = useState<ReportType>(initialType ?? "single_scan");
+  const [activeType, setActiveType] = useState<ReportType>(
+    prospectOnly ? "single_scan" : initialType ?? "single_scan"
+  );
   const [busy, setBusy] = useState<"share" | "csv" | "pdf" | "revoke" | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [reportId, setReportId] = useState<string | null>(null);
@@ -260,7 +264,14 @@ export function ReportsHub({
     return match?.id ?? null;
   }, [selectedScan, keywords]);
 
-  const activeCard = REPORT_CARDS.find((c) => c.type === activeType) ?? REPORT_CARDS[0];
+  const reportCards = useMemo(
+    () =>
+      prospectOnly
+        ? REPORT_CARDS.filter((card) => card.type === "single_scan")
+        : REPORT_CARDS,
+    [prospectOnly]
+  );
+  const activeCard = reportCards.find((c) => c.type === activeType) ?? reportCards[0];
   const needsScanPicker = Boolean(
     activeCard.needsScan || activeType === "trend" || activeType === "keyword"
   );
@@ -424,14 +435,18 @@ export function ReportsHub({
   return (
     <ModulePage wide>
       <ModuleHeader
-        title="Reports"
-        subtitle="Client-ready Maps and Reviews reports — PDF, map images, share links, and CSV."
+        title={prospectOnly ? "Prospect audit report" : "Reports"}
+        subtitle={
+          prospectOnly
+            ? "A focused shareable audit for prospects: Maps visibility, competitor presence, and outreach opportunities."
+            : "Client-ready Maps and Reviews reports — PDF, map images, share links, and CSV."
+        }
       />
 
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]">
         <div className="space-y-3">
           <div className="grid gap-2 sm:grid-cols-2">
-            {REPORT_CARDS.map((card) => {
+            {reportCards.map((card) => {
               const Icon = card.icon;
               const selected = activeType === card.type;
               return (
@@ -777,9 +792,9 @@ export function ReportsHub({
           <div className="mt-4 border-t border-zinc-100 pt-3 text-[11px] leading-relaxed text-zinc-500">
             <p className="font-semibold text-zinc-700">Exports</p>
             <p className="mt-1">
-              Share link = interactive report. Campaign and location reports include a dedicated PDF
-              download; single-scan audits use the PDF export menu. Branding is under Settings →
-              Report branding.
+              {prospectOnly
+                ? "Share link = focused prospect audit. It is separate from the full client report suite and uses your report branding."
+                : "Share link = interactive report. Campaign and location reports include a dedicated PDF download; single-scan audits use the PDF export menu. Branding is under Settings → Report branding."}
             </p>
           </div>
         </ContentCard>

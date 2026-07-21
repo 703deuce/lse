@@ -52,8 +52,9 @@ export function AccountDetail({
   const [account, setAccount] = useState<Account | null>(null);
   const [campaigns, setCampaigns] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<"details" | "notes" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -141,26 +142,52 @@ export function AccountDetail({
   }, [searchParams, mode]);
 
   async function saveDetails() {
-    setSaving(true);
+    setSaving("details");
     setError(null);
+    setSavedMessage(null);
     try {
+      const body: Record<string, unknown> = {
+        primaryContactName: contactName || null,
+        primaryContactEmail: contactEmail || null,
+      };
+      if (mode === "prospect") body.prospectStatus = prospectStatus;
       const res = await fetch(`/api/businesses/${businessId}/account`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          notes,
-          primaryContactName: contactName || null,
-          primaryContactEmail: contactEmail || null,
-          prospectStatus: mode === "prospect" ? prospectStatus : null,
-        }),
+        body: JSON.stringify(body),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? "Save failed");
       await load();
+      setSavedMessage("Account details saved.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
     } finally {
-      setSaving(false);
+      setSaving(null);
+    }
+  }
+
+  async function saveNotes() {
+    setSaving("notes");
+    setError(null);
+    setSavedMessage(null);
+    try {
+      const res = await fetch(`/api/businesses/${businessId}/notes`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: notes.trim() ? notes : null }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Notes save failed");
+      setNotes(String(json.notes ?? ""));
+      setAccount((current) =>
+        current ? { ...current, notes: String(json.notes ?? "") } : current
+      );
+      setSavedMessage("Private notes saved.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Notes save failed");
+    } finally {
+      setSaving(null);
     }
   }
 
@@ -169,11 +196,9 @@ export function AccountDetail({
     if (mode === "prospect") {
       return [
         { href: `/prospects/${businessId}`, label: "Overview" },
-        { href: `${base}/scans`, label: "Maps" },
-        { href: `${base}/growth-audit`, label: "Growth Audit" },
-        { href: `${base}/keywords`, label: "Research" },
-        { href: `${base}/ai-visibility`, label: "AI Visibility" },
-        { href: `${base}/reports`, label: "Reports" },
+        { href: `/prospects/${businessId}?audit=1`, label: "Prospect Audit" },
+        { href: `${base}/scans`, label: "Maps scans" },
+        { href: `${base}/reports?type=single_scan&scope=prospect`, label: "Prospect report" },
         { href: `/prospects/${businessId}#notes`, label: "Notes" },
       ];
     }
@@ -233,7 +258,7 @@ export function AccountDetail({
                   Run Prospect Audit
                 </button>
                 <Link
-                  href={`/businesses/${businessId}/reports?type=single_scan`}
+                  href={`/businesses/${businessId}/reports?type=single_scan&scope=prospect`}
                   className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
                 >
                   <FileText className="h-3.5 w-3.5" />
@@ -281,6 +306,11 @@ export function AccountDetail({
           {error}
         </div>
       ) : null}
+      {savedMessage ? (
+        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          {savedMessage}
+        </div>
+      ) : null}
 
       {showAudit && mode === "prospect" ? (
         <div className="mb-4">
@@ -326,10 +356,8 @@ export function AccountDetail({
             {(mode === "prospect"
               ? [
                   { href: `/businesses/${businessId}/scans`, icon: Radar, label: "Maps Scans", hint: "Baseline visibility" },
-                  { href: `/businesses/${businessId}/growth-audit`, icon: FileSearch, label: "Growth Audit", hint: "Find pitch opportunities" },
-                  { href: `/businesses/${businessId}/ai-visibility`, icon: Sparkles, label: "AI Visibility", hint: "Optional mentions" },
-                  { href: `/businesses/${businessId}/reports`, icon: FileText, label: "Reports", hint: "Shareable audits" },
-                  { href: `/businesses/${businessId}/keywords`, icon: FolderKanban, label: "Keywords", hint: "Research terms" },
+                  { href: `/businesses/${businessId}/growth-audit`, icon: FileSearch, label: "Opportunity Audit", hint: "Pitch findings" },
+                  { href: `/businesses/${businessId}/reports?type=single_scan&scope=prospect`, icon: FileText, label: "Prospect Report", hint: "Shareable audit" },
                 ]
               : [
                   { href: `/businesses/${businessId}/scans`, icon: Radar, label: "Maps Scans", hint: "Run / compare grids" },
@@ -496,6 +524,15 @@ export function AccountDetail({
                 placeholder="email@example.com"
               />
             </label>
+            <button
+              type="button"
+              disabled={saving !== null}
+              onClick={() => void saveDetails()}
+              className={cn(btnPrimary, "mt-3 h-9 px-3 text-[13px]")}
+            >
+              {saving === "details" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Save account details
+            </button>
           </section>
 
           <section
@@ -514,12 +551,12 @@ export function AccountDetail({
             />
             <button
               type="button"
-              disabled={saving}
-              onClick={() => void saveDetails()}
+              disabled={saving !== null}
+              onClick={() => void saveNotes()}
               className={cn(btnPrimary, "mt-3 h-9 px-3 text-[13px]")}
             >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Save details
+              {saving === "notes" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Save private notes
             </button>
           </section>
         </div>
