@@ -61,40 +61,35 @@ async function loadMapsCampaignsHub(organizationId: string) {
 
   const businessIds = active.map((b) => b.id);
 
-  const [
-    { data: campaigns },
-    { data: keywords },
-    { count: completedRuns },
-    plan,
-    usage,
-  ] = await Promise.all([
-    supabase
-      .from("maps_campaigns")
-      .select(
-        "id, business_id, name, schedule_enabled, archived_at, updated_at, created_at"
-      )
-      .in("business_id", businessIds)
-      .then((res) => {
-        if (res.error && /maps_campaigns|does not exist/i.test(res.error.message)) {
-          return { data: [] as CampaignRow[], error: null };
-        }
-        return res;
-      }),
-    supabase
-      .from("business_keywords")
-      .select("business_id, campaign_id, active")
-      .in("business_id", businessIds)
-      .eq("active", true),
-    supabase
-      .from("scan_batches")
-      .select("id", { count: "exact", head: true })
-      .in("business_id", businessIds)
-      .eq("status", "completed"),
-    getOrganizationPlan(organizationId),
-    getCurrentUsage(organizationId),
-  ]);
+  const campaignsRes = await supabase
+    .from("maps_campaigns")
+    .select(
+      "id, business_id, name, schedule_enabled, archived_at, updated_at, created_at"
+    )
+    .in("business_id", businessIds);
 
-  const campaignRows = (campaigns ?? []) as CampaignRow[];
+  const campaignRows: CampaignRow[] =
+    campaignsRes.error &&
+    /maps_campaigns|does not exist/i.test(campaignsRes.error.message)
+      ? []
+      : ((campaignsRes.data ?? []) as CampaignRow[]);
+
+  const [{ data: keywords }, { count: completedRuns }, plan, usage] =
+    await Promise.all([
+      supabase
+        .from("business_keywords")
+        .select("business_id, campaign_id, active")
+        .in("business_id", businessIds)
+        .eq("active", true),
+      supabase
+        .from("scan_batches")
+        .select("id", { count: "exact", head: true })
+        .in("business_id", businessIds)
+        .eq("status", "completed"),
+      getOrganizationPlan(organizationId),
+      getCurrentUsage(organizationId),
+    ]);
+
   const keywordRows = (keywords ?? []) as KeywordRow[];
 
   const campaignsByBusiness = new Map<string, CampaignRow[]>();
