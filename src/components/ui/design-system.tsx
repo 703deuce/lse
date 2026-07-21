@@ -1,9 +1,23 @@
 "use client";
 
 import type { ComponentType, ReactNode } from "react";
+import { isValidElement } from "react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { scoreTextClass, trendTextClass } from "@/lib/design/score-colors";
+
+/** Lucide component OR already-rendered node (required when Server → Client). */
+export type ModuleIcon = LucideIcon | ReactNode;
+
+function renderModuleIcon(icon: ModuleIcon | undefined, className: string) {
+  if (!icon) return null;
+  if (isValidElement(icon)) return icon;
+  if (typeof icon === "function" || (typeof icon === "object" && icon !== null && "render" in icon)) {
+    const Icon = icon as ComponentType<{ className?: string }>;
+    return <Icon className={className} />;
+  }
+  return null;
+}
 
 /* ── Layout tokens ───────────────────────────────────────────── */
 
@@ -80,21 +94,22 @@ export function ModuleHeader({
   subtitle,
   meta,
   actions,
-  icon: Icon,
+  icon,
   className,
 }: {
   title: string;
   subtitle?: string;
   meta?: ReactNode;
   actions?: ReactNode;
-  icon?: LucideIcon;
+  /** Prefer JSX from Server Components: icon={<Radar className="h-5 w-5 text-emerald-600" />}. LucideIcon refs only work Client→Client. */
+  icon?: ModuleIcon;
   className?: string;
 }) {
   return (
     <header className={cn("flex flex-wrap items-start justify-between gap-4", className)}>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          {Icon ? <Icon className="h-5 w-5 shrink-0 text-emerald-600" /> : null}
+          {renderModuleIcon(icon, "h-5 w-5 shrink-0 text-emerald-600")}
           <h1 className={pageTitleClass}>{title}</h1>
         </div>
         {subtitle ? <p className={pageSubtitleClass}>{subtitle}</p> : null}
@@ -221,7 +236,7 @@ export function StatCard({
   value,
   suffix,
   sub,
-  icon: Icon,
+  icon,
   iconWrapClassName = "bg-emerald-50 text-emerald-600",
   trend,
   score,
@@ -231,12 +246,13 @@ export function StatCard({
   value: string | number;
   suffix?: string;
   sub?: string;
-  icon?: ComponentType<{ className?: string }>;
+  icon?: ModuleIcon;
   iconWrapClassName?: string;
   trend?: number | null;
   score?: number | null;
   className?: string;
 }) {
+  const iconNode = renderModuleIcon(icon, "h-3 w-3");
   return (
     <div className={cn(cardClass, cardPadding, className)}>
       <div className="flex items-start justify-between gap-2">
@@ -253,14 +269,14 @@ export function StatCard({
             </p>
           ) : null}
         </div>
-        {Icon ? (
+        {iconNode ? (
           <span
             className={cn(
               "flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
               iconWrapClassName
             )}
           >
-            <Icon className="h-3 w-3" />
+            {iconNode}
           </span>
         ) : null}
       </div>

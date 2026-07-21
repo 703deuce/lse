@@ -2,14 +2,38 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { Loader2, Plus } from "lucide-react";
-import { PageHeader } from "@/components/ui/page-header";
-import { btnPrimary, listClass } from "@/components/ui/design-system";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  CalendarClock,
+  FolderKanban,
+  Loader2,
+  Plus,
+  Sparkles,
+} from "lucide-react";
+import {
+  ModuleHeader,
+  ModulePage,
+  StatCard,
+  KpiGrid,
+  btnPrimary,
+  btnSecondary,
+  listClass,
+} from "@/components/ui/design-system";
 import { CampaignSetupWizard } from "@/components/campaigns/campaign-setup-wizard";
 import { ModuleEmptyState } from "@/components/journey/module-empty-state";
+import { ClientPager } from "@/components/ui/show-more-list";
+import { cn } from "@/lib/utils";
 
-type Campaign = { id: string; name: string; description: string | null; schedule_type: string };
+type Campaign = {
+  id: string;
+  name: string;
+  description: string | null;
+  schedule_type: string;
+  schedule_enabled?: boolean | null;
+  keyword_count?: number | null;
+};
+
+const PAGE_SIZE = 5;
 
 export default function BusinessCampaignsPage() {
   const params = useParams();
@@ -18,6 +42,7 @@ export default function BusinessCampaignsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showWizard, setShowWizard] = useState(false);
+  const [page, setPage] = useState(1);
 
   const load = useCallback(async () => {
     if (!businessId) return;
@@ -39,75 +64,138 @@ export default function BusinessCampaignsPage() {
     void load();
   }, [load]);
 
+  const scheduled = campaigns.filter(
+    (c) => c.schedule_enabled || (c.schedule_type && c.schedule_type !== "manual")
+  ).length;
+
+  const pageItems = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return campaigns.slice(start, start + PAGE_SIZE);
+  }, [campaigns, page]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(campaigns.length / PAGE_SIZE));
+    if (page > maxPage) setPage(maxPage);
+  }, [campaigns.length, page]);
+
   return (
-    <>
-      <PageHeader
+    <ModulePage>
+      <ModuleHeader
+        icon={FolderKanban}
         title="Maps Campaigns"
-        subtitle="Group keywords, establish a baseline, and run recurring Maps scans for this location."
+        subtitle="Group keywords, set a baseline, and schedule recurring Maps scans for this location."
         actions={
-          <button
-            type="button"
-            onClick={() => setShowWizard(true)}
-            className={btnPrimary}
-          >
+          <button type="button" onClick={() => setShowWizard(true)} className={btnPrimary}>
             <Plus className="h-4 w-4" />
             New campaign
           </button>
         }
       />
+
       {error ? (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
           {error}
         </div>
       ) : null}
 
       {showWizard ? (
-        <div className="mb-4">
-          <CampaignSetupWizard
-            businessId={businessId}
-            onClose={() => {
-              setShowWizard(false);
-              void load();
-            }}
-          />
-        </div>
+        <CampaignSetupWizard
+          businessId={businessId}
+          onClose={() => {
+            setShowWizard(false);
+            void load();
+          }}
+        />
       ) : null}
 
       {loading ? (
-        <div className="flex items-center gap-2 text-sm text-zinc-500">
+        <div className="flex items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white px-4 py-8 text-sm text-zinc-500 shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Loading…
+          Loading campaigns…
         </div>
       ) : campaigns.length === 0 && !showWizard ? (
         <ModuleEmptyState
+          icon={FolderKanban}
           title="No campaigns yet"
           description="Create a campaign to group client keywords, establish a baseline, and run recurring Maps scans — then turn results into a monthly report."
           actionLabel="Create campaign"
           onAction={() => setShowWizard(true)}
         />
-      ) : (
-        <ul className={listClass}>
-          {campaigns.map((c) => (
-            <li key={c.id} className="flex items-center justify-between px-4 py-3">
-              <div>
+      ) : campaigns.length > 0 ? (
+        <div className="space-y-3">
+          <KpiGrid cols={3}>
+            <StatCard
+              label="Campaigns"
+              value={campaigns.length}
+              sub="For this location"
+              icon={FolderKanban}
+            />
+            <StatCard
+              label="Scheduled"
+              value={scheduled}
+              sub="Recurring or enabled"
+              icon={CalendarClock}
+              iconWrapClassName="bg-sky-50 text-sky-600"
+            />
+            <StatCard
+              label="Ready to run"
+              value={campaigns.length - scheduled}
+              sub="Manual / one-off"
+              icon={Sparkles}
+              iconWrapClassName="bg-violet-50 text-violet-600"
+            />
+          </KpiGrid>
+
+          <ul className={listClass}>
+            {pageItems.map((c) => (
+              <li
+                key={c.id}
+                className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-100">
+                    <FolderKanban className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <Link
+                      href={`/campaigns/${c.id}`}
+                      className="text-sm font-semibold text-zinc-900 hover:text-[#137752]"
+                    >
+                      {c.name}
+                    </Link>
+                    {c.description ? (
+                      <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500">{c.description}</p>
+                    ) : null}
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      <span className="inline-flex rounded-full bg-zinc-50 px-2 py-0.5 text-[11px] font-medium capitalize text-zinc-600 ring-1 ring-inset ring-zinc-200/80">
+                        {c.schedule_type || "manual"} schedule
+                      </span>
+                      {c.keyword_count != null ? (
+                        <span className="inline-flex rounded-full bg-zinc-50 px-2 py-0.5 text-[11px] font-medium text-zinc-600 ring-1 ring-inset ring-zinc-200/80">
+                          {c.keyword_count} keywords
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
                 <Link
                   href={`/campaigns/${c.id}`}
-                  className="text-sm font-semibold text-zinc-900 hover:text-[#137752]"
+                  className={cn(btnSecondary, "h-8 shrink-0 px-3 text-xs")}
                 >
-                  {c.name}
+                  Open campaign
                 </Link>
-                <p className="text-xs capitalize text-zinc-500">{c.schedule_type} schedule</p>
-              </div>
-              <Link
-                href={`/campaigns/${c.id}`}
-                className="text-xs font-medium text-[#137752] hover:underline"
-              >
-                Open
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </>
+              </li>
+            ))}
+          </ul>
+
+          <ClientPager
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={campaigns.length}
+            onPageChange={setPage}
+          />
+        </div>
+      ) : null}
+    </ModulePage>
   );
 }

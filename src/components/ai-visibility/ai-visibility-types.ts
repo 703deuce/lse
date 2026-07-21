@@ -12,7 +12,13 @@ import type {
   VisibilityTrendPoint,
 } from "@/lib/ai-visibility/types";
 
-export type AiVisibilityTabId = "dashboard" | "mentions" | "landscape" | "evidence" | "history";
+export type AiVisibilityTabId =
+  | "dashboard"
+  | "responses"
+  | "mentions"
+  | "landscape"
+  | "evidence"
+  | "history";
 
 export type RunView = "combined" | string;
 

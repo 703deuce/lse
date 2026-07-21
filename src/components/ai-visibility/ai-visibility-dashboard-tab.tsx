@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Area,
   AreaChart,
@@ -9,7 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ChevronDown, Info, Sparkles } from "lucide-react";
+import { Info, Sparkles } from "lucide-react";
 import {
   ENGINE_LABELS,
   type AggregateMetrics,
@@ -18,7 +17,7 @@ import {
   type MentionLeaderboardRow,
   type VisibilityTrendPoint,
 } from "@/lib/ai-visibility/types";
-import { AiPanel, EngineCoverageRow, EngineIconRow, EngineLogo } from "@/components/ai-visibility/ai-visibility-ui";
+import { AiPanel, EngineCoverageRow, EngineIconRow } from "@/components/ai-visibility/ai-visibility-ui";
 import type { EngineResultRow } from "@/components/ai-visibility/ai-visibility-types";
 
 const ALL_ENGINES: AiEngine[] = ["chatgpt", "perplexity", "gemini", "google_ai_overview", "claude"];
@@ -273,100 +272,6 @@ export function AiVisibilityDashboardTab({
           </AiPanel>
         </div>
       </div>
-
-      {!isCombined && engineResults.length > 0 && (
-        <AiPanel
-          title="Prompts & Full Model Responses"
-          subtitle="Open each engine to review the exact prompt, full answer text, citations, and extracted companies."
-          bodyClassName="space-y-2 pt-2"
-        >
-          {engineResults.map((result, index) => (
-            <ModelResponseDisclosure key={result.id} result={result} defaultOpen={index === 0} />
-          ))}
-        </AiPanel>
-      )}
-    </div>
-  );
-}
-
-function ModelResponseDisclosure({
-  result,
-  defaultOpen,
-}: {
-  result: EngineResultRow;
-  defaultOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(defaultOpen ?? false);
-  const engine = result.engine as AiEngine;
-  const mentions = result.mentions_json.map((m) => m.name).filter(Boolean);
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-white">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left"
-      >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-900 text-white">
-          <EngineLogo engine={engine} className="h-4 w-4" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[13px] font-semibold text-zinc-900">{ENGINE_LABELS[engine]}</span>
-          <span className="block truncate text-[11px] text-zinc-500">
-            {result.prompt_text ?? "Prompt unavailable"}
-          </span>
-        </span>
-        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold capitalize text-zinc-600">
-          {result.status.replace(/_/g, " ")}
-        </span>
-        <ChevronDown className={`h-4 w-4 text-zinc-400 transition ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <div className="space-y-3 border-t border-zinc-100 px-3 py-3">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Prompt</p>
-            <p className="mt-1 rounded-lg bg-zinc-50 px-3 py-2 text-[12px] leading-relaxed text-zinc-700">
-              {result.prompt_text ?? "Prompt unavailable"}
-            </p>
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Full response</p>
-            <p className="mt-1 max-h-80 overflow-y-auto whitespace-pre-wrap rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-[12px] leading-relaxed text-zinc-700">
-              {result.answer_text?.trim() || result.error_message || "No answer text returned."}
-            </p>
-          </div>
-          <div className="grid gap-2 md:grid-cols-2">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Extracted companies</p>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {mentions.length ? (
-                  mentions.slice(0, 12).map((name) => (
-                    <span key={name} className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
-                      {name}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-[11px] text-zinc-500">No companies extracted.</span>
-                )}
-              </div>
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Citations</p>
-              <ul className="mt-1 space-y-1 text-[11px] text-zinc-600">
-                {result.sources_json.length ? (
-                  result.sources_json.slice(0, 5).map((source, i) => (
-                    <li key={`${source.url ?? source.label}-${i}`} className="truncate">
-                      {source.position ? `${source.position}. ` : ""}
-                      {source.label ?? source.url ?? "Source"}
-                    </li>
-                  ))
-                ) : (
-                  <li className="text-zinc-500">No citations returned.</li>
-                )}
-              </ul>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

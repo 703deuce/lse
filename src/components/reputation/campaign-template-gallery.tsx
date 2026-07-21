@@ -12,6 +12,8 @@ import {
   type CampaignTriggerConfig,
   type CampaignTriggerType,
 } from "@/lib/reputation/campaign-triggers";
+import { listClass } from "@/components/ui/design-system";
+import { ClientPager } from "@/components/ui/show-more-list";
 
 const FILTER_CHIPS: Array<{ id: CampaignTemplateFilter | "all"; label: string }> = [
   { id: "all", label: "All" },
@@ -24,6 +26,8 @@ const FILTER_CHIPS: Array<{ id: CampaignTemplateFilter | "all"; label: string }>
   { id: "appointment-business", label: "Appointment" },
   { id: "past-customer-reactivation", label: "Past customers" },
 ];
+
+const PAGE_SIZE = 5;
 
 function channelChips(t: CampaignTemplateDefinition): string[] {
   if (t.channel === "both") return ["SMS", "Email"];
@@ -62,6 +66,7 @@ export function CampaignTemplateGallery({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [page, setPage] = useState(1);
 
   const recommendedIds = useMemo(
     () => recommendedTemplateIdsForTrigger(triggerType),
@@ -101,6 +106,12 @@ export function CampaignTemplateGallery({
     if (filter === "all") return list;
     return list.filter((t) => t.filters.includes(filter));
   }, [templates, filter, showAll, recommendedIds]);
+
+  const currentPage = Math.min(page, Math.max(1, Math.ceil(visible.length / PAGE_SIZE)));
+  const pageItems = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return visible.slice(start, start + PAGE_SIZE);
+  }, [visible, currentPage]);
 
   const preview = previewId ? templates.find((t) => t.id === previewId) : null;
 
@@ -146,7 +157,10 @@ export function CampaignTemplateGallery({
         <div className="flex gap-1.5">
           <button
             type="button"
-            onClick={() => setShowAll((v) => !v)}
+            onClick={() => {
+              setShowAll((v) => !v);
+              setPage(1);
+            }}
             className="rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
           >
             {showAll ? "Show recommended first" : "Browse all"}
@@ -168,7 +182,10 @@ export function CampaignTemplateGallery({
           <button
             key={chip.id}
             type="button"
-            onClick={() => setFilter(chip.id)}
+            onClick={() => {
+              setFilter(chip.id);
+              setPage(1);
+            }}
             className={cn(
               "rounded-full px-2 py-0.5 text-[11px] font-medium",
               filter === chip.id
@@ -188,8 +205,9 @@ export function CampaignTemplateGallery({
           <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading templates…
         </div>
       ) : (
-        <div className="divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white">
-          {visible.map((t) => {
+        <div className="space-y-3">
+          <div className={listClass}>
+          {pageItems.map((t) => {
             const featured = t.id === featuredId || t.featured;
             return (
               <div
@@ -251,6 +269,8 @@ export function CampaignTemplateGallery({
           {!visible.length ? (
             <p className="px-3 py-4 text-[12px] text-zinc-500">No templates match this filter.</p>
           ) : null}
+          </div>
+          <ClientPager page={currentPage} pageSize={PAGE_SIZE} total={visible.length} onPageChange={setPage} />
         </div>
       )}
 

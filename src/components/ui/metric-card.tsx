@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 /** Canonical KPI surface — used by GridMetricCard and module-specific KPI variants. */
 export const kpiCardSurface =
-  "rounded-2xl border border-zinc-200/80 bg-white px-3.5 py-3.5 shadow-[0_8px_30px_rgba(15,23,42,0.06)]";
+  "rounded-xl border border-zinc-200/80 bg-white px-3 py-2.5 shadow-[0_8px_30px_rgba(15,23,42,0.06)]";
 
 export const kpiLabelClass =
   "text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400";
