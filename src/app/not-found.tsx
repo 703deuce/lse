@@ -3,7 +3,7 @@ import { btnPrimary } from "@/components/ui/design-system";
 
 export default function NotFound() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-[#F3F5F7] px-6 py-16 text-center">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-[#EEF1F4] px-6 py-16 text-center">
       <p className="text-sm font-semibold uppercase tracking-wide text-[#137752]">404</p>
       <h1 className="mt-2 text-2xl font-bold text-zinc-900">Page not found</h1>
       <p className="mt-2 max-w-md text-sm text-zinc-600">

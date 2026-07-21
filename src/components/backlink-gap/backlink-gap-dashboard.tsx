@@ -18,7 +18,7 @@ import {
   GapTopBar,
   priorityBadge,
 } from "@/components/backlink-gap/backlink-gap-ui";
-import { ModulePage, AlertBanner } from "@/components/ui/design-system";
+import { ModulePage, AlertBanner, ModuleSkeleton } from "@/components/ui/design-system";
 import { ModuleEmptyState } from "@/components/journey/module-empty-state";
 import { BacklinkGapOverviewTab } from "@/components/backlink-gap/backlink-gap-overview-tab";
 import { BacklinkGapMatrixTab } from "@/components/backlink-gap/backlink-gap-matrix-tab";
@@ -213,12 +213,7 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
 
       <GapTabs active={tab} onChange={setTab} />
 
-      {loading && !data && (
-        <div className="flex items-center justify-center py-10 text-text-muted">
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          <span className="text-[13px]">Loading saved results…</span>
-        </div>
-      )}
+      {loading && !data && <ModuleSkeleton rows={5} />}
 
       {!loading && !run && (
         <ModuleEmptyState

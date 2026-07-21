@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2 } from "lucide-react";
-import { ModulePage, AlertBanner } from "@/components/ui/design-system";
+import { ModulePage, AlertBanner, ModuleSkeleton, KpiSkeleton } from "@/components/ui/design-system";
 import { ReviewsCompetitorTab } from "@/components/reviews/reviews-competitor-tab";
 import { ReviewsSentimentTab } from "@/components/reviews/reviews-sentiment-tab";
 import { ReviewsUnansweredTab } from "@/components/reviews/reviews-unanswered-tab";
@@ -85,9 +84,10 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
 
   if (loading && !data) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-      </div>
+      <ModulePage wide>
+        <KpiSkeleton />
+        <ModuleSkeleton />
+      </ModulePage>
     );
   }
 

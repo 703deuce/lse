@@ -182,7 +182,7 @@ export function LocalTrustMarketBar({
                 </button>
                 <button
                   type="submit"
-                  className="rounded-full bg-[#137752] px-3.5 py-2 text-[12px] font-semibold text-white hover:bg-[#0f6344]"
+                  className="rounded-md bg-[#137752] px-3.5 py-2 text-[12px] font-semibold text-white hover:bg-[#0f6344]"
                 >
                   Start Scan
                 </button>

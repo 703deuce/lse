@@ -359,7 +359,7 @@ export function ContactsImportWizard({
             <button
               type="button"
               disabled={busy}
-              className="inline-flex items-center gap-1 rounded-full bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-60"
+              className="inline-flex items-center gap-1 rounded-md bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-60"
               onClick={() => void runPreview()}
             >
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
@@ -447,7 +447,7 @@ export function ContactsImportWizard({
             <button
               type="button"
               disabled={busy || preview.ready === 0}
-              className="inline-flex items-center gap-1 rounded-full bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-60"
+              className="inline-flex items-center gap-1 rounded-md bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-60"
               onClick={() => void runImport()}
             >
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}

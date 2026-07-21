@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f3f5f7;
+  --background: #eef1f4;
   --foreground: #18181b;
-  --surface-muted: #f3f5f7;
-  --surface-subtle: #eef1f4;
+  --surface-muted: #eef1f4;
+  --surface-subtle: #e4e8ed;
   --surface: #ffffff;
   --accent: #137752;
   --accent-muted: #d1fae5;
@@ -15,10 +15,10 @@
   --sidebar-width: 15rem;
   --text: #18181b;
   --text-muted: #71717a;
-  --border: #e4e4e7;
-  --sidebar-bg: #1a2744;
-  --sidebar-surface: #223352;
-  --sidebar-border: #2d4060;
+  --border: #dce0e5;
+  --sidebar-bg: #152038;
+  --sidebar-surface: #1c2a45;
+  --sidebar-border: #2a3a56;
   --sidebar-text: #94a3b8;
   --sidebar-text-muted: #64748b;
   --sidebar-text-active: #ecfdf5;

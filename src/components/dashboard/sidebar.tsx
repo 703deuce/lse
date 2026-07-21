@@ -201,12 +201,16 @@ export function DashboardSidebarPanel({
         <div className="flex items-center gap-2.5">
           {staticLinks ? (
             <div className="flex min-w-0 items-center gap-2.5">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#137752]">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#137752]">
                 <MapPin className="h-4 w-4 text-white" aria-hidden />
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-white">Local SEO Express</p>
-                <p className="text-[11px] text-slate-400">Independent consultants · 1–20 clients</p>
+                <p className="truncate text-sm font-semibold tracking-tight text-white">
+                  Local SEO Express
+                </p>
+                <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-slate-500">
+                  Local SEO platform
+                </p>
               </div>
             </div>
           ) : (
@@ -215,12 +219,16 @@ export function DashboardSidebarPanel({
               className="flex min-w-0 items-center gap-2.5"
               onClick={() => onNavigate?.()}
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#137752]">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#137752]">
                 <MapPin className="h-4 w-4 text-white" aria-hidden />
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-white">Local SEO Express</p>
-                <p className="text-[11px] text-slate-400">Independent consultants · 1–20 clients</p>
+                <p className="truncate text-sm font-semibold tracking-tight text-white">
+                  Local SEO Express
+                </p>
+                <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-slate-500">
+                  Local SEO platform
+                </p>
               </div>
             </Link>
           )}

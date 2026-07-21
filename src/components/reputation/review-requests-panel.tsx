@@ -886,7 +886,7 @@ function MessagesSection({
               <button
                 type="button"
                 onClick={() => void onCopy(copyBody, templateChannel)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-[#137752] px-4 py-2 text-[13px] font-medium text-white hover:bg-[#0f6344]"
+                className="inline-flex items-center gap-1.5 rounded-md bg-[#137752] px-4 py-2 text-[13px] font-medium text-white hover:bg-[#0f6344]"
               >
                 <Copy className="h-3.5 w-3.5" />
                 {copied === templateChannel ? "Copied" : "Copy Template"}

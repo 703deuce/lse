@@ -77,7 +77,7 @@ export function ClientPager({
   const to = Math.min(current * pageSize, total);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-zinc-200/80 bg-white px-4 py-2.5 text-sm text-zinc-600 shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-600">
       <span className="text-xs tabular-nums text-zinc-500">
         Showing {from}–{to} of {total}
       </span>

@@ -23,8 +23,10 @@ import {
 import {
   ModuleHeader,
   ModulePage,
+  ModuleSkeleton,
   btnPrimary,
   btnSecondary,
+  cardClass,
 } from "@/components/ui/design-system";
 import { ModuleEmptyState } from "@/components/journey/module-empty-state";
 import { ClientPager, ShowMoreList } from "@/components/ui/show-more-list";
@@ -386,10 +388,7 @@ export function AccountsHub({
       ) : null}
 
       {loading ? (
-        <div className="flex items-center gap-2 text-sm text-zinc-500">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading…
-        </div>
+        <ModuleSkeleton rows={mode === "clients" ? 5 : 6} />
       ) : mode === "prospects" && statusFilter !== "archived" ? (
         activeProspectCount === 0 ? (
           <ModuleEmptyState
@@ -428,16 +427,19 @@ export function AccountsHub({
               return (
                 <article
                   key={b.id}
-                  className="flex flex-col rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]"
+                  className={cn(
+                    cardClass,
+                    "flex flex-col p-3.5 transition hover:border-zinc-300"
+                  )}
                 >
                   <div className="flex items-start gap-3">
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#137752] text-[12px] font-bold text-white shadow-sm">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#137752] text-[11px] font-semibold text-white">
                       {initials(b.name)}
                     </span>
                     <div className="min-w-0 flex-1">
                       <Link
                         href={dashboardHref}
-                        className="block truncate text-[14px] font-semibold text-zinc-900 hover:text-emerald-700"
+                        className="block truncate text-[13px] font-semibold text-zinc-900 hover:text-[#137752]"
                       >
                         {b.name}
                       </Link>
@@ -451,14 +453,14 @@ export function AccountsHub({
                           {b.primary_contact_name ? ` · ${b.primary_contact_name}` : ""}
                         </p>
                       ) : b.primary_category ? (
-                        <span className="mt-1.5 inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-600">
+                        <span className="mt-1.5 inline-flex rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-600">
                           {b.primary_category}
                         </span>
                       ) : null}
                     </div>
                   </div>
 
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-zinc-100 pt-3">
                     <Link
                       href={dashboardHref}
                       className={cn(btnPrimary, "h-8 px-3 text-xs")}
@@ -641,8 +643,8 @@ function ProspectKanban({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white px-3.5 py-2.5 shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-zinc-500">
           Pipeline
         </span>
         <span className="text-[12px] font-medium text-zinc-700">{total} prospects</span>
@@ -654,7 +656,7 @@ function ProspectKanban({
             <span
               key={status}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold",
                 theme.chip
               )}
             >
@@ -667,7 +669,7 @@ function ProspectKanban({
       </div>
 
       <div className="-mx-1 overflow-x-auto px-1 pb-2">
-        <div className="grid min-w-[1180px] grid-cols-6 gap-3">
+        <div className="grid min-w-[1180px] grid-cols-6 gap-2.5">
           {PROSPECT_PIPELINE_STATUSES.map((status) => {
             const prospects = columns[status];
             const theme = COLUMN_THEME[status];
@@ -678,18 +680,18 @@ function ProspectKanban({
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => handleDrop(event, status)}
                 className={cn(
-                  "flex min-h-[420px] flex-col overflow-hidden rounded-2xl border border-zinc-200/90 shadow-[0_8px_24px_rgba(15,23,42,0.05)] transition",
+                  "flex min-h-[360px] flex-col overflow-hidden rounded-lg border border-zinc-200 transition",
                   theme.soft,
-                  isDropTarget && "ring-2 ring-emerald-300/70 ring-offset-1"
+                  isDropTarget && "ring-2 ring-[#137752]/40 ring-offset-1"
                 )}
               >
-                <div className={cn("h-1 w-full", theme.bar)} />
-                <div className="flex items-center justify-between gap-2 px-3 pb-2 pt-3">
+                <div className={cn("h-0.5 w-full", theme.bar)} />
+                <div className="flex items-center justify-between gap-2 border-b border-zinc-200/60 px-2.5 py-2">
                   <div className="min-w-0">
-                    <h2 className="truncate text-[13px] font-semibold text-zinc-900">
+                    <h2 className="truncate text-[12px] font-semibold text-zinc-900">
                       {statusLabel(status)}
                     </h2>
-                    <p className="text-[11px] text-zinc-500">
+                    <p className="text-[10px] text-zinc-500">
                       {prospects.length === 0
                         ? "Empty stage"
                         : `${prospects.length} in stage`}
@@ -697,7 +699,7 @@ function ProspectKanban({
                   </div>
                   <span
                     className={cn(
-                      "inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-[12px] font-bold tabular-nums",
+                      "inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1.5 text-[11px] font-semibold tabular-nums",
                       theme.chip
                     )}
                   >
@@ -705,11 +707,11 @@ function ProspectKanban({
                   </span>
                 </div>
 
-                <div className="flex-1 space-y-2 px-2 pb-2">
+                <div className="flex-1 space-y-1.5 p-1.5">
                   {prospects.length === 0 ? (
-                    <div className="flex h-28 flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300/80 bg-white/70 px-3 text-center">
-                      <GripVertical className="mb-1 h-4 w-4 text-zinc-300" />
-                      <p className="text-[11px] font-medium text-zinc-500">Drop here</p>
+                    <div className="flex h-20 flex-col items-center justify-center rounded-md border border-dashed border-zinc-300/80 bg-white/70 px-2 text-center">
+                      <GripVertical className="mb-1 h-3.5 w-3.5 text-zinc-300" />
+                      <p className="text-[10px] font-medium text-zinc-500">Drop here</p>
                     </div>
                   ) : (
                     <ShowMoreList
@@ -916,8 +918,8 @@ function FilterChip({
       onClick={onClick}
       className={
         active
-          ? "rounded-full bg-zinc-900 px-3 py-1.5 text-xs font-semibold capitalize text-white shadow-sm"
-          : "rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium capitalize text-zinc-600 hover:bg-zinc-50"
+          ? "rounded-md bg-zinc-900 px-2.5 py-1 text-xs font-semibold capitalize text-white"
+          : "rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium capitalize text-zinc-600 hover:bg-zinc-50"
       }
     >
       {label}

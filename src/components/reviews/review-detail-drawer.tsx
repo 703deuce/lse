@@ -131,7 +131,7 @@ export function ReviewDetailDrawer({
 
         <div className="flex gap-2 border-t border-zinc-200 px-6 py-4">
           {!review.replied && (
-            <button type="button" className="rounded-full bg-[#137752] px-4 py-2 text-sm font-medium text-white hover:bg-[#0f6344]">
+            <button type="button" className="rounded-md bg-[#137752] px-4 py-2 text-sm font-medium text-white hover:bg-[#0f6344]">
               Reply
             </button>
           )}

@@ -17,7 +17,7 @@ import {
   TrustTabs,
   TrustTopBar,
 } from "@/components/local-trust/local-trust-ui";
-import { ModulePage, AlertBanner, EmptyState } from "@/components/ui/design-system";
+import { ModulePage, AlertBanner, EmptyState, ModuleSkeleton, btnPrimary } from "@/components/ui/design-system";
 import { dashboardCard } from "@/components/overview/dashboard-ui";
 import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 import { cn } from "@/lib/utils";
@@ -284,12 +284,7 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
         </div>
       )}
 
-      {loading && !run && (
-        <div className="flex items-center justify-center py-10 text-zinc-500">
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Loading local trust data…
-        </div>
-      )}
+      {loading && !run && <ModuleSkeleton rows={5} />}
 
       {!loading && !run && (
         <EmptyState
@@ -299,7 +294,7 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
             <button
               type="button"
               onClick={() => void runScan({})}
-              className="mt-3 inline-flex h-9 items-center rounded-full bg-[#137752] px-3 text-[13px] font-semibold text-white hover:bg-[#0f6344]"
+              className={cn(btnPrimary, "mt-3 h-9 px-3")}
             >
               Find Local Trust Opportunities
             </button>

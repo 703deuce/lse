@@ -25,7 +25,7 @@ import {
   TrendingUp,
   Users,
 } from "@/components/ai-visibility/ai-visibility-ui";
-import { ModulePage } from "@/components/ui/design-system";
+import { ModulePage, ModuleSkeleton } from "@/components/ui/design-system";
 import { KpiRow } from "@/components/ui/metric-card";
 import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 import type { RunSummary } from "@/lib/ai-visibility/types";
@@ -165,9 +165,9 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
 
   if (loading && !data) {
     return (
-      <div className="flex justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
+      <ModulePage>
+        <ModuleSkeleton rows={5} />
+      </ModulePage>
     );
   }
 

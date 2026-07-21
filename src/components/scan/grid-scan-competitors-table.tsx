@@ -43,7 +43,7 @@ export function GridScanCompetitorsTable({
     <div
       className={cn(
         dashboardCard,
-        "rounded-2xl border-zinc-200/80 p-4 shadow-[0_8px_30px_rgba(15,23,42,0.06)]",
+        "rounded-2xl border-zinc-200/80 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
         className
       )}
     >

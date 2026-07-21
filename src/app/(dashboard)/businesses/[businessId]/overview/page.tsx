@@ -86,11 +86,11 @@ function OverviewSignalCard({
       href={href}
       className={cn(
         dashboardCard,
-        "group flex min-h-[126px] flex-col justify-between p-3.5 transition hover:border-emerald-200 hover:bg-emerald-50/20"
+        "group flex min-h-[108px] flex-col justify-between p-3.5 transition hover:border-zinc-300"
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+        <span className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-[#137752]">
           <Icon className="h-4 w-4" />
         </span>
         {badge ? (

@@ -24,52 +24,52 @@ function renderModuleIcon(icon: ModuleIcon | undefined, className: string) {
 export const moduleStack = "space-y-3";
 export const moduleMaxWidth = "mx-auto w-full max-w-[1600px]";
 export const tableHeadClass =
-  "bg-zinc-50 text-left text-xs font-medium uppercase tracking-wide text-zinc-500";
-export const sectionGap = "mt-5";
-export const cardGrid = "grid gap-2 sm:grid-cols-2 xl:grid-cols-4";
-export const cardGrid3 = "grid gap-2 sm:grid-cols-2 lg:grid-cols-3";
+  "bg-zinc-50/90 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-500";
+export const sectionGap = "mt-4";
+export const cardGrid = "grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4";
+export const cardGrid3 = "grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3";
 
-/* ── Surface tokens ──────────────────────────────────────────── */
+/* ── Surface tokens (enterprise: hairline borders, tight radius) ─ */
 
 export const cardClass =
-  "rounded-2xl border border-zinc-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.06)]";
-export const cardPadding = "p-4";
+  "rounded-lg border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]";
+export const cardPadding = "p-3.5";
 /** Divided list surface for location / scan pickers. */
 export const listClass =
-  "divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.06)]";
+  "divide-y divide-zinc-100 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]";
 /** Dashed empty-state panel. */
 export const emptyStateClass =
-  "rounded-2xl border border-dashed border-zinc-200 bg-white/80 px-6 py-10 text-center shadow-[0_8px_30px_rgba(15,23,42,0.04)]";
+  "rounded-lg border border-dashed border-zinc-200 bg-zinc-50/60 px-5 py-8 text-center";
 /** Canonical table cell inset when the card shell is p-0 / overflow-hidden. */
-export const tableCellClass = "px-3.5 py-2.5";
-export const tableHeadCellClass = "px-3.5 py-2.5";
+export const tableCellClass = "px-3 py-2";
+export const tableHeadCellClass = "px-3 py-2";
 export const filterBarClass =
-  "flex flex-wrap items-end gap-2 rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.06)]";
+  "flex flex-wrap items-end gap-2 rounded-lg border border-zinc-200 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]";
 
 /* ── Typography tokens ───────────────────────────────────────── */
 
-export const pageTitleClass = "text-lg font-bold tracking-tight text-zinc-900 sm:text-xl";
-export const pageSubtitleClass = "mt-1 max-w-3xl text-[13px] leading-snug text-zinc-500";
-export const sectionTitleClass = "text-[14px] font-semibold text-zinc-900";
+export const pageTitleClass = "text-xl font-semibold tracking-tight text-zinc-900 sm:text-[22px]";
+export const pageSubtitleClass = "mt-0.5 max-w-3xl text-[13px] leading-snug text-zinc-500";
+export const sectionTitleClass = "text-[13px] font-semibold tracking-tight text-zinc-900";
 export const cardLabelClass =
-  "text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400";
+  "text-[10px] font-semibold uppercase tracking-[0.06em] text-zinc-500";
 export const bodyClass = "text-[13px] leading-snug text-zinc-600";
 
 /* ── Button tokens ───────────────────────────────────────────── */
 
 export const btnPrimary =
-  "inline-flex items-center justify-center gap-2 rounded-full bg-[#137752] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(19,119,82,0.28)] transition hover:bg-[#0f6344] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#137752] disabled:opacity-50";
+  "inline-flex items-center justify-center gap-1.5 rounded-md bg-[#137752] px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-[#0f6344] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#137752] disabled:opacity-50";
 
 export const btnSecondary =
-  "inline-flex items-center justify-center gap-2 rounded-full border border-zinc-200/90 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300 disabled:opacity-50";
+  "inline-flex items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3.5 py-2 text-[13px] font-semibold text-zinc-700 transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300 disabled:opacity-50";
 
 export const btnIcon =
-  "inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200/90 bg-white text-zinc-500 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300";
+  "inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500 transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300";
 
 export const inputClass =
-  "w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-[#137752] focus:ring-1 focus:ring-[#137752]/20";
+  "w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-[#137752] focus:ring-1 focus:ring-[#137752]/25";
 
-export const fieldLabelClass = "text-xs font-medium text-zinc-600";
+export const fieldLabelClass = "text-[11px] font-medium text-zinc-600";
 
 /* ── Layout wrappers ─────────────────────────────────────────── */
 
@@ -105,15 +105,25 @@ export function ModuleHeader({
   icon?: ModuleIcon;
   className?: string;
 }) {
+  const iconNode = renderModuleIcon(icon, "h-4 w-4");
   return (
-    <header className={cn("flex flex-wrap items-start justify-between gap-4", className)}>
+    <header
+      className={cn(
+        "flex flex-wrap items-start justify-between gap-3 border-b border-zinc-200/80 pb-3",
+        className
+      )}
+    >
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          {renderModuleIcon(icon, "h-5 w-5 shrink-0 text-emerald-600")}
+        <div className="flex items-center gap-2.5">
+          {iconNode ? (
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-[#137752]">
+              {iconNode}
+            </span>
+          ) : null}
           <h1 className={pageTitleClass}>{title}</h1>
         </div>
         {subtitle ? <p className={pageSubtitleClass}>{subtitle}</p> : null}
-        {meta ? <div className="mt-2">{meta}</div> : null}
+        {meta ? <div className="mt-1.5">{meta}</div> : null}
       </div>
       {actions ? (
         <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
@@ -142,7 +152,7 @@ export function SectionTitle({
   className?: string;
 }) {
   return (
-    <div className={cn("mb-3 flex items-start justify-between gap-3", className)}>
+    <div className={cn("mb-2.5 flex items-start justify-between gap-3", className)}>
       <div>
         <h2 className={sectionTitleClass}>{title}</h2>
         {subtitle ? <p className="mt-0.5 text-[12px] leading-snug text-zinc-500">{subtitle}</p> : null}
@@ -167,14 +177,14 @@ export function TabBar<T extends string>({
 }) {
   return (
     <div className={cn("-mb-px border-b border-zinc-200", className)}>
-      <div className="-mx-1 flex flex-nowrap gap-4 overflow-x-auto px-1 pb-px [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="-mx-1 flex flex-nowrap gap-0 overflow-x-auto px-1 pb-px [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => onChange(tab.id)}
             className={cn(
-              "-mb-px shrink-0 border-b-2 px-1 pb-2 pt-0.5 text-[13px] transition-colors",
+              "-mb-px shrink-0 border-b-2 px-3 pb-2 pt-0.5 text-[13px] transition-colors",
               active === tab.id
                 ? "border-[#137752] font-semibold text-[#137752]"
                 : tab.muted
@@ -220,7 +230,7 @@ export function StatValue({
   return (
     <p
       className={cn(
-        "text-lg font-bold tabular-nums leading-none",
+        "text-lg font-semibold tabular-nums leading-none tracking-tight",
         score != null ? scoreTextClass(score) : "text-zinc-900",
         className
       )}
@@ -237,7 +247,7 @@ export function StatCard({
   suffix,
   sub,
   icon,
-  iconWrapClassName = "bg-emerald-50 text-emerald-600",
+  iconWrapClassName = "bg-emerald-50 text-emerald-700",
   trend,
   score,
   className,
@@ -252,16 +262,16 @@ export function StatCard({
   score?: number | null;
   className?: string;
 }) {
-  const iconNode = renderModuleIcon(icon, "h-3 w-3");
+  const iconNode = renderModuleIcon(icon, "h-3.5 w-3.5");
   return (
-    <div className={cn(cardClass, cardPadding, className)}>
+    <div className={cn(cardClass, "px-3.5 py-3", className)}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className={cardLabelClass}>{label}</p>
-          <div className="mt-1">
+          <div className="mt-1.5">
             <StatValue value={value} suffix={suffix} score={score} />
           </div>
-          {sub ? <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">{sub}</p> : null}
+          {sub ? <p className="mt-1 text-[11px] leading-snug text-zinc-500">{sub}</p> : null}
           {trend != null && trend !== 0 ? (
             <p className={cn("mt-0.5 text-[11px] font-medium", trendTextClass(trend))}>
               {trend > 0 ? "+" : ""}
@@ -272,7 +282,7 @@ export function StatCard({
         {iconNode ? (
           <span
             className={cn(
-              "flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
+              "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
               iconWrapClassName
             )}
           >
@@ -305,7 +315,7 @@ export function EmptyState({
     <div
       className={cn(
         cardClass,
-        "flex flex-col items-center justify-center px-4 py-8 text-center",
+        "flex flex-col items-center justify-center px-4 py-7 text-center",
         className
       )}
     >
@@ -334,8 +344,51 @@ export function AlertBanner({
     error: "border-red-200 bg-red-50 text-red-800",
   };
   return (
-    <div className={cn("rounded-lg border px-3.5 py-2.5 text-[13px] leading-snug", styles[variant], className)}>
+    <div className={cn("rounded-md border px-3 py-2 text-[13px] leading-snug", styles[variant], className)}>
       {children}
+    </div>
+  );
+}
+
+/** Enterprise skeleton placeholder — prefer over spinner-only loading. */
+export function ModuleSkeleton({
+  rows = 4,
+  className,
+}: {
+  rows?: number;
+  className?: string;
+}) {
+  return (
+    <div className={cn(cardClass, "overflow-hidden", className)} aria-busy="true" aria-live="polite">
+      <div className="border-b border-zinc-100 bg-zinc-50/80 px-3.5 py-2.5">
+        <div className="h-3 w-28 animate-pulse rounded bg-zinc-200" />
+      </div>
+      <div className="divide-y divide-zinc-100">
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 px-3.5 py-3">
+            <div className="h-8 w-8 shrink-0 animate-pulse rounded-md bg-zinc-100" />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="h-3 max-w-[40%] animate-pulse rounded bg-zinc-200" />
+              <div className="h-2.5 max-w-[70%] animate-pulse rounded bg-zinc-100" />
+            </div>
+            <div className="hidden h-6 w-16 animate-pulse rounded bg-zinc-100 sm:block" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function KpiSkeleton({ count = 4, className }: { count?: number; className?: string }) {
+  return (
+    <div className={cn(cardGrid, className)} aria-busy="true">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className={cn(cardClass, "px-3.5 py-3")}>
+          <div className="h-2.5 w-16 animate-pulse rounded bg-zinc-200" />
+          <div className="mt-2.5 h-5 w-20 animate-pulse rounded bg-zinc-100" />
+          <div className="mt-2 h-2 w-24 animate-pulse rounded bg-zinc-100" />
+        </div>
+      ))}
     </div>
   );
 }

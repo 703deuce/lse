@@ -50,8 +50,8 @@ export function ModuleEmptyState({
   }
 
   return (
-    <div className={cn(cardClass, "flex flex-col items-center px-4 py-10 text-center")}>
-      <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-100">
+    <div className={cn(cardClass, "flex flex-col items-center px-4 py-8 text-center")}>
+      <span className="mb-2.5 flex h-9 w-9 items-center justify-center rounded-md border border-zinc-200 bg-zinc-50 text-zinc-600">
         {iconNode}
       </span>
       <EmptyState title={title} description={description} action={action} className="border-0 bg-transparent p-0 shadow-none" />

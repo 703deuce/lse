@@ -6,13 +6,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarClock,
   FolderKanban,
-  Loader2,
   Plus,
   Sparkles,
 } from "lucide-react";
 import {
   ModuleHeader,
   ModulePage,
+  ModuleSkeleton,
   StatCard,
   KpiGrid,
   btnPrimary,
@@ -109,10 +109,7 @@ export default function BusinessCampaignsPage() {
       ) : null}
 
       {loading ? (
-        <div className="flex items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white px-4 py-8 text-sm text-zinc-500 shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading campaigns…
-        </div>
+        <ModuleSkeleton rows={4} />
       ) : campaigns.length === 0 && !showWizard ? (
         <ModuleEmptyState
           icon={FolderKanban}
