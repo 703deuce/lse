@@ -66,6 +66,10 @@ export const reviewMomentumPreviewPayload = {
           { date: "2026-07-12", count: 1, exact: true },
           { date: "2026-07-13", count: 0, exact: true },
         ],
+        dailyCounts30d: Array.from({ length: 30 }, (_, i) => ({
+          date: `2026-06-${String(14 + (i % 16)).padStart(2, "0")}`,
+          count: [0, 1, 0, 0, 2, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1][i] ?? 0,
+        })),
         weeklyBuckets8to30: [
           { label: "Week 1", count: 1, bucketed: true },
           { label: "Week 2", count: 0, bucketed: true },

@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useState } from "react";
+import { DashboardSidebarPanel } from "@/components/dashboard/sidebar";
 import { ReviewMomentumDashboard } from "@/components/reviews/review-momentum-dashboard";
 import {
   REVIEW_MOMENTUM_PREVIEW_BUSINESS_ID,
@@ -33,6 +34,7 @@ function patchMomentumPreviewFetch() {
 
 export default function ReviewMomentumPreviewPage() {
   const [ready, setReady] = useState(false);
+  const path = `/businesses/${REVIEW_MOMENTUM_PREVIEW_BUSINESS_ID}/review-momentum`;
 
   useLayoutEffect(() => {
     patchMomentumPreviewFetch();
@@ -42,8 +44,17 @@ export default function ReviewMomentumPreviewPage() {
   if (!ready) return null;
 
   return (
-    <div className="px-5 py-6 lg:px-8">
-      <ReviewMomentumDashboard businessId={REVIEW_MOMENTUM_PREVIEW_BUSINESS_ID} />
+    <div className="flex min-h-screen bg-[#F9FAFB]">
+      <DashboardSidebarPanel
+        businessId={REVIEW_MOMENTUM_PREVIEW_BUSINESS_ID}
+        pathname={path}
+        businessName="Junk Removal Woodbridge"
+        staticLinks
+        showFooter={false}
+      />
+      <main className="min-w-0 flex-1 overflow-y-auto px-5 py-6 lg:px-8">
+        <ReviewMomentumDashboard businessId={REVIEW_MOMENTUM_PREVIEW_BUSINESS_ID} />
+      </main>
     </div>
   );
 }

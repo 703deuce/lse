@@ -11,6 +11,7 @@ import {
   TrendingUp,
   Trophy,
   Users,
+  Zap,
 } from "lucide-react";
 import { momentumBadgeClass, type MomentumLabel } from "@/lib/reviews/metrics";
 import { GridMetricCard, KpiRow } from "@/components/ui/metric-card";
@@ -23,7 +24,13 @@ import {
   dashboardSectionLabel,
 } from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
-import { formatPace, MomentumPanel, MomentumSectionTitle } from "@/components/reviews/review-momentum-ui";
+import {
+  formatPace,
+  MomentumMetricCard,
+  MomentumPanel,
+  MomentumSectionTitle,
+} from "@/components/reviews/review-momentum-ui";
+import { mock } from "@/components/mockup/ui";
 import {
   recencyStatusClass,
   type MarketInsights,
@@ -98,91 +105,86 @@ function formatDaysSince(days: number | null): string {
 }
 
 export function ReviewMomentumTopKpis({
-  momentumScore,
+  reviewsPerMonth,
+  reviewsPerMonthPrev,
   momentumLabel,
   velocityTrend,
   velocityTrendLabel,
-  targetSharePct,
+  pctTopWithReviews,
   market,
 }: {
-  momentumScore: number;
+  reviewsPerMonth: number;
+  reviewsPerMonthPrev?: number | null;
   momentumLabel: MomentumLabel;
   velocityTrend: VelocityTrendDirection;
   velocityTrendLabel: string;
-  targetSharePct: number;
+  pctTopWithReviews: number;
   market: MarketInsights;
 }) {
+  const reviewsDelta =
+    reviewsPerMonthPrev != null ? reviewsPerMonth - reviewsPerMonthPrev : null;
+  const reviewsPerDay =
+    market.marketReviews30d > 0
+      ? (market.marketReviews30d / Math.max(market.entityCount, 1) / 30).toFixed(1)
+      : "0";
+
   return (
-    <KpiRow cols={4}>
-      <GridMetricCard
-        variant="primary"
-        label="Review Momentum™"
-        value={Math.round(momentumScore)}
-        sub={momentumLabel}
-        icon={TrendingUp}
-        iconWrapClassName="bg-emerald-50"
-        iconClassName="text-emerald-600"
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <MomentumMetricCard
+        label="Reviews per month"
+        value={reviewsPerMonth.toFixed(1)}
+        sub={
+          reviewsDelta != null && reviewsDelta !== 0 ? (
+            <span className={reviewsDelta > 0 ? "text-[#137752]" : "text-[#B42318]"}>
+              {reviewsDelta > 0 ? "↑" : "↓"}{" "}
+              {reviewsDelta > 0 ? "up" : "down"} from {reviewsPerMonthPrev!.toFixed(1)}
+            </span>
+          ) : (
+            <span>vs prior period</span>
+          )
+        }
       />
-      <GridMetricCard
-        label="Velocity Trend"
-        value={velocityTrendLabel}
+      <MomentumMetricCard
+        label="Momentum Trend"
+        value={
+          <span className="inline-flex items-center gap-2">
+            <Zap className="h-5 w-5 text-[#137752]" />
+            {momentumLabel}
+          </span>
+        }
         sub={
           velocityTrend === "accelerating"
-            ? "Gaining share"
+            ? "Improving trend"
             : velocityTrend === "losing"
-              ? "Losing share"
-              : "Holding steady"
+              ? "Slowing trend"
+              : velocityTrendLabel
         }
-        icon={velocityTrend === "losing" ? TrendingDown : TrendingUp}
-        iconWrapClassName={
-          velocityTrend === "losing" ? "bg-red-50" : velocityTrend === "accelerating" ? "bg-emerald-50" : "bg-zinc-100"
-        }
-        iconClassName={
-          velocityTrend === "losing" ? "text-red-600" : velocityTrend === "accelerating" ? "text-emerald-600" : "text-zinc-500"
-        }
-        trendPositive={velocityTrend === "accelerating" ? true : velocityTrend === "losing" ? false : undefined}
       />
-      <GridMetricCard
-        label="Share of New Reviews (30D)"
-        value={`${targetSharePct}%`}
-        sub="You vs. competitors"
-        icon={Users}
-        iconWrapClassName="bg-sky-50"
-        iconClassName="text-sky-600"
+      <MomentumMetricCard
+        label="% of Top 10 w/ Reviews > 0"
+        value={`${Math.round(pctTopWithReviews)}%`}
+        sub="Top 10 competitors"
       />
-      <GridMetricCard
-        label="Market Activity"
+      <MomentumMetricCard
+        label="Market Status"
         value={market.marketActivityLabel}
-        sub={`${market.marketReviews30d} new reviews · top ${market.entityCount}`}
-        icon={Users}
-        iconWrapClassName="bg-violet-50"
-        iconClassName="text-violet-600"
+        sub={`${reviewsPerDay} reviews per day avg`}
       />
-    </KpiRow>
+    </div>
   );
 }
 
 export function MomentumSnapshotCard({
-  icon: Icon,
   label,
   value,
   sub,
 }: {
-  icon: LucideIcon;
+  icon?: LucideIcon;
   label: string;
   value: string;
   sub?: string;
 }) {
-  return (
-    <GridMetricCard
-      label={label}
-      value={value}
-      sub={sub}
-      icon={Icon}
-      iconWrapClassName="bg-zinc-100"
-      iconClassName="text-zinc-500"
-    />
-  );
+  return <MomentumMetricCard label={label} value={value} sub={sub} />;
 }
 
 export function ReviewMomentumHero({
@@ -239,47 +241,43 @@ export function WeeklyPacePanel({ market }: { market: MarketInsights }) {
     <MomentumPanel className="h-full">
       <MomentumSectionTitle
         title="Weekly Review Pace"
-        subtitle={`Aim for ~${market.recommendedWeeklyPace} reviews per week to match leaders.`}
+        subtitle={`Aim for ~${market.recommendedWeeklyPace} reviews per week to match leaders`}
       />
 
       <div className="grid gap-2 sm:grid-cols-3">
-        <PaceStat label="Current pace" value={`${formatPace(market.currentWeeklyPace)}/wk`} />
+        <PaceStat label="Current Pace" value={`${formatPace(market.currentWeeklyPace)} / wk`} />
         <PaceStat
-          label="Recommended"
-          value={`${formatPace(market.recommendedWeeklyPace)}/wk`}
+          label="Competitor Pace"
+          value={`${formatPace(market.recommendedWeeklyPace)} / wk`}
           highlight
         />
         <PaceStat
           label="Gap"
-          value={`+${formatPace(market.weeklyPaceGap)}/wk`}
-          sub="to close"
+          value={`vs ${(market.recommendedWeeklyPace * 4.3).toFixed(1)}/mo`}
+          sub="monthly equivalent"
           difference
         />
       </div>
 
-      <div className="mt-3 overflow-x-auto">
-        <table className="min-w-full text-[12px]">
+      <div className="mt-4 overflow-x-auto">
+        <table className="min-w-full text-[13px]">
           <thead>
             <tr className="text-left">
-              <th className={cn(dashboardSectionLabel, "pb-1.5 pr-3")}>Business</th>
-              <th className={cn(dashboardSectionLabel, "pb-1.5")}>Avg / week</th>
+              <th className={cn(mock.label, "pb-2 pr-3")}>Business</th>
+              <th className={cn(mock.label, "pb-2")}>Avg / week</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100">
+          <tbody className="divide-y divide-[#EEF1F5]">
             {market.weeklyPace.map((row) => (
               <tr key={row.name}>
-                <td className="py-1.5 pr-3 font-medium text-zinc-800">
+                <td className="py-2 pr-3 font-medium text-[#101828]">
                   {row.entityType === "target" ? "You" : row.name}
                 </td>
-                <td className="py-1.5 tabular-nums text-zinc-600">
+                <td className="py-2 tabular-nums text-[#667085]">
                   {formatPace(row.avgReviewsPerWeek)}
                 </td>
               </tr>
             ))}
-            <tr className="font-semibold text-zinc-800">
-              <td className="py-1.5 pr-3">Top 3 average</td>
-              <td className="py-1.5 tabular-nums">{formatPace(market.top3AvgWeeklyPace)}</td>
-            </tr>
           </tbody>
         </table>
       </div>
@@ -303,22 +301,22 @@ function PaceStat({
   return (
     <div
       className={cn(
-        "rounded-lg border px-3.5 py-2",
-        highlight && "border-emerald-100 bg-emerald-50/60",
-        difference && "border-sky-100 bg-sky-50/60",
-        !highlight && !difference && "border-zinc-100 bg-zinc-50/80"
+        "rounded-lg border px-3 py-2.5",
+        highlight && "border-[#A6F4C5] bg-[#ECFDF3]",
+        difference && "border-[#B2DDFF] bg-[#F0F9FF]",
+        !highlight && !difference && "border-[#E6EAF0] bg-[#F9FAFB]"
       )}
     >
-      <p className={dashboardSectionLabel}>{label}</p>
+      <p className={mock.label}>{label}</p>
       <p
         className={cn(
-          "mt-0.5 text-[13px] font-semibold tabular-nums leading-tight",
-          difference ? "text-sky-700" : highlight ? "text-emerald-700" : "text-zinc-900"
+          "mt-1 text-[14px] font-semibold tabular-nums leading-tight",
+          difference ? "text-[#026AA2]" : highlight ? "text-[#027A48]" : "text-[#101828]"
         )}
       >
         {value}
       </p>
-      {sub && <p className={cn(dashboardMicro, "mt-0.5")}>{sub}</p>}
+      {sub ? <p className="mt-0.5 text-[11px] text-[#667085]">{sub}</p> : null}
     </div>
   );
 }
@@ -331,29 +329,29 @@ export function ShareOfReviewsPanel({ market }: { market: MarketInsights }) {
     <MomentumPanel className="h-full">
       <MomentumSectionTitle
         title="Share of New Reviews"
-        subtitle="Percent of new market reviews in the last 30 days."
+        subtitle="Percent of total market reviews in the last 30 days"
       />
-      <ul className="space-y-2.5">
+      <ul className="space-y-3">
         {sorted.map((row) => {
           const isTarget = row.entityType === "target";
           const isTopCompetitor =
             !isTarget && row.sharePct > 0 && row.sharePct === topCompetitorShare;
           return (
             <li key={row.name}>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="font-medium text-zinc-800">{isTarget ? "You" : row.name}</span>
-                <span className="font-semibold tabular-nums text-zinc-700">{row.sharePct}%</span>
+              <div className="flex items-center justify-between text-[12px]">
+                <span className="font-medium text-[#101828]">{isTarget ? "You" : row.name}</span>
+                <span className="font-semibold tabular-nums text-[#344054]">{row.sharePct}%</span>
               </div>
-              <div className="mt-1 h-1 overflow-hidden rounded-full bg-zinc-100">
+              <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-[#F2F4F7]">
                 <div
                   className={cn(
                     "h-full rounded-full",
                     isTarget
-                      ? "bg-emerald-600"
+                      ? "bg-[#137752]"
                       : isTopCompetitor
-                        ? "bg-zinc-600"
+                        ? "bg-[#667085]"
                         : row.sharePct > 0
-                          ? "bg-zinc-300"
+                          ? "bg-[#D0D5DD]"
                           : "bg-transparent"
                   )}
                   style={{
@@ -384,26 +382,26 @@ export function MomentumScoreBarsPanel({
 
   return (
     <MomentumPanel className="h-full">
-      <MomentumSectionTitle title="Momentum Score (30D)" subtitle="Velocity comparison." />
-      <ul className="space-y-2.5">
+      <MomentumSectionTitle title="Momentum Score (MS)" subtitle="Annual comparison" />
+      <ul className="space-y-3">
         {sorted.map((e) => {
           const isTarget = e.entity_type === "target";
           const isTopCompetitor = !isTarget && e.name === topCompetitorName;
           const widthPct = Math.round((e.momentum_score / maxScore) * 100);
           const barColor = isTarget
-            ? "bg-emerald-600"
+            ? "bg-[#137752]"
             : isTopCompetitor
-              ? "bg-zinc-600"
-              : "bg-zinc-300";
+              ? "bg-[#667085]"
+              : "bg-[#D0D5DD]";
           const score = Math.round(e.momentum_score);
           return (
             <li key={e.name}>
-              <div className="flex items-center gap-2 text-[11px]">
-                <span className="w-[38%] min-w-0 truncate font-medium text-zinc-800">
+              <div className="flex items-center gap-2 text-[12px]">
+                <span className="w-[38%] min-w-0 truncate font-medium text-[#101828]">
                   {isTarget ? "You" : e.name}
                 </span>
                 <div className="flex min-w-0 flex-1 items-center gap-2">
-                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-zinc-100">
+                  <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[#F2F4F7]">
                     <div
                       className={cn("h-full rounded-full", barColor)}
                       style={{ width: `${Math.max(widthPct, score > 0 ? 6 : 0)}%` }}
@@ -411,10 +409,10 @@ export function MomentumScoreBarsPanel({
                   </div>
                   <span
                     className={cn(
-                      "w-7 shrink-0 rounded px-1 py-0.5 text-center text-[10px] font-bold tabular-nums",
+                      "w-8 shrink-0 rounded px-1 py-0.5 text-center text-[11px] font-bold tabular-nums",
                       isTarget
-                        ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
-                        : "bg-zinc-100 text-zinc-700"
+                        ? "bg-[#ECFDF3] text-[#027A48]"
+                        : "bg-[#F2F4F7] text-[#344054]"
                     )}
                   >
                     {score}

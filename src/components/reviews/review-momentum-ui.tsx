@@ -1,13 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Loader2, Zap } from "lucide-react";
+import { FileText, Loader2, Plus, Zap } from "lucide-react";
 import type { MomentumLabel } from "@/lib/reviews/metrics";
-import {
-  dashboardCard,
-  dashboardSectionLabel,
-} from "@/components/overview/dashboard-ui";
-import { ModuleHeader, btnPrimary, btnSecondary } from "@/components/ui/design-system";
+import { mock } from "@/components/mockup/ui";
 import { cn } from "@/lib/utils";
 
 export function formatPace(value: number): string {
@@ -22,16 +18,16 @@ export function formatChartDate(iso: string): string {
 
 export function MomentumPageHeader() {
   return (
-    <ModuleHeader
-      title="Review Momentum™"
-      subtitle="30-day review velocity vs. competitors — 7-day counts are exact; days 8–30 use weekly buckets."
-      className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
-      meta={
-        <p className="text-[11px] text-zinc-400">
-          90-day trend shows whether growth is consistent or a one-time spike.
-        </p>
-      }
-    />
+    <div className="min-w-0">
+      <h1 className={mock.title}>Review Momentum™</h1>
+      <p className={mock.subtitle}>
+        30 day review velocity vs competitors — These reports are broken down in 30 day rotating
+        buckets.
+      </p>
+      <p className="mt-1 text-sm text-[#667085]">
+        30 day Trend lines display growth or slow downs vs prior time cycles.
+      </p>
+    </div>
   );
 }
 
@@ -46,12 +42,7 @@ export function MomentumTopBar({
 }) {
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2">
-      <button
-        type="button"
-        onClick={onRun}
-        disabled={running}
-        className={cn(btnPrimary, "h-9 px-3.5 text-[13px]")}
-      >
+      <button type="button" onClick={onRun} disabled={running} className={mock.btnPrimary}>
         {running ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
         ) : (
@@ -61,26 +52,25 @@ export function MomentumTopBar({
       </button>
       {businessId ? (
         <>
-          <a
-            href={`/businesses/${businessId}/review-requests`}
-            className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
-          >
-            Open Review Requests
+          <a href={`/businesses/${businessId}/review-requests`} className={mock.btnGhost}>
+            <FileText className="h-3.5 w-3.5" />
+            Open Previous Reports
           </a>
           <button
             type="button"
-            className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
+            className={mock.btnGhost}
             onClick={() => {
               void import("@/lib/journey/report-staging").then(({ stageReportItem }) => {
                 stageReportItem({
                   businessId,
                   source: "reviews",
                   title: "Review momentum insight",
-                  href: `/businesses/${businessId}/reviews/momentum`,
+                  href: `/businesses/${businessId}/review-momentum`,
                 });
               });
             }}
           >
+            <Plus className="h-3.5 w-3.5" />
             Add to report
           </button>
         </>
@@ -93,19 +83,19 @@ export function momentumTableBadge(label: MomentumLabel): string {
   switch (label) {
     case "Accelerating":
     case "Exploding":
-      return "bg-emerald-600 text-white";
+      return "rounded-full bg-[#137752] px-2.5 py-0.5 text-[11px] font-semibold text-white";
     case "Healthy":
     case "Stable":
-      return "border border-emerald-200 bg-emerald-50 text-emerald-700";
+      return "rounded-full bg-[#ECFDF3] px-2.5 py-0.5 text-[11px] font-semibold text-[#027A48] ring-1 ring-[#A6F4C5]";
     case "Slowing":
     case "Dormant":
-      return "bg-zinc-100 text-zinc-600";
+      return "rounded-full bg-[#F2F4F7] px-2.5 py-0.5 text-[11px] font-semibold text-[#667085]";
     default:
-      return "bg-zinc-100 text-zinc-600";
+      return "rounded-full bg-[#F2F4F7] px-2.5 py-0.5 text-[11px] font-semibold text-[#667085]";
   }
 }
 
-export const momentumCardClass = dashboardCard;
+export const momentumCardClass = mock.card;
 
 export function MomentumSectionTitle({
   title,
@@ -117,10 +107,10 @@ export function MomentumSectionTitle({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-2.5 flex items-start justify-between gap-2">
+    <div className="mb-3 flex items-start justify-between gap-2">
       <div>
-        <h3 className="text-[13px] font-semibold tracking-tight text-zinc-900">{title}</h3>
-        {subtitle && <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">{subtitle}</p>}
+        <h3 className="text-[15px] font-semibold tracking-tight text-[#101828]">{title}</h3>
+        {subtitle ? <p className="mt-0.5 text-xs leading-snug text-[#667085]">{subtitle}</p> : null}
       </div>
       {action}
     </div>
@@ -128,14 +118,14 @@ export function MomentumSectionTitle({
 }
 
 export function MomentumPanel({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn(dashboardCard, "p-3.5", className)}>{children}</div>;
+  return <div className={cn(mock.card, "p-4", className)}>{children}</div>;
 }
 
 export function MomentumTableShell({ children }: { children: ReactNode }) {
   return (
-    <div className={cn(dashboardCard, "overflow-hidden p-0")}>
-      <div className="border-b border-zinc-100 px-3.5 py-2.5">
-        <h3 className="text-[13px] font-semibold text-zinc-900">Competitor comparison</h3>
+    <div className={cn(mock.card, "overflow-hidden p-0")}>
+      <div className="border-b border-[#E6EAF0] px-4 py-3">
+        <h3 className="text-[15px] font-semibold text-[#101828]">Competitor comparison</h3>
       </div>
       {children}
     </div>
@@ -143,5 +133,28 @@ export function MomentumTableShell({ children }: { children: ReactNode }) {
 }
 
 export function momentumTableHeadClass() {
-  return cn(dashboardSectionLabel, "px-3.5 py-2 text-left font-semibold");
+  return cn(mock.tableHead, "px-4 py-3 font-semibold");
+}
+
+export function MomentumMetricCard({
+  label,
+  value,
+  sub,
+  icon,
+}: {
+  label: string;
+  value: ReactNode;
+  sub?: ReactNode;
+  icon?: ReactNode;
+}) {
+  return (
+    <div className={cn(mock.card, "p-4")}>
+      <div className="flex items-start justify-between gap-2">
+        <p className={mock.label}>{label}</p>
+        {icon}
+      </div>
+      <p className="mt-2 text-[26px] font-bold leading-none tracking-tight text-[#101828]">{value}</p>
+      {sub ? <div className="mt-2 text-xs text-[#667085]">{sub}</div> : null}
+    </div>
+  );
 }
