@@ -8,8 +8,8 @@ import crypto from "crypto";
 
 const OUT = "/opt/cursor/artifacts/screenshots/mockup-verify/rank-grid-results";
 const URL = "http://localhost:3000/dev/grid-rank-preview";
-const VIEWPORT = { width: 1440, height: 900 };
-const OVERLAP = 120;
+const VIEWPORT = { width: 1440, height: 700 };
+const OVERLAP = 80;
 
 function md5(file) {
   return crypto.createHash("md5").update(fs.readFileSync(file)).digest("hex");
@@ -78,17 +78,28 @@ async function main() {
   await page.waitForTimeout(800);
 
   const metrics = await getScrollMetrics(page);
-  const step = Math.max(280, metrics.clientHeight - OVERLAP);
+  const step = Math.max(320, metrics.clientHeight - OVERLAP);
   const maxY = Math.max(0, metrics.scrollHeight - metrics.clientHeight);
-  const positions = [];
-  for (let y = 0; y <= maxY; y += step) positions.push(Math.min(y, maxY));
-  if (positions[positions.length - 1] !== maxY) positions.push(maxY);
+  const positions = [0];
+  if (maxY > 200) {
+    const mid = Math.round(maxY / 2);
+    if (mid > 180) positions.push(mid);
+  }
+  if (maxY > 40 && positions[positions.length - 1] !== maxY) {
+    positions.push(maxY);
+  }
+
+  // Drop near-duplicates (within 60px)
+  const unique = [];
+  for (const y of positions) {
+    if (!unique.length || Math.abs(y - unique[unique.length - 1]) >= 60) unique.push(y);
+  }
 
   const index = [];
-  for (let i = 0; i < positions.length; i++) {
-    const y = positions[i];
+  for (let i = 0; i < unique.length; i++) {
+    const y = unique[i];
     await scrollToY(page, y);
-    const name = `${String(i + 1).padStart(2, "0")}-of-${String(positions.length).padStart(2, "0")}-scrollY-${y}.png`;
+    const name = `${String(i + 1).padStart(2, "0")}-of-${String(unique.length).padStart(2, "0")}-scrollY-${y}.png`;
     const file = path.join(OUT, name);
     await page.screenshot({ path: file, fullPage: false });
     const hash = md5(file);

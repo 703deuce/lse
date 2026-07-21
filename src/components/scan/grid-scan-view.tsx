@@ -1146,7 +1146,13 @@ export function GridScanView({
                       value={displayMetrics.averageRank ?? "—"}
                       hint={
                         trend.avgRankDelta != null
-                          ? `Previous trend ${trend.avgRankDelta > 0 ? "↑" : "↓"} ${Math.abs(trend.avgRankDelta)}`
+                          ? `Previous: ${
+                              typeof displayMetrics.averageRank === "number"
+                                ? Math.round(
+                                    (displayMetrics.averageRank - trend.avgRankDelta) * 10
+                                  ) / 10
+                                : "—"
+                            }`
                           : "Across settled cells"
                       }
                       icon={TrendingDown}
@@ -1164,7 +1170,7 @@ export function GridScanView({
                       value={`${displayMetrics.visibilityScore ?? 0}%`}
                       hint={
                         trend.visibilityDelta != null
-                          ? `vs last ${trend.visibilityDelta >= 0 ? "+" : ""}${trend.visibilityDelta}%`
+                          ? "vs last scan · Out of 100%"
                           : "Top-10 share · Out of 100%"
                       }
                       icon={Eye}
