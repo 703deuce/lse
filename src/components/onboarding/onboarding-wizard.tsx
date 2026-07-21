@@ -7,9 +7,14 @@ import {
   ArrowRight,
   Building2,
   Check,
+  ChevronDown,
   Compass,
+  ExternalLink,
+  FileText,
+  Lightbulb,
   Loader2,
   Target,
+  Video,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { btnPrimary, btnSecondary, fieldLabelClass, inputClass } from "@/components/ui/design-system";
@@ -86,11 +91,13 @@ export function OnboardingWizard() {
   // Note: consultant name is stored on report branding; personal name can be edited in Settings.
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <PageHeader
-        title="Welcome to Local SEO Express"
-        subtitle="A clear path from prospecting to client work to white-label reports — with every tool still one click away."
-      />
+    <div className={step === "welcome" ? "w-full" : "mx-auto max-w-2xl"}>
+      {step !== "welcome" ? (
+        <PageHeader
+          title="Welcome to Local SEO Express"
+          subtitle="A clear path from prospecting to client work to white-label reports — with every tool still one click away."
+        />
+      ) : null}
 
       {step !== "welcome" ? (
         <ol className="mb-4 flex flex-wrap gap-1.5 text-[11px]">
@@ -113,50 +120,108 @@ export function OnboardingWizard() {
       ) : null}
 
       {step === "welcome" ? (
-        <div className="grid gap-3 sm:grid-cols-3">
-          {(
-            [
-              {
-                id: "prospect" as const,
-                icon: Target,
-                title: "Audit a prospect",
-                body: "Win a client with a branded Maps audit.",
-              },
-              {
-                id: "client" as const,
-                icon: Building2,
-                title: "Set up an existing client",
-                body: "Track keywords, schedule scans, deliver monthly reports.",
-              },
-              {
-                id: "explore" as const,
-                icon: Compass,
-                title: "Explore the platform",
-                body: "Browse tools first — start a location when ready.",
-              },
-            ] as const
-          ).map((card) => {
-            const Icon = card.icon;
-            return (
-              <button
-                key={card.id}
-                type="button"
-                onClick={() => {
-                  setPath(card.id);
-                  if (card.id === "explore") {
-                    setStep("done");
-                  } else {
-                    setStep("profile");
-                  }
-                }}
-                className="rounded-xl border border-zinc-200 bg-white p-4 text-left transition hover:border-emerald-300 hover:bg-emerald-50/40"
+        <div className="mx-auto max-w-4xl space-y-8">
+          <div className="text-center sm:text-left">
+            <h1 className="text-[32px] font-bold tracking-tight text-[#101828]">
+              Welcome to Local SEO Express 👋
+            </h1>
+            <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-[#667085]">
+              A new way for completing all client work in white-label reports — with tools you will
+              love every step.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            {(
+              [
+                {
+                  id: "prospect" as const,
+                  n: "1",
+                  icon: Target,
+                  title: "Audit a prospect",
+                  body: "Win a client with automated Maps audit.",
+                  cta: "Audit a prospect",
+                },
+                {
+                  id: "client" as const,
+                  n: "2",
+                  icon: Building2,
+                  title: "Set up an existing client",
+                  body: "Track keywords, schedule scans, run white-label reports.",
+                  cta: "Add a client",
+                },
+                {
+                  id: "explore" as const,
+                  n: "3",
+                  icon: Compass,
+                  title: "Explore the platform",
+                  body: "Review Hello Bar1 — learn platform fundamentals.",
+                  cta: "Take a tour",
+                },
+              ] as const
+            ).map((card) => {
+              const Icon = card.icon;
+              return (
+                <button
+                  key={card.id}
+                  type="button"
+                  onClick={() => {
+                    setPath(card.id);
+                    if (card.id === "explore") {
+                      setStep("done");
+                    } else {
+                      setStep("profile");
+                    }
+                  }}
+                  className="relative flex flex-col rounded-2xl border border-[#E6EAF0] bg-white p-5 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition hover:border-[#A6F4C5] hover:shadow-md"
+                >
+                  <span className="absolute left-4 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-[#137752] text-[11px] font-bold text-white">
+                    {card.n}
+                  </span>
+                  <div className="mx-auto mt-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#ECFDF3] text-[#137752]">
+                    <Icon className="h-7 w-7" />
+                  </div>
+                  <p className="mt-4 text-center text-[15px] font-bold text-[#101828]">{card.title}</p>
+                  <p className="mt-1.5 flex-1 text-center text-[13px] leading-snug text-[#667085]">
+                    {card.body}
+                  </p>
+                  <span className="mt-5 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-[#D0D5DD] bg-white text-sm font-semibold text-[#137752]">
+                    {card.cta}
+                    <ChevronDown className="h-4 w-4" />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-col gap-3 rounded-xl border border-[#A6F4C5] bg-[#ECFDF3] px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#137752] shadow-sm">
+                <Lightbulb className="h-4 w-4" />
+              </span>
+              <p className="text-sm leading-relaxed text-[#027A48]">
+                Need help getting started? Visit our onboarding guide or schedule a quick demo.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 sm:shrink-0">
+              <Link
+                href="/workspace"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#027A48] hover:underline"
               >
-                <Icon className="h-5 w-5 text-emerald-600" />
-                <p className="mt-3 text-[14px] font-semibold text-zinc-900">{card.title}</p>
-                <p className="mt-1 text-[12px] leading-snug text-zinc-600">{card.body}</p>
-              </button>
-            );
-          })}
+                <FileText className="h-3.5 w-3.5" />
+                View guide
+                <ExternalLink className="h-3 w-3" />
+              </Link>
+              <a
+                href="mailto:support@localseoexpress.com?subject=Demo%20request"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#027A48] hover:underline"
+              >
+                <Video className="h-3.5 w-3.5" />
+                Book a demo
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          </div>
         </div>
       ) : null}
 

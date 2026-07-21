@@ -7,7 +7,7 @@ import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
 import { MobileMoreSheet } from "@/components/journey/mobile-more-sheet";
 import { DashboardUIProvider, useDashboardUI } from "@/components/dashboard/dashboard-context";
-import { WorkspaceSearch } from "@/components/dashboard/workspace-search";
+import { DesktopTopBar } from "@/components/mockup/desktop-topbar";
 import { cn } from "@/lib/utils";
 
 function extractBusinessId(pathname: string): string | undefined {
@@ -51,23 +51,21 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
   }, [mobileNavOpen, setMobileNavOpen]);
 
   return (
-    <div className="flex min-h-screen overflow-x-hidden bg-[#F3F5F7]">
-      {/* Desktop sidebar — unchanged */}
+    <div className="flex min-h-screen overflow-x-hidden bg-[#F9FAFB]">
       <DashboardSidebar
         businessId={businessId}
         compareActive={compareActive}
         className="hidden lg:flex"
       />
 
-      {/* Mobile More sheet — curated tools (brief), not full desktop sidebar */}
       <MobileMoreSheet />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex items-center gap-2.5 border-b border-zinc-200 bg-white/95 px-3 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-white/80 lg:hidden">
+        <header className="sticky top-0 z-40 flex items-center gap-2.5 border-b border-[#E6EAF0] bg-white/95 px-3 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-white/80 lg:hidden">
           <button
             type="button"
             onClick={() => setMobileNavOpen(true)}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#E6EAF0] bg-white text-[#344054] shadow-sm"
             aria-label="Open menu"
             aria-expanded={mobileNavOpen}
           >
@@ -78,25 +76,22 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
               <MapPin className="h-3.5 w-3.5 text-white" />
             </div>
             <div className="min-w-0">
-              <p className="truncate text-[13px] font-semibold text-zinc-900">Local SEO Express</p>
-              <p className="truncate text-[10px] text-zinc-500">Menu</p>
+              <p className="truncate text-[13px] font-semibold text-[#101828]">Local SEO Express</p>
+              <p className="truncate text-[10px] text-[#667085]">Menu</p>
             </div>
           </div>
         </header>
+
+        {!fullBleed ? <DesktopTopBar /> : null}
 
         <main
           className={cn(
             "flex min-w-0 flex-1 flex-col overflow-x-hidden",
             fullBleed
               ? "overflow-y-hidden p-0"
-              : "overflow-y-auto px-3 py-4 pb-20 sm:px-5 sm:py-6 lg:px-8 lg:pb-6"
+              : "overflow-y-auto px-4 py-5 pb-20 sm:px-6 sm:py-6 lg:px-8 lg:pb-8"
           )}
         >
-          {!fullBleed ? (
-            <div className="mb-4 hidden lg:block">
-              <WorkspaceSearch />
-            </div>
-          ) : null}
           {children}
         </main>
         <MobileBottomNav />

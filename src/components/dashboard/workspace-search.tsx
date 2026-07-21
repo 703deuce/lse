@@ -26,9 +26,9 @@ export function WorkspaceSearch() {
   }, [q]);
 
   return (
-    <div className="relative w-full max-w-sm">
-      <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5">
-        <Search className="h-3.5 w-3.5 text-zinc-400" />
+    <div className="relative w-full">
+      <div className="flex h-10 items-center gap-2.5 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-3.5">
+        <Search className="h-4 w-4 text-[#98A2B3]" />
         <input
           value={q}
           onChange={(e) => {
@@ -37,8 +37,8 @@ export function WorkspaceSearch() {
           }}
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
-          placeholder="Search clients, prospects, keywords…"
-          className="w-full bg-transparent text-sm outline-none placeholder:text-zinc-400"
+          placeholder="Search clients, prospects, keywords..."
+          className="w-full bg-transparent text-sm text-[#101828] outline-none placeholder:text-[#98A2B3]"
         />
       </div>
       {open && results.length > 0 ? (

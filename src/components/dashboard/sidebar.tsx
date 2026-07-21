@@ -38,18 +38,15 @@ function SidebarNavItemRow({
   const showActive = mounted && active;
 
   const className = cn(
-    "relative flex items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+    "relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors",
     showActive
-      ? "bg-emerald-500/15 pl-3.5 text-emerald-300"
+      ? "bg-[#137752] text-white"
       : "text-slate-300 hover:bg-white/5 hover:text-white"
   );
 
   const content = (
     <>
-      {showActive && (
-        <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full bg-emerald-500" />
-      )}
-      <Icon className={cn("h-4 w-4 shrink-0", showActive ? "text-emerald-400" : "text-slate-400")} />
+      <Icon className={cn("h-4 w-4 shrink-0", showActive ? "text-white" : "text-slate-400")} />
       {label}
     </>
   );

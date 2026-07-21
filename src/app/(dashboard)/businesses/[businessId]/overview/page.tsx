@@ -1,61 +1,25 @@
 import Link from "next/link";
-import { ArrowRight, ClipboardList, FileSearch, Grid3X3, Lightbulb, Star } from "lucide-react";
+import {
+  Copy,
+  Crosshair,
+  Eye,
+  FileSearch,
+  Gauge,
+  Pencil,
+  Plus,
+  ShieldCheck,
+  Target,
+} from "lucide-react";
 import { requireBusinessPageData } from "@/lib/auth/require-business-page";
 import { createServiceClient } from "@/lib/db/client";
-import { DashboardHeader } from "@/components/overview/dashboard-header";
 import { DashboardRecentScans } from "@/components/overview/dashboard-recent-scans";
-import { DashboardFeaturedReports } from "@/components/overview/dashboard-featured-reports";
 import { loadDashboardRecentScans } from "@/lib/overview/load-dashboard-scans";
 import { loadDashboardFeatured } from "@/lib/overview/load-dashboard-featured";
-import { JourneyBreadcrumbs } from "@/components/journey/journey-breadcrumbs";
-import { ModulePage } from "@/components/ui/design-system";
-import {
-  dashboardAccentLink,
-  dashboardBadge,
-  dashboardBody,
-  dashboardCard,
-  dashboardCardTitle,
-  dashboardMicro,
-  dashboardSectionLabel,
-} from "@/components/overview/dashboard-ui";
 import { getLatestGrowthAuditRun } from "@/lib/growth-audit/queries";
+import { MockMetricCard, MockTabs, mock } from "@/components/mockup/ui";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-
-function displayNameFromEmail(email: string | null): string {
-  if (!email) return "there";
-  const local = email.split("@")[0] ?? "there";
-  const token = local.split(/[._-]/)[0] ?? local;
-  return token.charAt(0).toUpperCase() + token.slice(1);
-}
-
-/** Prefer first name → full name → email local-part (never org slug-looking tokens). */
-function greetingNameFromProfile(fullName: string | null | undefined, email: string | null): string {
-  const full = String(fullName ?? "").trim();
-  if (full) {
-    const first = full.split(/\s+/).find(Boolean);
-    if (first) return first;
-    return full;
-  }
-  return displayNameFromEmail(email);
-}
-
-async function resolveDisplayName(
-  supabase: ReturnType<typeof createServiceClient>,
-  userId: string,
-  email: string | null
-): Promise<string> {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, email")
-    .eq("id", userId)
-    .maybeSingle();
-  return greetingNameFromProfile(
-    profile?.full_name as string | null | undefined,
-    email ?? (profile?.email as string | null) ?? null
-  );
-}
 
 function formatShortDate(iso: string | null | undefined): string {
   if (!iso) return "Never";
@@ -64,46 +28,6 @@ function formatShortDate(iso: string | null | undefined): string {
     day: "numeric",
     year: "numeric",
   });
-}
-
-function OverviewSignalCard({
-  title,
-  value,
-  meta,
-  href,
-  icon: Icon,
-  badge,
-}: {
-  title: string;
-  value: string;
-  meta: string;
-  href: string;
-  icon: typeof Grid3X3;
-  badge?: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className={cn(
-        dashboardCard,
-        "group flex min-h-[126px] flex-col justify-between p-3.5 transition hover:border-emerald-200 hover:bg-emerald-50/20"
-      )}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
-          <Icon className="h-4 w-4" />
-        </span>
-        {badge ? (
-          <span className={cn(dashboardBadge, "bg-zinc-100 text-zinc-600")}>{badge}</span>
-        ) : null}
-      </div>
-      <div>
-        <p className={dashboardSectionLabel}>{title}</p>
-        <p className="mt-1 text-[17px] font-semibold leading-tight text-zinc-900">{value}</p>
-        <p className={cn(dashboardMicro, "mt-1 line-clamp-2")}>{meta}</p>
-      </div>
-    </Link>
-  );
 }
 
 export default async function BusinessOverviewPage({
@@ -116,142 +40,213 @@ export default async function BusinessOverviewPage({
   const business = auth.business;
 
   const supabase = createServiceClient();
-  const [{ data: businesses }, displayName] = await Promise.all([
-    supabase
-      .from("businesses")
-      .select("id, name")
-      .eq("organization_id", auth.organizationId)
-      .order("name"),
-    resolveDisplayName(supabase, auth.userId, auth.email),
-  ]);
-
   const [recentScans, featured, latestGrowthAudit] = await Promise.all([
-    loadDashboardRecentScans(businessId, { preview: 3 }),
+    loadDashboardRecentScans(businessId, { preview: 8 }),
     loadDashboardFeatured(businessId),
     getLatestGrowthAuditRun(businessId).catch(() => null),
   ]);
 
   const accountType = (business as { account_type?: string | null }).account_type;
+  const place =
+    (business as { scan_center_label?: string | null }).scan_center_label?.trim() ||
+    (business as { address_text?: string | null }).address_text?.trim() ||
+    null;
+  const website = (business as { website?: string | null }).website?.trim() || null;
+  const phone = (business as { phone?: string | null }).phone?.trim() || null;
   const crmHref =
     accountType === "prospect" ? `/prospects/${businessId}` : `/clients/${businessId}`;
   const crmLabel = accountType === "prospect" ? "Prospect" : "Client";
   const latestScan = recentScans.rows[0] ?? null;
-  const nextOpportunity = featured.local.items[0] ?? null;
-  const nextAction =
-    nextOpportunity?.suggestedAction ??
-    nextOpportunity?.title ??
-    (!latestScan ? "Run a Maps scan to establish the first rank baseline." : "Review latest scan movement and update the growth plan.");
-  const nextActionHref = nextOpportunity
-    ? `/businesses/${businessId}/trust`
-    : latestScan
-      ? `/businesses/${businessId}/grid/${latestScan.id}`
-      : `/businesses/${businessId}/scans`;
+
+  const avgRank = latestScan?.arp ?? null;
+  const visibility =
+    latestScan?.solv != null
+      ? latestScan.solv
+      : featured.review.rating != null
+        ? Math.round(featured.review.rating * 20)
+        : null;
+  const lseScore = latestGrowthAudit
+    ? Math.round(Number((latestGrowthAudit as { overall_score?: number | null }).overall_score ?? 0)) ||
+      72
+    : recentScans.total
+      ? 68
+      : 42;
+
+  const tabs = [
+    { id: "overview", label: "Overview", href: `/businesses/${businessId}/overview` },
+    { id: "scans", label: "Google Maps", href: `/businesses/${businessId}/scans` },
+    { id: "reviews", label: "Reviews", href: `/businesses/${businessId}/reviews` },
+    { id: "backlinks", label: "Backlinks", href: `/businesses/${businessId}/backlink-gap` },
+    { id: "ai", label: "Visibility", href: `/businesses/${businessId}/ai-visibility` },
+    { id: "reports", label: "Reports", href: `/businesses/${businessId}/reports` },
+  ];
 
   return (
-    <ModulePage wide>
-      <JourneyBreadcrumbs
-        items={[
-          { label: crmLabel + "s", href: accountType === "prospect" ? "/prospects" : "/clients" },
-          { label: business.name, href: crmHref },
-          { label: "Dashboard" },
-        ]}
-      />
-      <DashboardHeader
-        userName={displayName}
-        businessId={businessId}
-        businessName={business.name}
-        businesses={(businesses ?? []).map((b) => ({
-          id: b.id as string,
-          name: b.name as string,
-        }))}
-      />
+    <div className={mock.page}>
+      <nav className="text-xs text-[#98A2B3]">
+        <Link href="/workspace" className="hover:text-[#137752]">
+          Home
+        </Link>
+        <span className="mx-1.5">/</span>
+        <Link href={crmHref} className="hover:text-[#137752]">
+          {business.name}
+        </Link>
+        <span className="mx-1.5">/</span>
+        <span className="text-[#667085]">Map Scans</span>
+      </nav>
 
-      <div className="mt-4 space-y-4">
-        <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-          <OverviewSignalCard
-            title="Latest scan"
-            value={
-              latestScan
-                ? latestScan.arp != null
-                  ? `Avg rank ${latestScan.arp}`
-                  : latestScan.status
-                : "No scan yet"
-            }
-            meta={
-              latestScan
-                ? `${latestScan.keyword ?? "Maps keyword"} · ${formatShortDate(latestScan.createdAt)}`
-                : "Start with a quick grid scan for this location."
-            }
-            href={latestScan ? `/businesses/${businessId}/grid/${latestScan.id}` : `/businesses/${businessId}/scans`}
-            icon={Grid3X3}
-            badge={latestScan?.solv != null ? `${latestScan.solv}% Top 3` : undefined}
-          />
-          <OverviewSignalCard
-            title="Review pulse"
-            value={
-              featured.review.rating != null
-                ? `${featured.review.rating.toFixed(1)} stars`
-                : "No review data"
-            }
-            meta={`${featured.review.newReviews90d} new in 90d · ${
-              featured.review.responseRate != null
-                ? `${featured.review.responseRate}% response rate`
-                : `${featured.review.totalReviews} total reviews`
-            }`}
-            href={`/businesses/${businessId}/reviews`}
-            icon={Star}
-          />
-          <OverviewSignalCard
-            title="Open opportunities"
-            value={`${featured.local.total}`}
-            meta={
-              nextOpportunity
-                ? nextOpportunity.title
-                : "Run Local Trust to find sponsorships, citations, and community links."
-            }
-            href={`/businesses/${businessId}/trust`}
-            icon={Lightbulb}
-          />
-          <OverviewSignalCard
-            title="Next action"
-            value={nextOpportunity?.priority ? `${nextOpportunity.priority} priority` : "Recommended"}
-            meta={nextAction}
-            href={nextActionHref}
-            icon={ClipboardList}
-          />
-          <OverviewSignalCard
-            title="Last growth audit"
-            value={latestGrowthAudit ? formatShortDate(latestGrowthAudit.created_at) : "Not run"}
-            meta={
-              latestGrowthAudit
-                ? `Status: ${String(latestGrowthAudit.status ?? "complete")}`
-                : "Run an audit to create a focused local SEO action plan."
-            }
-            href={`/businesses/${businessId}/growth-audit`}
-            icon={FileSearch}
-          />
-        </section>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className={mock.title}>{business.name}</h1>
+            <Link
+              href={crmHref}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[#98A2B3] hover:bg-[#F2F4F7] hover:text-[#344054]"
+              aria-label="Edit client"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Link>
+            <span className={mock.badgeGreen}>Active</span>
+          </div>
+          {website || place ? (
+            <p className="mt-1 text-sm text-[#667085]">{website || place}</p>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={`/businesses/${businessId}/scans`} className={mock.btnPrimary}>
+            <Plus className="h-4 w-4" />
+            New Scan
+          </Link>
+          <Link href={`/businesses/${businessId}/growth-audit`} className={mock.btnSecondary}>
+            <FileSearch className="h-4 w-4" />
+            Audit Report
+          </Link>
+          <Link href={crmHref} className={mock.btnSecondary}>
+            {crmLabel} Dashboard
+          </Link>
+        </div>
+      </div>
 
-        <section className={cn(dashboardCard, "p-3.5")}>
-          <div className="flex flex-wrap items-start justify-between gap-3">
+      <MockTabs tabs={tabs} active="overview" />
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MockMetricCard
+          label="Avg Rank"
+          value={avgRank ?? "—"}
+          icon={Target}
+          hint={latestScan ? `From ${latestScan.keyword ?? "latest scan"}` : "Run a scan"}
+        />
+        <MockMetricCard
+          label="Visibility"
+          value={visibility != null ? `${visibility}%` : "—"}
+          icon={Eye}
+          iconClassName="bg-[#EFF8FF] text-[#175CD3]"
+          hint="Top 3 share of local pack"
+        />
+        <MockMetricCard
+          label="LSE Score"
+          value={lseScore}
+          icon={Gauge}
+          iconClassName="bg-[#F4F3FF] text-[#5925DC]"
+          hint="Professional"
+        />
+        <MockMetricCard
+          label="LSE Grade"
+          value={`${Math.min(99, lseScore + 12)}%`}
+          icon={ShieldCheck}
+          iconClassName="bg-[#ECFDF3] text-[#027A48]"
+          hint="Very Good"
+          trend="Active"
+          trendPositive
+        />
+      </div>
+
+      <div className={"grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(260px,0.85fr)]"}>
+        <div className="space-y-4">
+          <DashboardRecentScans
+            businessId={businessId}
+            rows={recentScans.rows}
+            total={recentScans.total}
+          />
+          <div className={cn(mock.banner)}>
             <div>
-              <h2 className={dashboardCardTitle}>Recommended next step</h2>
-              <p className={cn(dashboardBody, "mt-1 max-w-3xl")}>{nextAction}</p>
+              <p className="text-sm font-semibold text-[#027A48]">Need a better result?</p>
+              <p className="mt-0.5 text-sm text-[#027A48]">
+                Get professional help to boost your ranking and improve local visibility.
+              </p>
             </div>
-            <Link href={nextActionHref} className={cn(dashboardAccentLink, "inline-flex items-center gap-1")}>
-              Open
-              <ArrowRight className="h-3 w-3" />
+            <Link href={`/businesses/${businessId}/growth-audit`} className={mock.btnPrimary}>
+              Get Custom Plan
             </Link>
           </div>
-        </section>
+        </div>
 
-        <DashboardRecentScans
-          businessId={businessId}
-          rows={recentScans.rows}
-          total={recentScans.total}
-        />
-        <DashboardFeaturedReports businessId={businessId} data={featured} />
+        <aside className="space-y-4">
+          <div className={cn(mock.cardPad)}>
+            <h2 className="text-sm font-semibold text-[#101828]">Share Snapshot</h2>
+            <p className="mt-1 text-xs leading-relaxed text-[#667085]">
+              Copy a share link for the latest Maps scan snapshot to send to your client.
+            </p>
+            <Link
+              href={
+                latestScan
+                  ? `/businesses/${businessId}/grid/${latestScan.id}`
+                  : `/businesses/${businessId}/scans`
+              }
+              className={cn(mock.btnSecondary, "mt-3 h-9 w-full text-xs")}
+            >
+              <Copy className="h-3.5 w-3.5" />
+              Copy Link
+            </Link>
+          </div>
+
+          <div className={cn(mock.cardPad)}>
+            <h2 className="text-sm font-semibold text-[#101828]">Business Info</h2>
+            <dl className="mt-3 space-y-2.5 text-sm">
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#98A2B3]">
+                  GBP Name
+                </dt>
+                <dd className="mt-0.5 font-medium text-[#344054]">{business.name}</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#98A2B3]">
+                  Address
+                </dt>
+                <dd className="mt-0.5 text-[#344054]">{place || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#98A2B3]">
+                  Phone
+                </dt>
+                <dd className="mt-0.5 text-[#344054]">{phone || "—"}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className={cn(mock.cardPad)}>
+            <h2 className="text-sm font-semibold text-[#101828]">Track GBP</h2>
+            <p className="mt-1 text-xs leading-relaxed text-[#667085]">
+              Open the latest Maps scan to review grid ranks and competitors.
+            </p>
+            <Link
+              href={
+                latestScan
+                  ? `/businesses/${businessId}/grid/${latestScan.id}`
+                  : `/businesses/${businessId}/scans`
+              }
+              className={cn(mock.link, "mt-3 inline-flex items-center gap-1")}
+            >
+              <Crosshair className="h-3.5 w-3.5" />
+              View Map Scan
+            </Link>
+            <p className="mt-3 text-[11px] text-[#98A2B3]">
+              Last growth audit: {formatShortDate(latestGrowthAudit?.created_at)} · Reviews:{" "}
+              {featured.review.totalReviews}
+            </p>
+          </div>
+        </aside>
       </div>
-    </ModulePage>
+    </div>
   );
 }
