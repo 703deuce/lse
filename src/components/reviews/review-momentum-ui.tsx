@@ -147,13 +147,22 @@ export function MomentumMetricCard({
   sub?: ReactNode;
   icon?: ReactNode;
 }) {
+  const valueIsLongString =
+    typeof value === "string" && value.length > 12;
   return (
     <div className={cn(mock.card, "p-4")}>
       <div className="flex items-start justify-between gap-2">
         <p className={mock.label}>{label}</p>
         {icon}
       </div>
-      <p className="mt-2 text-[26px] font-bold leading-none tracking-tight text-[#101828]">{value}</p>
+      <p
+        className={cn(
+          "mt-2 font-bold leading-tight tracking-tight text-[#101828]",
+          valueIsLongString ? "text-[18px]" : "text-[26px] leading-none"
+        )}
+      >
+        {value}
+      </p>
       {sub ? <div className="mt-2 text-xs text-[#667085]">{sub}</div> : null}
     </div>
   );
