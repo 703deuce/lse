@@ -4,28 +4,22 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
-  Archive,
   ArrowRight,
   Building2,
-  CheckCircle2,
   Clock,
-  Eye,
-  FileEdit,
+  Copy,
   FileText,
+  ImageIcon,
   Loader2,
-  Radar,
+  MapPinned,
+  Palette,
+  Sparkles,
   Swords,
   Target,
+  Users,
 } from "lucide-react";
 import { ModuleEmptyState } from "@/components/journey/module-empty-state";
-import {
-  ContentCard,
-  btnPrimary,
-  btnSecondary,
-  cardClass,
-  cardLabelClass,
-  sectionTitleClass,
-} from "@/components/ui/design-system";
+import { mock } from "@/components/mockup/ui";
 import { cn } from "@/lib/utils";
 
 type ReportRow = {
@@ -45,84 +39,108 @@ type BusinessOption = {
   name: string;
   account_type?: string | null;
   is_tracked?: boolean | null;
+  address?: string | null;
 };
 
-function ReportGroup({
+function ReportBucketCard({
   title,
   subtitle,
   rows,
   empty,
   icon: Icon,
-  iconWrap,
+  iconClassName,
+  footerHref,
+  footerLabel,
 }: {
   title: string;
   subtitle: string;
   rows: ReportRow[];
   empty: string;
   icon: LucideIcon;
-  iconWrap: string;
+  iconClassName: string;
+  footerHref?: string;
+  footerLabel?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const visibleRows = expanded ? rows : rows.slice(0, 5);
+  const visibleRows = expanded ? rows : rows.slice(0, 3);
+
   return (
-    <ContentCard padding={false} className="overflow-hidden">
-      <div className="flex items-start gap-2.5 border-b border-zinc-100 px-3.5 py-2.5">
+    <div className={cn(mock.card, "flex h-full flex-col overflow-hidden")}>
+      <div className="flex items-start gap-3 border-b border-[#F2F4F7] px-4 py-3.5">
         <span
           className={cn(
-            "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
-            iconWrap
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+            iconClassName
           )}
         >
-          <Icon className="h-3.5 w-3.5" />
+          <Icon className="h-4 w-4" />
         </span>
-        <div className="min-w-0">
-          <h2 className={sectionTitleClass}>{title}</h2>
-          <p className="mt-0.5 text-[11px] text-zinc-500">{subtitle}</p>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="text-[15px] font-bold text-[#101828]">{title}</h2>
+            <span className="rounded-full bg-[#F2F4F7] px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[#475467]">
+              {rows.length}
+            </span>
+          </div>
+          <p className="mt-0.5 text-[12px] text-[#667085]">{subtitle}</p>
         </div>
-        <span className="ml-auto rounded-md bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-zinc-600">
-          {rows.length}
-        </span>
       </div>
-      {!rows.length ? (
-        <p className="px-3.5 py-3.5 text-[12px] leading-snug text-zinc-500">{empty}</p>
-      ) : (
-        <ul className="divide-y divide-zinc-100">
-          {visibleRows.map((r) => (
-            <li key={r.id}>
-              <Link
-                href={r.href}
-                className="group flex items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-zinc-50/80"
-              >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-100">
-                  <FileText className="h-3.5 w-3.5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-medium text-zinc-900 group-hover:text-emerald-700">
-                    {r.title}
-                  </p>
-                  <p className="truncate text-[11px] text-zinc-500">
-                    {r.businessName}
-                    {r.viewedAt ? " · viewed" : ""}
-                  </p>
-                </div>
-                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-zinc-300 group-hover:text-emerald-600" />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-      {rows.length > 5 && (
-        <div className="border-t border-zinc-100 px-3.5 py-2 text-center">
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="text-[12px] font-medium text-emerald-700 hover:text-emerald-800"
-          >
-            {expanded ? "Show less" : `Show ${rows.length - 5} more`}
-          </button>
-        </div>
-      )}
-    </ContentCard>
+
+      <div className="flex flex-1 flex-col">
+        {!rows.length ? (
+          <p className="px-4 py-4 text-[13px] leading-snug text-[#667085]">{empty}</p>
+        ) : (
+          <ul className="divide-y divide-[#F2F4F7]">
+            {visibleRows.map((r) => (
+              <li key={r.id}>
+                <Link
+                  href={r.href}
+                  className="group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[#F9FAFB]"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#ECFDF3] text-[#137752]">
+                    <FileText className="h-3.5 w-3.5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-semibold text-[#101828] group-hover:text-[#137752]">
+                      {r.title}
+                    </p>
+                    <p className="truncate text-[11px] text-[#667085]">
+                      {r.businessName}
+                      {r.viewedAt ? " · viewed" : ""}
+                    </p>
+                  </div>
+                  <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[#D0D5DD] group-hover:text-[#137752]" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {rows.length > 3 ? (
+          <div className="border-t border-[#F2F4F7] px-4 py-2 text-center">
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="text-[12px] font-semibold text-[#137752] hover:underline"
+            >
+              {expanded ? "Show less" : `Show ${rows.length - 3} more`}
+            </button>
+          </div>
+        ) : null}
+
+        {footerHref && footerLabel ? (
+          <div className="mt-auto border-t border-[#F2F4F7] px-4 py-2.5">
+            <Link
+              href={footerHref}
+              className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#137752] hover:underline"
+            >
+              {footerLabel}
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -170,70 +188,77 @@ export function OrgReportsHome({ businesses }: { businesses: BusinessOption[] })
     );
   }
 
-  const quickCreates = [
+  const featureCards = [
     {
       href: firstProspect
         ? `/businesses/${firstProspect.id}/reports?type=single_scan`
         : "/businesses/new?as=prospect",
-      label: "Prospect Audit",
-      hint: "Win the deal",
+      label: "Keyword Audit",
+      hint: "Not Started",
       icon: Target,
-      wrap: "bg-sky-50 text-sky-600",
+      wrap: "bg-[#EFF8FF] text-[#175CD3]",
     },
     {
       href: firstClient
-        ? `/businesses/${firstClient.id}/reports?type=monthly`
+        ? `/businesses/${firstClient.id}/reports?type=trend`
         : "/businesses/new?as=client",
       label: "Monthly Report",
-      hint: "Recurring deliverable",
+      hint: "New reports every 30 days",
       icon: FileText,
-      wrap: "bg-emerald-50 text-emerald-600",
+      wrap: "bg-[#ECFDF3] text-[#027A48]",
     },
     {
-      href: firstClient ? `/businesses/${firstClient.id}/campaigns` : "/clients",
-      label: "Campaign Progress",
-      hint: "From Maps tracking",
-      icon: Radar,
-      wrap: "bg-violet-50 text-violet-600",
+      href: "/clients",
+      label: "Group Reports",
+      hint: "View all group reports",
+      icon: Users,
+      wrap: "bg-[#F4F3FF] text-[#5925DC]",
     },
     {
       href: firstClient
         ? `/businesses/${firstClient.id}/reports?type=competitor`
         : "/reports",
-      label: "Competitor Report",
-      hint: "Share of pack",
+      label: "Competitive Report",
+      hint: published.length ? "Newly created" : "Ready when you are",
       icon: Swords,
-      wrap: "bg-amber-50 text-amber-600",
+      wrap: "bg-[#FFFAEB] text-[#B54708]",
     },
   ] as const;
 
+  const metricCards = [
+    { label: "Audit", value: drafts.length + ready.length },
+    { label: "Monthly reports", value: published.length },
+    { label: "Grouped", value: recent.length },
+    { label: "Deleted", value: archived.length },
+  ];
+
   return (
-    <div className="space-y-3">
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        {quickCreates.map((a) => {
-          const Icon = a.icon;
+    <div className="space-y-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {featureCards.map((card) => {
+          const Icon = card.icon;
           return (
             <Link
-              key={a.label}
-              href={a.href}
+              key={card.label}
+              href={card.href}
               className={cn(
-                cardClass,
-                "flex items-center gap-3 p-3.5 transition hover:border-emerald-200 hover:bg-emerald-50/30"
+                mock.card,
+                "flex items-center gap-3 p-4 transition hover:border-[#A6F4C5] hover:bg-[#ECFDF3]/40"
               )}
             >
               <span
                 className={cn(
-                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ring-black/5",
-                  a.wrap
+                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-full",
+                  card.wrap
                 )}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-5 w-5" />
               </span>
               <span className="min-w-0">
-                <span className="block text-[13px] font-semibold text-zinc-900">
-                  {a.label}
+                <span className="block text-[14px] font-bold text-[#101828]">
+                  {card.label}
                 </span>
-                <span className="block text-[11px] text-zinc-500">{a.hint}</span>
+                <span className="mt-0.5 block text-[12px] text-[#667085]">{card.hint}</span>
               </span>
             </Link>
           );
@@ -241,16 +266,11 @@ export function OrgReportsHome({ businesses }: { businesses: BusinessOption[] })
       </div>
 
       {!loading ? (
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-          {[
-            { label: "Drafts", value: drafts.length },
-            { label: "Ready to review", value: ready.length },
-            { label: "Published", value: published.length },
-            { label: "Viewed", value: recent.length },
-          ].map((kpi) => (
-            <div key={kpi.label} className={cn(cardClass, "p-3.5")}>
-              <p className={cardLabelClass}>{kpi.label}</p>
-              <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {metricCards.map((kpi) => (
+            <div key={kpi.label} className={cn(mock.card, "px-4 py-3.5")}>
+              <p className={mock.label}>{kpi.label}</p>
+              <p className="mt-1.5 text-[26px] font-bold tabular-nums leading-none tracking-tight text-[#101828]">
                 {kpi.value}
               </p>
             </div>
@@ -259,107 +279,146 @@ export function OrgReportsHome({ businesses }: { businesses: BusinessOption[] })
       ) : null}
 
       {loading ? (
-        <ContentCard className="flex items-center gap-2 text-sm text-zinc-500">
-          <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+        <div className={cn(mock.cardPad, "flex items-center gap-2 text-sm text-[#667085]")}>
+          <Loader2 className="h-4 w-4 animate-spin text-[#137752]" />
           Loading reports…
-        </ContentCard>
+        </div>
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
-          <ReportGroup
-            title="Drafts"
-            subtitle="Still editing before publish"
-            rows={drafts}
-            empty="No drafts — create a monthly report to start."
-            icon={FileEdit}
-            iconWrap="bg-zinc-100 text-zinc-600"
+          <ReportBucketCard
+            title="Events"
+            subtitle={
+              recent.length
+                ? `${recent.length} report view${recent.length === 1 ? "" : "s"} recently`
+                : "No events within last 30 days"
+            }
+            rows={recent}
+            empty="No events within last 30 days"
+            icon={Sparkles}
+            iconClassName="bg-[#F4F3FF] text-[#5925DC]"
+            footerHref={firstClient ? `/businesses/${firstClient.id}/reports` : "/clients"}
+            footerLabel="View events → Explore events from all reports"
           />
-          <ReportGroup
+          <ReportBucketCard
+            title="Media & Content"
+            subtitle="Drafts and assets waiting to publish"
+            rows={drafts}
+            empty="No draft media yet"
+            icon={ImageIcon}
+            iconClassName="bg-[#FFF6ED] text-[#C4320A]"
+            footerHref="/settings"
+            footerLabel="Explore media → View report media in bulk"
+          />
+          <ReportBucketCard
+            title="Duplicates"
+            subtitle={
+              archived.length
+                ? `${archived.length} archived deliverable${archived.length === 1 ? "" : "s"}`
+                : "No duplicates within last 30 days"
+            }
+            rows={archived}
+            empty="No duplicates within last 30 days"
+            icon={Copy}
+            iconClassName="bg-[#ECFDF3] text-[#027A48]"
+            footerHref="/clients"
+            footerLabel="View duplicates → View duplicate listings in bulk"
+          />
+          <ReportBucketCard
+            title="Proximity reports"
+            subtitle="Maps grid and location deliverables"
+            rows={published}
+            empty="No published proximity reports yet"
+            icon={MapPinned}
+            iconClassName="bg-[#F4F3FF] text-[#5925DC]"
+            footerHref={firstClient ? `/businesses/${firstClient.id}/scans` : "/clients"}
+            footerLabel="View proximity reports → View your proximity reports"
+          />
+          <ReportBucketCard
             title="Ready to review"
             subtitle="Drafts waiting on your pass"
             rows={ready}
-            empty="No reports waiting for review."
+            empty="No reports waiting for review"
             icon={Clock}
-            iconWrap="bg-amber-50 text-amber-600"
+            iconClassName="bg-[#FFFAEB] text-[#B54708]"
+            footerHref={firstClient ? `/businesses/${firstClient.id}/reports` : "/clients"}
+            footerLabel="Review drafts → Open the report builder"
           />
-          <ReportGroup
-            title="Published"
-            subtitle="Live share links for clients"
-            rows={published}
-            empty="No published reports yet."
-            icon={CheckCircle2}
-            iconWrap="bg-emerald-50 text-emerald-600"
-          />
-          <ReportGroup
-            title="Recently viewed"
-            subtitle="Client opened the share link"
-            rows={recent}
-            empty="Share a report link to track client views."
-            icon={Eye}
-            iconWrap="bg-sky-50 text-sky-600"
-          />
-          <ReportGroup
-            title="Archived"
-            subtitle="Older deliverables"
-            rows={archived}
-            empty="No archived reports."
-            icon={Archive}
-            iconWrap="bg-zinc-100 text-zinc-500"
-          />
+          <div className={cn(mock.card, "flex h-full flex-col overflow-hidden")}>
+            <div className="flex items-start gap-3 border-b border-[#F2F4F7] px-4 py-3.5">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#EFF8FF] text-[#175CD3]">
+                <Palette className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-[15px] font-bold text-[#101828]">White label</h2>
+                <p className="mt-0.5 text-[12px] text-[#667085]">Your white label data</p>
+              </div>
+            </div>
+            <p className="px-4 py-4 text-[13px] leading-snug text-[#667085]">
+              Brand logos, colors, and share-link chrome for client-facing reports.
+            </p>
+            <div className="mt-auto border-t border-[#F2F4F7] px-4 py-2.5">
+              <Link
+                href="/settings"
+                className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#137752] hover:underline"
+              >
+                Your white label info
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+          </div>
         </div>
       )}
 
-      <ContentCard padding={false} className="overflow-hidden">
-        <div className="flex items-start gap-2.5 border-b border-zinc-100 px-3.5 py-2.5">
-          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600">
-            <Building2 className="h-3.5 w-3.5" />
-          </span>
-          <div>
-            <h2 className={sectionTitleClass}>Pick a location</h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">
-              Open the full report builder for a specific prospect or client.
-            </p>
-          </div>
+      <section className={cn(mock.card, "overflow-hidden")}>
+        <div className="border-b border-[#F2F4F7] px-4 py-3.5">
+          <h2 className="text-[16px] font-bold text-[#101828]">Main Locations</h2>
+          <p className="mt-0.5 text-[13px] text-[#667085]">
+            Locations in this account — open the full report builder for any prospect or client.
+          </p>
         </div>
-        <ul className="divide-y divide-zinc-100">
+        <ul className="divide-y divide-[#F2F4F7]">
           {businesses.map((b) => {
             const isProspect =
               b.account_type === "prospect" || b.is_tracked === false;
             return (
               <li
                 key={b.id}
-                className="flex items-center justify-between gap-3 px-3.5 py-2.5"
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5"
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <span
                     className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset",
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
                       isProspect
-                        ? "bg-sky-50 text-sky-600 ring-sky-100"
-                        : "bg-emerald-50 text-emerald-600 ring-emerald-100"
+                        ? "bg-[#EFF8FF] text-[#175CD3]"
+                        : "bg-[#ECFDF3] text-[#027A48]"
                     )}
                   >
-                    <Building2 className="h-3.5 w-3.5" />
+                    <Building2 className="h-4 w-4" />
                   </span>
                   <div className="min-w-0">
-                    <p className="truncate text-[13px] font-semibold text-zinc-900">
+                    <p className="truncate text-[14px] font-semibold text-[#101828]">
                       {b.name}
                     </p>
-                    <p className="text-[11px] capitalize text-zinc-500">
-                      {isProspect ? "Prospect" : "Client"}
+                    <p className="truncate text-[12px] text-[#667085]">
+                      {b.address?.trim() || (isProspect ? "Prospect" : "Client location")}
                     </p>
                   </div>
                 </div>
-                <Link
-                  href={`/businesses/${b.id}/reports`}
-                  className={cn(btnPrimary, "h-8 shrink-0 px-3 text-[12px]")}
-                >
-                  Open reports
-                </Link>
+                <div className="flex items-center gap-2.5">
+                  <span className={mock.badgeGreen}>Active</span>
+                  <Link
+                    href={`/businesses/${b.id}/reports`}
+                    className={cn(mock.btnPrimary, "h-9 px-3.5 text-[12px] uppercase tracking-wide")}
+                  >
+                    View report
+                  </Link>
+                </div>
               </li>
             );
           })}
         </ul>
-      </ContentCard>
+      </section>
     </div>
   );
 }
