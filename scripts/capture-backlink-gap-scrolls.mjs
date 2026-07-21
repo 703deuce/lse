@@ -10,7 +10,7 @@ import crypto from "crypto";
 
 const OUT = "/opt/cursor/artifacts/screenshots/mockup-verify/backlink-gap";
 const URL = "http://localhost:3000/dev/backlink-gap-preview";
-const VIEWPORT = { width: 1440, height: 900 };
+const VIEWPORT = { width: 1440, height: 600 };
 const OVERLAP = 80; // px overlap between segments for continuity
 
 const TABS = [
@@ -55,6 +55,15 @@ async function captureTab(page, tab) {
 
   await page.getByRole("button", { name: tab.label, exact: true }).click();
   await page.waitForTimeout(2000);
+
+  // Expand collapsed accordions so tall tabs capture full content
+  const expanders = page.locator('button:has(svg.lucide-chevron-right), button:has([class*="ChevronRight"])');
+  const count = await expanders.count().catch(() => 0);
+  for (let i = 0; i < Math.min(count, 8); i++) {
+    await expanders.nth(i).click().catch(() => {});
+    await page.waitForTimeout(200);
+  }
+
   await scrollToY(page, 0);
   await page.waitForTimeout(500);
 
