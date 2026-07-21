@@ -222,7 +222,9 @@ export function MetricStrip({
         ? "sm:grid-cols-3"
         : items.length === 5
           ? "sm:grid-cols-5"
-          : "sm:grid-cols-4";
+          : items.length >= 6
+            ? "sm:grid-cols-3 lg:grid-cols-6"
+            : "sm:grid-cols-4";
   return (
     <div
       className={cn(
@@ -454,19 +456,104 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        cardClass,
-        "flex flex-col items-center justify-center px-4 py-7 text-center",
+        emptyStateClass,
+        "flex flex-col items-center justify-center",
         className
       )}
     >
-      <h3 className="text-[13px] font-semibold text-zinc-900">{title}</h3>
+      <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
       {description ? (
-        <p className="mt-1 max-w-md text-[12px] leading-snug text-zinc-500">{description}</p>
+        <p className="mt-1.5 max-w-md text-sm leading-relaxed text-zinc-500">{description}</p>
       ) : null}
-      {action ? <div className="mt-3">{action}</div> : null}
+      {action ? <div className="mt-4">{action}</div> : null}
     </div>
   );
 }
+
+/** Progressive page section — one job, one headline. */
+export function PageSection({
+  title,
+  description,
+  action,
+  children,
+  className,
+}: {
+  title?: string;
+  description?: string;
+  action?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={cn("space-y-3", className)}>
+      {title ? (
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className={sectionTitleClass}>{title}</h2>
+            {description ? (
+              <p className="mt-1 text-sm leading-relaxed text-zinc-500">{description}</p>
+            ) : null}
+          </div>
+          {action}
+        </div>
+      ) : null}
+      {children}
+    </section>
+  );
+}
+
+/** Canonical chart surface — same language as ContentCard, with a clear title. */
+export function ChartCard({
+  title,
+  description,
+  action,
+  children,
+  className,
+  tall,
+}: {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+  children: ReactNode;
+  className?: string;
+  /** Dominant chart — more height / presence */
+  tall?: boolean;
+}) {
+  return (
+    <div className={cn(cardClass, tall ? "p-5" : "p-4", className)}>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className={cn(tall ? sectionTitleClass : "text-sm font-semibold text-zinc-900")}>
+            {title}
+          </h3>
+          {description ? (
+            <p className="mt-0.5 text-xs leading-snug text-zinc-500">{description}</p>
+          ) : null}
+        </div>
+        {action}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** Shared filter / toolbar shell. */
+export function FilterBar({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return <div className={cn(filterBarClass, className)}>{children}</div>;
+}
+
+/** Spacing scale tokens for module layouts. */
+export const space = {
+  section: "space-y-8",
+  stack: "space-y-5",
+  tight: "space-y-3",
+} as const;
 
 export function AlertBanner({
   children,

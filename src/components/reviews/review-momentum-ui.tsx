@@ -4,10 +4,13 @@ import type { ReactNode } from "react";
 import { Loader2, Zap } from "lucide-react";
 import type { MomentumLabel } from "@/lib/reviews/metrics";
 import {
-  dashboardCard,
-  dashboardSectionLabel,
-} from "@/components/overview/dashboard-ui";
-import { ModuleHeader, btnPrimary, btnSecondary } from "@/components/ui/design-system";
+  ContentCard,
+  ModuleHeader,
+  SectionTitle,
+  btnPrimary,
+  btnSecondary,
+  tableHeadClass,
+} from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
 
 export function formatPace(value: number): string {
@@ -24,12 +27,7 @@ export function MomentumPageHeader() {
   return (
     <ModuleHeader
       title="Review Momentum"
-      className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
-      meta={
-        <p className="text-[11px] text-zinc-400">
-          90-day trend shows whether growth is consistent or a one-time spike.
-        </p>
-      }
+      subtitle="Whether review growth is consistent — or a one-time spike."
     />
   );
 }
@@ -104,7 +102,8 @@ export function momentumTableBadge(label: MomentumLabel): string {
   }
 }
 
-export const momentumCardClass = dashboardCard;
+export const momentumCardClass =
+  "rounded-md border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]";
 
 export function MomentumSectionTitle({
   title,
@@ -115,32 +114,25 @@ export function MomentumSectionTitle({
   subtitle?: string;
   action?: ReactNode;
 }) {
-  return (
-    <div className="mb-2.5 flex items-start justify-between gap-2">
-      <div>
-        <h3 className="text-[13px] font-semibold tracking-tight text-zinc-900">{title}</h3>
-        {subtitle && <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">{subtitle}</p>}
-      </div>
-      {action}
-    </div>
-  );
+  return <SectionTitle title={title} subtitle={subtitle} action={action} />;
 }
 
 export function MomentumPanel({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn(dashboardCard, "p-3.5", className)}>{children}</div>;
+  return <ContentCard className={className}>{children}</ContentCard>;
 }
 
 export function MomentumTableShell({ children }: { children: ReactNode }) {
   return (
-    <div className={cn(dashboardCard, "overflow-hidden p-0")}>
-      <div className="border-b border-zinc-100 px-3.5 py-2.5">
-        <h3 className="text-[13px] font-semibold text-zinc-900">Competitor comparison</h3>
+    <ContentCard padding={false} className="overflow-hidden">
+      <div className="border-b border-zinc-100 px-4 py-3">
+        <h3 className="text-base font-semibold tracking-tight text-zinc-900">Competitor comparison</h3>
+        <p className="mt-0.5 text-xs text-zinc-500">How your velocity stacks up against tracked competitors.</p>
       </div>
       {children}
-    </div>
+    </ContentCard>
   );
 }
 
 export function momentumTableHeadClass() {
-  return cn(dashboardSectionLabel, "px-3.5 py-2 text-left font-semibold");
+  return cn(tableHeadClass, "px-4 py-2.5 text-left");
 }

@@ -31,12 +31,19 @@ import {
 } from "@/components/overview/dashboard-ui";
 import { Sparkline } from "@/components/overview/overview-charts";
 import {
+  ContentCard,
+  HeroPanel,
+  MetricStrip,
   ModuleHeader,
+  SectionTitle,
   TabBar,
   btnPrimary,
   btnSecondary,
+  heroMetricClass,
+  tableHeadClass,
+  tableCellClass,
+  tableRowHoverClass,
 } from "@/components/ui/design-system";
-import { GridMetricCard, KpiRow } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 import type { ReviewListItem, ReviewsPageData } from "@/lib/reviews/reviews-page-data";
 
@@ -49,20 +56,24 @@ export const REVIEWS_TABS = [
 
 export type ReviewsTabId = (typeof REVIEWS_TABS)[number]["id"];
 
-export function RvCard({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn(dashboardCard, "p-3.5", className)}>{children}</div>;
+export function RvCard({
+  children,
+  className,
+  padding = true,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  padding?: boolean;
+}) {
+  return (
+    <ContentCard className={className} padding={padding}>
+      {children}
+    </ContentCard>
+  );
 }
 
 export function RvSectionTitle({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
-  return (
-    <div className="mb-2.5 flex items-start justify-between gap-2">
-      <div>
-        <h2 className={dashboardCardTitle}>{title}</h2>
-        {subtitle && <p className={`mt-0.5 ${dashboardMicro}`}>{subtitle}</p>}
-      </div>
-      {action}
-    </div>
-  );
+  return <SectionTitle title={title} subtitle={subtitle} action={action} />;
 }
 
 function kpiDeltaSub(
@@ -228,7 +239,7 @@ export function ReviewsHeader({
   return (
     <ModuleHeader
       title="Reviews"
-      className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
+      subtitle="Monitor ratings, reply to customers, and track competitive review velocity."
       actions={
         <>
           <button type="button" onClick={onRefresh} disabled={loading} className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
@@ -237,27 +248,11 @@ export function ReviewsHeader({
           </button>
           <Link href={`/businesses/${businessId}/review-requests`} className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
             <Mail className="h-3.5 w-3.5" />
-            Request Reviews
+            Request reviews
           </Link>
           <button type="button" onClick={onRunMomentum} className={cn(btnPrimary, "h-9 px-3.5 text-[13px]")}>
             <Plus className="h-3.5 w-3.5" />
             Run Momentum Audit
-          </button>
-          <button
-            type="button"
-            className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
-            onClick={() => {
-              void import("@/lib/journey/report-staging").then(({ stageReportItem }) => {
-                stageReportItem({
-                  businessId,
-                  source: "reviews",
-                  title: "Review feed insight",
-                  href: `/businesses/${businessId}/reviews`,
-                });
-              });
-            }}
-          >
-            Add insight to report
           </button>
         </>
       }
@@ -273,97 +268,51 @@ export function ReviewsKpiRow({
   variant?: "default" | "unanswered";
 }) {
   if (variant === "unanswered") {
-    const cards = [
-      {
-        label: "UNANSWERED REVIEWS (90D)",
-        value: kpis.unanswered90d ?? 0,
-        icon: MessageSquare,
-        iconWrapClassName: "bg-amber-50",
-        iconClassName: "text-amber-600",
-        ...kpiDeltaSub(kpis.newReviews90dDelta, " vs prior 90 days", true),
-      },
-      {
-        label: "AVG. DAYS WAITING",
-        value: kpis.avgDaysWaiting ?? "—",
-        icon: Clock,
-        iconWrapClassName: "bg-zinc-100",
-        iconClassName: "text-zinc-600",
-      },
-      {
-        label: "RESPONSE RATE (90D)",
-        value: `${kpis.responseRate}%`,
-        icon: CheckCircle2,
-        iconWrapClassName: "bg-emerald-50",
-        iconClassName: "text-emerald-600",
-        ...kpiDeltaSub(kpis.responseRateDelta, "% vs prior 90 days"),
-      },
-      {
-        label: "URGENT (SLA > 7 DAYS)",
-        value: kpis.urgentCount ?? 0,
-        icon: Shield,
-        iconWrapClassName: "bg-red-50",
-        iconClassName: "text-red-600",
-      },
-    ];
     return (
-      <KpiRow cols={4}>
-        {cards.map((c) => (
-          <GridMetricCard key={c.label} variant="default" {...c} />
-        ))}
-      </KpiRow>
+      <div className="space-y-3">
+        <HeroPanel
+          eyebrow="Response queue"
+          title="Unanswered reviews"
+          description="These reviews are still waiting on a reply."
+          metric={<span className={heroMetricClass}>{kpis.unanswered90d ?? 0}</span>}
+          metricLabel="Open (90d)"
+        />
+        <MetricStrip
+          items={[
+            { label: "Avg. days waiting", value: String(kpis.avgDaysWaiting ?? "—") },
+            { label: "Response rate", value: `${kpis.responseRate}%` },
+            { label: "Urgent (7+ days)", value: String(kpis.urgentCount ?? 0) },
+          ]}
+        />
+      </div>
     );
   }
 
-  const cards = [
-    {
-      label: "AVERAGE RATING",
-      value: `${kpis.avgRating?.toFixed(1) ?? "—"} ★`,
-      icon: Star,
-      iconWrapClassName: "bg-emerald-50",
-      iconClassName: "text-emerald-600",
-      variant: "primary" as const,
-      ...kpiDeltaSub(kpis.avgRatingDelta, " vs prior 90 days"),
-    },
-    {
-      label: "TOTAL REVIEWS",
-      value: kpis.totalReviews,
-      icon: MessageSquare,
-      iconWrapClassName: "bg-sky-50",
-      iconClassName: "text-sky-600",
-      sub: "All time",
-    },
-    {
-      label: "NEW REVIEWS (90D)",
-      value: kpis.newReviews90d,
-      icon: TrendingUp,
-      iconWrapClassName: "bg-violet-50",
-      iconClassName: "text-violet-600",
-      ...kpiDeltaSub(kpis.newReviews90dDelta, " vs prior 90 days"),
-    },
-    {
-      label: "REVIEW GAP VS TOP 3",
-      value: `+${kpis.reviewGap}`,
-      icon: Building2,
-      iconWrapClassName: "bg-orange-50",
-      iconClassName: "text-orange-600",
-      sub: "More to match top 3",
-    },
-    {
-      label: "RESPONSE RATE",
-      value: `${kpis.responseRate}%`,
-      icon: CheckCircle2,
-      iconWrapClassName: "bg-emerald-50",
-      iconClassName: "text-emerald-600",
-      ...kpiDeltaSub(kpis.responseRateDelta, "% vs prior 90 days"),
-    },
-  ];
+  const rating = kpis.avgRating?.toFixed(1) ?? "—";
+  const ratingDelta = kpiDeltaSub(kpis.avgRatingDelta, " vs prior 90 days");
 
   return (
-    <KpiRow cols={5}>
-      {cards.map((c) => (
-        <GridMetricCard key={c.label} {...c} />
-      ))}
-    </KpiRow>
+    <div className="space-y-3">
+      <HeroPanel
+        eyebrow="Review performance"
+        title="Average rating"
+        description={ratingDelta.sub ?? "How customers rate you across tracked sources."}
+        metric={
+          <span className={heroMetricClass}>
+            {rating}
+            <span className="ml-1 text-xl font-medium text-zinc-400">★</span>
+          </span>
+        }
+      />
+      <MetricStrip
+        items={[
+          { label: "Total reviews", value: String(kpis.totalReviews) },
+          { label: "New (90d)", value: String(kpis.newReviews90d) },
+          { label: "Gap vs top 3", value: `+${kpis.reviewGap}` },
+          { label: "Response rate", value: `${kpis.responseRate}%` },
+        ]}
+      />
+    </div>
   );
 }
 
@@ -643,33 +592,33 @@ export function ReviewsTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-left text-[13px]">
+      <table className="w-full text-left text-sm">
         <thead>
-          <tr className="border-b border-zinc-100">
-            {showBusiness ? <th className={cn(dashboardSectionLabel, "px-3.5 py-2 font-semibold")}>Business</th> : <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>Reviewer</th>}
-            <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>Rating</th>
-            {!showUrgency && <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>Date</th>}
-            <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>{showUrgency ? "Review (excerpt)" : "Review Text"}</th>
-            {!showBusiness && !showUrgency && <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>Source</th>}
-            <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>Keywords</th>
+          <tr className={cn("border-b border-zinc-200", tableHeadClass)}>
+            {showBusiness ? <th className={cn(tableCellClass, "py-2.5 font-semibold")}>Business</th> : <th className={cn(tableCellClass, "py-2.5")}>Reviewer</th>}
+            <th className={cn(tableCellClass, "py-2.5")}>Rating</th>
+            {!showUrgency && <th className={cn(tableCellClass, "py-2.5")}>Date</th>}
+            <th className={cn(tableCellClass, "py-2.5")}>{showUrgency ? "Review (excerpt)" : "Review Text"}</th>
+            {!showBusiness && !showUrgency && <th className={cn(tableCellClass, "py-2.5")}>Source</th>}
+            <th className={cn(tableCellClass, "py-2.5")}>Keywords</th>
             {showUrgency && (
               <>
-                <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>Days Waiting</th>
-                <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>SLA / Urgency</th>
+                <th className={cn(tableCellClass, "py-2.5")}>Days Waiting</th>
+                <th className={cn(tableCellClass, "py-2.5")}>SLA / Urgency</th>
               </>
             )}
-            <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>Status</th>
-            <th className={cn(dashboardSectionLabel, "px-3.5 py-2")}>Action</th>
+            <th className={cn(tableCellClass, "py-2.5")}>Status</th>
+            <th className={cn(tableCellClass, "py-2.5")}>Action</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr
               key={row.id}
-              className={cn("border-b border-zinc-50 hover:bg-zinc-50/60", onViewReview && "cursor-pointer")}
+              className={cn("border-b border-zinc-100", tableRowHoverClass, onViewReview && "cursor-pointer")}
               onClick={() => onViewReview?.(row)}
             >
-              <td className="px-3.5 py-2">
+              <td className={tableCellClass}>
                 {showBusiness ? (
                   <BusinessCell row={row} />
                 ) : (
@@ -682,7 +631,7 @@ export function ReviewsTable({
                   </div>
                 )}
               </td>
-              <td className="px-3.5 py-2">
+              <td className={tableCellClass}>
                 <StarRating rating={row.rating} />
               </td>
               {!showUrgency && (

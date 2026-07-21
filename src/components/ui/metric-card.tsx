@@ -6,21 +6,21 @@ import { cn } from "@/lib/utils";
 
 /** Canonical KPI surface — used by GridMetricCard and module-specific KPI variants. */
 export const kpiCardSurface =
-  "rounded-lg border border-zinc-200 bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]";
+  "rounded-md border border-zinc-200/90 bg-white px-3.5 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)]";
 
 export const kpiLabelClass =
-  "text-[10px] font-semibold uppercase tracking-[0.06em] text-zinc-500";
+  "text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500";
 
 export const kpiValueClass =
-  "mt-1 text-base font-semibold tabular-nums leading-none tracking-tight text-zinc-900";
+  "mt-1.5 text-xl font-semibold tabular-nums leading-none tracking-tight text-zinc-900";
 
 export const kpiValuePrimaryClass =
-  "mt-1 text-base font-semibold tabular-nums leading-none tracking-tight text-zinc-900";
+  "mt-1.5 text-[28px] font-semibold tabular-nums leading-none tracking-tight text-zinc-900 sm:text-[32px]";
 
-export const kpiSubClass = "mt-1 text-[11px] leading-snug text-zinc-500";
+export const kpiSubClass = "mt-1.5 text-xs leading-snug text-zinc-500";
 
 export const kpiIconWrapClass =
-  "flex h-6 w-6 shrink-0 items-center justify-center rounded-md";
+  "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white";
 
 const kpiRowCols: Record<3 | 4 | 5 | 6, string> = {
   3: "grid-cols-2 xl:grid-cols-3",
@@ -82,20 +82,28 @@ export function GridMetricCard({
   value,
   sub,
   icon: Icon,
-  iconWrapClassName = "bg-emerald-50",
-  iconClassName = "text-emerald-600",
+  iconWrapClassName = "text-[#137752]",
+  iconClassName = "text-[#137752]",
   trendPositive,
   variant = "default",
   className,
 }: GridMetricCardProps) {
   const isPrimary = variant === "primary";
   return (
-    <div className={cn(kpiCardSurface, "flex h-full flex-col", className)}>
+    <div
+      className={cn(
+        kpiCardSurface,
+        "flex h-full flex-col",
+        isPrimary &&
+          "relative overflow-hidden border-zinc-200 shadow-[0_8px_30px_rgba(15,23,42,0.06)] before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[#137752] sm:col-span-1",
+        className
+      )}
+    >
       <div className="flex items-start justify-between gap-1.5">
         <p className={kpiLabelClass}>{label}</p>
         {Icon ? (
           <span className={cn(kpiIconWrapClass, iconWrapClassName)}>
-            <Icon className={cn("h-2.5 w-2.5", iconClassName)} />
+            <Icon className={cn("h-3.5 w-3.5", iconClassName)} />
           </span>
         ) : null}
       </div>
