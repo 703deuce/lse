@@ -5,11 +5,9 @@ import {
   MapPin,
   Play,
 } from "lucide-react";
-import { NextBestActionsPanel } from "@/components/journey/next-best-actions-panel";
 import { SetupProgressCard } from "@/components/journey/setup-progress-card";
 import {
   ActiveWorkPanel,
-  NeedsAttentionPanel,
   RecentResultsPanel,
 } from "@/components/journey/dashboard-work-panels";
 import { WorkspaceQueueGrid } from "@/components/dashboard/workspace-queue";
@@ -252,48 +250,191 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
     };
   }, [businesses]);
 
+  const attentionCount = needsAttention.length;
+  const runningCount = scansRunning.length || queue.scansRunning.length;
+  const reportsReady = draftReports.length || queue.draftReports.length;
+  const greetingHour = new Date().getHours();
+  const greeting =
+    greetingHour < 12 ? "Good morning" : greetingHour < 17 ? "Good afternoon" : "Good evening";
+
+  const workQueueItems: Array<{
+    priority: "High" | "Medium" | "Low";
+    title: string;
+    href: string;
+  }> = [
+    ...needsAttention.slice(0, 4).map((item, i) => ({
+      priority: (i === 0 ? "High" : i === 1 ? "Medium" : "Low") as "High" | "Medium" | "Low",
+      title: item.title,
+      href: item.href,
+    })),
+    ...actions.slice(0, Math.max(0, 4 - needsAttention.length)).map((a, i) => ({
+      priority: (needsAttention.length + i === 0
+        ? "High"
+        : needsAttention.length + i === 1
+          ? "Medium"
+          : "Low") as "High" | "Medium" | "Low",
+      title: a.title,
+      href: a.href,
+    })),
+  ].slice(0, 5);
+
+  const clientCount = businesses.filter(
+    (b) => !b.archived_at && b.account_type !== "prospect" && b.is_tracked !== false
+  ).length;
+  const prospectCount = businesses.filter(
+    (b) => !b.archived_at && (b.account_type === "prospect" || b.is_tracked === false)
+  ).length;
+
   return (
     <ModulePage wide>
       {loading ? (
         <ModuleSkeleton rows={6} />
       ) : (
         <>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h1 className="text-[28px] font-bold tracking-tight text-[var(--text)] sm:text-[32px]">
+                {greeting}
+                {orgName?.trim() ? (
+                  <span className="font-semibold text-[var(--text-secondary)]">
+                    {" "}
+                    · {orgName.trim()}
+                  </span>
+                ) : null}
+              </h1>
+              <p className="mt-1.5 text-[15px] text-[var(--text-secondary)]">
+                Decide what to work on next across your locations.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href="/businesses/new?as=client" className={btnGhost}>
+                + Client
+              </Link>
+              <Link href="/businesses/new?as=prospect" className={btnGhost}>
+                + Prospect
+              </Link>
+              <Link href="/reports" className={btnGhost}>
+                Create report
+              </Link>
+              <Link href="/scans/new" className={btnPrimaryLg}>
+                <Play className="h-4 w-4 fill-current" />
+                Run scan
+              </Link>
+            </div>
+          </div>
+
           <HeroPanel
-            eyebrow={orgName?.trim() || "Workspace"}
-            title="Run your next scan"
-            description="Pick a client or prospect, queue a Maps grid, and keep deliverables moving."
+            eyebrow="Today"
+            title={
+              attentionCount > 0
+                ? `${attentionCount} item${attentionCount === 1 ? "" : "s"} need attention`
+                : "You're caught up"
+            }
+            description={
+              attentionCount > 0
+                ? [
+                    runningCount > 0 ? `${runningCount} scan${runningCount === 1 ? "" : "s"} running` : null,
+                    reportsReady > 0
+                      ? `${reportsReady} report${reportsReady === 1 ? "" : "s"} ready`
+                      : null,
+                    `${clientCount} client${clientCount === 1 ? "" : "s"} · ${prospectCount} prospect${prospectCount === 1 ? "" : "s"}`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                : `${clientCount} clients · ${prospectCount} prospects · queue is clear`
+            }
             actions={
-              <div className="flex flex-wrap items-center gap-2">
+              attentionCount > 0 && workQueueItems[0] ? (
+                <Link href={workQueueItems[0].href} className={btnPrimaryLg}>
+                  Open next item
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              ) : (
                 <Link href="/scans/new" className={btnPrimaryLg}>
                   <Play className="h-4 w-4 fill-current" />
                   Run scan
                 </Link>
-                <Link href="/businesses/new?as=client" className={btnGhost}>
-                  + Client
-                </Link>
-                <Link href="/businesses/new?as=prospect" className={btnGhost}>
-                  + Prospect
-                </Link>
-                <Link href="/reports" className={btnGhost}>
-                  Reports
-                </Link>
-              </div>
+              )
             }
           />
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <ActiveWorkPanel
-              scansRunning={scansRunning}
-              schedulesUpcoming={schedulesUpcoming}
-              draftReports={draftReports}
-            />
-            <NeedsAttentionPanel items={needsAttention} />
+          <div className="grid gap-6 lg:grid-cols-12">
+            <section className="space-y-3 lg:col-span-7">
+              <h2 className={sectionTitleClass}>Work queue</h2>
+              {workQueueItems.length === 0 ? (
+                <ContentCard>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Nothing urgent. Run a scan or open a client overview when you&apos;re ready.
+                  </p>
+                </ContentCard>
+              ) : (
+                <ContentCard padding={false} className="overflow-hidden">
+                  <ul className="divide-y divide-zinc-100">
+                    {workQueueItems.map((item) => (
+                      <li key={`${item.priority}-${item.href}-${item.title}`}>
+                        <Link
+                          href={item.href}
+                          className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-zinc-50"
+                        >
+                          <span
+                            className={cn(
+                              "rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                              item.priority === "High" && "bg-red-50 text-red-700",
+                              item.priority === "Medium" && "bg-amber-50 text-amber-800",
+                              item.priority === "Low" && "bg-zinc-100 text-zinc-600"
+                            )}
+                          >
+                            {item.priority}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--text)]">
+                            {item.title}
+                          </span>
+                          <ArrowRight className="h-4 w-4 shrink-0 text-zinc-300" />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </ContentCard>
+              )}
+            </section>
+
+            <section className="space-y-3 lg:col-span-5">
+              <h2 className={sectionTitleClass}>Portfolio</h2>
+              <div className="grid grid-cols-2 gap-3">
+                <ContentCard>
+                  <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
+                    Locations
+                  </p>
+                  <p className="mt-2 text-2xl font-bold tabular-nums text-[var(--text)]">
+                    {clientCount + prospectCount}
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                    {clientCount} clients · {prospectCount} prospects
+                  </p>
+                </ContentCard>
+                <ContentCard>
+                  <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
+                    Needs attention
+                  </p>
+                  <p className="mt-2 text-2xl font-bold tabular-nums text-[var(--text)]">
+                    {attentionCount}
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                    {runningCount > 0 ? `${runningCount} running now` : "No active scans"}
+                  </p>
+                </ContentCard>
+              </div>
+              <ActiveWorkPanel
+                scansRunning={scansRunning}
+                schedulesUpcoming={schedulesUpcoming}
+                draftReports={draftReports}
+              />
+            </section>
           </div>
 
           {setup && !setup.complete ? <SetupProgressCard progress={setup} /> : null}
-          <NextBestActionsPanel actions={actions} limit={4} />
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-6 lg:grid-cols-2">
             <LocationRoster
               title="Clients"
               subtitle={`${recentClients.length} recent`}

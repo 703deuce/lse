@@ -22,6 +22,8 @@ import {
   Target,
   TrendingUp,
   Flag,
+  Loader2,
+  Zap,
 } from "lucide-react";
 import { type MomentumLabel } from "@/lib/reviews/metrics";
 import type { MarketInsights } from "@/lib/reviews/market-insights";
@@ -31,15 +33,26 @@ import {
   ReviewMomentumTopKpis,
 } from "@/components/reviews/review-momentum-insights";
 import {
-  MomentumPageHeader,
-  MomentumTopBar,
   MomentumTableShell,
   momentumTableBadge,
   momentumTableHeadClass,
   formatPace,
   formatChartDate,
 } from "@/components/reviews/review-momentum-ui";
-import { ModulePage, AlertBanner, ModuleSkeleton, ChartCard, PageSection, MetricStrip, ContentCard, iconWellClass } from "@/components/ui/design-system";
+import {
+  ModulePage,
+  AlertBanner,
+  ModuleSkeleton,
+  ChartCard,
+  PageSection,
+  MetricStrip,
+  ContentCard,
+  InsightPanel,
+  PageHeader,
+  btnPrimary,
+  btnGhost,
+  iconWellClass,
+} from "@/components/ui/design-system";
 import { ModuleEmptyState } from "@/components/journey/module-empty-state";
 import { cn } from "@/lib/utils";
 
@@ -224,23 +237,11 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
     ...d,
     date: formatChartDate(d.date),
   }));
-  const weeklyBuckets30 = (
-    target?.metrics_json?.weeklyBuckets8to30 ??
-    (target?.metrics_json?.dailyCounts30d ?? []).slice(7).map((d, i) => ({
-      label: `Week ${i + 1}`,
-      count: d.count,
-      bucketed: true,
-    }))
-  ).map((b, i) => ({
-    ...b,
-    label: b.label.replace(/^Week \d+.*/, `Week ${i + 1}`),
-  }));
   const trend90 = target?.metrics_json?.trendBuckets90d ?? [];
   const marketFromJson = target?.metrics_json?.marketInsights;
   const market =
     marketFromJson ??
     (data?.entities ? buildMarketInsightsFromEntityRows(data.entities) : null);
-  const heatmap = target?.metrics_json?.weekdayHeatmap ?? [];
   const velocityWarnings =
     target && !entityVelocityAvailable(target.metrics_json) && target.metrics_json?.velocityWarning
       ? [target.metrics_json.velocityWarning as string]
@@ -256,14 +257,41 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
 
   return (
     <ModulePage>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <MomentumPageHeader />
-        <MomentumTopBar
-          businessId={businessId}
-          running={running}
-          onRun={() => void runAudit()}
-        />
-      </div>
+      <PageHeader
+        title="Review Momentum"
+        description="Understand whether review growth is improving or falling behind."
+        meta={
+          data?.run?.created_at
+            ? `Last analyzed ${new Date(data.run.created_at).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}`
+            : undefined
+        }
+        secondaryActions={
+          businessId ? (
+            <a href={`/businesses/${businessId}/review-requests`} className={btnGhost}>
+              Request reviews
+            </a>
+          ) : null
+        }
+        primaryAction={
+          <button
+            type="button"
+            onClick={() => void runAudit()}
+            disabled={running}
+            className={btnPrimary}
+          >
+            {running ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Zap className="h-3.5 w-3.5 fill-current" />
+            )}
+            Analyze review momentum
+          </button>
+        }
+      />
 
       {error && <AlertBanner variant="error">{error}</AlertBanner>}
 
@@ -271,8 +299,8 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
         <ModuleEmptyState
           icon={TrendingUp}
           title="No momentum report yet"
-          description="Run a grid scan first, then click Run Momentum Audit."
-          actionLabel="Run Momentum Audit"
+          description="Analyze review momentum after you have a Maps baseline — see whether growth is consistent or a one-time spike."
+          actionLabel="Analyze review momentum"
           onAction={() => void runAudit()}
         />
       ) : (
@@ -423,93 +451,149 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
             </div>
           </MomentumTableShell>
 
-          {targetVelocityAvailable && (
+          {targetVelocityAvailable && target && (
             <PageSection
-              title="Velocity charts"
-              description="One dominant signal, then supporting trends."
+              title="Review growth"
+              description="Are you gaining reviews faster than competitors?"
             >
               <ChartCard
                 tall
-                title="30-day velocity"
-                description="New reviews in the last 30 days — you vs competitors."
+                title="Review growth over the last 90 days"
+                description="Your pace versus the competitive set — units are new reviews."
               >
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={velocityChart} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                <ResponsiveContainer width="100%" height={280}>
+                  <LineChart data={trend90} margin={{ top: 12, right: 12, left: -8, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef0f3" />
+                    <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#87909E" }} axisLine={false} tickLine={false} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#87909E" }} axisLine={false} tickLine={false} />
                     <Tooltip />
-                    <Bar dataKey="reviews" radius={[4, 4, 0, 0]}>
-                      {velocityChart.map((entry, i) => (
-                        <Cell
-                          key={i}
-                          fill={
-                            entry.isYou
-                              ? "#137752"
-                              : "isTopComp" in entry && entry.isTopComp
-                                ? "#52525b"
-                                : "#d4d4d8"
-                          }
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
+                    <Line
+                      type="monotone"
+                      dataKey="count"
+                      name="Your reviews"
+                      stroke="#137752"
+                      strokeWidth={2.5}
+                      dot={{ r: 3.5, fill: "#137752" }}
+                    />
+                  </LineChart>
                 </ResponsiveContainer>
               </ChartCard>
 
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <ChartCard title="Last 7 days">
-                  <ResponsiveContainer width="100%" height={120}>
-                    <ComposedChart data={dailyExact7} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <ContentCard>
+                  <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
+                    Current pace
+                  </p>
+                  <p className="mt-2 text-2xl font-bold tabular-nums text-[var(--text)]">
+                    {formatPace(target.avg_reviews_per_week)}
+                    <span className="ml-1 text-sm font-medium text-[var(--text-muted)]">/week</span>
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">Last 30 days average</p>
+                </ContentCard>
+                <ContentCard>
+                  <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
+                    Recommended pace
+                  </p>
+                  <p className="mt-2 text-2xl font-bold tabular-nums text-[var(--text)]">
+                    {target.recommended_weekly_target != null
+                      ? target.recommended_weekly_target
+                      : "—"}
+                    <span className="ml-1 text-sm font-medium text-[var(--text-muted)]">/week</span>
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                    To close the competitive gap
+                  </p>
+                </ContentCard>
+                <ContentCard>
+                  <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
+                    Gap
+                  </p>
+                  <p className="mt-2 text-2xl font-bold tabular-nums text-[var(--text)]">
+                    {target.recommended_weekly_target != null
+                      ? Math.max(
+                          0,
+                          Math.round(
+                            (Number(target.recommended_weekly_target) -
+                              Number(target.avg_reviews_per_week)) *
+                              100
+                          ) / 100
+                        )
+                      : gap}
+                    <span className="ml-1 text-sm font-medium text-[var(--text-muted)]">
+                      {target.recommended_weekly_target != null ? "/week" : " reviews"}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                    Vs top competitor 30d: {topComp30}
+                  </p>
+                </ContentCard>
+              </div>
+
+              {market ? (
+                <InsightPanel title="What to do next">
+                  {target.avg_reviews_per_week < (target.recommended_weekly_target ?? 2) ? (
+                    <>
+                      At your current pace, competitors can widen the review gap. Aim for{" "}
+                      <strong>
+                        {target.recommended_weekly_target ?? 2} new reviews each week
+                      </strong>
+                      . You currently hold {market.targetSharePct30d}% of new reviews in this
+                      market ({market.marketActivityLabel.toLowerCase()}).
+                    </>
+                  ) : (
+                    <>
+                      You&apos;re keeping pace. Hold {market.targetSharePct30d}% share of new
+                      reviews and keep weekly volume near{" "}
+                      {formatPace(target.avg_reviews_per_week)}.
+                    </>
+                  )}
+                </InsightPanel>
+              ) : null}
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <ChartCard
+                  title="30-day velocity vs competitors"
+                  description="New reviews in the last 30 days."
+                >
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart data={velocityChart} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef0f3" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#87909E" }} axisLine={false} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#87909E" }} axisLine={false} tickLine={false} />
+                      <Tooltip />
+                      <Bar dataKey="reviews" radius={[4, 4, 0, 0]}>
+                        {velocityChart.map((entry, i) => (
+                          <Cell
+                            key={i}
+                            fill={
+                              entry.isYou
+                                ? "#137752"
+                                : "isTopComp" in entry && entry.isTopComp
+                                  ? "#52525b"
+                                  : "#d4d4d8"
+                            }
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartCard>
+                <ChartCard title="Last 7 days" description="Daily precision for the current week.">
+                  <ResponsiveContainer width="100%" height={180}>
+                    <ComposedChart data={dailyExact7} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
                       <defs>
                         <linearGradient id="momentum7dFill" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#137752" stopOpacity={0.22} />
                           <stop offset="100%" stopColor="#137752" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
-                      <XAxis dataKey="date" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef0f3" />
+                      <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#87909E" }} axisLine={false} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#87909E" }} axisLine={false} tickLine={false} />
                       <Tooltip />
                       <Area type="monotone" dataKey="count" stroke="none" fill="url(#momentum7dFill)" isAnimationActive={false} />
                       <Line type="monotone" dataKey="count" stroke="#137752" strokeWidth={2} dot={{ r: 3, fill: "#137752" }} isAnimationActive={false} />
                     </ComposedChart>
-                  </ResponsiveContainer>
-                </ChartCard>
-
-                <ChartCard title="Days 8–30">
-                  <ResponsiveContainer width="100%" height={120}>
-                    <BarChart data={weeklyBuckets30} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
-                      <XAxis dataKey="label" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="#137752" radius={[3, 3, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartCard>
-
-                <ChartCard title="90-day trend">
-                  <ResponsiveContainer width="100%" height={120}>
-                    <LineChart data={trend90} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
-                      <XAxis dataKey="label" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="count" stroke="#137752" strokeWidth={2} dot={{ r: 3, fill: "#137752" }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </ChartCard>
-
-                <ChartCard title="Weekday pattern">
-                  <ResponsiveContainer width="100%" height={120}>
-                    <BarChart data={heatmap} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="2 4" vertical={false} stroke="#e4e4e7" />
-                      <XAxis dataKey="day" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="#71717a" radius={[3, 3, 0, 0]} />
-                    </BarChart>
                   </ResponsiveContainer>
                 </ChartCard>
               </div>
@@ -523,14 +607,6 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
                 { label: "Last 30 days", value: String(target.reviews_30d) },
                 { label: "Last 90 days", value: String(target.reviews_90d) },
                 { label: "Top competitor 30d", value: String(topComp30) },
-                { label: "Review gap", value: String(gap) },
-                {
-                  label: "Weekly target",
-                  value:
-                    target.recommended_weekly_target != null
-                      ? `${target.recommended_weekly_target}/wk`
-                      : "—",
-                },
               ]}
             />
           )}

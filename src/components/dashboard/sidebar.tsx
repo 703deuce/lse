@@ -263,6 +263,22 @@ export function DashboardSidebarPanel({
         </div>
 
         <NavSection
+          title={nav.home.title}
+          items={nav.home.items}
+          businessId={businessId}
+          pathname={pathname}
+          staticLinks={staticLinks}
+          onNavigate={onNavigate}
+        />
+        <NavSection
+          title={nav.locations.title}
+          items={nav.locations.items}
+          businessId={businessId}
+          pathname={pathname}
+          staticLinks={staticLinks}
+          onNavigate={onNavigate}
+        />
+        <NavSection
           title={nav.work.title}
           items={nav.work.items}
           businessId={businessId}

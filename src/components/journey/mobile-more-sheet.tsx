@@ -35,15 +35,9 @@ export function MobileMoreSheet() {
 
   const sections = [
     { title: null as string | null, items: [nav.getStarted] },
+    { title: nav.home.title, items: nav.home.items },
+    { title: nav.locations.title, items: nav.locations.items },
     { title: nav.work.title, items: nav.work.items },
-    ...(nav.thisLocation
-      ? [
-          {
-            title: businessId ? "This location" : nav.thisLocation.title,
-            items: nav.thisLocation.items,
-          },
-        ]
-      : []),
     { title: nav.growthTools.title, items: nav.growthTools.items },
     { title: nav.reputation.title, items: nav.reputation.items },
     { title: nav.deliverables.title, items: nav.deliverables.items },

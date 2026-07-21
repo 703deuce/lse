@@ -34,71 +34,73 @@ export const cardGrid3 = "grid gap-3 sm:grid-cols-2 lg:grid-cols-3";
 
 /** Standard content surface */
 export const cardClass =
-  "rounded-md border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]";
-export const cardPadding = "p-4";
+  "rounded-[10px] border border-[var(--border)] bg-white shadow-[var(--shadow-card)]";
+export const cardPadding = "p-6";
 /** Dominant page hero — larger, left accent, more presence */
 export const heroClass =
-  "relative overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.06)] before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[#137752]";
+  "relative overflow-hidden rounded-[14px] border border-[var(--border)] bg-white shadow-[var(--shadow-featured)] before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[var(--primary)]";
 /** Quiet inset / secondary strip */
-export const insetClass = "rounded-md border border-zinc-200/70 bg-zinc-50/80";
+export const insetClass = "rounded-[10px] border border-[var(--border)] bg-[var(--surface-subtle)]/80";
 /** Divided list / table shell */
 export const listClass =
-  "divide-y divide-zinc-100 overflow-hidden rounded-md border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]";
+  "divide-y divide-zinc-100 overflow-hidden rounded-[10px] border border-[var(--border)] bg-white shadow-[var(--shadow-card)]";
 export const emptyStateClass =
-  "rounded-md border border-dashed border-zinc-300 bg-zinc-50/50 px-5 py-10 text-center";
-export const tableCellClass = "px-3.5 py-3";
-export const tableHeadCellClass = "px-3.5 py-2.5";
+  "rounded-[10px] border border-dashed border-zinc-300 bg-zinc-50/50 px-6 py-10 text-center";
+export const tableCellClass = "px-4 py-3";
+export const tableHeadCellClass = "px-4 py-2.5";
 export const tableRowHoverClass = "transition-colors hover:bg-zinc-50/90";
 export const filterBarClass =
-  "flex flex-wrap items-end gap-2 rounded-md border border-zinc-200/90 bg-white p-3";
+  "flex flex-wrap items-end gap-3 rounded-[10px] border border-[var(--border)] bg-white p-3";
 
-/* ── Typography scale (32 / 24 / 20 / 16 / 14 / 12) ───────────── */
+/* ── Typography scale (rulebook) ─────────────────────────────── */
 
 export const displayTitleClass =
-  "text-[28px] font-semibold tracking-tight text-zinc-900 sm:text-[32px]";
+  "text-[28px] font-bold tracking-tight text-[var(--text)] sm:text-[32px]";
 export const pageTitleClass =
-  "text-[22px] font-semibold tracking-tight text-zinc-900 sm:text-2xl";
-export const pageSubtitleClass = "mt-1.5 max-w-2xl text-sm leading-relaxed text-zinc-500";
-export const sectionTitleClass = "text-base font-semibold tracking-tight text-zinc-900";
+  "text-[28px] font-bold tracking-tight text-[var(--text)]";
+export const pageSubtitleClass =
+  "mt-1.5 max-w-2xl text-[15px] font-normal leading-relaxed text-[var(--text-secondary)]";
+export const sectionTitleClass =
+  "text-lg font-semibold tracking-tight text-[var(--text)]";
 export const cardLabelClass =
-  "text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500";
-export const bodyClass = "text-sm leading-relaxed text-zinc-600";
-export const microClass = "text-xs leading-snug text-zinc-500";
+  "text-xs font-medium uppercase tracking-[0.06em] text-[var(--text-muted)]";
+export const bodyClass = "text-sm font-normal leading-relaxed text-[var(--text-secondary)]";
+export const microClass = "text-xs font-medium leading-snug text-[var(--text-muted)]";
 /** Hero KPI number */
 export const heroMetricClass =
-  "text-[40px] font-semibold tabular-nums leading-none tracking-tight text-zinc-900 sm:text-[48px]";
+  "text-[40px] font-bold tabular-nums leading-none tracking-tight text-[var(--text)] sm:text-[44px]";
 /** Secondary metric number */
 export const secondaryMetricClass =
-  "text-xl font-semibold tabular-nums leading-none tracking-tight text-zinc-900";
+  "text-xl font-semibold tabular-nums leading-none tracking-tight text-[var(--text)]";
 
 /* ── Icon well (consistent treatment) ────────────────────────── */
 
 export const iconWellClass =
-  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-[#137752]";
+  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[6px] border border-[var(--border)] bg-white text-[var(--primary)]";
 export const iconWellSmClass =
-  "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-[#137752]";
+  "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-[var(--primary)]";
 
 /* ── Button tokens ───────────────────────────────────────────── */
 
 export const btnPrimary =
-  "inline-flex items-center justify-center gap-1.5 rounded-md bg-[#137752] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0f6344] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#137752] disabled:opacity-50";
+  "inline-flex h-10 items-center justify-center gap-1.5 rounded-[8px] bg-[var(--primary)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] disabled:opacity-50";
 
 export const btnPrimaryLg =
-  "inline-flex items-center justify-center gap-2 rounded-md bg-[#137752] px-5 py-3 text-[15px] font-semibold text-white transition hover:bg-[#0f6344] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#137752] disabled:opacity-50";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-[8px] bg-[var(--primary)] px-5 text-[15px] font-semibold text-white transition hover:bg-[var(--primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] disabled:opacity-50";
 
 export const btnSecondary =
-  "inline-flex items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3.5 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300 disabled:opacity-50";
+  "inline-flex h-10 items-center justify-center gap-1.5 rounded-[8px] border border-[var(--border)] bg-white px-3.5 text-sm font-semibold text-[var(--text)] transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300 disabled:opacity-50";
 
 export const btnGhost =
-  "inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900";
+  "inline-flex h-10 items-center justify-center gap-1.5 rounded-[8px] px-3 text-sm font-semibold text-[var(--text-secondary)] transition hover:bg-zinc-100 hover:text-[var(--text)]";
 
 export const btnIcon =
-  "inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500 transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300";
+  "inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[var(--border)] bg-white text-zinc-500 transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300";
 
 export const inputClass =
-  "w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-[#137752] focus:ring-1 focus:ring-[#137752]/25";
+  "h-10 w-full rounded-[8px] border border-[var(--border)] bg-white px-3 text-sm text-[var(--text)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/25";
 
-export const fieldLabelClass = "text-xs font-medium text-zinc-600";
+export const fieldLabelClass = "text-xs font-medium text-[var(--text-secondary)]";
 
 /* ── Layout wrappers ─────────────────────────────────────────── */
 
@@ -143,7 +145,7 @@ export function ModuleHeader({
           <h1 className={pageTitleClass}>{title}</h1>
         </div>
         {subtitle ? <p className={pageSubtitleClass}>{subtitle}</p> : null}
-        {meta ? <div className="mt-2">{meta}</div> : null}
+        {meta ? <div className="mt-2 text-xs font-medium text-[var(--text-muted)]">{meta}</div> : null}
       </div>
       {actions ? (
         <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
@@ -151,6 +153,69 @@ export function ModuleHeader({
         </div>
       ) : null}
     </header>
+  );
+}
+
+/**
+ * Canonical tool page header — one title, one sentence, one primary action.
+ * Secondary actions should be outlined / ghost / overflow, never competing solids.
+ */
+export function PageHeader({
+  title,
+  description,
+  meta,
+  primaryAction,
+  secondaryActions,
+  className,
+}: {
+  title: string;
+  description?: string;
+  meta?: ReactNode;
+  primaryAction?: ReactNode;
+  secondaryActions?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <ModuleHeader
+      title={title}
+      subtitle={description}
+      meta={meta}
+      className={className}
+      actions={
+        primaryAction || secondaryActions ? (
+          <>
+            {secondaryActions}
+            {primaryAction}
+          </>
+        ) : undefined
+      }
+    />
+  );
+}
+
+/** Actionable interpretation panel — not another equal KPI card. */
+export function InsightPanel({
+  title,
+  children,
+  action,
+  className,
+}: {
+  title: string;
+  children: ReactNode;
+  action?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <aside
+      className={cn(
+        "rounded-[14px] border border-[var(--border)] bg-[var(--primary-subtle)]/40 px-5 py-5",
+        className
+      )}
+    >
+      <h3 className="text-sm font-semibold text-[var(--text)]">{title}</h3>
+      <div className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">{children}</div>
+      {action ? <div className="mt-4">{action}</div> : null}
+    </aside>
   );
 }
 

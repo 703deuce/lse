@@ -39,6 +39,7 @@ import {
   TabBar,
   btnPrimary,
   btnSecondary,
+  btnGhost,
   heroMetricClass,
   tableHeadClass,
   tableCellClass,
@@ -242,17 +243,17 @@ export function ReviewsHeader({
       subtitle="Monitor ratings, reply to customers, and track competitive review velocity."
       actions={
         <>
-          <button type="button" onClick={onRefresh} disabled={loading} className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
+          <button type="button" onClick={onRefresh} disabled={loading} className={cn(btnGhost, "h-10 px-3 text-[13px]")}>
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             Refresh
           </button>
-          <Link href={`/businesses/${businessId}/review-requests`} className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
+          <Link href={`/businesses/${businessId}/review-requests`} className={cn(btnSecondary, "h-10 px-3 text-[13px]")}>
             <Mail className="h-3.5 w-3.5" />
             Request reviews
           </Link>
-          <button type="button" onClick={onRunMomentum} className={cn(btnPrimary, "h-9 px-3.5 text-[13px]")}>
+          <button type="button" onClick={onRunMomentum} className={cn(btnPrimary, "h-10 px-3.5 text-[13px]")}>
             <Plus className="h-3.5 w-3.5" />
-            Run Momentum Audit
+            Analyze reviews
           </button>
         </>
       }
