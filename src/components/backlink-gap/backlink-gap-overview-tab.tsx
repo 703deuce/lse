@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { BarChart3, CheckCircle2, KeyRound, Lightbulb, Search, Sparkles, Target } from "lucide-react";
+import { BarChart3, CheckCircle2, KeyRound, Lightbulb, Sparkles, Target } from "lucide-react";
 import type { EnrichedOpportunity } from "@/components/backlink-gap/opportunities-panel";
 import { PanelCard, priorityBadge } from "@/components/backlink-gap/backlink-gap-ui";
-import { dashboardAccentLink, dashboardBody, dashboardMicro } from "@/components/overview/dashboard-ui";
+import { mock } from "@/components/mockup/ui";
+import { cn } from "@/lib/utils";
 
 type Analytics = {
   linkTypes: { dofollow: number; nofollow: number; unknown: number };
@@ -14,15 +15,11 @@ type Analytics = {
   powerBuckets: Array<{ label: string; count: number }>;
 };
 
-const PIE_COLORS = ["#16A34A", "#3b82f6", "#f59e0b", "#8b5cf6", "#06b6d4", "#ec4899", "#64748b", "#84cc16"];
+const PIE_COLORS = ["#137752", "#1570EF", "#F79009", "#7A5AF8", "#06AED4", "#EE46BC", "#667085", "#84CC16"];
 
 function panelFooterLink(label: string, onClick?: () => void) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="text-[12px] font-medium text-emerald-700 hover:underline"
-    >
+    <button type="button" onClick={onClick} className={cn(mock.link, "text-[12px]")}>
       {label}
     </button>
   );
@@ -54,9 +51,9 @@ export function BacklinkGapOverviewTab({
 
   const linkTypeData = analytics
     ? [
-        { name: "Dofollow", value: analytics.linkTypes.dofollow, color: "#16A34A" },
-        { name: "Nofollow", value: analytics.linkTypes.nofollow, color: "#3b82f6" },
-        { name: "Unknown", value: analytics.linkTypes.unknown, color: "#94a3b8" },
+        { name: "Dofollow", value: analytics.linkTypes.dofollow, color: "#137752" },
+        { name: "Nofollow", value: analytics.linkTypes.nofollow, color: "#1570EF" },
+        { name: "Unknown", value: analytics.linkTypes.unknown, color: "#98A2B3" },
       ].filter((d) => d.value > 0)
     : [];
 
@@ -73,13 +70,16 @@ export function BacklinkGapOverviewTab({
         <PanelCard title="AI Summary" icon={Sparkles}>
           {aiSummary ? (
             <div className="space-y-3">
-              <p className={dashboardBody}>{aiSummary}</p>
-              <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3.5 py-2.5">
+              <div>
+                <p className="text-[12px] font-semibold text-[#101828]">Backlink Gap</p>
+                <p className="mt-1 text-sm leading-relaxed text-[#475467]">{aiSummary}</p>
+              </div>
+              <div className="rounded-lg border border-[#A6F4C5] bg-[#ECFDF3] px-3.5 py-2.5">
                 <div className="flex gap-2">
-                  <KeyRound className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                  <KeyRound className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#137752]" />
                   <div>
-                    <p className="text-[11px] font-semibold text-zinc-900">Key Takeaway</p>
-                    <p className={`mt-0.5 ${dashboardMicro}`}>
+                    <p className="text-[11px] font-semibold text-[#027A48]">Our Take</p>
+                    <p className="mt-0.5 text-[12px] leading-relaxed text-[#027A48]">
                       Focus on medium to high power, relevant local directories and home-services sites
                       where multiple competitors are listed but you are not.
                     </p>
@@ -88,7 +88,7 @@ export function BacklinkGapOverviewTab({
               </div>
             </div>
           ) : (
-            <p className={dashboardMicro}>No summary available.</p>
+            <p className="text-sm text-[#667085]">No summary available.</p>
           )}
         </PanelCard>
 
@@ -96,32 +96,28 @@ export function BacklinkGapOverviewTab({
           title="Top Opportunities by Link Power"
           icon={BarChart3}
           action={
-            <button
-              type="button"
-              onClick={onViewOpportunities}
-              className={dashboardAccentLink}
-            >
+            <button type="button" onClick={onViewOpportunities} className={cn(mock.link, "text-[12px]")}>
               View all opportunities →
             </button>
           }
         >
           {topOpportunities.length === 0 ? (
-            <p className={dashboardMicro}>No opportunities yet.</p>
+            <p className="text-sm text-[#667085]">No opportunities yet.</p>
           ) : (
-            <ol className="divide-y divide-zinc-100">
+            <ol className="divide-y divide-[#F2F4F7]">
               {topOpportunities.map((o, i) => (
                 <li key={o.id}>
                   <button
                     type="button"
                     onClick={() => onSelect(o)}
-                    className="flex w-full items-center gap-2 py-2 text-left first:pt-0 last:pb-0 hover:opacity-80"
+                    className="flex w-full items-center gap-2.5 py-2.5 text-left first:pt-0 last:pb-0 hover:opacity-80"
                   >
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-bold text-zinc-600">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#F2F4F7] text-[11px] font-bold text-[#475467]">
                       {i + 1}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-medium text-emerald-700">{o.referring_domain}</p>
-                      <p className={`mt-0.5 ${dashboardMicro}`}>
+                      <p className="truncate text-sm font-semibold text-[#137752]">{o.referring_domain}</p>
+                      <p className="mt-0.5 text-[12px] text-[#667085]">
                         Power {o.powerScore ?? "—"}/100 · {o.source_type} ·{" "}
                         {o.linkPassing === "passes" ? "dofollow" : o.linkPassing}
                       </p>
@@ -142,7 +138,7 @@ export function BacklinkGapOverviewTab({
           footer={panelFooterLink("View opportunities tab →", onViewOpportunities)}
         >
           {categoryData.length === 0 ? (
-            <p className={dashboardMicro}>No category data.</p>
+            <p className="text-sm text-[#667085]">No category data.</p>
           ) : (
             <div className="flex items-center gap-2">
               <div className="relative mx-auto h-28 w-28 shrink-0">
@@ -163,21 +159,21 @@ export function BacklinkGapOverviewTab({
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                  <p className="text-base font-bold text-zinc-900">{categoryTotal || totalOpps}</p>
-                  <p className="text-[10px] text-zinc-500">Total</p>
+                  <p className="text-base font-bold text-[#101828]">{categoryTotal || totalOpps}</p>
+                  <p className="text-[10px] text-[#667085]">Total</p>
                 </div>
               </div>
               <div className="min-w-0 flex-1 space-y-1.5">
                 {categoryData.map((d, idx) => {
                   const pct = categoryTotal > 0 ? Math.round((d.count / categoryTotal) * 100) : 0;
                   return (
-                    <div key={d.name} className="flex items-center gap-2 text-[11px] text-zinc-600">
+                    <div key={d.name} className="flex items-center gap-2 text-[11px] text-[#475467]">
                       <span
                         className="h-2 w-2 shrink-0 rounded-full"
                         style={{ backgroundColor: PIE_COLORS[idx % PIE_COLORS.length] }}
                       />
                       <span className="truncate">{d.name}</span>
-                      <span className="ml-auto font-medium tabular-nums">{pct}%</span>
+                      <span className="ml-auto font-semibold tabular-nums text-[#101828]">{pct}%</span>
                     </div>
                   );
                 })}
@@ -194,14 +190,14 @@ export function BacklinkGapOverviewTab({
           <div className="h-32">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={analytics?.powerBuckets ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                <XAxis dataKey="label" tick={{ fontSize: 9 }} interval={1} />
-                <YAxis tick={{ fontSize: 9 }} width={28} />
+                <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#98A2B3" }} interval={1} />
+                <YAxis tick={{ fontSize: 9, fill: "#98A2B3" }} width={28} />
                 <Tooltip />
                 <Bar dataKey="count" radius={[3, 3, 0, 0]}>
                   {(analytics?.powerBuckets ?? []).map((_, idx) => (
                     <Cell
                       key={idx}
-                      fill={idx >= 7 ? "#16A34A" : idx >= 4 ? "#f59e0b" : "#ef4444"}
+                      fill={idx >= 7 ? "#137752" : idx >= 4 ? "#F79009" : "#F04438"}
                     />
                   ))}
                 </Bar>
@@ -211,12 +207,12 @@ export function BacklinkGapOverviewTab({
         </PanelCard>
 
         <PanelCard
-          title="Link Type Overview"
+          title="Link Type Summary"
           className="[&>div:nth-child(2)]:p-3"
           footer={panelFooterLink("Explore opportunities →", onViewOpportunities)}
         >
           {linkTypeData.length === 0 ? (
-            <p className={dashboardMicro}>No link type data.</p>
+            <p className="text-sm text-[#667085]">No link type data.</p>
           ) : (
             <div className="flex items-center gap-2">
               <div className="relative mx-auto h-28 w-28 shrink-0">
@@ -231,16 +227,17 @@ export function BacklinkGapOverviewTab({
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                  <p className="text-base font-bold text-zinc-900">{linkTypeTotal}</p>
-                  <p className="text-[10px] text-zinc-500">Total</p>
+                  <p className="text-base font-bold text-[#101828]">{linkTypeTotal}</p>
+                  <p className="text-[10px] text-[#667085]">Total</p>
                 </div>
               </div>
               <div className="space-y-1.5">
                 {linkTypeData.map((d) => {
                   const pct = linkTypeTotal > 0 ? Math.round((d.value / linkTypeTotal) * 100) : 0;
                   return (
-                    <div key={d.name} className="text-[11px] text-zinc-600">
-                      <span className="font-medium text-zinc-900">{d.name}</span>{" "}
+                    <div key={d.name} className="flex items-center gap-2 text-[11px] text-[#475467]">
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: d.color }} />
+                      <span className="font-medium text-[#101828]">{d.name}</span>
                       <span>({pct}%)</span>
                     </div>
                   );
@@ -255,25 +252,25 @@ export function BacklinkGapOverviewTab({
           className="[&>div:nth-child(2)]:p-3"
           footer={panelFooterLink("View Tasks →", onViewTasks)}
         >
-          <ul className={`space-y-2.5 ${dashboardMicro}`}>
+          <ul className="space-y-2.5 text-[12px] text-[#475467]">
             <li className="flex gap-2">
-              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#137752]" />
               <span>
-                <strong className="text-zinc-900">{analytics?.priorities.high ?? 0}</strong> high-priority gaps
-                ready for outreach
+                <strong className="text-[#101828]">{analytics?.priorities.high ?? 0}</strong> high-priority
+                gaps ready for outreach
               </span>
             </li>
             <li className="flex gap-2">
-              <Target className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+              <Target className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#F79009]" />
               <span>
-                <strong className="text-zinc-900">{analytics?.linkTypes.dofollow ?? 0}</strong> dofollow
+                <strong className="text-[#101828]">{analytics?.linkTypes.dofollow ?? 0}</strong> dofollow
                 opportunities pass link equity
               </span>
             </li>
             <li className="flex gap-2">
-              <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-500" />
+              <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#1570EF]" />
               <span>
-                Top category: <strong className="text-zinc-900">{categoryData[0]?.name ?? "—"}</strong> (
+                Top category: <strong className="text-[#101828]">{categoryData[0]?.name ?? "—"}</strong> (
                 {categoryData[0]?.count ?? 0} domains)
               </span>
             </li>

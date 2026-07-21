@@ -14,9 +14,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { priorityBadge } from "@/components/backlink-gap/backlink-gap-ui";
-import { dashboardCard, dashboardControl, dashboardMicro } from "@/components/overview/dashboard-ui";
-import { GridMetricCard } from "@/components/ui/metric-card";
+import { gapControl, priorityBadge } from "@/components/backlink-gap/backlink-gap-ui";
+import { mock } from "@/components/mockup/ui";
 
 type TaskRow = {
   id: string;
@@ -39,13 +38,13 @@ const TASK_ICONS = [Globe, Handshake, Star, ClipboardList, Globe];
 
 function impactBars(impact: string) {
   const level = impact === "high" ? 3 : impact === "medium" ? 2 : 1;
-  const color = impact === "high" ? "bg-emerald-500" : impact === "medium" ? "bg-amber-500" : "bg-zinc-400";
+  const color = impact === "high" ? "bg-[#137752]" : impact === "medium" ? "bg-[#F79009]" : "bg-[#98A2B3]";
   return (
     <div className="flex items-end gap-0.5">
       {[1, 2, 3].map((n) => (
         <span
           key={n}
-          className={cn("w-1 rounded-sm", n <= level ? color : "bg-zinc-200")}
+          className={cn("w-1 rounded-sm", n <= level ? color : "bg-[#E4E7EC]")}
           style={{ height: `${n * 4 + 4}px` }}
         />
       ))}
@@ -55,14 +54,14 @@ function impactBars(impact: string) {
 
 function effortDisplay(effort: string) {
   const color =
-    effort === "low" ? "bg-emerald-500" : effort === "medium" ? "bg-amber-400" : "bg-red-400";
+    effort === "low" ? "bg-[#137752]" : effort === "medium" ? "bg-[#F79009]" : "bg-[#F04438]";
   const time = effort === "low" ? "1-2 hrs" : effort === "medium" ? "2-4 hrs" : "4+ hrs";
   return (
     <div className="flex items-center gap-2">
       <span className={`h-2 w-2 rounded-full ${color}`} />
       <div>
-        <p className="text-xs capitalize text-zinc-900">{effort}</p>
-        <p className="text-[10px] text-zinc-500">{time}</p>
+        <p className="text-xs capitalize text-[#101828]">{effort}</p>
+        <p className="text-[10px] text-[#667085]">{time}</p>
       </div>
     </div>
   );
@@ -75,8 +74,8 @@ function impactDisplay(impact: string) {
     <div className="flex items-center gap-2">
       {impactBars(impact)}
       <div>
-        <p className="text-xs text-zinc-900">{label}</p>
-        <p className="text-[10px] text-zinc-500">{score}/100</p>
+        <p className="text-xs text-[#101828]">{label}</p>
+        <p className="text-[10px] text-[#667085]">{score}/100</p>
       </div>
     </div>
   );
@@ -84,9 +83,9 @@ function impactDisplay(impact: string) {
 
 function statusBadge(status: string) {
   const styles: Record<string, string> = {
-    open: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100",
-    in_progress: "bg-sky-50 text-sky-700 ring-1 ring-sky-100",
-    done: "bg-zinc-100 text-zinc-600 ring-1 ring-zinc-200",
+    open: "bg-[#ECFDF3] text-[#027A48] ring-1 ring-[#A6F4C5]",
+    in_progress: "bg-[#EFF8FF] text-[#175CD3] ring-1 ring-[#B2DDFF]",
+    done: "bg-[#F2F4F7] text-[#475467] ring-1 ring-[#E4E7EC]",
   };
   const labels: Record<string, string> = {
     open: "Open",
@@ -98,14 +97,6 @@ function statusBadge(status: string) {
       {labels[status] ?? status}
     </span>
   );
-}
-
-function ownerDisplay() {
-  return <span className="text-xs text-zinc-400">Unassigned</span>;
-}
-
-function dueDateDisplay() {
-  return <span className="text-xs text-zinc-400">—</span>;
 }
 
 export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
@@ -142,61 +133,66 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
       value: counts.open,
       sub: "Require attention",
       icon: ClipboardList,
-      color: "text-emerald-600 bg-emerald-50",
+      iconClass: "bg-[#ECFDF3] text-[#137752]",
     },
     {
       label: "High Priority",
       value: counts.high,
       sub: "Act on first",
       icon: AlertTriangle,
-      color: "text-red-600 bg-red-50",
+      iconClass: "bg-[#FEF3F2] text-[#B42318]",
     },
     {
       label: "In Progress",
       value: counts.in_progress,
       sub: "Currently active",
       icon: Briefcase,
-      color: "text-amber-600 bg-amber-50",
+      iconClass: "bg-[#FFFAEB] text-[#B54708]",
     },
     {
       label: "Completed",
       value: counts.done,
       sub: "Finished tasks",
       icon: CheckCircle2,
-      color: "text-emerald-600 bg-emerald-50",
+      iconClass: "bg-[#ECFDF3] text-[#137752]",
     },
     {
       label: "Estimated Impact",
       value: "High",
       sub: "Strong potential value",
       icon: TrendingUp,
-      color: "text-emerald-600 bg-emerald-50",
+      iconClass: "bg-[#ECFDF3] text-[#137752]",
     },
   ];
 
   if (tasks.length === 0) {
     return (
-      <div className={cn(dashboardCard, "border-dashed px-3.5 py-8 text-center text-[13px]")}>
-        <p className="text-[13px] text-zinc-500">No tasks yet. Run analysis or click Create Tasks.</p>
+      <div className={cn(mock.card, "border-dashed px-4 py-10 text-center")}>
+        <p className="text-sm text-[#667085]">No tasks yet. Run analysis or click Create Tasks.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-        {kpiCards.map((card) => (
-          <GridMetricCard
-            key={card.label}
-            compact
-            label={card.label}
-            value={card.value}
-            sub={card.sub}
-            icon={card.icon}
-            iconWrapClassName={card.color.split(" ").slice(1).join(" ")}
-            iconClassName={card.color.split(" ")[0]}
-          />
-        ))}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {kpiCards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <div key={card.label} className={cn(mock.card, "flex h-full flex-col p-4")}>
+              <div className="flex items-start justify-between gap-2">
+                <p className={mock.label}>{card.label}</p>
+                <span className={cn("flex h-8 w-8 items-center justify-center rounded-full", card.iconClass)}>
+                  <Icon className="h-4 w-4" />
+                </span>
+              </div>
+              <p className="mt-2 text-[26px] font-bold leading-none tracking-tight text-[#101828]">
+                {card.value}
+              </p>
+              <p className="mt-1.5 text-xs text-[#667085]">{card.sub}</p>
+            </div>
+          );
+        })}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -210,10 +206,10 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
                 setPage(1);
               }}
               className={cn(
-                "rounded-full border px-2.5 py-1 text-[11px] font-medium",
+                "rounded-full border px-3 py-1.5 text-[12px] font-semibold transition",
                 filter === f.id
-                  ? "border-emerald-600 bg-emerald-50 text-emerald-700"
-                  : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
+                  ? "border-[#137752] bg-[#ECFDF3] text-[#137752]"
+                  : "border-[#E6EAF0] bg-white text-[#667085] hover:bg-[#F9FAFB]"
               )}
             >
               {f.label} {f.id === "all" ? counts.all : counts[f.id as keyof typeof counts]}
@@ -221,22 +217,19 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
           ))}
         </div>
         <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            className={cn(dashboardControl, "px-3 text-[12px] font-medium text-zinc-600")}
-          >
+          <button type="button" className={cn(gapControl, "font-semibold text-[#475467]")}>
             Filters
           </button>
-          <select className={cn(dashboardControl, "px-3 text-[12px] text-zinc-600")}>
+          <select className={cn(gapControl, "text-[#475467]")}>
             <option>Sort: Priority</option>
           </select>
-          <div className="flex rounded-lg border border-zinc-200 p-0.5">
+          <div className="flex rounded-lg border border-[#E6EAF0] p-0.5">
             <button
               type="button"
               onClick={() => setView("grid")}
               className={cn(
                 "rounded-md p-1.5",
-                view === "grid" ? "bg-emerald-50 text-emerald-700" : "text-zinc-400"
+                view === "grid" ? "bg-[#ECFDF3] text-[#137752]" : "text-[#98A2B3]"
               )}
               aria-label="Grid view"
             >
@@ -247,7 +240,7 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
               onClick={() => setView("list")}
               className={cn(
                 "rounded-md p-1.5",
-                view === "list" ? "bg-emerald-50 text-emerald-700" : "text-zinc-400"
+                view === "list" ? "bg-[#ECFDF3] text-[#137752]" : "text-[#98A2B3]"
               )}
               aria-label="List view"
             >
@@ -257,61 +250,63 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
         </div>
       </div>
 
-      <div className={cn(dashboardCard, "overflow-hidden p-0")}>
+      <div className={cn(mock.card, "overflow-hidden")}>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-[13px]">
-            <thead className="bg-zinc-50 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+          <table className="min-w-full text-sm">
+            <thead className={mock.tableHead}>
               <tr>
-                <th className="px-3.5 py-2">
-                  <input type="checkbox" className="rounded border-zinc-300" aria-label="Select all" />
+                <th className="px-4 py-2.5">
+                  <input type="checkbox" className="rounded border-[#D0D5DD]" aria-label="Select all" />
                 </th>
-                <th className="px-3.5 py-2">Task</th>
-                <th className="px-3.5 py-2">Impact</th>
-                <th className="px-3.5 py-2">Effort</th>
-                <th className="px-3.5 py-2">Priority</th>
-                <th className="px-3.5 py-2">Owner</th>
-                <th className="px-3.5 py-2">Due Date</th>
-                <th className="px-3.5 py-2">Status</th>
+                <th className="px-4 py-2.5">Task</th>
+                <th className="px-4 py-2.5">Impact</th>
+                <th className="px-4 py-2.5">Effort</th>
+                <th className="px-4 py-2.5">Priority</th>
+                <th className="px-4 py-2.5">Owner</th>
+                <th className="px-4 py-2.5">Due Date</th>
+                <th className="px-4 py-2.5">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody className="divide-y divide-[#F2F4F7]">
               {paged.map((task, idx) => {
                 const TaskIcon = TASK_ICONS[(page - 1) * pageSize + idx] ?? Globe;
                 return (
-                  <tr key={task.id} className="hover:bg-zinc-50">
-                    <td className="px-3.5 py-2">
+                  <tr key={task.id} className="hover:bg-[#F9FAFB]">
+                    <td className="px-4 py-3">
                       <input
                         type="checkbox"
-                        className="rounded border-zinc-300"
+                        className="rounded border-[#D0D5DD]"
                         aria-label={`Select ${task.title}`}
                       />
                     </td>
-                    <td className="px-3.5 py-2">
-                      <div className="flex items-start gap-2">
-                        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                          <TaskIcon className="h-3 w-3" />
+                    <td className="px-4 py-3">
+                      <div className="flex items-start gap-2.5">
+                        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ECFDF3] text-[#137752]">
+                          <TaskIcon className="h-3.5 w-3.5" />
                         </span>
                         <div>
-                          <p className="font-medium text-zinc-900">{task.title}</p>
+                          <p className="font-semibold text-[#101828]">{task.title}</p>
                           {task.description && (
-                            <p className={`mt-0.5 line-clamp-2 ${dashboardMicro}`}>{task.description}</p>
+                            <p className="mt-0.5 line-clamp-2 text-[12px] text-[#667085]">
+                              {task.description}
+                            </p>
                           )}
                         </div>
                       </div>
                     </td>
-                    <td className="px-3.5 py-2">{impactDisplay(String(task.impact ?? "medium"))}</td>
-                    <td className="px-3.5 py-2">{effortDisplay(String(task.effort ?? "medium"))}</td>
-                    <td className="px-3.5 py-2">{priorityBadge(String(task.priority ?? "medium"))}</td>
-                    <td className="px-3.5 py-2">{ownerDisplay()}</td>
-                    <td className="px-3.5 py-2">{dueDateDisplay()}</td>
-                    <td className="px-3.5 py-2">{statusBadge(String(task.status ?? "open"))}</td>
+                    <td className="px-4 py-3">{impactDisplay(String(task.impact ?? "medium"))}</td>
+                    <td className="px-4 py-3">{effortDisplay(String(task.effort ?? "medium"))}</td>
+                    <td className="px-4 py-3">{priorityBadge(String(task.priority ?? "medium"))}</td>
+                    <td className="px-4 py-3 text-xs text-[#98A2B3]">Unassigned</td>
+                    <td className="px-4 py-3 text-xs text-[#98A2B3]">—</td>
+                    <td className="px-4 py-3">{statusBadge(String(task.status ?? "open"))}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
-        <div className={`flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 px-3.5 py-2.5 ${dashboardMicro}`}>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#F2F4F7] px-4 py-3 text-[12px] text-[#667085]">
           <span>
             Showing {from} to {to} of {filtered.length} tasks
           </span>
@@ -320,7 +315,7 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
               type="button"
               disabled={page <= 1}
               onClick={() => setPage((p) => p - 1)}
-              className="rounded border border-zinc-200 px-2 py-1 disabled:opacity-40"
+              className="rounded-lg border border-[#E6EAF0] px-2 py-1 disabled:opacity-40"
             >
               ‹
             </button>
@@ -330,10 +325,10 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
                 type="button"
                 onClick={() => setPage(n)}
                 className={cn(
-                  "min-w-[28px] rounded px-2 py-1 tabular-nums",
+                  "min-w-[28px] rounded-lg px-2 py-1 tabular-nums",
                   page === n
-                    ? "border border-emerald-600 bg-emerald-50 font-semibold text-emerald-700"
-                    : "text-zinc-600 hover:bg-zinc-50"
+                    ? "border border-[#137752] bg-[#ECFDF3] font-semibold text-[#137752]"
+                    : "text-[#667085] hover:bg-[#F9FAFB]"
                 )}
               >
                 {n}
@@ -343,7 +338,7 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
               type="button"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => p + 1)}
-              className="rounded border border-zinc-200 px-2 py-1 disabled:opacity-40"
+              className="rounded-lg border border-[#E6EAF0] px-2 py-1 disabled:opacity-40"
             >
               ›
             </button>
@@ -356,7 +351,7 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
                 setPageSize(Number(e.target.value));
                 setPage(1);
               }}
-              className="rounded border border-zinc-200 px-2 py-0.5 text-[12px]"
+              className={gapControl}
             >
               <option value={10}>10</option>
               <option value={25}>25</option>

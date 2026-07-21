@@ -9,6 +9,7 @@ import type { RawOpportunity } from "@/lib/backlink-gap/enrich";
 import {
   BacklinkGapTabId,
   GapActionBar,
+  GapEmptyState,
   GapIgnoredKpiRow,
   GapKpiRow,
   GapPageFooter,
@@ -18,7 +19,9 @@ import {
   GapTopBar,
   priorityBadge,
 } from "@/components/backlink-gap/backlink-gap-ui";
+import { mock } from "@/components/mockup/ui";
 import { ModulePage, AlertBanner } from "@/components/ui/design-system";
+import { cn } from "@/lib/utils";
 import { BacklinkGapOverviewTab } from "@/components/backlink-gap/backlink-gap-overview-tab";
 import { BacklinkGapMatrixTab } from "@/components/backlink-gap/backlink-gap-matrix-tab";
 import { BacklinkGapTasksTab } from "@/components/backlink-gap/backlink-gap-tasks-tab";
@@ -165,26 +168,23 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
   const competitors = data?.competitors ?? run?.selected_competitors ?? [];
 
   return (
-    <ModulePage>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <GapPageHeader />
-        <GapTopBar businessId={businessId} />
-      </div>
+    <ModulePage wide className={cn(mock.page, "bg-transparent")}>
+      <GapPageHeader actions={<GapTopBar businessId={businessId} />} />
 
       <GapActionBar
-          isRunning={isRunning}
-          hasRun={!!run}
-          loading={loading}
-          onRun={() => runGap(false)}
-          onRerun={() => runGap(true)}
-          onCreateTasks={createTasks}
-          onRefresh={load}
-        />
+        isRunning={isRunning}
+        hasRun={!!run}
+        loading={loading}
+        onRun={() => runGap(false)}
+        onRerun={() => runGap(true)}
+        onCreateTasks={createTasks}
+        onRefresh={load}
+      />
 
       {error && <AlertBanner variant="error">{error}</AlertBanner>}
 
       {isRunning && run?.progress_stage && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 px-3.5 py-2.5 text-[13px] text-blue-800">
+        <div className="rounded-xl border border-[#B2DDFF] bg-[#EFF8FF] px-4 py-3 text-sm text-[#175CD3]">
           <Loader2 className="mr-2 inline h-3.5 w-3.5 animate-spin" />
           {run.progress_stage}…
         </div>
@@ -213,20 +213,17 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
       <GapTabs active={tab} onChange={setTab} />
 
       {loading && !data && (
-        <div className="flex items-center justify-center py-10 text-text-muted">
+        <div className="flex items-center justify-center py-10 text-[#667085]">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          <span className="text-[13px]">Loading saved results…</span>
+          <span className="text-sm">Loading saved results…</span>
         </div>
       )}
 
       {!loading && !run && (
-        <div className="rounded-xl border border-dashed border-border bg-white px-3.5 py-8 text-center text-[13px]">
-          <h2 className="text-[15px] font-semibold text-zinc-900">No Backlink Gap yet</h2>
-          <p className="mx-auto mt-2 max-w-md text-[13px] text-text-muted">
-            Compare your client with competitors to find local and industry backlink opportunities —
-            then save, create tasks, and include a summary in the next report.
-          </p>
-        </div>
+        <GapEmptyState
+          title="No Backlink Gap yet"
+          body="Compare your client with competitors to find local and industry backlink opportunities — then save, create tasks, and include a summary in the next report."
+        />
       )}
 
       {tab === "overview" && run && (
@@ -333,25 +330,25 @@ function SourceDetailDrawer({
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
       <div className="flex h-full w-full max-w-lg flex-col bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h2 className="text-[15px] font-semibold">{o.referring_domain}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-surface-subtle">
-            <X className="h-4 w-4" />
+        <div className="flex items-center justify-between border-b border-[#E6EAF0] px-4 py-3">
+          <h2 className="text-base font-semibold text-[#101828]">{o.referring_domain}</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-[#F2F4F7]">
+            <X className="h-4 w-4 text-[#667085]" />
           </button>
         </div>
-        <div className="flex-1 space-y-3.5 overflow-y-auto px-4 py-3.5 text-[13px]">
+        <div className="flex-1 space-y-3.5 overflow-y-auto px-4 py-3.5 text-sm">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Link power (0–100)</p>
-              <p className="text-base font-bold text-emerald-700">{o.powerScore ?? "—"}</p>
+              <p className={mock.label}>Link power (0–100)</p>
+              <p className="mt-1 text-base font-bold text-[#137752]">{o.powerScore ?? "—"}</p>
             </div>
             <div>
-              <p className="text-xs text-text-muted">Opportunity score</p>
-              <p className="font-medium">{o.opportunity_score}</p>
+              <p className="text-xs text-[#667085]">Opportunity score</p>
+              <p className="font-medium text-[#101828]">{o.opportunity_score}</p>
             </div>
             <div>
-              <p className="text-xs text-text-muted">Link type</p>
-              <p>
+              <p className="text-xs text-[#667085]">Link type</p>
+              <p className="text-[#344054]">
                 {o.linkPassing === "passes"
                   ? "Dofollow (passes power)"
                   : o.linkPassing === "nofollow"
@@ -360,27 +357,27 @@ function SourceDetailDrawer({
               </p>
             </div>
             <div>
-              <p className="text-xs text-text-muted">Relevance</p>
-              <p className="capitalize">{o.topicalFit}</p>
+              <p className="text-xs text-[#667085]">Relevance</p>
+              <p className="capitalize text-[#344054]">{o.topicalFit}</p>
             </div>
             <div>
-              <p className="text-xs text-text-muted">Source type</p>
-              <p>{o.source_type}</p>
+              <p className="text-xs text-[#667085]">Source type</p>
+              <p className="text-[#344054]">{o.source_type}</p>
             </div>
             <div>
-              <p className="text-xs text-text-muted">Priority</p>
+              <p className="text-xs text-[#667085]">Priority</p>
               {priorityBadge(o.priority)}
             </div>
           </div>
 
           {o.source_url && (
             <div>
-              <p className="text-xs text-text-muted">Source URL</p>
+              <p className="text-xs text-[#667085]">Source URL</p>
               <a
                 href={o.source_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-emerald-700 hover:underline"
+                className="inline-flex items-center gap-1 text-[#137752] hover:underline"
               >
                 {o.source_url} <ExternalLink className="h-3 w-3" />
               </a>
@@ -389,32 +386,32 @@ function SourceDetailDrawer({
 
           {o.source_title && (
             <div>
-              <p className="text-xs text-text-muted">Page title</p>
-              <p>{o.source_title}</p>
+              <p className="text-xs text-[#667085]">Page title</p>
+              <p className="text-[#344054]">{o.source_title}</p>
             </div>
           )}
 
           {o.anchor_text && (
             <div>
-              <p className="text-xs text-text-muted">Anchor text</p>
-              <p className="italic">&ldquo;{o.anchor_text}&rdquo;</p>
+              <p className="text-xs text-[#667085]">Anchor text</p>
+              <p className="italic text-[#344054]">&ldquo;{o.anchor_text}&rdquo;</p>
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-xs text-text-muted">First seen</p>
-              <p>{o.first_seen ?? "—"}</p>
+              <p className="text-xs text-[#667085]">First seen</p>
+              <p className="text-[#344054]">{o.first_seen ?? "—"}</p>
             </div>
             <div>
-              <p className="text-xs text-text-muted">Last seen</p>
-              <p>{o.last_seen ?? "—"}</p>
+              <p className="text-xs text-[#667085]">Last seen</p>
+              <p className="text-[#344054]">{o.last_seen ?? "—"}</p>
             </div>
           </div>
 
           <div>
-            <p className="text-xs text-text-muted">Linked competitors</p>
-            <ul className="mt-1 list-inside list-disc">
+            <p className="text-xs text-[#667085]">Linked competitors</p>
+            <ul className="mt-1 list-inside list-disc text-[#344054]">
               {(o.linked_competitors ?? []).map((c) => (
                 <li key={c.name}>
                   {c.name}
@@ -425,21 +422,21 @@ function SourceDetailDrawer({
           </div>
 
           <div>
-            <p className="text-xs text-text-muted">Why pursue (or not)</p>
-            <p className="mt-1 text-text-muted">{o.reason ?? "—"}</p>
+            <p className="text-xs text-[#667085]">Why pursue (or not)</p>
+            <p className="mt-1 text-[#667085]">{o.reason ?? "—"}</p>
           </div>
 
           <div>
-            <p className="text-xs text-text-muted">Suggested outreach</p>
-            <p className="mt-1 text-text-muted">{o.suggested_action ?? "—"}</p>
+            <p className="text-xs text-[#667085]">Suggested outreach</p>
+            <p className="mt-1 text-[#667085]">{o.suggested_action ?? "—"}</p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
+        <div className="flex flex-wrap gap-2 border-t border-[#E6EAF0] px-4 py-3">
           <button
             type="button"
             disabled={updating}
             onClick={onCreateTask}
-            className="rounded-lg bg-[#16A34A] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#15803D] disabled:opacity-50"
+            className={cn(mock.btnPrimary, "disabled:opacity-50")}
           >
             Create Task
           </button>
@@ -447,7 +444,7 @@ function SourceDetailDrawer({
             type="button"
             disabled={updating}
             onClick={onIgnore}
-            className="rounded-lg border border-border px-3.5 py-2 text-[13px] font-medium hover:bg-surface-subtle disabled:opacity-50"
+            className={cn(mock.btnSecondary, "disabled:opacity-50")}
           >
             Dismiss
           </button>
@@ -455,7 +452,7 @@ function SourceDetailDrawer({
             type="button"
             disabled={updating}
             onClick={onComplete}
-            className="rounded-lg border border-border px-3.5 py-2 text-[13px] font-medium hover:bg-surface-subtle disabled:opacity-50"
+            className={cn(mock.btnSecondary, "disabled:opacity-50")}
           >
             Mark acquired
           </button>
@@ -474,7 +471,7 @@ function SourceDetailDrawer({
                   });
                 });
               }}
-              className="rounded-lg border border-border px-3.5 py-2 text-[13px] font-medium hover:bg-surface-subtle disabled:opacity-50"
+              className={cn(mock.btnSecondary, "disabled:opacity-50")}
             >
               Add to report
             </button>
