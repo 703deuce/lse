@@ -20,13 +20,27 @@ const REDIS_URL_ENV_KEYS = [
   "CACHE_REDIS_URL",
 ] as const;
 
-function isLegacyUpstashHost(hostname: string): boolean {
+function isUpstashHost(hostname: string): boolean {
   const host = hostname.toLowerCase();
-  if (host === CURRENT_UPSTASH_HOST) return false;
-  if (host.endsWith(".upstash.io") && host !== CURRENT_UPSTASH_HOST) return true;
+  if (host === CURRENT_UPSTASH_HOST || host.endsWith(".upstash.io")) return true;
   return LEGACY_UPSTASH_IDS.some(
     (id) => host === id || host === `${id}.upstash.io` || host.startsWith(`${id}.`)
   );
+}
+
+function isLegacyUpstashHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  if (host === CURRENT_UPSTASH_HOST) return false;
+  return isUpstashHost(host);
+}
+
+/** Upstash requires TLS (rediss://). Plain redis:// causes ECONNRESET. */
+function applyUpstashTlsUrl(parsed: URL): void {
+  parsed.protocol = "rediss:";
+  parsed.port = "6379";
+  parsed.pathname = "";
+  parsed.search = "";
+  parsed.hash = "";
 }
 
 function pickRawRedisUrl(): { raw: string; source: string } | null {
@@ -64,6 +78,7 @@ export function getResolvedRedisHost(url?: string | null): string | null {
  * - Prefers REDIS_URL, then QUEUE_REDIS_URL / BULLMQ_REDIS_URL / CACHE_REDIS_URL
  * - REDIS_HOST overrides hostname when set
  * - Any non-current `*.upstash.io` host (including retired 1hv8… / lhv8…) → CURRENT_UPSTASH_HOST
+ * - Upstash always forced to `rediss://…:6379` (no `/0` path) — plain redis:// → ECONNRESET
  */
 export function getRedisUrl(): string | null {
   const picked = pickRawRedisUrl();
@@ -77,6 +92,10 @@ export function getRedisUrl(): string | null {
       parsed.hostname = hostOverride;
     } else if (isLegacyUpstashHost(parsed.hostname)) {
       parsed.hostname = CURRENT_UPSTASH_HOST;
+    }
+
+    if (isUpstashHost(parsed.hostname)) {
+      applyUpstashTlsUrl(parsed);
     }
 
     return parsed.toString();
@@ -115,6 +134,13 @@ export function assertRedisEndpointReady(context: string): void {
     throw new Error(
       `[redis] ${context}: refusing to connect to retired Upstash host "${host}". ` +
         `Set REDIS_URL=rediss://default:TOKEN@${CURRENT_UPSTASH_HOST}:6379 on every Coolify resource (web + workers), enable Runtime Variable, then Redeploy (not Restart).`
+    );
+  }
+
+  if (host && isUpstashHost(host) && !resolved.startsWith("rediss://")) {
+    throw new Error(
+      `[redis] ${context}: Upstash requires TLS. Use rediss:// (not redis://) — ` +
+        `REDIS_URL=rediss://default:TOKEN@${CURRENT_UPSTASH_HOST}:6379 then Redeploy.`
     );
   }
 }
@@ -222,6 +248,7 @@ export function getBullmqConnectionOptions(
       `BullMQ refused retired Upstash host "${host}". Use ${CURRENT_UPSTASH_HOST}.`
     );
   }
+  const useTls = parsed.protocol === "rediss:" || isUpstashHost(host);
   return {
     host,
     port: Number(parsed.port || 6379),
@@ -235,7 +262,8 @@ export function getBullmqConnectionOptions(
     // Indefinite reconnect with bounded backoff (ms).
     retryStrategy: (times: number) => Math.min(Math.max(times, 1) * 200, 5_000),
     enableOfflineQueue: true,
-    ...(parsed.protocol === "rediss:" ? { tls: { rejectUnauthorized: true } } : {}),
+    // Upstash is TLS-only; plain redis:// yields ECONNRESET.
+    ...(useTls ? { tls: { rejectUnauthorized: true } } : {}),
   };
 }
 

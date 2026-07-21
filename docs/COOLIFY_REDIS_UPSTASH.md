@@ -16,7 +16,10 @@ REDIS_URL=rediss://default:YOUR_UPSTASH_TOKEN@dynamic-pipefish-176544.upstash.io
 ```
 
 Use the TCP / ioredis URL from the Upstash console (`rediss://`), not the REST
-`https://` URL.
+`https://` URL. Plain `redis://` against Upstash causes `read ECONNRESET`.
+
+The app upgrades Upstash URLs to `rediss://` and strips a `/0` pathname, but
+Coolify should still store the correct `rediss://` value.
 
 ## Update every Coolify resource that runs this repo
 

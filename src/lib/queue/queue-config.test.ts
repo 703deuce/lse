@@ -186,6 +186,45 @@ describe("queue config", () => {
     else process.env.CACHE_REDIS_URL = prevCache;
   });
 
+  it("upgrades redis:// Upstash URLs to rediss:// and strips /0", () => {
+    const prevRedis = process.env.REDIS_URL;
+    const prevHost = process.env.REDIS_HOST;
+    delete process.env.REDIS_HOST;
+    // Coolify still had non-TLS redis:// + /0 DB path — Upstash resets those.
+    process.env.REDIS_URL =
+      "redis://default:secret@lhv8gepn81e4s5mtmrjf9stv.upstash.io:6379/0";
+    const url = getRedisUrl()!;
+    assert.ok(url.startsWith("rediss://"), url);
+    const parsed = new URL(url);
+    assert.equal(parsed.protocol, "rediss:");
+    assert.equal(parsed.hostname, "dynamic-pipefish-176544.upstash.io");
+    assert.equal(parsed.port, "6379");
+    assert.equal(parsed.pathname, "");
+    assert.equal(parsed.password, "secret");
+    assert.doesNotMatch(url, /\/0/);
+
+    // Already on current host but still redis://
+    process.env.REDIS_URL =
+      "redis://default:tok@dynamic-pipefish-176544.upstash.io:6379/0";
+    const again = getRedisUrl()!;
+    assert.ok(again.startsWith("rediss://"), again);
+    assert.equal(new URL(again).pathname, "");
+
+    if (prevRedis === undefined) delete process.env.REDIS_URL;
+    else process.env.REDIS_URL = prevRedis;
+    if (prevHost === undefined) delete process.env.REDIS_HOST;
+    else process.env.REDIS_HOST = prevHost;
+  });
+
+  it("getBullmqConnectionOptions enables TLS for Upstash", async () => {
+    const { getBullmqConnectionOptions } = await import("@/lib/queue/config");
+    const opts = getBullmqConnectionOptions(
+      "redis://default:secret@dynamic-pipefish-176544.upstash.io:6379/0"
+    );
+    assert.equal(opts.host, "dynamic-pipefish-176544.upstash.io");
+    assert.ok(opts.tls);
+  });
+
   it("rewrites any non-current *.upstash.io host", () => {
     const prevRedis = process.env.REDIS_URL;
     const prevHost = process.env.REDIS_HOST;
@@ -225,6 +264,7 @@ describe("queue config", () => {
     const parsed = new URL(getRedisUrl()!);
     assert.equal(parsed.hostname, "dynamic-pipefish-176544.upstash.io");
     assert.equal(parsed.password, "pw");
+    assert.equal(parsed.protocol, "rediss:");
     if (prevRedis === undefined) delete process.env.REDIS_URL;
     else process.env.REDIS_URL = prevRedis;
     if (prevHost === undefined) delete process.env.REDIS_HOST;
