@@ -420,6 +420,8 @@ export const gridRankPreviewScansHub = {
   })),
   defaultCenterLat: CENTER_LAT,
   defaultCenterLng: CENTER_LNG,
+  defaultAddress: "13327 Kirkdale Ct, Woodbridge, VA 22193",
+  businessName: BUSINESS.name,
 };
 
 export function gridRankPreviewStatusForScan(scanId: string) {

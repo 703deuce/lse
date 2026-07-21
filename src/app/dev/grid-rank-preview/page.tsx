@@ -148,6 +148,8 @@ export default function GridRankPreviewPage() {
               keywords={gridRankPreviewScansHub.keywords}
               defaultCenterLat={gridRankPreviewScansHub.defaultCenterLat}
               defaultCenterLng={gridRankPreviewScansHub.defaultCenterLng}
+              defaultAddress={gridRankPreviewScansHub.defaultAddress}
+              businessName={gridRankPreviewScansHub.businessName}
             />
           </main>
         )}
