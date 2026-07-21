@@ -96,11 +96,11 @@ export function AiVisibilityDashboardTab({
     <div className="space-y-3">
       <div className="grid items-start gap-2 lg:grid-cols-10">
         <AiPanel className="lg:col-span-4" bodyClassName="pt-2.5">
-          <div className="flex items-center gap-2 text-emerald-700">
+          <div className="flex items-center gap-2 text-[#137752]">
             <Sparkles className="h-4 w-4" />
             <h3 className="text-[13px] font-semibold">AI Summary</h3>
           </div>
-          <p className="mt-1.5 text-[13px] leading-snug text-zinc-600">
+          <p className="mt-1.5 text-[13px] leading-snug text-[#475467]">
             {aiSummary ??
               (isCombined
                 ? `Tracking ${aggregate?.completeRuns ?? 0} runs across ${aggregate?.totalEngineChecks ?? 0} engine checks.`
@@ -121,7 +121,7 @@ export function AiVisibilityDashboardTab({
                   <XAxis dataKey="date" tick={{ fontSize: 9 }} interval="preserveStartEnd" />
                   <YAxis tick={{ fontSize: 9 }} width={28} domain={[0, 100]} />
                   <Tooltip />
-                  <Area type="monotone" dataKey="score" stroke="#16A34A" fill="#16A34A" fillOpacity={0.15} strokeWidth={2} dot={{ r: 2.5, fill: "#16A34A" }} />
+                  <Area type="monotone" dataKey="score" stroke="#137752" fill="#137752" fillOpacity={0.15} strokeWidth={2} dot={{ r: 2.5, fill: "#137752" }} />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
@@ -157,7 +157,7 @@ export function AiVisibilityDashboardTab({
         <AiPanel
           title={isCombined ? "Who AI Recommends" : "Who AI Recommends (this run)"}
           className="lg:col-span-6"
-          action={<Info className="h-3.5 w-3.5 text-zinc-300" />}
+          action={<Info className="h-3.5 w-3.5 text-[#D0D5DD]" />}
           bodyClassName="pt-1.5"
         >
           {recommendRows.length === 0 ? (
@@ -181,18 +181,18 @@ export function AiVisibilityDashboardTab({
                     const engines = "engines" in row ? (row as MentionLeaderboardRow).engines : [];
                     const avgPos = "avgPosition" in row ? (row as MentionLeaderboardRow).avgPosition : null;
                     return (
-                      <tr key={row.normalizedName} className={row.isTargetBrand ? "bg-emerald-50/40" : ""}>
+                      <tr key={row.normalizedName} className={row.isTargetBrand ? "bg-[#ECFDF3]/40" : ""}>
                         <td className="px-3.5 py-2 text-text-muted">{i + 1}</td>
                         <td className="px-3.5 py-2 font-medium">
                           {row.displayName}
                           {row.isTargetBrand && (
-                            <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">You</span>
+                            <span className="ml-2 rounded bg-[#ECFDF3] px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">You</span>
                           )}
                         </td>
                         <td className="px-3.5 py-2">
                           <div className="flex items-center gap-2">
                             <div className="h-1.5 w-14 overflow-hidden rounded-full bg-surface-subtle">
-                              <div className="h-full bg-emerald-500" style={{ width: `${sharePct}%` }} />
+                              <div className="h-full bg-[#ECFDF3]0" style={{ width: `${sharePct}%` }} />
                             </div>
                             <span className="text-[11px] tabular-nums text-text-muted">
                               {engineCount}/{te} ({sharePct}%)
@@ -216,7 +216,7 @@ export function AiVisibilityDashboardTab({
           <AiPanel
             title="Engine Mention Matrix"
             subtitle="Runs mentioning you per engine"
-            action={<Info className="h-3.5 w-3.5 text-zinc-300" />}
+            action={<Info className="h-3.5 w-3.5 text-[#D0D5DD]" />}
             bodyClassName="space-y-2 pt-2"
           >
             {matrixCounts.map(({ engine, count, pct, barPct }) => (
@@ -228,7 +228,7 @@ export function AiVisibilityDashboardTab({
                   </span>
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-surface-subtle">
-                  <div className="h-full bg-emerald-500" style={{ width: `${barPct}%` }} />
+                  <div className="h-full bg-[#ECFDF3]0" style={{ width: `${barPct}%` }} />
                 </div>
               </div>
             ))}
@@ -237,15 +237,15 @@ export function AiVisibilityDashboardTab({
           <AiPanel
             title="Run Health"
             subtitle="What happened during this run"
-            action={<Info className="h-3.5 w-3.5 text-zinc-300" />}
+            action={<Info className="h-3.5 w-3.5 text-[#D0D5DD]" />}
             bodyClassName="space-y-2 pt-2"
           >
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-lg bg-emerald-50 px-2 py-2">
+              <div className="rounded-lg bg-[#ECFDF3] px-2 py-2">
                 <p className="text-base font-bold tabular-nums text-emerald-800">
                   {engineResults.filter((e) => e.status === "complete").length}
                 </p>
-                <p className="text-[10px] font-medium text-emerald-700">Complete</p>
+                <p className="text-[10px] font-medium text-[#137752]">Complete</p>
               </div>
               <div className="rounded-lg bg-amber-50 px-2 py-2">
                 <p className="text-base font-bold tabular-nums text-amber-800">{failedEngines.length}</p>
@@ -300,7 +300,7 @@ function ModelResponseDisclosure({
   const engine = result.engine as AiEngine;
   const mentions = result.mentions_json.map((m) => m.name).filter(Boolean);
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white">
+    <div className="rounded-lg border border-[#E6EAF0] bg-white">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -310,48 +310,48 @@ function ModelResponseDisclosure({
           <EngineLogo engine={engine} className="h-4 w-4" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[13px] font-semibold text-zinc-900">{ENGINE_LABELS[engine]}</span>
-          <span className="block truncate text-[11px] text-zinc-500">
+          <span className="block text-[13px] font-semibold text-[#101828]">{ENGINE_LABELS[engine]}</span>
+          <span className="block truncate text-[11px] text-[#667085]">
             {result.prompt_text ?? "Prompt unavailable"}
           </span>
         </span>
-        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold capitalize text-zinc-600">
+        <span className="rounded-full bg-[#F2F4F7] px-2 py-0.5 text-[10px] font-semibold capitalize text-[#475467]">
           {result.status.replace(/_/g, " ")}
         </span>
-        <ChevronDown className={`h-4 w-4 text-zinc-400 transition ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-4 w-4 text-[#98A2B3] transition ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="space-y-3 border-t border-zinc-100 px-3 py-3">
+        <div className="space-y-3 border-t border-[#EEF1F5] px-3 py-3">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Prompt</p>
-            <p className="mt-1 rounded-lg bg-zinc-50 px-3 py-2 text-[12px] leading-relaxed text-zinc-700">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[#98A2B3]">Prompt</p>
+            <p className="mt-1 rounded-lg bg-[#F9FAFB] px-3 py-2 text-[12px] leading-relaxed text-[#344054]">
               {result.prompt_text ?? "Prompt unavailable"}
             </p>
           </div>
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Full response</p>
-            <p className="mt-1 max-h-80 overflow-y-auto whitespace-pre-wrap rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-[12px] leading-relaxed text-zinc-700">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[#98A2B3]">Full response</p>
+            <p className="mt-1 max-h-80 overflow-y-auto whitespace-pre-wrap rounded-lg border border-[#EEF1F5] bg-[#F9FAFB] px-3 py-2 text-[12px] leading-relaxed text-[#344054]">
               {result.answer_text?.trim() || result.error_message || "No answer text returned."}
             </p>
           </div>
           <div className="grid gap-2 md:grid-cols-2">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Extracted companies</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#98A2B3]">Extracted companies</p>
               <div className="mt-1 flex flex-wrap gap-1">
                 {mentions.length ? (
                   mentions.slice(0, 12).map((name) => (
-                    <span key={name} className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
+                    <span key={name} className="rounded-full bg-[#ECFDF3] px-2 py-0.5 text-[11px] font-medium text-emerald-800">
                       {name}
                     </span>
                   ))
                 ) : (
-                  <span className="text-[11px] text-zinc-500">No companies extracted.</span>
+                  <span className="text-[11px] text-[#667085]">No companies extracted.</span>
                 )}
               </div>
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Citations</p>
-              <ul className="mt-1 space-y-1 text-[11px] text-zinc-600">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#98A2B3]">Citations</p>
+              <ul className="mt-1 space-y-1 text-[11px] text-[#475467]">
                 {result.sources_json.length ? (
                   result.sources_json.slice(0, 5).map((source, i) => (
                     <li key={`${source.url ?? source.label}-${i}`} className="truncate">
@@ -360,7 +360,7 @@ function ModelResponseDisclosure({
                     </li>
                   ))
                 ) : (
-                  <li className="text-zinc-500">No citations returned.</li>
+                  <li className="text-[#667085]">No citations returned.</li>
                 )}
               </ul>
             </div>

@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 type EvidenceSubTab = "citations" | "trails" | "by-engine";
 
 const ENGINE_ACCENTS: Record<AiEngine, string> = {
-  chatgpt: "border-emerald-200 bg-emerald-50/50",
+  chatgpt: "border-emerald-200 bg-[#ECFDF3]/50",
   perplexity: "border-sky-200 bg-sky-50/50",
   gemini: "border-violet-200 bg-violet-50/50",
   google_ai_overview: "border-amber-200 bg-amber-50/50",
@@ -19,7 +19,7 @@ const ENGINE_ACCENTS: Record<AiEngine, string> = {
 
 const CITATION_TYPES = ["Direct Citation", "Indirect Mention", "Supporting Source"] as const;
 const TYPE_CLASS: Record<string, string> = {
-  "Direct Citation": "bg-emerald-100 text-emerald-800",
+  "Direct Citation": "bg-[#ECFDF3] text-emerald-800",
   "Indirect Mention": "bg-amber-100 text-amber-800",
   "Supporting Source": "bg-blue-100 text-blue-800",
 };
@@ -129,7 +129,7 @@ export function AiVisibilityEvidenceTab({
             className={cn(
               "rounded-full border px-3 py-1 text-xs font-medium",
               subTab === t.id
-                ? "border-primary bg-[#16A34A] text-white"
+                ? "border-primary bg-[#137752] text-white"
                 : "border-border bg-white text-text-muted hover:bg-surface-subtle"
             )}
           >

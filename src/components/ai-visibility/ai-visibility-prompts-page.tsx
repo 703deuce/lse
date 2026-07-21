@@ -17,7 +17,7 @@ import type { PromptRow, VisibilityData } from "@/components/ai-visibility/ai-vi
 import { ModulePage } from "@/components/ui/design-system";
 
 const GROUP_COLORS: Record<string, string> = {
-  "Core Visibility": "bg-emerald-100 text-emerald-800",
+  "Core Visibility": "bg-[#ECFDF3] text-emerald-800",
   "Pricing & Services": "bg-violet-100 text-violet-800",
   "Service Quality": "bg-blue-100 text-blue-800",
   Sustainability: "bg-teal-100 text-teal-800",
@@ -160,7 +160,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
   return (
     <ModulePage>
       <div className="flex items-center gap-1 text-xs text-text-muted">
-        <Link href={`/businesses/${businessId}/ai-visibility`} className="hover:text-emerald-700">
+        <Link href={`/businesses/${businessId}/ai-visibility`} className="hover:text-[#137752]">
           AI Visibility
         </Link>
         <ChevronRight className="h-3 w-3" />
@@ -177,7 +177,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
         <button
           type="button"
           onClick={() => setShowAdd(true)}
-          className="inline-flex h-9 items-center gap-1.5 rounded-md bg-[#16A34A] px-3 text-[13px] font-semibold text-white hover:bg-[#15803D]"
+          className="inline-flex h-9 items-center gap-1.5 rounded-md bg-[#137752] px-3 text-[13px] font-semibold text-white hover:bg-[#15803D]"
         >
           <Plus className="h-3.5 w-3.5" />
           Add Prompt
@@ -199,7 +199,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
             onClick={() => setStatusFilter(t.id)}
             className={cn(
               "border-b-2 pb-2 font-medium",
-              statusFilter === t.id ? "border-primary text-emerald-700" : "border-transparent text-text-muted"
+              statusFilter === t.id ? "border-primary text-[#137752]" : "border-transparent text-text-muted"
             )}
           >
             {t.label}
@@ -259,7 +259,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                   onClick={() => setSelected(p)}
                   className={cn(
                     "cursor-pointer hover:bg-surface-subtle/80",
-                    selected?.id === p.id && "bg-emerald-50/50 ring-1 ring-inset ring-emerald-200"
+                    selected?.id === p.id && "bg-[#ECFDF3]/50 ring-1 ring-inset ring-emerald-200"
                   )}
                 >
                   <td className="max-w-xs px-3.5 py-2">
@@ -275,7 +275,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                     <span
                       className={cn(
                         "text-xs font-medium capitalize",
-                        p.status === "active" ? "text-emerald-700" : "text-text-muted"
+                        p.status === "active" ? "text-[#137752]" : "text-text-muted"
                       )}
                     >
                       {p.status === "suggested" ? "Draft" : p.status}
@@ -285,7 +285,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                     {p.status === "active" ? (
                       <Check className="mx-auto h-4 w-4 text-primary" />
                     ) : (
-                      <span className="text-zinc-300">—</span>
+                      <span className="text-[#D0D5DD]">—</span>
                     )}
                   </td>
                   <td className="px-3.5 py-2 text-xs text-text-muted">
@@ -317,7 +317,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                   onClick={() => setPage(p)}
                   className={cn(
                     "flex h-7 w-7 items-center justify-center rounded border text-xs",
-                    p === page ? "border-primary text-emerald-700" : "border-transparent hover:bg-surface-subtle"
+                    p === page ? "border-primary text-[#137752]" : "border-transparent hover:bg-surface-subtle"
                   )}
                 >
                   {p}
@@ -332,7 +332,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
             <div className="flex items-center justify-between border-b border-border px-3.5 py-2.5">
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-text">Edit Prompt</h3>
-                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold capitalize text-emerald-800">
+                <span className="rounded-full bg-[#ECFDF3] px-2 py-0.5 text-[10px] font-semibold capitalize text-emerald-800">
                   {selected.status === "suggested" ? "Draft" : selected.status}
                 </span>
               </div>
@@ -396,7 +396,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                   {ALL_ENGINES.map((e) => (
                     <span
                       key={e}
-                      className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-800"
+                      className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-[#ECFDF3] px-2.5 py-1 text-[10px] font-semibold text-emerald-800"
                     >
                       <Check className="h-3 w-3" />
                       {ENGINE_LABELS[e]}
@@ -430,7 +430,7 @@ export function AiVisibilityPromptsPage({ businessId }: { businessId: string }) 
                   type="button"
                   disabled={busy === selected.id || activeCount >= (data?.limits.activePrompts ?? 1)}
                   onClick={() => void activatePrompt(selected.id)}
-                  className="flex-1 rounded-md bg-[#16A34A] py-2 text-[13px] font-semibold text-white hover:bg-[#15803D] disabled:opacity-50"
+                  className="flex-1 rounded-md bg-[#137752] py-2 text-[13px] font-semibold text-white hover:bg-[#15803D] disabled:opacity-50"
                 >
                   {busy === selected.id ? "Saving…" : "Set Active"}
                 </button>

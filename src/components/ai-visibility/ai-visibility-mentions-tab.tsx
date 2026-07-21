@@ -8,7 +8,7 @@ import type { MentionsViewMode } from "@/components/ai-visibility/ai-visibility-
 import { cn } from "@/lib/utils";
 
 function statusFromShare(pct: number): { label: string; className: string; Icon: typeof Shield } {
-  if (pct >= 60) return { label: "Strong", className: "bg-emerald-100 text-emerald-800", Icon: Shield };
+  if (pct >= 60) return { label: "Strong", className: "bg-[#ECFDF3] text-emerald-800", Icon: Shield };
   if (pct >= 30) return { label: "Moderate", className: "bg-amber-100 text-amber-800", Icon: Star };
   return { label: "Weak", className: "bg-red-100 text-red-800", Icon: ShieldAlert };
 }
@@ -22,7 +22,7 @@ function posColor(pos: number | null): string {
 
 function TrendSparkline({ seed }: { seed: number }) {
   const points = [8, 12 + (seed % 4), 10, 16 - (seed % 3), 14, 18 + (seed % 2)];
-  const colors = ["#16A34A", "#8b5cf6", "#0ea5e9", "#f59e0b"];
+  const colors = ["#137752", "#8b5cf6", "#0ea5e9", "#f59e0b"];
   const coords = points.map((v, i) => `${(i / (points.length - 1)) * 56},${22 - v}`).join(" ");
   return (
     <svg viewBox="0 0 56 24" className="h-5 w-14" aria-hidden>
@@ -125,7 +125,7 @@ export function AiVisibilityMentionsTab({
           sparkPoints={trendSpark}
         >
           {velocityPct != null && velocityPct > 15 && (
-            <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-medium text-emerald-700">
+            <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-[#ECFDF3] px-2.5 py-1 text-[10px] font-medium text-[#137752]">
               <TrendingUp className="h-3 w-3" />
               Accelerating
             </p>
@@ -138,15 +138,15 @@ export function AiVisibilityMentionsTab({
         >
           {consistencyScore != null && (
             <>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-100">
-                <div className="h-full bg-emerald-500" style={{ width: `${consistencyScore}%` }} />
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#F2F4F7]">
+                <div className="h-full bg-[#ECFDF3]0" style={{ width: `${consistencyScore}%` }} />
               </div>
               {consistencyScore != null && consistencyScore >= 70 && (
-                <span className="mt-2 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                <span className="mt-2 inline-flex rounded-full bg-[#ECFDF3] px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
                   High
                 </span>
               )}
-              <p className="mt-1 text-[10px] text-zinc-500">Your visibility is consistent across engines</p>
+              <p className="mt-1 text-[10px] text-[#667085]">Your visibility is consistent across engines</p>
             </>
           )}
         </AiKpiCard>
@@ -238,12 +238,12 @@ export function AiVisibilityMentionsTab({
                 const st = statusFromShare(row.sharePct);
                 const StatusIcon = st.Icon;
                 return (
-                  <tr key={row.key} className={row.isTarget ? "bg-emerald-50/30" : "hover:bg-surface-subtle/50"}>
+                  <tr key={row.key} className={row.isTarget ? "bg-[#ECFDF3]/30" : "hover:bg-surface-subtle/50"}>
                     <td className="px-3.5 py-2 text-text-muted">{(page - 1) * pageSize + i + 1}</td>
                     <td className="px-3.5 py-2 font-medium">
                       {row.name}
                       {row.isTarget && (
-                        <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
+                        <span className="ml-2 rounded bg-[#ECFDF3] px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
                           You
                         </span>
                       )}
@@ -251,7 +251,7 @@ export function AiVisibilityMentionsTab({
                     <td className="px-3.5 py-2">
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-14 overflow-hidden rounded-full bg-surface-subtle">
-                          <div className="h-full bg-emerald-500" style={{ width: `${row.sharePct}%` }} />
+                          <div className="h-full bg-[#ECFDF3]0" style={{ width: `${row.sharePct}%` }} />
                         </div>
                         <span className="text-xs tabular-nums text-text-muted">
                           {row.runShare} ({row.sharePct}%)
@@ -295,7 +295,7 @@ export function AiVisibilityMentionsTab({
                   onClick={() => setPage(p)}
                   className={cn(
                     "flex h-7 w-7 items-center justify-center rounded border text-xs",
-                    p === page ? "border-primary text-emerald-700" : "border-transparent hover:bg-surface-subtle"
+                    p === page ? "border-primary text-[#137752]" : "border-transparent hover:bg-surface-subtle"
                   )}
                 >
                   {p}

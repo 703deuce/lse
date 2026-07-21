@@ -14,7 +14,7 @@ const placementLabel: Record<SerpMatchRow["placement"], string> = {
 };
 
 const placementClass: Record<SerpMatchRow["placement"], string> = {
-  both: "bg-emerald-100 text-emerald-800",
+  both: "bg-[#ECFDF3] text-emerald-800",
   map_pack_only: "bg-blue-100 text-blue-800",
   organic_only: "bg-violet-100 text-violet-800",
   ai_only: "bg-purple-100 text-purple-800",
@@ -103,7 +103,7 @@ export function AiVisibilitySearchLandscapeTab({
         className="overflow-hidden p-0"
       >
         <div className="flex flex-wrap gap-3 border-b border-border px-3.5 py-2 text-[10px] text-text-muted">
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /> In Map Pack</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#ECFDF3]0" /> In Map Pack</span>
           <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-blue-500" /> In Organic Top 10</span>
           <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-zinc-400" /> Not in Top 10</span>
           <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-purple-500" /> AI Only</span>
@@ -116,9 +116,9 @@ export function AiVisibilitySearchLandscapeTab({
                 <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Company</th>
                 <th className="px-3.5 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">AI Mentions</th>
                 <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">AI Engine Share</th>
-                <th className="px-3.5 py-2 text-center text-[10px] font-semibold uppercase text-zinc-500">Google Map Pack</th>
-                <th className="px-3.5 py-2 text-center text-[10px] font-semibold uppercase text-zinc-500">Google Organic Rank</th>
-                <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-zinc-500">Overlap Status</th>
+                <th className="px-3.5 py-2 text-center text-[10px] font-semibold uppercase text-[#667085]">Google Map Pack</th>
+                <th className="px-3.5 py-2 text-center text-[10px] font-semibold uppercase text-[#667085]">Google Organic Rank</th>
+                <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-[#667085]">Overlap Status</th>
                 <th className="px-3.5 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Score</th>
                 <th className="px-3.5 py-2 text-center text-[10px] font-semibold uppercase text-text-muted">Trend</th>
               </tr>
@@ -130,10 +130,10 @@ export function AiVisibilitySearchLandscapeTab({
                 return (
                   <tr key={m.normalizedName} className="hover:bg-surface-subtle/50">
                     <td className="px-3.5 py-2 text-text-muted">{i + 1}</td>
-                    <td className="px-3.5 py-2 font-medium text-zinc-900">
+                    <td className="px-3.5 py-2 font-medium text-[#101828]">
                       {m.name}
                       {m.isTargetBrand || isTarget(m.name) ? (
-                        <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
+                        <span className="ml-2 rounded bg-[#ECFDF3] px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
                           You
                         </span>
                       ) : null}
@@ -142,14 +142,14 @@ export function AiVisibilitySearchLandscapeTab({
                     <td className="px-3.5 py-2">
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-subtle">
-                          <div className="h-full bg-emerald-500" style={{ width: `${sharePct}%` }} />
+                          <div className="h-full bg-[#ECFDF3]0" style={{ width: `${sharePct}%` }} />
                         </div>
                         <span className="text-xs tabular-nums text-text-muted">{sharePct}%</span>
                       </div>
                     </td>
                     <td className="px-3.5 py-2 text-center">
                       {m.mapPackPosition ? (
-                        <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-semibold text-emerald-800">#{m.mapPackPosition}</span>
+                        <span className="rounded bg-[#ECFDF3] px-1.5 py-0.5 text-xs font-semibold text-emerald-800">#{m.mapPackPosition}</span>
                       ) : (
                         "—"
                       )}
@@ -184,11 +184,11 @@ export function AiVisibilitySearchLandscapeTab({
       </AiPanel>
 
       <div className="grid items-start gap-2 lg:grid-cols-3">
-        <AiPanel title="Google Map Pack (Top 3)" action={<Info className="h-3.5 w-3.5 text-zinc-300" />}>
+        <AiPanel title="Google Map Pack (Top 3)" action={<Info className="h-3.5 w-3.5 text-[#D0D5DD]" />}>
           <ol className="space-y-1.5">
             {mapPack.slice(0, 3).map((m) => (
               <li key={m.position} className="flex gap-2 text-[13px]">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-800">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#ECFDF3] text-xs font-bold text-emerald-800">
                   {m.position}
                 </span>
                 <div>
@@ -206,7 +206,7 @@ export function AiVisibilitySearchLandscapeTab({
           </ol>
         </AiPanel>
 
-        <AiPanel title="Google Organic Results (Top 10)" action={<Info className="h-3.5 w-3.5 text-zinc-300" />}>
+        <AiPanel title="Google Organic Results (Top 10)" action={<Info className="h-3.5 w-3.5 text-[#D0D5DD]" />}>
           <ol className="space-y-1.5">
             {organicSerp.slice(0, 5).map((o) => (
               <li key={o.position} className="text-[13px]">
@@ -215,7 +215,7 @@ export function AiVisibilitySearchLandscapeTab({
                 </p>
                 {o.domain && <p className="truncate text-xs text-text-muted">{o.domain}</p>}
                 <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-primary">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#ECFDF3]0" />
                   AI mentioned
                 </span>
               </li>
@@ -223,7 +223,7 @@ export function AiVisibilitySearchLandscapeTab({
           </ol>
         </AiPanel>
 
-        <AiPanel title="Landscape Insights" action={<Info className="h-3.5 w-3.5 text-zinc-300" />}>
+        <AiPanel title="Landscape Insights" action={<Info className="h-3.5 w-3.5 text-[#D0D5DD]" />}>
           <ul className="space-y-2 text-xs text-text-muted">
             <li className="flex gap-2">
               <span className="text-primary">✓</span>

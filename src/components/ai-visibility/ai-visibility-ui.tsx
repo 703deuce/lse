@@ -44,6 +44,7 @@ import {
   btnSecondary,
   inputClass,
 } from "@/components/ui/design-system";
+import { mock } from "@/components/mockup/ui";
 import type { AiVisibilityTabId, RunView } from "./ai-visibility-types";
 import type { RunSummary } from "@/lib/ai-visibility/types";
 
@@ -56,7 +57,7 @@ export const AI_VISIBILITY_TABS: { id: AiVisibilityTabId; label: string; icon: C
 ];
 
 const ENGINE_COLORS: Record<AiEngine, string> = {
-  chatgpt: "bg-emerald-100 text-primary-muted border-primary/25",
+  chatgpt: "bg-[#ECFDF3] text-primary-muted border-primary/25",
   perplexity: "bg-sky-100 text-sky-800 border-sky-200",
   gemini: "bg-violet-100 text-violet-800 border-violet-200",
   google_ai_overview: "bg-amber-100 text-amber-800 border-amber-200",
@@ -79,60 +80,64 @@ export function AiVisibilityHeaderRow({
   onRefresh: () => void;
 }) {
   return (
-    <ModuleHeader
-      title="AI Visibility"
-      subtitle="Track how AI platforms discover and recommend your business."
-      icon={Sparkles}
-      actions={
-        <>
-          <button
-            type="button"
-            onClick={onRun}
-            disabled={isRunning || !hasPrimary}
-            className={cn(btnPrimary, "h-8 px-3 text-[13px]")}
-          >
-            <Play className="h-3.5 w-3.5" />
-            Run Check
-          </button>
-          <button type="button" onClick={onRefresh} disabled={loading} className={cn(btnSecondary, "h-8 px-3 text-[13px]")}>
-            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-            Refresh
-          </button>
-          <Link href={`/businesses/${businessId}/ai-visibility/prompts`} className={cn(btnSecondary, "h-8 px-3 text-[13px]")}>
-            <Settings className="h-3.5 w-3.5" />
-            Manage Prompts
-          </Link>
-          <Link
-            href={`/businesses/${businessId}/ai-visibility?tab=history`}
-            className={cn(btnSecondary, "h-8 px-3 text-[13px]")}
-          >
-            <TrendingUp className="h-3.5 w-3.5" />
-            Compare period
-          </Link>
-          <button
-            type="button"
-            className={cn(btnSecondary, "h-8 px-3 text-[13px]")}
-            onClick={() => {
-              void import("@/lib/journey/report-staging").then(({ stageReportItem, reportsHrefForStaging }) => {
-                stageReportItem({
-                  businessId,
-                  source: "ai_visibility",
-                  title: "AI Visibility check",
-                  href: `/businesses/${businessId}/ai-visibility`,
-                });
-                window.location.href = reportsHrefForStaging(businessId, {
-                  type: "monthly",
-                  source: "ai_visibility",
-                });
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+      <div className="min-w-0">
+        <h1 className="flex items-center gap-2 text-[28px] font-bold tracking-tight text-[#101828]">
+          <Sparkles className="h-6 w-6 text-[#137752]" />
+          AI Visibility
+        </h1>
+        <p className="mt-1 text-sm text-[#667085]">
+          Track how AI platforms discover and recommend your business.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={onRun}
+          disabled={isRunning || !hasPrimary}
+          className={mock.btnPrimary}
+        >
+          <Play className="h-3.5 w-3.5" />
+          Run Check
+        </button>
+        <button type="button" onClick={onRefresh} disabled={loading} className={mock.btnSecondary}>
+          <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+          Refresh
+        </button>
+        <Link href={`/businesses/${businessId}/ai-visibility/prompts`} className={mock.btnSecondary}>
+          <Settings className="h-3.5 w-3.5" />
+          Manage Prompts
+        </Link>
+        <Link
+          href={`/businesses/${businessId}/ai-visibility?tab=history`}
+          className={mock.btnSecondary}
+        >
+          <TrendingUp className="h-3.5 w-3.5" />
+          Compare period
+        </Link>
+        <button
+          type="button"
+          className={mock.btnSecondary}
+          onClick={() => {
+            void import("@/lib/journey/report-staging").then(({ stageReportItem, reportsHrefForStaging }) => {
+              stageReportItem({
+                businessId,
+                source: "ai_visibility",
+                title: "AI Visibility check",
+                href: `/businesses/${businessId}/ai-visibility`,
               });
-            }}
-          >
-            <FileText className="h-3.5 w-3.5" />
-            Add to report
-          </button>
-        </>
-      }
-    />
+              window.location.href = reportsHrefForStaging(businessId, {
+                type: "monthly",
+                source: "ai_visibility",
+              });
+            });
+          }}
+        >
+          <FileText className="h-3.5 w-3.5" />
+          Add to report
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -199,18 +204,18 @@ export function AiVisibilityViewControls({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-[11px] font-medium text-zinc-500">View</span>
-      <div className="inline-flex rounded-lg border border-zinc-200 bg-zinc-100/80 p-0.5">
+      <span className="text-[12px] font-medium text-[#667085]">View</span>
+      <div className="inline-flex rounded-lg border border-[#E6EAF0] bg-[#F2F4F7] p-0.5">
         {viewButtons.map((b) => (
           <button
             key={b.id}
             type="button"
             onClick={() => handleViewClick(b.id)}
             className={cn(
-              "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+              "rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors",
               activeView === b.id
-                ? "border border-emerald-600/30 bg-white text-emerald-700 shadow-sm"
-                : "border border-transparent text-zinc-500 hover:text-zinc-700"
+                ? "bg-white text-[#137752] shadow-sm ring-1 ring-[#137752]/25"
+                : "text-[#667085] hover:text-[#344054]"
             )}
           >
             {b.label}
@@ -219,11 +224,11 @@ export function AiVisibilityViewControls({
       </div>
       {!isCombined && (
         <div className="flex items-center gap-1.5">
-          <span className="text-[11px] font-medium text-zinc-500">Run</span>
+          <span className="text-[12px] font-medium text-[#667085]">Run</span>
           <select
             value={runView}
             onChange={(e) => onRunViewChange(e.target.value)}
-            className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] font-medium text-zinc-800 shadow-sm"
+            className="rounded-lg border border-[#E6EAF0] bg-white px-2.5 py-1.5 text-[12px] font-semibold text-[#101828] shadow-sm"
           >
             {completeRuns.map((r) => (
               <option key={r.id} value={r.id}>
@@ -232,7 +237,7 @@ export function AiVisibilityViewControls({
             ))}
           </select>
           {runView === latestId && (
-            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+            <span className="rounded-full bg-[#ECFDF3] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#027A48]">
               Latest
             </span>
           )}
@@ -251,13 +256,13 @@ export function AiVisibilitySearchBar({
 }) {
   return (
     <div className="relative min-w-0 w-full">
-      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
       <input
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search for a competitor, engine, source, or topic…"
-        className={cn(inputClass, "w-full py-2.5 pl-10 pr-3 shadow-sm")}
+        className="h-11 w-full rounded-xl border border-[#E6EAF0] bg-white py-2.5 pl-10 pr-3 text-sm text-[#101828] shadow-sm outline-none placeholder:text-[#98A2B3] focus:border-[#137752]"
       />
     </div>
   );
@@ -271,7 +276,7 @@ export function AiVisibilityTabs({
   onTabChange: (t: AiVisibilityTabId) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-4 border-b border-zinc-200">
+    <div className="flex flex-wrap gap-1 border-b border-[#E6EAF0]">
       {AI_VISIBILITY_TABS.map((t) => {
         const Icon = t.icon;
         const active = tab === t.id;
@@ -281,13 +286,13 @@ export function AiVisibilityTabs({
             type="button"
             onClick={() => onTabChange(t.id)}
             className={cn(
-              "inline-flex items-center gap-1.5 border-b-[3px] pb-2 text-[13px] font-medium transition-colors -mb-px",
+              "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 pb-2.5 pt-1 text-sm font-semibold transition-colors",
               active
-                ? "border-emerald-600 text-emerald-700"
-                : "border-transparent text-zinc-500 hover:border-zinc-200 hover:text-zinc-700"
+                ? "border-[#137752] text-[#137752]"
+                : "border-transparent text-[#667085] hover:text-[#344054]"
             )}
           >
-            <Icon className={cn("h-3.5 w-3.5", active ? "text-emerald-600" : "text-zinc-400")} />
+            <Icon className={cn("h-3.5 w-3.5", active ? "text-[#137752]" : "text-[#98A2B3]")} />
             {t.label}
           </button>
         );
@@ -348,34 +353,46 @@ export function AiKpiCard({
 }) {
   if (!hideValue && !children && !trend && !sparkPoints) {
     return (
-      <GridMetricCard
-        label={label}
-        value={valueSuffix ? `${value} ${valueSuffix}` : value}
-        sub={sub}
-        icon={Icon}
-        iconWrapClassName={cn("bg-emerald-50 text-emerald-600", iconClassName)}
-        iconClassName="text-current"
-      />
+      <div className={cn(mock.card, "p-4")}>
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className={mock.label}>{label}</p>
+            <p className="mt-1.5 text-[26px] font-bold leading-none tracking-tight text-[#101828]">
+              {value}
+              {valueSuffix ? <span className="ml-1 text-[12px] font-medium text-[#667085]">{valueSuffix}</span> : null}
+            </p>
+            {sub ? <p className="mt-1.5 text-xs text-[#667085]">{sub}</p> : null}
+          </div>
+          <span
+            className={cn(
+              "flex h-8 w-8 items-center justify-center rounded-lg bg-[#ECFDF3] text-[#137752]",
+              iconClassName
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+          </span>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className={cn(kpiCardSurface, "flex h-full flex-col")}>
+    <div className={cn(mock.card, "flex h-full flex-col p-4")}>
       <div className="flex items-start justify-between gap-1.5">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1">
-            <p className={kpiLabelClass}>{label}</p>
-            <Info className="h-2.5 w-2.5 text-zinc-300" aria-hidden />
+            <p className={mock.label}>{label}</p>
+            <Info className="h-2.5 w-2.5 text-[#D0D5DD]" aria-hidden />
           </div>
           {!hideValue && (
-            <p className={kpiValueClass}>
+            <p className="mt-1.5 text-[26px] font-bold leading-none tracking-tight text-[#101828]">
               {value}
-              {valueSuffix ? <span className="ml-1 text-[11px] font-medium text-zinc-500">{valueSuffix}</span> : null}
+              {valueSuffix ? <span className="ml-1 text-[12px] font-medium text-[#667085]">{valueSuffix}</span> : null}
             </p>
           )}
-          {sub && <p className={kpiSubClass}>{sub}</p>}
+          {sub && <p className="mt-1.5 text-xs text-[#667085]">{sub}</p>}
           {trend && (
-            <p className="mt-0.5 text-[11px] font-medium text-emerald-600">
+            <p className="mt-1 text-[11px] font-semibold text-[#137752]">
               {trend.replace(/^▲/, "▲ ").replace(/^▼/, "▼ ")} {trendLabel}
             </p>
           )}
@@ -384,12 +401,11 @@ export function AiKpiCard({
         <div className="flex shrink-0 flex-col items-end gap-1">
           <span
             className={cn(
-              kpiIconWrapClass,
-              "bg-emerald-50 text-emerald-600",
+              "flex h-8 w-8 items-center justify-center rounded-lg bg-[#ECFDF3] text-[#137752]",
               iconClassName
             )}
           >
-            <Icon className="h-2.5 w-2.5" />
+            <Icon className="h-3.5 w-3.5" />
           </span>
           {sparkPoints && sparkPoints.length > 1 && <MiniSparkline points={sparkPoints} />}
         </div>
@@ -414,17 +430,17 @@ export function AiPanel({
   bodyClassName?: string;
 }) {
   return (
-    <div className={cn(dashboardCard, "overflow-hidden", className)}>
+    <div className={cn(mock.card, "overflow-hidden", className)}>
       {(title || action) && (
-        <div className="flex items-start justify-between gap-2 border-b border-zinc-100 px-3.5 py-2.5">
+        <div className="flex items-start justify-between gap-2 border-b border-[#EEF1F5] px-4 py-3">
           <div>
-            {title && <h3 className={dashboardCardTitle}>{title}</h3>}
-            {subtitle && <p className={cn("mt-0.5", dashboardMicro)}>{subtitle}</p>}
+            {title && <h3 className="text-[15px] font-semibold text-[#101828]">{title}</h3>}
+            {subtitle && <p className="mt-0.5 text-xs text-[#667085]">{subtitle}</p>}
           </div>
           {action}
         </div>
       )}
-      <div className={cn("p-3.5", bodyClassName)}>{children}</div>
+      <div className={cn("p-4", bodyClassName)}>{children}</div>
     </div>
   );
 }
@@ -443,11 +459,11 @@ export function EngineBadge({ engine }: { engine: AiEngine }) {
 }
 
 const ENGINE_BRAND: Record<AiEngine, { active: string; inactive: string }> = {
-  chatgpt: { active: "bg-[#10a37f] text-white", inactive: "bg-zinc-100 text-zinc-300" },
-  perplexity: { active: "bg-[#1fb8cd] text-white", inactive: "bg-zinc-100 text-zinc-300" },
-  gemini: { active: "bg-white text-blue-600 ring-1 ring-blue-200", inactive: "bg-zinc-100 text-zinc-300" },
-  google_ai_overview: { active: "bg-white text-blue-600 ring-1 ring-zinc-200", inactive: "bg-zinc-100 text-zinc-300" },
-  claude: { active: "bg-[#d97745] text-white", inactive: "bg-zinc-100 text-zinc-300" },
+  chatgpt: { active: "bg-[#10a37f] text-white", inactive: "bg-[#F2F4F7] text-[#D0D5DD]" },
+  perplexity: { active: "bg-[#1fb8cd] text-white", inactive: "bg-[#F2F4F7] text-[#D0D5DD]" },
+  gemini: { active: "bg-white text-blue-600 ring-1 ring-blue-200", inactive: "bg-[#F2F4F7] text-[#D0D5DD]" },
+  google_ai_overview: { active: "bg-white text-blue-600 ring-1 ring-zinc-200", inactive: "bg-[#F2F4F7] text-[#D0D5DD]" },
+  claude: { active: "bg-[#d97745] text-white", inactive: "bg-[#F2F4F7] text-[#D0D5DD]" },
 };
 
 export function EngineLogo({ engine, className }: { engine: AiEngine; className?: string }) {
@@ -562,9 +578,9 @@ export function EngineCoverageRow({
             {failed ? statusLabel : `${mentioned}/${total} (${pct}%)`}
           </span>
         </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100">
+        <div className="h-1.5 overflow-hidden rounded-full bg-[#F2F4F7]">
           <div
-            className={cn("h-full rounded-full", failed ? "bg-amber-400" : "bg-emerald-500")}
+            className={cn("h-full rounded-full", failed ? "bg-amber-400" : "bg-[#ECFDF3]0")}
             style={{ width: failed ? "100%" : `${pct}%` }}
           />
         </div>
@@ -592,28 +608,26 @@ export function TintedKpiCard({
   icon: ComponentType<{ className?: string }>;
 }) {
   const tints = {
-    emerald: "bg-primary-subtle/80 border-primary/20",
-    violet: "bg-violet-50/80 border-violet-100",
-    sky: "bg-sky-50/80 border-sky-100",
-    amber: "bg-amber-50/80 border-amber-100",
+    emerald: "bg-[#ECFDF3] border-[#A6F4C5]",
+    violet: "bg-[#F4F3FF] border-[#D9D6FE]",
+    sky: "bg-[#F0F9FF] border-[#B2DDFF]",
+    amber: "bg-[#FFFAEB] border-[#FEDF89]",
   };
   const iconTints = {
-    emerald: "text-primary",
-    violet: "text-violet-600",
-    sky: "text-sky-600",
-    amber: "text-amber-600",
+    emerald: "text-[#137752]",
+    violet: "text-[#6938EF]",
+    sky: "text-[#026AA2]",
+    amber: "text-[#B54708]",
   };
   return (
-    <div className={cn("flex h-full flex-col rounded-lg border px-3.5 py-3 shadow-sm", tints[tint])}>
+    <div className={cn("flex h-full flex-col rounded-xl border px-4 py-3.5 shadow-sm", tints[tint])}>
       <div className="flex items-start justify-between gap-1.5">
         <div>
-          <p className={kpiLabelClass}>{label}</p>
-          <p className={kpiValueClass}>{value}</p>
-          <p className={cn(kpiSubClass, "text-zinc-600")}>{sub}</p>
+          <p className={mock.label}>{label}</p>
+          <p className="mt-1.5 text-[22px] font-bold leading-none text-[#101828]">{value}</p>
+          <p className="mt-1.5 text-xs text-[#667085]">{sub}</p>
         </div>
-        <span className={cn(kpiIconWrapClass, "bg-white/70 shadow-sm", iconTints[tint])}>
-          <Icon className="h-2.5 w-2.5" />
-        </span>
+        <Icon className={cn("h-5 w-5 shrink-0", iconTints[tint])} />
       </div>
     </div>
   );
@@ -630,7 +644,7 @@ export function VisibilityScoreRing({ score }: { score: number }) {
           cy="18"
           r="14"
           fill="none"
-          stroke="#16A34A"
+          stroke="#137752"
           strokeWidth="3"
           strokeDasharray={`${(pct / 100) * 88} 88`}
           strokeLinecap="round"
@@ -643,8 +657,8 @@ export function VisibilityScoreRing({ score }: { score: number }) {
 
 export function AiVisibilityFooter({ lastUpdated }: { lastUpdated?: string | null }) {
   return (
-    <div className="space-y-3 border-t border-border pt-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">
+    <div className="space-y-3 border-t border-[#E6EAF0] pt-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#667085]">
         <span className="inline-flex items-center gap-1.5">
           <RefreshCw className="h-3 w-3" />
           Last updated: {lastUpdated ? new Date(lastUpdated).toLocaleString() : "—"}
@@ -654,7 +668,7 @@ export function AiVisibilityFooter({ lastUpdated }: { lastUpdated?: string | nul
       <div className="flex justify-end">
         <button
           type="button"
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-white shadow-sm"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-[#137752] text-sm font-bold text-white shadow-sm"
           aria-label="Help"
         >
           ?
@@ -668,8 +682,8 @@ export function StatusPill({ yes, yesLabel = "Yes", noLabel = "No" }: { yes: boo
   return (
     <span
       className={cn(
-        "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
-        yes ? "bg-emerald-100 text-primary-muted" : "bg-surface-subtle text-text-muted"
+        "inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold",
+        yes ? "bg-[#ECFDF3] text-[#027A48]" : "bg-[#F2F4F7] text-[#667085]"
       )}
     >
       {yes ? yesLabel : noLabel}

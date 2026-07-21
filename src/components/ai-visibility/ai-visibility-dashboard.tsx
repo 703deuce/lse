@@ -91,6 +91,23 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get("tab");
+    if (t === "history" || t === "mentions" || t === "landscape" || t === "evidence" || t === "dashboard") {
+      setTab(t);
+    }
+  }, []);
+
+  const handleTabChange = useCallback((next: AiVisibilityTabId) => {
+    setTab(next);
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", next);
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+  }, []);
+
   const { start: startJob, running, error: jobError } = useModuleJobRunner({
     onSettled: async (info) => {
       if (!info.ok) return;
@@ -179,7 +196,7 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
         <button
           type="button"
           onClick={() => void load()}
-          className="mt-3 text-[13px] font-medium text-emerald-700 hover:underline"
+          className="mt-3 text-[13px] font-medium text-[#137752] hover:underline"
         >
           Try again
         </button>
@@ -197,7 +214,7 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
   const targetEngines = leaderboard.find((r) => r.isTargetBrand)?.engines ?? [];
 
   return (
-    <ModulePage>
+    <ModulePage wide className="space-y-5">
       <AiVisibilityHeaderRow
         businessId={businessId}
         isRunning={isRunning}
@@ -276,7 +293,7 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
         </KpiRow>
       )}
 
-      <AiVisibilityTabs tab={tab} onTabChange={setTab} />
+      <AiVisibilityTabs tab={tab} onTabChange={handleTabChange} />
 
       {tab === "history" && (
         <>
@@ -377,7 +394,7 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
           visibilityTrend={data?.visibilityTrend ?? []}
           onSelectRun={(id) => {
             selectRun(id);
-            setTab("dashboard");
+            handleTabChange("dashboard");
           }}
         />
       )}

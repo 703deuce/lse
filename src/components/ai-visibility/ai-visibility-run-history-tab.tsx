@@ -61,7 +61,7 @@ export function AiVisibilityRunHistoryTab({
     <div className="grid items-start gap-2 lg:grid-cols-[1fr_280px]">
       <div className="space-y-3">
         <AiPanel title="Visibility score over time" subtitle="Line chart shows your visibility score across all runs in the selected time range." action={
-          <select className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-[10px] font-medium text-zinc-600 shadow-sm" defaultValue="all">
+          <select className="rounded-lg border border-[#E6EAF0] bg-white px-2 py-1 text-[10px] font-medium text-[#475467] shadow-sm" defaultValue="all">
             <option value="all">All engines</option>
           </select>
         }>
@@ -71,7 +71,7 @@ export function AiVisibilityRunHistoryTab({
                 <XAxis dataKey="date" tick={{ fontSize: 9 }} interval="preserveStartEnd" />
                 <YAxis tick={{ fontSize: 9 }} width={28} domain={[0, 100]} />
                 <Tooltip />
-                <Area type="monotone" dataKey="score" stroke="#16A34A" fill="#16A34A" fillOpacity={0.12} strokeWidth={2} />
+                <Area type="monotone" dataKey="score" stroke="#137752" fill="#137752" fillOpacity={0.12} strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -123,7 +123,7 @@ export function AiVisibilityRunHistoryTab({
                         <button
                           type="button"
                           onClick={() => onSelectRun(r.id)}
-                          className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline"
+                          className="inline-flex items-center gap-1 text-xs font-medium text-[#137752] hover:underline"
                         >
                           <Eye className="h-3.5 w-3.5" />
                           View snapshot
