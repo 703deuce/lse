@@ -1,23 +1,29 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Grid3X3, Info, Loader2, Play, Plus, RotateCcw, Search } from "lucide-react";
+import {
+  ExternalLink,
+  Grid3X3,
+  Info,
+  Loader2,
+  Play,
+  Plus,
+  RotateCcw,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { GridPreviewCanvas } from "@/components/scan/grid-preview-canvas";
 import {
   dashboardCard,
-  dashboardCardTitle,
   dashboardControl,
   dashboardMicro,
 } from "@/components/overview/dashboard-ui";
-import { StatusBadge } from "@/components/ui/metric-card";
-import { EmptyState } from "@/components/ui/design-system";
 import {
   DEFAULT_GRID_SIZE,
   DEFAULT_RADIUS_METERS,
   GRID_SIZE_OPTIONS,
-  computeSolv,
 } from "@/lib/maps/grid-metrics";
 import { DEFAULT_SCAN_PROFILE } from "@/lib/maps/scan-profiles";
 import { DEFAULT_MAPS_PROVIDER_MODE } from "@/lib/maps/provider-modes";
@@ -36,6 +42,7 @@ import { RadiusMilesField } from "@/components/scan/radius-miles-field";
 import { updateBusinessSettings } from "@/lib/actions/mutations";
 import { cn } from "@/lib/utils";
 import type { KeywordOption, ScanListItem } from "@/components/scan/scans-hub-types";
+import { customerSafeScanError } from "@/lib/scans/customer-safe-error";
 
 const fieldLabel = "text-[10px] font-semibold uppercase tracking-wide text-zinc-500";
 const fieldSelect = cn(dashboardControl, "mt-1 h-auto w-full px-2.5 py-1.5");
@@ -43,18 +50,32 @@ const accordionBtn =
   "flex w-full items-center justify-between px-3.5 py-2.5 text-left text-[13px] font-semibold text-zinc-900 hover:bg-zinc-50";
 
 function formatScanDate(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "numeric",
     day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
   });
 }
 
-function formatRadius(meters: number): string {
-  const miles = meters / 1609.34;
-  return miles >= 1 ? `${Math.round(miles * 10) / 10} mi` : `${meters} m`;
+function formatVolume(value: number | null | undefined): string {
+  if (value == null) return "—";
+  if (value >= 1000) return `${Math.round(value / 100) / 10}k`;
+  return String(value);
+}
+
+function formatAvgRank(value: number | null | undefined): string {
+  if (value == null) return "—";
+  return String(Math.round(value * 10) / 10);
+}
+
+function ChangeBadge({ value }: { value: number | null | undefined }) {
+  if (value == null || value === 0) return <span className="text-zinc-400">—</span>;
+  const positive = value > 0;
+  return (
+    <span className={cn("font-semibold tabular-nums", positive ? "text-emerald-700" : "text-red-600")}>
+      {positive ? "+" : ""}
+      {value}
+    </span>
+  );
 }
 
 /**
@@ -82,7 +103,6 @@ export function ScanSetupStudio({
   const router = useRouter();
   const [accountAddress, setAccountAddress] = useState((defaultAddress ?? "").trim());
   const [openSection, setOpenSection] = useState<"location" | "keywords" | "general">("location");
-  const [keywordFilter, setKeywordFilter] = useState<string>("all");
   const [selectedKeywordId, setSelectedKeywordId] = useState(
     keywords.find((k) => k.is_primary)?.id ?? keywords[0]?.id ?? ""
   );
@@ -131,11 +151,7 @@ export function ScanSetupStudio({
   const totalPoints = gridSize * gridSize;
   const includedCount = totalPoints - excludedLabels.size;
   const selectedKeyword = keywords.find((k) => k.id === selectedKeywordId);
-
-  const filteredScans = useMemo(() => {
-    if (keywordFilter === "all") return scans;
-    return scans.filter((s) => s.keyword_id === keywordFilter);
-  }, [scans, keywordFilter]);
+  void scans;
 
   function toggleLabel(label: string) {
     setExcludedLabels((prev) => {
@@ -222,6 +238,15 @@ export function ScanSetupStudio({
       setError("Include at least one grid point before running.");
       return;
     }
+    if (
+      !Number.isFinite(centerLat) ||
+      !Number.isFinite(centerLng) ||
+      (centerLat === 0 && centerLng === 0)
+    ) {
+      setError("Set a scan center before running a Maps scan.");
+      setOpenSection("location");
+      return;
+    }
     if (ids.length > 1) {
       const ok = confirm(
         `This will create ${ids.length} background scans (one per keyword). Continue?`
@@ -252,15 +277,23 @@ export function ScanSetupStudio({
             excludedLabels: [...excludedLabels],
           }),
         });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error ?? "Scan failed to start");
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const safe = customerSafeScanError(json.error);
+          throw new Error(
+            safe ??
+              "We couldn't start the scan. Check the keyword and scan center, then try again."
+          );
+        }
       }
       // Must leave setup immediately — scan runs in the worker.
       const { goToDashboardAfterScanStart } = await import("@/lib/scans/after-scan-start");
       goToDashboardAfterScanStart(businessId);
       return;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Scan failed");
+      setError(
+        customerSafeScanError(e instanceof Error ? e.message : String(e)) ?? "Scan failed"
+      );
     } finally {
       setRunning(false);
     }
@@ -295,10 +328,37 @@ export function ScanSetupStudio({
       setShowAddKeyword(false);
       if (json.keyword?.id) {
         setSelectedKeywordId(json.keyword.id);
+        setSelectedKeywordIds((prev) =>
+          prev.includes(json.keyword.id) ? prev : [...prev, json.keyword.id]
+        );
         router.refresh();
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Add failed");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  async function removeKeyword(keywordId: string) {
+    setRunning(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/scans/keywords/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId, keywordId }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Could not remove keyword");
+      setSelectedKeywordIds((prev) => prev.filter((id) => id !== keywordId));
+      if (selectedKeywordId === keywordId) {
+        const next = keywords.find((k) => k.id !== keywordId)?.id ?? "";
+        setSelectedKeywordId(next);
+      }
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not remove keyword");
     } finally {
       setRunning(false);
     }
@@ -417,28 +477,82 @@ export function ScanSetupStudio({
 
           <Section id="keywords" title="Keywords">
             <p className="text-[11px] text-zinc-500">
-              Select one or more keywords. Each keyword becomes its own background scan.
+              Select one or more Maps keywords. Each selected keyword becomes its own background scan.
             </p>
-            <ul className="mt-1 max-h-40 space-y-1 overflow-y-auto">
-              {keywords.map((k) => {
-                const checked = selectedKeywordIds.includes(k.id);
-                return (
-                  <li key={k.id}>
-                    <label className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-[13px] hover:bg-zinc-50">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleKeywordSelection(k.id)}
-                      />
-                      <span className="font-medium text-zinc-900">{k.keyword}</span>
-                      {k.is_primary ? (
-                        <span className="text-[10px] uppercase text-zinc-400">Primary</span>
-                      ) : null}
-                    </label>
+            <div className="mt-1 overflow-hidden rounded-lg border border-zinc-100">
+              <div className="grid grid-cols-[minmax(92px,1fr)_42px_54px_48px_38px_26px] gap-1.5 bg-zinc-50 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                <span>Keyword</span>
+                <span>Volume</span>
+                <span>Last scan</span>
+                <span>Avg rank</span>
+                <span>Change</span>
+                <span className="sr-only">Remove</span>
+              </div>
+              <ul className="max-h-60 divide-y divide-zinc-100 overflow-y-auto">
+                {keywords.map((k) => {
+                  const checked = selectedKeywordIds.includes(k.id);
+                  return (
+                    <li
+                      key={k.id}
+                      className={cn(
+                        "grid grid-cols-[minmax(92px,1fr)_42px_54px_48px_38px_26px] items-center gap-1.5 px-2.5 py-2 text-[12px]",
+                        checked ? "bg-emerald-50/60" : "bg-white hover:bg-zinc-50"
+                      )}
+                    >
+                      <label className="flex min-w-0 cursor-pointer items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleKeywordSelection(k.id)}
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium text-zinc-900">{k.keyword}</span>
+                          <span className="mt-0.5 flex flex-wrap items-center gap-1 text-[10px] text-zinc-400">
+                            {k.is_primary ? <span>Primary</span> : null}
+                            {k.latest_center_label ? (
+                              <span className="truncate">{k.latest_center_label}</span>
+                            ) : null}
+                            {k.latest_scan_id ? (
+                              <Link
+                                href={`/businesses/${businessId}/grid/${k.latest_scan_id}`}
+                                className="inline-flex items-center gap-0.5 text-emerald-700 hover:underline"
+                              >
+                                Open grid
+                                <ExternalLink className="h-2.5 w-2.5" />
+                              </Link>
+                            ) : null}
+                          </span>
+                        </span>
+                      </label>
+                      <span className="tabular-nums text-zinc-600">{formatVolume(k.search_volume)}</span>
+                      <span className="tabular-nums text-zinc-500">
+                        {k.last_scan_at ? formatScanDate(k.last_scan_at) : "—"}
+                      </span>
+                      <span className="tabular-nums font-medium text-zinc-800">
+                        {formatAvgRank(k.latest_average_rank)}
+                      </span>
+                      <span className="text-[11px]">
+                        <ChangeBadge value={k.change} />
+                      </span>
+                      <button
+                        type="button"
+                        disabled={running}
+                        onClick={() => void removeKeyword(k.id)}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                        aria-label={`Remove ${k.keyword}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  );
+                })}
+                {!keywords.length ? (
+                  <li className="px-2.5 py-3 text-[12px] text-zinc-500">
+                    Add a keyword to start tracking Maps scans for this location.
                   </li>
-                );
-              })}
-            </ul>
+                ) : null}
+              </ul>
+            </div>
             <button
               type="button"
               onClick={() => setShowAddKeyword((v) => !v)}
@@ -636,69 +750,6 @@ export function ScanSetupStudio({
         </div>
       </div>
 
-      {/* History */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className={dashboardCardTitle}>Scan history</h2>
-          <p className={dashboardMicro}>{filteredScans.length} scan(s)</p>
-        </div>
-        <select
-          value={keywordFilter}
-          onChange={(e) => setKeywordFilter(e.target.value)}
-          className={cn(dashboardControl, "h-auto px-2.5 py-1.5")}
-        >
-          <option value="all">All keywords</option>
-          {keywords.map((k) => (
-            <option key={k.id} value={k.id}>
-              {k.keyword}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="space-y-2">
-        {filteredScans.map((scan) => {
-          const metrics = scan.aggregate_metrics ?? {};
-          const solv =
-            metrics.top3Cells != null && metrics.totalCells
-              ? computeSolv(metrics.top3Cells, metrics.totalCells)
-              : null;
-          return (
-            <Link
-              key={scan.id}
-              href={`/businesses/${businessId}/grid/${scan.id}`}
-              className={cn(
-                dashboardCard,
-                "block p-3 transition hover:border-emerald-200 hover:shadow-md"
-              )}
-            >
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-semibold text-zinc-900">
-                    {scan.keyword ? `“${scan.keyword}”` : "Unknown keyword"}
-                  </p>
-                  <p className="mt-0.5 text-[12px] text-zinc-600">
-                    {scan.grid_size}×{scan.grid_size} grid · {formatRadius(scan.radius_meters)} radius
-                    {scan.center_label ? ` · ${scan.center_label}` : ""}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-zinc-500">
-                    {formatScanDate(scan.finished_at ?? scan.created_at)}
-                    {metrics.averageRank != null && <> · Avg rank {metrics.averageRank}</>}
-                    {solv != null && <> · SoLV {solv}%</>}
-                  </p>
-                </div>
-                <StatusBadge status={scan.status} />
-              </div>
-            </Link>
-          );
-        })}
-        {!filteredScans.length && (
-          <EmptyState
-            title="No scans yet"
-            description="Set your location and grid on the left, exclude unused bubbles on the map, then run your first scan."
-          />
-        )}
-      </div>
     </div>
   );
 }

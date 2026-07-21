@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Check, FolderKanban, Loader2, X } from "lucide-react";
 import {
   ContentCard,
@@ -21,6 +20,33 @@ const STEPS = [
   "Baseline",
 ] as const;
 
+const RADIUS_OPTIONS = [
+  { label: "1 mi", meters: 1609 },
+  { label: "2 mi", meters: 3219 },
+  { label: "3 mi", meters: 4828 },
+  { label: "5 mi", meters: 8047 },
+  { label: "10 mi", meters: 16093 },
+] as const;
+
+const KEYWORD_SUGGESTIONS = [
+  {
+    category: "Core service",
+    terms: ["service near me", "best service", "emergency service"],
+  },
+  {
+    category: "High-intent local",
+    terms: ["service city", "service open now", "service company"],
+  },
+  {
+    category: "Comparison",
+    terms: ["top rated service", "affordable service", "local service experts"],
+  },
+] as const;
+
+function formatRadiusMiles(meters: number): string {
+  return `${Math.round((meters / 1609.34) * 10) / 10} mi`;
+}
+
 export function CampaignSetupWizard({
   businessId,
   onClose,
@@ -28,24 +54,38 @@ export function CampaignSetupWizard({
   businessId: string;
   onClose: () => void;
 }) {
-  const router = useRouter();
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("Monthly Maps tracking");
   const [keywordsText, setKeywordsText] = useState("");
   const [gridSize, setGridSize] = useState(5);
-  const [radiusMeters, setRadiusMeters] = useState(3000);
+  const [radiusMeters, setRadiusMeters] = useState(3219);
   const [scheduleType, setScheduleType] = useState<"manual" | "weekly" | "biweekly" | "monthly">(
     "monthly"
   );
   const [runBaseline, setRunBaseline] = useState(true);
   const [createdId, setCreatedId] = useState<string | null>(null);
 
+  function addSuggestion(term: string) {
+    const existing = keywordsText
+      .split(/[\n,]/)
+      .map((k) => k.trim().toLowerCase())
+      .filter(Boolean);
+    if (existing.includes(term.toLowerCase())) return;
+    setKeywordsText((prev) => (prev.trim() ? `${prev.trim()}\n${term}` : term));
+  }
+
   async function finish() {
     setBusy(true);
     setError(null);
     try {
+      const keywords = keywordsText
+        .split(/[\n,]/)
+        .map((k) => k.trim())
+        .filter(Boolean)
+        .slice(0, 20);
+
       const res = await fetch("/api/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -56,18 +96,13 @@ export function CampaignSetupWizard({
           defaultRadiusMeters: radiusMeters,
           scheduleType,
           scheduleEnabled: scheduleType !== "manual",
+          keywordCount: keywords.length,
         }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? "Create failed");
       const campaignId = json.campaign?.id as string;
       setCreatedId(campaignId);
-
-      const keywords = keywordsText
-        .split(/[\n,]/)
-        .map((k) => k.trim())
-        .filter(Boolean)
-        .slice(0, 20);
 
       const keywordIds: string[] = [];
       for (const keyword of keywords) {
@@ -97,7 +132,7 @@ export function CampaignSetupWizard({
         }
       }
 
-      router.push(`/campaigns/${campaignId}`);
+      setBusy(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Create failed");
       setBusy(false);
@@ -153,7 +188,28 @@ export function CampaignSetupWizard({
           </div>
         ) : null}
 
-        {step === 0 ? (
+        {createdId ? (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[13px] text-emerald-900">
+            <p className="font-semibold">Campaign created.</p>
+            <p className="mt-0.5 text-emerald-800">
+              Baseline scans will continue in the background when enabled.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <a href={`/campaigns/${createdId}`} className={cn(btnPrimary, "h-8 px-3 text-xs")}>
+                Open campaign
+              </a>
+              <button
+                type="button"
+                onClick={onClose}
+                className={cn(btnSecondary, "h-8 px-3 text-xs")}
+              >
+                Back to campaigns
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {!createdId && step === 0 ? (
           <label className="block">
             <span className={fieldLabelClass}>Campaign name</span>
             <input
@@ -164,22 +220,46 @@ export function CampaignSetupWizard({
           </label>
         ) : null}
 
-        {step === 1 ? (
-          <label className="block">
-            <span className={fieldLabelClass}>Keywords (one per line)</span>
-            <textarea
-              className={cn(inputClass, "mt-1 min-h-[120px]")}
-              value={keywordsText}
-              onChange={(e) => setKeywordsText(e.target.value)}
-              placeholder={"plumber near me\nemergency plumber\nplumber austin"}
-            />
-            <p className="mt-1 text-[11px] text-zinc-500">
-              You can add more later from Keywords or this campaign page.
-            </p>
-          </label>
+        {!createdId && step === 1 ? (
+          <div className="space-y-3">
+            <label className="block">
+              <span className={fieldLabelClass}>Keywords (one per line)</span>
+              <textarea
+                className={cn(inputClass, "mt-1 min-h-[120px]")}
+                value={keywordsText}
+                onChange={(e) => setKeywordsText(e.target.value)}
+                placeholder={"plumber near me\nemergency plumber\nplumber austin"}
+              />
+              <p className="mt-1 text-[11px] text-zinc-500">
+                You can add more later from this campaign page or the Maps keyword selector.
+              </p>
+            </label>
+            <div className="space-y-2 rounded-lg border border-zinc-100 bg-zinc-50/70 p-2.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                Suggestions by category
+              </p>
+              {KEYWORD_SUGGESTIONS.map((group) => (
+                <div key={group.category}>
+                  <p className="text-[11px] font-medium text-zinc-600">{group.category}</p>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {group.terms.map((term) => (
+                      <button
+                        key={term}
+                        type="button"
+                        onClick={() => addSuggestion(term)}
+                        className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-700 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
+                      >
+                        + {term}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : null}
 
-        {step === 2 ? (
+        {!createdId && step === 2 ? (
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
               <span className={fieldLabelClass}>Grid size</span>
@@ -196,21 +276,26 @@ export function CampaignSetupWizard({
               </select>
             </label>
             <label className="block">
-              <span className={fieldLabelClass}>Radius (meters)</span>
-              <input
-                type="number"
-                min={500}
-                max={20000}
-                step={500}
+              <span className={fieldLabelClass}>Radius</span>
+              <select
                 className={cn(inputClass, "mt-1")}
                 value={radiusMeters}
                 onChange={(e) => setRadiusMeters(Number(e.target.value))}
-              />
+              >
+                {RADIUS_OPTIONS.map((option) => (
+                  <option key={option.meters} value={option.meters}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-zinc-500">
+                Radius is measured from the map center to the outer grid edge.
+              </p>
             </label>
           </div>
         ) : null}
 
-        {step === 3 ? (
+        {!createdId && step === 3 ? (
           <label className="block">
             <span className={fieldLabelClass}>Schedule</span>
             <select
@@ -231,7 +316,7 @@ export function CampaignSetupWizard({
           </label>
         ) : null}
 
-        {step === 4 ? (
+        {!createdId && step === 4 ? (
           <div className="space-y-3 text-[13px]">
             <label className="flex items-start gap-2.5 rounded-lg border border-zinc-100 bg-zinc-50/80 px-3 py-2.5">
               <input
@@ -250,7 +335,7 @@ export function CampaignSetupWizard({
             <div className="rounded-lg border border-emerald-100 bg-emerald-50/50 px-3 py-2.5 text-[12px] text-zinc-700">
               <p className="font-semibold text-zinc-900">{name}</p>
               <p className="mt-1 text-zinc-600">
-                {gridSize}×{gridSize} · {radiusMeters}m · {scheduleType}
+                {gridSize}×{gridSize} · {formatRadiusMiles(radiusMeters)} radius · {scheduleType}
               </p>
               <p className="mt-1 text-zinc-600">
                 Keywords:{" "}
@@ -263,6 +348,7 @@ export function CampaignSetupWizard({
           </div>
         ) : null}
 
+        {!createdId ? (
         <div className="flex flex-wrap justify-between gap-2 border-t border-zinc-100 pt-3">
           <button
             type="button"
@@ -293,6 +379,7 @@ export function CampaignSetupWizard({
             </button>
           )}
         </div>
+        ) : null}
       </div>
     </ContentCard>
   );

@@ -37,7 +37,8 @@ export function KeywordBestOpportunityPanel({ keyword }: { keyword: BestKeyword 
   }
 
   const scorePct = Math.min(100, keyword.opportunity);
-  const excellent = scorePct >= 80;
+  const opportunityLabel =
+    scorePct >= 80 ? "High opportunity" : scorePct >= 50 ? "Moderate opportunity" : "Emerging opportunity";
 
   const chartData = [...keyword.recent_checks]
     .reverse()
@@ -68,7 +69,7 @@ export function KeywordBestOpportunityPanel({ keyword }: { keyword: BestKeyword 
 
       <div className="space-y-3.5 p-3.5">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Opportunity Score</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Opportunity level</p>
           <div className="mt-2 flex items-center gap-3">
             <div className="relative h-14 w-14 shrink-0">
               <svg viewBox="0 0 36 36" className="h-14 w-14 -rotate-90">
@@ -86,15 +87,12 @@ export function KeywordBestOpportunityPanel({ keyword }: { keyword: BestKeyword 
               </svg>
             </div>
             <div>
-              <p className="text-base font-bold tabular-nums leading-none text-zinc-900">
-                {scorePct}
-                <span className="text-[11px] font-medium text-zinc-400"> / 100</span>
+              <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                {opportunityLabel}
+              </span>
+              <p className="mt-1 text-[11px] text-zinc-500">
+                Based on rank position and demand signals.
               </p>
-              {excellent && (
-                <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
-                  Excellent
-                </span>
-              )}
             </div>
           </div>
         </div>

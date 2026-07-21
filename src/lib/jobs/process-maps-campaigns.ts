@@ -35,6 +35,13 @@ function advanceNextRun(scheduleType: string, from: Date): Date {
   return next;
 }
 
+function scheduledRunsPerMonth(scheduleType: string): number {
+  if (scheduleType === "weekly") return 5;
+  if (scheduleType === "biweekly") return 3;
+  if (scheduleType === "monthly") return 1;
+  return 0;
+}
+
 export async function processDueMapsCampaigns(limit = 10): Promise<number> {
   const supabase = createServiceClient();
   const now = new Date();
@@ -169,6 +176,28 @@ export async function processDueMapsCampaigns(limit = 10): Promise<number> {
     const activeKeywords = (keywords ?? []).filter((k) => k.active !== false);
     if (!activeKeywords.length) {
       continue;
+    }
+
+    if (plan) {
+      const estimatedMonthlyCredits =
+        scheduledRunsPerMonth(String(campaign.schedule_type)) *
+        activeKeywords.length *
+        gridMapCredits(gridSize);
+      if (estimatedMonthlyCredits > plan.limits.map_credits_month) {
+        await supabase
+          .from("maps_campaigns")
+          .update({
+            schedule_enabled: false,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", campaign.id);
+        logger.warn("maps_campaign_monthly_allowance_exceeded", {
+          campaignId: campaign.id,
+          estimatedMonthlyCredits,
+          monthlyLimit: plan.limits.map_credits_month,
+        });
+        continue;
+      }
     }
 
     const { data: businessGeo } = await supabase

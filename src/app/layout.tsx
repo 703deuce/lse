@@ -15,8 +15,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Maps Rank Tracker",
-  description: "Google Maps visibility audits and weekly action plans",
+  title: "Local SEO Express",
+  description: "Fast Google Maps rank tracking, local SEO audits, and client-ready reporting.",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

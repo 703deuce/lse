@@ -78,7 +78,7 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
               <MapPin className="h-3.5 w-3.5 text-white" />
             </div>
             <div className="min-w-0">
-              <p className="truncate text-[13px] font-semibold text-zinc-900">Maps Rank Tracker</p>
+              <p className="truncate text-[13px] font-semibold text-zinc-900">Local SEO Express</p>
               <p className="truncate text-[10px] text-zinc-500">Menu</p>
             </div>
           </div>

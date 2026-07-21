@@ -3,6 +3,11 @@ import { PageHeader } from "@/components/ui/page-header";
 import { createServiceClient } from "@/lib/db/client";
 import { ScansHub } from "@/components/scan/scans-hub";
 
+function top3Pct(metrics: { top3Cells?: number | null; totalCells?: number | null } | null): number | null {
+  if (metrics?.top3Cells == null || !metrics.totalCells) return null;
+  return Math.round((Number(metrics.top3Cells) / Number(metrics.totalCells)) * 100);
+}
+
 export default async function ScansPage({
   params,
 }: {
@@ -13,7 +18,7 @@ export default async function ScansPage({
 
   const supabase = createServiceClient();
 
-  const [{ data: scans }, { data: keywords }] = await Promise.all([
+  const [{ data: scans }, { data: keywords }, { data: trackedKeywords }] = await Promise.all([
     supabase
       .from("scan_batches")
       .select(
@@ -23,10 +28,16 @@ export default async function ScansPage({
       .order("created_at", { ascending: false }),
     supabase
       .from("business_keywords")
-      .select("id, keyword, is_primary")
+      .select("id, keyword, is_primary, active")
       .eq("business_id", businessId)
+      .neq("active", false)
       .order("is_primary", { ascending: false })
       .order("created_at", { ascending: true }),
+    supabase
+      .from("tracked_keywords")
+      .select("keyword, search_volume")
+      .eq("business_id", businessId)
+      .eq("active", true),
   ]);
 
   const keywordById = new Map(
@@ -63,6 +74,51 @@ export default async function ScansPage({
     };
   });
 
+  const volumeByKeyword = new Map(
+    (trackedKeywords ?? []).map((k) => [
+      String(k.keyword).trim().toLowerCase(),
+      (k.search_volume as number | null) ?? null,
+    ])
+  );
+  const scansByKeywordId = new Map<string, typeof scanItems>();
+  for (const scan of scanItems) {
+    if (!scan.keyword_id) continue;
+    const list = scansByKeywordId.get(scan.keyword_id) ?? [];
+    list.push(scan);
+    scansByKeywordId.set(scan.keyword_id, list);
+  }
+
+  const keywordOptions = (keywords ?? []).map((k) => {
+    const id = k.id as string;
+    const keyword = String(k.keyword).trim();
+    const keywordScans = scansByKeywordId.get(id) ?? [];
+    const latest = keywordScans[0] ?? null;
+    const previous = keywordScans[1] ?? null;
+    const latestMetrics = latest?.aggregate_metrics ?? null;
+    const previousTop3 = top3Pct(previous?.aggregate_metrics ?? null);
+    const latestTop3 = top3Pct(latestMetrics);
+    const change =
+      latestTop3 != null && previousTop3 != null
+        ? Math.round((latestTop3 - previousTop3) * 10) / 10
+        : null;
+
+    return {
+      id,
+      keyword,
+      is_primary: !!k.is_primary,
+      search_volume: volumeByKeyword.get(keyword.toLowerCase()) ?? null,
+      last_scan_at: latest?.finished_at ?? latest?.created_at ?? null,
+      latest_scan_id: latest?.id ?? null,
+      latest_center_label: latest?.center_label ?? null,
+      latest_average_rank:
+        latestMetrics?.averageRank != null ? Number(latestMetrics.averageRank) : null,
+      latest_top3_pct: latestTop3,
+      latest_visibility_score:
+        latestMetrics?.visibilityScore != null ? Number(latestMetrics.visibilityScore) : null,
+      change,
+    };
+  });
+
   return (
     <>
       <PageHeader
@@ -75,11 +131,7 @@ export default async function ScansPage({
         <ScansHub
           businessId={businessId}
           scans={scanItems}
-          keywords={(keywords ?? []).map((k) => ({
-            id: k.id as string,
-            keyword: String(k.keyword).trim(),
-            is_primary: !!k.is_primary,
-          }))}
+          keywords={keywordOptions}
           defaultCenterLat={
             (business.scan_center_lat as number | null) ?? (business.lat as number) ?? 0
           }

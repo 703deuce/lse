@@ -9,7 +9,6 @@ import {
   FileText,
   FolderKanban,
   Grid3X3,
-  KeyRound,
   LayoutDashboard,
   Link2,
   MapPin,
@@ -65,7 +64,7 @@ function loc(slug: LocationToolSlug, businessId?: string | null): string {
 export function buildUnifiedSidebarNav(businessId?: string | null): {
   getStarted: SidebarNavItem;
   work: SidebarNavSection;
-  /** Present only when a client/prospect location is selected */
+  /** @deprecated Kept for callers that still destructure; menu structure is stable. */
   thisLocation: SidebarNavSection | null;
   growthTools: SidebarNavSection;
   reputation: SidebarReputationNav;
@@ -86,42 +85,26 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
     },
   ];
 
-  // Maps stay under Work when nothing is selected (pickers). When a location is
-  // selected they move under "This location" with scoped links — Dashboard does not.
-  if (!businessId) {
-    workItems.push(
-      {
-        href: loc("maps-scans", null),
-        label: "Maps Scans",
-        icon: Grid3X3,
-        isRankGrid: true,
-      },
-      {
-        href: loc("maps-campaigns", null),
-        label: "Maps Campaigns",
-        icon: FolderKanban,
-      }
-    );
-  }
+  workItems.push(
+    {
+      href: loc("maps-scans", businessId),
+      label: "Maps Scans",
+      icon: Grid3X3,
+      isRankGrid: true,
+    },
+    {
+      href: loc("maps-campaigns", businessId),
+      label: "Maps Campaigns",
+      icon: FolderKanban,
+    },
+    {
+      href: "/scans",
+      label: "Recent Scans",
+      icon: FileSearch,
+    }
+  );
 
-  const thisLocation: SidebarNavSection | null = businessId
-    ? {
-        title: "This location",
-        items: [
-          {
-            href: loc("maps-scans", businessId),
-            label: "Maps Scans",
-            icon: Grid3X3,
-            isRankGrid: true,
-          },
-          {
-            href: loc("maps-campaigns", businessId),
-            label: "Maps Campaigns",
-            icon: FolderKanban,
-          },
-        ],
-      }
-    : null;
+  const thisLocation: SidebarNavSection | null = null;
 
   return {
     getStarted: {
@@ -140,7 +123,6 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
         { href: loc("growth-audit", businessId), label: "Growth Audit", icon: FileSearch },
         { href: loc("backlink-gap", businessId), label: "Backlink Gap", icon: Link2 },
         { href: loc("trust", businessId), label: "Local Trust", icon: Award },
-        { href: loc("keywords", businessId), label: "Keywords", icon: KeyRound },
         { href: loc("ai-visibility", businessId), label: "AI Visibility", icon: Bot },
       ],
     },
@@ -153,16 +135,6 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
           href: loc("review-requests", businessId),
           label: "Review Requests",
           icon: MessageSquareText,
-          badge: "Add-on",
-          children: [
-            {
-              href: businessId
-                ? `/businesses/${businessId}/review-campaigns`
-                : "/tools/go/review-requests",
-              label: "Campaigns",
-              badge: "Upgrade",
-            },
-          ],
         },
         { href: loc("contacts", businessId), label: "Contacts", icon: Users },
         { href: loc("review-templates", businessId), label: "Templates", icon: FileText },
@@ -222,7 +194,6 @@ export function isSidebarHrefActive(
 ): boolean {
   if (flags?.isRankGrid) {
     if (businessId && pathname.includes(`/businesses/${businessId}/grid/`)) return true;
-    if (pathname.startsWith("/scans")) return true;
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 

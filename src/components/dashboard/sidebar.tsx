@@ -204,14 +204,14 @@ export function DashboardSidebarPanel({
           </div>
           <div className="min-w-0">
             {staticLinks ? (
-              <p className="truncate text-sm font-bold text-white">Maps Rank Tracker</p>
+              <p className="truncate text-sm font-bold text-white">Local SEO Express</p>
             ) : (
               <Link
                 href="/workspace"
                 className="block truncate text-sm font-bold text-white"
                 onClick={() => onNavigate?.()}
               >
-                Maps Rank Tracker
+                Local SEO Express
               </Link>
             )}
             <p className="text-[11px] text-slate-400">Independent consultants · 1–20 clients</p>
@@ -254,22 +254,6 @@ export function DashboardSidebarPanel({
           staticLinks={staticLinks}
           onNavigate={onNavigate}
         />
-
-        {/* Location-scoped Maps tools — Dashboard stays under Work always */}
-        {nav.thisLocation ? (
-          <NavSection
-            title={
-              businessName?.trim()
-                ? `Location · ${businessName.trim()}`
-                : nav.thisLocation.title
-            }
-            items={nav.thisLocation.items}
-            businessId={businessId}
-            pathname={pathname}
-            staticLinks={staticLinks}
-            onNavigate={onNavigate}
-          />
-        ) : null}
 
         <NavSection
           title={nav.growthTools.title}
@@ -354,7 +338,7 @@ function SidebarFallback({ className }: { className?: string }) {
       )}
     >
       <div className="border-b border-sidebar-border px-4 py-3.5">
-        <p className="text-sm font-bold text-white">Maps Rank Tracker</p>
+        <p className="text-sm font-bold text-white">Local SEO Express</p>
       </div>
       <div className="flex-1 p-2.5" />
     </aside>

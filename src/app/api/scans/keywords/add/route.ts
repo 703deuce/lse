@@ -38,17 +38,20 @@ export async function POST(request: Request) {
 
     const { data: existing } = await supabase
       .from("business_keywords")
-      .select("id, keyword, city, state, is_primary, campaign_id")
+      .select("id, keyword, city, state, is_primary, campaign_id, active")
       .eq("business_id", businessId);
 
     const duplicate = (existing ?? []).find(
       (k) => String(k.keyword).trim().toLowerCase() === trimmed.toLowerCase()
     );
     if (duplicate) {
-      if (scopedCampaignId && !duplicate.campaign_id) {
+      if ((scopedCampaignId && !duplicate.campaign_id) || duplicate.active === false) {
         await supabase
           .from("business_keywords")
-          .update({ campaign_id: scopedCampaignId })
+          .update({
+            ...(scopedCampaignId && !duplicate.campaign_id ? { campaign_id: scopedCampaignId } : {}),
+            ...(duplicate.active === false ? { active: true } : {}),
+          })
           .eq("id", duplicate.id);
       }
       return NextResponse.json({

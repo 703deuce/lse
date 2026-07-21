@@ -31,6 +31,7 @@ import {
 import { parseMapsLocationZoom } from "@/lib/maps/maps-zoom";
 import { assertRateLimit } from "@/lib/security/rate-limit";
 import { trackProductEvent } from "@/lib/analytics/product-events";
+import { customerSafeScanError } from "@/lib/scans/customer-safe-error";
 
 const schema = z.object({
   businessId: z.string().uuid(),
@@ -75,7 +76,10 @@ export async function POST(request: Request) {
     const body = await request.json();
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+      return NextResponse.json(
+        { error: "Check the scan settings and try again." },
+        { status: 400 }
+      );
     }
 
     const {
@@ -125,18 +129,57 @@ export async function POST(request: Request) {
     const supabase = createServiceClient();
 
     let resolvedKeywordId = keywordId;
-    if (!resolvedKeywordId && keyword?.trim()) {
+    const requestedKeyword = keyword?.trim();
+    if (!resolvedKeywordId && requestedKeyword) {
       const { data: kw } = await supabase
         .from("business_keywords")
-        .select("id")
+        .select("id, active")
         .eq("business_id", businessId)
-        .ilike("keyword", keyword.trim())
+        .ilike("keyword", requestedKeyword)
         .maybeSingle();
       resolvedKeywordId = kw?.id;
+      if (kw?.id && kw.active === false) {
+        await supabase
+          .from("business_keywords")
+          .update({ active: true })
+          .eq("id", kw.id)
+          .eq("business_id", businessId);
+      }
+    }
+
+    if (!resolvedKeywordId && requestedKeyword) {
+      const { data: existingKeywords } = await supabase
+        .from("business_keywords")
+        .select("id, city, state, is_primary")
+        .eq("business_id", businessId);
+      const primary = (existingKeywords ?? []).find((k) => k.is_primary) ?? existingKeywords?.[0];
+      const { data: inserted, error: insertKeywordError } = await supabase
+        .from("business_keywords")
+        .insert({
+          business_id: businessId,
+          keyword: requestedKeyword,
+          city: primary?.city ?? null,
+          state: primary?.state ?? null,
+          is_primary: false,
+          active: true,
+          sort_order: (existingKeywords ?? []).length,
+        })
+        .select("id")
+        .single();
+      if (insertKeywordError || !inserted?.id) {
+        return NextResponse.json(
+          { error: "Could not save that keyword. Try a different keyword." },
+          { status: 400 }
+        );
+      }
+      resolvedKeywordId = inserted.id as string;
     }
 
     if (!resolvedKeywordId) {
-      return NextResponse.json({ error: "keywordId or keyword required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Choose a keyword before starting the scan." },
+        { status: 400 }
+      );
     }
 
     const { data: kwRow } = await supabase
@@ -147,7 +190,10 @@ export async function POST(request: Request) {
       .single();
 
     if (!kwRow) {
-      return NextResponse.json({ error: "Keyword not found for business" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Choose a valid keyword for this location." },
+        { status: 404 }
+      );
     }
 
     const { data: business } = await supabase
@@ -172,7 +218,7 @@ export async function POST(request: Request) {
       (Number(resolvedCenterLat) === 0 && Number(resolvedCenterLng) === 0)
     ) {
       return NextResponse.json(
-        { error: "Set a scan center before running a grid scan." },
+        { error: "Set a scan center before running a Maps scan." },
         { status: 400 }
       );
     }
@@ -281,6 +327,7 @@ export async function POST(request: Request) {
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
-    return httpErrorFromException(err, "Run scan failed");
+    const safe = customerSafeScanError(err instanceof Error ? err.message : String(err));
+    return httpErrorFromException(err, safe ?? "We couldn't start the scan. Check the location and keyword, then try again.");
   }
 }

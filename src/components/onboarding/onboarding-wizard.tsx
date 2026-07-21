@@ -88,7 +88,7 @@ export function OnboardingWizard() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
-        title="Welcome to Maps Rank Tracker"
+        title="Welcome to Local SEO Express"
         subtitle="A clear path from prospecting to client work to white-label reports — with every tool still one click away."
       />
 

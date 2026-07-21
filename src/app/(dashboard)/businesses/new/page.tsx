@@ -331,7 +331,7 @@ function NewBusinessPageInner() {
                       Add a private scan-center address
                     </p>
                     <p className="mt-1 text-sm leading-relaxed text-amber-800 dark:text-amber-200/90">
-                      Service-area listings hide the street address on Google. Maps Rank Tracker needs
+                      Service-area listings hide the street address on Google. Local SEO Express needs
                       a private center so grids land in the right market. Saved in your account — you
                       won&apos;t re-enter it every scan.
                     </p>

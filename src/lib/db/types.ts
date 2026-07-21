@@ -193,6 +193,9 @@ export interface BusinessKeywordRow {
   business_id: string;
   keyword: string;
   is_primary: boolean;
+  campaign_id?: string | null;
+  active?: boolean;
+  sort_order?: number;
   city: string | null;
   state: string | null;
   country: string | null;
@@ -204,6 +207,9 @@ export interface BusinessKeywordInsert {
   business_id: string;
   keyword: string;
   is_primary?: boolean;
+  campaign_id?: string | null;
+  active?: boolean;
+  sort_order?: number;
   city?: string | null;
   state?: string | null;
   country?: string | null;

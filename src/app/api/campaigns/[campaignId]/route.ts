@@ -4,7 +4,7 @@ import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { requireOrganizationPermission } from "@/lib/auth/permissions";
 import { createServiceClient } from "@/lib/db/client";
-import { getOrganizationPlan } from "@/lib/plans";
+import { getOrganizationPlan, gridMapCredits, type PlanDefinition } from "@/lib/plans";
 import {
   assertGridSizeAllowed,
   assertScheduleAllowed,
@@ -25,6 +25,47 @@ const patchSchema = z.object({
   baselineScanBatchId: z.string().uuid().nullable().optional(),
   archive: z.boolean().optional(),
 });
+
+function scheduledRunsPerMonth(scheduleType: string): number {
+  if (scheduleType === "weekly") return 5;
+  if (scheduleType === "biweekly") return 3;
+  if (scheduleType === "monthly") return 1;
+  return 0;
+}
+
+async function assertCampaignScheduleFitsPlan(params: {
+  plan: PlanDefinition;
+  businessId: string;
+  campaignId: string;
+  scheduleType: string;
+  scheduleEnabled: boolean;
+  gridSize: number;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (!params.scheduleEnabled || params.scheduleType === "manual") return { ok: true };
+
+  const supabase = createServiceClient();
+  const { count } = await supabase
+    .from("business_keywords")
+    .select("id", { count: "exact", head: true })
+    .eq("business_id", params.businessId)
+    .eq("campaign_id", params.campaignId)
+    .neq("active", false);
+  const keywordCount = count ?? 0;
+  if (keywordCount < 1) return { ok: true };
+
+  const estimatedCredits =
+    scheduledRunsPerMonth(params.scheduleType) *
+    keywordCount *
+    gridMapCredits(params.gridSize);
+  const monthlyLimit = params.plan.limits.map_credits_month;
+  if (estimatedCredits > monthlyLimit) {
+    return {
+      ok: false,
+      message: `This campaign would need about ${estimatedCredits.toLocaleString()} Maps scan cells per month, which exceeds your ${monthlyLimit.toLocaleString()} monthly allowance. Reduce keywords, grid size, or schedule frequency.`,
+    };
+  }
+  return { ok: true };
+}
 
 async function loadCampaign(campaignId: string) {
   const supabase = createServiceClient();
@@ -107,6 +148,17 @@ export async function PATCH(
       const schedOk = assertScheduleAllowed(nextScheduleType, limits);
       if (!schedOk.ok) {
         return NextResponse.json({ error: schedOk.message }, { status: 403 });
+      }
+      const allowanceOk = await assertCampaignScheduleFitsPlan({
+        plan,
+        businessId: campaign.business_id as string,
+        campaignId,
+        scheduleType: nextScheduleType,
+        scheduleEnabled: p.scheduleEnabled ?? Boolean(campaign.schedule_enabled),
+        gridSize: p.defaultGridSize ?? Number(campaign.default_grid_size ?? 7),
+      });
+      if (!allowanceOk.ok) {
+        return NextResponse.json({ error: allowanceOk.message }, { status: 403 });
       }
     }
 

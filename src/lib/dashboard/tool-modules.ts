@@ -101,7 +101,6 @@ export function toolHref(slug: LocationToolSlug, businessId?: string | null): st
   if (businessId) return `/businesses/${businessId}/${mod.path}`;
   // Prefer existing org hubs where we already have them.
   if (slug === "dashboard") return "/tools/go/dashboard";
-  if (slug === "maps-scans") return "/scans";
   if (slug === "ai-visibility") return "/ai-visibility";
   if (slug === "reports") return "/reports";
   return `/tools/go/${slug}`;

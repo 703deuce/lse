@@ -1,4 +1,4 @@
-import { KeywordTrackerDashboard } from "@/components/keyword-tracker/keyword-dashboard";
+import { redirect } from "next/navigation";
 
 export default async function KeywordsPage({
   params,
@@ -6,5 +6,5 @@ export default async function KeywordsPage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
-  return <KeywordTrackerDashboard businessId={businessId} />;
+  redirect(`/businesses/${businessId}/scans`);
 }

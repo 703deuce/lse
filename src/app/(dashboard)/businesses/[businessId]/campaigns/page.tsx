@@ -42,7 +42,7 @@ export default function BusinessCampaignsPage() {
   return (
     <>
       <PageHeader
-        title="Campaigns"
+        title="Maps Campaigns"
         subtitle="Group keywords, establish a baseline, and run recurring Maps scans for this location."
         actions={
           <button

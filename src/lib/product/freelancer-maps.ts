@@ -7,7 +7,7 @@
  */
 
 export const FREELANCER_MAPS_PRODUCT = {
-  name: "Maps Rank Tracker",
+  name: "Local SEO Express",
   /** Primary positioning line for dashboards and onboarding. */
   tagline:
     "The Google Maps rank-tracking and reporting workspace for independent local SEO consultants.",

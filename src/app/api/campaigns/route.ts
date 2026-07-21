@@ -6,7 +6,7 @@ import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { requireOrganizationPermission } from "@/lib/auth/permissions";
 import { createServiceClient } from "@/lib/db/client";
 import { trackProductEvent } from "@/lib/analytics/product-events";
-import { getOrganizationPlan } from "@/lib/plans";
+import { getOrganizationPlan, gridMapCredits, type PlanDefinition } from "@/lib/plans";
 import {
   assertGridSizeAllowed,
   assertScheduleAllowed,
@@ -23,7 +23,39 @@ const createSchema = z.object({
   scheduleDay: z.number().int().min(0).max(31).nullable().optional(),
   scheduleTimezone: z.string().max(80).nullable().optional(),
   scheduleEnabled: z.boolean().optional(),
+  keywordCount: z.number().int().min(0).max(100).optional(),
 });
+
+function scheduledRunsPerMonth(scheduleType: string): number {
+  if (scheduleType === "weekly") return 5;
+  if (scheduleType === "biweekly") return 3;
+  if (scheduleType === "monthly") return 1;
+  return 0;
+}
+
+function assertCampaignScheduleFitsPlan(params: {
+  plan: PlanDefinition;
+  scheduleType: string;
+  scheduleEnabled: boolean;
+  gridSize: number;
+  keywordCount: number;
+}): { ok: true } | { ok: false; message: string } {
+  if (!params.scheduleEnabled || params.scheduleType === "manual" || params.keywordCount < 1) {
+    return { ok: true };
+  }
+  const estimatedCredits =
+    scheduledRunsPerMonth(params.scheduleType) *
+    params.keywordCount *
+    gridMapCredits(params.gridSize);
+  const monthlyLimit = params.plan.limits.map_credits_month;
+  if (estimatedCredits > monthlyLimit) {
+    return {
+      ok: false,
+      message: `This campaign would need about ${estimatedCredits.toLocaleString()} Maps scan cells per month, which exceeds your ${monthlyLimit.toLocaleString()} monthly allowance. Reduce keywords, grid size, or schedule frequency.`,
+    };
+  }
+  return { ok: true };
+}
 
 export async function GET(request: Request) {
   try {
@@ -83,6 +115,16 @@ export async function POST(request: Request) {
       const schedOk = assertScheduleAllowed(scheduleType, limits);
       if (!schedOk.ok) {
         return NextResponse.json({ error: schedOk.message }, { status: 403 });
+      }
+      const allowanceOk = assertCampaignScheduleFitsPlan({
+        plan,
+        scheduleType,
+        scheduleEnabled,
+        gridSize,
+        keywordCount: p.keywordCount ?? 0,
+      });
+      if (!allowanceOk.ok) {
+        return NextResponse.json({ error: allowanceOk.message }, { status: 403 });
       }
     }
     const supabase = createServiceClient();
