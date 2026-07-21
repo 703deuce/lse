@@ -96,7 +96,7 @@ With web on `database` and workers crash-looping before this fix, there are norm
 | Maps worker | `npm run worker:maps` (later, instead of all) |
 | Intelligence worker | `npm run worker:intelligence` |
 | Report worker | `npm run worker:reports` |
-| Redis | Coolify managed Redis → set private `REDIS_URL` |
+| Redis | Upstash (`dynamic-pipefish-176544.upstash.io`) or Coolify Redis → set `REDIS_URL` |
 
 Flip production with:
 

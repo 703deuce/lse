@@ -1,6 +1,7 @@
 /** Simple per-process sliding-window rate limiter with optional Redis INCR. */
 
 import type Redis from "ioredis";
+import { getRedisUrl } from "@/lib/queue/config";
 
 const buckets = new Map<string, number[]>();
 
@@ -8,7 +9,7 @@ let redisClient: Redis | null = null;
 let redisInitFailed = false;
 
 function getRedisClient(): Redis | null {
-  const url = process.env.REDIS_URL?.trim();
+  const url = getRedisUrl();
   if (!url || redisInitFailed) return null;
   if (redisClient) return redisClient;
   try {
@@ -101,7 +102,7 @@ export async function assertRateLimit(params: {
   maxPerWindow?: number;
   windowMs?: number;
 }): Promise<{ ok: true } | { ok: false; retryAfterMs: number }> {
-  if (process.env.REDIS_URL?.trim()) {
+  if (getRedisUrl()) {
     return assertRateLimitRedis(params);
   }
   return assertRateLimitMemory(params);

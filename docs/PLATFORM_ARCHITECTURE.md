@@ -22,7 +22,7 @@ Queue ops: [`QUEUE_ARCHITECTURE.md`](./QUEUE_ARCHITECTURE.md)
 | `CACHE_DRIVER` | `none` \| `memory` \| `redis` | `none` |
 | `LOCK_DRIVER` | `memory` \| `redis` | `memory` (uses Redis when `REDIS_URL` + driver=redis) |
 | `REALTIME_TRANSPORT` | `auto` \| `supabase` \| `sse` \| `polling` | `auto` |
-| `REDIS_URL` | private Coolify Redis URL | unset |
+| `REDIS_URL` | Upstash `rediss://…@dynamic-pipefish-176544.upstash.io:6379` or private Coolify Redis | unset |
 
 ## Logical queues (worker profiles)
 

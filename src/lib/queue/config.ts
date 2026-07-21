@@ -6,9 +6,39 @@ export function getQueueDriverName(): QueueDriverName {
   return "database";
 }
 
+/** Retired Upstash endpoint — rewrite to the current Redis host. */
+const LEGACY_UPSTASH_HOST = "1hv8gepn81e4s5mtmrjf9stv";
+const CURRENT_UPSTASH_HOST = "dynamic-pipefish-176544.upstash.io";
+
+/**
+ * Normalize REDIS_URL for ioredis / BullMQ.
+ * Rewrites the retired Upstash hostname so web + workers stop dialing the old DB.
+ * Optional REDIS_HOST overrides hostname (password/port/TLS kept from REDIS_URL).
+ */
 export function getRedisUrl(): string | null {
-  const url = process.env.REDIS_URL?.trim();
-  return url || null;
+  const raw = process.env.REDIS_URL?.trim();
+  if (!raw) return null;
+
+  try {
+    const parsed = new URL(raw);
+    const hostOverride = process.env.REDIS_HOST?.trim();
+    const hostname = parsed.hostname.toLowerCase();
+    const isLegacy =
+      hostname === LEGACY_UPSTASH_HOST ||
+      hostname === `${LEGACY_UPSTASH_HOST}.upstash.io` ||
+      hostname.startsWith(`${LEGACY_UPSTASH_HOST}.`);
+
+    if (hostOverride) {
+      parsed.hostname = hostOverride;
+    } else if (isLegacy) {
+      parsed.hostname = CURRENT_UPSTASH_HOST;
+    }
+
+    return parsed.toString();
+  } catch {
+    // Malformed URL — return as-is so callers surface the parse error later.
+    return raw;
+  }
 }
 
 export function getQueuePrefix(): string {
