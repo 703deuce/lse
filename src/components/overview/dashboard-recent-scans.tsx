@@ -4,14 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
 import type { DashboardScanRow } from "@/lib/overview/load-dashboard-scans";
-import { ScanMiniHeatmap } from "@/components/overview/scan-mini-heatmap";
-import {
-  dashboardAccentLink,
-  dashboardCard,
-  dashboardCardTitle,
-  dashboardSectionLabel,
-} from "@/components/overview/dashboard-ui";
-import { btnSecondary } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
 import { isScanActivelyRunning } from "@/lib/scans/status";
 
@@ -27,7 +19,7 @@ function formatScanDate(iso: string): string {
 
 function ChangeCell({ value }: { value: number | null }) {
   if (value == null || value === 0) {
-    return <span className="text-[12px] tabular-nums text-zinc-400">—</span>;
+    return null;
   }
   const positive = value > 0;
   return (
@@ -40,31 +32,6 @@ function ChangeCell({ value }: { value: number | null }) {
       {positive ? "+" : ""}
       {value}
     </span>
-  );
-}
-
-function MapPreviewPlaceholder({
-  completedCells,
-  totalCells,
-  status,
-}: {
-  completedCells: number;
-  totalCells: number;
-  status: string;
-}) {
-  const finalizing = status === "normalizing";
-  return (
-    <div className="flex h-10 w-[88px] flex-col items-center justify-center gap-0.5 rounded-md bg-zinc-100 text-zinc-600">
-      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-      <span className="text-[9px] font-medium leading-tight">Scan in progress</span>
-      {finalizing && totalCells > 0 ? (
-        <span className="text-[8px] text-zinc-500">
-          Finalizing {completedCells} of {totalCells}
-        </span>
-      ) : (
-        <span className="text-[8px] text-zinc-500">Collecting map rankings…</span>
-      )}
-    </div>
   );
 }
 
@@ -116,18 +83,26 @@ export function DashboardRecentScans({
   }, [hasActive, poll]);
 
   return (
-    <section className={cn(dashboardCard, "overflow-hidden p-0")}>
-      <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-3.5 py-2.5">
-        <h2 className={dashboardCardTitle}>Recent Maps Scans</h2>
-        <Link href={`/businesses/${businessId}/scans`} className={dashboardAccentLink}>
-          View all
-        </Link>
+    <section className="overflow-hidden rounded-xl border border-[#E6EAF0] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+      <div className="flex items-center justify-between gap-3 border-b border-[#F2F4F7] px-4 py-3.5">
+        <div>
+          <h2 className="text-base font-semibold text-[#101828]">Recent Maps Scans</h2>
+          <p className="mt-0.5 text-xs text-[#667085]">{total} total scans</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => void poll()} className="text-sm font-semibold text-[#667085] hover:text-[#137752]">
+            Refresh
+          </button>
+          <Link href={`/businesses/${businessId}/scans`} className="text-sm font-semibold text-[#137752] hover:underline">
+            Export
+          </Link>
+        </div>
       </div>
 
       {rows.length === 0 ? (
-        <div className="px-3.5 py-8 text-center text-[13px] text-zinc-500">
+        <div className="px-4 py-10 text-center text-sm text-[#667085]">
           No scans yet.{" "}
-          <Link href={`/businesses/${businessId}/scans`} className={dashboardAccentLink}>
+          <Link href={`/businesses/${businessId}/scans`} className="font-semibold text-[#137752] hover:underline">
             Run your first scan
           </Link>
         </div>
@@ -135,74 +110,56 @@ export function DashboardRecentScans({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-left">
             <thead>
-              <tr className="border-b border-zinc-100 bg-zinc-50/60">
-                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>Keyword</th>
-                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>Date</th>
-                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>Grid</th>
-                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>ARP</th>
-                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>SOLV / SAIV</th>
-                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>Change</th>
-                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>Heatmap</th>
-                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-right")}>Action</th>
+              <tr className="border-b border-[#F2F4F7] bg-[#F9FAFB] text-[11px] font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">
+                <th className="px-4 py-3 text-left">Date / Keyword</th>
+                <th className="px-4 py-3 text-left">Rank</th>
+                <th className="px-4 py-3 text-left">Visibility</th>
+                <th className="px-4 py-3 text-left">Status</th>
+                <th className="px-4 py-3 text-right"> </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody className="divide-y divide-[#F2F4F7]">
               {rows.map((scan) => {
                 const active = scan.active || isScanActivelyRunning(scan.status);
                 return (
-                  <tr key={scan.id} className="transition-colors hover:bg-zinc-50/50">
-                    <td className="px-3.5 py-2 text-[13px] font-medium text-zinc-900">
-                      {scan.keyword ?? "Historical scan"}
+                  <tr key={scan.id} className="transition-colors hover:bg-[#F9FAFB]">
+                    <td className="px-4 py-3.5">
+                      <p className="text-sm font-semibold text-[#101828]">
+                        {formatScanDate(scan.createdAt || scan.finishedAt)}
+                      </p>
+                      <p className="mt-0.5 text-xs text-[#667085]">
+                        {scan.keyword ?? "Historical scan"} · {scan.gridSize}×{scan.gridSize}
+                      </p>
                     </td>
-                    <td className="whitespace-nowrap px-3.5 py-2 text-[12px] tabular-nums text-zinc-500">
-                      {formatScanDate(scan.createdAt || scan.finishedAt)}
-                    </td>
-                    <td className="px-3.5 py-2 text-[12px] tabular-nums text-zinc-500">
-                      {scan.gridSize}×{scan.gridSize}
-                    </td>
-                    <td className="px-3.5 py-2 text-[13px] font-semibold tabular-nums text-zinc-900">
+                    <td className="px-4 py-3.5 text-sm font-semibold tabular-nums text-[#101828]">
                       {active ? "—" : (scan.arp ?? "—")}
+                      {!active ? <span className="ml-1"><ChangeCell value={scan.change} /></span> : null}
                     </td>
-                    <td className="px-3.5 py-2 text-[12px] tabular-nums text-zinc-600">
-                      {active ? (
-                        <span className="text-zinc-400">—</span>
-                      ) : (
-                        <>
-                          {scan.solv != null ? `${scan.solv}%` : "—"}
-                          {scan.saiv != null && (
-                            <span className="text-zinc-400"> / {scan.saiv}%</span>
-                          )}
-                        </>
-                      )}
+                    <td className="px-4 py-3.5 text-sm tabular-nums text-[#344054]">
+                      {active ? "—" : scan.solv != null ? `${scan.solv}%` : "—"}
                     </td>
-                    <td className="px-3.5 py-2">
+                    <td className="px-4 py-3.5">
                       {active ? (
-                        <span className="text-[12px] text-zinc-400">—</span>
-                      ) : (
-                        <ChangeCell value={scan.change} />
-                      )}
-                    </td>
-                    <td className="px-3.5 py-2">
-                      {active ? (
-                        <MapPreviewPlaceholder
-                          completedCells={scan.completedCells}
-                          totalCells={scan.totalCells}
-                          status={scan.status}
-                        />
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#175CD3]">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Running
+                        </span>
                       ) : scan.status === "failed" || scan.status === "cancelled" ? (
-                        <div className="flex h-10 w-[88px] items-center justify-center rounded-md bg-zinc-100 text-[10px] font-medium text-zinc-500">
-                          {scan.status === "cancelled" ? "Cancelled" : "Failed"}
-                        </div>
+                        <span className="inline-flex rounded-full bg-[#FEF3F2] px-2 py-0.5 text-[11px] font-semibold text-[#B42318]">
+                          {scan.status}
+                        </span>
                       ) : (
-                        <ScanMiniHeatmap ranks={scan.ranks} gridSize={scan.gridSize} />
+                        <span className="inline-flex rounded-full bg-[#ECFDF3] px-2 py-0.5 text-[11px] font-semibold text-[#027A48]">
+                          Completed
+                        </span>
                       )}
                     </td>
-                    <td className="px-3.5 py-2 text-right">
+                    <td className="px-4 py-3.5 text-right">
                       <Link
                         href={`/businesses/${businessId}/grid/${scan.id}`}
-                        className={cn(btnSecondary, "h-7 px-2.5 text-[11px] font-medium")}
+                        className="text-sm font-semibold text-[#137752] hover:underline"
                       >
-                        {active ? "View" : "Open"}
+                        View
                       </Link>
                     </td>
                   </tr>
@@ -213,13 +170,13 @@ export function DashboardRecentScans({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 bg-zinc-50/40 px-3.5 py-2 text-[11px] text-zinc-500">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#F2F4F7] px-4 py-3 text-xs text-[#667085]">
         <span className="tabular-nums">
           Showing {rows.length} of {total} scan{total === 1 ? "" : "s"}
         </span>
         <Link
           href={`/businesses/${businessId}/scans`}
-          className={cn(dashboardAccentLink, "inline-flex items-center gap-1")}
+          className="inline-flex items-center gap-1 font-semibold text-[#137752] hover:underline"
         >
           Full history
           <ArrowRight className="h-3 w-3" />
