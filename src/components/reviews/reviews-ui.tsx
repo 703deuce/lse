@@ -232,12 +232,12 @@ export function ReviewsHeader({
   subtitle?: string;
 }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
       <div className="min-w-0">
         <h1 className="text-[28px] font-bold tracking-tight text-[#101828]">{title}</h1>
         <p className="mt-1 max-w-2xl text-sm text-[#667085]">{subtitle}</p>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
         <button
           type="button"
           onClick={onRefresh}

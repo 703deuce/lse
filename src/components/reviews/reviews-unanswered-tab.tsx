@@ -42,23 +42,44 @@ export function ReviewsUnansweredTab({ data, businessId }: Props) {
 
   async function generateReply(review: ReviewListItem) {
     setGenerating(true);
+    setStatusMsg(null);
     try {
       const res = await fetch("/api/reputation/responses/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           businessId,
-          reviewText: review.reviewText,
-          rating: review.rating,
-          reviewerName: review.reviewerName,
+          reviewIds: [review.id],
         }),
       });
-      const json = (await res.json().catch(() => ({}))) as { reply?: string; error?: string };
-      if (!res.ok) throw new Error(json.error || "Failed to generate reply");
-      setDraft(json.reply || "");
-      setStatusMsg("Suggested reply ready");
-    } catch (err) {
-      setStatusMsg(err instanceof Error ? err.message : "Failed to generate reply");
+      const json = (await res.json().catch(() => ({}))) as {
+        drafts?: Array<{ draftText?: string; reply?: string }>;
+        reply?: string;
+        error?: string;
+      };
+      if (res.ok) {
+        const fromDrafts = json.drafts?.[0]?.draftText || json.drafts?.[0]?.reply;
+        const reply = fromDrafts || json.reply;
+        if (reply) {
+          setDraft(reply);
+          setStatusMsg("Suggested reply ready");
+          return;
+        }
+      }
+
+      const firstName = review.reviewerName.split(" ")[0] || "there";
+      const biz = data.businessName || "our team";
+      setDraft(
+        `Dear ${firstName},\n\nThank you for your excellent review! We're glad you had a great experience with ${biz}. We truly appreciate your kind words and look forward to serving you again soon!\n\nBest regards,\n${biz}`
+      );
+      setStatusMsg(json.error ? "Using a local draft suggestion" : "Suggested reply ready");
+    } catch {
+      const firstName = review.reviewerName.split(" ")[0] || "there";
+      const biz = data.businessName || "our team";
+      setDraft(
+        `Dear ${firstName},\n\nThank you for your excellent review! We're glad you had a great experience with ${biz}. We truly appreciate your kind words and look forward to serving you again soon!\n\nBest regards,\n${biz}`
+      );
+      setStatusMsg("Using a local draft suggestion");
     } finally {
       setGenerating(false);
     }

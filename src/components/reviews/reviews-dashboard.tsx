@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { ModulePage, AlertBanner } from "@/components/ui/design-system";
 import { ReviewsCompetitorTab } from "@/components/reviews/reviews-competitor-tab";
@@ -27,6 +27,7 @@ function parseTab(value: string | null): ReviewsTabId {
 
 export function ReviewsDashboard({ businessId }: { businessId: string }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<ReviewsTabId>(() => parseTab(searchParams.get("tab")));
   const [data, setData] = useState<ReviewsPageData | null>(null);
@@ -41,9 +42,9 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
       setTab(next);
       const params = new URLSearchParams(searchParams.toString());
       params.set("tab", next);
-      router.replace(`/businesses/${businessId}/reviews?${params.toString()}`, { scroll: false });
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     },
-    [businessId, router, searchParams]
+    [pathname, router, searchParams]
   );
 
   const load = useCallback(async () => {
