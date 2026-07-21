@@ -152,7 +152,13 @@ describe("queue config", () => {
   it("rewrites retired Upstash host to dynamic-pipefish", () => {
     const prevRedis = process.env.REDIS_URL;
     const prevHost = process.env.REDIS_HOST;
+    const prevQueue = process.env.QUEUE_REDIS_URL;
+    const prevBull = process.env.BULLMQ_REDIS_URL;
+    const prevCache = process.env.CACHE_REDIS_URL;
     delete process.env.REDIS_HOST;
+    delete process.env.QUEUE_REDIS_URL;
+    delete process.env.BULLMQ_REDIS_URL;
+    delete process.env.CACHE_REDIS_URL;
     process.env.REDIS_URL =
       "rediss://default:secret@1hv8gepn81e4s5mtmrjf9stv.upstash.io:6379";
     const url = getRedisUrl();
@@ -162,8 +168,51 @@ describe("queue config", () => {
     assert.equal(parsed.password, "secret");
     assert.equal(parsed.port, "6379");
     assert.equal(parsed.protocol, "rediss:");
+
+    // Letter-L lookalike id from logs
+    process.env.REDIS_URL =
+      "rediss://default:secret@lhv8gepn81e4s5mtmrjf9stv.upstash.io:6379";
+    assert.equal(new URL(getRedisUrl()!).hostname, "dynamic-pipefish-176544.upstash.io");
+
     if (prevRedis === undefined) delete process.env.REDIS_URL;
     else process.env.REDIS_URL = prevRedis;
+    if (prevHost === undefined) delete process.env.REDIS_HOST;
+    else process.env.REDIS_HOST = prevHost;
+    if (prevQueue === undefined) delete process.env.QUEUE_REDIS_URL;
+    else process.env.QUEUE_REDIS_URL = prevQueue;
+    if (prevBull === undefined) delete process.env.BULLMQ_REDIS_URL;
+    else process.env.BULLMQ_REDIS_URL = prevBull;
+    if (prevCache === undefined) delete process.env.CACHE_REDIS_URL;
+    else process.env.CACHE_REDIS_URL = prevCache;
+  });
+
+  it("rewrites any non-current *.upstash.io host", () => {
+    const prevRedis = process.env.REDIS_URL;
+    const prevHost = process.env.REDIS_HOST;
+    delete process.env.REDIS_HOST;
+    process.env.REDIS_URL = "rediss://default:tok@some-old-db-123.upstash.io:6379";
+    assert.equal(new URL(getRedisUrl()!).hostname, "dynamic-pipefish-176544.upstash.io");
+    if (prevRedis === undefined) delete process.env.REDIS_URL;
+    else process.env.REDIS_URL = prevRedis;
+    if (prevHost === undefined) delete process.env.REDIS_HOST;
+    else process.env.REDIS_HOST = prevHost;
+  });
+
+  it("reads QUEUE_REDIS_URL when REDIS_URL is empty", () => {
+    const prevRedis = process.env.REDIS_URL;
+    const prevQueue = process.env.QUEUE_REDIS_URL;
+    const prevHost = process.env.REDIS_HOST;
+    delete process.env.REDIS_URL;
+    delete process.env.REDIS_HOST;
+    process.env.QUEUE_REDIS_URL =
+      "rediss://default:q@1hv8gepn81e4s5mtmrjf9stv.upstash.io:6379";
+    const parsed = new URL(getRedisUrl()!);
+    assert.equal(parsed.hostname, "dynamic-pipefish-176544.upstash.io");
+    assert.equal(parsed.password, "q");
+    if (prevRedis === undefined) delete process.env.REDIS_URL;
+    else process.env.REDIS_URL = prevRedis;
+    if (prevQueue === undefined) delete process.env.QUEUE_REDIS_URL;
+    else process.env.QUEUE_REDIS_URL = prevQueue;
     if (prevHost === undefined) delete process.env.REDIS_HOST;
     else process.env.REDIS_HOST = prevHost;
   });

@@ -24,6 +24,9 @@ export type { JobLifecycleStatus } from "@/lib/platform/job-lifecycle";
 export {
   getQueueDriverName,
   getRedisUrl,
+  assertRedisEndpointReady,
+  sanitizeRedisUrlForLogs,
+  CURRENT_UPSTASH_HOST,
   QUEUE_CONFIGS,
   brightDataFairChunkSize,
   brightDataMaxInFlight,

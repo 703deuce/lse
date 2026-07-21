@@ -36,7 +36,9 @@ Campaign email/sms **only** run on the messaging worker. `worker:all` no longer 
 | Domain / port | none |
 | Restart | always |
 
-Required env (same as web): `QUEUE_DRIVER=bullmq`, `REDIS_URL`, Supabase keys, `TWILIO_*`, `BREVO_*`.
+Required env (same as web): `QUEUE_DRIVER=bullmq`, `REDIS_URL` (Upstash
+`dynamic-pipefish-176544.upstash.io` — see [COOLIFY_REDIS_UPSTASH.md](./COOLIFY_REDIS_UPSTASH.md)),
+Supabase keys, `TWILIO_*`, `BREVO_*`.
 
 Queues consumed: `review-campaign`, `email-send`, `sms-send`, `review-import`, `review-monitor`, `notifications`.
 

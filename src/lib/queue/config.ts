@@ -6,38 +6,116 @@ export function getQueueDriverName(): QueueDriverName {
   return "database";
 }
 
-/** Retired Upstash endpoint — rewrite to the current Redis host. */
-const LEGACY_UPSTASH_HOST = "1hv8gepn81e4s5mtmrjf9stv";
-const CURRENT_UPSTASH_HOST = "dynamic-pipefish-176544.upstash.io";
+/**
+ * Retired Upstash DB id (digit + letter lookalikes both appear in logs).
+ * Any `*.upstash.io` host that is not CURRENT is rewritten to CURRENT.
+ */
+const LEGACY_UPSTASH_IDS = ["1hv8gepn81e4s5mtmrjf9stv", "lhv8gepn81e4s5mtmrjf9stv"] as const;
+export const CURRENT_UPSTASH_HOST = "dynamic-pipefish-176544.upstash.io";
+
+const REDIS_URL_ENV_KEYS = [
+  "REDIS_URL",
+  "QUEUE_REDIS_URL",
+  "BULLMQ_REDIS_URL",
+  "CACHE_REDIS_URL",
+] as const;
+
+function isLegacyUpstashHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  if (host === CURRENT_UPSTASH_HOST) return false;
+  if (host.endsWith(".upstash.io") && host !== CURRENT_UPSTASH_HOST) return true;
+  return LEGACY_UPSTASH_IDS.some(
+    (id) => host === id || host === `${id}.upstash.io` || host.startsWith(`${id}.`)
+  );
+}
+
+function pickRawRedisUrl(): { raw: string; source: string } | null {
+  for (const key of REDIS_URL_ENV_KEYS) {
+    const value = process.env[key]?.trim();
+    if (value) return { raw: value, source: key };
+  }
+  return null;
+}
+
+/** Redact password for logs: rediss://default:****@host:6379 */
+export function sanitizeRedisUrlForLogs(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.password) parsed.password = "****";
+    return parsed.toString();
+  } catch {
+    return url.replace(/:\/\/([^:@/]+):([^@/]+)@/i, "://$1:****@");
+  }
+}
+
+export function getResolvedRedisHost(url?: string | null): string | null {
+  const resolved = url ?? getRedisUrl();
+  if (!resolved) return null;
+  try {
+    return new URL(resolved).hostname;
+  } catch {
+    return null;
+  }
+}
 
 /**
- * Normalize REDIS_URL for ioredis / BullMQ.
- * Rewrites the retired Upstash hostname so web + workers stop dialing the old DB.
- * Optional REDIS_HOST overrides hostname (password/port/TLS kept from REDIS_URL).
+ * Normalize Redis URL for ioredis / BullMQ.
+ *
+ * - Prefers REDIS_URL, then QUEUE_REDIS_URL / BULLMQ_REDIS_URL / CACHE_REDIS_URL
+ * - REDIS_HOST overrides hostname when set
+ * - Any non-current `*.upstash.io` host (including retired 1hv8… / lhv8…) → CURRENT_UPSTASH_HOST
  */
 export function getRedisUrl(): string | null {
-  const raw = process.env.REDIS_URL?.trim();
-  if (!raw) return null;
+  const picked = pickRawRedisUrl();
+  if (!picked) return null;
 
   try {
-    const parsed = new URL(raw);
+    const parsed = new URL(picked.raw);
     const hostOverride = process.env.REDIS_HOST?.trim();
-    const hostname = parsed.hostname.toLowerCase();
-    const isLegacy =
-      hostname === LEGACY_UPSTASH_HOST ||
-      hostname === `${LEGACY_UPSTASH_HOST}.upstash.io` ||
-      hostname.startsWith(`${LEGACY_UPSTASH_HOST}.`);
 
     if (hostOverride) {
       parsed.hostname = hostOverride;
-    } else if (isLegacy) {
+    } else if (isLegacyUpstashHost(parsed.hostname)) {
       parsed.hostname = CURRENT_UPSTASH_HOST;
     }
 
     return parsed.toString();
   } catch {
     // Malformed URL — return as-is so callers surface the parse error later.
-    return raw;
+    return picked.raw;
+  }
+}
+
+/**
+ * Log resolved Redis endpoint (password redacted) and refuse legacy Upstash hosts.
+ * Call from worker boot and cron/job entrypoints.
+ */
+export function assertRedisEndpointReady(context: string): void {
+  const picked = pickRawRedisUrl();
+  const resolved = getRedisUrl();
+  if (!resolved) {
+    console.warn(`[redis] ${context}: no REDIS_URL (or QUEUE/BULLMQ/CACHE alias) set`);
+    return;
+  }
+
+  const host = getResolvedRedisHost(resolved);
+  const rawHost = (() => {
+    try {
+      return picked ? new URL(picked.raw).hostname : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  console.log(
+    `[redis] ${context}: source=${picked?.source ?? "?"} rawHost=${rawHost ?? "?"} resolvedHost=${host ?? "?"} url=${sanitizeRedisUrlForLogs(resolved)}`
+  );
+
+  if (host && isLegacyUpstashHost(host)) {
+    throw new Error(
+      `[redis] ${context}: refusing to connect to retired Upstash host "${host}". ` +
+        `Set REDIS_URL=rediss://default:TOKEN@${CURRENT_UPSTASH_HOST}:6379 on every Coolify resource (web + workers), enable Runtime Variable, then Redeploy (not Restart).`
+    );
   }
 }
 
@@ -138,8 +216,14 @@ export function getBullmqConnectionOptions(
   const url = redisUrl ?? getRedisUrl();
   if (!url) throw new Error("REDIS_URL is required for BullMQ");
   const parsed = new URL(url);
+  const host = parsed.hostname;
+  if (isLegacyUpstashHost(host)) {
+    throw new Error(
+      `BullMQ refused retired Upstash host "${host}". Use ${CURRENT_UPSTASH_HOST}.`
+    );
+  }
   return {
-    host: parsed.hostname,
+    host,
     port: Number(parsed.port || 6379),
     username: parsed.username || undefined,
     password: parsed.password || undefined,

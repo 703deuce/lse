@@ -34,7 +34,7 @@ import {
   type JobQueueName,
   type QueueName,
 } from "../../src/lib/queue/types";
-import { getBullmqConnectionOptions, getQueueConfig } from "../../src/lib/queue/config";
+import { getBullmqConnectionOptions, getQueueConfig, assertRedisEndpointReady } from "../../src/lib/queue/config";
 import {
   assertValidBullmqQueueName,
   listRegisteredQueueNames,
@@ -97,6 +97,13 @@ async function main() {
     console.error(
       "Workers require QUEUE_DRIVER=bullmq and REDIS_URL. Refusing to start."
     );
+    process.exit(1);
+  }
+
+  try {
+    assertRedisEndpointReady(`worker:${profile}`);
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : err);
     process.exit(1);
   }
 

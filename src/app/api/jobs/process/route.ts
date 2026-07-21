@@ -3,11 +3,21 @@ import { processPendingJobs } from "@/lib/jobs/queue";
 import { getRequestId } from "@/lib/observability/request-id";
 import { logger } from "@/lib/observability/logger";
 import { authorizeBearerSecret } from "@/lib/security/secrets";
+import { assertRedisEndpointReady } from "@/lib/queue/config";
 
 async function handle(request: Request) {
   const authz = authorizeBearerSecret(request, process.env.CRON_SECRET);
   if (!authz.ok) {
     return NextResponse.json({ error: authz.error }, { status: authz.status });
+  }
+
+  try {
+    assertRedisEndpointReady("jobs/process");
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Redis endpoint misconfigured" },
+      { status: 503 }
+    );
   }
 
   const requestId = getRequestId(request);
