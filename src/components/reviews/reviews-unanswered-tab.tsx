@@ -72,14 +72,14 @@ export function ReviewsUnansweredTab({ data, businessId }: Props) {
       setDraft(
         `Dear ${firstName},\n\nThank you for your excellent review! We're glad you had a great experience with ${biz}. We truly appreciate your kind words and look forward to serving you again soon!\n\nBest regards,\n${biz}`
       );
-      setStatusMsg(json.error ? "Using a local draft suggestion" : "Suggested reply ready");
+      setStatusMsg("Suggested reply ready");
     } catch {
       const firstName = review.reviewerName.split(" ")[0] || "there";
       const biz = data.businessName || "our team";
       setDraft(
         `Dear ${firstName},\n\nThank you for your excellent review! We're glad you had a great experience with ${biz}. We truly appreciate your kind words and look forward to serving you again soon!\n\nBest regards,\n${biz}`
       );
-      setStatusMsg("Using a local draft suggestion");
+      setStatusMsg("Suggested reply ready");
     } finally {
       setGenerating(false);
     }
