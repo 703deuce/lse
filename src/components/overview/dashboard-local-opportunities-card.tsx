@@ -6,12 +6,12 @@ import {
   dashboardAccentLink,
   dashboardBadge,
   dashboardBody,
-  dashboardCardClass,
   dashboardCardMeta,
   dashboardCardTitle,
   dashboardMicro,
   dashboardSectionLabel,
 } from "@/components/overview/dashboard-ui";
+import { ContentCard } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
 
 export function DashboardLocalOpportunitiesCard({
@@ -29,7 +29,7 @@ export function DashboardLocalOpportunitiesCard({
   const showCount = compact ? 3 : 4;
 
   return (
-    <article className={dashboardCardClass()}>
+    <ContentCard>
       <div className="flex items-start justify-between gap-2">
         <div>
           <h2 className={dashboardCardTitle}>Local Opportunities</h2>
@@ -104,6 +104,6 @@ export function DashboardLocalOpportunitiesCard({
           +{more} more opportunities
         </p>
       )}
-    </article>
+    </ContentCard>
   );
 }

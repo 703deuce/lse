@@ -16,10 +16,19 @@ import {
   AiVisibilityTabs,
   AiVisibilityViewControls,
 } from "@/components/ai-visibility/ai-visibility-ui";
-import { ModulePage, ModuleSkeleton, HeroPanel, MetricStrip, heroMetricClass } from "@/components/ui/design-system";
+import { ModulePage, ModuleSkeleton, HeroPanel, MetricStrip, ContentCard, InsightPanel, heroMetricClass, PageSection, btnGhost } from "@/components/ui/design-system";
 import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 import type { RunSummary } from "@/lib/ai-visibility/types";
+import { ENGINE_LABELS, type AiEngine } from "@/lib/ai-visibility/types";
 import { cn } from "@/lib/utils";
+
+const PLATFORM_ORDER: AiEngine[] = [
+  "chatgpt",
+  "claude",
+  "gemini",
+  "perplexity",
+  "google_ai_overview",
+];
 
 function formatRunLabel(r: RunSummary) {
   const d = new Date(r.created_at);
@@ -232,11 +241,17 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
         <>
           <HeroPanel
             eyebrow="AI search presence"
-            title="Visibility score"
+            title={
+              visibilityScore != null && visibilityScore >= 50
+                ? "AI systems sometimes recommend you"
+                : visibilityScore != null
+                  ? "AI systems rarely recommend you"
+                  : "Are AI systems recommending this business?"
+            }
             description={
               visDelta
-                ? `${visDelta} vs last run`
-                : "How often AI engines recommend your brand for tracked prompts."
+                ? `${visDelta} vs last run · Mentioned by ${enginesMentioning} of ${aggregate?.totalEngines ?? 5} platforms`
+                : `Mentioned by ${enginesMentioning} of ${aggregate?.totalEngines ?? 5} tracked platforms.`
             }
             metric={
               <span className={cn(heroMetricClass, visibilityScore == null && "text-zinc-300")}>
@@ -246,6 +261,7 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
                 ) : null}
               </span>
             }
+            metricLabel="Visibility score"
           />
           <MetricStrip
             items={[
@@ -275,6 +291,63 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
               },
             ]}
           />
+
+          <PageSection title="Platform summary" description="Which AI engines mention this business.">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+              {PLATFORM_ORDER.map((engine) => {
+                const er = (data?.engineResults ?? []).find((r) => r.engine === engine);
+                const mentioned = Boolean(er?.target_mentioned);
+                const failed =
+                  er && er.status !== "complete" && er.status !== "running" && er.status != null;
+                const statusLabel = failed
+                  ? "Failed"
+                  : mentioned
+                    ? "Mentioned"
+                    : er
+                      ? "Not mentioned"
+                      : "—";
+                return (
+                  <ContentCard key={engine} className="!p-3.5">
+                    <p className="text-xs font-medium text-[var(--text-muted)]">
+                      {ENGINE_LABELS[engine]}
+                    </p>
+                    <p
+                      className={cn(
+                        "mt-1.5 text-sm font-semibold",
+                        mentioned && "text-[var(--primary)]",
+                        failed && "text-red-600",
+                        !mentioned && !failed && "text-[var(--text)]"
+                      )}
+                    >
+                      {statusLabel}
+                    </p>
+                  </ContentCard>
+                );
+              })}
+            </div>
+          </PageSection>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <InsightPanel title="Why this score">
+              {run?.ai_summary?.trim()
+                ? run.ai_summary
+                : visibilityScore != null
+                  ? "Visibility reflects how often tracked AI engines recommend your brand for the active prompt. Improve citations, review recency, and location pages to raise mention likelihood."
+                  : "Run a check to generate an explanation of why competitors are mentioned and you are not."}
+            </InsightPanel>
+            <InsightPanel
+              title="Recommended actions"
+              action={
+                <button type="button" className={btnGhost} onClick={() => setTab("evidence")}>
+                  View evidence →
+                </button>
+              }
+            >
+              {visibilityScore != null && visibilityScore < 40
+                ? "Build missing local citations, improve service-page location relevance, and increase recent review volume — then re-run this check."
+                : "Protect mention share by keeping reviews and citations fresh, then expand prompt coverage under Prompts."}
+            </InsightPanel>
+          </div>
         </>
       )}
 

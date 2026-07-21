@@ -5,12 +5,12 @@ import {
   dashboardAccentLink,
   dashboardBadge,
   dashboardBody,
-  dashboardCardClass,
   dashboardCardMeta,
   dashboardCardTitle,
   dashboardMicro,
   dashboardSectionLabel,
 } from "@/components/overview/dashboard-ui";
+import { ContentCard } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
 
 const ENGINE_STYLE: Record<AiEngine, { short: string; className: string }> = {
@@ -79,7 +79,7 @@ export function DashboardAiVisibilityCard({
   const mentions = data.mentions.slice(0, 4);
 
   return (
-    <article className={dashboardCardClass("flex h-full flex-col")}>
+    <ContentCard className="flex h-full flex-col">
       <div className="flex items-start justify-between gap-2">
         <div>
           <h2 className={dashboardCardTitle}>AI Visibility</h2>
@@ -171,6 +171,6 @@ export function DashboardAiVisibilityCard({
           Run an AI visibility check to see model coverage.
         </p>
       )}
-    </article>
+    </ContentCard>
   );
 }

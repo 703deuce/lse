@@ -19,7 +19,7 @@ export function DashboardFeaturedReports({
   if (!showAi && !showLocal) return null;
 
   return (
-    <section className={showAi && showLocal ? "grid gap-2 lg:grid-cols-2" : "grid gap-2"}>
+    <section className={showAi && showLocal ? "grid gap-3 lg:grid-cols-2" : "grid gap-3"}>
       {showAi ? (
         <DashboardAiVisibilityCard businessId={businessId} data={data.ai} />
       ) : null}

@@ -14,6 +14,7 @@ import {
   PriorityTag,
 } from "@/components/growth-audit/growth-audit-ui";
 import {
+  btnPrimary,
   HeroPanel,
   MetricStrip,
   heroMetricClass,
@@ -55,7 +56,7 @@ export function GrowthAuditOverviewTab({
           <button
             type="button"
             onClick={onGoToActionPlan}
-            className="inline-flex items-center gap-1.5 rounded-md bg-[#137752] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0f6344]"
+            className={btnPrimary}
           >
             View action plan
           </button>

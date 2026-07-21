@@ -49,11 +49,11 @@ import type { AiVisibilityTabId, RunView } from "./ai-visibility-types";
 import type { RunSummary } from "@/lib/ai-visibility/types";
 
 export const AI_VISIBILITY_TABS: { id: AiVisibilityTabId; label: string; icon: ComponentType<{ className?: string }> }[] = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "responses", label: "Responses", icon: MessageSquareText },
+  { id: "dashboard", label: "Overview", icon: LayoutDashboard },
   { id: "mentions", label: "Mentions", icon: MessageSquare },
   { id: "landscape", label: "Search Landscape", icon: Map },
   { id: "evidence", label: "Evidence", icon: FileText },
+  { id: "responses", label: "Provider responses", icon: MessageSquareText },
   { id: "history", label: "Run History", icon: History },
 ];
 

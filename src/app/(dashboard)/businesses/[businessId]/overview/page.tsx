@@ -1,58 +1,29 @@
 import Link from "next/link";
 import { Play } from "lucide-react";
 import { requireBusinessPageData } from "@/lib/auth/require-business-page";
-import { createServiceClient } from "@/lib/db/client";
-import { DashboardHeader } from "@/components/overview/dashboard-header";
 import { DashboardRecentScans } from "@/components/overview/dashboard-recent-scans";
 import { DashboardFeaturedReports } from "@/components/overview/dashboard-featured-reports";
 import { loadDashboardRecentScans } from "@/lib/overview/load-dashboard-scans";
 import { loadDashboardFeatured } from "@/lib/overview/load-dashboard-featured";
 import { JourneyBreadcrumbs } from "@/components/journey/journey-breadcrumbs";
 import {
+  ContentCard,
   HeroPanel,
+  InsightPanel,
   MetricStrip,
   ModulePage,
+  PageHeader,
+  PageSection,
+  btnGhost,
+  btnPrimary,
   btnPrimaryLg,
   heroMetricClass,
-  microClass,
+  sectionTitleClass,
 } from "@/components/ui/design-system";
 import { getLatestGrowthAuditRun } from "@/lib/growth-audit/queries";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-
-function displayNameFromEmail(email: string | null): string {
-  if (!email) return "there";
-  const local = email.split("@")[0] ?? "there";
-  const token = local.split(/[._-]/)[0] ?? local;
-  return token.charAt(0).toUpperCase() + token.slice(1);
-}
-
-function greetingNameFromProfile(fullName: string | null | undefined, email: string | null): string {
-  const full = String(fullName ?? "").trim();
-  if (full) {
-    const first = full.split(/\s+/).find(Boolean);
-    if (first) return first;
-    return full;
-  }
-  return displayNameFromEmail(email);
-}
-
-async function resolveDisplayName(
-  supabase: ReturnType<typeof createServiceClient>,
-  userId: string,
-  email: string | null
-): Promise<string> {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, email")
-    .eq("id", userId)
-    .maybeSingle();
-  return greetingNameFromProfile(
-    profile?.full_name as string | null | undefined,
-    email ?? (profile?.email as string | null) ?? null
-  );
-}
 
 function formatShortDate(iso: string | null | undefined): string {
   if (!iso) return "Never";
@@ -63,6 +34,24 @@ function formatShortDate(iso: string | null | undefined): string {
   });
 }
 
+function healthLabel(args: {
+  hasScan: boolean;
+  reviewNeedsReply: boolean;
+  aiLow: boolean;
+  opportunities: number;
+}): { visibility: string; reviews: string; ai: string; backlinks: string } {
+  return {
+    visibility: args.hasScan ? "Improving" : "Needs baseline",
+    reviews: args.reviewNeedsReply ? "Needs attention" : "Stable",
+    ai: args.aiLow ? "Low" : "Tracked",
+    backlinks: args.opportunities > 0 ? "Opportunities open" : "Stable",
+  };
+}
+
+/**
+ * Client Overview — unified health of this location:
+ * what changed, what needs attention, what to do next.
+ */
 export default async function BusinessOverviewPage({
   params,
 }: {
@@ -72,16 +61,6 @@ export default async function BusinessOverviewPage({
   const auth = await requireBusinessPageData(businessId);
   const business = auth.business;
 
-  const supabase = createServiceClient();
-  const [{ data: businesses }, displayName] = await Promise.all([
-    supabase
-      .from("businesses")
-      .select("id, name")
-      .eq("organization_id", auth.organizationId)
-      .order("name"),
-    resolveDisplayName(supabase, auth.userId, auth.email),
-  ]);
-
   const [recentScans, featured, latestGrowthAudit] = await Promise.all([
     loadDashboardRecentScans(businessId, { preview: 8 }),
     loadDashboardFeatured(businessId),
@@ -89,6 +68,10 @@ export default async function BusinessOverviewPage({
   ]);
 
   const accountType = (business as { account_type?: string | null }).account_type;
+  const place =
+    (business as { scan_center_label?: string | null }).scan_center_label?.trim() ||
+    (business as { address_text?: string | null }).address_text?.trim() ||
+    null;
   const crmHref =
     accountType === "prospect" ? `/prospects/${businessId}` : `/clients/${businessId}`;
   const crmLabel = accountType === "prospect" ? "Prospect" : "Client";
@@ -110,24 +93,91 @@ export default async function BusinessOverviewPage({
       ? `${featured.review.rating.toFixed(1)}★`
       : `${featured.review.totalReviews}`;
 
+  const unanswered = featured.review.latestReviews.filter((r) => !r.replied).length;
+  const aiScore = featured.ai.visibilityScore;
+  const health = healthLabel({
+    hasScan: Boolean(latestScan),
+    reviewNeedsReply: unanswered > 0 || (featured.review.responseRate != null && featured.review.responseRate < 50),
+    aiLow: aiScore == null || aiScore < 40,
+    opportunities: featured.local.total,
+  });
+
+  const actions: Array<{ title: string; href: string; why: string }> = [];
+  if (unanswered > 0 || (featured.review.responseRate != null && featured.review.responseRate === 0)) {
+    const count = unanswered || featured.review.latestReviews.length || 1;
+    actions.push({
+      title: `Reply to ${count} review${count === 1 ? "" : "s"}`,
+      href: `/businesses/${businessId}/reviews?tab=unanswered`,
+      why: "Open reviews hurt conversion and AI/local trust signals.",
+    });
+  }
+  if (featured.local.total > 0) {
+    actions.push({
+      title: `Pursue ${Math.min(featured.local.total, 3)} local trust opportunities`,
+      href: `/businesses/${businessId}/trust`,
+      why: "High-signal directories and citations still open in this market.",
+    });
+  }
+  if (aiScore == null || aiScore < 40) {
+    actions.push({
+      title: "Improve AI mention coverage",
+      href: `/businesses/${businessId}/ai-visibility`,
+      why: "AI platforms rarely recommend this business today.",
+    });
+  }
+  if (!latestScan) {
+    actions.unshift({
+      title: "Run a Maps baseline scan",
+      href: `/businesses/${businessId}/scans`,
+      why: "Everything else is easier to prioritize with a ranking baseline.",
+    });
+  }
+
   return (
     <ModulePage wide>
       <JourneyBreadcrumbs
         items={[
           { label: crmLabel + "s", href: accountType === "prospect" ? "/prospects" : "/clients" },
           { label: business.name, href: crmHref },
-          { label: "Dashboard" },
+          { label: "Overview" },
         ]}
       />
-      <DashboardHeader
-        userName={displayName}
-        businessId={businessId}
-        businessName={business.name}
-        businesses={(businesses ?? []).map((b) => ({
-          id: b.id as string,
-          name: b.name as string,
-        }))}
+
+      <PageHeader
+        title={business.name}
+        description={[place, crmLabel].filter(Boolean).join(" · ")}
+        secondaryActions={
+          <Link href={crmHref} className={btnGhost}>
+            Open {crmLabel.toLowerCase()} record
+          </Link>
+        }
+        primaryAction={
+          <Link href={`/businesses/${businessId}/scans`} className={btnPrimary}>
+            <Play className="h-4 w-4 fill-current" />
+            Run scan
+          </Link>
+        }
       />
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {(
+          [
+            ["Local visibility", health.visibility, `/businesses/${businessId}/scans`],
+            ["Reviews", health.reviews, `/businesses/${businessId}/reviews`],
+            ["AI visibility", health.ai, `/businesses/${businessId}/ai-visibility`],
+            ["Backlinks / trust", health.backlinks, `/businesses/${businessId}/trust`],
+          ] as const
+        ).map(([label, value, href]) => (
+          <Link key={label} href={href}>
+            <ContentCard className="h-full transition hover:border-[var(--primary)]/30">
+              <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
+                {label}
+              </p>
+              <p className="mt-2 text-lg font-semibold text-[var(--text)]">{value}</p>
+            </ContentCard>
+          </Link>
+        ))}
+      </div>
 
       <HeroPanel
         eyebrow="Maps visibility"
@@ -184,22 +234,38 @@ export default async function BusinessOverviewPage({
         ]}
       />
 
-      <DashboardRecentScans
-        businessId={businessId}
-        rows={recentScans.rows}
-        total={recentScans.total}
-      />
-
-      <DashboardFeaturedReports businessId={businessId} data={featured} />
-
-      {!latestScan ? (
-        <p className={microClass}>
-          No Maps baseline yet.{" "}
-          <Link href={`/businesses/${businessId}/scans`} className="font-semibold text-[#137752]">
-            Run a scan
-          </Link>
-        </p>
+      {actions.length > 0 ? (
+        <PageSection title="Recommended actions" description="Highest-leverage next steps for this location.">
+          <div className="grid gap-3 lg:grid-cols-3">
+            {actions.slice(0, 3).map((a, i) => (
+              <InsightPanel
+                key={a.href}
+                title={`${i + 1}. ${a.title}`}
+                action={
+                  <Link href={a.href} className={btnPrimary}>
+                    Open
+                  </Link>
+                }
+              >
+                {a.why}
+              </InsightPanel>
+            ))}
+          </div>
+        </PageSection>
       ) : null}
+
+      <PageSection title="Recent activity">
+        <DashboardRecentScans
+          businessId={businessId}
+          rows={recentScans.rows}
+          total={recentScans.total}
+        />
+      </PageSection>
+
+      <div>
+        <h2 className={cn(sectionTitleClass, "mb-3")}>Module snapshots</h2>
+        <DashboardFeaturedReports businessId={businessId} data={featured} />
+      </div>
     </ModulePage>
   );
 }

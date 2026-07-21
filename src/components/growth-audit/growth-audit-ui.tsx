@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { SemiCircleGauge, Sparkline } from "@/components/overview/overview-charts";
 import {
-  dashboardCard,
   dashboardCardTitle,
   dashboardMicro,
   dashboardSectionLabel,
@@ -21,6 +20,7 @@ import { cn } from "@/lib/utils";
 import {
   TabBar,
   PageHeader,
+  ContentCard,
   btnPrimary,
 } from "@/components/ui/design-system";
 
@@ -103,7 +103,11 @@ export function GaCard({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={cn(dashboardCard, "p-3.5", className)}>{children}</div>;
+  return (
+    <ContentCard padding={false} className={cn("p-3.5", className)}>
+      {children}
+    </ContentCard>
+  );
 }
 
 export function GaSectionTitle({
@@ -296,27 +300,23 @@ export function GrowthAuditHeader({
     <PageHeader
       title="Growth Audit"
       description="Find the highest-impact gaps across profile, website, coverage, and competitors."
-      className="[&_h1]:text-lg sm:[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
       meta={
-        startedAt ? (
-          <p className={dashboardMicro}>
-            Last run:{" "}
-            {new Date(startedAt).toLocaleString("en-US", {
+        startedAt
+          ? `Last run ${new Date(startedAt).toLocaleString("en-US", {
               month: "short",
               day: "numeric",
               year: "numeric",
               hour: "numeric",
               minute: "2-digit",
-            })}
-          </p>
-        ) : undefined
+            })}`
+          : undefined
       }
       primaryAction={
         <button
           type="button"
           disabled={running}
           onClick={onRun}
-          className={cn(btnPrimary, "h-9 w-full px-3 text-[13px] sm:w-auto")}
+          className={cn(btnPrimary, "h-10 px-4 text-sm")}
         >
           {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5 fill-current" />}
           Run full growth audit
