@@ -4,17 +4,13 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  CalendarClock,
   FolderKanban,
   Plus,
-  Sparkles,
 } from "lucide-react";
 import {
   ModuleHeader,
   ModulePage,
   ModuleSkeleton,
-  StatCard,
-  KpiGrid,
   btnPrimary,
   btnSecondary,
   listClass,
@@ -33,7 +29,7 @@ type Campaign = {
   keyword_count?: number | null;
 };
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 15;
 
 export default function BusinessCampaignsPage() {
   const params = useParams();
@@ -83,7 +79,6 @@ export default function BusinessCampaignsPage() {
       <ModuleHeader
         icon={FolderKanban}
         title="Maps Campaigns"
-        subtitle="Group keywords, set a baseline, and schedule recurring Maps scans for this location."
         actions={
           <button type="button" onClick={() => setShowWizard(true)} className={btnPrimary}>
             <Plus className="h-4 w-4" />
@@ -120,34 +115,15 @@ export default function BusinessCampaignsPage() {
         />
       ) : campaigns.length > 0 ? (
         <div className="space-y-3">
-          <KpiGrid cols={3}>
-            <StatCard
-              label="Campaigns"
-              value={campaigns.length}
-              sub="For this location"
-              icon={FolderKanban}
-            />
-            <StatCard
-              label="Scheduled"
-              value={scheduled}
-              sub="Recurring or enabled"
-              icon={CalendarClock}
-              iconWrapClassName="bg-sky-50 text-sky-600"
-            />
-            <StatCard
-              label="Ready to run"
-              value={campaigns.length - scheduled}
-              sub="Manual / one-off"
-              icon={Sparkles}
-              iconWrapClassName="bg-violet-50 text-violet-600"
-            />
-          </KpiGrid>
-
+          <p className="text-[12px] text-zinc-500">
+            {campaigns.length} campaign{campaigns.length === 1 ? "" : "s"}
+            {scheduled ? ` · ${scheduled} scheduled` : ""}
+          </p>
           <ul className={listClass}>
             {pageItems.map((c) => (
               <li
                 key={c.id}
-                className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-2 px-3.5 py-2.5 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="flex min-w-0 items-start gap-3">
                   <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-100">

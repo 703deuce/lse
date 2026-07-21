@@ -43,9 +43,7 @@ export const BACKLINK_GAP_TABS: { id: BacklinkGapTabId; label: string }[] = [
 export function GapPageHeader() {
   return (
     <ModuleHeader
-      title="Competitor Backlink Gap"
-      subtitle="Find websites linking to competitors but not to you."
-      className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
+      title="Backlink Gap"
     />
   );
 }

@@ -1,9 +1,7 @@
 import { createServiceClient } from "@/lib/db/client";
 import { DashboardHeader } from "@/components/overview/dashboard-header";
-import { DashboardQuickActions } from "@/components/overview/dashboard-quick-actions";
 import { DashboardRecentScans } from "@/components/overview/dashboard-recent-scans";
 import { DashboardFeaturedReports } from "@/components/overview/dashboard-featured-reports";
-import { DashboardToolsRow } from "@/components/overview/dashboard-tools-row";
 import { ModulePage } from "@/components/ui/design-system";
 import { loadDashboardFeatured } from "@/lib/overview/load-dashboard-featured";
 import { loadDashboardRecentScans } from "@/lib/overview/load-dashboard-scans";
@@ -60,15 +58,13 @@ export default async function OverviewPreviewPage() {
   ]);
 
   return (
-    <ModulePage wide className="!space-y-3 px-5 py-6 lg:px-8">
+    <ModulePage wide className="!space-y-3 px-4 py-4 lg:px-5">
       <DashboardHeader
         userName="Anthony"
         businessId={businessId}
         businessName={businessName}
         businesses={businesses}
       />
-
-      <DashboardQuickActions businessId={businessId} />
 
       <DashboardRecentScans
         businessId={businessId}
@@ -77,8 +73,6 @@ export default async function OverviewPreviewPage() {
       />
 
       <DashboardFeaturedReports businessId={businessId} data={featured} />
-
-      <DashboardToolsRow businessId={businessId} />
     </ModulePage>
   );
 }

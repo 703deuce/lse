@@ -30,11 +30,8 @@ import type { MarketInsights } from "@/lib/reviews/market-insights";
 import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 import { buildMarketInsightsFromEntityRows } from "@/lib/reviews/market-insights";
 import {
-  MomentumScoreBarsPanel,
   MomentumSnapshotCard,
   ReviewMomentumTopKpis,
-  ShareOfReviewsPanel,
-  WeeklyPacePanel,
 } from "@/components/reviews/review-momentum-insights";
 import {
   MomentumPageHeader,
@@ -590,12 +587,6 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
                   sub="reviews per week"
                 />
               </KpiRow>
-
-              <div className="grid gap-2 xl:grid-cols-3">
-                <WeeklyPacePanel market={market} />
-                <ShareOfReviewsPanel market={market} />
-                <MomentumScoreBarsPanel entities={displayEntities} />
-              </div>
             </>
           )}
 

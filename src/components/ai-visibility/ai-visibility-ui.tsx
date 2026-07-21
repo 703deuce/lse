@@ -83,7 +83,6 @@ export function AiVisibilityHeaderRow({
   return (
     <ModuleHeader
       title="AI Visibility"
-      subtitle="Track how AI platforms discover and recommend your business."
       icon={Sparkles}
       actions={
         <>

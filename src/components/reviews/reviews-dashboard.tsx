@@ -12,8 +12,6 @@ import {
   ReviewsHeader,
   ReviewsKpiRow,
   ReviewsTabs,
-  SuggestedActionsSidebar,
-  SuggestedReplyTasksSidebar,
   type ReviewsTabId,
 } from "@/components/reviews/reviews-ui";
 import type { ReviewsPageData } from "@/lib/reviews/reviews-page-data";
@@ -135,15 +133,6 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
       {tab === "competitor-reviews" && <ReviewsCompetitorTab data={data} />}
       {tab === "sentiment" && <ReviewsSentimentTab data={data} />}
       {tab === "unanswered" && <ReviewsUnansweredTab data={data} businessId={businessId} />}
-
-      <div className="grid gap-2 xl:grid-cols-2">
-        <SuggestedActionsSidebar suggestions={data.suggestions} businessId={businessId} onTabChange={handleTabChange} />
-        <SuggestedReplyTasksSidebar
-          data={data}
-          businessId={businessId}
-          onTabChange={handleTabChange}
-        />
-      </div>
     </ModulePage>
   );
 }

@@ -295,8 +295,7 @@ export function GrowthAuditHeader({
 }) {
   return (
     <ModuleHeader
-      title="Google Maps Growth Audit"
-      subtitle="One audit. One growth plan. Everything wrong with your Maps presence."
+      title="Growth Audit"
       icon={BadgeCheck}
       className="[&_h1]:text-lg sm:[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
       meta={

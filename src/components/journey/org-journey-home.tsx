@@ -1,15 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
   ArrowRight,
   Briefcase,
-  Building2,
-  FileText,
   MapPin,
-  Play,
-  Target,
 } from "lucide-react";
 import { NextBestActionsPanel } from "@/components/journey/next-best-actions-panel";
 import { SetupProgressCard } from "@/components/journey/setup-progress-card";
@@ -27,11 +21,11 @@ import {
   ModuleHeader,
   ModulePage,
   ModuleSkeleton,
-  cardClass,
-  cardLabelClass,
   sectionTitleClass,
 } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 
 type RecentItem = {
   id: string;
@@ -55,48 +49,15 @@ type BizRow = {
   archived_at?: string | null;
 };
 
-const QUICK_ACTIONS = [
-  {
-    href: "/businesses/new?as=prospect",
-    label: "Add prospect",
-    hint: "Win new work",
-    icon: Target,
-    wrap: "bg-sky-50 text-sky-600",
-  },
-  {
-    href: "/businesses/new?as=client",
-    label: "Add client",
-    hint: "Start tracking",
-    icon: Building2,
-    wrap: "bg-emerald-50 text-emerald-600",
-  },
-  {
-    href: "/scans/new",
-    label: "Run scan",
-    hint: "Maps visibility",
-    icon: Play,
-    wrap: "bg-violet-50 text-violet-600",
-  },
-  {
-    href: "/reports",
-    label: "Create report",
-    hint: "Deliver value",
-    icon: FileText,
-    wrap: "bg-amber-50 text-amber-600",
-  },
-] as const;
-
-function emptyQueue(): WorkingQueue {
-  return {
-    scansRunning: [],
-    scansCompleted: [],
-    reportsDue: [],
-    clientsNeedScan: [],
-    schedulesUpcoming: [],
-    draftReports: [],
-    prospectAudits: [],
-  };
-}
+const emptyQueue = (): WorkingQueue => ({
+  scansRunning: [],
+  scansCompleted: [],
+  reportsDue: [],
+  clientsNeedScan: [],
+  schedulesUpcoming: [],
+  draftReports: [],
+  prospectAudits: [],
+});
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -272,134 +233,45 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
     })();
   }, []);
 
-  const { recentClients, recentProspects, locationCount } = useMemo(() => {
+  const { recentClients, recentProspects } = useMemo(() => {
     const active = businesses.filter((b) => !b.archived_at);
     const byRecent = [...active].sort((a, b) =>
       String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""))
     );
     const prospects = byRecent
       .filter((b) => b.account_type === "prospect" || b.is_tracked === false)
-      .slice(0, 3);
+      .slice(0, 5);
     const clients = byRecent
       .filter((b) => b.account_type !== "prospect" && b.is_tracked !== false)
-      .slice(0, 3);
+      .slice(0, 5);
     return {
       recentClients: clients,
       recentProspects: prospects,
-      locationCount: active.length,
     };
   }, [businesses]);
-
-  const activeCount =
-    scansRunning.length + schedulesUpcoming.length + draftReports.length;
-  const attentionCount = needsAttention.length;
 
   return (
     <ModulePage wide>
       <ModuleHeader
         icon={Briefcase}
         title="Workspace"
-        subtitle={
-          orgName?.trim()
-            ? `${orgName.trim()} — pick a location, clear the queue, deliver the work.`
-            : "Pick a location, clear the queue, deliver the work."
+        subtitle={orgName?.trim() || undefined}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Link href="/businesses/new?as=prospect" className="text-[12px] font-semibold text-[#137752] hover:underline">
+              + Prospect
+            </Link>
+            <Link href="/businesses/new?as=client" className="text-[12px] font-semibold text-[#137752] hover:underline">
+              + Client
+            </Link>
+          </div>
         }
       />
-
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        {QUICK_ACTIONS.map((a) => {
-          const Icon = a.icon;
-          return (
-            <Link
-              key={a.href}
-              href={a.href}
-              className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3.5 transition hover:border-zinc-300 hover:bg-zinc-50"
-            >
-              <span
-                className={cn(
-                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-md ring-1 ring-inset ring-black/5",
-                  a.wrap
-                )}
-              >
-                <Icon className="h-4 w-4" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-[13px] font-semibold text-zinc-900">
-                  {a.label}
-                </span>
-                <span className="block text-[11px] text-zinc-500">{a.hint}</span>
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-
-      {!loading ? (
-        <div className="grid gap-2 sm:grid-cols-3">
-          <div className={cn(cardClass, "p-3.5")}>
-            <p className={cardLabelClass}>Active work</p>
-            <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900">
-              {activeCount}
-            </p>
-            <p className="mt-0.5 text-[11px] text-zinc-500">
-              {scansRunning.length} scans · {draftReports.length} drafts
-            </p>
-          </div>
-          <div className={cn(cardClass, "p-3.5")}>
-            <p className={cardLabelClass}>Needs attention</p>
-            <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900">
-              {attentionCount}
-            </p>
-            <p className="mt-0.5 text-[11px] text-zinc-500">
-              Overdue scans, drafts, follow-ups
-            </p>
-          </div>
-          <div className={cn(cardClass, "p-3.5")}>
-            <p className={cardLabelClass}>Locations</p>
-            <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900">
-              {locationCount}
-            </p>
-            <p className="mt-0.5 text-[11px] text-zinc-500">
-              Clients + prospects in your org
-            </p>
-          </div>
-        </div>
-      ) : null}
 
       {loading ? (
         <ModuleSkeleton rows={6} />
       ) : (
         <>
-      {/* Clients + prospects — wait for load so empty states do not flash */}
-      <div className="grid gap-3 lg:grid-cols-2">
-        <LocationRoster
-          title="Clients"
-          subtitle="Open a Dashboard and run the full toolset."
-          mode="clients"
-          accent="emerald"
-          rows={recentClients}
-          empty="No clients yet. Add a client to start recurring tracking."
-          viewAllHref="/clients"
-          hrefFor={(b) => `/businesses/${b.id}/overview`}
-        />
-        <LocationRoster
-          title="Prospects"
-          subtitle="Audit, report, then convert when they sign."
-          mode="prospects"
-          accent="sky"
-          rows={recentProspects}
-          empty="No prospects yet. Add a prospect to run your first audit."
-          viewAllHref="/prospects"
-          hrefFor={(b) => `/businesses/${b.id}/overview`}
-        />
-      </div>
-
-        <div className="space-y-3">
-          {setup && !setup.complete ? <SetupProgressCard progress={setup} /> : null}
-
-          <NextBestActionsPanel actions={actions} limit={5} />
-
-          {/* Active + attention — full-width halves */}
           <div className="grid gap-3 md:grid-cols-2">
             <ActiveWorkPanel
               scansRunning={scansRunning}
@@ -409,25 +281,43 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
             <NeedsAttentionPanel items={needsAttention} />
           </div>
 
-          {/* Recent results — full width */}
+          {setup && !setup.complete ? <SetupProgressCard progress={setup} /> : null}
+          <NextBestActionsPanel actions={actions} limit={4} />
+
+          <div className="grid gap-3 lg:grid-cols-2">
+            <LocationRoster
+              title="Clients"
+              subtitle={`${recentClients.length} recent`}
+              mode="clients"
+              accent="emerald"
+              rows={recentClients}
+              empty="No clients yet."
+              viewAllHref="/clients"
+              hrefFor={(b) => `/businesses/${b.id}/overview`}
+            />
+            <LocationRoster
+              title="Prospects"
+              subtitle={`${recentProspects.length} recent`}
+              mode="prospects"
+              accent="sky"
+              rows={recentProspects}
+              empty="No prospects yet."
+              viewAllHref="/prospects"
+              hrefFor={(b) => `/businesses/${b.id}/overview`}
+            />
+          </div>
+
           <RecentResultsPanel items={recent} />
 
-          {/* Live ops only: scans running + reports due */}
           <div>
             <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
-              <div>
-                <h2 className={sectionTitleClass}>Live queue</h2>
-                <p className="mt-0.5 text-[11px] text-zinc-500">
-                  What is running now and which reports are due — completed work lives in Recent results.
-                </p>
-              </div>
+              <h2 className={sectionTitleClass}>Live queue</h2>
               {scansRunning.length > 0 || queue.scansRunning.length > 0 ? (
                 <CancelActiveScansButton label="Cancel all scans" />
               ) : null}
             </div>
             <WorkspaceQueueGrid queue={queue} />
           </div>
-        </div>
         </>
       )}
     </ModulePage>

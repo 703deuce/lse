@@ -13,8 +13,6 @@ import { createServiceClient } from "@/lib/db/client";
 import {
   ModuleHeader,
   ModulePage,
-  StatCard,
-  KpiGrid,
   btnPrimary,
   btnSecondary,
   cardClass,
@@ -30,7 +28,7 @@ import {
 } from "@/components/scan/cancel-active-scans-button";
 import { cn } from "@/lib/utils";
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 20;
 
 function toPositiveInt(value: string | string[] | undefined, fallback: number): number {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -99,10 +97,6 @@ export default async function OrgScansPage({
     isCancellableScanStatus(String(s.status))
   );
 
-  // Lightweight org-level KPIs from the current page + totals
-  const completedOnPage = (scans ?? []).filter((s) =>
-    ["completed", "ready", "done"].includes(String(s.status).toLowerCase())
-  ).length;
   const runningOnPage = (scans ?? []).filter((s) =>
     isCancellableScanStatus(String(s.status))
   ).length;
@@ -112,10 +106,14 @@ export default async function OrgScansPage({
       <ModuleHeader
         icon={<Radar className="h-5 w-5 shrink-0 text-emerald-600" />}
         title="Recent Scans"
-        subtitle="Maps grid history across every prospect and client — open any scan to review the rank map."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {hasActive ? <CancelActiveScansButton /> : null}
+            {runningOnPage > 0 ? (
+              <span className="rounded-md bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800">
+                {runningOnPage} in progress
+              </span>
+            ) : null}
             <Link href="/scans/new" className={btnPrimary}>
               <Plus className="h-4 w-4" />
               New scan
@@ -123,31 +121,6 @@ export default async function OrgScansPage({
           </div>
         }
       />
-
-      {total > 0 ? (
-        <KpiGrid cols={3}>
-          <StatCard
-            label="Total scans"
-            value={total}
-            sub="Across your workspace"
-            icon={<Grid3X3 className="h-3 w-3" />}
-          />
-          <StatCard
-            label="On this page"
-            value={completedOnPage}
-            sub="Completed results shown"
-            icon={<CheckCircle2 className="h-3 w-3" />}
-            iconWrapClassName="bg-emerald-50 text-emerald-600"
-          />
-          <StatCard
-            label="In progress"
-            value={runningOnPage}
-            sub={runningOnPage ? "Can be cancelled" : "Nothing running here"}
-            icon={<Loader2 className="h-3 w-3" />}
-            iconWrapClassName="bg-amber-50 text-amber-600"
-          />
-        </KpiGrid>
-      ) : null}
 
       {!scans?.length ? (
         <ModuleEmptyState

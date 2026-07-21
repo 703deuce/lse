@@ -228,7 +228,6 @@ export function ReviewsHeader({
   return (
     <ModuleHeader
       title="Reviews"
-      subtitle="Monitor your review feed, compare competitors, and spot momentum over the last 90 days."
       className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
       actions={
         <>

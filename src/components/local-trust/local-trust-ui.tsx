@@ -51,9 +51,7 @@ export const LOCAL_TRUST_TABS: { id: LocalTrustTabId; label: string }[] = [
 export function TrustPageHeader() {
   return (
     <ModuleHeader
-      title="Local Trust Opportunities"
-      subtitle="Find chambers, sponsorships, community pages, and local directories where your business can get mentioned."
-      className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
+      title="Local Trust"
     />
   );
 }

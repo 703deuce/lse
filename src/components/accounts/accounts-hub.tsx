@@ -26,7 +26,6 @@ import {
   ModuleSkeleton,
   btnPrimary,
   btnSecondary,
-  cardClass,
 } from "@/components/ui/design-system";
 import { ModuleEmptyState } from "@/components/journey/module-empty-state";
 import { ClientPager, ShowMoreList } from "@/components/ui/show-more-list";
@@ -42,7 +41,7 @@ import {
 } from "@/lib/accounts/types";
 import { cn } from "@/lib/utils";
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 20;
 
 function locationSubtitle(b: AccountListRow): string {
   return b.address_text?.trim() || b.scan_center_label?.trim() || b.primary_category || "—";
@@ -288,10 +287,6 @@ export function AccountsHub({
   );
 
   const title = mode === "clients" ? "Clients" : "Prospects";
-  const subtitle =
-    mode === "clients"
-      ? "Active client locations you track with Maps scans and branded reports."
-      : "Prospect audits for outreach. Convert to a client when you win the work — scans and reports stay attached.";
 
   const emptyTitle = mode === "clients" ? "No clients yet" : "No prospects yet";
   const emptyBody =
@@ -308,17 +303,13 @@ export function AccountsHub({
       <ModuleHeader
         icon={mode === "clients" ? Building2 : Users}
         title={title}
-        subtitle={subtitle}
         actions={
           mode === "clients" && !canAdd ? (
-            <span className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              {trackedCount}/{maxBusinesses} active locations — upgrade to add more
+            <span className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-[12px] text-amber-900">
+              {trackedCount}/{maxBusinesses} active — upgrade to add more
             </span>
           ) : (
-            <Link
-              href={newHref}
-              className={btnPrimary}
-            >
+            <Link href={newHref} className={btnPrimary}>
               <Plus className="h-4 w-4" />
               {newLabel}
             </Link>
@@ -419,145 +410,100 @@ export function AccountsHub({
         />
       ) : (
         <div className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {pagedList.map((b) => {
-              const dashboardHref = `/businesses/${b.id}/overview`;
-              const detailHref =
-                mode === "prospects" ? `/prospects/${b.id}` : `/clients/${b.id}`;
-              return (
-                <article
-                  key={b.id}
-                  className={cn(
-                    cardClass,
-                    "flex flex-col p-3.5 transition hover:border-zinc-300"
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#137752] text-[11px] font-semibold text-white">
-                      {initials(b.name)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <Link
-                        href={dashboardHref}
-                        className="block truncate text-[13px] font-semibold text-zinc-900 hover:text-[#137752]"
-                      >
-                        {b.name}
-                      </Link>
-                      <p className="mt-0.5 flex items-center gap-1 truncate text-[12px] text-zinc-500">
-                        <MapPin className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                        <span className="truncate">{locationSubtitle(b)}</span>
-                      </p>
-                      {mode === "prospects" ? (
-                        <p className="mt-1.5 text-[11px] capitalize text-zinc-400">
-                          {statusLabel(b.prospect_status ?? "new")}
-                          {b.primary_contact_name ? ` · ${b.primary_contact_name}` : ""}
-                        </p>
-                      ) : b.primary_category ? (
-                        <span className="mt-1.5 inline-flex rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-600">
-                          {b.primary_category}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-zinc-100 pt-3">
-                    <Link
-                      href={dashboardHref}
-                      className={cn(btnPrimary, "h-8 px-3 text-xs")}
-                    >
-                      Dashboard
-                    </Link>
-                    <Link
-                      href={detailHref}
-                      className={cn(btnSecondary, "h-8 px-3 text-xs")}
-                    >
-                      Details
-                    </Link>
-                    <RowOverflowLinks businessId={b.id} />
-                    {mode === "prospects" && !b.archived_at ? (
-                      <button
-                        type="button"
-                        disabled={busyId === b.id}
-                        onClick={() => void convertToClient(b.id)}
-                        className={cn(btnSecondary, "h-8 px-3 text-xs disabled:opacity-50")}
-                      >
-                        {busyId === b.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <UserCheck className="h-3.5 w-3.5" />
-                        )}
-                        Convert
-                      </button>
-                    ) : null}
-                    {mode === "clients" && clientFilter === "active" ? (
-                      <button
-                        type="button"
-                        disabled={busyId === b.id}
-                        onClick={() => void archiveClient(b.id)}
-                        className={cn(btnSecondary, "ml-auto h-8 px-3 text-xs disabled:opacity-50")}
-                      >
-                        {busyId === b.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Archive className="h-3.5 w-3.5" />
-                        )}
-                        Archive
-                      </button>
-                    ) : null}
-                    {mode === "clients" && clientFilter === "archived" ? (
-                      <button
-                        type="button"
-                        disabled={busyId === b.id}
-                        onClick={() => void restoreClient(b.id)}
-                        className={cn(btnSecondary, "ml-auto h-8 px-3 text-xs disabled:opacity-50")}
-                      >
-                        {busyId === b.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <RotateCcw className="h-3.5 w-3.5" />
-                        )}
-                        Restore
-                      </button>
-                    ) : null}
-                  </div>
-                </article>
-              );
-            })}
+          <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+            <table className="min-w-full text-left text-[13px]">
+              <thead className="border-b border-zinc-200 bg-zinc-50/90 text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-500">
+                <tr>
+                  <th className="px-3 py-2.5 font-semibold">Name</th>
+                  <th className="hidden px-3 py-2.5 font-semibold sm:table-cell">Location</th>
+                  <th className="hidden px-3 py-2.5 font-semibold md:table-cell">
+                    {mode === "prospects" ? "Stage" : "Category"}
+                  </th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {pagedList.map((b) => {
+                  const dashboardHref = `/businesses/${b.id}/overview`;
+                  const detailHref =
+                    mode === "prospects" ? `/prospects/${b.id}` : `/clients/${b.id}`;
+                  return (
+                    <tr key={b.id} className="hover:bg-zinc-50/80">
+                      <td className="px-3 py-2.5">
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#137752] text-[10px] font-semibold text-white">
+                            {initials(b.name)}
+                          </span>
+                          <Link
+                            href={dashboardHref}
+                            className="truncate font-semibold text-zinc-900 hover:text-[#137752]"
+                          >
+                            {b.name}
+                          </Link>
+                        </div>
+                      </td>
+                      <td className="hidden max-w-[14rem] truncate px-3 py-2.5 text-zinc-500 sm:table-cell">
+                        {locationSubtitle(b)}
+                      </td>
+                      <td className="hidden px-3 py-2.5 capitalize text-zinc-500 md:table-cell">
+                        {mode === "prospects"
+                          ? statusLabel(b.prospect_status ?? "new")
+                          : b.primary_category ?? "—"}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                          <Link href={dashboardHref} className={cn(btnPrimary, "h-7 px-2.5 text-[11px]")}>
+                            Open
+                          </Link>
+                          <Link href={detailHref} className={cn(btnSecondary, "h-7 px-2.5 text-[11px]")}>
+                            Details
+                          </Link>
+                          {mode === "prospects" && !b.archived_at ? (
+                            <button
+                              type="button"
+                              disabled={busyId === b.id}
+                              onClick={() => void convertToClient(b.id)}
+                              className={cn(btnSecondary, "h-7 px-2.5 text-[11px] disabled:opacity-50")}
+                            >
+                              {busyId === b.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                "Convert"
+                              )}
+                            </button>
+                          ) : null}
+                          {mode === "clients" && clientFilter === "active" ? (
+                            <button
+                              type="button"
+                              disabled={busyId === b.id}
+                              onClick={() => void archiveClient(b.id)}
+                              className={cn(btnSecondary, "h-7 px-2.5 text-[11px] disabled:opacity-50")}
+                            >
+                              Archive
+                            </button>
+                          ) : null}
+                          {mode === "clients" && clientFilter === "archived" ? (
+                            <button
+                              type="button"
+                              disabled={busyId === b.id}
+                              onClick={() => void restoreClient(b.id)}
+                              className={cn(btnSecondary, "h-7 px-2.5 text-[11px] disabled:opacity-50")}
+                            >
+                              Restore
+                            </button>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
           <ClientPager page={currentPage} pageSize={PAGE_SIZE} total={list.length} onPageChange={setPage} />
         </div>
       )}
     </ModulePage>
-  );
-}
-
-function RowOverflowLinks({ businessId }: { businessId: string }) {
-  return (
-    <details className="relative">
-      <summary
-        className={cn(
-          btnSecondary,
-          "h-8 cursor-pointer list-none px-2.5 text-xs [&::-webkit-details-marker]:hidden"
-        )}
-      >
-        <MoreHorizontal className="h-3.5 w-3.5" />
-        More
-      </summary>
-      <div className="absolute right-0 z-20 mt-1 w-36 overflow-hidden rounded-xl border border-zinc-200 bg-white py-1 text-xs shadow-lg">
-        <Link
-          href={`/businesses/${businessId}/scans`}
-          className="block px-3 py-2 font-medium text-zinc-700 hover:bg-zinc-50"
-        >
-          Scans
-        </Link>
-        <Link
-          href={`/businesses/${businessId}/reports`}
-          className="block px-3 py-2 font-medium text-zinc-700 hover:bg-zinc-50"
-        >
-          Reports
-        </Link>
-      </div>
-    </details>
   );
 }
 
