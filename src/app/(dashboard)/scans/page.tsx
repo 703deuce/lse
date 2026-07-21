@@ -110,7 +110,7 @@ export default async function OrgScansPage({
   return (
     <ModulePage>
       <ModuleHeader
-        icon={Radar}
+        icon={<Radar className="h-5 w-5 shrink-0 text-emerald-600" />}
         title="Recent Scans"
         subtitle="Maps grid history across every prospect and client — open any scan to review the rank map."
         actions={
@@ -130,20 +130,20 @@ export default async function OrgScansPage({
             label="Total scans"
             value={total}
             sub="Across your workspace"
-            icon={Grid3X3}
+            icon={<Grid3X3 className="h-3 w-3" />}
           />
           <StatCard
             label="On this page"
             value={completedOnPage}
             sub="Completed results shown"
-            icon={CheckCircle2}
+            icon={<CheckCircle2 className="h-3 w-3" />}
             iconWrapClassName="bg-emerald-50 text-emerald-600"
           />
           <StatCard
             label="In progress"
             value={runningOnPage}
             sub={runningOnPage ? "Can be cancelled" : "Nothing running here"}
-            icon={Loader2}
+            icon={<Loader2 className="h-3 w-3" />}
             iconWrapClassName="bg-amber-50 text-amber-600"
           />
         </KpiGrid>
@@ -151,7 +151,7 @@ export default async function OrgScansPage({
 
       {!scans?.length ? (
         <ModuleEmptyState
-          icon={Radar}
+          icon={<Radar className="h-5 w-5" />}
           title="No scans yet"
           description="Run a Maps scan for a prospect or client to track local rankings over time."
           actionLabel="Start a scan"

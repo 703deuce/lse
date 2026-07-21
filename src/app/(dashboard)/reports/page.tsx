@@ -19,7 +19,7 @@ export default async function ReportsIndexPage() {
   return (
     <ModulePage>
       <ModuleHeader
-        icon={FileText}
+        icon={<FileText className="h-5 w-5 shrink-0 text-emerald-600" />}
         title="Reports"
         subtitle="Drafts, published links, and monthly deliverables — the completion point of your client work."
       />

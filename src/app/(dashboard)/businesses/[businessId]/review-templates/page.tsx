@@ -18,7 +18,7 @@ export default async function ReviewTemplatesPage({
   return (
     <ModulePage>
       <ModuleHeader
-        icon={FileText}
+        icon={<FileText className="h-5 w-5 shrink-0 text-emerald-600" />}
         title="Templates"
         subtitle="Create, edit, and test SMS/email templates. Tracked {{review_link}} tokens redirect through /r/ then to Google."
       />

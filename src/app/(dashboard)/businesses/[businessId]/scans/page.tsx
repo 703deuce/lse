@@ -123,7 +123,7 @@ export default async function ScansPage({
   return (
     <ModulePage>
       <ModuleHeader
-        icon={Grid3X3}
+        icon={<Grid3X3 className="h-5 w-5 shrink-0 text-emerald-600" />}
         title="Maps Scans"
         subtitle="Pick keywords, set the local search grid, then run — nothing starts until you click Run scan."
       />
