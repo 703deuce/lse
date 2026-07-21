@@ -10,7 +10,7 @@ export default async function ReportsIndexPage() {
 
   const { data: businesses } = await supabase
     .from("businesses")
-    .select("id, name, account_type, is_tracked, archived_at, address")
+    .select("id, name, account_type, is_tracked, archived_at, address_text")
     .eq("organization_id", auth.organizationId)
     .order("name");
 
@@ -21,7 +21,7 @@ export default async function ReportsIndexPage() {
       name: b.name,
       account_type: b.account_type,
       is_tracked: b.is_tracked,
-      address: (b as { address?: string | null }).address ?? null,
+      address: (b as { address_text?: string | null }).address_text ?? null,
     }));
 
   return (
