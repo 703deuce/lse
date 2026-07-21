@@ -3,15 +3,10 @@
 import type { ComponentType, ReactNode } from "react";
 import {
   Calendar,
-  ClipboardList,
   Clock,
-  Eye,
-  Globe,
   ListPlus,
   Play,
   RefreshCw,
-  Shield,
-  Star,
   Target,
   Users,
 } from "lucide-react";
@@ -22,12 +17,15 @@ import {
   dashboardControl,
 } from "@/components/overview/dashboard-ui";
 import {
-  ModuleHeader,
+  HeroPanel,
+  MetricStrip,
+  PageHeader,
   TabBar,
+  btnGhost,
   btnPrimary,
   btnSecondary,
+  heroMetricClass,
 } from "@/components/ui/design-system";
-import { GridMetricCard, KpiRow } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 
 export type BacklinkGapTabId = "overview" | "opportunities" | "matrix" | "ignored" | "tasks";
@@ -42,10 +40,9 @@ export const BACKLINK_GAP_TABS: { id: BacklinkGapTabId; label: string }[] = [
 
 export function GapPageHeader() {
   return (
-    <ModuleHeader
-      title="Competitor Backlink Gap"
-      subtitle="Find websites linking to competitors but not to you."
-      className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
+    <PageHeader
+      title="Backlink Gap"
+      description="Identify the most valuable domains linking to competitors but not to you."
     />
   );
 }
@@ -74,6 +71,7 @@ export function GapActionBar({
   onRerun,
   onCreateTasks,
   onRefresh,
+  compact,
 }: {
   isRunning: boolean;
   hasRun: boolean;
@@ -82,18 +80,22 @@ export function GapActionBar({
   onRerun: () => void;
   onCreateTasks: () => void;
   onRefresh: () => void;
+  /** Hide primary Run when it already lives in the hero. */
+  compact?: boolean;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        onClick={onRun}
-        disabled={isRunning}
-        className={cn(btnPrimary, "h-9 px-3.5 text-[13px]")}
-      >
-        <Play className="h-3.5 w-3.5 fill-current" />
-        Run Backlink Gap
-      </button>
+      {!compact ? (
+        <button
+          type="button"
+          onClick={onRun}
+          disabled={isRunning}
+          className={cn(btnPrimary, "h-9 px-3.5 text-[13px]")}
+        >
+          <Play className="h-3.5 w-3.5 fill-current" />
+          Run analysis
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={onRerun}
@@ -110,13 +112,13 @@ export function GapActionBar({
         className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
       >
         <ListPlus className="h-3.5 w-3.5" />
-        Create Tasks
+        Create tasks
       </button>
       <button
         type="button"
         onClick={onRefresh}
         disabled={loading}
-        className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
+        className={cn(btnGhost, "h-9 px-3 text-[13px]")}
       >
         <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
         Refresh
@@ -130,19 +132,32 @@ export function GapKpiRow({
   competitorDomains,
   missing,
   highPriority,
+  actions,
 }: {
   targetDomains: number | string;
   competitorDomains: number | string;
   missing: number | string;
   highPriority: number | string;
+  actions?: ReactNode;
 }) {
   return (
-    <KpiRow cols={4}>
-      <GridMetricCard label="Target Referring Domains" value={targetDomains} sub="Domains pointing to you" icon={Globe} />
-      <GridMetricCard label="Competitor Domains Found" value={competitorDomains} sub="Unique domains found" icon={Users} />
-      <GridMetricCard label="Missing Opportunities" value={missing} sub="Opportunities to capture" icon={Target} />
-      <GridMetricCard label="High Priority Links" value={highPriority} sub="High priority opportunities" icon={Star} />
-    </KpiRow>
+    <div className="space-y-3">
+      <HeroPanel
+        eyebrow="Link acquisition"
+        title="Missing opportunities"
+        description="Domains linking to competitors that are not yet linking to you."
+        metric={<span className={heroMetricClass}>{missing}</span>}
+        metricLabel="Open gaps"
+        actions={actions}
+      />
+      <MetricStrip
+        items={[
+          { label: "Your referring domains", value: String(targetDomains) },
+          { label: "Competitor domains", value: String(competitorDomains) },
+          { label: "High priority", value: String(highPriority) },
+        ]}
+      />
+    </div>
   );
 }
 
@@ -158,12 +173,14 @@ export function GapIgnoredKpiRow({
   review: number;
 }) {
   return (
-    <KpiRow cols={4}>
-      <GridMetricCard label="Ignored Domains" value={ignored} sub="Links you've ignored" icon={Eye} />
-      <GridMetricCard label="Spam Candidates" value={spam} sub="Flagged as potentially spam" icon={Shield} iconWrapClassName="bg-red-50" iconClassName="text-red-600" />
-      <GridMetricCard label="Restored Links" value={restored} sub="Restored to active" icon={RefreshCw} />
-      <GridMetricCard label="Review Needed" value={review} sub="Require your review" icon={ClipboardList} iconWrapClassName="bg-amber-50" iconClassName="text-amber-600" />
-    </KpiRow>
+    <MetricStrip
+      items={[
+        { label: "Ignored domains", value: String(ignored) },
+        { label: "Spam candidates", value: String(spam) },
+        { label: "Restored links", value: String(restored) },
+        { label: "Review needed", value: String(review) },
+      ]}
+    />
   );
 }
 

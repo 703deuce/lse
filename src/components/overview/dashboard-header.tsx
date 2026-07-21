@@ -3,10 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Building2, ChevronDown, Play } from "lucide-react";
-import { pageSubtitleClass, pageTitleClass, btnPrimary } from "@/components/ui/design-system";
-import {
-  dashboardControl,
-} from "@/components/overview/dashboard-ui";
+import { btnPrimary } from "@/components/ui/design-system";
+import { dashboardControl } from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
 
 function greetingForHour(hour: number): string {
@@ -30,13 +28,13 @@ export function DashboardHeader({
   const greeting = greetingForHour(new Date().getHours());
 
   return (
-    <header className="border-b border-zinc-200/70 pb-4">
+    <header className="pb-1">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className={cn(pageTitleClass, "text-[1.35rem] font-semibold")}>
+          <h1 className="text-[28px] font-semibold tracking-tight text-zinc-900 sm:text-[32px]">
             {`${greeting}, ${userName.trim() || "there"}`}
           </h1>
-          <p className={cn(pageSubtitleClass, "mt-1 text-[13px] text-zinc-500")}>
+          <p className="mt-1.5 text-sm text-zinc-500">
             Performance snapshot for{" "}
             <span className="font-medium text-zinc-700">{businessName}</span>
           </p>
@@ -64,7 +62,7 @@ export function DashboardHeader({
 
           <Link
             href={`/businesses/${businessId}/scans`}
-            className={cn(btnPrimary, "h-9 w-full justify-center px-3.5 text-[13px] sm:w-auto")}
+            className={cn(btnPrimary, "h-8 w-full justify-center px-3 text-[13px] sm:w-auto")}
           >
             <Play className="h-3.5 w-3.5 fill-current" />
             Run Quick Scan

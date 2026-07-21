@@ -26,8 +26,8 @@ export function WorkspaceSearch() {
   }, [q]);
 
   return (
-    <div className="relative w-full max-w-sm">
-      <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5">
+    <div className="relative w-full">
+      <div className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
         <Search className="h-3.5 w-3.5 text-zinc-400" />
         <input
           value={q}
@@ -38,23 +38,28 @@ export function WorkspaceSearch() {
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           placeholder="Search clients, prospects, keywords…"
-          className="w-full bg-transparent text-sm outline-none placeholder:text-zinc-400"
+          className="w-full bg-transparent text-[13px] outline-none placeholder:text-zinc-400"
         />
+        <kbd className="hidden rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 sm:inline">
+          /
+        </kbd>
       </div>
       {open && results.length > 0 ? (
-        <ul className="absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
+        <ul className="absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-md border border-zinc-200 bg-white py-1 shadow-lg">
           {results.map((r) => (
             <li key={`${r.type}-${r.id}`}>
               <Link
                 href={r.href}
-                className="flex items-center justify-between px-3 py-2 text-sm hover:bg-zinc-50"
+                className="flex items-center justify-between px-3 py-2 text-[13px] hover:bg-zinc-50"
                 onClick={() => {
                   setOpen(false);
                   setQ("");
                 }}
               >
                 <span className="truncate font-medium text-zinc-900">{r.label}</span>
-                <span className="ml-2 shrink-0 text-[10px] uppercase text-zinc-400">{r.type}</span>
+                <span className="ml-2 shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500">
+                  {r.type}
+                </span>
               </Link>
             </li>
           ))}

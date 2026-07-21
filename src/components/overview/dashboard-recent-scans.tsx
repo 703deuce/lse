@@ -5,13 +5,17 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
 import type { DashboardScanRow } from "@/lib/overview/load-dashboard-scans";
 import { ScanMiniHeatmap } from "@/components/overview/scan-mini-heatmap";
+import { dashboardAccentLink } from "@/components/overview/dashboard-ui";
 import {
-  dashboardAccentLink,
-  dashboardCard,
-  dashboardCardTitle,
-  dashboardSectionLabel,
-} from "@/components/overview/dashboard-ui";
-import { btnSecondary } from "@/components/ui/design-system";
+  ContentCard,
+  DataTable,
+  btnSecondary,
+  sectionTitleClass,
+  tableCellClass,
+  tableHeadCellClass,
+  tableHeadClass,
+  tableRowHoverClass,
+} from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
 import { isScanActivelyRunning } from "@/lib/scans/status";
 
@@ -116,54 +120,53 @@ export function DashboardRecentScans({
   }, [hasActive, poll]);
 
   return (
-    <section className={cn(dashboardCard, "overflow-hidden p-0")}>
-      <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-3.5 py-2.5">
-        <h2 className={dashboardCardTitle}>Recent Maps Scans</h2>
+    <ContentCard padding={false} className="overflow-hidden">
+      <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-5 py-3.5">
+        <h2 className={sectionTitleClass}>Recent Maps Scans</h2>
         <Link href={`/businesses/${businessId}/scans`} className={dashboardAccentLink}>
           View all
         </Link>
       </div>
 
       {rows.length === 0 ? (
-        <div className="px-3.5 py-8 text-center text-[13px] text-zinc-500">
+        <div className="px-5 py-12 text-center text-sm text-zinc-500">
           No scans yet.{" "}
           <Link href={`/businesses/${businessId}/scans`} className={dashboardAccentLink}>
             Run your first scan
           </Link>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left">
-            <thead>
-              <tr className="border-b border-zinc-100 bg-zinc-50/60">
-                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>Keyword</th>
-                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>Date</th>
-                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>Grid</th>
-                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>ARP</th>
-                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>SOLV / SAIV</th>
-                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>Change</th>
-                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-left")}>Heatmap</th>
-                <th className={cn(dashboardSectionLabel, "px-3.5 py-2 text-right")}>Action</th>
+        <DataTable className="rounded-none border-x-0 border-y-0 shadow-none [&_table]:min-w-[720px]">
+          <thead>
+              <tr className={tableHeadClass}>
+                <th className={cn(tableHeadCellClass, "px-5")}>Keyword</th>
+                <th className={tableHeadCellClass}>Date</th>
+                <th className={tableHeadCellClass}>Grid</th>
+                <th className={tableHeadCellClass}>ARP</th>
+                <th className={tableHeadCellClass}>SOLV / SAIV</th>
+                <th className={tableHeadCellClass}>Change</th>
+                <th className={tableHeadCellClass}>Heatmap</th>
+                <th className={cn(tableHeadCellClass, "px-5 text-right")}>Action</th>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
+          </thead>
+          <tbody className="divide-y divide-zinc-100">
               {rows.map((scan) => {
                 const active = scan.active || isScanActivelyRunning(scan.status);
                 return (
-                  <tr key={scan.id} className="transition-colors hover:bg-zinc-50/50">
-                    <td className="px-3.5 py-2 text-[13px] font-medium text-zinc-900">
+                  <tr key={scan.id} className={tableRowHoverClass}>
+                    <td className={cn(tableCellClass, "px-5 text-sm font-semibold text-zinc-900")}>
                       {scan.keyword ?? "Historical scan"}
                     </td>
-                    <td className="whitespace-nowrap px-3.5 py-2 text-[12px] tabular-nums text-zinc-500">
+                    <td className={cn(tableCellClass, "whitespace-nowrap text-xs tabular-nums text-zinc-500")}>
                       {formatScanDate(scan.createdAt || scan.finishedAt)}
                     </td>
-                    <td className="px-3.5 py-2 text-[12px] tabular-nums text-zinc-500">
+                    <td className={cn(tableCellClass, "text-xs tabular-nums text-zinc-500")}>
                       {scan.gridSize}×{scan.gridSize}
                     </td>
-                    <td className="px-3.5 py-2 text-[13px] font-semibold tabular-nums text-zinc-900">
+                    <td className={cn(tableCellClass, "text-base font-semibold tabular-nums text-zinc-900")}>
                       {active ? "—" : (scan.arp ?? "—")}
                     </td>
-                    <td className="px-3.5 py-2 text-[12px] tabular-nums text-zinc-600">
+                    <td className={cn(tableCellClass, "text-sm tabular-nums text-zinc-700")}>
                       {active ? (
                         <span className="text-zinc-400">—</span>
                       ) : (
@@ -175,14 +178,14 @@ export function DashboardRecentScans({
                         </>
                       )}
                     </td>
-                    <td className="px-3.5 py-2">
+                    <td className={tableCellClass}>
                       {active ? (
-                        <span className="text-[12px] text-zinc-400">—</span>
+                        <span className="text-xs text-zinc-400">—</span>
                       ) : (
                         <ChangeCell value={scan.change} />
                       )}
                     </td>
-                    <td className="px-3.5 py-2">
+                    <td className={tableCellClass}>
                       {active ? (
                         <MapPreviewPlaceholder
                           completedCells={scan.completedCells}
@@ -197,10 +200,10 @@ export function DashboardRecentScans({
                         <ScanMiniHeatmap ranks={scan.ranks} gridSize={scan.gridSize} />
                       )}
                     </td>
-                    <td className="px-3.5 py-2 text-right">
+                    <td className={cn(tableCellClass, "px-5 text-right")}>
                       <Link
                         href={`/businesses/${businessId}/grid/${scan.id}`}
-                        className={cn(btnSecondary, "h-7 px-2.5 text-[11px] font-medium")}
+                        className={cn(btnSecondary, "h-8 px-3 text-xs font-semibold")}
                       >
                         {active ? "View" : "Open"}
                       </Link>
@@ -208,12 +211,11 @@ export function DashboardRecentScans({
                   </tr>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
+          </tbody>
+        </DataTable>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 bg-zinc-50/40 px-3.5 py-2 text-[11px] text-zinc-500">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 bg-zinc-50/60 px-5 py-2.5 text-xs text-zinc-500">
         <span className="tabular-nums">
           Showing {rows.length} of {total} scan{total === 1 ? "" : "s"}
         </span>
@@ -225,6 +227,6 @@ export function DashboardRecentScans({
           <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
-    </section>
+    </ContentCard>
   );
 }

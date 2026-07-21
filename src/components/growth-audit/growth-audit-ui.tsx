@@ -2,7 +2,6 @@
 
 import type { LucideIcon } from "lucide-react";
 import {
-  BadgeCheck,
   ChevronRight,
   Info,
   Loader2,
@@ -12,7 +11,6 @@ import {
 } from "lucide-react";
 import { SemiCircleGauge, Sparkline } from "@/components/overview/overview-charts";
 import {
-  dashboardCard,
   dashboardCardTitle,
   dashboardMicro,
   dashboardSectionLabel,
@@ -21,7 +19,8 @@ import { GridMetricCard } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 import {
   TabBar,
-  ModuleHeader,
+  PageHeader,
+  ContentCard,
   btnPrimary,
 } from "@/components/ui/design-system";
 
@@ -104,7 +103,11 @@ export function GaCard({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={cn(dashboardCard, "p-3.5", className)}>{children}</div>;
+  return (
+    <ContentCard padding={false} className={cn("p-3.5", className)}>
+      {children}
+    </ContentCard>
+  );
 }
 
 export function GaSectionTitle({
@@ -294,38 +297,30 @@ export function GrowthAuditHeader({
   onRun: () => void;
 }) {
   return (
-    <ModuleHeader
-      title="Google Maps Growth Audit"
-      subtitle="One audit. One growth plan. Everything wrong with your Maps presence."
-      icon={BadgeCheck}
-      className="[&_h1]:text-lg sm:[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
+    <PageHeader
+      title="Growth Audit"
+      description="Find the highest-impact gaps across profile, website, coverage, and competitors."
       meta={
-        startedAt ? (
-          <p className={dashboardMicro}>
-            Last run:{" "}
-            {new Date(startedAt).toLocaleString("en-US", {
+        startedAt
+          ? `Last run ${new Date(startedAt).toLocaleString("en-US", {
               month: "short",
               day: "numeric",
               year: "numeric",
               hour: "numeric",
               minute: "2-digit",
-            })}
-          </p>
-        ) : undefined
+            })}`
+          : undefined
       }
-      actions={
-        <>
-          <button
-            type="button"
-            disabled={running}
-            onClick={onRun}
-            className={cn(btnPrimary, "h-9 w-full px-3 text-[13px] sm:w-auto")}
-          >
-            {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5 fill-current" />}
-            <span className="sm:hidden">Run Audit</span>
-            <span className="hidden sm:inline">Run Full Growth Audit</span>
-          </button>
-        </>
+      primaryAction={
+        <button
+          type="button"
+          disabled={running}
+          onClick={onRun}
+          className={cn(btnPrimary, "h-10 px-4 text-sm")}
+        >
+          {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5 fill-current" />}
+          Run full growth audit
+        </button>
       }
     />
   );

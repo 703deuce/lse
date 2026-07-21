@@ -14,8 +14,21 @@ import {
 import type { ReviewListItem, ReviewsPageData } from "@/lib/reviews/reviews-page-data";
 import { ReviewDetailDrawer } from "@/components/reviews/review-detail-drawer";
 import { ReviewFeedList } from "@/components/reviews/review-feed-list";
-import { MiniSpark, ReviewsPagination, RvCard, StarRating } from "@/components/reviews/reviews-ui";
-import { dashboardCardTitle, dashboardControl, dashboardMicro, dashboardSectionLabel } from "@/components/overview/dashboard-ui";
+import { MiniSpark, ReviewsPagination, StarRating } from "@/components/reviews/reviews-ui";
+import {
+  ChartCard,
+  ContentCard,
+  InsightPanel,
+  PageSection,
+  btnGhost,
+  inputClass,
+  microClass,
+  sectionTitleClass,
+  tableCellClass,
+  tableHeadCellClass,
+  tableHeadClass,
+  tableRowHoverClass,
+} from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
 
 const LINE_COLORS = ["#059669", "#2563eb", "#7c3aed", "#ea580c", "#dc2626"];
@@ -48,10 +61,10 @@ function CompetitorReviewSection({
   }, [group.reviews, page]);
 
   return (
-    <RvCard>
+    <ContentCard>
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2 border-b border-zinc-100 pb-3">
         <div className="flex min-w-0 items-start gap-2.5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-100">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-50">
             <Building2 className="h-4 w-4 text-zinc-600" />
           </span>
           <div className="min-w-0">
@@ -60,7 +73,7 @@ function CompetitorReviewSection({
               <StarRating rating={group.rating} />
               <span>{group.reviews.length} review{group.reviews.length === 1 ? "" : "s"} (90 days)</span>
               {group.newReviews90d > 0 && (
-                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs font-medium text-zinc-600">
                   {group.newReviews90d} new this period
                 </span>
               )}
@@ -69,7 +82,7 @@ function CompetitorReviewSection({
         </div>
       </div>
 
-      <p className={`mb-3 ${dashboardMicro}`}>
+      <p className={cn("mb-3", microClass)}>
         Reviews for {group.name} — compact previews below. Click any review to read the full text.
       </p>
 
@@ -80,7 +93,7 @@ function CompetitorReviewSection({
         total={group.reviews.length}
         onPageChange={setPage}
       />
-    </RvCard>
+    </ContentCard>
   );
 }
 
@@ -134,7 +147,7 @@ export function ReviewsCompetitorTab({ data }: { data: ReviewsPageData }) {
         <select
           value={competitorFilter}
           onChange={(e) => setCompetitorFilter(e.target.value)}
-          className={cn(dashboardControl, "px-3 text-[13px] text-zinc-700")}
+          className={cn(inputClass, "h-9 w-auto min-w-[220px] py-0 text-[13px] text-zinc-700")}
         >
           <option value="all">All Competitors ({data.competitors.length})</option>
           {data.competitors.map((c) => (
@@ -146,40 +159,42 @@ export function ReviewsCompetitorTab({ data }: { data: ReviewsPageData }) {
       </div>
 
       <div className="grid gap-3 xl:grid-cols-5">
-        <RvCard className="xl:col-span-3">
-          <h3 className={dashboardCardTitle}>Competitor Leaderboard (Last 90 Days)</h3>
+        <ContentCard className="overflow-hidden xl:col-span-3" padding={false}>
+          <div className="px-4 py-3">
+            <h3 className={sectionTitleClass}>Competitor Leaderboard (Last 90 Days)</h3>
+          </div>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-left text-[13px]">
               <thead>
-                <tr className="border-b border-zinc-100">
-                  <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>#</th>
-                  <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Competitor</th>
-                  <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Avg. Rating</th>
-                  <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>Total Reviews</th>
-                  <th className={cn(dashboardSectionLabel, "pb-2 pr-2.5")}>New Reviews</th>
-                  <th className={cn(dashboardSectionLabel, "pb-2")}>Review Velocity</th>
+                <tr className={tableHeadClass}>
+                  <th className={tableHeadCellClass}>#</th>
+                  <th className={tableHeadCellClass}>Competitor</th>
+                  <th className={tableHeadCellClass}>Avg. Rating</th>
+                  <th className={tableHeadCellClass}>Total Reviews</th>
+                  <th className={tableHeadCellClass}>New Reviews</th>
+                  <th className={tableHeadCellClass}>Review Velocity</th>
                 </tr>
               </thead>
               <tbody>
                 {data.competitors.map((c, i) => (
-                  <tr key={c.id} className="border-b border-zinc-50">
-                    <td className="py-2 pr-2.5 text-zinc-500">{i + 1}</td>
-                    <td className="py-2 pr-2.5 font-medium text-zinc-900">{c.name}</td>
-                    <td className="py-2 pr-2.5">{c.avgRating?.toFixed(1) ?? c.rating?.toFixed(1) ?? "—"}</td>
-                    <td className="py-2 pr-2.5">{c.totalReviews}</td>
-                    <td className="py-2 pr-2.5">
+                  <tr key={c.id} className={cn("border-b border-zinc-50", tableRowHoverClass)}>
+                    <td className={cn(tableCellClass, "text-zinc-500")}>{i + 1}</td>
+                    <td className={cn(tableCellClass, "font-medium text-zinc-900")}>{c.name}</td>
+                    <td className={tableCellClass}>{c.avgRating?.toFixed(1) ?? c.rating?.toFixed(1) ?? "—"}</td>
+                    <td className={tableCellClass}>{c.totalReviews}</td>
+                    <td className={tableCellClass}>
                       <span>{c.newReviews90d}</span>
                       {c.newReviewsDeltaPct != null && (
                         <span
-                          className={`ml-2 rounded px-1.5 py-0.5 text-xs font-medium ${
-                            c.newReviewsDeltaPct >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+                          className={`ml-2 rounded border px-1.5 py-0.5 text-xs font-medium ${
+                            c.newReviewsDeltaPct >= 0 ? "border-emerald-100 bg-emerald-50/60 text-emerald-700" : "border-red-100 bg-red-50/60 text-red-700"
                           }`}
                         >
                           {c.newReviewsDeltaPct >= 0 ? "↑" : "↓"} {Math.abs(c.newReviewsDeltaPct)}%
                         </span>
                       )}
                     </td>
-                    <td className="py-2">
+                    <td className={tableCellClass}>
                       <MiniSpark data={c.velocitySpark} />
                     </td>
                   </tr>
@@ -187,11 +202,14 @@ export function ReviewsCompetitorTab({ data }: { data: ReviewsPageData }) {
               </tbody>
             </table>
           </div>
-        </RvCard>
+        </ContentCard>
 
-        <RvCard className="xl:col-span-2">
-          <h3 className={dashboardCardTitle}>Competitor Momentum</h3>
-          <div className="mt-3 h-40">
+        <ChartCard
+          title="Competitor Momentum"
+          description="Weekly review velocity for the top tracked competitors."
+          className="xl:col-span-2"
+        >
+          <div className="h-40">
             {data.competitors.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
@@ -205,7 +223,7 @@ export function ReviewsCompetitorTab({ data }: { data: ReviewsPageData }) {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <p className={dashboardMicro}>No competitor momentum data.</p>
+              <p className={microClass}>No competitor momentum data.</p>
             )}
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -216,51 +234,53 @@ export function ReviewsCompetitorTab({ data }: { data: ReviewsPageData }) {
               </span>
             ))}
           </div>
-        </RvCard>
+        </ChartCard>
       </div>
 
       <div className="grid gap-3 xl:grid-cols-3">
         <div className="space-y-3 xl:col-span-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className={dashboardCardTitle}>
-              Competitor Reviews by Company ({totalCompetitorReviews} total)
-            </h3>
-            {competitorFilter !== "all" && (
-              <button
-                type="button"
-                onClick={() => setCompetitorFilter("all")}
-                className="text-[12px] font-medium text-emerald-600 hover:text-emerald-700"
-              >
-                Show all competitors →
-              </button>
+          <PageSection
+            title={`Competitor Reviews by Company (${totalCompetitorReviews} total)`}
+            action={
+              competitorFilter !== "all" ? (
+                <button
+                  type="button"
+                  onClick={() => setCompetitorFilter("all")}
+                  className={cn(btnGhost, "h-8 px-2.5 text-xs")}
+                >
+                  Show all competitors →
+                </button>
+              ) : null
+            }
+          >
+            {visibleGroups.length === 0 ? (
+              <ContentCard>
+                <p className={microClass}>No competitor reviews synced for this filter yet.</p>
+              </ContentCard>
+            ) : (
+              <div className="space-y-3">
+                {visibleGroups.map((group) => (
+                  <CompetitorReviewSection key={group.id} group={group} onViewReview={setSelectedReview} />
+                ))}
+              </div>
             )}
-          </div>
-
-          {visibleGroups.length === 0 ? (
-            <RvCard>
-              <p className={dashboardMicro}>No competitor reviews synced for this filter yet.</p>
-            </RvCard>
-          ) : (
-            visibleGroups.map((group) => (
-              <CompetitorReviewSection key={group.id} group={group} onViewReview={setSelectedReview} />
-            ))
-          )}
+          </PageSection>
         </div>
 
         <div className="space-y-3">
-          <RvCard>
-            <h3 className={dashboardCardTitle}>Top Strengths</h3>
+          <ContentCard>
+            <h3 className="text-sm font-semibold text-zinc-900">Top Strengths</h3>
             <ul className="mt-2 space-y-2 text-[13px]">
               <li className="flex gap-2"><Clock className="h-3.5 w-3.5 text-emerald-600" /> On-time arrival mentioned often</li>
               <li className="flex gap-2"><DollarSign className="h-3.5 w-3.5 text-emerald-600" /> Fair pricing themes</li>
               <li className="flex gap-2"><Smile className="h-3.5 w-3.5 text-emerald-600" /> Professional, friendly crews</li>
             </ul>
-          </RvCard>
-          <RvCard>
-            <h3 className={dashboardCardTitle}>Common Praise Themes</h3>
+          </ContentCard>
+          <ContentCard>
+            <h3 className="text-sm font-semibold text-zinc-900">Common Praise Themes</h3>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {data.sentiment.competitors.flatMap((c) => c.themes).length === 0 ? (
-                <p className={dashboardMicro}>No competitor theme data yet.</p>
+                <p className={microClass}>No competitor theme data yet.</p>
               ) : (
                 Object.entries(
                   data.sentiment.competitors
@@ -273,22 +293,21 @@ export function ReviewsCompetitorTab({ data }: { data: ReviewsPageData }) {
                   .sort((a, b) => b[1] - a[1])
                   .slice(0, 6)
                   .map(([label, count]) => (
-                    <span key={label} className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">
+                    <span key={label} className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs text-zinc-700">
                       {label} <span className="text-zinc-400">{count}</span>
                     </span>
                   ))
               )}
             </div>
-          </RvCard>
-          <RvCard className="border-emerald-100 bg-emerald-50/40">
-            <h3 className={dashboardCardTitle}>Opportunities for You</h3>
+          </ContentCard>
+          <InsightPanel title="Opportunities for You">
             <ul className="mt-2 space-y-1.5 text-[13px] text-zinc-700">
               <li className="flex gap-2"><CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" /> Increase review velocity to match top 3</li>
               <li className="flex gap-2"><CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" /> Deliver on speed & value themes customers already praise</li>
               <li className="flex gap-2"><CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" /> Reply faster to protect rating momentum</li>
             </ul>
-            <button type="button" className="mt-3 text-[12px] font-medium text-emerald-600">View full competitor report →</button>
-          </RvCard>
+            <button type="button" className={cn(btnGhost, "mt-3 h-8 px-0 text-xs text-emerald-700")}>View full competitor report →</button>
+          </InsightPanel>
         </div>
       </div>
 

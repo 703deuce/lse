@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Map,
   MessageSquare,
+  MessageSquareText,
   PieChart,
   Play,
   RefreshCw,
@@ -28,7 +29,6 @@ import {
   dashboardCard,
   dashboardCardTitle,
   dashboardMicro,
-  dashboardSectionLabel,
 } from "@/components/overview/dashboard-ui";
 import {
   GridMetricCard,
@@ -39,7 +39,8 @@ import {
   kpiValueClass,
 } from "@/components/ui/metric-card";
 import {
-  ModuleHeader,
+  PageHeader,
+  btnGhost,
   btnPrimary,
   btnSecondary,
   inputClass,
@@ -48,10 +49,11 @@ import type { AiVisibilityTabId, RunView } from "./ai-visibility-types";
 import type { RunSummary } from "@/lib/ai-visibility/types";
 
 export const AI_VISIBILITY_TABS: { id: AiVisibilityTabId; label: string; icon: ComponentType<{ className?: string }> }[] = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "dashboard", label: "Overview", icon: LayoutDashboard },
   { id: "mentions", label: "Mentions", icon: MessageSquare },
   { id: "landscape", label: "Search Landscape", icon: Map },
   { id: "evidence", label: "Evidence", icon: FileText },
+  { id: "responses", label: "Provider responses", icon: MessageSquareText },
   { id: "history", label: "Run History", icon: History },
 ];
 
@@ -79,39 +81,33 @@ export function AiVisibilityHeaderRow({
   onRefresh: () => void;
 }) {
   return (
-    <ModuleHeader
+    <PageHeader
       title="AI Visibility"
-      subtitle="Track how AI platforms discover and recommend your business."
-      icon={Sparkles}
-      actions={
+      description="Understand whether AI platforms mention this business — and why."
+      primaryAction={
+        <button
+          type="button"
+          onClick={onRun}
+          disabled={isRunning || !hasPrimary}
+          className={cn(btnPrimary, "h-9 px-4 text-sm")}
+        >
+          <Play className="h-3.5 w-3.5" />
+          Run check
+        </button>
+      }
+      secondaryActions={
         <>
-          <button
-            type="button"
-            onClick={onRun}
-            disabled={isRunning || !hasPrimary}
-            className={cn(btnPrimary, "h-8 px-3 text-[13px]")}
-          >
-            <Play className="h-3.5 w-3.5" />
-            Run Check
-          </button>
-          <button type="button" onClick={onRefresh} disabled={loading} className={cn(btnSecondary, "h-8 px-3 text-[13px]")}>
+          <button type="button" onClick={onRefresh} disabled={loading} className={cn(btnGhost, "h-9 px-3 text-sm")}>
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             Refresh
           </button>
-          <Link href={`/businesses/${businessId}/ai-visibility/prompts`} className={cn(btnSecondary, "h-8 px-3 text-[13px]")}>
+          <Link href={`/businesses/${businessId}/ai-visibility/prompts`} className={cn(btnSecondary, "h-9 px-3 text-sm")}>
             <Settings className="h-3.5 w-3.5" />
-            Manage Prompts
-          </Link>
-          <Link
-            href={`/businesses/${businessId}/ai-visibility?tab=history`}
-            className={cn(btnSecondary, "h-8 px-3 text-[13px]")}
-          >
-            <TrendingUp className="h-3.5 w-3.5" />
-            Compare period
+            Prompts
           </Link>
           <button
             type="button"
-            className={cn(btnSecondary, "h-8 px-3 text-[13px]")}
+            className={cn(btnGhost, "h-9 px-3 text-sm")}
             onClick={() => {
               void import("@/lib/journey/report-staging").then(({ stageReportItem, reportsHrefForStaging }) => {
                 stageReportItem({
@@ -424,7 +420,7 @@ export function AiPanel({
           {action}
         </div>
       )}
-      <div className={cn("p-3.5", bodyClassName)}>{children}</div>
+      <div className={cn("p-3", bodyClassName)}>{children}</div>
     </div>
   );
 }

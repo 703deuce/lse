@@ -83,7 +83,7 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
               setShowWizard(true);
               setShowQuickSend(false);
             }}
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#0f6344] sm:flex-none"
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#0f6344] sm:flex-none"
           >
             <Plus className="h-3.5 w-3.5" />
             New campaign

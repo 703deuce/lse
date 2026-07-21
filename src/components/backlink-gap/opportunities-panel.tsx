@@ -29,7 +29,7 @@ import {
 } from "@/components/backlink-gap/backlink-gap-ui";
 import { dashboardCard, dashboardCardTitle, dashboardControl, dashboardMicro } from "@/components/overview/dashboard-ui";
 
-const PAGE_SIZES = [10, 25, 50, 100] as const;
+const PAGE_SIZES = [5, 10, 25, 50, 100] as const;
 
 const COMPETITOR_COLORS = ["bg-sky-500", "bg-violet-500", "bg-amber-500", "bg-rose-500", "bg-teal-500"];
 
@@ -111,57 +111,57 @@ function IgnoredTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full text-[13px]">
-        <thead className="bg-zinc-50 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+      <table className="min-w-full text-sm">
+        <thead className="border-b border-zinc-200 bg-zinc-50/90 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500">
           <tr>
-            <th className="px-3.5 py-2.5">
+            <th className="px-4 py-3">
               <input type="checkbox" className="rounded border-border" aria-label="Select all" />
             </th>
-            <th className="px-3.5 py-2.5">Domain</th>
-            <th className="px-3.5 py-2.5">Power</th>
-            <th className="px-3.5 py-2.5">Link type</th>
-            <th className="px-3.5 py-2.5">Relevance</th>
-            <th className="px-3.5 py-2.5">Source type</th>
-            <th className="px-3.5 py-2.5">Reason flagged</th>
-            <th className="px-3.5 py-2.5">Competitors</th>
-            <th className="px-3.5 py-2.5">Action status</th>
-            <th className="px-3.5 py-2.5">Confidence</th>
+            <th className="px-4 py-3">Domain</th>
+            <th className="px-4 py-3">Power</th>
+            <th className="px-4 py-3">Link type</th>
+            <th className="px-4 py-3">Relevance</th>
+            <th className="px-4 py-3">Source type</th>
+            <th className="px-4 py-3">Reason flagged</th>
+            <th className="px-4 py-3">Competitors</th>
+            <th className="px-4 py-3">Action status</th>
+            <th className="px-4 py-3">Confidence</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-100">
           {rows.map((o) => (
             <tr
               key={o.id}
-              className="cursor-pointer hover:bg-surface-subtle/80"
+              className="cursor-pointer transition-colors hover:bg-zinc-50/90"
               onClick={() => onSelect(o)}
             >
-              <td className="px-3.5 py-2.5" onClick={(e) => e.stopPropagation()}>
+              <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
                 <input type="checkbox" className="rounded border-border" aria-label={`Select ${o.referring_domain}`} />
               </td>
-              <td className="px-3.5 py-2.5">
+              <td className="px-4 py-3.5">
                 <a
                   href={`https://${o.referring_domain}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1 font-medium text-sky-700 hover:underline"
+                  className="inline-flex items-center gap-1 font-semibold text-zinc-900 hover:text-[#137752] hover:underline"
                 >
                   {o.referring_domain}
-                  <ExternalLink className="h-3 w-3" />
+                  <ExternalLink className="h-3 w-3 text-zinc-400" />
                 </a>
               </td>
-              <td className="px-3.5 py-2.5">{powerSegmentBar(o.powerScore)}</td>
-              <td className="px-3.5 py-2.5">{linkBadge(o.linkPassing)}</td>
-              <td className="px-3.5 py-2.5">{topicalBadge(o.topicalFit)}</td>
-              <td className="px-3.5 py-2.5 text-xs text-text-muted">{o.source_type}</td>
-              <td className="max-w-[180px] truncate px-3.5 py-2.5 text-xs text-text-muted">
+              <td className="px-4 py-3.5">{powerSegmentBar(o.powerScore)}</td>
+              <td className="px-4 py-3.5">{linkBadge(o.linkPassing)}</td>
+              <td className="px-4 py-3.5">{topicalBadge(o.topicalFit)}</td>
+              <td className="px-4 py-3.5 text-xs text-zinc-500">{o.source_type}</td>
+              <td className="max-w-[180px] truncate px-4 py-3.5 text-xs text-zinc-500">
                 {o.reason ?? "Spam signals detected"}
               </td>
-              <td className="px-3.5 py-2.5">
+              <td className="px-4 py-3.5">
                 {competitorAvatars(o.linked_competitors ?? [], totalCompetitors)}
               </td>
-              <td className="px-3.5 py-2.5">{actionStatusBadge(o.status, o.priority)}</td>
-              <td className="px-3.5 py-2.5">{confidenceBadge(o.priority)}</td>
+              <td className="px-4 py-3.5">{actionStatusBadge(o.status, o.priority)}</td>
+              <td className="px-4 py-3.5">{confidenceBadge(o.priority)}</td>
             </tr>
           ))}
         </tbody>
@@ -185,42 +185,42 @@ function OpportunityTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full text-[13px]">
-        <thead className="bg-zinc-50 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+      <table className="min-w-full text-sm">
+        <thead className="border-b border-zinc-200 bg-zinc-50/90 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500">
           <tr>
-            <th className="px-3.5 py-2.5">Domain</th>
-            <th className="px-3.5 py-2.5">Power</th>
-            <th className="px-3.5 py-2.5">Link type</th>
-            <th className="px-3.5 py-2.5">Relevance</th>
-            <th className="px-3.5 py-2.5">Source type</th>
-            <th className="px-3.5 py-2.5">Anchor</th>
-            <th className="px-3.5 py-2.5">Page title</th>
-            <th className="px-3.5 py-2.5 text-center">Competitors</th>
-            <th className="px-3.5 py-2.5">Priority</th>
+            <th className="px-4 py-3">Domain</th>
+            <th className="px-4 py-3">Power</th>
+            <th className="px-4 py-3">Link type</th>
+            <th className="px-4 py-3">Relevance</th>
+            <th className="px-4 py-3">Source type</th>
+            <th className="px-4 py-3">Anchor</th>
+            <th className="px-4 py-3">Page title</th>
+            <th className="px-4 py-3 text-center">Competitors</th>
+            <th className="px-4 py-3">Priority</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-100">
           {rows.map((o) => (
             <tr
               key={o.id}
-              className="cursor-pointer hover:bg-surface-subtle/80"
+              className="cursor-pointer transition-colors hover:bg-zinc-50/90"
               onClick={() => onSelect(o)}
             >
-              <td className="px-3.5 py-2.5 font-medium text-emerald-700">{o.referring_domain}</td>
-              <td className="px-3.5 py-2.5">{powerBar(o.powerScore)}</td>
-              <td className="px-3.5 py-2.5">{linkBadge(o.linkPassing)}</td>
-              <td className="px-3.5 py-2.5">{topicalBadge(o.topicalFit)}</td>
-              <td className="px-3.5 py-2.5 text-xs text-text-muted">{o.source_type}</td>
-              <td className="max-w-[140px] truncate px-3.5 py-2.5 text-xs italic text-text-muted">
+              <td className="px-4 py-3.5 font-semibold text-zinc-900">{o.referring_domain}</td>
+              <td className="px-4 py-3.5">{powerBar(o.powerScore)}</td>
+              <td className="px-4 py-3.5">{linkBadge(o.linkPassing)}</td>
+              <td className="px-4 py-3.5">{topicalBadge(o.topicalFit)}</td>
+              <td className="px-4 py-3.5 text-xs text-zinc-500">{o.source_type}</td>
+              <td className="max-w-[140px] truncate px-4 py-3.5 text-xs italic text-zinc-500">
                 {o.anchor_text ? `"${o.anchor_text}"` : "—"}
               </td>
-              <td className="max-w-[160px] truncate px-3.5 py-2.5 text-xs text-text-muted">
+              <td className="max-w-[160px] truncate px-4 py-3.5 text-xs text-zinc-500">
                 {o.source_title ?? "—"}
               </td>
-              <td className="px-3.5 py-2.5 text-center text-xs font-medium">
+              <td className="px-4 py-3.5 text-center text-xs font-semibold tabular-nums text-zinc-700">
                 {o.competitor_count}/{totalCompetitors}
               </td>
-              <td className="px-3.5 py-2.5">{priorityBadge(o.priority)}</td>
+              <td className="px-4 py-3.5">{priorityBadge(o.priority)}</td>
             </tr>
           ))}
         </tbody>
@@ -253,6 +253,7 @@ function Pagination({
       </span>
       <div className="flex items-center gap-2">
         <select className="rounded border border-zinc-200 px-2 py-0.5 text-[12px]" defaultValue={pageSize}>
+          <option value={5}>5 per page</option>
           <option value={10}>10 per page</option>
           <option value={25}>25 per page</option>
         </select>
@@ -315,7 +316,7 @@ export function OpportunitiesPanel({
   status: "open" | "ignored";
   onSelect: (o: EnrichedOpportunity) => void;
 }) {
-  const [pageSize, setPageSize] = useState<number>(25);
+  const [pageSize, setPageSize] = useState<number>(5);
   const [linkFilter, setLinkFilter] = useState<"all" | "dofollow" | "nofollow">("all");
   const [topicalFilter, setTopicalFilter] = useState<"all" | "topical" | "random">("all");
   const [priorityFilter, setPriorityFilter] = useState<"all" | "high" | "medium" | "low">("all");

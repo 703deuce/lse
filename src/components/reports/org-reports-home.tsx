@@ -20,10 +20,12 @@ import {
 import { ModuleEmptyState } from "@/components/journey/module-empty-state";
 import {
   ContentCard,
+  MetricStrip,
+  PageHeader,
+  PageToolbar,
+  btnGhost,
   btnPrimary,
   btnSecondary,
-  cardClass,
-  cardLabelClass,
   sectionTitleClass,
 } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
@@ -170,92 +172,71 @@ export function OrgReportsHome({ businesses }: { businesses: BusinessOption[] })
     );
   }
 
+  const defaultReportBusiness = firstClient ?? firstProspect ?? businesses[0]!;
+
   const quickCreates = [
     {
       href: firstProspect
         ? `/businesses/${firstProspect.id}/reports?type=single_scan`
         : "/businesses/new?as=prospect",
       label: "Prospect Audit",
-      hint: "Win the deal",
       icon: Target,
-      wrap: "bg-sky-50 text-sky-600",
     },
     {
       href: firstClient
         ? `/businesses/${firstClient.id}/reports?type=monthly`
         : "/businesses/new?as=client",
       label: "Monthly Report",
-      hint: "Recurring deliverable",
       icon: FileText,
-      wrap: "bg-emerald-50 text-emerald-600",
     },
     {
       href: firstClient ? `/businesses/${firstClient.id}/campaigns` : "/clients",
       label: "Campaign Progress",
-      hint: "From Maps tracking",
       icon: Radar,
-      wrap: "bg-violet-50 text-violet-600",
     },
     {
       href: firstClient
         ? `/businesses/${firstClient.id}/reports?type=competitor`
         : "/reports",
       label: "Competitor Report",
-      hint: "Share of pack",
       icon: Swords,
-      wrap: "bg-amber-50 text-amber-600",
     },
   ] as const;
 
   return (
-    <div className="space-y-3">
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="space-y-5">
+      <PageHeader
+        title="Reports"
+        description="Drafts, published links, and monthly deliverables — the completion point of your client work."
+        primaryAction={
+          <Link href={`/businesses/${defaultReportBusiness.id}/reports`} className={btnPrimary}>
+            <FileText className="h-4 w-4" />
+            Create report
+          </Link>
+        }
+      />
+
+      <PageToolbar>
         {quickCreates.map((a) => {
           const Icon = a.icon;
           return (
-            <Link
-              key={a.label}
-              href={a.href}
-              className={cn(
-                cardClass,
-                "flex items-center gap-3 p-3.5 transition hover:border-emerald-200 hover:bg-emerald-50/30"
-              )}
-            >
-              <span
-                className={cn(
-                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ring-black/5",
-                  a.wrap
-                )}
-              >
-                <Icon className="h-4 w-4" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-[13px] font-semibold text-zinc-900">
-                  {a.label}
-                </span>
-                <span className="block text-[11px] text-zinc-500">{a.hint}</span>
-              </span>
+            <Link key={a.label} href={a.href} className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
+              <Icon className="h-3.5 w-3.5" />
+              {a.label}
             </Link>
           );
         })}
-      </div>
+      </PageToolbar>
 
       {!loading ? (
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-          {[
-            { label: "Drafts", value: drafts.length },
-            { label: "Ready to review", value: ready.length },
-            { label: "Published", value: published.length },
-            { label: "Viewed", value: recent.length },
-          ].map((kpi) => (
-            <div key={kpi.label} className={cn(cardClass, "p-3.5")}>
-              <p className={cardLabelClass}>{kpi.label}</p>
-              <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900">
-                {kpi.value}
-              </p>
-            </div>
-          ))}
-        </div>
+        <MetricStrip
+          items={[
+            { label: "Drafts", value: String(drafts.length) },
+            { label: "Ready to review", value: String(ready.length) },
+            { label: "Published", value: String(published.length) },
+            { label: "Viewed", value: String(recent.length) },
+          ]}
+        />
       ) : null}
 
       {loading ? (
@@ -351,9 +332,9 @@ export function OrgReportsHome({ businesses }: { businesses: BusinessOption[] })
                 </div>
                 <Link
                   href={`/businesses/${b.id}/reports`}
-                  className={cn(btnPrimary, "h-8 shrink-0 px-3 text-[12px]")}
+                  className={cn(btnGhost, "h-8 shrink-0 px-3 text-[12px]")}
                 >
-                  Open reports
+                  Open
                 </Link>
               </li>
             );

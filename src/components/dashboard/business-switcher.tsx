@@ -105,25 +105,40 @@ export function BusinessSwitcher({
     router.push(`/businesses/${nextId}/overview`);
   }
 
+  const selected = businessId ? rows.find((b) => b.id === businessId) : null;
   const label =
     businessName ??
-    (businessId ? rows.find((b) => b.id === businessId)?.name : null) ??
+    selected?.name ??
     "Select client or prospect…";
+  const place = selected ? locationLine(selected) : null;
   const tracked = rows.filter((b) => b.is_tracked !== false);
   const archived = rows.filter((b) => b.is_tracked === false);
+  const accountType =
+    selected?.is_tracked === false ? "Prospect" : businessId ? "Client" : null;
 
   return (
     <div ref={rootRef} className="relative mx-1 mt-2.5">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 rounded-md border border-white/10 bg-white/5 px-2.5 py-1.5 text-left text-xs font-medium text-slate-300 hover:bg-white/10"
+        className="flex w-full items-start gap-2.5 rounded-[10px] border border-white/12 bg-white/8 px-3 py-2.5 text-left transition hover:bg-white/12"
         aria-expanded={open}
         aria-haspopup="listbox"
       >
-        <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-        <span className="min-w-0 flex-1 truncate">{label}</span>
-        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-slate-400 transition", open && "rotate-180")} />
+        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] bg-emerald-500/15 text-emerald-300">
+          <Building2 className="h-4 w-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13px] font-semibold text-slate-100">{label}</span>
+          {place || accountType ? (
+            <span className="mt-0.5 block truncate text-[11px] text-slate-400">
+              {[place, accountType].filter(Boolean).join(" · ")}
+            </span>
+          ) : (
+            <span className="mt-0.5 block text-[11px] text-slate-500">Switch location context</span>
+          )}
+        </span>
+        <ChevronDown className={cn("mt-1 h-3.5 w-3.5 shrink-0 text-slate-400 transition", open && "rotate-180")} />
       </button>
 
       {open ? (

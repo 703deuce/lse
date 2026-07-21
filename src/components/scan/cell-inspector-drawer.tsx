@@ -627,7 +627,7 @@ export function CellInspectorDrawer({
                       href={data.checkUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#137752] px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_4px_14px_rgba(19,119,82,0.22)] hover:bg-[#0f6344]"
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-[#137752] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#0f6344]"
                     >
                       <ExternalLink className="h-3.5 w-3.5" /> Open in Google
                     </a>

@@ -1,61 +1,28 @@
 import Link from "next/link";
-import { ArrowRight, ClipboardList, FileSearch, Grid3X3, Lightbulb, Star } from "lucide-react";
+import { Play } from "lucide-react";
 import { requireBusinessPageData } from "@/lib/auth/require-business-page";
-import { createServiceClient } from "@/lib/db/client";
-import { DashboardHeader } from "@/components/overview/dashboard-header";
 import { DashboardRecentScans } from "@/components/overview/dashboard-recent-scans";
 import { DashboardFeaturedReports } from "@/components/overview/dashboard-featured-reports";
 import { loadDashboardRecentScans } from "@/lib/overview/load-dashboard-scans";
 import { loadDashboardFeatured } from "@/lib/overview/load-dashboard-featured";
 import { JourneyBreadcrumbs } from "@/components/journey/journey-breadcrumbs";
-import { ModulePage } from "@/components/ui/design-system";
 import {
-  dashboardAccentLink,
-  dashboardBadge,
-  dashboardBody,
-  dashboardCard,
-  dashboardCardTitle,
-  dashboardMicro,
-  dashboardSectionLabel,
-} from "@/components/overview/dashboard-ui";
+  HeroPanel,
+  MetricStrip,
+  ModulePage,
+  PageHeader,
+  PageSection,
+  btnGhost,
+  btnPrimary,
+  btnPrimaryLg,
+  heroMetricClass,
+  listClass,
+  sectionTitleClass,
+} from "@/components/ui/design-system";
 import { getLatestGrowthAuditRun } from "@/lib/growth-audit/queries";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-
-function displayNameFromEmail(email: string | null): string {
-  if (!email) return "there";
-  const local = email.split("@")[0] ?? "there";
-  const token = local.split(/[._-]/)[0] ?? local;
-  return token.charAt(0).toUpperCase() + token.slice(1);
-}
-
-/** Prefer first name → full name → email local-part (never org slug-looking tokens). */
-function greetingNameFromProfile(fullName: string | null | undefined, email: string | null): string {
-  const full = String(fullName ?? "").trim();
-  if (full) {
-    const first = full.split(/\s+/).find(Boolean);
-    if (first) return first;
-    return full;
-  }
-  return displayNameFromEmail(email);
-}
-
-async function resolveDisplayName(
-  supabase: ReturnType<typeof createServiceClient>,
-  userId: string,
-  email: string | null
-): Promise<string> {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, email")
-    .eq("id", userId)
-    .maybeSingle();
-  return greetingNameFromProfile(
-    profile?.full_name as string | null | undefined,
-    email ?? (profile?.email as string | null) ?? null
-  );
-}
 
 function formatShortDate(iso: string | null | undefined): string {
   if (!iso) return "Never";
@@ -66,46 +33,24 @@ function formatShortDate(iso: string | null | undefined): string {
   });
 }
 
-function OverviewSignalCard({
-  title,
-  value,
-  meta,
-  href,
-  icon: Icon,
-  badge,
-}: {
-  title: string;
-  value: string;
-  meta: string;
-  href: string;
-  icon: typeof Grid3X3;
-  badge?: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className={cn(
-        dashboardCard,
-        "group flex min-h-[126px] flex-col justify-between p-3.5 transition hover:border-emerald-200 hover:bg-emerald-50/20"
-      )}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
-          <Icon className="h-4 w-4" />
-        </span>
-        {badge ? (
-          <span className={cn(dashboardBadge, "bg-zinc-100 text-zinc-600")}>{badge}</span>
-        ) : null}
-      </div>
-      <div>
-        <p className={dashboardSectionLabel}>{title}</p>
-        <p className="mt-1 text-[17px] font-semibold leading-tight text-zinc-900">{value}</p>
-        <p className={cn(dashboardMicro, "mt-1 line-clamp-2")}>{meta}</p>
-      </div>
-    </Link>
-  );
+function healthLabel(args: {
+  hasScan: boolean;
+  reviewNeedsReply: boolean;
+  aiLow: boolean;
+  opportunities: number;
+}): { visibility: string; reviews: string; ai: string; backlinks: string } {
+  return {
+    visibility: args.hasScan ? "Improving" : "Needs baseline",
+    reviews: args.reviewNeedsReply ? "Needs attention" : "Stable",
+    ai: args.aiLow ? "Low" : "Tracked",
+    backlinks: args.opportunities > 0 ? "Opportunities open" : "Stable",
+  };
 }
 
+/**
+ * Client Overview — unified health of this location:
+ * what changed, what needs attention, what to do next.
+ */
 export default async function BusinessOverviewPage({
   params,
 }: {
@@ -115,37 +60,77 @@ export default async function BusinessOverviewPage({
   const auth = await requireBusinessPageData(businessId);
   const business = auth.business;
 
-  const supabase = createServiceClient();
-  const [{ data: businesses }, displayName] = await Promise.all([
-    supabase
-      .from("businesses")
-      .select("id, name")
-      .eq("organization_id", auth.organizationId)
-      .order("name"),
-    resolveDisplayName(supabase, auth.userId, auth.email),
-  ]);
-
   const [recentScans, featured, latestGrowthAudit] = await Promise.all([
-    loadDashboardRecentScans(businessId, { preview: 3 }),
+    loadDashboardRecentScans(businessId, { preview: 8 }),
     loadDashboardFeatured(businessId),
     getLatestGrowthAuditRun(businessId).catch(() => null),
   ]);
 
   const accountType = (business as { account_type?: string | null }).account_type;
+  const place =
+    (business as { scan_center_label?: string | null }).scan_center_label?.trim() ||
+    (business as { address_text?: string | null }).address_text?.trim() ||
+    null;
   const crmHref =
     accountType === "prospect" ? `/prospects/${businessId}` : `/clients/${businessId}`;
   const crmLabel = accountType === "prospect" ? "Prospect" : "Client";
   const latestScan = recentScans.rows[0] ?? null;
-  const nextOpportunity = featured.local.items[0] ?? null;
-  const nextAction =
-    nextOpportunity?.suggestedAction ??
-    nextOpportunity?.title ??
-    (!latestScan ? "Run a Maps scan to establish the first rank baseline." : "Review latest scan movement and update the growth plan.");
-  const nextActionHref = nextOpportunity
-    ? `/businesses/${businessId}/trust`
-    : latestScan
-      ? `/businesses/${businessId}/grid/${latestScan.id}`
-      : `/businesses/${businessId}/scans`;
+
+  const heroHref = latestScan
+    ? `/businesses/${businessId}/grid/${latestScan.id}`
+    : `/businesses/${businessId}/scans`;
+
+  const heroMetric =
+    latestScan?.arp != null ? (
+      <span className={heroMetricClass}>{latestScan.arp}</span>
+    ) : (
+      <span className={cn(heroMetricClass, "text-zinc-300")}>—</span>
+    );
+
+  const reviewValue =
+    featured.review.rating != null
+      ? `${featured.review.rating.toFixed(1)}★`
+      : `${featured.review.totalReviews}`;
+
+  const unanswered = featured.review.latestReviews.filter((r) => !r.replied).length;
+  const aiScore = featured.ai.visibilityScore;
+  const health = healthLabel({
+    hasScan: Boolean(latestScan),
+    reviewNeedsReply: unanswered > 0 || (featured.review.responseRate != null && featured.review.responseRate < 50),
+    aiLow: aiScore == null || aiScore < 40,
+    opportunities: featured.local.total,
+  });
+
+  const actions: Array<{ title: string; href: string; why: string }> = [];
+  if (unanswered > 0 || (featured.review.responseRate != null && featured.review.responseRate === 0)) {
+    const count = unanswered || featured.review.latestReviews.length || 1;
+    actions.push({
+      title: `Reply to ${count} review${count === 1 ? "" : "s"}`,
+      href: `/businesses/${businessId}/reviews?tab=unanswered`,
+      why: "Open reviews hurt conversion and AI/local trust signals.",
+    });
+  }
+  if (featured.local.total > 0) {
+    actions.push({
+      title: `Pursue ${Math.min(featured.local.total, 3)} local trust opportunities`,
+      href: `/businesses/${businessId}/trust`,
+      why: "High-signal directories and citations still open in this market.",
+    });
+  }
+  if (aiScore == null || aiScore < 40) {
+    actions.push({
+      title: "Improve AI mention coverage",
+      href: `/businesses/${businessId}/ai-visibility`,
+      why: "AI platforms rarely recommend this business today.",
+    });
+  }
+  if (!latestScan) {
+    actions.unshift({
+      title: "Run a Maps baseline scan",
+      href: `/businesses/${businessId}/scans`,
+      why: "Everything else is easier to prioritize with a ranking baseline.",
+    });
+  }
 
   return (
     <ModulePage wide>
@@ -153,103 +138,134 @@ export default async function BusinessOverviewPage({
         items={[
           { label: crmLabel + "s", href: accountType === "prospect" ? "/prospects" : "/clients" },
           { label: business.name, href: crmHref },
-          { label: "Dashboard" },
+          { label: "Overview" },
         ]}
       />
-      <DashboardHeader
-        userName={displayName}
-        businessId={businessId}
-        businessName={business.name}
-        businesses={(businesses ?? []).map((b) => ({
-          id: b.id as string,
-          name: b.name as string,
-        }))}
+
+      <PageHeader
+        title={business.name}
+        description={[place, crmLabel].filter(Boolean).join(" · ")}
+        secondaryActions={
+          <Link href={crmHref} className={btnGhost}>
+            Open {crmLabel.toLowerCase()} record
+          </Link>
+        }
+        primaryAction={
+          <Link href={`/businesses/${businessId}/scans`} className={btnPrimary}>
+            <Play className="h-4 w-4 fill-current" />
+            Run scan
+          </Link>
+        }
       />
 
-      <div className="mt-4 space-y-4">
-        <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-          <OverviewSignalCard
-            title="Latest scan"
-            value={
-              latestScan
-                ? latestScan.arp != null
-                  ? `Avg rank ${latestScan.arp}`
-                  : latestScan.status
-                : "No scan yet"
-            }
-            meta={
-              latestScan
-                ? `${latestScan.keyword ?? "Maps keyword"} · ${formatShortDate(latestScan.createdAt)}`
-                : "Start with a quick grid scan for this location."
-            }
-            href={latestScan ? `/businesses/${businessId}/grid/${latestScan.id}` : `/businesses/${businessId}/scans`}
-            icon={Grid3X3}
-            badge={latestScan?.solv != null ? `${latestScan.solv}% Top 3` : undefined}
-          />
-          <OverviewSignalCard
-            title="Review pulse"
-            value={
-              featured.review.rating != null
-                ? `${featured.review.rating.toFixed(1)} stars`
-                : "No review data"
-            }
-            meta={`${featured.review.newReviews90d} new in 90d · ${
-              featured.review.responseRate != null
-                ? `${featured.review.responseRate}% response rate`
-                : `${featured.review.totalReviews} total reviews`
-            }`}
-            href={`/businesses/${businessId}/reviews`}
-            icon={Star}
-          />
-          <OverviewSignalCard
-            title="Open opportunities"
-            value={`${featured.local.total}`}
-            meta={
-              nextOpportunity
-                ? nextOpportunity.title
-                : "Run Local Trust to find sponsorships, citations, and community links."
-            }
-            href={`/businesses/${businessId}/trust`}
-            icon={Lightbulb}
-          />
-          <OverviewSignalCard
-            title="Next action"
-            value={nextOpportunity?.priority ? `${nextOpportunity.priority} priority` : "Recommended"}
-            meta={nextAction}
-            href={nextActionHref}
-            icon={ClipboardList}
-          />
-          <OverviewSignalCard
-            title="Last growth audit"
-            value={latestGrowthAudit ? formatShortDate(latestGrowthAudit.created_at) : "Not run"}
-            meta={
-              latestGrowthAudit
-                ? `Status: ${String(latestGrowthAudit.status ?? "complete")}`
-                : "Run an audit to create a focused local SEO action plan."
-            }
-            href={`/businesses/${businessId}/growth-audit`}
-            icon={FileSearch}
-          />
-        </section>
+      <HeroPanel
+        eyebrow="Maps visibility"
+        title={
+          latestScan
+            ? latestScan.keyword ?? "Latest Maps scan"
+            : "Establish your Maps baseline"
+        }
+        description={
+          latestScan
+            ? `${formatShortDate(latestScan.createdAt)}${
+                latestScan.solv != null ? ` · ${latestScan.solv}% Top 3` : ""
+              }${latestScan.gridSize ? ` · ${latestScan.gridSize}×${latestScan.gridSize}` : ""}`
+            : "Run a grid scan to measure average rank and share of local visibility."
+        }
+        metric={heroMetric}
+        metricLabel="Avg rank"
+        actions={
+          <Link href={heroHref} className={btnPrimaryLg}>
+            <Play className="h-4 w-4 fill-current" />
+            {latestScan ? "Open scan" : "Run scan"}
+          </Link>
+        }
+      />
 
-        <section className={cn(dashboardCard, "p-3.5")}>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className={dashboardCardTitle}>Recommended next step</h2>
-              <p className={cn(dashboardBody, "mt-1 max-w-3xl")}>{nextAction}</p>
-            </div>
-            <Link href={nextActionHref} className={cn(dashboardAccentLink, "inline-flex items-center gap-1")}>
-              Open
-              <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-        </section>
+      <MetricStrip
+        items={[
+          {
+            label: "Local visibility",
+            value: health.visibility,
+            href: `/businesses/${businessId}/scans`,
+          },
+          {
+            label: "Reviews",
+            value: `${health.reviews} · ${reviewValue}`,
+            href: `/businesses/${businessId}/reviews`,
+          },
+          {
+            label: "AI visibility",
+            value: featured.ai.hasData
+              ? featured.ai.visibilityScore != null
+                ? `${health.ai} · ${featured.ai.visibilityScore}`
+                : health.ai
+              : health.ai,
+            href: `/businesses/${businessId}/ai-visibility`,
+          },
+          {
+            label: "Backlinks / trust",
+            value:
+              featured.local.total > 0
+                ? `${health.backlinks} · ${featured.local.total}`
+                : health.backlinks,
+            href: `/businesses/${businessId}/trust`,
+          },
+          {
+            label: "Growth audit",
+            value: latestGrowthAudit
+              ? formatShortDate(latestGrowthAudit.created_at)
+              : "Not run",
+            href: `/businesses/${businessId}/growth-audit`,
+          },
+        ]}
+      />
 
+      {actions.length > 0 ? (
+        <PageSection
+          title="Recommended next steps"
+          description="Highest-leverage work for this location — ranked, not equal cards."
+        >
+          <ol className={listClass}>
+            {actions.slice(0, 3).map((a, i) => (
+              <li
+                key={a.href}
+                className="flex flex-col gap-2 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0 flex items-start gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--primary-subtle)] text-[11px] font-bold text-[var(--primary)]">
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[var(--text)]">{a.title}</p>
+                    <p className="mt-0.5 text-sm leading-snug text-[var(--text-secondary)]">{a.why}</p>
+                  </div>
+                </div>
+                <Link
+                  href={a.href}
+                  className={cn(
+                    i === 0 ? btnPrimary : btnGhost,
+                    "h-8 shrink-0 px-3 text-xs"
+                  )}
+                >
+                  {i === 0 ? "Start" : "Open"}
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </PageSection>
+      ) : null}
+
+      <PageSection title="Recent activity">
         <DashboardRecentScans
           businessId={businessId}
           rows={recentScans.rows}
           total={recentScans.total}
         />
+      </PageSection>
+
+      <div>
+        <h2 className={cn(sectionTitleClass, "mb-3")}>Module snapshots</h2>
         <DashboardFeaturedReports businessId={businessId} data={featured} />
       </div>
     </ModulePage>

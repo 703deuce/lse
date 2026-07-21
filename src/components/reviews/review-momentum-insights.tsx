@@ -13,7 +13,12 @@ import {
   Users,
 } from "lucide-react";
 import { momentumBadgeClass, type MomentumLabel } from "@/lib/reviews/metrics";
-import { GridMetricCard, KpiRow } from "@/components/ui/metric-card";
+import { GridMetricCard } from "@/components/ui/metric-card";
+import {
+  HeroPanel,
+  MetricStrip,
+  heroMetricClass,
+} from "@/components/ui/design-system";
 import {
   dashboardBadge,
   dashboardCard,
@@ -112,53 +117,37 @@ export function ReviewMomentumTopKpis({
   targetSharePct: number;
   market: MarketInsights;
 }) {
+  const trendHint =
+    velocityTrend === "accelerating"
+      ? "Gaining share"
+      : velocityTrend === "losing"
+        ? "Losing share"
+        : "Holding steady";
+
   return (
-    <KpiRow cols={4}>
-      <GridMetricCard
-        variant="primary"
-        label="Review Momentum™"
-        value={Math.round(momentumScore)}
-        sub={momentumLabel}
-        icon={TrendingUp}
-        iconWrapClassName="bg-emerald-50"
-        iconClassName="text-emerald-600"
+    <div className="space-y-3">
+      <HeroPanel
+        eyebrow="Review Momentum™"
+        title={momentumLabel}
+        description={`${trendHint} · ${velocityTrendLabel}`}
+        metric={<span className={heroMetricClass}>{Math.round(momentumScore)}</span>}
+        metricLabel="Momentum score"
       />
-      <GridMetricCard
-        label="Velocity Trend"
-        value={velocityTrendLabel}
-        sub={
-          velocityTrend === "accelerating"
-            ? "Gaining share"
-            : velocityTrend === "losing"
-              ? "Losing share"
-              : "Holding steady"
-        }
-        icon={velocityTrend === "losing" ? TrendingDown : TrendingUp}
-        iconWrapClassName={
-          velocityTrend === "losing" ? "bg-red-50" : velocityTrend === "accelerating" ? "bg-emerald-50" : "bg-zinc-100"
-        }
-        iconClassName={
-          velocityTrend === "losing" ? "text-red-600" : velocityTrend === "accelerating" ? "text-emerald-600" : "text-zinc-500"
-        }
-        trendPositive={velocityTrend === "accelerating" ? true : velocityTrend === "losing" ? false : undefined}
+      <MetricStrip
+        items={[
+          { label: "Velocity trend", value: velocityTrendLabel },
+          { label: "Share of new (30d)", value: `${targetSharePct}%` },
+          {
+            label: "Market activity",
+            value: market.marketActivityLabel,
+          },
+          {
+            label: "Market reviews (30d)",
+            value: String(market.marketReviews30d),
+          },
+        ]}
       />
-      <GridMetricCard
-        label="Share of New Reviews (30D)"
-        value={`${targetSharePct}%`}
-        sub="You vs. competitors"
-        icon={Users}
-        iconWrapClassName="bg-sky-50"
-        iconClassName="text-sky-600"
-      />
-      <GridMetricCard
-        label="Market Activity"
-        value={market.marketActivityLabel}
-        sub={`${market.marketReviews30d} new reviews · top ${market.entityCount}`}
-        icon={Users}
-        iconWrapClassName="bg-violet-50"
-        iconClassName="text-violet-600"
-      />
-    </KpiRow>
+    </div>
   );
 }
 

@@ -50,7 +50,7 @@ export function GridParityView({ businessId }: { businessId: string }) {
         type="button"
         onClick={runParityBatch}
         disabled={loading}
-        className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#137752] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#0f6344] disabled:opacity-50"
+        className="mt-6 inline-flex items-center gap-2 rounded-md bg-[#137752] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#0f6344] disabled:opacity-50"
       >
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
         Run parity batch

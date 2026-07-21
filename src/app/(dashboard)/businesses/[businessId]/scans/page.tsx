@@ -1,7 +1,8 @@
 import { requireBusinessPageData } from "@/lib/auth/require-business-page";
-import { PageHeader } from "@/components/ui/page-header";
+import { ModuleHeader, ModulePage } from "@/components/ui/design-system";
 import { createServiceClient } from "@/lib/db/client";
 import { ScansHub } from "@/components/scan/scans-hub";
+import { Grid3X3 } from "lucide-react";
 
 function top3Pct(metrics: { top3Cells?: number | null; totalCells?: number | null } | null): number | null {
   if (metrics?.top3Cells == null || !metrics.totalCells) return null;
@@ -120,32 +121,29 @@ export default async function ScansPage({
   });
 
   return (
-    <>
-      <PageHeader
+    <ModulePage>
+      <ModuleHeader
+        icon={<Grid3X3 className="h-5 w-5 shrink-0 text-emerald-600" />}
         title="Maps Scans"
-        subtitle="Configure your local search grid, exclude unused points, then run — nothing bills until you click Run scan."
-        className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
       />
 
-      <div className="mt-4">
-        <ScansHub
-          businessId={businessId}
-          scans={scanItems}
-          keywords={keywordOptions}
-          defaultCenterLat={
-            (business.scan_center_lat as number | null) ?? (business.lat as number) ?? 0
-          }
-          defaultCenterLng={
-            (business.scan_center_lng as number | null) ?? (business.lng as number) ?? 0
-          }
-          defaultAddress={
-            ((business.scan_center_label as string | null) ??
-              (business.address_text as string | null) ??
-              null)
-          }
-          businessName={business.name as string}
-        />
-      </div>
-    </>
+      <ScansHub
+        businessId={businessId}
+        scans={scanItems}
+        keywords={keywordOptions}
+        defaultCenterLat={
+          (business.scan_center_lat as number | null) ?? (business.lat as number) ?? 0
+        }
+        defaultCenterLng={
+          (business.scan_center_lng as number | null) ?? (business.lng as number) ?? 0
+        }
+        defaultAddress={
+          ((business.scan_center_label as string | null) ??
+            (business.address_text as string | null) ??
+            null)
+        }
+        businessName={business.name as string}
+      />
+    </ModulePage>
   );
 }

@@ -6,7 +6,8 @@ import { MessageSquare, Sparkles, X } from "lucide-react";
 import type { ReviewListItem, ReviewsPageData } from "@/lib/reviews/reviews-page-data";
 import { ReviewDetailDrawer } from "@/components/reviews/review-detail-drawer";
 import { ReviewerAvatar, ReviewsTable, RvCard, StarRating } from "@/components/reviews/reviews-ui";
-import { dashboardCardTitle, dashboardMicro } from "@/components/overview/dashboard-ui";
+import { InsightPanel, sectionTitleClass } from "@/components/ui/design-system";
+import { dashboardMicro } from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
 
 function draftReply(review: ReviewListItem): string {
@@ -70,14 +71,18 @@ export function ReviewsUnansweredTab({ data, businessId }: { data: ReviewsPageDa
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <InsightPanel title={`${data.unanswered.length} review${data.unanswered.length === 1 ? "" : "s"} need a response`}>
+        Prioritized by urgency and time waiting. Select a review to draft a reply, then work the rest of the queue.
+      </InsightPanel>
+
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="space-y-3 xl:col-span-2">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <h3 className={dashboardCardTitle}>Unanswered Reviews ({data.unanswered.length})</h3>
-              <p className={dashboardMicro}>
-                Prioritized by urgency and time waiting (oldest first). Click a row to read the full review.
+              <h3 className="text-lg font-semibold text-[var(--text)]">Needs reply</h3>
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                Oldest first · click a row to read the full review
               </p>
             </div>
           </div>
@@ -103,11 +108,11 @@ export function ReviewsUnansweredTab({ data, businessId }: { data: ReviewsPageDa
             <div className="mb-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
-                <h3 className={dashboardCardTitle}>Suggested reply</h3>
+                <h3 className={sectionTitleClass}>Suggested reply</h3>
               </div>
               <Link
                 href={`/businesses/${businessId}/review-requests`}
-                className="rounded-full bg-[#137752] px-2 py-1 text-[11px] font-medium text-white hover:bg-[#0f6344]"
+                className="rounded-md bg-[#137752] px-2 py-1 text-[11px] font-medium text-white hover:bg-[#0f6344]"
               >
                 Request reviews
               </Link>
@@ -140,7 +145,7 @@ export function ReviewsUnansweredTab({ data, businessId }: { data: ReviewsPageDa
                   <button
                     type="button"
                     onClick={() => void copyReply()}
-                    className="rounded-full bg-[#137752] px-2.5 py-1 text-[11px] font-medium text-white"
+                    className="rounded-md bg-[#137752] px-2.5 py-1 text-[11px] font-medium text-white"
                   >
                     {copied ? "Copied" : "Copy reply"}
                   </button>
@@ -163,7 +168,7 @@ export function ReviewsUnansweredTab({ data, businessId }: { data: ReviewsPageDa
           </RvCard>
 
           <RvCard>
-            <h3 className={dashboardCardTitle}>Unanswered Impact (Last 90 Days)</h3>
+            <h3 className={sectionTitleClass}>Unanswered Impact (Last 90 Days)</h3>
             <dl className="mt-2 space-y-2 text-[13px]">
               <div className="flex justify-between">
                 <dt className="text-zinc-500">Waiting for reply</dt>

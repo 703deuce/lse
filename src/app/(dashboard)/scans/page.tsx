@@ -1,16 +1,29 @@
 import Link from "next/link";
+import { Plus, Radar } from "lucide-react";
 import { requirePageAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
-import { PageHeader } from "@/components/ui/page-header";
-import { btnPrimary, btnSecondary, emptyStateClass, listClass } from "@/components/ui/design-system";
+import {
+  PageHeader,
+  ModulePage,
+  MetricStrip,
+  btnPrimary,
+  btnGhost,
+  listClass,
+  tableHeadClass,
+  tableCellClass,
+  tableRowHoverClass,
+} from "@/components/ui/design-system";
+import { StatusBadge } from "@/components/ui/metric-card";
+import { ModuleEmptyState } from "@/components/journey/module-empty-state";
 import { customerSafeScanError } from "@/lib/scans/customer-safe-error";
 import { isCancellableScanStatus } from "@/lib/scans/cancel-scan";
 import {
   CancelActiveScansButton,
   CancelScanButton,
 } from "@/components/scan/cancel-active-scans-button";
+import { cn } from "@/lib/utils";
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 20;
 
 function toPositiveInt(value: string | string[] | undefined, fallback: number): number {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -19,16 +32,17 @@ function toPositiveInt(value: string | string[] | undefined, fallback: number): 
 }
 
 function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "Not finished";
-  return new Date(iso).toLocaleString("en-US", {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
   });
 }
 
+/**
+ * Scan History — find and compare completed Maps scans.
+ */
 export default async function OrgScansPage({
   searchParams,
 }: {
@@ -67,133 +81,171 @@ export default async function OrgScansPage({
   const hasPrev = currentPage > 1;
   const hasNext = currentPage < totalPages;
 
-  const hasActive = (scans ?? []).some((s) =>
+  const hasActive = (scans ?? []).some((s) => isCancellableScanStatus(String(s.status)));
+  const runningCount = (scans ?? []).filter((s) =>
     isCancellableScanStatus(String(s.status))
-  );
+  ).length;
+
+  const { count: campaignCount } = ids.length
+    ? await supabase
+        .from("maps_campaigns")
+        .select("id", { count: "exact", head: true })
+        .in("business_id", ids)
+        .in("status", ["active", "scheduled", "running"])
+    : { count: 0 };
 
   return (
-    <>
+    <ModulePage>
       <PageHeader
-        title="Recent Scans"
-        subtitle="Paginated Maps scan history across your prospects and clients."
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            {hasActive ? <CancelActiveScansButton /> : null}
-            <Link href="/scans/new" className={btnPrimary}>
-              New scan
-            </Link>
-          </div>
+        title="Scan History"
+        description="Find and compare completed Maps scans across your locations."
+        secondaryActions={hasActive ? <CancelActiveScansButton /> : undefined}
+        primaryAction={
+          <Link href="/scans/new" className={btnPrimary}>
+            <Plus className="h-4 w-4" />
+            New scan
+          </Link>
         }
       />
 
       {!scans?.length ? (
-        <div className={emptyStateClass}>
-          <h2 className="text-base font-semibold text-zinc-900">No scans yet</h2>
-          <p className="mx-auto mt-2 max-w-md text-sm text-zinc-600">
-            Run a Maps scan for a prospect or client to track local rankings over time.
-          </p>
-          <Link
-            href="/scans/new"
-            className="mt-4 inline-block text-sm font-medium text-[#137752] hover:underline"
-          >
-            Start a scan
-          </Link>
-        </div>
+        <ModuleEmptyState
+          icon={<Radar className="h-5 w-5" />}
+          title="No scans yet"
+          description="Run a Maps scan for a prospect or client to track local rankings over time."
+          actionLabel="Start a scan"
+          actionHref="/scans/new"
+        />
       ) : (
-        <div className="space-y-3">
-          <ul className={listClass}>
-            {scans.map((s) => {
-              const conf = (s.confidence_summary ?? {}) as { keyword?: string; keyword_label?: string };
-              const metrics = (s.aggregate_metrics ?? {}) as {
-                averageRank?: number | null;
-                top3Cells?: number | null;
-                totalCells?: number | null;
-                visibilityScore?: number | null;
-              };
-              const top3Pct =
-                metrics.top3Cells != null && metrics.totalCells
-                  ? Math.round((Number(metrics.top3Cells) / Number(metrics.totalCells)) * 100)
-                  : null;
-            const keyword = conf.keyword_label ?? conf.keyword ?? "—";
-            const safeError = customerSafeScanError(s.error_message as string | null);
-            return (
-              <li key={s.id} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <Link
-                    href={`/businesses/${s.business_id}/grid/${s.id}`}
-                    className="text-sm font-semibold text-zinc-900 hover:text-[#137752]"
-                  >
-                    {nameById.get(s.business_id as string) ?? "Location"} · {keyword}
-                  </Link>
-                  <p className="text-xs text-zinc-500">
-                    {s.grid_size}×{s.grid_size} · {String(s.status)} · Created {formatDate(s.created_at as string)}
-                    {s.finished_at ? ` · Finished ${formatDate(s.finished_at as string)}` : ""}
-                    {s.center_label ? ` · ${s.center_label}` : ""}
-                  </p>
-                  <p className="mt-0.5 text-xs text-zinc-500">
-                    Avg rank{" "}
-                    <span className="font-medium text-zinc-700">
-                      {metrics.averageRank != null
-                        ? Math.round(Number(metrics.averageRank) * 10) / 10
-                        : "—"}
-                    </span>
-                    {" · "}Top 3 cells{" "}
-                    <span className="font-medium text-zinc-700">
-                      {top3Pct != null ? `${top3Pct}%` : "—"}
-                    </span>
-                    {" · "}Visibility{" "}
-                    <span className="font-medium text-zinc-700">
-                      {metrics.visibilityScore != null
-                        ? `${Math.round(Number(metrics.visibilityScore))}%`
-                        : "—"}
-                    </span>
-                  </p>
-                  {safeError ? (
-                    <p className="mt-1 text-xs text-amber-800">{safeError}</p>
-                  ) : null}
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  {isCancellableScanStatus(String(s.status)) ? (
-                    <CancelScanButton scanId={String(s.id)} />
-                  ) : null}
-                  <Link
-                    href={`/businesses/${s.business_id}/grid/${s.id}`}
-                    className="text-xs font-medium text-[#137752] hover:underline"
-                  >
-                    Open
-                  </Link>
-                </div>
-              </li>
-            );
-            })}
-          </ul>
+        <div className="space-y-6">
+          <MetricStrip
+            items={[
+              { label: "Total scans", value: String(total) },
+              {
+                label: "Scheduled campaigns",
+                value: String(campaignCount ?? 0),
+              },
+              {
+                label: "Currently running",
+                value: String(runningCount),
+              },
+            ]}
+          />
 
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-zinc-200/80 bg-white px-4 py-3 text-sm text-zinc-600 shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
-            <span className="text-xs tabular-nums text-zinc-500">
-              Showing {from + 1}-{Math.min(to + 1, total)} of {total} scans
-            </span>
+          <div className={cn(listClass, "overflow-hidden")}>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className={cn("border-b border-[var(--border)]", tableHeadClass)}>
+                    <th className={cn(tableCellClass, "py-2.5 text-left")}>Keyword</th>
+                    <th className={cn(tableCellClass, "py-2.5 text-left")}>Location</th>
+                    <th className={cn(tableCellClass, "py-2.5 text-left")}>Grid</th>
+                    <th className={cn(tableCellClass, "py-2.5 text-right")}>Avg rank</th>
+                    <th className={cn(tableCellClass, "py-2.5 text-right")}>Top 3</th>
+                    <th className={cn(tableCellClass, "py-2.5 text-left")}>Status</th>
+                    <th className={cn(tableCellClass, "py-2.5 text-left")}>Date</th>
+                    <th className={cn(tableCellClass, "py-2.5 text-right")}> </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {scans.map((s) => {
+                    const conf = (s.confidence_summary ?? {}) as {
+                      keyword?: string;
+                      keyword_label?: string;
+                    };
+                    const metrics = (s.aggregate_metrics ?? {}) as {
+                      averageRank?: number | null;
+                      top3Cells?: number | null;
+                      totalCells?: number | null;
+                    };
+                    const top3Pct =
+                      metrics.top3Cells != null && metrics.totalCells
+                        ? Math.round(
+                            (Number(metrics.top3Cells) / Number(metrics.totalCells)) * 100
+                          )
+                        : null;
+                    const keyword = conf.keyword_label ?? conf.keyword ?? "Untitled keyword";
+                    const safeError = customerSafeScanError(s.error_message as string | null);
+                    const status = String(s.status);
+                    const locationName = nameById.get(s.business_id as string) ?? "Location";
+
+                    return (
+                      <tr key={s.id} className={tableRowHoverClass}>
+                        <td className={tableCellClass}>
+                          <Link
+                            href={`/businesses/${s.business_id}/grid/${s.id}`}
+                            className="font-semibold text-[var(--text)] hover:text-[var(--primary)]"
+                          >
+                            {keyword}
+                          </Link>
+                          {safeError ? (
+                            <p className="mt-1 text-xs text-amber-800">{safeError}</p>
+                          ) : null}
+                        </td>
+                        <td className={cn(tableCellClass, "text-[var(--text-secondary)]")}>
+                          {locationName}
+                        </td>
+                        <td className={cn(tableCellClass, "tabular-nums text-[var(--text-secondary)]")}>
+                          {s.grid_size}×{s.grid_size}
+                        </td>
+                        <td className={cn(tableCellClass, "text-right font-semibold tabular-nums text-[var(--text)]")}>
+                          {metrics.averageRank != null
+                            ? Math.round(Number(metrics.averageRank) * 10) / 10
+                            : "—"}
+                        </td>
+                        <td className={cn(tableCellClass, "text-right tabular-nums text-[var(--text-secondary)]")}>
+                          {top3Pct != null ? `${top3Pct}%` : "—"}
+                        </td>
+                        <td className={tableCellClass}>
+                          <StatusBadge status={status} />
+                        </td>
+                        <td className={cn(tableCellClass, "text-[var(--text-muted)]")}>
+                          {formatDate(s.created_at as string)}
+                        </td>
+                        <td className={cn(tableCellClass, "text-right")}>
+                          <div className="inline-flex items-center gap-2">
+                            {isCancellableScanStatus(status) ? (
+                              <CancelScanButton scanId={String(s.id)} />
+                            ) : null}
+                            <Link
+                              href={`/businesses/${s.business_id}/grid/${s.id}`}
+                              className={cn(btnGhost, "h-8 px-3 text-xs")}
+                            >
+                              Open
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs font-medium text-[var(--text-muted)]">
+              Page {currentPage} of {totalPages} · {total} scans
+            </p>
             <div className="flex items-center gap-2">
-              <Link
-                href={hasPrev ? `/scans?page=${currentPage - 1}` : "/scans"}
-                aria-disabled={!hasPrev}
-                className={`${btnSecondary} h-8 px-3 text-xs ${!hasPrev ? "pointer-events-none opacity-50" : ""}`}
-              >
-                Previous
-              </Link>
-              <span className="text-xs font-medium tabular-nums text-zinc-500">
-                Page {currentPage} of {totalPages}
-              </span>
-              <Link
-                href={hasNext ? `/scans?page=${currentPage + 1}` : `/scans?page=${currentPage}`}
-                aria-disabled={!hasNext}
-                className={`${btnSecondary} h-8 px-3 text-xs ${!hasNext ? "pointer-events-none opacity-50" : ""}`}
-              >
-                Next
-              </Link>
+              {hasPrev ? (
+                <Link href={`/scans?page=${currentPage - 1}`} className={btnGhost}>
+                  Previous
+                </Link>
+              ) : (
+                <span className={cn(btnGhost, "pointer-events-none opacity-40")}>Previous</span>
+              )}
+              {hasNext ? (
+                <Link href={`/scans?page=${currentPage + 1}`} className={btnGhost}>
+                  Next
+                </Link>
+              ) : (
+                <span className={cn(btnGhost, "pointer-events-none opacity-40")}>Next</span>
+              )}
             </div>
           </div>
         </div>
       )}
-    </>
+    </ModulePage>
   );
 }

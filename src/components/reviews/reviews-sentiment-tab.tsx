@@ -7,8 +7,18 @@ import type { ReviewListItem, ReviewsPageData } from "@/lib/reviews/reviews-page
 import type { ThemeDetail, ThemeReviewRef } from "@/lib/reviews/review-themes";
 import { ReviewDetailDrawer } from "@/components/reviews/review-detail-drawer";
 import { HighlightedReviewText } from "@/components/reviews/highlighted-review-text";
-import { ReviewerAvatar, RvCard, StarRating } from "@/components/reviews/reviews-ui";
-import { dashboardCardTitle, dashboardMicro } from "@/components/overview/dashboard-ui";
+import { ReviewerAvatar, StarRating } from "@/components/reviews/reviews-ui";
+import {
+  ChartCard,
+  ContentCard,
+  InsightPanel,
+  microClass,
+  sectionTitleClass,
+  tableCellClass,
+  tableHeadCellClass,
+  tableHeadClass,
+  tableRowHoverClass,
+} from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
 
 function formatPercentTooltip(value: unknown) {
@@ -182,21 +192,21 @@ export function ReviewsSentimentTab({ data }: { data: ReviewsPageData }) {
 
   if (!activeEntity) {
     return (
-      <RvCard>
+      <ContentCard>
         <p className="text-sm text-zinc-500">Run Review Momentum to sync reviews and detect themes.</p>
-      </RvCard>
+      </ContentCard>
     );
   }
 
   return (
     <div className="grid gap-4 xl:grid-cols-4">
       <div className="space-y-4 xl:col-span-3">
-        <RvCard>
-          <h3 className={dashboardCardTitle}>Theme Comparison — You vs Competitors</h3>
-          <p className={`mt-0.5 ${dashboardMicro}`}>
-            % of reviews in the last 90 days that mention each theme organically.
-          </p>
-          <div className="mt-3 h-56">
+        <ChartCard
+          title="Theme Comparison — You vs Competitors"
+          description="% of reviews in the last 90 days that mention each theme organically."
+          tall
+        >
+          <div className="h-56">
             {comparisonChart.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={comparisonChart} layout="vertical" margin={{ left: 4, right: 8 }}>
@@ -210,16 +220,16 @@ export function ReviewsSentimentTab({ data }: { data: ReviewsPageData }) {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className={dashboardMicro}>Theme comparison will appear as reviews sync.</p>
+              <p className={microClass}>Theme comparison will appear as reviews sync.</p>
             )}
           </div>
-        </RvCard>
+        </ChartCard>
 
-        <RvCard>
+        <ContentCard>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h3 className={dashboardCardTitle}>Theme Breakdown by Business</h3>
-              <p className={`mt-0.5 ${dashboardMicro}`}>
+              <h3 className={sectionTitleClass}>Theme Breakdown by Business</h3>
+              <p className={cn("mt-0.5", microClass)}>
                 Expand any theme to see the reviews it came from.
               </p>
             </div>
@@ -232,10 +242,10 @@ export function ReviewsSentimentTab({ data }: { data: ReviewsPageData }) {
                 type="button"
                 onClick={() => setEntityId(entity.id)}
                 className={cn(
-                  "rounded-full px-2.5 py-1 text-[12px] font-medium transition-colors",
+                  "rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors",
                   entityId === entity.id
-                    ? "bg-emerald-600 text-white"
-                    : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100"
                 )}
               >
                 {entity.isTarget ? "You" : entity.label}
@@ -248,7 +258,7 @@ export function ReviewsSentimentTab({ data }: { data: ReviewsPageData }) {
             {activeEntity.themes.map((theme) => (
               <div key={theme.themeId} className="rounded-lg border border-zinc-100 bg-zinc-50/40 px-3.5 py-2">
                 <p className="text-[13px] font-medium text-zinc-900">{theme.label}</p>
-                <p className={`mt-0.5 ${dashboardMicro}`}>
+                <p className={cn("mt-0.5", microClass)}>
                   {theme.reviewCount} reviews · {theme.pct}%
                 </p>
               </div>
@@ -270,31 +280,33 @@ export function ReviewsSentimentTab({ data }: { data: ReviewsPageData }) {
               ))}
             </div>
           )}
-        </RvCard>
+        </ContentCard>
 
-        <RvCard>
-          <h3 className={dashboardCardTitle}>All Themes — Side by Side</h3>
+        <ContentCard padding={false} className="overflow-hidden">
+          <div className="px-4 py-3">
+            <h3 className={sectionTitleClass}>All Themes — Side by Side</h3>
+          </div>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-left text-[13px]">
               <thead>
-                <tr className="border-b border-zinc-100 text-[10px] font-semibold uppercase text-zinc-500">
-                  <th className="pb-2 pr-2.5">Theme</th>
-                  <th className="pb-2 pr-2.5">You</th>
-                  <th className="pb-2 pr-2.5">Competitor avg</th>
-                  <th className="pb-2">Strongest at</th>
+                <tr className={tableHeadClass}>
+                  <th className={tableHeadCellClass}>Theme</th>
+                  <th className={tableHeadCellClass}>You</th>
+                  <th className={tableHeadCellClass}>Competitor avg</th>
+                  <th className={tableHeadCellClass}>Strongest at</th>
                 </tr>
               </thead>
               <tbody>
                 {sentiment.themeComparison.map((row) => (
-                  <tr key={row.themeId} className="border-b border-zinc-50">
-                    <td className="py-2 pr-2.5 font-medium text-zinc-900">{row.label}</td>
-                    <td className="py-2 pr-2.5">
+                  <tr key={row.themeId} className={cn("border-b border-zinc-50", tableRowHoverClass)}>
+                    <td className={cn(tableCellClass, "font-medium text-zinc-900")}>{row.label}</td>
+                    <td className={tableCellClass}>
                       {row.yours} reviews <span className="text-zinc-500">({row.yoursPct}%)</span>
                     </td>
-                    <td className="py-2 pr-2.5">
+                    <td className={tableCellClass}>
                       {row.competitorAvg} avg <span className="text-zinc-500">({row.competitorAvgPct}%)</span>
                     </td>
-                    <td className="py-2 text-zinc-600">
+                    <td className={cn(tableCellClass, "text-zinc-600")}>
                       {row.topCompetitor ? `${row.topCompetitor} (${row.topCompetitorPct}%)` : row.yours > 0 ? "You" : "—"}
                     </td>
                   </tr>
@@ -302,31 +314,30 @@ export function ReviewsSentimentTab({ data }: { data: ReviewsPageData }) {
               </tbody>
             </table>
           </div>
-        </RvCard>
+        </ContentCard>
       </div>
 
       <div className="space-y-3">
-        <RvCard>
+        <InsightPanel title="Theme Insights">
           <div className="mb-2.5 flex items-center gap-2">
             <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
-            <h3 className={dashboardCardTitle}>Theme Insights</h3>
+            <p className="text-sm font-semibold text-zinc-900">Organic language guidance</p>
           </div>
-          <p className={`mb-2.5 ${dashboardMicro}`}>
+          <p className={cn("mb-2.5", microClass)}>
             Themes are detected from real review language. Google prohibits asking customers to mention specific phrases.
           </p>
           <div className="space-y-2">
             {sentiment.insights.map((insight) => (
               <div key={insight.id} className="rounded-lg border border-zinc-100 bg-zinc-50/50 p-2.5">
                 <p className="text-[13px] font-medium text-zinc-900">{insight.title}</p>
-                <p className={`mt-0.5 ${dashboardMicro}`}>{insight.description}</p>
+                <p className={cn("mt-0.5", microClass)}>{insight.description}</p>
               </div>
             ))}
           </div>
-        </RvCard>
+        </InsightPanel>
 
-        <RvCard className="border-amber-100 bg-amber-50/40">
-          <h3 className={dashboardCardTitle}>Themes to Strengthen</h3>
-          <p className={`mt-1 ${dashboardMicro}`}>
+        <InsightPanel title="Themes to Strengthen" className="border-amber-100 bg-amber-50/40">
+          <p className={cn("mt-1", microClass)}>
             Where competitors earn more organic praise — improve the service, not review wording.
           </p>
           <ul className="mt-2 space-y-1.5 text-[13px]">
@@ -342,11 +353,11 @@ export function ReviewsSentimentTab({ data }: { data: ReviewsPageData }) {
                 </li>
               ))}
           </ul>
-        </RvCard>
+        </InsightPanel>
 
-        <RvCard>
-          <h3 className={dashboardCardTitle}>Sentiment Snapshot</h3>
-          <p className={`mt-0.5 ${dashboardMicro}`}>Secondary view — themes above are the primary signal.</p>
+        <ContentCard>
+          <h3 className="text-sm font-semibold text-zinc-900">Sentiment Snapshot</h3>
+          <p className={cn("mt-0.5", microClass)}>Secondary view — themes above are the primary signal.</p>
           <dl className="mt-2 space-y-1.5 text-[13px]">
             <div className="flex justify-between rounded-lg bg-emerald-50/50 px-3.5 py-2">
               <dt className="font-medium text-zinc-900">You</dt>
@@ -361,7 +372,7 @@ export function ReviewsSentimentTab({ data }: { data: ReviewsPageData }) {
                 </div>
               ))}
           </dl>
-        </RvCard>
+        </ContentCard>
       </div>
 
       <ReviewDetailDrawer

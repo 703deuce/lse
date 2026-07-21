@@ -1,28 +1,35 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, X, ExternalLink } from "lucide-react";
+import Link from "next/link";
+import { Link2, ListPlus, Loader2, Play, RefreshCw, X, ExternalLink } from "lucide-react";
 import { OpportunitiesPanel, type EnrichedOpportunity } from "@/components/backlink-gap/opportunities-panel";
 import { enrichOpportunities } from "@/lib/backlink-gap/enrich";
 import type { BusinessContext } from "@/lib/backlink-gap/enrich";
 import type { RawOpportunity } from "@/lib/backlink-gap/enrich";
 import {
   BacklinkGapTabId,
-  GapActionBar,
   GapIgnoredKpiRow,
   GapKpiRow,
   GapPageFooter,
-  GapPageHeader,
   GapTabs,
   GapTargetLine,
-  GapTopBar,
   priorityBadge,
 } from "@/components/backlink-gap/backlink-gap-ui";
-import { ModulePage, AlertBanner } from "@/components/ui/design-system";
+import {
+  ModulePage,
+  PageHeader,
+  AlertBanner,
+  ModuleSkeleton,
+  btnGhost,
+  btnPrimary,
+} from "@/components/ui/design-system";
+import { ModuleEmptyState } from "@/components/journey/module-empty-state";
 import { BacklinkGapOverviewTab } from "@/components/backlink-gap/backlink-gap-overview-tab";
 import { BacklinkGapMatrixTab } from "@/components/backlink-gap/backlink-gap-matrix-tab";
 import { BacklinkGapTasksTab } from "@/components/backlink-gap/backlink-gap-tasks-tab";
 import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
+import { cn } from "@/lib/utils";
 
 type GapData = {
   run: {
@@ -93,10 +100,10 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
   }, [load, loadStats]);
 
   useEffect(() => {
-    if (data?.run?.status === "ready" || data?.run?.status === "partial") {
+    if (data?.run && data.run.status !== "running" && data.run.status !== "queued") {
       void loadTopOpportunities();
     }
-  }, [data?.run?.status, loadTopOpportunities]);
+  }, [data?.run?.status, data?.run?.id, loadTopOpportunities]);
 
   const {
     start: startJob,
@@ -166,20 +173,50 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
 
   return (
     <ModulePage>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <GapPageHeader />
-        <GapTopBar businessId={businessId} />
-      </div>
-
-      <GapActionBar
-          isRunning={isRunning}
-          hasRun={!!run}
-          loading={loading}
-          onRun={() => runGap(false)}
-          onRerun={() => runGap(true)}
-          onCreateTasks={createTasks}
-          onRefresh={load}
-        />
+      <PageHeader
+        title="Backlink Gap"
+        description="Identify the most valuable domains linking to competitors but not to you."
+        primaryAction={
+          <button
+            type="button"
+            onClick={() => runGap(false)}
+            disabled={isRunning}
+            className={btnPrimary}
+          >
+            {isRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 fill-current" />}
+            {isRunning ? "Analyzing..." : "Run analysis"}
+          </button>
+        }
+        secondaryActions={
+          run ? (
+            <>
+              <button
+                type="button"
+                onClick={createTasks}
+                disabled={isRunning}
+                className={cn(btnGhost, "h-9 px-3 text-[13px]")}
+              >
+                <ListPlus className="h-3.5 w-3.5" />
+                Create tasks
+              </button>
+              <button
+                type="button"
+                onClick={() => runGap(true)}
+                disabled={isRunning}
+                className={cn(btnGhost, "h-9 px-3 text-[13px]")}
+                title="Force a fresh analysis"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Re-run
+              </button>
+            </>
+          ) : (
+            <Link href={`/businesses/${businessId}/scans`} className={cn(btnGhost, "h-9 px-3 text-[13px]")}>
+              Maps scans
+            </Link>
+          )
+        }
+      />
 
       {error && <AlertBanner variant="error">{error}</AlertBanner>}
 
@@ -212,21 +249,16 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
 
       <GapTabs active={tab} onChange={setTab} />
 
-      {loading && !data && (
-        <div className="flex items-center justify-center py-10 text-text-muted">
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          <span className="text-[13px]">Loading saved results…</span>
-        </div>
-      )}
+      {loading && !data && <ModuleSkeleton rows={5} />}
 
       {!loading && !run && (
-        <div className="rounded-xl border border-dashed border-border bg-white px-3.5 py-8 text-center text-[13px]">
-          <h2 className="text-[15px] font-semibold text-zinc-900">No Backlink Gap yet</h2>
-          <p className="mx-auto mt-2 max-w-md text-[13px] text-text-muted">
-            Compare your client with competitors to find local and industry backlink opportunities —
-            then save, create tasks, and include a summary in the next report.
-          </p>
-        </div>
+        <ModuleEmptyState
+          icon={Link2}
+          title="No Backlink Gap yet"
+          description="Compare your client with competitors to find local and industry backlink opportunities - then save, create tasks, and include a summary in the next report."
+          actionLabel="Run Backlink Gap"
+          onAction={() => void runGap(false)}
+        />
       )}
 
       {tab === "overview" && run && (

@@ -17,8 +17,8 @@ import {
 import {
   ContentCard,
   EmptyState,
-  ModuleHeader,
   ModulePage,
+  PageHeader,
   btnPrimary,
   btnSecondary,
   inputClass,
@@ -456,12 +456,12 @@ export function ReportsHub({
 
   return (
     <ModulePage wide>
-      <ModuleHeader
+      <PageHeader
         title={prospectOnly ? "Prospect audit report" : "Reports"}
-        subtitle={
+        description={
           prospectOnly
             ? "A focused shareable audit for prospects: Maps visibility, competitor presence, and outreach opportunities."
-            : "Client-ready Maps and Reviews reports — PDF, map images, share links, and CSV."
+            : "Create client-ready deliverables from scans, reviews, and growth data."
         }
       />
 

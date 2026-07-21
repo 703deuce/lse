@@ -71,7 +71,7 @@ export function ReviewRequestsUpgrade({ businessId }: { businessId: string }) {
       <div className="mt-6 flex flex-wrap items-center gap-2">
         <Link
           href={`/businesses/${businessId}/settings`}
-          className="inline-flex items-center rounded-full bg-[#137752] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#0f6344]"
+          className="inline-flex items-center rounded-md bg-[#137752] px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-[#0f6344]"
         >
           Upgrade / enable add-on
         </Link>

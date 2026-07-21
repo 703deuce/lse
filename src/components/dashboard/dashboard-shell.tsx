@@ -51,7 +51,7 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
   }, [mobileNavOpen, setMobileNavOpen]);
 
   return (
-    <div className="flex min-h-screen overflow-x-hidden bg-[#F3F5F7]">
+    <div className="flex min-h-screen overflow-x-hidden bg-[#EEF1F4]">
       {/* Desktop sidebar — unchanged */}
       <DashboardSidebar
         businessId={businessId}
@@ -63,23 +63,23 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
       <MobileMoreSheet />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex items-center gap-2.5 border-b border-zinc-200 bg-white/95 px-3 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-white/80 lg:hidden">
+        <header className="sticky top-0 z-40 flex items-center gap-2.5 border-b border-zinc-200 bg-white px-3 py-2 lg:hidden">
           <button
             type="button"
             onClick={() => setMobileNavOpen(true)}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-700"
             aria-label="Open menu"
             aria-expanded={mobileNavOpen}
           >
             {mobileNavOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
           <div className="flex min-w-0 items-center gap-2">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#137752]">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#137752]">
               <MapPin className="h-3.5 w-3.5 text-white" />
             </div>
             <div className="min-w-0">
               <p className="truncate text-[13px] font-semibold text-zinc-900">Local SEO Express</p>
-              <p className="truncate text-[10px] text-zinc-500">Menu</p>
+              <p className="truncate text-[10px] text-zinc-500">Local SEO platform</p>
             </div>
           </div>
         </header>
@@ -89,11 +89,11 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
             "flex min-w-0 flex-1 flex-col overflow-x-hidden",
             fullBleed
               ? "overflow-y-hidden p-0"
-              : "overflow-y-auto px-3 py-4 pb-20 sm:px-5 sm:py-6 lg:px-8 lg:pb-6"
+              : "overflow-y-auto px-3 py-3 pb-20 sm:px-4 sm:py-4 lg:px-5 lg:pb-5"
           )}
         >
           {!fullBleed ? (
-            <div className="mb-4 hidden lg:block">
+            <div className="mb-3 hidden lg:block">
               <WorkspaceSearch />
             </div>
           ) : null}

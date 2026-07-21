@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2 } from "lucide-react";
 import { GrowthAuditActionPlanTab } from "@/components/growth-audit/growth-audit-action-plan-tab";
 import { GrowthAuditCompetitorTab } from "@/components/growth-audit/growth-audit-competitor-tab";
 import { GrowthAuditCoverageTab } from "@/components/growth-audit/growth-audit-coverage-tab";
@@ -16,7 +15,7 @@ import {
 } from "@/components/growth-audit/growth-audit-ui";
 import { GrowthAuditWebsiteTab } from "@/components/growth-audit/growth-audit-website-tab";
 import type { ExtendedModuleStatus, GrowthAuditSections } from "@/lib/growth-audit/types";
-import { ModulePage, AlertBanner } from "@/components/ui/design-system";
+import { ModulePage, AlertBanner, ModuleSkeleton, btnPrimary } from "@/components/ui/design-system";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
@@ -212,9 +211,9 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
 
   if (loading && !sections) {
     return (
-      <div className="flex items-center justify-center py-8 text-zinc-500">
-        <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
-      </div>
+      <ModulePage wide>
+        <ModuleSkeleton rows={6} />
+      </ModulePage>
     );
   }
 
@@ -227,7 +226,7 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
       {error && <AlertBanner variant="error">{error}</AlertBanner>}
 
       {!sections ? (
-        <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-3.5 py-8 text-center">
+        <div className="rounded-lg border border-dashed border-zinc-300 bg-white px-3.5 py-8 text-center">
           <h2 className="text-[15px] font-semibold text-zinc-900">No Growth Audit yet</h2>
           <p className="mx-auto mt-2 max-w-md text-[13px] text-zinc-500">
             Run a Growth Audit to identify gaps across the business profile, website, local coverage
@@ -237,7 +236,7 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
             type="button"
             onClick={() => void runAudit()}
             disabled={running}
-            className="mt-4 inline-flex h-9 items-center rounded-full bg-[#137752] px-3 text-[13px] font-semibold text-white hover:bg-[#0f6344] disabled:opacity-50"
+            className={cn(btnPrimary, "mt-4 h-9 px-3 disabled:opacity-50")}
           >
             {running ? "Running…" : "Run Growth Audit"}
           </button>

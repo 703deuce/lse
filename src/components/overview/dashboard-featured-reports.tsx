@@ -14,34 +14,23 @@ export function DashboardFeaturedReports({
   data: DashboardFeaturedData;
 }) {
   const showAi = data.ai.hasData;
+  const showLocal = data.local.total > 0 || data.local.items.length > 0;
+
+  if (!showAi && !showLocal) return null;
 
   return (
-    <section className="space-y-2.5">
-      <div className="grid gap-2 lg:grid-cols-2">
-        {showAi ? (
-          <DashboardAiVisibilityCard businessId={businessId} data={data.ai} />
-        ) : (
-          <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/60 px-4 py-5">
-            <p className="text-sm font-semibold text-zinc-900">AI Visibility</p>
-            <p className="mt-1 text-xs text-zinc-500">
-              Optional mention tracking for client reports. Run prompts when you need them —
-              not required for Maps rank tracking.
-            </p>
-            <a
-              href={`/businesses/${businessId}/ai-visibility`}
-              className="mt-3 inline-block text-xs font-medium text-emerald-700 hover:underline"
-            >
-              Open AI Visibility
-            </a>
-          </div>
-        )}
+    <section className={showAi && showLocal ? "grid gap-3 lg:grid-cols-2" : "grid gap-3"}>
+      {showAi ? (
+        <DashboardAiVisibilityCard businessId={businessId} data={data.ai} />
+      ) : null}
+      {showLocal ? (
         <DashboardLocalOpportunitiesCard
           businessId={businessId}
           items={data.local.items}
           total={data.local.total}
           compact={!showAi}
         />
-      </div>
+      ) : null}
     </section>
   );
 }

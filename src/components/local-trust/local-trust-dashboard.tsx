@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Play, RefreshCw } from "lucide-react";
 import { LocalTrustCompetitorsTab } from "@/components/local-trust/local-trust-competitors-tab";
 import { LocalTrustHistoryTab, type RunHistoryRow } from "@/components/local-trust/local-trust-history-tab";
 import { LocalTrustMarketBar } from "@/components/local-trust/local-trust-market-bar";
@@ -9,15 +9,20 @@ import { LocalTrustOpportunitiesPanel } from "@/components/local-trust/local-tru
 import { LocalTrustOverviewTab } from "@/components/local-trust/local-trust-overview-tab";
 import {
   LocalTrustTabId,
-  TrustActionBar,
   TrustFooter,
   TrustKpiRow,
   TrustMetaLine,
-  TrustPageHeader,
   TrustTabs,
-  TrustTopBar,
 } from "@/components/local-trust/local-trust-ui";
-import { ModulePage, AlertBanner, EmptyState } from "@/components/ui/design-system";
+import {
+  ModulePage,
+  PageHeader,
+  AlertBanner,
+  EmptyState,
+  ModuleSkeleton,
+  btnGhost,
+  btnPrimary,
+} from "@/components/ui/design-system";
 import { dashboardCard } from "@/components/overview/dashboard-ui";
 import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 import { cn } from "@/lib/utils";
@@ -199,10 +204,63 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
 
   return (
     <ModulePage>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <TrustPageHeader />
-        <TrustTopBar />
-      </div>
+      <PageHeader
+        title="Local Trust"
+        description="Find high-signal local directories and citations worth pursuing."
+        meta={
+          run ? (
+            <TrustMetaLine
+              city={activeCity}
+              state={activeState}
+              county={run.county}
+              createdAt={run.created_at}
+            />
+          ) : undefined
+        }
+        primaryAction={
+          <button
+            type="button"
+            disabled={isRunning}
+            onClick={() =>
+              selectedMarket === "all"
+                ? void runScan({})
+                : void runScan({
+                    city: selectedMarket.city,
+                    state: selectedMarket.state,
+                    rescan: true,
+                  })
+            }
+            className={btnPrimary}
+          >
+            {isRunning ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : selectedMarket === "all" ? (
+              <Play className="h-4 w-4 fill-current" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            {selectedMarket === "all" ? "Find opportunities" : "Rescan market"}
+          </button>
+        }
+        secondaryActions={
+          <button
+            type="button"
+            className={cn(btnGhost, "h-9 px-3 text-[13px]")}
+            onClick={() => {
+              void import("@/lib/journey/report-staging").then(({ stageReportItem }) => {
+                stageReportItem({
+                  businessId,
+                  source: "local_trust",
+                  title: "Local Trust findings",
+                  href: `/businesses/${businessId}/trust`,
+                });
+              });
+            }}
+          >
+            Add to report
+          </button>
+        }
+      />
 
       <div className="space-y-2.5">
         {(markets.length > 0 || run) && (
@@ -219,45 +277,6 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
             suggestions={suggestions}
             disabled={isRunning}
           />
-        )}
-
-        {run && (
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <TrustMetaLine
-              city={activeCity}
-              state={activeState}
-              county={run.county}
-              createdAt={run.created_at}
-            />
-            <TrustActionBar
-              businessId={businessId}
-              isRunning={isRunning}
-              loading={loading}
-              onRefresh={() => void load()}
-              onRun={() => void runScan({})}
-              hideRun={markets.length > 0}
-              showRescan={selectedMarket !== "all"}
-              onRescan={() =>
-                selectedMarket !== "all" &&
-                void runScan({
-                  city: selectedMarket.city,
-                  state: selectedMarket.state,
-                  rescan: true,
-                })
-              }
-            />
-          </div>
-        )}
-        {!run && (
-          <div className="flex justify-end">
-            <TrustActionBar
-              businessId={businessId}
-              isRunning={isRunning}
-              loading={loading}
-              onRefresh={() => void load()}
-              onRun={() => void runScan({})}
-            />
-          </div>
         )}
       </div>
 
@@ -284,12 +303,7 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
         </div>
       )}
 
-      {loading && !run && (
-        <div className="flex items-center justify-center py-10 text-zinc-500">
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Loading local trust data…
-        </div>
-      )}
+      {loading && !run && <ModuleSkeleton rows={5} />}
 
       {!loading && !run && (
         <EmptyState
@@ -299,7 +313,7 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
             <button
               type="button"
               onClick={() => void runScan({})}
-              className="mt-3 inline-flex h-9 items-center rounded-full bg-[#137752] px-3 text-[13px] font-semibold text-white hover:bg-[#0f6344]"
+              className={cn(btnPrimary, "mt-3 h-9 px-3")}
             >
               Find Local Trust Opportunities
             </button>

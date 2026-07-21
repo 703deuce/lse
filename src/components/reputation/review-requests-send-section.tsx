@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeftRight,
@@ -32,7 +32,10 @@ import {
   dashboardCardTitle,
   dashboardMicro,
 } from "@/components/overview/dashboard-ui";
+import { ClientPager } from "@/components/ui/show-more-list";
 import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 5;
 
 type TemplateRow = {
   id: string;
@@ -110,9 +113,19 @@ export function ReviewRequestsSendSection({
   const [sending, setSending] = useState<"email" | "sms" | "both" | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [recentSendsPage, setRecentSendsPage] = useState(1);
 
   const emailTemplate = templates.find((t) => t.channel === "email" && t.is_default) ?? templates.find((t) => t.channel === "email");
   const smsTemplate = templates.find((t) => t.channel === "sms" && t.is_default) ?? templates.find((t) => t.channel === "sms");
+  const recentSends = useMemo(() => stats?.recent_sends ?? [], [stats?.recent_sends]);
+  const currentRecentSendsPage = Math.min(
+    recentSendsPage,
+    Math.max(1, Math.ceil(recentSends.length / PAGE_SIZE))
+  );
+  const recentSendItems = useMemo(() => {
+    const start = (currentRecentSendsPage - 1) * PAGE_SIZE;
+    return recentSends.slice(start, start + PAGE_SIZE);
+  }, [recentSends, currentRecentSendsPage]);
 
   const previewVars = {
     customer_name: form.customerName || "there",
@@ -445,7 +458,7 @@ export function ReviewRequestsSendSection({
                 </p>
                 <p className="whitespace-pre-wrap leading-relaxed text-zinc-700">{previewBody}</p>
                 <div className="pt-2 text-center">
-                  <span className="inline-block rounded-full bg-[#137752] px-4 py-2 text-[13px] font-semibold text-white">
+                  <span className="inline-block rounded-md bg-[#137752] px-4 py-2 text-[13px] font-semibold text-white">
                     Leave a review on Google
                   </span>
                 </div>
@@ -476,14 +489,14 @@ export function ReviewRequestsSendSection({
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {(stats?.recent_sends ?? []).length === 0 ? (
+              {recentSends.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-3 py-8 text-center text-[13px] text-zinc-500">
                     No sends yet.
                   </td>
                 </tr>
               ) : (
-                stats?.recent_sends.map((row) => (
+                recentSendItems.map((row) => (
                   <tr key={row.id} className="hover:bg-zinc-50/80">
                     <td className="px-3.5 py-2 font-medium text-zinc-900">
                       {row.review_request_contacts?.customer_name ?? "—"}
@@ -517,6 +530,12 @@ export function ReviewRequestsSendSection({
             </tbody>
           </table>
         </div>
+        <ClientPager
+          page={currentRecentSendsPage}
+          pageSize={PAGE_SIZE}
+          total={recentSends.length}
+          onPageChange={setRecentSendsPage}
+        />
       </div>
     </div>
   );

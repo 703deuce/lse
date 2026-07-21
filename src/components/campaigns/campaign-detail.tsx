@@ -3,8 +3,23 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, FileText, GitCompare, Loader2, Play, Plus } from "lucide-react";
-import { PageHeader } from "@/components/ui/page-header";
+import {
+  ContentCard,
+  PageHeader,
+  btnGhost,
+  btnPrimary,
+  btnSecondary,
+  fieldLabelClass,
+  inputClass,
+  microClass,
+  sectionTitleClass,
+  tableCellClass,
+  tableHeadCellClass,
+  tableHeadClass,
+  tableRowHoverClass,
+} from "@/components/ui/design-system";
 import type { CampaignScheduleType } from "@/lib/campaigns/types";
+import { cn } from "@/lib/utils";
 
 type Keyword = {
   id: string;
@@ -305,21 +320,23 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
 
       <PageHeader
         title={campaign.name}
-        subtitle={`${businessName || "Location"} · ${campaign.default_grid_size}×${campaign.default_grid_size} grid · ${Math.round((campaign.default_radius_meters / 1609.34) * 10) / 10} mi radius`}
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={busy || keywords.filter((k) => k.active !== false).length < 1}
-              onClick={() => void runAllKeywords()}
-              className="inline-flex items-center gap-2 rounded-full bg-[#137752] px-3 py-2 text-sm font-medium text-white hover:bg-[#0f6344] disabled:opacity-50"
-            >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-              Run all
-            </button>
+        description={`${businessName || "Location"} · ${campaign.default_grid_size}×${campaign.default_grid_size} grid · ${Math.round((campaign.default_radius_meters / 1609.34) * 10) / 10} mi radius`}
+        primaryAction={
+          <button
+            type="button"
+            disabled={busy || keywords.filter((k) => k.active !== false).length < 1}
+            onClick={() => void runAllKeywords()}
+            className={btnPrimary}
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+            Run all
+          </button>
+        }
+        secondaryActions={
+          <>
             <Link
               href={reportHref}
-              className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              className={btnSecondary}
             >
               <FileText className="h-4 w-4" />
               Create report
@@ -328,7 +345,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
               type="button"
               disabled={busy}
               onClick={() => setShowSchedule((v) => !v)}
-              className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+              className={btnSecondary}
             >
               Edit schedule
             </button>
@@ -336,7 +353,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
               type="button"
               disabled={busy}
               onClick={() => void duplicateCampaign()}
-              className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+              className={btnGhost}
             >
               Duplicate
             </button>
@@ -344,11 +361,11 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
               type="button"
               disabled={busy}
               onClick={() => void archiveCampaign()}
-              className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+              className={btnGhost}
             >
               Archive
             </button>
-          </div>
+          </>
         }
       />
 
@@ -358,18 +375,18 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
         </div>
       ) : null}
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-4">
+      <ContentCard padding={false} className="overflow-hidden">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-zinc-900">Keywords</h2>
-            <p className="mt-1 text-xs text-zinc-500">
+          <div className="px-4 pt-4">
+            <h2 className={sectionTitleClass}>Keywords</h2>
+            <p className={cn("mt-1", microClass)}>
               Latest average, Top 3 coverage, change vs previous scan, and status — without
               opening every grid.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 px-4 pt-4">
             <select
-              className="rounded-lg border border-zinc-300 px-2 py-1.5 text-xs"
+              className={cn(inputClass, "h-8 w-auto min-w-[150px] py-0 text-xs")}
               value={compareA}
               onChange={(e) => setCompareA(e.target.value)}
             >
@@ -381,7 +398,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
               ))}
             </select>
             <select
-              className="rounded-lg border border-zinc-300 px-2 py-1.5 text-xs"
+              className={cn(inputClass, "h-8 w-auto min-w-[150px] py-0 text-xs")}
               value={compareB}
               onChange={(e) => setCompareB(e.target.value)}
             >
@@ -395,7 +412,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
             <button
               type="button"
               onClick={openCompare}
-              className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+              className={cn(btnSecondary, "h-8 px-2.5 text-xs")}
             >
               <GitCompare className="h-3.5 w-3.5" />
               Compare period
@@ -406,13 +423,13 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
         <div className="mt-3 overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-zinc-100 text-[11px] uppercase tracking-wide text-zinc-500">
-                <th className="py-2 pr-3 font-medium">Keyword</th>
-                <th className="py-2 pr-3 font-medium">Latest average</th>
-                <th className="py-2 pr-3 font-medium">Top 3</th>
-                <th className="py-2 pr-3 font-medium">Previous change</th>
-                <th className="py-2 pr-3 font-medium">Last scan</th>
-                <th className="py-2 font-medium">Status</th>
+              <tr className={tableHeadClass}>
+                <th className={tableHeadCellClass}>Keyword</th>
+                <th className={tableHeadCellClass}>Latest average</th>
+                <th className={tableHeadCellClass}>Top 3</th>
+                <th className={tableHeadCellClass}>Previous change</th>
+                <th className={tableHeadCellClass}>Last scan</th>
+                <th className={tableHeadCellClass}>Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -427,8 +444,8 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                         ? "text-red-600"
                         : "text-zinc-600";
                 return (
-                  <tr key={k.id}>
-                    <td className="py-2.5 pr-3 font-medium text-zinc-900">
+                  <tr key={k.id} className={tableRowHoverClass}>
+                    <td className={cn(tableCellClass, "font-medium text-zinc-900")}>
                       {k.latestScanId ? (
                         <Link
                           href={`/businesses/${campaign.business_id}/grid/${k.latestScanId}`}
@@ -440,23 +457,23 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                         k.keyword
                       )}
                     </td>
-                    <td className="py-2.5 pr-3 text-zinc-800">{fmtNum(k.latestAverage)}</td>
-                    <td className="py-2.5 pr-3 text-zinc-800">
+                    <td className={cn(tableCellClass, "text-zinc-800")}>{fmtNum(k.latestAverage)}</td>
+                    <td className={cn(tableCellClass, "text-zinc-800")}>
                       {k.top3Pct == null ? "—" : `${fmtNum(k.top3Pct)}%`}
                     </td>
-                    <td className={`py-2.5 pr-3 font-medium ${deltaClass}`}>
+                    <td className={cn(tableCellClass, "font-medium", deltaClass)}>
                       {delta == null ? "—" : delta > 0 ? `+${fmtNum(delta)}` : fmtNum(delta)}
                     </td>
-                    <td className="py-2.5 pr-3 text-zinc-600">
+                    <td className={cn(tableCellClass, "text-zinc-600")}>
                       {k.lastScanAt ? new Date(k.lastScanAt).toLocaleDateString() : "—"}
                     </td>
-                    <td className="py-2.5 text-xs text-zinc-500">{statusLabel(k.status)}</td>
+                    <td className={cn(tableCellClass, "text-xs text-zinc-500")}>{statusLabel(k.status)}</td>
                   </tr>
                 );
               })}
               {keywords.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-3 text-sm text-zinc-500">
+                  <td colSpan={6} className={cn(tableCellClass, "text-sm text-zinc-500")}>
                     No keywords in this campaign yet.
                   </td>
                 </tr>
@@ -465,9 +482,9 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
           </table>
         </div>
 
-        <div className="mt-3 flex gap-2">
+        <div className="flex gap-2 border-t border-zinc-100 bg-zinc-50/60 px-4 py-3">
           <input
-            className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+            className={cn(inputClass, "min-w-0 flex-1")}
             placeholder="Add keyword"
             value={newKeyword}
             onChange={(e) => setNewKeyword(e.target.value)}
@@ -482,25 +499,25 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
             type="button"
             disabled={busy || !newKeyword.trim()}
             onClick={() => void addKeyword()}
-            className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-50"
+            className={btnSecondary}
           >
             <Plus className="h-4 w-4" />
             Add
           </button>
         </div>
-      </section>
+      </ContentCard>
 
       {showSchedule ? (
-        <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-zinc-900">Schedule</h2>
-          <p className="mt-1 text-xs text-zinc-500">
+        <ContentCard className="mt-4">
+          <h2 className={sectionTitleClass}>Schedule</h2>
+          <p className={cn("mt-1", microClass)}>
             Weekly, every two weeks, or monthly. Incomplete scans never become reports.
           </p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <label className="block text-sm">
-              <span className="font-medium text-zinc-700">Cadence</span>
+              <span className={fieldLabelClass}>Cadence</span>
               <select
-                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+                className={cn(inputClass, "mt-1")}
                 value={campaign.schedule_type}
                 disabled={busy}
                 onChange={(e) =>
@@ -517,12 +534,12 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
               </select>
             </label>
             <label className="block text-sm">
-              <span className="font-medium text-zinc-700">Day of week / month</span>
+              <span className={fieldLabelClass}>Day of week / month</span>
               <input
                 type="number"
                 min={0}
                 max={31}
-                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+                className={cn(inputClass, "mt-1")}
                 value={campaign.schedule_day ?? ""}
                 disabled={busy || campaign.schedule_type === "manual"}
                 placeholder={campaign.schedule_type === "monthly" ? "1–31" : "0=Sun … 6=Sat"}
@@ -543,13 +560,13 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
             Schedule enabled
           </label>
           {campaign.next_scheduled_at ? (
-            <p className="mt-2 text-xs text-zinc-500">
+            <p className={cn("mt-2", microClass)}>
               Next run: {new Date(campaign.next_scheduled_at).toLocaleString()}
             </p>
           ) : null}
           <div className="mt-4 border-t border-zinc-100 pt-3">
             <h3 className="text-sm font-semibold text-zinc-900">Campaign baseline</h3>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className={cn("mt-1", microClass)}>
               Mark a scan as the starting point so monthly reports can show baseline vs current.
             </p>
             <p className="mt-2 text-xs text-zinc-600">
@@ -561,12 +578,12 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
               type="button"
               disabled={busy}
               onClick={() => void markBaselineFromLatest()}
-              className="mt-2 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+              className={cn(btnSecondary, "mt-2 h-8 px-3 text-xs")}
             >
               Use latest keyword scan as baseline
             </button>
           </div>
-        </section>
+        </ContentCard>
       ) : null}
     </>
   );

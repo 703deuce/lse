@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { toPng } from "html-to-image";
 import { Copy, Download, ExternalLink, Loader2, Link2, Send, Sparkles, Check, Shield, Mail, MessageSquare, X, ArrowLeftRight, Search, Info, Smile } from "lucide-react";
@@ -29,7 +29,10 @@ import {
   dashboardCardTitle,
   dashboardMicro,
 } from "@/components/overview/dashboard-ui";
+import { ClientPager } from "@/components/ui/show-more-list";
 import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 5;
 
 type TemplateRow = {
   id: string;
@@ -883,7 +886,7 @@ function MessagesSection({
               <button
                 type="button"
                 onClick={() => void onCopy(copyBody, templateChannel)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-[#137752] px-4 py-2 text-[13px] font-medium text-white hover:bg-[#0f6344]"
+                className="inline-flex items-center gap-1.5 rounded-md bg-[#137752] px-4 py-2 text-[13px] font-medium text-white hover:bg-[#0f6344]"
               >
                 <Copy className="h-3.5 w-3.5" />
                 {copied === templateChannel ? "Copied" : "Copy Template"}
@@ -1017,18 +1020,27 @@ function TrackingSection({
   onSubmit: () => Promise<void>;
 }) {
   const [search, setSearch] = useState("");
+  const [sendsPage, setSendsPage] = useState(1);
   const total = stats?.total_sent ?? 0;
   const failed = stats?.failed ?? 0;
   const deliveryRate =
     total + failed > 0 ? `${((total / (total + failed)) * 100).toFixed(1)}%` : "—";
 
-  const filteredSends = sends.filter((s) => {
+  const filteredSends = useMemo(() => sends.filter((s) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     const name = s.review_request_contacts?.customer_name?.toLowerCase() ?? "";
     const recipient = (s.recipient_email ?? s.recipient_phone ?? "").toLowerCase();
     return name.includes(q) || recipient.includes(q);
-  });
+  }), [search, sends]);
+  const currentSendsPage = Math.min(
+    sendsPage,
+    Math.max(1, Math.ceil(filteredSends.length / PAGE_SIZE))
+  );
+  const pagedSends = useMemo(() => {
+    const start = (currentSendsPage - 1) * PAGE_SIZE;
+    return filteredSends.slice(start, start + PAGE_SIZE);
+  }, [filteredSends, currentSendsPage]);
 
   return (
     <div className="space-y-4">
@@ -1153,7 +1165,10 @@ function TrackingSection({
                 <input
                   placeholder="Search by customer, phone, email…"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setSendsPage(1);
+                  }}
                   className="w-full rounded-lg border border-zinc-200 py-2 pl-8 pr-3 text-xs outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20"
                 />
               </div>
@@ -1177,7 +1192,7 @@ function TrackingSection({
                       </td>
                     </tr>
                   ) : (
-                    filteredSends.slice(0, 10).map((s) => (
+                    pagedSends.map((s) => (
                       <tr key={s.id} className="hover:bg-zinc-50">
                         <td className="px-3.5 py-2">
                           {statusPill(s.status, s.has_reply)}
@@ -1219,9 +1234,12 @@ function TrackingSection({
               </table>
             </div>
             {filteredSends.length > 0 && (
-              <div className="border-t border-zinc-100 px-3.5 py-2.5 text-[11px] text-zinc-500">
-                Showing {Math.min(10, filteredSends.length)} of {filteredSends.length} results
-              </div>
+              <ClientPager
+                page={currentSendsPage}
+                pageSize={PAGE_SIZE}
+                total={filteredSends.length}
+                onPageChange={setSendsPage}
+              />
             )}
           </div>
         </div>

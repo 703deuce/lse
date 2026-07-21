@@ -294,7 +294,7 @@ export function CampaignDetailClient({
             <button
               type="button"
               onClick={() => void action(status === "draft" ? "start" : "resume")}
-              className="inline-flex items-center gap-1.5 rounded-full bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white"
+              className="inline-flex items-center gap-1.5 rounded-md bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white"
             >
               <Play className="h-3.5 w-3.5" /> {status === "draft" ? "Activate / Launch" : "Resume sending"}
             </button>
@@ -543,7 +543,7 @@ export function CampaignDetailClient({
                   enrollBusy || (!enrollForm.phone.trim() && !enrollForm.email.trim())
                 }
                 onClick={() => void enrollManual()}
-                className="inline-flex items-center gap-1 rounded-full bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded-md bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
               >
                 {enrollBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                 Enroll

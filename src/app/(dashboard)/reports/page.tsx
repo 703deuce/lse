@@ -1,6 +1,6 @@
 import { requirePageAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
-import { PageHeader } from "@/components/ui/page-header";
+import { ModulePage } from "@/components/ui/design-system";
 import { OrgReportsHome } from "@/components/reports/org-reports-home";
 
 export default async function ReportsIndexPage() {
@@ -16,12 +16,8 @@ export default async function ReportsIndexPage() {
   const active = (businesses ?? []).filter((b) => !b.archived_at);
 
   return (
-    <>
-      <PageHeader
-        title="Reports"
-        subtitle="Drafts, published links, and monthly deliverables — the completion point of your client work."
-      />
+    <ModulePage>
       <OrgReportsHome businesses={active} />
-    </>
+    </ModulePage>
   );
 }

@@ -89,7 +89,7 @@ export function LocalTrustTasksTab({
             type="button"
             disabled={creating}
             onClick={() => void createTasksFromRun()}
-            className="mt-3 inline-flex h-9 items-center rounded-full bg-[#137752] px-3 text-[13px] font-semibold text-white hover:bg-[#0f6344] disabled:opacity-50"
+            className="mt-3 inline-flex h-9 items-center rounded-md bg-[#137752] px-3 text-[13px] font-semibold text-white hover:bg-[#0f6344] disabled:opacity-50"
           >
             {creating ? "Creating…" : "Create tasks from findings"}
           </button>

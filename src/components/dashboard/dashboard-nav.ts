@@ -1,6 +1,5 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  Award,
   Bot,
   Briefcase,
   Building2,
@@ -10,17 +9,16 @@ import {
   FolderKanban,
   Grid3X3,
   History,
-  LayoutDashboard,
   Link2,
   MapPin,
   MessageSquareText,
   Palette,
   Settings,
-  Settings2,
   Star,
   TrendingUp,
   Users,
   Webhook,
+  Award,
 } from "lucide-react";
 import { toolHref, type LocationToolSlug } from "@/lib/dashboard/tool-modules";
 
@@ -55,57 +53,25 @@ function loc(slug: LocationToolSlug, businessId?: string | null): string {
 }
 
 /**
- * One sidebar for the whole app.
+ * Product navigation grouped by jobs:
+ * Find opportunities · Track performance · Deliver work
  *
- * Naming rules:
- * - Workspace = org home (clients, prospects, work queue)
- * - Dashboard = always under Work (picker if no location; overview if selected)
- * - Never under Account; never appears/disappears when switching locations
+ * Contacts / Templates / Triggers / Review settings live inside Review Requests
+ * (nested children), not as permanent top-level items.
  */
 export function buildUnifiedSidebarNav(businessId?: string | null): {
   getStarted: SidebarNavItem;
+  home: SidebarNavSection;
+  locations: SidebarNavSection;
   work: SidebarNavSection;
-  /** @deprecated Kept for callers that still destructure; menu structure is stable. */
+  /** @deprecated alias — same as rankTracking for older callers */
   thisLocation: SidebarNavSection | null;
   growthTools: SidebarNavSection;
   reputation: SidebarReputationNav;
   deliverables: SidebarNavSection;
   account: SidebarNavSection;
 } {
-  // Dashboard always stays under Work in the same slot — never disappears / pops
-  // into another section when a client is selected. No location → picker; with
-  // location → that client's overview.
-  const workItems: SidebarNavItem[] = [
-    { href: "/workspace", label: "Workspace", icon: Briefcase },
-    { href: "/prospects", label: "Prospects", icon: Users },
-    { href: "/clients", label: "Clients", icon: Building2 },
-    {
-      href: loc("dashboard", businessId),
-      label: "Dashboard",
-      icon: LayoutDashboard,
-    },
-  ];
-
-  workItems.push(
-    {
-      href: loc("maps-scans", businessId),
-      label: "Maps Scans",
-      icon: Grid3X3,
-      isRankGrid: true,
-    },
-    {
-      href: loc("maps-campaigns", businessId),
-      label: "Maps Campaigns",
-      icon: FolderKanban,
-    },
-    {
-      href: "/scans",
-      label: "Recent Scans",
-      icon: History,
-    }
-  );
-
-  const thisLocation: SidebarNavSection | null = null;
+  const reviewRequestsHref = loc("review-requests", businessId);
 
   return {
     getStarted: {
@@ -113,16 +79,45 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
       label: "Get started",
       icon: MapPin,
     },
-    work: {
-      title: "Work",
-      items: workItems,
+    home: {
+      title: "Home",
+      items: [{ href: "/workspace", label: "Workspace", icon: Briefcase }],
     },
-    thisLocation,
+    locations: {
+      title: "Locations",
+      items: [
+        { href: "/clients", label: "Clients", icon: Building2 },
+        { href: "/prospects", label: "Prospects", icon: Users },
+      ],
+    },
+    // Kept as `work` for sidebar/mobile callers; labeled Rank Tracking.
+    work: {
+      title: "Rank Tracking",
+      items: [
+        {
+          href: loc("maps-scans", businessId),
+          label: "Maps",
+          icon: Grid3X3,
+          isRankGrid: true,
+        },
+        {
+          href: loc("maps-campaigns", businessId),
+          label: "Campaigns",
+          icon: FolderKanban,
+        },
+        {
+          href: "/scans",
+          label: "Scan History",
+          icon: History,
+        },
+      ],
+    },
+    thisLocation: null,
     growthTools: {
-      title: "Growth Tools",
+      title: "Growth",
       items: [
         { href: loc("growth-audit", businessId), label: "Growth Audit", icon: FileSearch },
-        { href: loc("backlink-gap", businessId), label: "Backlink Gap", icon: Link2 },
+        { href: loc("backlink-gap", businessId), label: "Backlinks", icon: Link2 },
         { href: loc("trust", businessId), label: "Local Trust", icon: Award },
         { href: loc("ai-visibility", businessId), label: "AI Visibility", icon: Bot },
       ],
@@ -130,20 +125,18 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
     reputation: {
       title: "Reputation",
       items: [
-        { href: loc("reviews", businessId), label: "Review Feed", icon: Star },
+        { href: loc("reviews", businessId), label: "Reviews", icon: Star },
         { href: loc("review-momentum", businessId), label: "Review Momentum", icon: TrendingUp },
         {
-          href: loc("review-requests", businessId),
+          href: reviewRequestsHref,
           label: "Review Requests",
           icon: MessageSquareText,
-        },
-        { href: loc("contacts", businessId), label: "Contacts", icon: Users },
-        { href: loc("review-templates", businessId), label: "Templates", icon: FileText },
-        { href: loc("integrations", businessId), label: "Review Triggers", icon: Webhook },
-        {
-          href: loc("review-settings", businessId),
-          label: "Review settings",
-          icon: Settings2,
+          children: [
+            { href: loc("contacts", businessId), label: "Contacts" },
+            { href: loc("review-templates", businessId), label: "Templates" },
+            { href: loc("integrations", businessId), label: "Triggers" },
+            { href: loc("review-settings", businessId), label: "Settings" },
+          ],
         },
       ],
       subLinks: [],
@@ -152,7 +145,7 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
       title: "Deliverables",
       items: [
         { href: loc("reports", businessId), label: "Reports", icon: FileText },
-        { href: loc("tasks", businessId), label: "Growth Plan", icon: ClipboardList },
+        { href: loc("tasks", businessId), label: "Growth Plans", icon: ClipboardList },
       ],
     },
     account: {
@@ -195,7 +188,6 @@ export function isSidebarHrefActive(
 ): boolean {
   if (flags?.isRankGrid) {
     if (businessId && pathname.includes(`/businesses/${businessId}/grid/`)) return true;
-    // Do not treat org /scans (Recent Scans) as Maps Scans.
     if (pathname === "/scans" || pathname.startsWith("/scans?")) return false;
     return pathname === href || pathname.startsWith(`${href}/`);
   }
@@ -212,7 +204,6 @@ export function isSidebarHrefActive(
     );
   }
 
-  // Workspace home (org) — never treat client overview as Workspace
   if (href === "/workspace" || href === "/dashboard") {
     return (
       pathname === "/workspace" ||
@@ -221,7 +212,6 @@ export function isSidebarHrefActive(
     );
   }
 
-  // Dashboard — picker or location overview only (not CRM /clients|/prospects detail)
   if (href === "/tools/go/dashboard" || href.endsWith("/overview")) {
     if (pathname === "/tools/go/dashboard") return true;
     if (businessId && pathname === `/businesses/${businessId}/overview`) {
