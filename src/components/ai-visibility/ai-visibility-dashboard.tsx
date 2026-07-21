@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { AiVisibilityDashboardTab } from "@/components/ai-visibility/ai-visibility-dashboard-tab";
 import { AiVisibilityEvidenceTab } from "@/components/ai-visibility/ai-visibility-evidence-tab";
 import { AiVisibilityMentionsTab } from "@/components/ai-visibility/ai-visibility-mentions-tab";
+import { AiVisibilityResponsesTab } from "@/components/ai-visibility/ai-visibility-responses-tab";
 import { AiVisibilityRunHistoryTab } from "@/components/ai-visibility/ai-visibility-run-history-tab";
 import { AiVisibilitySearchLandscapeTab } from "@/components/ai-visibility/ai-visibility-search-landscape-tab";
 import type { AiVisibilityTabId, RunView, VisibilityData } from "@/components/ai-visibility/ai-visibility-types";
@@ -329,6 +330,24 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
           aiSummary={run?.ai_summary}
           totalEngines={aggregate?.totalEngines ?? 5}
           completeRuns={aggregate?.completeRuns ?? 0}
+        />
+      )}
+
+      {tab === "responses" && (
+        <AiVisibilityResponsesTab
+          engineResults={data?.engineResults ?? []}
+          isCombined={isCombined}
+          onOpenRun={() => {
+            const latest = (data?.runs ?? []).find(
+              (r) => r.status === "complete" || r.status === "completed_with_errors"
+            );
+            if (latest) {
+              selectRun(latest.id);
+              setTab("responses");
+            } else {
+              setTab("dashboard");
+            }
+          }}
         />
       )}
 

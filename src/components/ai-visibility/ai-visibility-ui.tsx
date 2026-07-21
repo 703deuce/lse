@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Map,
   MessageSquare,
+  MessageSquareText,
   PieChart,
   Play,
   RefreshCw,
@@ -49,6 +50,7 @@ import type { RunSummary } from "@/lib/ai-visibility/types";
 
 export const AI_VISIBILITY_TABS: { id: AiVisibilityTabId; label: string; icon: ComponentType<{ className?: string }> }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "responses", label: "Responses", icon: MessageSquareText },
   { id: "mentions", label: "Mentions", icon: MessageSquare },
   { id: "landscape", label: "Search Landscape", icon: Map },
   { id: "evidence", label: "Evidence", icon: FileText },
@@ -424,7 +426,7 @@ export function AiPanel({
           {action}
         </div>
       )}
-      <div className={cn("p-3.5", bodyClassName)}>{children}</div>
+      <div className={cn("p-3", bodyClassName)}>{children}</div>
     </div>
   );
 }
