@@ -13,8 +13,6 @@ import {
   ReviewsHeader,
   ReviewsKpiRow,
   ReviewsTabs,
-  SuggestedActionsSidebar,
-  SuggestedReplyTasksSidebar,
   type ReviewsTabId,
 } from "@/components/reviews/reviews-ui";
 import type { ReviewsPageData } from "@/lib/reviews/reviews-page-data";
@@ -111,6 +109,14 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
         loading={loading || running}
         onRefresh={() => void load()}
         onRunMomentum={() => void runMomentum()}
+        title={tab === "unanswered" ? "Unanswered Reviews" : "Reviews"}
+        subtitle={
+          tab === "unanswered"
+            ? "Quickly view and respond to reviews from all of your linked platforms in one place."
+            : tab === "sentiment"
+              ? "Get 360-degree insight into company reputation, get user feedback, and find brand advocates."
+              : "Monitor and manage your business's reputation and your competitors across major platforms."
+        }
       />
 
       {error && <AlertBanner variant="error">{error}</AlertBanner>}
@@ -124,26 +130,18 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
         </div>
       )}
 
-      <ReviewsKpiRow kpis={data.kpis} variant={tab === "unanswered" ? "unanswered" : "default"} />
+      <ReviewsKpiRow
+        kpis={data.kpis}
+        variant={tab === "unanswered" ? "unanswered" : "default"}
+        negativePct={data.negativePct}
+      />
 
       <ReviewsTabs active={tab} onChange={handleTabChange} />
 
-      {tab === "your-reviews" && (
-        <ReviewsYourTab data={data} />
-      )}
-
+      {tab === "your-reviews" && <ReviewsYourTab data={data} businessId={businessId} />}
       {tab === "competitor-reviews" && <ReviewsCompetitorTab data={data} />}
       {tab === "sentiment" && <ReviewsSentimentTab data={data} />}
       {tab === "unanswered" && <ReviewsUnansweredTab data={data} businessId={businessId} />}
-
-      <div className="grid gap-2 xl:grid-cols-2">
-        <SuggestedActionsSidebar suggestions={data.suggestions} businessId={businessId} onTabChange={handleTabChange} />
-        <SuggestedReplyTasksSidebar
-          data={data}
-          businessId={businessId}
-          onTabChange={handleTabChange}
-        />
-      </div>
     </ModulePage>
   );
 }

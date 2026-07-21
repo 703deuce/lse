@@ -1,215 +1,294 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { MessageSquare, Sparkles, X } from "lucide-react";
+import { Copy, Lightbulb, Pencil, Settings } from "lucide-react";
 import type { ReviewListItem, ReviewsPageData } from "@/lib/reviews/reviews-page-data";
-import { ReviewDetailDrawer } from "@/components/reviews/review-detail-drawer";
-import { ReviewerAvatar, ReviewsTable, RvCard, StarRating } from "@/components/reviews/reviews-ui";
-import { dashboardCardTitle, dashboardMicro } from "@/components/overview/dashboard-ui";
-import { cn } from "@/lib/utils";
+import { mock } from "@/components/mockup/ui";
+import { SourceIcon, StarRating, ReviewerAvatar } from "@/components/reviews/reviews-ui";
 
-function draftReply(review: ReviewListItem): string {
-  const first = review.reviewerName.split(" ")[0] || "there";
-  const rating = review.rating ?? 5;
-  if (rating <= 2) {
-    return `Hi ${first}, thank you for sharing this feedback. We're sorry your experience wasn't up to our standard — we'd like to make it right. Please reply here or reach out directly so we can help.`;
-  }
-  if (rating === 3) {
-    return `Hi ${first}, thank you for taking the time to leave a review. We're glad you came in and would love to know how we can improve next time.`;
-  }
-  return `Thank you for your wonderful review, ${first}! We're thrilled we could help and appreciate you taking the time to share your experience.`;
-}
+type Props = {
+  data: ReviewsPageData;
+  businessId: string;
+};
 
-export function ReviewsUnansweredTab({ data, businessId }: { data: ReviewsPageData; businessId: string }) {
-  const [tipDismissed, setTipDismissed] = useState(false);
-  const [selectedId, setSelectedId] = useState(data.unanswered[0]?.id ?? "");
-  const [selectedReview, setSelectedReview] = useState<ReviewListItem | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [replyBusy, setReplyBusy] = useState(false);
-  const [replyError, setReplyError] = useState<string | null>(null);
-  const [aiDraft, setAiDraft] = useState<string | null>(null);
-  const selected = data.unanswered.find((r) => r.id === selectedId) ?? data.unanswered[0];
-  const suggested = useMemo(() => {
-    if (!selected) return "";
-    return aiDraft ?? draftReply(selected);
-  }, [selected, aiDraft]);
+export function ReviewsUnansweredTab({ data, businessId }: Props) {
+  const unanswered = data.unanswered;
+  const [sourceFilter, setSourceFilter] = useState<"all" | "google" | "facebook">("all");
+  const [selectedId, setSelectedId] = useState<string | null>(unanswered[0]?.id ?? null);
+  const [draft, setDraft] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
-  async function copyReply() {
-    if (!suggested) return;
-    await navigator.clipboard.writeText(suggested);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
+  const filtered = useMemo(() => {
+    if (sourceFilter === "all") return unanswered;
+    return unanswered.filter((r) => r.source === sourceFilter);
+  }, [unanswered, sourceFilter]);
 
-  async function regenerate() {
-    if (!selected) return;
-    setReplyBusy(true);
-    setReplyError(null);
+  const selected: ReviewListItem | null =
+    filtered.find((r) => r.id === selectedId) ?? filtered[0] ?? null;
+
+  useEffect(() => {
+    if (selected && !filtered.some((r) => r.id === selectedId)) {
+      setSelectedId(filtered[0]?.id ?? null);
+    }
+  }, [filtered, selected, selectedId]);
+
+  useEffect(() => {
+    setDraft("");
+    setEditing(false);
+  }, [selected?.id]);
+
+  async function generateReply(review: ReviewListItem) {
+    setGenerating(true);
     try {
       const res = await fetch("/api/reputation/responses/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId, reviewIds: [selected.id] }),
+        body: JSON.stringify({
+          businessId,
+          reviewText: review.reviewText,
+          rating: review.rating,
+          reviewerName: review.reviewerName,
+        }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Could not generate a reply");
-      const text =
-        (json.drafts?.[0]?.draftText as string | undefined) ??
-        (json.drafts?.[0]?.draft_text as string | undefined) ??
-        (json.drafts?.[0]?.body as string | undefined) ??
-        null;
-      if (text?.trim()) setAiDraft(text.trim());
-      else setAiDraft(draftReply(selected));
+      const json = (await res.json().catch(() => ({}))) as { reply?: string; error?: string };
+      if (!res.ok) throw new Error(json.error || "Failed to generate reply");
+      setDraft(json.reply || "");
+      setStatusMsg("Suggested reply ready");
     } catch (err) {
-      setReplyError(err instanceof Error ? err.message : "Could not generate a reply");
-      setAiDraft(draftReply(selected));
+      setStatusMsg(err instanceof Error ? err.message : "Failed to generate reply");
     } finally {
-      setReplyBusy(false);
+      setGenerating(false);
     }
   }
 
+  useEffect(() => {
+    if (selected && !draft && !generating) {
+      void generateReply(selected);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id]);
+
+  const googleCount = unanswered.filter((r) => r.source === "google").length;
+  const facebookCount = unanswered.filter((r) => r.source === "facebook").length;
+
   return (
-    <div className="space-y-4">
-      <div className="grid gap-4 xl:grid-cols-3">
-        <div className="space-y-3 xl:col-span-2">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h3 className={dashboardCardTitle}>Unanswered Reviews ({data.unanswered.length})</h3>
-              <p className={dashboardMicro}>
-                Prioritized by urgency and time waiting (oldest first). Click a row to read the full review.
-              </p>
-            </div>
-          </div>
-          <RvCard className="!p-0 overflow-hidden">
-            <ReviewsTable
-              rows={data.unanswered.slice(0, 8)}
-              mode="urgency"
-              onViewReview={(row) => {
-                setSelectedId(row.id);
-                setSelectedReview(row);
-                setAiDraft(null);
-                setReplyError(null);
-              }}
-            />
-          </RvCard>
-          <p className={dashboardMicro}>
-            Showing 1–{Math.min(8, data.unanswered.length)} of {data.unanswered.length} reviews
-          </p>
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="space-y-3">
+        <div className="flex items-center gap-4 border-b border-[#E6EAF0]">
+          {(
+            [
+              ["all", `All (${unanswered.length})`],
+              ["google", `Google (${googleCount})`],
+              ["facebook", `Facebook (${facebookCount})`],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setSourceFilter(id)}
+              className={`border-b-2 px-1 pb-2.5 text-[13px] font-semibold transition-colors ${
+                sourceFilter === id
+                  ? "border-[#0F172A] text-[#0F172A]"
+                  : "border-transparent text-[#64748B] hover:text-[#0F172A]"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
-        <div className="space-y-3">
-          <RvCard>
-            <div className="mb-2.5 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
-                <h3 className={dashboardCardTitle}>Suggested reply</h3>
-              </div>
-              <Link
-                href={`/businesses/${businessId}/review-requests`}
-                className="rounded-full bg-[#137752] px-2 py-1 text-[11px] font-medium text-white hover:bg-[#0f6344]"
-              >
-                Request reviews
-              </Link>
-            </div>
-            {selected ? (
-              <>
-                <div className="flex items-center gap-2 border-b border-zinc-100 pb-2.5">
-                  <ReviewerAvatar name={selected.reviewerName} size="sm" />
-                  <div>
-                    <p className="text-[13px] font-medium text-zinc-900">{selected.reviewerName}</p>
-                    <StarRating rating={selected.rating} />
-                  </div>
-                </div>
-                <p className="mt-2 text-[13px] text-zinc-600 line-clamp-3">{selected.reviewText}</p>
-                <button
-                  type="button"
-                  onClick={() => setSelectedReview(selected)}
-                  className="mt-1.5 text-[12px] font-medium text-emerald-600 hover:text-emerald-700"
-                >
-                  Read full review →
-                </button>
-                <div className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50/50 p-2.5 text-[13px] text-zinc-700">
-                  <p className="text-[11px] font-medium text-emerald-700">
-                    {aiDraft ? "Generated reply" : "Starter draft"}
-                  </p>
-                  <p className="mt-2 whitespace-pre-wrap">{suggested}</p>
-                </div>
-                {replyError && <p className="mt-2 text-[12px] text-amber-700">{replyError}</p>}
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => void copyReply()}
-                    className="rounded-full bg-[#137752] px-2.5 py-1 text-[11px] font-medium text-white"
-                  >
-                    {copied ? "Copied" : "Copy reply"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={replyBusy}
-                    onClick={() => void regenerate()}
-                    className="rounded-lg border border-zinc-200 px-2.5 py-1 text-[11px] font-medium disabled:opacity-60"
-                  >
-                    {replyBusy ? "Generating…" : "Generate with AI"}
-                  </button>
-                </div>
-                <p className={cn(dashboardMicro, "mt-2")}>
-                  Google reply posting isn’t connected yet — copy this into Google Business Profile.
-                </p>
-              </>
-            ) : (
-              <p className={dashboardMicro}>No unanswered reviews — great job!</p>
-            )}
-          </RvCard>
+        <div className={`${mock.card} overflow-hidden`}>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-[13px]">
+              <thead>
+                <tr className="border-b border-[#E6EAF0] bg-[#FAFBFC] text-[11px] font-semibold uppercase tracking-[0.04em] text-[#64748B]">
+                  <th className="px-4 py-3">Source</th>
+                  <th className="px-4 py-3">Customer</th>
+                  <th className="px-4 py-3">Rating</th>
+                  <th className="px-4 py-3">Review</th>
+                  <th className="px-4 py-3">Review Link</th>
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">AI Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-10 text-center text-[13px] text-[#64748B]">
+                      No unanswered reviews right now.
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((review) => {
+                    const active = selected?.id === review.id;
+                    const text = review.reviewText ?? "";
+                    return (
+                      <tr
+                        key={review.id}
+                        onClick={() => setSelectedId(review.id)}
+                        className={`cursor-pointer border-b border-[#EEF1F5] last:border-0 ${
+                          active ? "bg-[#F0FDF4]" : "hover:bg-[#FAFBFC]"
+                        }`}
+                      >
+                        <td className="px-4 py-3">
+                          <SourceIcon source={review.source} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <ReviewerAvatar name={review.reviewerName} size="sm" />
+                            <span className="font-semibold text-[#0F172A]">{review.reviewerName}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <StarRating rating={review.rating} />
+                        </td>
+                        <td className="max-w-[220px] px-4 py-3 text-[#475569]">
+                          <span className="line-clamp-2">{text || "No review text"}</span>
+                          {text.length > 80 ? (
+                            <span className="mt-0.5 block text-[11px] font-medium text-[#137752]">
+                              Read more...
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="font-semibold text-[#137752]">View review</span>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-[#64748B]">
+                          {review.reviewDate
+                            ? new Date(review.reviewDate).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "2-digit",
+                                year: "numeric",
+                              })
+                            : review.relativeDate ?? "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedId(review.id);
+                            }}
+                            className="rounded-lg border border-[#FCA5A5] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#DC2626] hover:bg-[#FEF2F2]"
+                          >
+                            Reply
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-          <RvCard>
-            <h3 className={dashboardCardTitle}>Unanswered Impact (Last 90 Days)</h3>
-            <dl className="mt-2 space-y-2 text-[13px]">
-              <div className="flex justify-between">
-                <dt className="text-zinc-500">Waiting for reply</dt>
-                <dd className="font-semibold">{data.unanswered.length}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-zinc-500">Urgent</dt>
-                <dd className="font-semibold">{data.kpis.urgentCount} reviews</dd>
-              </div>
-            </dl>
-            <Link
-              href={`/businesses/${businessId}/review-momentum`}
-              className="mt-3 inline-block text-[12px] font-medium text-emerald-600"
-            >
-              Open Review Momentum →
-            </Link>
-          </RvCard>
-
-          {!tipDismissed && (
-            <RvCard className="relative border-amber-100 bg-amber-50/40">
-              <button
-                type="button"
-                onClick={() => setTipDismissed(true)}
-                className="absolute right-2 top-2 rounded p-1 text-zinc-400 hover:bg-white/70"
-                aria-label="Dismiss tip"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-              <div className="flex items-start gap-2 pr-6">
-                <MessageSquare className="mt-0.5 h-3.5 w-3.5 text-amber-700" />
-                <div>
-                  <p className="text-[13px] font-medium text-zinc-900">Reply faster tip</p>
-                  <p className={dashboardMicro}>
-                    Prioritize low ratings and oldest unanswered reviews — both protect your public rating
-                    signal.
-                  </p>
-                </div>
-              </div>
-            </RvCard>
-          )}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3">
+          <p className="text-[13px] text-[#92400E]">
+            One more step to see more results. Connect your GMB / Facebook accounts to pull in live
+            review feeds.
+          </p>
+          <Link
+            href={`/businesses/${businessId}/settings`}
+            className="shrink-0 rounded-lg border border-[#E6EAF0] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#0F172A] hover:bg-[#F8FAFC]"
+          >
+            View linked accounts
+          </Link>
         </div>
       </div>
 
-      {selectedReview && (
-        <ReviewDetailDrawer review={selectedReview} onClose={() => setSelectedReview(null)} />
-      )}
+      <aside className="space-y-4">
+        <div className={`${mock.card} p-4`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="h-4 w-4 text-[#F59E0B]" />
+              <h3 className="text-[14px] font-bold text-[#0F172A]">Suggested reply</h3>
+            </div>
+            <span className="rounded-full bg-[#FEF3C7] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.04em] text-[#B45309]">
+              Unanswered
+            </span>
+          </div>
+
+          {selected ? (
+            <div className="mt-3 space-y-3">
+              <div className="rounded-lg border border-[#E6EAF0] bg-[#FAFBFC] p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[13px] font-semibold text-[#0F172A]">{selected.reviewerName}</p>
+                  <StarRating rating={selected.rating} />
+                </div>
+                <p className="mt-1.5 line-clamp-3 text-[12px] leading-relaxed text-[#64748B]">
+                  {selected.reviewText || "No review text"}
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-[#A7F3D0] bg-[#F0FDF4] p-3">
+                {editing ? (
+                  <textarea
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    rows={6}
+                    className="w-full resize-y rounded-md border border-[#E6EAF0] bg-white px-2.5 py-2 text-[12px] leading-relaxed text-[#0F172A] outline-none focus:border-[#137752]"
+                  />
+                ) : (
+                  <p className="whitespace-pre-wrap text-[12px] leading-relaxed text-[#14532D]">
+                    {generating ? "Generating suggested reply…" : draft || "No suggestion yet."}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className={`${mock.btnPrimary} flex-1`}
+                  disabled={!draft}
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(draft);
+                    setStatusMsg("Reply copied");
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy reply
+                </button>
+                <button
+                  type="button"
+                  className={`${mock.btnGhost} flex-1`}
+                  onClick={() => setEditing((v) => !v)}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  {editing ? "Done" : "Edit reply"}
+                </button>
+              </div>
+              {statusMsg ? (
+                <p className="text-[11px] font-medium text-[#137752]">{statusMsg}</p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="mt-3 text-[13px] text-[#64748B]">Select a review to draft a reply.</p>
+          )}
+        </div>
+
+        <div className={`${mock.card} p-4`}>
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-[14px] font-bold text-[#0F172A]">Notifications</h3>
+            <Settings className="h-4 w-4 text-[#94A3B8]" />
+          </div>
+          <div className="space-y-1">
+            {["Reply to follow up on latest review", "Your Review Dashboard"].map((item) => (
+              <button
+                key={item}
+                type="button"
+                className="flex w-full items-center justify-between rounded-lg px-2 py-2.5 text-left text-[13px] font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
+              >
+                <span>{item}</span>
+                <span className="text-[#94A3B8]">›</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }

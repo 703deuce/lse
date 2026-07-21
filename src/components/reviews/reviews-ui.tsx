@@ -43,7 +43,7 @@ import type { ReviewListItem, ReviewsPageData } from "@/lib/reviews/reviews-page
 export const REVIEWS_TABS = [
   { id: "your-reviews", label: "Your Reviews", icon: Star },
   { id: "competitor-reviews", label: "Competitor Reviews", icon: null },
-  { id: "sentiment", label: "Themes & Sentiment", icon: null },
+  { id: "sentiment", label: "Themes & Mentions", icon: null },
   { id: "unanswered", label: "Unanswered", icon: null },
 ] as const;
 
@@ -119,11 +119,13 @@ export function ReviewStatusBadge({ replied, variant = "default" }: { replied: b
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1 text-xs font-medium text-emerald-700",
-          variant === "pill" && "rounded-full bg-emerald-50 px-2.5 py-0.5"
+          "inline-flex items-center gap-1 text-xs font-medium",
+          variant === "pill"
+            ? "rounded-md bg-[#FEF3C7] px-2.5 py-0.5 font-semibold text-[#92400E]"
+            : "text-emerald-700"
         )}
       >
-        <CheckCircle2 className="h-3 w-3" />
+        {variant !== "pill" ? <CheckCircle2 className="h-3 w-3" /> : null}
         Replied
       </span>
     );
@@ -219,152 +221,148 @@ export function ReviewsHeader({
   loading,
   onRefresh,
   onRunMomentum,
+  title = "Reviews",
+  subtitle = "Monitor and manage your business's reputation and your competitors across major platforms.",
 }: {
   businessId: string;
   loading?: boolean;
   onRefresh: () => void;
   onRunMomentum?: () => void;
+  title?: string;
+  subtitle?: string;
 }) {
   return (
-    <ModuleHeader
-      title="Reviews"
-      subtitle="Monitor your review feed, compare competitors, and spot momentum over the last 90 days."
-      className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
-      actions={
-        <>
-          <button type="button" onClick={onRefresh} disabled={loading} className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
-            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            Refresh
-          </button>
-          <Link href={`/businesses/${businessId}/review-requests`} className={cn(btnSecondary, "h-9 px-3 text-[13px]")}>
-            <Mail className="h-3.5 w-3.5" />
-            Request Reviews
-          </Link>
-          <button type="button" onClick={onRunMomentum} className={cn(btnPrimary, "h-9 px-3.5 text-[13px]")}>
-            <Plus className="h-3.5 w-3.5" />
-            Run Momentum Audit
-          </button>
-          <button
-            type="button"
-            className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
-            onClick={() => {
-              void import("@/lib/journey/report-staging").then(({ stageReportItem }) => {
-                stageReportItem({
-                  businessId,
-                  source: "reviews",
-                  title: "Review feed insight",
-                  href: `/businesses/${businessId}/reviews`,
-                });
-              });
-            }}
-          >
-            Add insight to report
-          </button>
-        </>
-      }
-    />
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="text-[28px] font-bold tracking-tight text-[#101828]">{title}</h1>
+        <p className="mt-1 max-w-2xl text-sm text-[#667085]">{subtitle}</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={loading}
+          className="inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-[#475467] hover:bg-[#F2F4F7] disabled:opacity-50"
+        >
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          Refresh
+        </button>
+        <Link
+          href={`/businesses/${businessId}/review-requests`}
+          className="inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-[#475467] hover:bg-[#F2F4F7]"
+        >
+          <Mail className="h-3.5 w-3.5" />
+          Request Review
+        </Link>
+        <Link
+          href={`/businesses/${businessId}/review-requests`}
+          className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-[#137752] px-4 text-sm font-semibold text-white hover:bg-[#0f6244]"
+        >
+          <Plus className="h-4 w-4" />
+          Send Review Link
+        </Link>
+        <button
+          type="button"
+          onClick={onRunMomentum}
+          className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-[#D0D5DD] bg-white px-3 text-sm font-semibold text-[#344054] hover:bg-[#F9FAFB]"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Analyze
+        </button>
+      </div>
+    </div>
   );
 }
 
 export function ReviewsKpiRow({
   kpis,
   variant = "default",
+  negativePct,
 }: {
   kpis: ReviewsPageData["kpis"];
   variant?: "default" | "unanswered";
+  negativePct?: number;
 }) {
+  const cardClass =
+    "rounded-xl border border-[#E6EAF0] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]";
+
   if (variant === "unanswered") {
     const cards = [
       {
-        label: "UNANSWERED REVIEWS (90D)",
-        value: kpis.unanswered90d ?? 0,
-        icon: MessageSquare,
-        iconWrapClassName: "bg-amber-50",
-        iconClassName: "text-amber-600",
-        ...kpiDeltaSub(kpis.newReviews90dDelta, " vs prior 90 days", true),
+        label: "Unanswered reviews last 30d",
+        value: String(kpis.unanswered90d ?? 0),
+        sub: `${kpis.newReviews90dDelta ?? 0} vs prev 30 days`,
       },
       {
-        label: "AVG. DAYS WAITING",
-        value: kpis.avgDaysWaiting ?? "—",
-        icon: Clock,
-        iconWrapClassName: "bg-zinc-100",
-        iconClassName: "text-zinc-600",
+        label: "Avg. rating last 30d",
+        value: kpis.avgRating != null ? kpis.avgRating.toFixed(1) : "—",
+        sub: "N/A",
       },
       {
-        label: "RESPONSE RATE (90D)",
+        label: "Response rate",
         value: `${kpis.responseRate}%`,
-        icon: CheckCircle2,
-        iconWrapClassName: "bg-emerald-50",
-        iconClassName: "text-emerald-600",
-        ...kpiDeltaSub(kpis.responseRateDelta, "% vs prior 90 days"),
+        sub: `${kpis.responseRateDelta ?? 0}% vs prev 30 days`,
       },
       {
-        label: "URGENT (SLA > 7 DAYS)",
-        value: kpis.urgentCount ?? 0,
-        icon: Shield,
-        iconWrapClassName: "bg-red-50",
-        iconClassName: "text-red-600",
+        label: "Total reviews last 30d",
+        value: String(kpis.newReviews90d),
+        sub: `${kpis.totalReviews} total`,
       },
     ];
     return (
-      <KpiRow cols={4}>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((c) => (
-          <GridMetricCard key={c.label} variant="default" {...c} />
+          <div key={c.label} className={cardClass}>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#98A2B3]">{c.label}</p>
+            <p className="mt-1.5 text-[26px] font-bold leading-none text-[#101828]">{c.value}</p>
+            <p className="mt-1.5 text-xs text-[#667085]">{c.sub}</p>
+          </div>
         ))}
-      </KpiRow>
+      </div>
     );
   }
 
   const cards = [
     {
-      label: "AVERAGE RATING",
+      label: "Average Rating",
       value: `${kpis.avgRating?.toFixed(1) ?? "—"} ★`,
-      icon: Star,
-      iconWrapClassName: "bg-emerald-50",
-      iconClassName: "text-emerald-600",
-      variant: "primary" as const,
-      ...kpiDeltaSub(kpis.avgRatingDelta, " vs prior 90 days"),
+      sub:
+        kpis.avgRatingDelta != null && kpis.avgRatingDelta !== 0
+          ? `${kpis.avgRatingDelta > 0 ? "up" : "down"} from prior period`
+          : "vs last 30 days",
     },
     {
-      label: "TOTAL REVIEWS",
-      value: kpis.totalReviews,
-      icon: MessageSquare,
-      iconWrapClassName: "bg-sky-50",
-      iconClassName: "text-sky-600",
+      label: "Total Reviews",
+      value: kpis.totalReviews >= 1000 ? `${(kpis.totalReviews / 1000).toFixed(1)} K` : String(kpis.totalReviews),
       sub: "All time",
     },
     {
-      label: "NEW REVIEWS (90D)",
-      value: kpis.newReviews90d,
-      icon: TrendingUp,
-      iconWrapClassName: "bg-violet-50",
-      iconClassName: "text-violet-600",
-      ...kpiDeltaSub(kpis.newReviews90dDelta, " vs prior 90 days"),
+      label: "New Reviews",
+      value: String(kpis.newReviews90d),
+      sub: "vs last 30 days",
     },
     {
-      label: "REVIEW GAP VS TOP 3",
-      value: `+${kpis.reviewGap}`,
-      icon: Building2,
-      iconWrapClassName: "bg-orange-50",
-      iconClassName: "text-orange-600",
-      sub: "More to match top 3",
+      label: "Reviews to reply",
+      value: String(kpis.unanswered90d ?? 0),
+      sub: "vs last 30 days",
     },
     {
-      label: "RESPONSE RATE",
-      value: `${kpis.responseRate}%`,
-      icon: CheckCircle2,
-      iconWrapClassName: "bg-emerald-50",
-      iconClassName: "text-emerald-600",
-      ...kpiDeltaSub(kpis.responseRateDelta, "% vs prior 90 days"),
+      label: "Negative",
+      value: `${Math.round(negativePct ?? 0)}%`,
+      sub: "vs last 30 days",
     },
   ];
 
   return (
-    <KpiRow cols={5}>
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
       {cards.map((c) => (
-        <GridMetricCard key={c.label} {...c} />
+        <div key={c.label} className={cardClass}>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#98A2B3]">{c.label}</p>
+          <p className="mt-1.5 text-[26px] font-bold leading-none tracking-tight text-[#101828]">{c.value}</p>
+          <p className="mt-1.5 text-xs text-[#667085]">{c.sub}</p>
+        </div>
       ))}
-    </KpiRow>
+    </div>
   );
 }
 
@@ -376,12 +374,26 @@ export function ReviewsTabs({
   onChange: (tab: ReviewsTabId) => void;
 }) {
   return (
-    <TabBar
-      className="[&>div]:gap-4 [&_button]:pb-2.5 [&_button]:text-[13px]"
-      tabs={REVIEWS_TABS.map((t) => ({ id: t.id as ReviewsTabId, label: t.label }))}
-      active={active}
-      onChange={onChange}
-    />
+    <div className="flex flex-wrap gap-1 border-b border-[#E6EAF0]">
+      {REVIEWS_TABS.map((tab) => {
+        const isActive = tab.id === active;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => onChange(tab.id)}
+            className={cn(
+              "-mb-px border-b-2 px-3 pb-2.5 pt-1 text-sm font-semibold transition",
+              isActive
+                ? "border-[#137752] text-[#137752]"
+                : "border-transparent text-[#667085] hover:text-[#344054]"
+            )}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
