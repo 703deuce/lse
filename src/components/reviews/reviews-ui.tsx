@@ -41,7 +41,6 @@ import { cn } from "@/lib/utils";
 import type { ReviewListItem, ReviewsPageData } from "@/lib/reviews/reviews-page-data";
 
 export const REVIEWS_TABS = [
-  { id: "overview", label: "Overview", icon: null },
   { id: "your-reviews", label: "Your Reviews", icon: Star },
   { id: "competitor-reviews", label: "Competitor Reviews", icon: null },
   { id: "sentiment", label: "Themes & Sentiment", icon: null },
@@ -431,7 +430,7 @@ export function SuggestedActionsSidebar({
   };
 
   return (
-    <RvCard className="sticky top-6">
+    <RvCard>
       <div className="mb-2.5 flex items-center gap-2">
         <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
         <h3 className={dashboardCardTitle}>Suggested Actions</h3>
@@ -485,7 +484,7 @@ export function SuggestedReplyTasksSidebar({
 }) {
   const themes = data.sentiment.yours.themes.slice(0, 3);
   return (
-    <RvCard className="sticky top-6">
+    <RvCard>
       <div className="mb-2.5 flex items-center gap-2">
         <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
         <h3 className={dashboardCardTitle}>Suggested Reply Tasks</h3>

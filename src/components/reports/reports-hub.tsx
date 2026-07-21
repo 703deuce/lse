@@ -31,6 +31,11 @@ import { ReportShareControls } from "@/components/reports/report-share-controls"
 import { MonthlyReportWizard } from "@/components/reports/monthly-report-wizard";
 import { useActiveJobStatus } from "@/components/jobs/use-active-job-status";
 import { isTerminalJobStatus } from "@/lib/jobs/active-job-status";
+import {
+  DEFAULT_REPORT_SECTIONS,
+  REPORT_SECTION_LABELS,
+  type ReportSectionId,
+} from "@/lib/reporting/report-sections";
 
 type ScanOption = {
   id: string;
@@ -132,6 +137,18 @@ const REPORT_CARDS: ReportCard[] = [
   },
 ];
 
+const BUILDER_SECTIONS: ReportSectionId[] = [
+  "cover",
+  "executive_summary",
+  "maps_overview",
+  "maps_grid",
+  "competitors",
+  "review_snapshot",
+  "ai_visibility",
+  "next_steps",
+  "footer",
+];
+
 function milesLabel(meters: number): string {
   const miles = meters / 1609.34;
   return miles < 10 ? `${miles.toFixed(1)} mi` : `${Math.round(miles)} mi`;
@@ -169,6 +186,10 @@ export function ReportsHub({
   const [shareJobId, setShareJobId] = useState<string | null>(null);
   const [shareStatus, setShareStatus] = useState<"idle" | "generating" | "ready">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [sections, setSections] = useState<Partial<Record<ReportSectionId, boolean>>>({
+    ...DEFAULT_REPORT_SECTIONS,
+    ai_visibility: false,
+  });
   const requestGen = useRef(0);
 
   const { status: shareJobStatus, error: sharePollError } = useActiveJobStatus({
@@ -320,6 +341,7 @@ export function ReportsHub({
         businessId,
         reportType: activeType,
         format,
+        sections,
       };
       // Only attach scanBatchId for reports that are about a specific scan.
       if (
@@ -512,6 +534,25 @@ export function ReportsHub({
           <h2 className="text-[13px] font-semibold text-zinc-900">{activeCard.title}</h2>
           <p className="mt-0.5 text-[12px] leading-snug text-zinc-500">{activeCard.description}</p>
 
+          <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50/70 p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Include sections</p>
+            <div className="mt-2 grid gap-1.5">
+              {BUILDER_SECTIONS.map((id) => (
+                <label
+                  key={id}
+                  className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 text-[12px] text-zinc-700 ring-1 ring-zinc-100"
+                >
+                  <span>{REPORT_SECTION_LABELS[id]}</span>
+                  <input
+                    type="checkbox"
+                    checked={sections[id] !== false}
+                    onChange={(e) => setSections((prev) => ({ ...prev, [id]: e.target.checked }))}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+
           {needsScanPicker && (
             <div className="mt-3">
               <label className={fieldLabelClass}>
@@ -653,6 +694,7 @@ export function ReportsHub({
                         reportType: activeType,
                         format: "pdf",
                         force: true,
+                        sections,
                       };
                       if (activeType === "maps_campaign" && mapsCampaignId) {
                         body.campaignId = mapsCampaignId;

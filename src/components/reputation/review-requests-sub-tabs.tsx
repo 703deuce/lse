@@ -2,14 +2,13 @@
 
 import { cn } from "@/lib/utils";
 
-export type ReviewRequestsSection = "poster" | "messages" | "send" | "bulk" | "tracking";
+export type ReviewRequestsSection = "poster" | "messages" | "triggers" | "settings" | "send" | "bulk" | "tracking";
 
-const SECTIONS: Array<{ id: ReviewRequestsSection; label: string }> = [
-  { id: "poster", label: "Review Poster" },
+const SECTIONS: Array<{ id: Extract<ReviewRequestsSection, "poster" | "messages" | "triggers" | "settings">; label: string }> = [
+  { id: "poster", label: "Contacts" },
   { id: "messages", label: "Templates" },
-  { id: "send", label: "Quick Send" },
-  { id: "bulk", label: "Bulk Upload" },
-  { id: "tracking", label: "Tracking" },
+  { id: "triggers", label: "Review Triggers" },
+  { id: "settings", label: "Review Settings" },
 ];
 
 export function ReviewRequestsSubTabs({

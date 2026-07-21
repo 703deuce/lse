@@ -8,7 +8,6 @@ import { ReviewFeedList } from "@/components/reviews/review-feed-list";
 import {
   DeltaText,
   ReviewerAvatar,
-  ReviewsPagination,
   RvCard,
   RvSectionTitle,
   SourceIcon,
@@ -18,12 +17,13 @@ import { DonutScore } from "@/components/overview/overview-charts";
 import { dashboardControl, dashboardMicro } from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
 
-const PAGE_SIZE = 8;
+const INITIAL_REVIEW_COUNT = 3;
+const REVIEW_INCREMENT = 3;
 
 export function ReviewsYourTab({ data }: { data: ReviewsPageData }) {
   const [statusFilter, setStatusFilter] = useState<"all" | "replied" | "unreplied">("all");
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_REVIEW_COUNT);
   const [selectedReview, setSelectedReview] = useState<ReviewListItem | null>(null);
 
   const filtered = useMemo(() => {
@@ -36,13 +36,10 @@ export function ReviewsYourTab({ data }: { data: ReviewsPageData }) {
   }, [data.yourReviews, statusFilter, search]);
 
   useEffect(() => {
-    setPage(1);
+    setVisibleCount(INITIAL_REVIEW_COUNT);
   }, [statusFilter, search]);
 
-  const pageRows = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return filtered.slice(start, start + PAGE_SIZE);
-  }, [filtered, page]);
+  const visibleRows = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
 
   const newest = data.yourReviews[0];
 
@@ -152,11 +149,21 @@ export function ReviewsYourTab({ data }: { data: ReviewsPageData }) {
         </div>
 
         <p className={`mb-3 ${dashboardMicro}`}>
-          {filtered.length} review{filtered.length === 1 ? "" : "s"} — previews below. Click any review to read the full text.
+          Showing {Math.min(visibleCount, filtered.length)} of {filtered.length} review{filtered.length === 1 ? "" : "s"} — click any review to read the full text.
         </p>
 
-        <ReviewFeedList rows={pageRows} onViewReview={setSelectedReview} previewLines={3} />
-        <ReviewsPagination page={page} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
+        <ReviewFeedList rows={visibleRows} onViewReview={setSelectedReview} previewLines={3} />
+        {visibleCount < filtered.length && (
+          <div className="mt-3 border-t border-zinc-100 pt-3 text-center">
+            <button
+              type="button"
+              onClick={() => setVisibleCount((count) => count + REVIEW_INCREMENT)}
+              className="rounded-full border border-zinc-200 px-3 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              More reviews
+            </button>
+          </div>
+        )}
       </RvCard>
 
       <ReviewDetailDrawer review={selectedReview} onClose={() => setSelectedReview(null)} />

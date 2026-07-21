@@ -233,7 +233,7 @@ export async function loadDashboardFeatured(businessId: string): Promise<Dashboa
 
   const engineMentioned = new Map<AiEngine, boolean>();
   if (aiData?.engineResults) {
-    for (const er of aiData.engineResults as Array<{
+    for (const er of aiData.engineResults as unknown as Array<{
       engine: AiEngine;
       target_mentioned?: boolean;
     }>) {

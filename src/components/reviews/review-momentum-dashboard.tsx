@@ -334,54 +334,6 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
                 market={market}
               />
 
-              <KpiRow cols={6}>
-                <MomentumSnapshotCard
-                  icon={Calendar}
-                  label="Last 7 Days (Exact)"
-                  value={String(target.reviews_7d)}
-                  sub="daily precision"
-                />
-                <MomentumSnapshotCard
-                  icon={Calendar}
-                  label="Last 30 Days"
-                  value={String(target.reviews_30d)}
-                  sub="primary momentum score"
-                />
-                <MomentumSnapshotCard
-                  icon={Calendar}
-                  label="Last 90 Days"
-                  value={String(target.reviews_90d)}
-                  sub="trend context"
-                />
-                <MomentumSnapshotCard
-                  icon={Trophy}
-                  label="Top Competitor 30D"
-                  value={String(topComp30)}
-                  sub="highest 30-day total"
-                />
-                <MomentumSnapshotCard
-                  icon={Target}
-                  label="Review Gap"
-                  value={String(gap)}
-                  sub="vs top 3 avg - 30D"
-                />
-                <MomentumSnapshotCard
-                  icon={Flag}
-                  label="Recommended Target"
-                  value={
-                    target.recommended_weekly_target != null
-                      ? `${target.recommended_weekly_target} / week`
-                      : "—"
-                  }
-                  sub="reviews per week"
-                />
-              </KpiRow>
-
-              <div className="grid gap-2 xl:grid-cols-3">
-                <WeeklyPacePanel market={market} />
-                <ShareOfReviewsPanel market={market} />
-                <MomentumScoreBarsPanel entities={displayEntities} />
-              </div>
             </>
           )}
 
@@ -592,6 +544,59 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
                 </ResponsiveContainer>
               </MiniChartCard>
             </div>
+          )}
+
+          {targetVelocityAvailable && target && market && (
+            <>
+              <KpiRow cols={6}>
+                <MomentumSnapshotCard
+                  icon={Calendar}
+                  label="Last 7 Days (Exact)"
+                  value={String(target.reviews_7d)}
+                  sub="daily precision"
+                />
+                <MomentumSnapshotCard
+                  icon={Calendar}
+                  label="Last 30 Days"
+                  value={String(target.reviews_30d)}
+                  sub="primary momentum score"
+                />
+                <MomentumSnapshotCard
+                  icon={Calendar}
+                  label="Last 90 Days"
+                  value={String(target.reviews_90d)}
+                  sub="trend context"
+                />
+                <MomentumSnapshotCard
+                  icon={Trophy}
+                  label="Top Competitor 30D"
+                  value={String(topComp30)}
+                  sub="highest 30-day total"
+                />
+                <MomentumSnapshotCard
+                  icon={Target}
+                  label="Review Gap"
+                  value={String(gap)}
+                  sub="vs top 3 avg - 30D"
+                />
+                <MomentumSnapshotCard
+                  icon={Flag}
+                  label="Recommended Target"
+                  value={
+                    target.recommended_weekly_target != null
+                      ? `${target.recommended_weekly_target} / week`
+                      : "—"
+                  }
+                  sub="reviews per week"
+                />
+              </KpiRow>
+
+              <div className="grid gap-2 xl:grid-cols-3">
+                <WeeklyPacePanel market={market} />
+                <ShareOfReviewsPanel market={market} />
+                <MomentumScoreBarsPanel entities={displayEntities} />
+              </div>
+            </>
           )}
 
           {(data.run.ai_summary || data.tasks.length > 0) && (

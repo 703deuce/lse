@@ -32,6 +32,7 @@ export type PromptRow = {
 export type EngineResultRow = {
   id: string;
   engine: string;
+  prompt_text?: string | null;
   status: string;
   target_mentioned: boolean;
   mention_position: number | null;

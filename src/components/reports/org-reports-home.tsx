@@ -62,6 +62,8 @@ function ReportGroup({
   icon: LucideIcon;
   iconWrap: string;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const visibleRows = expanded ? rows : rows.slice(0, 5);
   return (
     <ContentCard padding={false} className="overflow-hidden">
       <div className="flex items-start gap-2.5 border-b border-zinc-100 px-3.5 py-2.5">
@@ -85,7 +87,7 @@ function ReportGroup({
         <p className="px-3.5 py-3.5 text-[12px] leading-snug text-zinc-500">{empty}</p>
       ) : (
         <ul className="divide-y divide-zinc-100">
-          {rows.map((r) => (
+          {visibleRows.map((r) => (
             <li key={r.id}>
               <Link
                 href={r.href}
@@ -108,6 +110,17 @@ function ReportGroup({
             </li>
           ))}
         </ul>
+      )}
+      {rows.length > 5 && (
+        <div className="border-t border-zinc-100 px-3.5 py-2 text-center">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="text-[12px] font-medium text-emerald-700 hover:text-emerald-800"
+          >
+            {expanded ? "Show less" : `Show ${rows.length - 5} more`}
+          </button>
+        </div>
       )}
     </ContentCard>
   );
@@ -255,7 +268,7 @@ export function OrgReportsHome({ businesses }: { businesses: BusinessOption[] })
           <ReportGroup
             title="Drafts"
             subtitle="Still editing before publish"
-            rows={drafts.slice(0, 8)}
+            rows={drafts}
             empty="No drafts — create a monthly report to start."
             icon={FileEdit}
             iconWrap="bg-zinc-100 text-zinc-600"
@@ -263,7 +276,7 @@ export function OrgReportsHome({ businesses }: { businesses: BusinessOption[] })
           <ReportGroup
             title="Ready to review"
             subtitle="Drafts waiting on your pass"
-            rows={ready.slice(0, 8)}
+            rows={ready}
             empty="No reports waiting for review."
             icon={Clock}
             iconWrap="bg-amber-50 text-amber-600"
@@ -271,7 +284,7 @@ export function OrgReportsHome({ businesses }: { businesses: BusinessOption[] })
           <ReportGroup
             title="Published"
             subtitle="Live share links for clients"
-            rows={published.slice(0, 8)}
+            rows={published}
             empty="No published reports yet."
             icon={CheckCircle2}
             iconWrap="bg-emerald-50 text-emerald-600"
@@ -279,7 +292,7 @@ export function OrgReportsHome({ businesses }: { businesses: BusinessOption[] })
           <ReportGroup
             title="Recently viewed"
             subtitle="Client opened the share link"
-            rows={recent.slice(0, 8)}
+            rows={recent}
             empty="Share a report link to track client views."
             icon={Eye}
             iconWrap="bg-sky-50 text-sky-600"
@@ -287,7 +300,7 @@ export function OrgReportsHome({ businesses }: { businesses: BusinessOption[] })
           <ReportGroup
             title="Archived"
             subtitle="Older deliverables"
-            rows={archived.slice(0, 6)}
+            rows={archived}
             empty="No archived reports."
             icon={Archive}
             iconWrap="bg-zinc-100 text-zinc-500"

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Star,
   MapPin,
@@ -33,6 +34,7 @@ export function GrowthAuditCompetitorTab({
   onGoToActionPlan: () => void;
 }) {
   const { competitorGap, gbp, website, serviceCoverage, localCoverage } = sections;
+  const [showAllLeaderboard, setShowAllLeaderboard] = useState(false);
   const { result } = competitorGap;
   const competitors = result.competitors;
   const metrics = result.metrics;
@@ -291,7 +293,7 @@ export function GrowthAuditCompetitorTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {leaderboard.slice(0, 6).map((row) => (
+                {(showAllLeaderboard ? leaderboard : leaderboard.slice(0, 3)).map((row) => (
                   <tr key={row.name} className={cn(row.isYou && "bg-emerald-50/40")}>
                     <td className="px-3.5 py-2 font-medium text-zinc-900">
                       {row.isYou && <Trophy className="mr-1 inline h-3.5 w-3.5 text-emerald-600" />}
@@ -305,6 +307,17 @@ export function GrowthAuditCompetitorTab({
               </tbody>
             </table>
           </div>
+          {leaderboard.length > 3 && (
+            <div className="border-t border-zinc-100 px-3.5 py-2 text-center">
+              <button
+                type="button"
+                onClick={() => setShowAllLeaderboard((v) => !v)}
+                className="text-[12px] font-medium text-emerald-700 hover:text-emerald-800"
+              >
+                {showAllLeaderboard ? "Show fewer competitors" : `Show ${leaderboard.length - 3} more competitors`}
+              </button>
+            </div>
+          )}
         </GaCard>
       </div>
 

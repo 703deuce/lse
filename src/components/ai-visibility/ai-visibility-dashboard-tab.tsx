@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Area,
   AreaChart,
@@ -8,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowRight, Info, Sparkles, Star, Zap } from "lucide-react";
+import { ChevronDown, Info, Sparkles } from "lucide-react";
 import {
   ENGINE_LABELS,
   type AggregateMetrics,
@@ -17,7 +18,7 @@ import {
   type MentionLeaderboardRow,
   type VisibilityTrendPoint,
 } from "@/lib/ai-visibility/types";
-import { AiPanel, EngineCoverageRow, EngineIconRow } from "@/components/ai-visibility/ai-visibility-ui";
+import { AiPanel, EngineCoverageRow, EngineIconRow, EngineLogo } from "@/components/ai-visibility/ai-visibility-ui";
 import type { EngineResultRow } from "@/components/ai-visibility/ai-visibility-types";
 
 const ALL_ENGINES: AiEngine[] = ["chatgpt", "perplexity", "gemini", "google_ai_overview", "claude"];
@@ -152,7 +153,6 @@ export function AiVisibilityDashboardTab({
         </AiPanel>
       </div>
 
-      {/* Recommends is taller; stack Matrix + Gaps beside it so they stay content-height */}
       <div className="grid items-start gap-2 lg:grid-cols-10">
         <AiPanel
           title={isCombined ? "Who AI Recommends" : "Who AI Recommends (this run)"}
@@ -234,49 +234,139 @@ export function AiVisibilityDashboardTab({
             ))}
           </AiPanel>
 
-          <AiPanel title="Opportunities & Gaps" action={<Info className="h-3.5 w-3.5 text-zinc-300" />} bodyClassName="space-y-2.5 pt-2">
-            {failedEngines.slice(0, 2).map((e) => (
-              <div key={`fail-${e.id}`} className="flex gap-2">
-                <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                <div>
-                  <p className="text-xs font-semibold text-text">
-                    {ENGINE_LABELS[e.engine as AiEngine]} check failed
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-text-muted">
-                    {e.error_message ?? "Provider error — re-run this prompt after a short wait."}
-                  </p>
-                </div>
+          <AiPanel
+            title="Run Health"
+            subtitle="What happened during this run"
+            action={<Info className="h-3.5 w-3.5 text-zinc-300" />}
+            bodyClassName="space-y-2 pt-2"
+          >
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-lg bg-emerald-50 px-2 py-2">
+                <p className="text-base font-bold tabular-nums text-emerald-800">
+                  {engineResults.filter((e) => e.status === "complete").length}
+                </p>
+                <p className="text-[10px] font-medium text-emerald-700">Complete</p>
               </div>
-            ))}
-            {engineResults
-              .filter((e) => e.status !== "failed" && !e.target_mentioned)
-              .slice(0, 1)
-              .map((e) => (
-                <div key={e.id} className="flex gap-2">
-                  <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  <div>
-                    <p className="text-xs font-semibold text-text">Increase presence in {ENGINE_LABELS[e.engine as AiEngine]}</p>
-                    <p className="mt-0.5 text-[11px] text-text-muted">You were not mentioned in this engine&apos;s response.</p>
-                  </div>
-                </div>
-              ))}
-            <div className="flex gap-2">
-              <Star className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-              <div>
-                <p className="text-xs font-semibold text-text">Improve position on Gemini</p>
-                <p className="mt-0.5 text-[11px] text-text-muted">Focus on reviews and local citations.</p>
+              <div className="rounded-lg bg-amber-50 px-2 py-2">
+                <p className="text-base font-bold tabular-nums text-amber-800">{failedEngines.length}</p>
+                <p className="text-[10px] font-medium text-amber-700">Needs rerun</p>
+              </div>
+              <div className="rounded-lg bg-sky-50 px-2 py-2">
+                <p className="text-base font-bold tabular-nums text-sky-800">
+                  {new Set(engineResults.flatMap((e) => e.sources_json.map((s) => s.url).filter(Boolean))).size}
+                </p>
+                <p className="text-[10px] font-medium text-sky-700">Domains cited</p>
               </div>
             </div>
-            <div className="flex gap-2">
-              <Zap className="mt-0.5 h-4 w-4 shrink-0 text-violet-500" />
-              <div>
-                <p className="text-xs font-semibold text-text">Expand source diversity</p>
-                <p className="mt-0.5 text-[11px] text-text-muted">More unique domains citing your business helps AI trust.</p>
-              </div>
-            </div>
+            {failedEngines.length > 0 ? (
+              <ul className="space-y-1 text-[11px] text-text-muted">
+                {failedEngines.slice(0, 3).map((e) => (
+                  <li key={`fail-${e.id}`}>
+                    <span className="font-semibold text-amber-700">{ENGINE_LABELS[e.engine as AiEngine]}:</span>{" "}
+                    {e.error_message ?? "Provider did not return a complete answer."}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-[11px] text-text-muted">All configured engines returned complete results.</p>
+            )}
           </AiPanel>
         </div>
       </div>
+
+      {!isCombined && engineResults.length > 0 && (
+        <AiPanel
+          title="Prompts & Full Model Responses"
+          subtitle="Open each engine to review the exact prompt, full answer text, citations, and extracted companies."
+          bodyClassName="space-y-2 pt-2"
+        >
+          {engineResults.map((result, index) => (
+            <ModelResponseDisclosure key={result.id} result={result} defaultOpen={index === 0} />
+          ))}
+        </AiPanel>
+      )}
+    </div>
+  );
+}
+
+function ModelResponseDisclosure({
+  result,
+  defaultOpen,
+}: {
+  result: EngineResultRow;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen ?? false);
+  const engine = result.engine as AiEngine;
+  const mentions = result.mentions_json.map((m) => m.name).filter(Boolean);
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-white">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-900 text-white">
+          <EngineLogo engine={engine} className="h-4 w-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13px] font-semibold text-zinc-900">{ENGINE_LABELS[engine]}</span>
+          <span className="block truncate text-[11px] text-zinc-500">
+            {result.prompt_text ?? "Prompt unavailable"}
+          </span>
+        </span>
+        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold capitalize text-zinc-600">
+          {result.status.replace(/_/g, " ")}
+        </span>
+        <ChevronDown className={`h-4 w-4 text-zinc-400 transition ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="space-y-3 border-t border-zinc-100 px-3 py-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Prompt</p>
+            <p className="mt-1 rounded-lg bg-zinc-50 px-3 py-2 text-[12px] leading-relaxed text-zinc-700">
+              {result.prompt_text ?? "Prompt unavailable"}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Full response</p>
+            <p className="mt-1 max-h-80 overflow-y-auto whitespace-pre-wrap rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-[12px] leading-relaxed text-zinc-700">
+              {result.answer_text?.trim() || result.error_message || "No answer text returned."}
+            </p>
+          </div>
+          <div className="grid gap-2 md:grid-cols-2">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Extracted companies</p>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {mentions.length ? (
+                  mentions.slice(0, 12).map((name) => (
+                    <span key={name} className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
+                      {name}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-[11px] text-zinc-500">No companies extracted.</span>
+                )}
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Citations</p>
+              <ul className="mt-1 space-y-1 text-[11px] text-zinc-600">
+                {result.sources_json.length ? (
+                  result.sources_json.slice(0, 5).map((source, i) => (
+                    <li key={`${source.url ?? source.label}-${i}`} className="truncate">
+                      {source.position ? `${source.position}. ` : ""}
+                      {source.label ?? source.url ?? "Source"}
+                    </li>
+                  ))
+                ) : (
+                  <li className="text-zinc-500">No citations returned.</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

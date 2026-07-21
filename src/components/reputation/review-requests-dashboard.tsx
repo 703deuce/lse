@@ -11,9 +11,10 @@ import {
 } from "@/components/reputation/review-requests-ui";
 import { ModulePage } from "@/components/ui/design-system";
 
-const VALID_SECTIONS: ReviewRequestsSection[] = ["poster", "messages", "send", "bulk", "tracking"];
+const VALID_SECTIONS: ReviewRequestsSection[] = ["poster", "messages", "triggers", "settings"];
 
 function parseSection(value: string | null): ReviewRequestsSection {
+  if (value === "send" || value === "bulk" || value === "tracking") return "poster";
   if (value && VALID_SECTIONS.includes(value as ReviewRequestsSection)) {
     return value as ReviewRequestsSection;
   }

@@ -60,6 +60,7 @@ export function GrowthAuditWebsiteTab({
   onGoToActionPlan: () => void;
 }) {
   const [filter, setFilter] = useState("all");
+  const [showAllChecks, setShowAllChecks] = useState(false);
   const signals = signalCounts(website.checks);
 
   const counts = useMemo(() => {
@@ -76,6 +77,7 @@ export function GrowthAuditWebsiteTab({
     return website.checks;
   }, [website.checks, filter]);
 
+  const visibleChecks = showAllChecks ? filtered : filtered.slice(0, 3);
   const criticalCount = counts.issues;
 
   return (
@@ -137,7 +139,7 @@ export function GrowthAuditWebsiteTab({
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {filtered.map((c) => {
+              {visibleChecks.map((c) => {
                 const Icon = checkIcon(c.label);
                 return (
                   <tr key={c.id} className="group hover:bg-zinc-50/50">
@@ -169,6 +171,17 @@ export function GrowthAuditWebsiteTab({
             </tbody>
           </table>
         </div>
+        {filtered.length > 3 && (
+          <div className="border-t border-zinc-100 px-3.5 py-2 text-center">
+            <button
+              type="button"
+              onClick={() => setShowAllChecks((v) => !v)}
+              className="text-[12px] font-medium text-emerald-700 hover:text-emerald-800"
+            >
+              {showAllChecks ? "Show fewer checks" : `Show ${filtered.length - 3} more checks`}
+            </button>
+          </div>
+        )}
       </GaCard>
 
       {criticalCount > 0 && (

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Clock,
   Camera,
@@ -76,6 +77,9 @@ export function GrowthAuditGbpTab({
 }) {
   const topFixes = topFixesFromChecks(gbp.checks);
   const alignment = gbp.categoryAlignment;
+  const [showAllChecks, setShowAllChecks] = useState(false);
+  const [showAllPatterns, setShowAllPatterns] = useState(false);
+  const visibleChecks = showAllChecks ? gbp.checks : gbp.checks.slice(0, 3);
   const insights = [
     {
       icon: CheckCircle2,
@@ -122,7 +126,7 @@ export function GrowthAuditGbpTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {gbp.checks.map((c) => (
+                {visibleChecks.map((c) => (
                   <tr key={c.id} className="hover:bg-zinc-50/50">
                     <td className="px-3.5 py-2 font-medium text-zinc-900">{c.label}</td>
                     <td className="px-3.5 py-2">
@@ -139,7 +143,17 @@ export function GrowthAuditGbpTab({
             </table>
           </div>
           <div className="border-t border-zinc-100 px-3.5 py-2.5">
-            <GaLink>View full GBP profile details</GaLink>
+            {gbp.checks.length > 3 ? (
+              <button
+                type="button"
+                onClick={() => setShowAllChecks((v) => !v)}
+                className="text-[12px] font-medium text-emerald-700 hover:text-emerald-800"
+              >
+                {showAllChecks ? "Show fewer checks" : `Show ${gbp.checks.length - 3} more checks`}
+              </button>
+            ) : (
+              <GaLink>View full GBP profile details</GaLink>
+            )}
           </div>
         </GaCard>
 
@@ -261,7 +275,7 @@ export function GrowthAuditGbpTab({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
-                    {alignment.patterns.slice(0, 12).map((row) => (
+                    {(showAllPatterns ? alignment.patterns : alignment.patterns.slice(0, 3)).map((row) => (
                       <tr key={row.category} className="hover:bg-zinc-50/50">
                         <td className="px-3.5 py-2 font-medium text-zinc-900">{row.category}</td>
                         <td className="px-3.5 py-2">{row.onYourGbp ? "Yes" : "No"}</td>
@@ -280,6 +294,17 @@ export function GrowthAuditGbpTab({
                   </tbody>
                 </table>
               </div>
+              {alignment.patterns.length > 3 && (
+                <div className="border-t border-zinc-100 px-3.5 py-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowAllPatterns((v) => !v)}
+                    className="text-[12px] font-medium text-emerald-700 hover:text-emerald-800"
+                  >
+                    {showAllPatterns ? "Show fewer patterns" : `Show ${alignment.patterns.length - 3} more patterns`}
+                  </button>
+                </div>
+              )}
             </GaCard>
           </div>
 

@@ -6,7 +6,6 @@ import { Loader2 } from "lucide-react";
 import { ModulePage, AlertBanner } from "@/components/ui/design-system";
 import { ReviewsCompetitorTab } from "@/components/reviews/reviews-competitor-tab";
 import { ReviewsSentimentTab } from "@/components/reviews/reviews-sentiment-tab";
-import { ReviewsOverviewTab } from "@/components/reviews/reviews-overview-tab";
 import { ReviewsUnansweredTab } from "@/components/reviews/reviews-unanswered-tab";
 import { ReviewsYourTab } from "@/components/reviews/reviews-your-tab";
 import {
@@ -22,9 +21,10 @@ import type { ReviewsPageData } from "@/lib/reviews/reviews-page-data";
 import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 
 function parseTab(value: string | null): ReviewsTabId {
+  if (value === "overview") return "your-reviews";
   if (value === "keywords") return "sentiment";
   if (value && REVIEWS_TABS.some((t) => t.id === value)) return value as ReviewsTabId;
-  return "overview";
+  return "your-reviews";
 }
 
 export function ReviewsDashboard({ businessId }: { businessId: string }) {
@@ -128,31 +128,22 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
 
       <ReviewsTabs active={tab} onChange={handleTabChange} />
 
-      {tab === "overview" && (
-        <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,18rem)] xl:items-start">
-          <ReviewsOverviewTab data={data} onTabChange={handleTabChange} />
-          <aside>
-            <SuggestedActionsSidebar suggestions={data.suggestions} businessId={businessId} onTabChange={handleTabChange} />
-          </aside>
-        </div>
-      )}
-
       {tab === "your-reviews" && (
-        <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,18rem)] xl:items-start">
-          <ReviewsYourTab data={data} />
-          <aside>
-            <SuggestedReplyTasksSidebar
-              data={data}
-              businessId={businessId}
-              onTabChange={handleTabChange}
-            />
-          </aside>
-        </div>
+        <ReviewsYourTab data={data} />
       )}
 
       {tab === "competitor-reviews" && <ReviewsCompetitorTab data={data} />}
       {tab === "sentiment" && <ReviewsSentimentTab data={data} />}
       {tab === "unanswered" && <ReviewsUnansweredTab data={data} businessId={businessId} />}
+
+      <div className="grid gap-2 xl:grid-cols-2">
+        <SuggestedActionsSidebar suggestions={data.suggestions} businessId={businessId} onTabChange={handleTabChange} />
+        <SuggestedReplyTasksSidebar
+          data={data}
+          businessId={businessId}
+          onTabChange={handleTabChange}
+        />
+      </div>
     </ModulePage>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Briefcase, MapPin, ExternalLink, AlertCircle, Star } from "lucide-react";
 import { Sparkline } from "@/components/overview/overview-charts";
 import {
@@ -45,16 +46,19 @@ function opportunityTag(level: string) {
 }
 
 export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSections }) {
+  const [showAllServices, setShowAllServices] = useState(false);
+  const [showAllAreas, setShowAllAreas] = useState(false);
   const { serviceCoverage, localCoverage } = sections;
   const coverageScore = Math.round((serviceCoverage.score + localCoverage.score) / 2);
-  const serviceRows = serviceCoverage.rows.slice(0, 8);
+  const serviceRows = showAllServices ? serviceCoverage.rows : serviceCoverage.rows.slice(0, 3);
   const keywordRows = serviceCoverage.serviceKeywords?.rows ?? [];
-  const localRows = [...localCoverage.neighborhoods, ...localCoverage.cities].slice(0, 6);
+  const allLocalRows = [...localCoverage.neighborhoods, ...localCoverage.cities];
+  const localRows = showAllAreas ? allLocalRows : allLocalRows.slice(0, 3);
   const coveredServices = serviceCoverage.rows.filter((r) => r.pageExists && r.status !== "missing").length;
   const totalServices = serviceCoverage.rows.length || 1;
   const missingServices = serviceCoverage.rows.filter((r) => !r.pageExists || r.status === "missing");
   const weakServices = serviceCoverage.rows.filter((r) => r.status === "weak");
-  const missingLocal = localRows.filter((r) => r.status === "missing" || !r.hasPage);
+  const missingLocal = allLocalRows.filter((r) => r.status === "missing" || !r.hasPage);
 
   return (
     <div className="space-y-4">
@@ -148,6 +152,17 @@ export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSect
               Services derived from competitor Maps place topics and GBP services — not invented keywords.
             </p>
           )}
+          {serviceCoverage.rows.length > 3 && (
+            <div className="border-t border-zinc-100 px-3.5 py-2 text-center">
+              <button
+                type="button"
+                onClick={() => setShowAllServices((v) => !v)}
+                className="text-[12px] font-medium text-emerald-700 hover:text-emerald-800"
+              >
+                {showAllServices ? "Show fewer services" : `Show ${serviceCoverage.rows.length - 3} more services`}
+              </button>
+            </div>
+          )}
         </GaCard>
 
         <GaCard>
@@ -240,6 +255,17 @@ export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSect
               </tbody>
             </table>
           </div>
+          {allLocalRows.length > 3 && (
+            <div className="border-t border-zinc-100 px-3.5 py-2 text-center">
+              <button
+                type="button"
+                onClick={() => setShowAllAreas((v) => !v)}
+                className="text-[12px] font-medium text-emerald-700 hover:text-emerald-800"
+              >
+                {showAllAreas ? "Show fewer areas" : `Show ${allLocalRows.length - 3} more areas`}
+              </button>
+            </div>
+          )}
         </GaCard>
 
         <div className="space-y-3">

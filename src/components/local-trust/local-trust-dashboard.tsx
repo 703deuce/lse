@@ -7,8 +7,6 @@ import { LocalTrustHistoryTab, type RunHistoryRow } from "@/components/local-tru
 import { LocalTrustMarketBar } from "@/components/local-trust/local-trust-market-bar";
 import { LocalTrustOpportunitiesPanel } from "@/components/local-trust/local-trust-opportunities-panel";
 import { LocalTrustOverviewTab } from "@/components/local-trust/local-trust-overview-tab";
-import { LocalTrustQueriesTab } from "@/components/local-trust/local-trust-queries-tab";
-import { LocalTrustTasksTab } from "@/components/local-trust/local-trust-tasks-tab";
 import {
   LocalTrustTabId,
   TrustActionBar,
@@ -75,7 +73,6 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
   const [selectedMarket, setSelectedMarket] = useState<MarketSelection>("all");
   const [tab, setTab] = useState<LocalTrustTabId>("overview");
   const [loading, setLoading] = useState(true);
-  const [uniqueDomains, setUniqueDomains] = useState(0);
   const [lastRescanSummary, setLastRescanSummary] = useState<Record<string, unknown> | null>(null);
 
   const activeCity = selectedMarket === "all" ? data?.run?.city : selectedMarket.city;
@@ -125,15 +122,6 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to load");
       setData(json);
-
-      const oppsRes = await fetch(`/api/trust/${businessId}/opportunities?pageSize=100&${mq}`);
-      const oppsJson = await oppsRes.json();
-      if (oppsRes.ok) {
-        const domains = new Set(
-          ((oppsJson.items ?? []) as Array<{ domain?: string }>).map((o) => o.domain).filter(Boolean)
-        );
-        setUniqueDomains(domains.size);
-      }
 
       await loadMarkets();
     } catch (e) {
@@ -202,10 +190,7 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
       ? combinedTotal || run?.opportunities_found || 0
       : marketTotal || run?.opportunities_found || 0;
 
-  const footerMessage =
-    tab === "queries"
-      ? "Query data is AI-generated and refreshed on a regular basis. Next refresh scheduled for tomorrow."
-      : "Opportunity data is refreshed on a regular basis. Each market scan is saved separately.";
+  const footerMessage = "Opportunity data is refreshed on a regular basis. Each market scan is saved separately.";
 
   const rescanSummary =
     lastRescanSummary ??
@@ -324,14 +309,12 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
 
       {run && (
         <>
-          {tab !== "queries" && (
-            <TrustKpiRow
-              opportunitiesFound={displayOpportunityCount}
-              highPriority={run.high_priority_count}
-              relevanceScore={run.local_relevance_score ?? "—"}
-              easyWins={run.easy_wins_count}
-            />
-          )}
+          <TrustKpiRow
+            opportunitiesFound={displayOpportunityCount}
+            highPriority={run.high_priority_count}
+            relevanceScore={run.local_relevance_score ?? "—"}
+            easyWins={run.easy_wins_count}
+          />
 
           <TrustTabs active={tab} onChange={setTab} />
 
@@ -373,15 +356,15 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
             />
           )}
 
-          {tab === "rejected" && <TrustRejectedTab items={rejectedOpportunities} />}
-
-          {tab === "queries" && (
-            <LocalTrustQueriesTab
-              searchQueries={data?.searchQueries ?? []}
-              opportunitiesFound={displayOpportunityCount}
-              localRelevanceScore={run.local_relevance_score}
-              createdAt={run.created_at}
-              uniqueDomains={uniqueDomains}
+          {tab === "rejected" && (
+            <TrustRejectedTab
+              items={rejectedOpportunities}
+              businessId={businessId}
+              runId={run.id}
+              onAdded={() => {
+                void load();
+                setTab("opportunities");
+              }}
             />
           )}
 
@@ -394,15 +377,6 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
             />
           )}
 
-          {tab === "tasks" && (
-            <LocalTrustTasksTab
-              tasks={data?.tasks ?? []}
-              businessId={businessId}
-              runId={data?.run?.id ?? null}
-              onTasksCreated={() => void load()}
-            />
-          )}
-
           <TrustFooter message={footerMessage} />
         </>
       )}
@@ -410,7 +384,19 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
   );
 }
 
-function TrustRejectedTab({ items }: { items: Array<Record<string, unknown>> }) {
+function TrustRejectedTab({
+  items,
+  businessId,
+  runId,
+  onAdded,
+}: {
+  items: Array<Record<string, unknown>>;
+  businessId: string;
+  runId: string;
+  onAdded: () => void;
+}) {
+  const [busyUrl, setBusyUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   if (!items.length) {
     return (
       <div className={cn(dashboardCard, "px-3.5 py-8 text-center")}>
@@ -426,10 +412,31 @@ function TrustRejectedTab({ items }: { items: Array<Record<string, unknown>> }) 
     return stage;
   };
 
+  async function addToOpportunities(item: Record<string, unknown>) {
+    const url = String(item.url ?? "");
+    setBusyUrl(url);
+    setError(null);
+    try {
+      const res = await fetch(`/api/trust/${businessId}/opportunities`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ runId, item }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Could not add opportunity");
+      onAdded();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not add opportunity");
+    } finally {
+      setBusyUrl(null);
+    }
+  }
+
   return (
     <div className={cn(dashboardCard, "overflow-hidden")}>
       <div className="border-b border-zinc-100 px-3.5 py-2 text-[12px] text-zinc-500">
         {items.length} candidate{items.length === 1 ? "" : "s"} did not pass — reasons below.
+        {error ? <p className="mt-1 text-red-600">{error}</p> : null}
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-[12px]">
@@ -439,6 +446,7 @@ function TrustRejectedTab({ items }: { items: Array<Record<string, unknown>> }) 
               <th className="px-3.5 py-2">Stage</th>
               <th className="px-3.5 py-2">Why rejected</th>
               <th className="px-3.5 py-2">Scores</th>
+              <th className="px-3.5 py-2">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -461,6 +469,16 @@ function TrustRejectedTab({ items }: { items: Array<Record<string, unknown>> }) 
                   {item.confidence != null || item.localRelevance != null
                     ? `Conf ${item.confidence ?? "—"} · Local ${item.localRelevance ?? "—"}`
                     : "—"}
+                </td>
+                <td className="px-3.5 py-2">
+                  <button
+                    type="button"
+                    disabled={busyUrl === String(item.url)}
+                    onClick={() => void addToOpportunities(item)}
+                    className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-60"
+                  >
+                    {busyUrl === String(item.url) ? "Adding..." : "Add to opportunities"}
+                  </button>
                 </td>
               </tr>
             ))}

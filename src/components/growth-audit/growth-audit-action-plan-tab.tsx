@@ -93,6 +93,7 @@ export function GrowthAuditActionPlanTab({
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [bucketFilter, setBucketFilter] = useState("all");
   const [selectedTask, setSelectedTask] = useState<GrowthTask | null>(growthPlan.tasks[0] ?? null);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const storageKey = businessId ? `growth-plan-done:${businessId}` : null;
   const [doneKeys, setDoneKeys] = useState<Set<string>>(() => new Set());
 
@@ -245,7 +246,7 @@ export function GrowthAuditActionPlanTab({
                           </div>
                         </td>
                       </tr>
-                      {group.tasks.map((task, i) => {
+                      {(expandedGroups[group.label] ? group.tasks : group.tasks.slice(0, 3)).map((task, i) => {
                         const Icon = TASK_ICONS[i % TASK_ICONS.length];
                         const active = topTask?.title === task.title;
                         return (
@@ -295,6 +296,26 @@ export function GrowthAuditActionPlanTab({
                           </tr>
                         );
                       })}
+                      {group.tasks.length > 3 && (
+                        <tr className="border-b border-zinc-100">
+                          <td colSpan={8} className="px-3.5 py-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedGroups((prev) => ({
+                                  ...prev,
+                                  [group.label]: !prev[group.label],
+                                }))
+                              }
+                              className="text-[12px] font-medium text-emerald-700 hover:text-emerald-800"
+                            >
+                              {expandedGroups[group.label]
+                                ? "Show fewer"
+                                : `Show ${group.tasks.length - 3} more`}
+                            </button>
+                          </td>
+                        </tr>
+                      )}
                     </Fragment>
                   );
                 })}

@@ -442,13 +442,52 @@ export function EngineBadge({ engine }: { engine: AiEngine }) {
   );
 }
 
-const ENGINE_BRAND: Record<AiEngine, { active: string; inactive: string; glyph: string }> = {
-  chatgpt: { active: "bg-emerald-500 text-white", inactive: "bg-zinc-100 text-zinc-300", glyph: "✦" },
-  perplexity: { active: "bg-cyan-600 text-white", inactive: "bg-zinc-100 text-zinc-300", glyph: "◎" },
-  gemini: { active: "bg-blue-600 text-white", inactive: "bg-zinc-100 text-zinc-300", glyph: "✧" },
-  google_ai_overview: { active: "bg-gradient-to-br from-blue-500 via-red-400 to-amber-400 text-white", inactive: "bg-zinc-100 text-zinc-300", glyph: "G" },
-  claude: { active: "bg-orange-500 text-white", inactive: "bg-zinc-100 text-zinc-300", glyph: "C" },
+const ENGINE_BRAND: Record<AiEngine, { active: string; inactive: string }> = {
+  chatgpt: { active: "bg-[#10a37f] text-white", inactive: "bg-zinc-100 text-zinc-300" },
+  perplexity: { active: "bg-[#1fb8cd] text-white", inactive: "bg-zinc-100 text-zinc-300" },
+  gemini: { active: "bg-white text-blue-600 ring-1 ring-blue-200", inactive: "bg-zinc-100 text-zinc-300" },
+  google_ai_overview: { active: "bg-white text-blue-600 ring-1 ring-zinc-200", inactive: "bg-zinc-100 text-zinc-300" },
+  claude: { active: "bg-[#d97745] text-white", inactive: "bg-zinc-100 text-zinc-300" },
 };
+
+export function EngineLogo({ engine, className }: { engine: AiEngine; className?: string }) {
+  if (engine === "chatgpt") {
+    return (
+      <svg viewBox="0 0 24 24" className={className} aria-hidden>
+        <path fill="currentColor" d="M12 3.1a4.3 4.3 0 0 1 4 2.8 4.4 4.4 0 0 1 2.9 7.6 4.3 4.3 0 0 1-4.1 5.7 4.4 4.4 0 0 1-7.5-1.7 4.4 4.4 0 0 1-2.2-7.8A4.3 4.3 0 0 1 9.3 4c.8-.6 1.7-.9 2.7-.9Zm2.8 4.2-4.3 2.5v1.7l4.3-2.5V7.3Zm-6.3 8 4.3 2.5 1.5-.9-4.3-2.5-1.5.9Zm8.1-2.4v-5l-1.5-.9v5l1.5.9Zm-9.2-1.8v5l1.5.9v-5l-1.5-.9Zm1.8-4.2 4.3 2.5 1.5-.9L10.7 6l-1.5.9Zm5.6 10.2v-5l-1.5-.9v5l1.5.9Z" />
+      </svg>
+    );
+  }
+  if (engine === "claude") {
+    return (
+      <svg viewBox="0 0 24 24" className={className} aria-hidden>
+        <path fill="currentColor" d="M12 3 4.8 19.8h3.1l1.4-3.5h5.4l1.4 3.5h3.1L12 3Zm-1.7 10.6L12 9.2l1.7 4.4h-3.4Z" />
+      </svg>
+    );
+  }
+  if (engine === "gemini") {
+    return (
+      <svg viewBox="0 0 24 24" className={className} aria-hidden>
+        <path fill="currentColor" d="M12 2.8c.9 4.7 3.5 7.3 8.2 8.2-4.7.9-7.3 3.5-8.2 8.2-.9-4.7-3.5-7.3-8.2-8.2 4.7-.9 7.3-3.5 8.2-8.2Z" />
+      </svg>
+    );
+  }
+  if (engine === "google_ai_overview") {
+    return (
+      <svg viewBox="0 0 24 24" className={className} aria-hidden>
+        <path fill="#4285F4" d="M20.7 12.2c0-.7-.1-1.3-.2-1.8H12v3.4h4.9a4.2 4.2 0 0 1-1.8 2.7v2.2H18c1.7-1.6 2.7-3.8 2.7-6.5Z" />
+        <path fill="#34A853" d="M12 21c2.4 0 4.4-.8 5.9-2.2l-2.9-2.2c-.8.5-1.8.8-3 .8a5.2 5.2 0 0 1-4.9-3.6h-3v2.3A8.9 8.9 0 0 0 12 21Z" />
+        <path fill="#FBBC05" d="M7.1 13.8a5.4 5.4 0 0 1 0-3.6V7.9h-3a9 9 0 0 0 0 8.2l3-2.3Z" />
+        <path fill="#EA4335" d="M12 6.6c1.3 0 2.5.5 3.4 1.3L18 5.3A8.7 8.7 0 0 0 12 3a8.9 8.9 0 0 0-7.9 4.9l3 2.3A5.2 5.2 0 0 1 12 6.6Z" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden>
+      <path fill="currentColor" d="M5 3h14v18h-3.1v-6.2H8.1V21H5V3Zm3.1 3v5.8h7.8V6H8.1Zm3.9.8 3 2.1-3 2.1-3-2.1 3-2.1Z" />
+    </svg>
+  );
+}
 
 export function EngineIconRow({ engines, total = 5 }: { engines: AiEngine[]; total?: number }) {
   const all: AiEngine[] = ["chatgpt", "perplexity", "gemini", "google_ai_overview", "claude"];
@@ -462,11 +501,11 @@ export function EngineIconRow({ engines, total = 5 }: { engines: AiEngine[]; tot
             key={e}
             title={ENGINE_LABELS[e]}
             className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold shadow-sm",
+              "flex h-7 w-7 items-center justify-center rounded-full shadow-sm",
               on ? brand.active : brand.inactive
             )}
           >
-            {brand.glyph}
+            <EngineLogo engine={e} className="h-4 w-4" />
           </span>
         );
       })}
@@ -510,11 +549,11 @@ export function EngineCoverageRow({
     <div className="flex items-center gap-3">
       <span
         className={cn(
-          "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold",
-          ENGINE_COLORS[engine]
+          "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border shadow-sm",
+          ENGINE_BRAND[engine].active
         )}
       >
-        {ENGINE_LABELS[engine].slice(0, 1)}
+        <EngineLogo engine={engine} className="h-4 w-4" />
       </span>
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-center justify-between text-xs">

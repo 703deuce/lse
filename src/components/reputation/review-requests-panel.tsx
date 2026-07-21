@@ -326,8 +326,6 @@ export function ReviewRequestsPanel({
             [
               { id: "poster" as const, label: "Review Poster" },
               { id: "messages" as const, label: "Messages" },
-              { id: "send" as const, label: "Send" },
-              { id: "tracking" as const, label: "Tracking" },
             ] as const
           ).map((t) => (
             <button
@@ -602,6 +600,24 @@ export function ReviewRequestsPanel({
             }
           }}
           generating={generating}
+        />
+      )}
+
+      {section === "triggers" && (
+        <ReviewRequestsHandoffCard
+          title="Review Triggers"
+          description="Create automations that enroll contacts after jobs, imports, or integration events."
+          href={`/businesses/${businessId}/integrations`}
+          actionLabel="Open Review Triggers"
+        />
+      )}
+
+      {section === "settings" && (
+        <ReviewRequestsHandoffCard
+          title="Review Settings"
+          description="Manage reputation defaults, alerts, attribution behavior, and request safeguards."
+          href={`/businesses/${businessId}/review-settings`}
+          actionLabel="Open Review Settings"
         />
       )}
 
@@ -1231,6 +1247,32 @@ function TrackingSection({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ReviewRequestsHandoffCard({
+  title,
+  description,
+  href,
+  actionLabel,
+}: {
+  title: string;
+  description: string;
+  href: string;
+  actionLabel: string;
+}) {
+  return (
+    <div className={cn(dashboardCard, "p-4")}>
+      <p className={dashboardCardTitle}>{title}</p>
+      <p className={`mt-1 max-w-2xl ${dashboardMicro}`}>{description}</p>
+      <a
+        href={href}
+        className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-2 text-[13px] font-semibold text-white hover:bg-emerald-800"
+      >
+        {actionLabel}
+        <ExternalLink className="h-3.5 w-3.5" />
+      </a>
     </div>
   );
 }

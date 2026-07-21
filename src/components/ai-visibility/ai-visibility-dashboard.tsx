@@ -237,7 +237,7 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
       )}
 
       {tab === "dashboard" && (
-        <KpiRow cols={6}>
+        <KpiRow cols={4}>
           <AiKpiCard
             label="Visibility Score"
             value={visibilityScore ?? "—"}
@@ -270,19 +270,8 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
           <AiKpiCard
             label="Companies Found"
             value={isCombined ? (aggregate?.totalCompaniesFound ?? "—") : leaderboard.length || "—"}
+            sub={isCombined ? `${aggregate?.completeRuns ?? 0} completed runs` : `${run?.sources_count ?? 0} sources cited`}
             icon={Building2}
-          />
-          <AiKpiCard
-            label="Sources Cited"
-            value={isCombined ? "—" : (run?.sources_count ?? "—")}
-            icon={BarChart3}
-          />
-          <AiKpiCard
-            label="Total Runs"
-            value={aggregate?.completeRuns ?? "—"}
-            sub="All time"
-            icon={Calendar}
-            iconClassName="bg-sky-50 text-sky-600"
           />
         </KpiRow>
       )}

@@ -37,18 +37,14 @@ export type LocalTrustTabId =
   | "overview"
   | "opportunities"
   | "rejected"
-  | "queries"
   | "competitors"
-  | "tasks"
   | "history";
 
 export const LOCAL_TRUST_TABS: { id: LocalTrustTabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "opportunities", label: "Opportunities" },
   { id: "history", label: "Search History" },
-  { id: "queries", label: "Search Queries" },
   { id: "competitors", label: "Competitor Mentions" },
-  { id: "tasks", label: "Tasks" },
   { id: "rejected", label: "Rejected" },
 ];
 

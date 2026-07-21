@@ -890,6 +890,8 @@ export async function queryBacklinkGapMatrix(params: {
     )
     .eq("run_id", runId)
     .eq("status", "open")
+    .gte("competitor_count", 2)
+    .order("competitor_count", { ascending: false })
     .order("authority_score", { ascending: false })
     .range(offset, offset + pageSize - 1);
 

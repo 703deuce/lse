@@ -377,6 +377,7 @@ export async function loadAiVisibilityData(businessId: string, selectedRunId?: s
       promptMentionRuns.set(pid, (promptMentionRuns.get(pid) ?? 0) + 1);
     }
   }
+  const promptTextById = new Map(prompts.map((p) => [p.id as string, p.prompt_text as string]));
 
   const runningRun = allRuns.find((r) => r.status === "running") ?? null;
   const displayRun = viewRun ?? latestRun;
@@ -431,7 +432,10 @@ export async function loadAiVisibilityData(businessId: string, selectedRunId?: s
     selectedRunId: isCombinedView ? "combined" : (selectedRunId ?? displayRun?.id ?? null),
     latestRun: displayRun,
     runningRun,
-    engineResults,
+    engineResults: engineResults.map((er) => ({
+      ...er,
+      prompt_text: promptTextById.get(er.prompt_id as string) ?? null,
+    })),
     mentionLeaderboard,
     historicalMentions,
     allSources,

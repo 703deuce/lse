@@ -154,63 +154,63 @@ export function AiVisibilityEvidenceTab({
         <div className="grid items-start gap-2 lg:grid-cols-[1fr_300px]">
           {subTab === "citations" ? (
             <AiPanel
-              title="Cited Sources"
-              subtitle="Web pages and content sources AI engines used to generate their responses."
+              title="Cited Sources by Model"
+              subtitle="Web pages and content sources each AI engine used to generate its response."
               className="overflow-hidden p-0 lg:col-span-1"
             >
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-[13px]">
-                  <thead className="border-b border-border bg-surface-subtle/80">
-                    <tr>
-                      <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">#</th>
-                      <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Source</th>
-                      <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Engine</th>
-                      <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Type</th>
-                      <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Authority</th>
-                      <th className="px-3.5 py-2 text-left text-[10px] font-semibold uppercase text-text-muted">Context</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100">
-                    {sources.slice(0, 25).map((s, i) => {
-                      const type = citationType(i);
-                      const auth = authorityScore(i);
-                      return (
-                        <tr key={`${s.url}-${i}`} className="hover:bg-surface-subtle/50">
-                          <td className="px-3.5 py-2 text-text-muted">{s.position ?? i + 1}</td>
-                          <td className="max-w-xs px-3.5 py-2">
-                            <p className="font-medium text-text">{s.label ?? s.url ?? "Source"}</p>
-                            {s.url && (
-                              <a href={s.url} target="_blank" rel="noopener noreferrer" className="mt-0.5 flex items-center gap-1 truncate text-xs text-sky-700 hover:underline">
-                                {s.url}
-                                <ExternalLink className="h-3 w-3 shrink-0" />
-                              </a>
-                            )}
-                          </td>
-                          <td className="px-3.5 py-2">
-                            <EngineBadge engine={s.engine} />
-                          </td>
-                          <td className="px-3.5 py-2">
-                            <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", TYPE_CLASS[type])}>{type}</span>
-                          </td>
-                          <td className="px-3.5 py-2">
-                            <span className="inline-flex items-center gap-1 tabular-nums text-xs font-medium">
-                              {auth}
-                              <CheckCircle2 className={cn("h-3.5 w-3.5", auth >= 85 ? "text-emerald-500" : "text-amber-500")} />
-                            </span>
-                          </td>
-                          <td className="max-w-[140px] px-3.5 py-2">
-                            <p className="line-clamp-2 text-[11px] text-text-muted">
-                              {s.label ? `${s.label.slice(0, 60)}…` : "Referenced in AI response"}
-                            </p>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="divide-y divide-zinc-100">
+                {Object.entries(sourcesByEngine).map(([engine, rows]) => (
+                  <div key={engine} className="px-3.5 py-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <EngineBadge engine={engine as AiEngine} />
+                      <span className="text-[11px] text-text-muted">{rows.length} citation{rows.length === 1 ? "" : "s"}</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-[13px]">
+                        <thead className="bg-surface-subtle/80">
+                          <tr>
+                            <th className="px-2 py-1.5 text-left text-[10px] font-semibold uppercase text-text-muted">#</th>
+                            <th className="px-2 py-1.5 text-left text-[10px] font-semibold uppercase text-text-muted">Source</th>
+                            <th className="px-2 py-1.5 text-left text-[10px] font-semibold uppercase text-text-muted">Type</th>
+                            <th className="px-2 py-1.5 text-left text-[10px] font-semibold uppercase text-text-muted">Authority</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100">
+                          {rows.slice(0, 8).map((s, i) => {
+                            const type = citationType(i);
+                            const auth = authorityScore(i);
+                            return (
+                              <tr key={`${engine}-${s.url}-${i}`} className="hover:bg-surface-subtle/50">
+                                <td className="px-2 py-2 text-text-muted">{s.position ?? i + 1}</td>
+                                <td className="max-w-xs px-2 py-2">
+                                  <p className="font-medium text-text">{s.label ?? s.url ?? "Source"}</p>
+                                  {s.url && (
+                                    <a href={s.url} target="_blank" rel="noopener noreferrer" className="mt-0.5 flex items-center gap-1 truncate text-xs text-sky-700 hover:underline">
+                                      {s.url}
+                                      <ExternalLink className="h-3 w-3 shrink-0" />
+                                    </a>
+                                  )}
+                                </td>
+                                <td className="px-2 py-2">
+                                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", TYPE_CLASS[type])}>{type}</span>
+                                </td>
+                                <td className="px-2 py-2">
+                                  <span className="inline-flex items-center gap-1 tabular-nums text-xs font-medium">
+                                    {auth}
+                                    <CheckCircle2 className={cn("h-3.5 w-3.5", auth >= 85 ? "text-emerald-500" : "text-amber-500")} />
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
               </div>
               <p className="border-t border-border px-3.5 py-2 text-xs text-text-muted">
-                Showing 1–{Math.min(25, sources.length)} of {sources.length} sources
+                Showing citations split by model · {sources.length} total sources
               </p>
             </AiPanel>
           ) : (

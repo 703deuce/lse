@@ -146,6 +146,52 @@ export function GrowthAuditOverviewTab({
         <MiniScoreCard title="Action Plan Readiness" score={actionPlanScore} />
       </div>
 
+      <GaCard className="!p-3.5">
+        <GaSectionTitle
+          title="Growth audit focus"
+          subtitle="A complete local growth audit should explain what is holding back Maps visibility and what to do first."
+        />
+        <div className="grid gap-2 md:grid-cols-5">
+          {[
+            {
+              label: "GBP",
+              score: sections.gbp.score,
+              text: "Profile completeness, categories, reviews, hours, photos, and posts.",
+            },
+            {
+              label: "Website",
+              score: sections.website.score,
+              text: "NAP/category alignment and trust signals that reinforce the profile.",
+            },
+            {
+              label: "Coverage",
+              score: Math.round((sections.serviceCoverage.score + sections.localCoverage.score) / 2),
+              text: "Service pages, local landing pages, and competitor-proven topic gaps.",
+            },
+            {
+              label: "Competitors",
+              score: sections.competitorGap.score,
+              text: "Review, category, page, and authority gaps versus ranking competitors.",
+            },
+            {
+              label: "Action plan",
+              score: actionPlanScore,
+              text: "Prioritized high-impact tasks with estimated time and difficulty.",
+            },
+          ].map((item) => (
+            <div key={item.label} className="rounded-lg border border-zinc-100 bg-zinc-50/60 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">{item.label}</p>
+                <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold tabular-nums text-zinc-800 ring-1 ring-zinc-100">
+                  {item.score}/100
+                </span>
+              </div>
+              <p className="mt-2 text-[11px] leading-snug text-zinc-600">{item.text}</p>
+            </div>
+          ))}
+        </div>
+      </GaCard>
+
       <GaCard>
         <GaSectionTitle
           title="Review Momentum"
