@@ -10,25 +10,16 @@ import { AiVisibilityRunHistoryTab } from "@/components/ai-visibility/ai-visibil
 import { AiVisibilitySearchLandscapeTab } from "@/components/ai-visibility/ai-visibility-search-landscape-tab";
 import type { AiVisibilityTabId, RunView, VisibilityData } from "@/components/ai-visibility/ai-visibility-types";
 import {
-  AiKpiCard,
   AiVisibilityFooter,
   AiVisibilityHeaderRow,
   AiVisibilitySearchBar,
   AiVisibilityTabs,
   AiVisibilityViewControls,
-  BarChart3,
-  Building2,
-  Calendar,
-  EngineIconRow,
-  PieChart,
-  Sparkles,
-  TrendingUp,
-  Users,
 } from "@/components/ai-visibility/ai-visibility-ui";
-import { ModulePage, ModuleSkeleton } from "@/components/ui/design-system";
-import { KpiRow } from "@/components/ui/metric-card";
+import { ModulePage, ModuleSkeleton, HeroPanel, MetricStrip, heroMetricClass } from "@/components/ui/design-system";
 import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
 import type { RunSummary } from "@/lib/ai-visibility/types";
+import { cn } from "@/lib/utils";
 
 function formatRunLabel(r: RunSummary) {
   const d = new Date(r.created_at);
@@ -238,84 +229,80 @@ export function AiVisibilityDashboard({ businessId }: { businessId: string }) {
       )}
 
       {tab === "dashboard" && (
-        <KpiRow cols={4}>
-          <AiKpiCard
-            label="Visibility Score"
-            value={visibilityScore ?? "—"}
-            valueSuffix={visibilityScore != null ? "/ 100" : undefined}
-            icon={Sparkles}
-            sparkPoints={trendSpark}
-            trend={visDelta}
-            trendLabel="vs last run"
-          />
-          <AiKpiCard
-            label="Mention Share"
-            value={
-              targetRow
-                ? `${targetRow.sharePct}%`
-                : isCombined && aggregate?.mentionSharePct != null
-                  ? `${aggregate.mentionSharePct}%`
-                  : "—"
+        <>
+          <HeroPanel
+            eyebrow="AI search presence"
+            title="Visibility score"
+            description={
+              visDelta
+                ? `${visDelta} vs last run`
+                : "How often AI engines recommend your brand for tracked prompts."
             }
-            icon={BarChart3}
+            metric={
+              <span className={cn(heroMetricClass, visibilityScore == null && "text-zinc-300")}>
+                {visibilityScore ?? "—"}
+                {visibilityScore != null ? (
+                  <span className="ml-1 text-xl font-medium text-zinc-400">/100</span>
+                ) : null}
+              </span>
+            }
           />
-          <AiKpiCard
-            label="Engines Mentioning"
-            value={`${enginesMentioning} / ${aggregate?.totalEngines ?? 5}`}
-            icon={Sparkles}
-          >
-            <div className="mt-1">
-              <EngineIconRow engines={targetEngines} />
-            </div>
-          </AiKpiCard>
-          <AiKpiCard
-            label="Companies Found"
-            value={isCombined ? (aggregate?.totalCompaniesFound ?? "—") : leaderboard.length || "—"}
-            sub={isCombined ? `${aggregate?.completeRuns ?? 0} completed runs` : `${run?.sources_count ?? 0} sources cited`}
-            icon={Building2}
+          <MetricStrip
+            items={[
+              {
+                label: "Mention share",
+                value: targetRow
+                  ? `${targetRow.sharePct}%`
+                  : isCombined && aggregate?.mentionSharePct != null
+                    ? `${aggregate.mentionSharePct}%`
+                    : "—",
+              },
+              {
+                label: "Engines mentioning",
+                value: `${enginesMentioning}/${aggregate?.totalEngines ?? 5}`,
+              },
+              {
+                label: "Companies found",
+                value: String(
+                  isCombined ? (aggregate?.totalCompaniesFound ?? "—") : leaderboard.length || "—"
+                ),
+              },
+              {
+                label: "Sources",
+                value: isCombined
+                  ? `${aggregate?.completeRuns ?? 0} runs`
+                  : `${run?.sources_count ?? 0} cited`,
+              },
+            ]}
           />
-        </KpiRow>
+        </>
       )}
 
       <AiVisibilityTabs tab={tab} onTabChange={setTab} />
 
       {tab === "history" && (
-        <>
-          <KpiRow cols={4}>
-            <AiKpiCard
-              label="Total Runs"
-              value={aggregate?.completeRuns ?? "—"}
-              sub="All time"
-              icon={Calendar}
-              iconClassName="bg-sky-50 text-sky-600"
-            />
-            <AiKpiCard
-              label="Visibility Trend"
-              value={visDelta ? visDelta.replace("pts", "%") : "+0%"}
-              icon={TrendingUp}
-              sparkPoints={trendSpark}
-              trendLabel="vs prior run"
-            />
-            <AiKpiCard
-              label="Mention Rate"
-              value={
-                completeRuns.length
-                  ? `${Math.round((mentionedRuns / completeRuns.length) * 100)}%`
-                  : "—"
-              }
-              sub={completeRuns.length ? `${mentionedRuns} / ${completeRuns.length} runs` : undefined}
-              icon={PieChart}
-              iconClassName="bg-violet-50 text-violet-600"
-            />
-            <AiKpiCard
-              label="Avg. Companies"
-              value={avgCompanies || "—"}
-              sub="per run"
-              icon={Users}
-              iconClassName="bg-amber-50 text-amber-600"
-            />
-          </KpiRow>
-        </>
+        <MetricStrip
+          items={[
+            {
+              label: "Total runs",
+              value: String(aggregate?.completeRuns ?? "—"),
+            },
+            {
+              label: "Visibility trend",
+              value: visDelta ? visDelta.replace("pts", "%") : "0%",
+            },
+            {
+              label: "Mention rate",
+              value: completeRuns.length
+                ? `${Math.round((mentionedRuns / completeRuns.length) * 100)}%`
+                : "—",
+            },
+            {
+              label: "Avg. companies",
+              value: String(avgCompanies || "—"),
+            },
+          ]}
+        />
       )}
 
       {tab === "dashboard" && (

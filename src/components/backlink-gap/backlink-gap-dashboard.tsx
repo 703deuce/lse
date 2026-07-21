@@ -18,7 +18,7 @@ import {
   GapTopBar,
   priorityBadge,
 } from "@/components/backlink-gap/backlink-gap-ui";
-import { ModulePage, AlertBanner, ModuleSkeleton } from "@/components/ui/design-system";
+import { ModulePage, AlertBanner, ModuleSkeleton, btnPrimaryLg } from "@/components/ui/design-system";
 import { ModuleEmptyState } from "@/components/journey/module-empty-state";
 import { BacklinkGapOverviewTab } from "@/components/backlink-gap/backlink-gap-overview-tab";
 import { BacklinkGapMatrixTab } from "@/components/backlink-gap/backlink-gap-matrix-tab";
@@ -180,6 +180,7 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
           onRerun={() => runGap(true)}
           onCreateTasks={createTasks}
           onRefresh={load}
+          compact={!!run && tab !== "ignored"}
         />
 
       {error && <AlertBanner variant="error">{error}</AlertBanner>}
@@ -204,6 +205,21 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
           competitorDomains={run.competitor_ref_domain_count ?? "—"}
           missing={run.missing_opportunity_count ?? "—"}
           highPriority={run.high_priority_count ?? "—"}
+          actions={
+            <button
+              type="button"
+              onClick={() => runGap(false)}
+              disabled={isRunning}
+              className={btnPrimaryLg}
+            >
+              {isRunning ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Link2 className="h-4 w-4" />
+              )}
+              {isRunning ? "Analyzing…" : "Run gap analysis"}
+            </button>
+          }
         />
       ) : null}
 

@@ -83,36 +83,28 @@ export function AiVisibilityHeaderRow({
   return (
     <ModuleHeader
       title="AI Visibility"
-      icon={Sparkles}
       actions={
         <>
           <button
             type="button"
             onClick={onRun}
             disabled={isRunning || !hasPrimary}
-            className={cn(btnPrimary, "h-8 px-3 text-[13px]")}
+            className={cn(btnPrimary, "h-9 px-4 text-sm")}
           >
             <Play className="h-3.5 w-3.5" />
             Run Check
           </button>
-          <button type="button" onClick={onRefresh} disabled={loading} className={cn(btnSecondary, "h-8 px-3 text-[13px]")}>
+          <button type="button" onClick={onRefresh} disabled={loading} className={cn(btnSecondary, "h-9 px-3 text-sm")}>
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             Refresh
           </button>
-          <Link href={`/businesses/${businessId}/ai-visibility/prompts`} className={cn(btnSecondary, "h-8 px-3 text-[13px]")}>
+          <Link href={`/businesses/${businessId}/ai-visibility/prompts`} className={cn(btnSecondary, "h-9 px-3 text-sm")}>
             <Settings className="h-3.5 w-3.5" />
-            Manage Prompts
-          </Link>
-          <Link
-            href={`/businesses/${businessId}/ai-visibility?tab=history`}
-            className={cn(btnSecondary, "h-8 px-3 text-[13px]")}
-          >
-            <TrendingUp className="h-3.5 w-3.5" />
-            Compare period
+            Prompts
           </Link>
           <button
             type="button"
-            className={cn(btnSecondary, "h-8 px-3 text-[13px]")}
+            className={cn(btnSecondary, "h-9 px-3 text-sm")}
             onClick={() => {
               void import("@/lib/journey/report-staging").then(({ stageReportItem, reportsHrefForStaging }) => {
                 stageReportItem({

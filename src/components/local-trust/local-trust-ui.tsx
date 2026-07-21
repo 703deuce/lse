@@ -3,19 +3,12 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import {
-  ArrowUpRight,
-  Calendar,
-  CheckCircle2,
   ChevronDown,
-  Globe,
   Info,
   MapPin,
   Play,
   RefreshCw,
   Search,
-  Star,
-  Target,
-  Zap,
 } from "lucide-react";
 import {
   dashboardCard,
@@ -25,12 +18,14 @@ import {
   dashboardSectionLabel,
 } from "@/components/overview/dashboard-ui";
 import {
+  HeroPanel,
+  MetricStrip,
   ModuleHeader,
   TabBar,
   btnPrimary,
   btnSecondary,
+  heroMetricClass,
 } from "@/components/ui/design-system";
-import { GridMetricCard, KpiRow } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 
 export type LocalTrustTabId =
@@ -189,40 +184,22 @@ export function TrustKpiRow({
   easyWins: number | string;
 }) {
   return (
-    <KpiRow cols={4}>
-      <GridMetricCard
-        label="Opportunities Found"
-        value={opportunitiesFound}
-        sub="Total opportunities"
-        icon={Target}
-        iconWrapClassName="bg-emerald-50"
-        iconClassName="text-emerald-600"
+    <div className="space-y-3">
+      <HeroPanel
+        eyebrow="Local citations & directories"
+        title="Opportunities found"
+        description="High-signal places to earn mentions and strengthen local trust."
+        metric={<span className={heroMetricClass}>{opportunitiesFound}</span>}
+        metricLabel="Total opportunities"
       />
-      <GridMetricCard
-        label="High Priority"
-        value={highPriority}
-        sub="Require immediate action"
-        icon={ArrowUpRight}
-        iconWrapClassName="bg-red-50"
-        iconClassName="text-red-600"
+      <MetricStrip
+        items={[
+          { label: "High priority", value: String(highPriority) },
+          { label: "Relevance score", value: String(relevanceScore) },
+          { label: "Easy wins", value: String(easyWins) },
+        ]}
       />
-      <GridMetricCard
-        label="Local Relevance Score"
-        value={relevanceScore}
-        sub="Out of 100"
-        icon={Star}
-        iconWrapClassName="bg-blue-50"
-        iconClassName="text-blue-600"
-      />
-      <GridMetricCard
-        label="Easy Wins"
-        value={easyWins}
-        sub="Low effort, high impact"
-        icon={Zap}
-        iconWrapClassName="bg-emerald-50"
-        iconClassName="text-emerald-600"
-      />
-    </KpiRow>
+    </div>
   );
 }
 
@@ -242,52 +219,15 @@ export function TrustQueryKpiRow({
   lastRunTime: string;
 }) {
   return (
-    <KpiRow cols={5}>
-      <GridMetricCard
-        label="Total Queries"
-        value={totalQueries}
-        sub={`+${Math.max(0, Math.round(totalQueries * 0.08))} from last run`}
-        icon={Search}
-        iconWrapClassName="bg-emerald-50"
-        iconClassName="text-emerald-600"
-      />
-      <GridMetricCard
-        label="Successful Discoveries"
-        value={successfulDiscoveries}
-        sub={
-          totalQueries > 0
-            ? `${Math.round((successfulDiscoveries / totalQueries) * 100)}% success rate`
-            : "—"
-        }
-        icon={CheckCircle2}
-        iconWrapClassName="bg-emerald-50"
-        iconClassName="text-emerald-600"
-      />
-      <GridMetricCard
-        label="Avg. Local Relevance"
-        value={avgRelevance}
-        sub="Out of 100"
-        icon={Star}
-        iconWrapClassName="bg-blue-50"
-        iconClassName="text-blue-600"
-      />
-      <GridMetricCard
-        label="Unique Domains Found"
-        value={uniqueDomains}
-        sub={`+${Math.max(0, Math.round(uniqueDomains * 0.15))} from last run`}
-        icon={Globe}
-        iconWrapClassName="bg-violet-50"
-        iconClassName="text-violet-600"
-      />
-      <GridMetricCard
-        label="Last Run"
-        value={lastRunDate}
-        sub={`${lastRunTime} · Completed`}
-        icon={Calendar}
-        iconWrapClassName="bg-emerald-50"
-        iconClassName="text-emerald-600"
-      />
-    </KpiRow>
+    <MetricStrip
+      items={[
+        { label: "Total queries", value: String(totalQueries) },
+        { label: "Successful discoveries", value: String(successfulDiscoveries) },
+        { label: "Avg. relevance", value: String(avgRelevance) },
+        { label: "Unique domains", value: String(uniqueDomains) },
+        { label: "Last run", value: `${lastRunDate} ${lastRunTime}` },
+      ]}
+    />
   );
 }
 

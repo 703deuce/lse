@@ -3,10 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Building2, ChevronDown, Play } from "lucide-react";
-import { pageSubtitleClass, pageTitleClass, btnPrimary } from "@/components/ui/design-system";
-import {
-  dashboardControl,
-} from "@/components/overview/dashboard-ui";
+import { btnPrimary } from "@/components/ui/design-system";
+import { dashboardControl } from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
 
 function greetingForHour(hour: number): string {
@@ -30,13 +28,13 @@ export function DashboardHeader({
   const greeting = greetingForHour(new Date().getHours());
 
   return (
-    <header className="border-b border-zinc-200 pb-3">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <header className="pb-1">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className={pageTitleClass}>
+          <h1 className="text-[28px] font-semibold tracking-tight text-zinc-900 sm:text-[32px]">
             {`${greeting}, ${userName.trim() || "there"}`}
           </h1>
-          <p className={pageSubtitleClass}>
+          <p className="mt-1.5 text-sm text-zinc-500">
             Performance snapshot for{" "}
             <span className="font-medium text-zinc-700">{businessName}</span>
           </p>

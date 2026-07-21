@@ -2,8 +2,8 @@
 
 import {
   ArrowRight,
-  Briefcase,
   MapPin,
+  Play,
 } from "lucide-react";
 import { NextBestActionsPanel } from "@/components/journey/next-best-actions-panel";
 import { SetupProgressCard } from "@/components/journey/setup-progress-card";
@@ -18,9 +18,11 @@ import type { NextBestAction, SetupProgress } from "@/lib/journey/next-best-acti
 import type { WorkingQueue, WorkingQueueItem } from "@/lib/workspace/working-queue";
 import {
   ContentCard,
-  ModuleHeader,
+  HeroPanel,
   ModulePage,
   ModuleSkeleton,
+  btnGhost,
+  btnPrimaryLg,
   sectionTitleClass,
 } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
@@ -252,27 +254,34 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
 
   return (
     <ModulePage wide>
-      <ModuleHeader
-        icon={Briefcase}
-        title="Workspace"
-        subtitle={orgName?.trim() || undefined}
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <Link href="/businesses/new?as=prospect" className="text-[12px] font-semibold text-[#137752] hover:underline">
-              + Prospect
-            </Link>
-            <Link href="/businesses/new?as=client" className="text-[12px] font-semibold text-[#137752] hover:underline">
-              + Client
-            </Link>
-          </div>
-        }
-      />
-
       {loading ? (
         <ModuleSkeleton rows={6} />
       ) : (
         <>
-          <div className="grid gap-3 md:grid-cols-2">
+          <HeroPanel
+            eyebrow={orgName?.trim() || "Workspace"}
+            title="Run your next scan"
+            description="Pick a client or prospect, queue a Maps grid, and keep deliverables moving."
+            actions={
+              <div className="flex flex-wrap items-center gap-2">
+                <Link href="/scans/new" className={btnPrimaryLg}>
+                  <Play className="h-4 w-4 fill-current" />
+                  Run scan
+                </Link>
+                <Link href="/businesses/new?as=client" className={btnGhost}>
+                  + Client
+                </Link>
+                <Link href="/businesses/new?as=prospect" className={btnGhost}>
+                  + Prospect
+                </Link>
+                <Link href="/reports" className={btnGhost}>
+                  Reports
+                </Link>
+              </div>
+            }
+          />
+
+          <div className="grid gap-4 md:grid-cols-2">
             <ActiveWorkPanel
               scansRunning={scansRunning}
               schedulesUpcoming={schedulesUpcoming}
@@ -284,7 +293,7 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
           {setup && !setup.complete ? <SetupProgressCard progress={setup} /> : null}
           <NextBestActionsPanel actions={actions} limit={4} />
 
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2">
             <LocationRoster
               title="Clients"
               subtitle={`${recentClients.length} recent`}
@@ -310,7 +319,7 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
           <RecentResultsPanel items={recent} />
 
           <div>
-            <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+            <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
               <h2 className={sectionTitleClass}>Live queue</h2>
               {scansRunning.length > 0 || queue.scansRunning.length > 0 ? (
                 <CancelActiveScansButton label="Cancel all scans" />

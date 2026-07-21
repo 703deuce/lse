@@ -3,6 +3,7 @@
 import type { ComponentType, ReactNode } from "react";
 import { isValidElement } from "react";
 import type { LucideIcon } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { scoreTextClass, trendTextClass } from "@/lib/design/score-colors";
 
@@ -21,55 +22,83 @@ function renderModuleIcon(icon: ModuleIcon | undefined, className: string) {
 
 /* ── Layout tokens ───────────────────────────────────────────── */
 
-export const moduleStack = "space-y-3";
+export const moduleStack = "space-y-5";
 export const moduleMaxWidth = "mx-auto w-full max-w-[1600px]";
 export const tableHeadClass =
-  "bg-zinc-50/90 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-500";
-export const sectionGap = "mt-4";
-export const cardGrid = "grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4";
-export const cardGrid3 = "grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3";
+  "bg-zinc-50 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500";
+export const sectionGap = "mt-6";
+export const cardGrid = "grid gap-3 sm:grid-cols-2 xl:grid-cols-4";
+export const cardGrid3 = "grid gap-3 sm:grid-cols-2 lg:grid-cols-3";
 
-/* ── Surface tokens (enterprise: hairline borders, tight radius) ─ */
+/* ── Surface tokens — varied weight, not identical cards ─────── */
 
+/** Standard content surface */
 export const cardClass =
-  "rounded-lg border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]";
-export const cardPadding = "p-3.5";
-/** Divided list surface for location / scan pickers. */
+  "rounded-md border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]";
+export const cardPadding = "p-4";
+/** Dominant page hero — larger, left accent, more presence */
+export const heroClass =
+  "relative overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.06)] before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[#137752]";
+/** Quiet inset / secondary strip */
+export const insetClass = "rounded-md border border-zinc-200/70 bg-zinc-50/80";
+/** Divided list / table shell */
 export const listClass =
-  "divide-y divide-zinc-100 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]";
-/** Dashed empty-state panel. */
+  "divide-y divide-zinc-100 overflow-hidden rounded-md border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]";
 export const emptyStateClass =
-  "rounded-lg border border-dashed border-zinc-200 bg-zinc-50/60 px-5 py-8 text-center";
-/** Canonical table cell inset when the card shell is p-0 / overflow-hidden. */
-export const tableCellClass = "px-3 py-2";
-export const tableHeadCellClass = "px-3 py-2";
+  "rounded-md border border-dashed border-zinc-300 bg-zinc-50/50 px-5 py-10 text-center";
+export const tableCellClass = "px-3.5 py-3";
+export const tableHeadCellClass = "px-3.5 py-2.5";
+export const tableRowHoverClass = "transition-colors hover:bg-zinc-50/90";
 export const filterBarClass =
-  "flex flex-wrap items-end gap-2 rounded-lg border border-zinc-200 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]";
+  "flex flex-wrap items-end gap-2 rounded-md border border-zinc-200/90 bg-white p-3";
 
-/* ── Typography tokens ───────────────────────────────────────── */
+/* ── Typography scale (32 / 24 / 20 / 16 / 14 / 12) ───────────── */
 
-export const pageTitleClass = "text-xl font-semibold tracking-tight text-zinc-900 sm:text-[22px]";
-export const pageSubtitleClass = "mt-0.5 max-w-3xl text-[13px] leading-snug text-zinc-500";
-export const sectionTitleClass = "text-[13px] font-semibold tracking-tight text-zinc-900";
+export const displayTitleClass =
+  "text-[28px] font-semibold tracking-tight text-zinc-900 sm:text-[32px]";
+export const pageTitleClass =
+  "text-[22px] font-semibold tracking-tight text-zinc-900 sm:text-2xl";
+export const pageSubtitleClass = "mt-1.5 max-w-2xl text-sm leading-relaxed text-zinc-500";
+export const sectionTitleClass = "text-base font-semibold tracking-tight text-zinc-900";
 export const cardLabelClass =
-  "text-[10px] font-semibold uppercase tracking-[0.06em] text-zinc-500";
-export const bodyClass = "text-[13px] leading-snug text-zinc-600";
+  "text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500";
+export const bodyClass = "text-sm leading-relaxed text-zinc-600";
+export const microClass = "text-xs leading-snug text-zinc-500";
+/** Hero KPI number */
+export const heroMetricClass =
+  "text-[40px] font-semibold tabular-nums leading-none tracking-tight text-zinc-900 sm:text-[48px]";
+/** Secondary metric number */
+export const secondaryMetricClass =
+  "text-xl font-semibold tabular-nums leading-none tracking-tight text-zinc-900";
+
+/* ── Icon well (consistent treatment) ────────────────────────── */
+
+export const iconWellClass =
+  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-[#137752]";
+export const iconWellSmClass =
+  "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-[#137752]";
 
 /* ── Button tokens ───────────────────────────────────────────── */
 
 export const btnPrimary =
-  "inline-flex items-center justify-center gap-1.5 rounded-md bg-[#137752] px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-[#0f6344] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#137752] disabled:opacity-50";
+  "inline-flex items-center justify-center gap-1.5 rounded-md bg-[#137752] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0f6344] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#137752] disabled:opacity-50";
+
+export const btnPrimaryLg =
+  "inline-flex items-center justify-center gap-2 rounded-md bg-[#137752] px-5 py-3 text-[15px] font-semibold text-white transition hover:bg-[#0f6344] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#137752] disabled:opacity-50";
 
 export const btnSecondary =
-  "inline-flex items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3.5 py-2 text-[13px] font-semibold text-zinc-700 transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300 disabled:opacity-50";
+  "inline-flex items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3.5 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300 disabled:opacity-50";
+
+export const btnGhost =
+  "inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900";
 
 export const btnIcon =
-  "inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500 transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300";
+  "inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500 transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300";
 
 export const inputClass =
-  "w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-[#137752] focus:ring-1 focus:ring-[#137752]/25";
+  "w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-[#137752] focus:ring-1 focus:ring-[#137752]/25";
 
-export const fieldLabelClass = "text-[11px] font-medium text-zinc-600";
+export const fieldLabelClass = "text-xs font-medium text-zinc-600";
 
 /* ── Layout wrappers ─────────────────────────────────────────── */
 
@@ -107,23 +136,14 @@ export function ModuleHeader({
 }) {
   const iconNode = renderModuleIcon(icon, "h-4 w-4");
   return (
-    <header
-      className={cn(
-        "flex flex-wrap items-start justify-between gap-3 border-b border-zinc-200/80 pb-3",
-        className
-      )}
-    >
+    <header className={cn("flex flex-wrap items-start justify-between gap-4 pb-1", className)}>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2.5">
-          {iconNode ? (
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-[#137752]">
-              {iconNode}
-            </span>
-          ) : null}
+        <div className="flex items-center gap-3">
+          {iconNode ? <span className={iconWellClass}>{iconNode}</span> : null}
           <h1 className={pageTitleClass}>{title}</h1>
         </div>
         {subtitle ? <p className={pageSubtitleClass}>{subtitle}</p> : null}
-        {meta ? <div className="mt-1.5">{meta}</div> : null}
+        {meta ? <div className="mt-2">{meta}</div> : null}
       </div>
       {actions ? (
         <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
@@ -131,6 +151,126 @@ export function ModuleHeader({
         </div>
       ) : null}
     </header>
+  );
+}
+
+/** One dominant section per page — creates visual hierarchy. */
+export function HeroPanel({
+  eyebrow,
+  title,
+  description,
+  metric,
+  metricLabel,
+  actions,
+  children,
+  className,
+}: {
+  eyebrow?: string;
+  title?: string;
+  description?: string;
+  metric?: ReactNode;
+  metricLabel?: string;
+  actions?: ReactNode;
+  children?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={cn(heroClass, "px-5 py-5 sm:px-6 sm:py-6", className)}>
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0 flex-1">
+          {eyebrow ? (
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#137752]">
+              {eyebrow}
+            </p>
+          ) : null}
+          {title ? (
+            <h2 className={cn(displayTitleClass, eyebrow ? "mt-2" : undefined)}>{title}</h2>
+          ) : null}
+          {description ? (
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-500">{description}</p>
+          ) : null}
+          {children}
+        </div>
+        {(metric != null || actions) && (
+          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-end lg:shrink-0">
+            {metric != null ? (
+              <div>
+                {metricLabel ? <p className={cardLabelClass}>{metricLabel}</p> : null}
+                <div className={cn(metricLabel ? "mt-1.5" : undefined)}>{metric}</div>
+              </div>
+            ) : null}
+            {actions}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** Compact secondary metrics under a hero — less weight than StatCards. */
+export function MetricStrip({
+  items,
+  className,
+}: {
+  items: Array<{ label: string; value: string; href?: string }>;
+  className?: string;
+}) {
+  const cols =
+    items.length <= 2
+      ? "sm:grid-cols-2"
+      : items.length === 3
+        ? "sm:grid-cols-3"
+        : items.length === 5
+          ? "sm:grid-cols-5"
+          : "sm:grid-cols-4";
+  return (
+    <div
+      className={cn(
+        insetClass,
+        "grid divide-y divide-zinc-200/80 sm:divide-x sm:divide-y-0",
+        cols,
+        className
+      )}
+    >
+      {items.map((item) => {
+        const inner = (
+          <>
+            <p className={cardLabelClass}>{item.label}</p>
+            <p className={cn(secondaryMetricClass, "mt-1.5 text-lg")}>{item.value}</p>
+          </>
+        );
+        return item.href ? (
+          <Link
+            key={item.label}
+            href={item.href}
+            className="block px-4 py-3 transition hover:bg-white"
+          >
+            {inner}
+          </Link>
+        ) : (
+          <div key={item.label} className="px-4 py-3">
+            {inner}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Premium table shell — stronger headers, clearer row emphasis. */
+export function DataTable({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn(listClass, className)}>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">{children}</table>
+      </div>
+    </div>
   );
 }
 
@@ -230,13 +370,13 @@ export function StatValue({
   return (
     <p
       className={cn(
-        "text-lg font-semibold tabular-nums leading-none tracking-tight",
+        "text-2xl font-semibold tabular-nums leading-none tracking-tight",
         score != null ? scoreTextClass(score) : "text-zinc-900",
         className
       )}
     >
       {value}
-      {suffix ? <span className="ml-0.5 text-[11px] font-normal text-zinc-400">{suffix}</span> : null}
+      {suffix ? <span className="ml-0.5 text-xs font-normal text-zinc-400">{suffix}</span> : null}
     </p>
   );
 }

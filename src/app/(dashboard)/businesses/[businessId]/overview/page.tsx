@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Grid3X3, Star, Lightbulb, FileSearch } from "lucide-react";
+import { Play } from "lucide-react";
 import { requireBusinessPageData } from "@/lib/auth/require-business-page";
 import { createServiceClient } from "@/lib/db/client";
 import { DashboardHeader } from "@/components/overview/dashboard-header";
@@ -8,13 +8,14 @@ import { DashboardFeaturedReports } from "@/components/overview/dashboard-featur
 import { loadDashboardRecentScans } from "@/lib/overview/load-dashboard-scans";
 import { loadDashboardFeatured } from "@/lib/overview/load-dashboard-featured";
 import { JourneyBreadcrumbs } from "@/components/journey/journey-breadcrumbs";
-import { ModulePage } from "@/components/ui/design-system";
 import {
-  dashboardAccentLink,
-  dashboardCard,
-  dashboardMicro,
-  dashboardSectionLabel,
-} from "@/components/overview/dashboard-ui";
+  HeroPanel,
+  MetricStrip,
+  ModulePage,
+  btnPrimaryLg,
+  heroMetricClass,
+  microClass,
+} from "@/components/ui/design-system";
 import { getLatestGrowthAuditRun } from "@/lib/growth-audit/queries";
 import { cn } from "@/lib/utils";
 
@@ -62,37 +63,6 @@ function formatShortDate(iso: string | null | undefined): string {
   });
 }
 
-/** Compact KPI chip — one row, no tall marketing cards. */
-function KpiChip({
-  label,
-  value,
-  href,
-  icon: Icon,
-}: {
-  label: string;
-  value: string;
-  href: string;
-  icon: typeof Grid3X3;
-}) {
-  return (
-    <Link
-      href={href}
-      className={cn(
-        dashboardCard,
-        "flex min-w-0 items-center gap-2.5 px-3 py-2.5 transition hover:border-zinc-300"
-      )}
-    >
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-50 text-[#137752]">
-        <Icon className="h-3.5 w-3.5" />
-      </span>
-      <div className="min-w-0">
-        <p className={dashboardSectionLabel}>{label}</p>
-        <p className="truncate text-[13px] font-semibold tabular-nums text-zinc-900">{value}</p>
-      </div>
-    </Link>
-  );
-}
-
 export default async function BusinessOverviewPage({
   params,
 }: {
@@ -124,16 +94,21 @@ export default async function BusinessOverviewPage({
   const crmLabel = accountType === "prospect" ? "Prospect" : "Client";
   const latestScan = recentScans.rows[0] ?? null;
 
-  const scanValue = latestScan
-    ? latestScan.arp != null
-      ? `Avg ${latestScan.arp}${latestScan.solv != null ? ` · ${latestScan.solv}% Top 3` : ""}`
-      : latestScan.status
-    : "No scan";
+  const heroHref = latestScan
+    ? `/businesses/${businessId}/grid/${latestScan.id}`
+    : `/businesses/${businessId}/scans`;
+
+  const heroMetric =
+    latestScan?.arp != null ? (
+      <span className={heroMetricClass}>{latestScan.arp}</span>
+    ) : (
+      <span className={cn(heroMetricClass, "text-zinc-300")}>—</span>
+    );
 
   const reviewValue =
     featured.review.rating != null
-      ? `${featured.review.rating.toFixed(1)}★ · ${featured.review.newReviews90d} new/90d`
-      : `${featured.review.totalReviews} reviews`;
+      ? `${featured.review.rating.toFixed(1)}★`
+      : `${featured.review.totalReviews}`;
 
   return (
     <ModulePage wide>
@@ -154,59 +129,77 @@ export default async function BusinessOverviewPage({
         }))}
       />
 
-      <div className="mt-3 space-y-3">
-        <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-          <KpiChip
-            label="Latest scan"
-            value={scanValue}
-            href={
-              latestScan
-                ? `/businesses/${businessId}/grid/${latestScan.id}`
-                : `/businesses/${businessId}/scans`
-            }
-            icon={Grid3X3}
-          />
-          <KpiChip
-            label="Reviews"
-            value={reviewValue}
-            href={`/businesses/${businessId}/reviews`}
-            icon={Star}
-          />
-          <KpiChip
-            label="Opportunities"
-            value={`${featured.local.total} open`}
-            href={`/businesses/${businessId}/trust`}
-            icon={Lightbulb}
-          />
-          <KpiChip
-            label="Growth audit"
-            value={
-              latestGrowthAudit
-                ? formatShortDate(latestGrowthAudit.created_at)
-                : "Not run"
-            }
-            href={`/businesses/${businessId}/growth-audit`}
-            icon={FileSearch}
-          />
-        </section>
+      <HeroPanel
+        eyebrow="Maps visibility"
+        title={
+          latestScan
+            ? latestScan.keyword ?? "Latest Maps scan"
+            : "Establish your Maps baseline"
+        }
+        description={
+          latestScan
+            ? `${formatShortDate(latestScan.createdAt)}${
+                latestScan.solv != null ? ` · ${latestScan.solv}% Top 3` : ""
+              }${latestScan.gridSize ? ` · ${latestScan.gridSize}×${latestScan.gridSize}` : ""}`
+            : "Run a grid scan to measure average rank and share of local visibility."
+        }
+        metric={heroMetric}
+        metricLabel="Avg rank"
+        actions={
+          <Link href={heroHref} className={btnPrimaryLg}>
+            <Play className="h-4 w-4 fill-current" />
+            {latestScan ? "Open scan" : "Run scan"}
+          </Link>
+        }
+      />
 
-        <DashboardRecentScans
-          businessId={businessId}
-          rows={recentScans.rows}
-          total={recentScans.total}
-        />
+      <MetricStrip
+        items={[
+          {
+            label: "Reviews",
+            value: reviewValue,
+            href: `/businesses/${businessId}/reviews`,
+          },
+          {
+            label: "Opportunities",
+            value: String(featured.local.total),
+            href: `/businesses/${businessId}/trust`,
+          },
+          {
+            label: "AI score",
+            value: featured.ai.hasData
+              ? featured.ai.visibilityScore != null
+                ? String(featured.ai.visibilityScore)
+                : "—"
+              : "—",
+            href: `/businesses/${businessId}/ai-visibility`,
+          },
+          {
+            label: "Growth audit",
+            value: latestGrowthAudit
+              ? formatShortDate(latestGrowthAudit.created_at)
+              : "Not run",
+            href: `/businesses/${businessId}/growth-audit`,
+          },
+        ]}
+      />
 
-        <DashboardFeaturedReports businessId={businessId} data={featured} />
+      <DashboardRecentScans
+        businessId={businessId}
+        rows={recentScans.rows}
+        total={recentScans.total}
+      />
 
-        {!latestScan ? (
-          <p className={cn(dashboardMicro, "px-0.5")}>
-            No Maps baseline yet.{" "}
-            <Link href={`/businesses/${businessId}/scans`} className={dashboardAccentLink}>
-              Run a scan
-            </Link>
-          </p>
-        ) : null}
-      </div>
+      <DashboardFeaturedReports businessId={businessId} data={featured} />
+
+      {!latestScan ? (
+        <p className={microClass}>
+          No Maps baseline yet.{" "}
+          <Link href={`/businesses/${businessId}/scans`} className="font-semibold text-[#137752]">
+            Run a scan
+          </Link>
+        </p>
+      ) : null}
     </ModulePage>
   );
 }
