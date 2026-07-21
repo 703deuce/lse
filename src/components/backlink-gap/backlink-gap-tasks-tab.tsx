@@ -208,7 +208,7 @@ export function BacklinkGapTasksTab({ tasks }: { tasks: TaskRow[] }) {
               className={cn(
                 "rounded-full border px-3 py-1.5 text-[12px] font-semibold transition",
                 filter === f.id
-                  ? "border-[#137752] bg-[#ECFDF3] text-[#137752]"
+                  ? "border-[#137752] bg-[#137752] text-white"
                   : "border-[#E6EAF0] bg-white text-[#667085] hover:bg-[#F9FAFB]"
               )}
             >
