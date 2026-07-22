@@ -3,11 +3,12 @@ import { loadLatestGrowthAudit } from "@/lib/growth-audit/engine";
 import type { GrowthAuditSections } from "@/lib/growth-audit/types";
 import { rankHex, rankTextColor } from "@/lib/maps/colors";
 import { loadScanGridData } from "@/lib/maps/scan-queries";
-import { buildEntityGridCells, buildYouEntity } from "@/lib/maps/grid-entity";
-import { kpisFromRanks, round1 } from "@/lib/reporting/metrics";
+import { buildEntityGridCells, buildYouEntity, type StoredCompetitor } from "@/lib/maps/grid-entity";
+import { kpisFromRanks, mapsUrlFromPlaceId, round1 } from "@/lib/reporting/metrics";
 import type { HeatmapCell } from "@/lib/reporting/types";
 import type {
   AuditFactorStatus,
+  ProspectAuditCompetitor,
   ProspectAuditFactor,
   ProspectAuditKeywordGrid,
   ProspectAuditReport,
@@ -309,7 +310,7 @@ export async function buildProspectAuditReport(
   const { data: business } = await supabase
     .from("businesses")
     .select(
-      "id, name, address_text, scan_center_label, phone, website_url, primary_category, scan_center_lat, scan_center_lng, organization_id"
+      "id, name, address_text, scan_center_label, phone, website_url, primary_category, scan_center_lat, scan_center_lng, organization_id, place_id, cid"
     )
     .eq("id", businessId)
     .maybeSingle();
@@ -409,69 +410,136 @@ export async function buildProspectAuditReport(
   const avgRank =
     keywordGrids.map((g) => g.averageRank).find((n) => n != null) ?? null;
 
-  // Competitors from latest scan heatmap data path
-  const competitors: ProspectAuditReport["competitors"] = [];
+  // Competitors + prospect photo from Maps/DataForSEO listing payloads
+  const competitors: ProspectAuditCompetitor[] = [];
+  let businessPhotoUrl: string | null = null;
   const latestScanId = keywordGrids.find((g) => g.scanId)?.scanId ?? null;
+  const bizPlaceId = (business.place_id as string | null) ?? null;
+  const bizCid = (business.cid as string | null) ?? null;
+  const bizNameNorm = String(business.name ?? "")
+    .trim()
+    .toLowerCase();
+
+  function isTargetListing(t: StoredCompetitor): boolean {
+    if (bizPlaceId && t.place_id && t.place_id === bizPlaceId) return true;
+    if (bizCid && t.cid && t.cid === bizCid) return true;
+    const n = String(t.name ?? "")
+      .trim()
+      .toLowerCase();
+    return Boolean(n && bizNameNorm && n === bizNameNorm);
+  }
+
   if (latestScanId) {
     try {
       const data = await loadScanGridData(supabase, latestScanId);
       if (data) {
-      const counts = new Map<
-        string,
-        { name: string; appearances: number; ranks: number[]; rating: number | null; reviews: number | null; address: string | null }
-      >();
-      for (const r of data.results ?? []) {
-        const tops = (r.top_competitors_json ?? []) as Array<{
-          name?: string;
-          rank?: number;
-          rating?: number;
-          review_count?: number;
-          address?: string;
-        }>;
-        for (const t of tops.slice(0, 5)) {
-          const name = String(t.name ?? "").trim();
-          if (!name) continue;
-          const key = name.toLowerCase();
-          const cur = counts.get(key) ?? {
-            name,
-            appearances: 0,
-            ranks: [],
-            rating: t.rating ?? null,
-            reviews: t.review_count ?? null,
-            address: t.address ?? null,
-          };
-          cur.appearances += 1;
-          if (typeof t.rank === "number") cur.ranks.push(t.rank);
-          if (t.rating != null) cur.rating = t.rating;
-          if (t.review_count != null) cur.reviews = t.review_count;
-          counts.set(key, cur);
+        type Agg = {
+          listing: StoredCompetitor;
+          appearances: number;
+          ranks: number[];
+        };
+        const counts = new Map<string, Agg>();
+
+        for (const r of data.results ?? []) {
+          const tops = (r.top_competitors_json ?? []) as StoredCompetitor[];
+          for (const t of tops) {
+            if (isTargetListing(t)) {
+              if (!businessPhotoUrl && t.main_image) {
+                businessPhotoUrl = String(t.main_image);
+              }
+              continue;
+            }
+            const name = String(t.name ?? "").trim();
+            if (!name) continue;
+            const key = String(t.place_id || t.cid || name).toLowerCase();
+            const cur = counts.get(key) ?? {
+              listing: { ...t, name },
+              appearances: 0,
+              ranks: [],
+            };
+            cur.appearances += 1;
+            if (typeof t.rank === "number") cur.ranks.push(t.rank);
+            // Prefer richer listing fields as we see them
+            cur.listing = {
+              ...cur.listing,
+              ...Object.fromEntries(
+                Object.entries(t).filter(([, v]) => v != null && v !== "")
+              ),
+              name,
+            };
+            counts.set(key, cur);
+          }
         }
-      }
-      const ranked = [...counts.values()]
-        .sort((a, b) => b.appearances - a.appearances)
-        .slice(0, 5);
-      for (const c of ranked) {
-        const arp =
-          c.ranks.length > 0
-            ? round1(c.ranks.reduce((s, n) => s + n, 0) / c.ranks.length)
-            : 12;
-        const score = Math.max(
-          5,
-          Math.min(99, Math.round(100 - (arp ?? 12) * 4 + c.appearances))
-        );
-        competitors.push({
-          name: c.name,
-          score,
-          rating: c.rating,
-          reviewCount: c.reviews,
-          address: c.address,
-          lat: null,
-          lng: null,
-        });
-      }
+
+        const ranked = [...counts.values()]
+          .sort((a, b) => b.appearances - a.appearances)
+          .slice(0, 5);
+
+        for (const c of ranked) {
+          const t = c.listing;
+          const arp =
+            c.ranks.length > 0
+              ? round1(c.ranks.reduce((s, n) => s + n, 0) / c.ranks.length)
+              : null;
+          const score = Math.max(
+            5,
+            Math.min(
+              99,
+              Math.round(100 - (arp ?? 12) * 4 + c.appearances)
+            )
+          );
+          const website =
+            (t.url as string | undefined)?.trim() ||
+            (t.domain ? `https://${String(t.domain).replace(/^https?:\/\//, "")}` : null) ||
+            null;
+          competitors.push({
+            name: String(t.name ?? "Competitor"),
+            score,
+            rating: t.rating ?? null,
+            reviewCount: t.review_count ?? null,
+            address: t.address ?? null,
+            category: t.category ?? null,
+            phone: t.phone ?? null,
+            website,
+            domain: t.domain ?? null,
+            mainImage: t.main_image ?? null,
+            totalPhotos: t.total_photos ?? null,
+            placeId: t.place_id ?? null,
+            cid: t.cid ?? null,
+            mapsUrl:
+              mapsUrlFromPlaceId(t.place_id ?? null) ??
+              (t.cid
+                ? `https://www.google.com/maps?cid=${encodeURIComponent(t.cid)}`
+                : null),
+            lat: t.lat ?? null,
+            lng: t.lng ?? null,
+            appearances: c.appearances,
+            avgRank: arp,
+          });
+        }
       }
     } catch {
       /* ignore */
+    }
+  }
+
+  // Fallback: pull prospect photo from any ready scan if still missing
+  if (!businessPhotoUrl) {
+    for (const g of keywordGrids) {
+      if (!g.scanId || businessPhotoUrl) continue;
+      try {
+        const data = await loadScanGridData(supabase, g.scanId);
+        for (const r of data?.results ?? []) {
+          const tops = (r.top_competitors_json ?? []) as StoredCompetitor[];
+          const hit = tops.find((t) => isTargetListing(t) && t.main_image);
+          if (hit?.main_image) {
+            businessPhotoUrl = String(hit.main_image);
+            break;
+          }
+        }
+      } catch {
+        /* ignore */
+      }
     }
   }
 
@@ -547,14 +615,18 @@ export async function buildProspectAuditReport(
         (business.address_text as string | null)?.trim() ||
         (business.scan_center_label as string | null)?.trim() ||
         null,
-      phone: (business.phone as string | null) ?? null,
-      website: (business.website_url as string | null) ?? null,
-      photoUrl: null,
+      phone: (business.phone as string | null) ?? gbpProfile?.phone ?? null,
+      website:
+        (business.website_url as string | null) ?? gbpProfile?.website ?? null,
+      photoUrl: businessPhotoUrl,
       rating,
       reviewCount,
       lat: (business.scan_center_lat as number | null) ?? null,
       lng: (business.scan_center_lng as number | null) ?? null,
-      primaryCategory: (business.primary_category as string | null) ?? null,
+      primaryCategory:
+        (business.primary_category as string | null) ??
+        gbpProfile?.primaryCategory ??
+        null,
     },
     metrics: {
       seoScore,

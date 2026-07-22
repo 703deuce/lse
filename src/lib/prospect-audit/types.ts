@@ -24,8 +24,19 @@ export type ProspectAuditCompetitor = {
   rating: number | null;
   reviewCount: number | null;
   address: string | null;
+  category: string | null;
+  phone: string | null;
+  website: string | null;
+  domain: string | null;
+  mainImage: string | null;
+  totalPhotos: number | null;
+  placeId: string | null;
+  cid: string | null;
+  mapsUrl: string | null;
   lat: number | null;
   lng: number | null;
+  appearances: number;
+  avgRank: number | null;
 };
 
 export type ProspectAuditKeywordGrid = {
