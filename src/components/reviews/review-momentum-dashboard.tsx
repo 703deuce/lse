@@ -348,13 +348,28 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
                     <th className={cn(momentumTableHeadClass(), "pl-4")}>Business</th>
                     <th className={momentumTableHeadClass()}>Rating</th>
                     <th className={momentumTableHeadClass()}>Total</th>
-                    <th className={momentumTableHeadClass()}>1M</th>
-                    <th className={momentumTableHeadClass()}>3M</th>
-                    <th className={momentumTableHeadClass()}>6M</th>
-                    <th className={momentumTableHeadClass()}>Avg / 1M</th>
-                    <th className={momentumTableHeadClass()}>LRP</th>
+                    <th className={momentumTableHeadClass()} title="Last 7 days">
+                      7 days
+                    </th>
+                    <th className={momentumTableHeadClass()} title="Last 30 days">
+                      1 month
+                    </th>
+                    <th className={momentumTableHeadClass()} title="Last 90 days">
+                      3 months
+                    </th>
+                    <th className={momentumTableHeadClass()} title="Average reviews per week">
+                      Avg / wk
+                    </th>
+                    <th className={momentumTableHeadClass()} title="Days since last review">
+                      Last
+                    </th>
                     <th className={momentumTableHeadClass()}>Momentum</th>
-                    <th className={cn(momentumTableHeadClass(), "pr-4")}>OP</th>
+                    <th
+                      className={cn(momentumTableHeadClass(), "pr-4")}
+                      title="Gap to top-3 average (30 days)"
+                    >
+                      Gap
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#EEF1F5]">
@@ -363,12 +378,6 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
                     const velocityAvailable = isTarget
                       ? entityVelocityAvailable(e.metrics_json)
                       : true;
-                    const avgPerMonth =
-                      e.avg_reviews_per_week > 0
-                        ? e.avg_reviews_per_week * 4.345
-                        : e.reviews_30d;
-                    const sixMonthApprox =
-                      e.reviews_90d > 0 ? Math.round(e.reviews_90d * 2) : null;
                     return (
                       <tr key={e.id} className="transition-colors hover:bg-[#F9FAFB]">
                         <td className="px-4 py-3">
@@ -390,16 +399,16 @@ export function ReviewMomentumDashboard({ businessId }: { businessId: string }) 
                           {e.total_reviews_current}
                         </td>
                         <td className="px-4 py-3 text-[13px] tabular-nums text-[#475467]">
+                          {velocityAvailable ? e.reviews_7d : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-[13px] tabular-nums text-[#475467]">
                           {velocityAvailable ? e.reviews_30d : "—"}
                         </td>
                         <td className="px-4 py-3 text-[13px] tabular-nums text-[#475467]">
                           {velocityAvailable ? e.reviews_90d : "—"}
                         </td>
                         <td className="px-4 py-3 text-[13px] tabular-nums text-[#475467]">
-                          {velocityAvailable && sixMonthApprox != null ? sixMonthApprox : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-[13px] tabular-nums text-[#475467]">
-                          {velocityAvailable ? avgPerMonth.toFixed(2) : "—"}
+                          {velocityAvailable ? e.avg_reviews_per_week.toFixed(2) : "—"}
                         </td>
                         <td className="px-4 py-3 text-[13px] tabular-nums text-[#667085]">
                           {velocityAvailable && e.days_since_last_review != null

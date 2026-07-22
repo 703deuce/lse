@@ -21,11 +21,10 @@ export function MomentumPageHeader() {
     <div className="min-w-0">
       <h1 className={mock.title}>Review Momentum™</h1>
       <p className={mock.subtitle}>
-        30 day review velocity vs competitors — These reports are broken down in 30 day rotating
-        buckets.
+        Review velocity vs competitors across the last 7 days, 1 month, and 3 months (90 days).
       </p>
       <p className="mt-1 text-sm text-[#667085]">
-        30 day Trend lines display growth or slow downs vs prior time cycles.
+        Charts and comparison use the same windows — recent pace first, then 30- and 90-day trends.
       </p>
     </div>
   );
