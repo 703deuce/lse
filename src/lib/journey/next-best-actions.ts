@@ -211,7 +211,7 @@ export async function loadOrgNextBestActions(
         id: `prospect-audit-${p.id}`,
         title: `Run prospect audit for ${p.name}`,
         description: "Baseline Maps scan + Growth Audit → shareable report.",
-        href: `/prospects/${p.id}?audit=1`,
+        href: `/prospects/${p.id}/audit`,
         priority: 25,
         kind: "prospect",
       });

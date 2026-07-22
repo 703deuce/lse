@@ -18,7 +18,6 @@ import {
 import { PageHeader } from "@/components/ui/page-header";
 import { JourneyBreadcrumbs } from "@/components/journey/journey-breadcrumbs";
 import { NextBestActionsPanel } from "@/components/journey/next-best-actions-panel";
-import { ProspectAuditWizard } from "@/components/accounts/prospect-audit-wizard";
 import { ConvertToClientWizard } from "@/components/accounts/convert-to-client-wizard";
 import { PROSPECT_STATUSES, type ProspectStatus } from "@/lib/accounts/types";
 import type { NextBestAction } from "@/lib/journey/next-best-actions";
@@ -59,7 +58,6 @@ export function AccountDetail({
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [prospectStatus, setProspectStatus] = useState<ProspectStatus>("new");
-  const [showAudit, setShowAudit] = useState(false);
   const [showConvert, setShowConvert] = useState(false);
   const [nba, setNba] = useState<NextBestAction[]>([]);
   const [summary, setSummary] = useState<{
@@ -134,12 +132,14 @@ export function AccountDetail({
   }, [load]);
 
   useEffect(() => {
-    if (searchParams.get("audit") === "1") setShowAudit(true);
+    if (searchParams.get("audit") === "1") {
+      router.replace(`/prospects/${businessId}/audit`);
+    }
     if (searchParams.get("convert") === "1") setShowConvert(true);
     if (searchParams.get("setup") === "1" && mode === "client") {
       /* post-convert highlight — keep NBA visible */
     }
-  }, [searchParams, mode]);
+  }, [searchParams, mode, businessId, router]);
 
   async function saveDetails() {
     setSaving("details");
@@ -196,7 +196,7 @@ export function AccountDetail({
     if (mode === "prospect") {
       return [
         { href: `/prospects/${businessId}`, label: "Overview" },
-        { href: `/prospects/${businessId}?audit=1`, label: "Prospect Audit" },
+        { href: `/prospects/${businessId}/audit`, label: "Prospect Audit" },
         { href: `${base}/scans`, label: "Maps scans" },
         { href: `${base}/reports?type=single_scan&scope=prospect`, label: "Prospect report" },
         { href: `/prospects/${businessId}#notes`, label: "Notes" },
@@ -249,14 +249,13 @@ export function AccountDetail({
           <div className="flex flex-wrap gap-2">
             {mode === "prospect" ? (
               <>
-                <button
-                  type="button"
-                  onClick={() => setShowAudit(true)}
+                <Link
+                  href={`/prospects/${businessId}/audit`}
                   className={cn(btnPrimary, "h-9 px-3 text-[13px]")}
                 >
                   <Radar className="h-3.5 w-3.5" />
                   Run Prospect Audit
-                </button>
+                </Link>
                 <Link
                   href={`/businesses/${businessId}/reports?type=single_scan&scope=prospect`}
                   className={cn(btnSecondary, "h-9 px-3 text-[13px]")}
@@ -309,19 +308,6 @@ export function AccountDetail({
       {savedMessage ? (
         <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
           {savedMessage}
-        </div>
-      ) : null}
-
-      {showAudit && mode === "prospect" ? (
-        <div className="mb-4">
-          <ProspectAuditWizard
-            businessId={businessId}
-            businessName={account.name}
-            onClose={() => {
-              setShowAudit(false);
-              router.replace(`/prospects/${businessId}`);
-            }}
-          />
         </div>
       ) : null}
 
