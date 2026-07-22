@@ -388,7 +388,7 @@ export async function attachProspectAuditJobs(params: {
   await supabase.from("prospect_audits").update(patch).eq("id", params.auditId);
 }
 
-/** Flip running → ready when Maps + Growth pieces have finished (or failed). */
+/** Flip running → ready when Maps pieces (and core growth) have finished. */
 export async function maybeCompleteProspectAudit(
   auditId: string,
   businessId: string
@@ -397,7 +397,7 @@ export async function maybeCompleteProspectAudit(
   const supabase = createServiceClient();
   const { data: row } = await supabase
     .from("prospect_audits")
-    .select("id, status, scan_batch_ids, growth_audit_run_id")
+    .select("id, status, scan_batch_ids, growth_audit_run_id, started_at")
     .eq("id", auditId)
     .maybeSingle();
 
@@ -433,38 +433,63 @@ export async function maybeCompleteProspectAudit(
     .maybeSingle();
 
   const growthStatus = String(growth?.status ?? "");
-  const growthStillRunning = ["running", "queued", "extended_running"].includes(growthStatus);
-  // core_ready is enough for the prospect report; extended modules can finish in background
-  const growthUsable = ["complete", "ready", "core_ready", "partial", "extended_ready"].includes(
-    growthStatus
-  );
+  // Only block on initial growth run — extended modules must not hold the sales report.
+  const growthBlocking = growthStatus === "running" || growthStatus === "queued";
+  // core_ready / extended_running / complete all mean core profile scoring finished
+  const growthUsable = [
+    "complete",
+    "ready",
+    "core_ready",
+    "partial",
+    "extended_ready",
+    "extended_running",
+  ].includes(growthStatus);
 
-  // Old/broken launches with no scan ids attached — don't spin forever
+  const startedAt = row.started_at ? new Date(String(row.started_at)).getTime() : 0;
+  const ageMs = startedAt ? Date.now() - startedAt : 0;
+  const timedOut = ageMs > 12 * 60 * 1000; // 12 minutes hard stop
+
+  // Broken launch: no scan ids attached
   if (!scanIds.length) {
-    if (growthStillRunning && !growthUsable) return "running";
-    const nextStatus: "ready" | "failed" = growthUsable ? "ready" : "failed";
+    if (growthBlocking) return "running";
+    if (growthUsable || timedOut) {
+      const nextStatus: "ready" | "failed" = growthUsable ? "ready" : "failed";
+      await attachProspectAuditJobs({
+        auditId,
+        growthAuditRunId: (growth?.id as string | undefined) ?? null,
+        status: nextStatus,
+        errorMessage:
+          nextStatus === "failed"
+            ? "Audit did not finish launching. Configure keywords and run again."
+            : null,
+      });
+      return nextStatus;
+    }
+    return "running";
+  }
+
+  if (!scansDone && !timedOut) return "running";
+
+  // Maps finished successfully → prospect audit is done (don't wait on extended growth)
+  if (anyScanOk) {
     await attachProspectAuditJobs({
       auditId,
       growthAuditRunId: (growth?.id as string | undefined) ?? null,
-      status: nextStatus,
-      errorMessage:
-        nextStatus === "failed"
-          ? "Audit did not finish launching. Configure keywords and run again."
-          : null,
+      status: "ready",
     });
-    return nextStatus;
+    return "ready";
   }
 
-  if (!scansDone) return "running";
-  if (growthStillRunning && !growthUsable) return "running";
+  // Still waiting on growth core only
+  if (growthBlocking && !timedOut) return "running";
 
-  const nextStatus: "ready" | "failed" =
-    anyScanOk || growthUsable ? "ready" : "failed";
-
+  const nextStatus: "ready" | "failed" = growthUsable ? "ready" : "failed";
   await attachProspectAuditJobs({
     auditId,
     growthAuditRunId: (growth?.id as string | undefined) ?? null,
     status: nextStatus,
+    errorMessage:
+      nextStatus === "failed" ? "Maps grids finished without usable results." : null,
   });
 
   return nextStatus;

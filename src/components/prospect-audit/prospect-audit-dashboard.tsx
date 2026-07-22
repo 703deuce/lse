@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -98,7 +98,7 @@ function factorBadge(status: ProspectAuditFactor["status"]) {
 function HeatmapGrid({ grid }: { grid: ProspectAuditKeywordGrid }) {
   if (!grid.cells.length) {
     return (
-      <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-[#E6EAF0] bg-[#F9FAFB] text-sm text-[#667085]">
+      <div className="flex min-h-[240px] flex-1 items-center justify-center rounded-xl border border-dashed border-[#E6EAF0] bg-[#F9FAFB] text-sm text-[#667085]">
         {grid.status === "running"
           ? "Grid scan running…"
           : "No Maps grid for this keyword yet"}
@@ -107,13 +107,13 @@ function HeatmapGrid({ grid }: { grid: ProspectAuditKeywordGrid }) {
   }
   return (
     <div
-      className="mx-auto grid max-w-[280px] gap-1.5"
+      className="mx-auto grid w-full max-w-[360px] gap-1.5"
       style={{ gridTemplateColumns: `repeat(${grid.gridSize}, minmax(0, 1fr))` }}
     >
       {grid.cells.map((cell) => (
         <div
           key={`${cell.row}-${cell.col}`}
-          className="flex aspect-square items-center justify-center rounded-full text-[10px] font-bold shadow-sm"
+          className="flex aspect-square items-center justify-center rounded-full text-[10px] font-bold shadow-sm sm:text-[11px]"
           style={{ backgroundColor: cell.color, color: cell.textColor }}
           title={`${cell.label}: ${cell.rank ?? "20+"}`}
         >
@@ -135,10 +135,19 @@ function keywordsFromReport(report: ProspectAuditReport | null): [string, string
 }
 
 function resolveViewState(report: ProspectAuditReport): ViewState {
-  // Strict: only this prospect-audit row decides the page state.
-  // Do not show the finished layout from leftover Growth Audit / old scans.
-  if (report.status === "running") return "running";
+  // Strict: only a finished prospect_audits row shows the report.
+  // Safety net: if Maps grids already have cells but status lagged, show completed.
   if (report.status === "ready" || report.status === "shared") return "completed";
+  if (report.status === "running") {
+    const mapsHaveData = report.keywordGrids.some((g) => g.cells.length > 0);
+    const mapsSettled =
+      report.keywordGrids.length > 0 &&
+      report.keywordGrids.every(
+        (g) => g.status === "ready" || g.status === "missing" || g.cells.length > 0
+      );
+    if (mapsHaveData && mapsSettled) return "completed";
+    return "running";
+  }
   return "setup"; // idle | draft | failed → review & run
 }
 
@@ -174,6 +183,7 @@ export function ProspectAuditDashboard({
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   // Always allow returning to setup to change keywords / re-run
   const [forceSetup, setForceSetup] = useState(false);
+  const markedReadyRef = useRef(false);
 
   const applyKeywords = useCallback((next: ProspectAuditReport | null) => {
     const [a, b, c] = keywordsFromReport(next);
@@ -207,9 +217,31 @@ export function ProspectAuditDashboard({
 
   useEffect(() => {
     if (report?.status !== "running") return;
-    const t = setInterval(() => void load(), 8000);
+    const t = setInterval(() => void load(), 5000);
     return () => clearInterval(t);
   }, [report?.status, load]);
+
+  // Persist completion when Maps already finished but audit row lagged as "running"
+  useEffect(() => {
+    if (!report?.auditId || report.status !== "running" || markedReadyRef.current) return;
+    const mapsHaveData = report.keywordGrids.some((g) => g.cells.length > 0);
+    const mapsSettled =
+      report.keywordGrids.length > 0 &&
+      report.keywordGrids.every(
+        (g) => g.status === "ready" || g.status === "missing" || g.cells.length > 0
+      );
+    if (!mapsHaveData || !mapsSettled) return;
+    markedReadyRef.current = true;
+    void fetch(`/api/prospect-audits/${report.auditId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "ready" }),
+    })
+      .then(() => load())
+      .catch(() => {
+        markedReadyRef.current = false;
+      });
+  }, [report, load]);
 
   const viewState: ViewState = forceSetup
     ? "setup"
@@ -759,22 +791,21 @@ export function ProspectAuditDashboard({
             </div>
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-2">
-            <div className={cn(mock.card, "overflow-hidden")}>
-              <div className="border-b border-[#F2F4F7] px-4 py-3">
-                <h2 className="text-[14px] font-bold text-[#101828]">Top Competitors</h2>
-                <p className="mt-0.5 text-[12px] text-[#667085]">
-                  From Maps / DataForSEO listings on this audit
-                </p>
-              </div>
-              {!report.competitors.length ? (
-                <p className="px-4 py-6 text-sm text-[#667085]">
-                  Competitors appear after a Maps grid finishes.
-                </p>
-              ) : (
-                <ul className="divide-y divide-[#F2F4F7]">
-                  {report.competitors.map((c, i) => (
-                    <li key={`${c.placeId ?? c.cid ?? c.name}-${i}`} className="px-4 py-3">
+          <div className={cn(mock.card, "overflow-hidden")}>
+            <div className="border-b border-[#F2F4F7] px-4 py-3">
+              <h2 className="text-[14px] font-bold text-[#101828]">Top Competitors</h2>
+              <p className="mt-0.5 text-[12px] text-[#667085]">
+                From Maps / DataForSEO listings on this audit
+              </p>
+            </div>
+            {!report.competitors.length ? (
+              <p className="px-4 py-6 text-sm text-[#667085]">
+                Competitors appear after a Maps grid finishes.
+              </p>
+            ) : (
+              <ul className="divide-y divide-[#F2F4F7]">
+                {report.competitors.map((c, i) => (
+                  <li key={`${c.placeId ?? c.cid ?? c.name}-${i}`} className="px-4 py-3">
                       <div className="flex items-start gap-3">
                         <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-[#F2F4F7] ring-1 ring-[#E6EAF0]">
                           {c.mainImage ? (
@@ -857,57 +888,11 @@ export function ProspectAuditDashboard({
             </div>
 
             <div className={cn(mock.card, "overflow-hidden")}>
-              <div className="border-b border-[#F2F4F7] px-4 py-3">
-                <h2 className="text-[14px] font-bold text-[#101828]">Local Map Overview</h2>
-              </div>
-              <div className="p-2">
-                {b.lat != null && b.lng != null ? (
-                  <ScanMap
-                    officeCenter={[b.lat, b.lng]}
-                    cells={[]}
-                    businessName={b.name}
-                    height="220px"
-                  />
-                ) : (
-                  <div className="flex h-[220px] items-center justify-center rounded-lg bg-[#F2F4F7] text-sm text-[#667085]">
-                    Set a scan center on this prospect to show the map.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-3 lg:grid-cols-[minmax(12rem,16rem)_minmax(0,1fr)]">
-            <div className={cn(mock.cardPad, "space-y-3")}>
-              <h2 className="text-[14px] font-bold text-[#101828]">Reviews</h2>
-              <div className="space-y-2 text-[13px]">
-                <div className="flex justify-between gap-2">
-                  <span className="text-[#667085]">Google</span>
-                  <span className="font-semibold text-[#101828]">
-                    {report.reviews.google ?? "—"}
-                  </span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-[#667085]">Facebook</span>
-                  <span className="font-semibold text-[#101828]">
-                    {report.reviews.facebook ?? "—"}
-                  </span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-[#667085]">Yelp</span>
-                  <span className="font-semibold text-[#101828]">
-                    {report.reviews.yelp ?? "—"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className={cn(mock.card, "overflow-hidden")}>
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#F2F4F7] px-4 py-3">
                 <div>
-                  <h2 className="text-[14px] font-bold text-[#101828]">Ranking Geo-Grid</h2>
-                  <p className="text-[12px] text-[#667085]">
-                    Switch keywords without stacking maps
+                  <h2 className="text-[14px] font-bold text-[#101828]">Map &amp; ranking heatmap</h2>
+                  <p className="mt-0.5 text-[12px] text-[#667085]">
+                    Switch keywords to compare visibility around this prospect
                   </p>
                 </div>
                 {grids.length > 1 ? (
@@ -921,7 +906,7 @@ export function ProspectAuditDashboard({
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </button>
-                    <div className="flex gap-1">
+                    <div className="flex flex-wrap gap-1">
                       {grids.map((g, i) => (
                         <button
                           key={g.keyword + i}
@@ -934,7 +919,7 @@ export function ProspectAuditDashboard({
                               : "bg-[#F2F4F7] text-[#475467]"
                           )}
                         >
-                          {g.keyword.length > 18 ? `${g.keyword.slice(0, 16)}…` : g.keyword}
+                          {g.keyword.length > 20 ? `${g.keyword.slice(0, 18)}…` : g.keyword}
                         </button>
                       ))}
                     </div>
@@ -952,48 +937,73 @@ export function ProspectAuditDashboard({
                   </div>
                 ) : null}
               </div>
-              <div className="grid gap-4 p-4 md:grid-cols-[minmax(0,1fr)_9rem]">
-                <HeatmapGrid
-                  grid={
-                    activeGrid ?? {
-                      keyword: "—",
-                      scanId: null,
-                      averageRank: null,
-                      visibilityScore: null,
-                      gridSize: 7,
-                      cells: [],
-                      status: "missing",
+              <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+                <div className="min-w-0">
+                  {b.lat != null && b.lng != null ? (
+                    <div className="overflow-hidden rounded-xl ring-1 ring-[#E6EAF0]">
+                      <ScanMap
+                        officeCenter={[b.lat, b.lng]}
+                        cells={[]}
+                        businessName={b.name}
+                        height="320px"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex h-[320px] items-center justify-center rounded-xl bg-[#F2F4F7] text-sm text-[#667085]">
+                      Set a scan center on this prospect to show the map.
+                    </div>
+                  )}
+                </div>
+                <div className="flex min-w-0 flex-col gap-3">
+                  <HeatmapGrid
+                    grid={
+                      activeGrid ?? {
+                        keyword: "—",
+                        scanId: null,
+                        averageRank: null,
+                        visibilityScore: null,
+                        gridSize: 7,
+                        cells: [],
+                        status: "missing",
+                      }
                     }
-                  }
-                />
-                <div className="space-y-2 text-[12px]">
-                  <p className="font-semibold text-[#101828]">Rank Status</p>
-                  <p className="text-[#667085]">
-                    Average Rank:{" "}
-                    <span className="font-semibold text-[#101828]">
-                      {activeGrid?.averageRank != null
-                        ? activeGrid.averageRank.toFixed(1)
-                        : "—"}
-                    </span>
-                  </p>
-                  <p className="text-[#667085]">
-                    Keyword:{" "}
-                    <span className="font-semibold text-[#101828]">
-                      {activeGrid?.keyword ?? "—"}
-                    </span>
-                  </p>
-                  {activeGrid?.scanId ? (
-                    <Link
-                      href={`/businesses/${businessId}/grid/${activeGrid.scanId}`}
-                      className={mock.link}
-                    >
-                      Open full grid
-                    </Link>
-                  ) : null}
+                  />
+                  <div className="space-y-1.5 rounded-xl bg-[#F9FAFB] px-3 py-2.5 text-[12px]">
+                    <p className="font-semibold text-[#101828]">Rank status</p>
+                    <p className="text-[#667085]">
+                      Keyword:{" "}
+                      <span className="font-semibold text-[#101828]">
+                        {activeGrid?.keyword ?? "—"}
+                      </span>
+                    </p>
+                    <p className="text-[#667085]">
+                      Average rank:{" "}
+                      <span className="font-semibold text-[#101828]">
+                        {activeGrid?.averageRank != null
+                          ? activeGrid.averageRank.toFixed(1)
+                          : "—"}
+                      </span>
+                    </p>
+                    {activeGrid?.visibilityScore != null ? (
+                      <p className="text-[#667085]">
+                        Visibility:{" "}
+                        <span className="font-semibold text-[#101828]">
+                          {Math.round(activeGrid.visibilityScore)}%
+                        </span>
+                      </p>
+                    ) : null}
+                    {activeGrid?.scanId ? (
+                      <Link
+                        href={`/businesses/${businessId}/grid/${activeGrid.scanId}`}
+                        className={cn(mock.link, "inline-block pt-1")}
+                      >
+                        Open full grid
+                      </Link>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
         </div>
 
         <aside className="space-y-4">
