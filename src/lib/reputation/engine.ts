@@ -8,6 +8,11 @@ import { dedupeKey, hasOwnerResponse, type NormalizedReview } from "@/lib/review
 import { applyGapAndTargets, calcEntityMetrics, type MomentumLabel } from "@/lib/reviews/metrics";
 import { buildMarketInsights } from "@/lib/reviews/market-insights";
 import {
+  loadStoredReviews,
+  storedRowToNormalized,
+  upsertReviews,
+} from "@/lib/reviews/review-store";
+import {
   aggregateKeywordStrengths,
   buildKeywordDictionary,
   computeKeywordGaps,
@@ -171,8 +176,29 @@ export async function runReputationAudit(params: {
 
     warnings.push(...targetFetch.warnings);
 
-    let targetMetrics = calcEntityMetrics(targetFetch.reviews, {
-      totalReviewsCurrent: targetProfile.review_count ?? targetFetch.reviews.length,
+    // Persist then count lookback from storage — never trust a single fetch length as 90d total.
+    try {
+      await upsertReviews(supabase, {
+        organizationId: params.organizationId,
+        businessId: params.businessId,
+        provider: targetFetch.provider,
+        reviews: targetFetch.reviews,
+        entityKey: `biz:${params.businessId}`,
+      });
+    } catch (err) {
+      console.warn("[ReputationAudit] business_reviews upsert skipped:", err);
+    }
+    const storedTarget = await loadStoredReviews(supabase, {
+      businessId: params.businessId,
+      lookbackDays,
+    });
+    const targetReviewsForMetrics =
+      storedTarget.length > 0
+        ? storedTarget.map(storedRowToNormalized)
+        : targetFetch.reviews;
+
+    let targetMetrics = calcEntityMetrics(targetReviewsForMetrics, {
+      totalReviewsCurrent: targetProfile.review_count ?? targetReviewsForMetrics.length,
       ratingCurrent: targetProfile.rating ?? null,
       velocityAvailable: targetFetch.velocityAvailable,
       velocityWarning: targetFetch.velocityWarning,
@@ -197,6 +223,7 @@ export async function runReputationAudit(params: {
       });
       let compReviews: NormalizedReview[] = [];
       let velocityAvailable = false;
+      const competitorId = await upsertCompetitor(supabase, comp);
 
       try {
         const fetchResult = await fetchReviewsForEntity({
@@ -214,7 +241,29 @@ export async function runReputationAudit(params: {
           allowStoredHex: false,
         });
         if (fetchResult.dataIdValidated) {
-          compReviews = fetchResult.reviews;
+          if (competitorId) {
+            try {
+              await upsertReviews(supabase, {
+                organizationId: params.organizationId,
+                competitorId,
+                provider: fetchResult.provider,
+                reviews: fetchResult.reviews,
+                entityKey: `comp:${competitorId}`,
+              });
+            } catch (err) {
+              console.warn("[ReputationAudit] competitor reviews upsert skipped:", err);
+            }
+            const storedComp = await loadStoredReviews(supabase, {
+              competitorId,
+              lookbackDays,
+            });
+            compReviews =
+              storedComp.length > 0
+                ? storedComp.map(storedRowToNormalized)
+                : fetchResult.reviews;
+          } else {
+            compReviews = fetchResult.reviews;
+          }
           velocityAvailable = fetchResult.velocityAvailable;
           compMetrics = calcEntityMetrics(compReviews, {
             totalReviewsCurrent: comp.review_count ?? compReviews.length,
@@ -227,7 +276,6 @@ export async function runReputationAudit(params: {
       }
 
       seen.add(comp.place_id);
-      const competitorId = await upsertCompetitor(supabase, comp);
       competitorReviewSets.push(compReviews);
 
       for (const r of compReviews) {

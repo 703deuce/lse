@@ -134,6 +134,76 @@ async function syncAndLoadReviews(
   return stored.map(storedRowToNormalized);
 }
 
+/**
+ * Fetch → upsert → load lookback from DB.
+ * Incremental sync returning 0 new reviews must not wipe lookback totals.
+ * If incremental finds nothing new but DB has no in-window rows, fall back to a full lookback fetch.
+ */
+async function fetchMergeAndLoadLookback(
+  supabase: ReturnType<typeof createServiceClient>,
+  params: {
+    organizationId: string;
+    businessId?: string | null;
+    competitorId?: string | null;
+    entityKey: string;
+    lookbackDays: number;
+    knownIds: Set<string>;
+    fetchArgs: Parameters<typeof fetchReviewsForEntity>[0];
+  }
+): Promise<{
+  reviews: NormalizedReview[];
+  fetch: Awaited<ReturnType<typeof fetchReviewsForEntity>>;
+}> {
+  let fetch = await fetchReviewsForEntity({
+    ...params.fetchArgs,
+    lookbackDays: params.lookbackDays,
+    stopAtSourceIds: params.knownIds.size > 0 ? params.knownIds : undefined,
+  });
+
+  let reviews = await syncAndLoadReviews(supabase, {
+    organizationId: params.organizationId,
+    businessId: params.businessId,
+    competitorId: params.competitorId,
+    provider: fetch.provider,
+    fetchedReviews: fetch.reviews,
+    entityKey: params.entityKey,
+    lookbackDays: params.lookbackDays,
+  });
+
+  if (fetch.incrementalNoNew && reviews.length === 0 && params.knownIds.size > 0) {
+    console.log("[ReviewMomentum] incremental_empty_full_refetch", {
+      entityKey: params.entityKey,
+      knownIds: params.knownIds.size,
+      note: "Incremental returned 0 new but DB lookback is empty — running full lookback fetch",
+    });
+    fetch = await fetchReviewsForEntity({
+      ...params.fetchArgs,
+      lookbackDays: params.lookbackDays,
+      stopAtSourceIds: undefined,
+    });
+    reviews = await syncAndLoadReviews(supabase, {
+      organizationId: params.organizationId,
+      businessId: params.businessId,
+      competitorId: params.competitorId,
+      provider: fetch.provider,
+      fetchedReviews: fetch.reviews,
+      entityKey: params.entityKey,
+      lookbackDays: params.lookbackDays,
+    });
+  }
+
+  console.log("[ReviewMomentum] lookback_after_merge", {
+    entityKey: params.entityKey,
+    fetchedNew: fetch.reviews.length,
+    stoppedReason: fetch.stoppedReason,
+    incrementalNoNew: fetch.incrementalNoNew,
+    lookbackDays: params.lookbackDays,
+    storedInLookback: reviews.length,
+  });
+
+  return { reviews, fetch };
+}
+
 export async function runReviewMomentum(params: {
   businessId: string;
   organizationId: string;
@@ -226,19 +296,27 @@ export async function runReviewMomentum(params: {
 
     const targetKnownIds = await loadKnownReviewIds(supabase, { businessId: params.businessId });
 
-    const targetFetch = await fetchReviewsForEntity({
-      placeId: business.place_id,
-      cid: business.cid,
-      name: business.name,
-      city: primaryKw?.city,
-      state: primaryKw?.state,
-      lat: business.scan_center_lat ?? business.lat,
-      lng: business.scan_center_lng ?? business.lng,
-      organizationId: params.organizationId,
-      depth: 50,
-      lookbackDays,
-      stopAtSourceIds: targetKnownIds.size > 0 ? targetKnownIds : undefined,
-    });
+    const { reviews: targetReviews, fetch: targetFetch } = await fetchMergeAndLoadLookback(
+      supabase,
+      {
+        organizationId: params.organizationId,
+        businessId: params.businessId,
+        entityKey: `biz:${params.businessId}`,
+        lookbackDays,
+        knownIds: targetKnownIds,
+        fetchArgs: {
+          placeId: business.place_id,
+          cid: business.cid,
+          name: business.name,
+          city: primaryKw?.city,
+          state: primaryKw?.state,
+          lat: business.scan_center_lat ?? business.lat,
+          lng: business.scan_center_lng ?? business.lng,
+          organizationId: params.organizationId,
+          depth: 50,
+        },
+      }
+    );
     await persistHexDataId(supabase, {
       businessId: params.businessId,
       dataId: targetFetch.scrapingDogDataId,
@@ -250,18 +328,9 @@ export async function runReviewMomentum(params: {
     for (const w of targetFetch.warnings) {
       if (!warnings.includes(w)) warnings.push(w);
     }
-    if (targetFetch.reviews.some((r) => r.dateParseWarning)) {
+    if (targetReviews.some((r) => r.dateParseWarning)) {
       warnings.push("Some reviews had relative dates and may reduce accuracy.");
     }
-
-    const targetReviews = await syncAndLoadReviews(supabase, {
-      organizationId: params.organizationId,
-      businessId: params.businessId,
-      provider: targetFetch.provider,
-      fetchedReviews: targetFetch.reviews,
-      entityKey: `biz:${params.businessId}`,
-      lookbackDays,
-    });
 
     let targetMetrics = calcEntityMetrics(targetReviews, {
       totalReviewsCurrent: targetProfile.review_count ?? targetReviews.length,
@@ -312,21 +381,37 @@ export async function runReviewMomentum(params: {
         ? await loadKnownReviewIds(supabase, { competitorId })
         : new Set<string>();
 
-      const fetchResult = await fetchReviewsForEntity({
-        placeId: comp.place_id,
-        name: comp.name ?? "Competitor",
-        city: primaryKw?.city,
-        state: searchState,
-        lat: business.scan_center_lat ?? business.lat,
-        lng: business.scan_center_lng ?? business.lng,
-        organizationId: params.organizationId,
-        depth: 50,
-        mapsTotalReviews: comp.review_count ?? null,
-        mapsRating: comp.rating ?? null,
-        lookbackDays,
-        allowStoredHex: false,
-        stopAtSourceIds: compKnownIds.size > 0 ? compKnownIds : undefined,
-      });
+      if (!competitorId) {
+        console.log("[ReviewMomentum] competitor_skipped", {
+          name: comp.name,
+          reason: "upsert_failed",
+        });
+        continue;
+      }
+
+      const { reviews: compReviews, fetch: fetchResult } = await fetchMergeAndLoadLookback(
+        supabase,
+        {
+          organizationId: params.organizationId,
+          competitorId,
+          entityKey: `comp:${competitorId}`,
+          lookbackDays,
+          knownIds: compKnownIds,
+          fetchArgs: {
+            placeId: comp.place_id,
+            name: comp.name ?? "Competitor",
+            city: primaryKw?.city,
+            state: searchState,
+            lat: business.scan_center_lat ?? business.lat,
+            lng: business.scan_center_lng ?? business.lng,
+            organizationId: params.organizationId,
+            depth: 50,
+            mapsTotalReviews: comp.review_count ?? null,
+            mapsRating: comp.rating ?? null,
+            allowStoredHex: false,
+          },
+        }
+      );
 
       if (!fetchResult.dataIdValidated) {
         skippedNoDataId++;
@@ -346,22 +431,11 @@ export async function runReviewMomentum(params: {
         currentCid: comp.cid,
       });
 
-      const compReviews =
-        competitorId && fetchResult.reviews.length
-          ? await syncAndLoadReviews(supabase, {
-              organizationId: params.organizationId,
-              competitorId,
-              provider: fetchResult.provider,
-              fetchedReviews: fetchResult.reviews,
-              entityKey: `comp:${competitorId}`,
-              lookbackDays,
-            })
-          : fetchResult.reviews;
-
       const metrics = calcEntityMetrics(compReviews, {
         totalReviewsCurrent: comp.review_count ?? compReviews.length ?? 0,
         ratingCurrent: comp.rating ?? null,
-        velocityAvailable: true,
+        velocityAvailable: fetchResult.velocityAvailable,
+        velocityWarning: fetchResult.velocityWarning,
       });
 
       competitorMetricsList.push({

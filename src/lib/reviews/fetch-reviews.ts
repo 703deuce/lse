@@ -19,6 +19,13 @@ export interface FetchReviewsResult {
   dataForSeoPlaceId: string | null;
   fallbackUsed: boolean;
   dataIdValidated: boolean;
+  /** Why pagination stopped (lookback_reached, incremental_sync, …). */
+  stoppedReason: string | null;
+  /**
+   * Provider returned zero rows because nothing new since last sync.
+   * This is NOT “zero reviews in the lookback window” — reload totals from DB.
+   */
+  incrementalNoNew: boolean;
   /** @deprecated use warnings[] */
   warning?: string;
 }
@@ -73,7 +80,7 @@ async function fetchScrapingDogReviews(params: {
   organizationId?: string;
   baseLog: Record<string, unknown>;
   stopAtSourceIds?: Set<string>;
-}): Promise<{ reviews: NormalizedReview[]; pagesFetched: number; stoppedReason: string } | null> {
+}): Promise<{ reviews: NormalizedReview[]; pagesFetched: number; stoppedReason: string }> {
   const paged = await placeReviewsAll({
     dataId: params.dataId,
     organizationId: params.organizationId,
@@ -82,13 +89,16 @@ async function fetchScrapingDogReviews(params: {
   });
   const reviews = paged.reviews.map(normalizeScrapingDogReview);
   if (!reviews.length) {
-    logReviewFetch("scrapingdog_empty", {
+    const incremental = paged.stoppedReason === "incremental_sync";
+    logReviewFetch(incremental ? "scrapingdog_incremental_empty" : "scrapingdog_empty", {
       ...params.baseLog,
       data_id: params.dataId,
       pagesFetched: paged.pagesFetched,
       stoppedReason: paged.stoppedReason,
+      note: incremental
+        ? "No new reviews since last sync — not an empty lookback window"
+        : "Validated data_id — provider returned 0 reviews on this fetch",
     });
-    return null;
   }
   return { reviews, pagesFetched: paged.pagesFetched, stoppedReason: paged.stoppedReason };
 }
@@ -104,6 +114,10 @@ function countRecentReviews(reviews: NormalizedReview[], days: number): number {
  *
  * Before fetching, resolves hex data_id via ScrapingDog and validates it against the reviews API.
  * DFS grid scans only provide numeric CID — that cannot be used directly.
+ *
+ * Important: an incremental sync that returns 0 reviews means “nothing new since last sync”,
+ * not “zero reviews in the lookback window”. Callers must merge into storage and count
+ * lookback totals from the database.
  */
 export async function fetchReviewsForEntity(params: FetchReviewsParams): Promise<FetchReviewsResult> {
   const ids = resolveReviewLookupId(params);
@@ -166,6 +180,7 @@ export async function fetchReviewsForEntity(params: FetchReviewsParams): Promise
     provider: "scrapingdog",
     lookbackDays,
     validated: true,
+    incremental: Boolean(params.stopAtSourceIds?.size),
   });
 
   try {
@@ -176,7 +191,10 @@ export async function fetchReviewsForEntity(params: FetchReviewsParams): Promise
       baseLog: { ...baseLog, data_id: scrapingDogDataId, dataIdSource: ensured.source },
       stopAtSourceIds: params.stopAtSourceIds,
     });
-    if (result) {
+    const incrementalNoNew =
+      result.reviews.length === 0 && result.stoppedReason === "incremental_sync";
+
+    if (result.reviews.length > 0) {
       logReviewFetch("scrapingdog_success", {
         ...baseLog,
         data_id: scrapingDogDataId,
@@ -184,29 +202,21 @@ export async function fetchReviewsForEntity(params: FetchReviewsParams): Promise
         provider: "scrapingdog",
         reviewCount: result.reviews.length,
         recent30d: countRecentReviews(result.reviews, 30),
+        recent90d: countRecentReviews(result.reviews, 90),
         pagesFetched: result.pagesFetched,
         stoppedReason: result.stoppedReason,
       });
-      return {
-        reviews: result.reviews,
-        provider: "scrapingdog",
-        warnings,
-        velocityAvailable: true,
-        velocityWarning: null,
-        scrapingDogDataId,
-        dataForSeoPlaceId: ids.dataForSeoPlaceId,
-        fallbackUsed: false,
-        dataIdValidated: true,
-        warning: warnings[0],
-      };
+    } else if (!incrementalNoNew) {
+      logReviewFetch("scrapingdog_empty", {
+        ...baseLog,
+        data_id: scrapingDogDataId,
+        stoppedReason: result.stoppedReason,
+        note: "Provider returned 0 reviews on this fetch — lookback totals must still come from DB after merge",
+      });
     }
-    logReviewFetch("scrapingdog_empty", {
-      ...baseLog,
-      data_id: scrapingDogDataId,
-      note: "Validated data_id — 0 reviews in lookback window",
-    });
+
     return {
-      reviews: [],
+      reviews: result.reviews,
       provider: "scrapingdog",
       warnings,
       velocityAvailable: true,
@@ -215,6 +225,9 @@ export async function fetchReviewsForEntity(params: FetchReviewsParams): Promise
       dataForSeoPlaceId: ids.dataForSeoPlaceId,
       fallbackUsed: false,
       dataIdValidated: true,
+      stoppedReason: result.stoppedReason,
+      incrementalNoNew,
+      warning: warnings[0],
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -277,6 +290,8 @@ function buildUnavailableResult(
     dataForSeoPlaceId: ids.dataForSeoPlaceId,
     fallbackUsed: lastProvider !== "none",
     dataIdValidated,
+    stoppedReason: null,
+    incrementalNoNew: false,
     warning: warnings[0],
   };
 }
