@@ -172,6 +172,8 @@ export function ProspectAuditDashboard({
   const [kw3, setKw3] = useState(initialKws[2]);
   const [activeKeywordIdx, setActiveKeywordIdx] = useState(0);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
+  // Always allow returning to setup to change keywords / re-run
+  const [forceSetup, setForceSetup] = useState(false);
 
   const applyKeywords = useCallback((next: ProspectAuditReport | null) => {
     const [a, b, c] = keywordsFromReport(next);
@@ -209,7 +211,11 @@ export function ProspectAuditDashboard({
     return () => clearInterval(t);
   }, [report?.status, load]);
 
-  const viewState: ViewState = report ? resolveViewState(report) : "setup";
+  const viewState: ViewState = forceSetup
+    ? "setup"
+    : report
+      ? resolveViewState(report)
+      : "setup";
   const grids = report?.keywordGrids ?? [];
   const safeIdx = Math.min(activeKeywordIdx, Math.max(0, grids.length - 1));
   const activeGrid = grids[safeIdx] ?? null;
@@ -223,6 +229,7 @@ export function ProspectAuditDashboard({
     setBusy(true);
     setError(null);
     setShareMsg(null);
+    setForceSetup(false);
     try {
       // One server call queues Maps grids + Growth Audit + AI Visibility.
       // Jobs keep running after you leave — no browser required.
@@ -350,6 +357,8 @@ export function ProspectAuditDashboard({
   const shortName = b.name.length > 42 ? `${b.name.slice(0, 40)}…` : b.name;
 
   if (viewState === "setup") {
+    const canReturnToReport =
+      forceSetup && report && (report.status === "ready" || report.status === "shared");
     return (
       <div className="mx-auto max-w-2xl space-y-5">
         <div>
@@ -362,6 +371,11 @@ export function ProspectAuditDashboard({
         {error ? (
           <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
             {error}
+          </div>
+        ) : null}
+        {shareMsg ? (
+          <div className="rounded-lg border border-[#A6F4C5] bg-[#ECFDF3] px-3 py-2 text-sm text-[#027A48]">
+            {shareMsg}
           </div>
         ) : null}
 
@@ -462,6 +476,10 @@ export function ProspectAuditDashboard({
                 <span className="font-medium text-[#101828]">Competitor analysis:</span> included
               </li>
             </ul>
+            <p className="mt-2 text-[12px] text-[#667085]">
+              Ready Maps grids for the same keyword and settings are reused — only missing or
+              changed keywords start a new scan.
+            </p>
           </section>
 
           <button
@@ -487,10 +505,25 @@ export function ProspectAuditDashboard({
           </ul>
         </div>
 
-        <Link href={`/prospects/${businessId}`} className={cn(mock.link, "inline-flex items-center gap-1")}>
-          <ChevronLeft className="h-4 w-4" />
-          Back to prospect
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          {canReturnToReport ? (
+            <button
+              type="button"
+              className={mock.btnSecondary}
+              onClick={() => setForceSetup(false)}
+            >
+              Back to report
+            </button>
+          ) : (
+            <Link
+              href={`/prospects/${businessId}`}
+              className={cn(mock.link, "inline-flex items-center gap-1")}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Back to prospect
+            </Link>
+          )}
+        </div>
       </div>
     );
   }
@@ -585,6 +618,13 @@ export function ProspectAuditDashboard({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className={mock.btnSecondary}
+            onClick={() => setForceSetup(true)}
+          >
+            Configure &amp; Re-run
+          </button>
           <button type="button" className={mock.btnSecondary} onClick={() => void exportPdf()} disabled={busy}>
             <FileDown className="h-4 w-4" />
             Export

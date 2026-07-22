@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/db/client";
-import { findKeywordByText } from "@/lib/maps/scan-queries";
+import { findKeywordByText, findLatestScanForKeyword } from "@/lib/maps/scan-queries";
 import { dispatchScanProcessing } from "@/lib/jobs/schedule-scan";
 import { LOCAL_FALCON_PARITY } from "@/lib/maps/local-falcon-parity";
 import { DEFAULT_RADIUS_METERS } from "@/lib/maps/grid-metrics";
@@ -129,6 +129,22 @@ export async function startProspectAudit(params: {
         continue;
       }
 
+      // Reuse an existing ready grid for the same keyword/settings — don't burn credits again.
+      const existingScan = await findLatestScanForKeyword(supabase, {
+        businessId: params.businessId,
+        keywordId: kw.id,
+        gridSize: DEFAULT_GRID_SIZE,
+        radiusMeters: DEFAULT_RADIUS_METERS,
+        locationId: null,
+        centerLat: Number(centerLat),
+        centerLng: Number(centerLng),
+      });
+      if (existingScan?.id) {
+        scanBatchIds.push(existingScan.id);
+        warnings.push(`Reused ready Maps grid for “${keyword}”`);
+        continue;
+      }
+
       const fairness = await assertCanEnqueueMapsScan({
         organizationId: params.organizationId,
         businessId: params.businessId,
@@ -137,8 +153,7 @@ export async function startProspectAudit(params: {
         gridSize: DEFAULT_GRID_SIZE,
       });
       if (!fairness.ok && (fairness.code === "queued_limit" || fairness.code === "active_limit")) {
-        warnings.push(`Maps scan queued later for “${keyword}”: ${fairness.reason}`);
-        // Still attempt — fairness may allow after earlier scans drain; if insert fails we warn.
+        warnings.push(`Maps scan for “${keyword}”: ${fairness.reason}`);
       }
 
       const creditsNeeded = gridMapCredits(DEFAULT_GRID_SIZE, 0);
@@ -394,7 +409,7 @@ export async function maybeCompleteProspectAudit(
   }
 
   const scanIds = ((row.scan_batch_ids as string[]) ?? []).filter(Boolean);
-  let scansDone = scanIds.length === 0;
+  let scansDone = false;
   let anyScanOk = false;
   if (scanIds.length) {
     const { data: batches } = await supabase
@@ -424,11 +439,27 @@ export async function maybeCompleteProspectAudit(
     growthStatus
   );
 
-  if (scanIds.length && !scansDone) return "running";
+  // Old/broken launches with no scan ids attached — don't spin forever
+  if (!scanIds.length) {
+    if (growthStillRunning && !growthUsable) return "running";
+    const nextStatus: "ready" | "failed" = growthUsable ? "ready" : "failed";
+    await attachProspectAuditJobs({
+      auditId,
+      growthAuditRunId: (growth?.id as string | undefined) ?? null,
+      status: nextStatus,
+      errorMessage:
+        nextStatus === "failed"
+          ? "Audit did not finish launching. Configure keywords and run again."
+          : null,
+    });
+    return nextStatus;
+  }
+
+  if (!scansDone) return "running";
   if (growthStillRunning && !growthUsable) return "running";
 
   const nextStatus: "ready" | "failed" =
-    anyScanOk || growthUsable ? "ready" : scanIds.length ? "failed" : "ready";
+    anyScanOk || growthUsable ? "ready" : "failed";
 
   await attachProspectAuditJobs({
     auditId,

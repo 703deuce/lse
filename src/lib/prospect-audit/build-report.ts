@@ -351,7 +351,8 @@ export async function buildProspectAuditReport(
   const rating = gbpProfile?.rating ?? null;
   const reviewCount = gbpProfile?.reviewCount ?? null;
 
-  // Keyword grids from audit scan ids, else latest ready scans for business
+  // Keyword grids: only from THIS audit's scan ids.
+  // Do not pull random leftover scans into an audit that hasn't been run.
   const scanIds = (auditRow?.scan_batch_ids ?? []).filter(Boolean);
   let keywordGrids: ProspectAuditKeywordGrid[] = [];
 
@@ -363,35 +364,14 @@ export async function buildProspectAuditReport(
         scanId: sid,
         averageRank: hm?.averageRank ?? null,
         visibilityScore: hm?.visibilityScore ?? null,
-        gridSize: hm?.gridSize ?? 5,
+        gridSize: hm?.gridSize ?? 7,
         cells: hm?.cells ?? [],
-        status: hm ? "ready" : "running",
-      });
-    }
-  } else {
-    const { data: batches } = await supabase
-      .from("scan_batches")
-      .select("id, status, confidence_summary, created_at")
-      .eq("business_id", businessId)
-      .in("status", ["ready", "partial", "rank_ready"])
-      .order("created_at", { ascending: false })
-      .limit(3);
-    for (const b of batches ?? []) {
-      const hm = await heatmapFromScan(supabase, b.id);
-      if (!hm) continue;
-      keywordGrids.push({
-        keyword: hm.keyword,
-        scanId: b.id,
-        averageRank: hm.averageRank,
-        visibilityScore: hm.visibilityScore,
-        gridSize: hm.gridSize,
-        cells: hm.cells,
-        status: "ready",
+        status: hm ? "ready" : auditRow?.status === "running" ? "running" : "missing",
       });
     }
   }
 
-  // Fill placeholders for requested keywords without scans yet
+  // Keywords: audit row first, else business_keywords (for setup prefill)
   let requested = (auditRow?.keywords ?? []).filter(Boolean).slice(0, 3);
   if (!requested.length) {
     const { data: bizKeywords } = await supabase
@@ -608,8 +588,11 @@ export async function buildProspectAuditReport(
   const orgPhone: string | null = null;
 
   let status: ProspectAuditReport["status"] = "idle";
-  if (auditRow?.status) status = auditRow.status as ProspectAuditReport["status"];
-  else if (growth || keywordGrids.some((g) => g.status === "ready")) status = "ready";
+  // Strict: only a real prospect_audits row decides status.
+  // Never treat leftover Growth Audit / old Maps scans as a finished Prospect Audit.
+  if (auditRow?.status) {
+    status = auditRow.status as ProspectAuditReport["status"];
+  }
 
   // Keep UI honest when user left the page: flip running → ready once jobs finish.
   if (auditRow?.id && (status === "running" || status === "draft")) {
