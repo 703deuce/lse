@@ -12,6 +12,7 @@ import {
   assertScheduleAllowed,
   resolveFreelancerLimits,
 } from "@/lib/plans/resolve-freelancer-limits";
+import { loadCampaignListSummaries } from "@/lib/campaigns/campaign-list-summaries";
 
 const createSchema = z.object({
   businessId: z.string().uuid(),
@@ -67,24 +68,16 @@ export async function GET(request: Request) {
     }
     await requireBusinessAccess(businessId);
 
-    const supabase = createServiceClient();
-    const { data, error } = await supabase
-      .from("maps_campaigns")
-      .select("*")
-      .eq("business_id", businessId)
-      .is("archived_at", null)
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      // Table may not exist until migration 071 is applied.
-      if (/maps_campaigns|does not exist/i.test(error.message)) {
-        return NextResponse.json({ campaigns: [], migrationPending: true });
-      }
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    const summary = await loadCampaignListSummaries(
+      createServiceClient(),
+      businessId
+    );
 
     return NextResponse.json({
-      campaigns: data ?? [],
+      campaigns: summary.campaigns,
+      business: summary.business,
+      stats: summary.stats,
+      migrationPending: summary.migrationPending ?? false,
       organizationId: auth.organizationId,
     });
   } catch (err) {
