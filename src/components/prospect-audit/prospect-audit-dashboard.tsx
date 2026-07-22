@@ -27,6 +27,7 @@ import type {
 } from "@/lib/prospect-audit/types";
 import { ScanMap, type GridCell } from "@/components/maps/scan-map";
 import { DEFAULT_RADIUS_METERS } from "@/lib/maps/grid-metrics";
+import { updateBusinessSettings } from "@/lib/actions/mutations";
 
 const INCLUDED_ITEMS = [
   "Google Maps visibility",
@@ -156,6 +157,19 @@ function HeatmapGridFallback({ grid }: { grid: ProspectAuditKeywordGrid }) {
   );
 }
 
+function hasUsableScanCenter(b: {
+  lat: number | null;
+  lng: number | null;
+}): boolean {
+  return (
+    b.lat != null &&
+    b.lng != null &&
+    Number.isFinite(b.lat) &&
+    Number.isFinite(b.lng) &&
+    !(b.lat === 0 && b.lng === 0)
+  );
+}
+
 function keywordsFromReport(report: ProspectAuditReport | null): [string, string, string] {
   const kws = report?.scanInfo?.keywords ?? [];
   return [kws[0] ?? "", kws[1] ?? "", kws[2] ?? ""];
@@ -211,6 +225,8 @@ export function ProspectAuditDashboard({
   // Always allow returning to setup to change keywords / re-run
   const [forceSetup, setForceSetup] = useState(false);
   const markedReadyRef = useRef(false);
+  const [addressInput, setAddressInput] = useState("");
+  const [geocoding, setGeocoding] = useState(false);
 
   const applyKeywords = useCallback((next: ProspectAuditReport | null) => {
     const [a, b, c] = keywordsFromReport(next);
@@ -241,6 +257,15 @@ export function ProspectAuditDashboard({
     if (!initialReport) void load();
     else applyKeywords(initialReport);
   }, [initialReport, load, applyKeywords]);
+
+  // Prefill address field when setup needs a scan center
+  useEffect(() => {
+    if (!report) return;
+    if (hasUsableScanCenter(report.business)) return;
+    if (addressInput.trim()) return;
+    const hint = report.business.address?.trim();
+    if (hint) setAddressInput(hint);
+  }, [report, addressInput]);
 
   useEffect(() => {
     if (report?.status !== "running") return;
@@ -279,10 +304,68 @@ export function ProspectAuditDashboard({
   const safeIdx = Math.min(activeKeywordIdx, Math.max(0, grids.length - 1));
   const activeGrid = grids[safeIdx] ?? null;
 
+  async function verifyScanCenterAddress() {
+    const q = addressInput.trim();
+    if (!q) {
+      setError("Enter a street address, or a city and state, for the scan center.");
+      return;
+    }
+    setGeocoding(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/scans/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: q }),
+      });
+      const json = (await res.json()) as {
+        error?: string;
+        lat?: number;
+        lng?: number;
+        label?: string;
+        displayName?: string;
+      };
+      if (!res.ok) throw new Error(json.error ?? "Could not find that location");
+      if (json.lat == null || json.lng == null) {
+        throw new Error("Could not find that location");
+      }
+      const label = json.displayName ?? json.label ?? q;
+      await updateBusinessSettings(businessId, {
+        scan_center_lat: json.lat,
+        scan_center_lng: json.lng,
+        scan_center_label: label,
+      });
+      setReport((prev) =>
+        prev
+          ? {
+              ...prev,
+              business: {
+                ...prev.business,
+                lat: json.lat!,
+                lng: json.lng!,
+                address: prev.business.address?.trim() || label,
+              },
+            }
+          : prev
+      );
+      setShareMsg("Scan center saved on this prospect.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not find that location");
+    } finally {
+      setGeocoding(false);
+    }
+  }
+
   async function runAudit() {
     const keywords = [kw1, kw2, kw3].map((k) => k.trim()).filter(Boolean).slice(0, 3);
     if (!keywords.length) {
       setError("Add at least one keyword to run the prospect audit.");
+      return;
+    }
+    if (!report || !hasUsableScanCenter(report.business)) {
+      setError(
+        "Add a scan-center address before running. Service-area listings often hide the street address on Google — we need a city/address so Maps grids land in the right market."
+      );
       return;
     }
     setBusy(true);
@@ -419,6 +502,8 @@ export function ProspectAuditDashboard({
   if (viewState === "setup") {
     const canReturnToReport =
       forceSetup && report && (report.status === "ready" || report.status === "shared");
+    const scanReady = hasUsableScanCenter(b);
+    const canRun = !busy && !geocoding && !!kw1.trim() && scanReady;
     return (
       <div className="mx-auto max-w-2xl space-y-5">
         <div>
@@ -458,7 +543,9 @@ export function ProspectAuditDashboard({
               </div>
               <div className="min-w-0">
                 <p className="text-[15px] font-bold text-[#101828]">{b.name}</p>
-                <p className="mt-0.5 text-sm text-[#667085]">{b.address ?? "—"}</p>
+                <p className="mt-0.5 text-sm text-[#667085]">
+                  {b.address ?? "No public address on Google"}
+                </p>
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[12px] text-[#475467]">
                   {b.phone ? <span>{b.phone}</span> : null}
                   {b.website ? (
@@ -468,6 +555,73 @@ export function ProspectAuditDashboard({
                 </div>
               </div>
             </div>
+          </section>
+
+          <section>
+            <p className={mock.label}>Scan center address</p>
+            {scanReady ? (
+              <div className="mt-2 rounded-xl border border-[#A6F4C5] bg-[#ECFDF3] px-3 py-2.5">
+                <div className="flex items-start gap-2">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#027A48]" />
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-[#027A48]">Ready for Maps grids</p>
+                    <p className="mt-0.5 text-[12px] text-[#027A48]/90">
+                      {b.address ?? "Saved scan center on this prospect"}
+                    </p>
+                    <p className="mt-1 text-[11px] text-[#667085]">
+                      Listing address is used when Google shows one. Service-area businesses use the
+                      private scan center you saved.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-2 space-y-3 rounded-xl border border-[#FEDF89] bg-[#FFFAEB] px-3 py-3">
+                <div className="flex items-start gap-2">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#B54708]" />
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-[#93370D]">
+                      Address required before you run
+                    </p>
+                    <p className="mt-1 text-[12px] leading-relaxed text-[#93370D]/90">
+                      This listing has no usable scan center yet (common for service-area businesses
+                      that hide the street address on Google). Enter a street address or city &amp;
+                      state so ranking grids land in the right market. We save it on the prospect.
+                    </p>
+                  </div>
+                </div>
+                <label className="block">
+                  <span className="mb-1 block text-[12px] font-medium text-[#93370D]">
+                    Street address or city &amp; state
+                  </span>
+                  <input
+                    className="w-full rounded-lg border border-[#FEC84B] bg-white px-3 py-2 text-sm outline-none focus:border-[#137752]"
+                    value={addressInput}
+                    onChange={(e) => setAddressInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void verifyScanCenterAddress();
+                      }
+                    }}
+                    placeholder='e.g. "Richmond, VA" or full street address'
+                  />
+                </label>
+                <button
+                  type="button"
+                  className={cn(mock.btnSecondary, "disabled:opacity-50")}
+                  disabled={geocoding || !addressInput.trim()}
+                  onClick={() => void verifyScanCenterAddress()}
+                >
+                  {geocoding ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <MapPin className="h-4 w-4" />
+                  )}
+                  Verify &amp; save address
+                </button>
+              </div>
+            )}
           </section>
 
           <section>
@@ -524,7 +678,9 @@ export function ProspectAuditDashboard({
               </li>
               <li>
                 <span className="font-medium text-[#101828]">Scan center:</span>{" "}
-                {b.address ?? "business address"}
+                {scanReady
+                  ? b.address ?? "Saved private scan center"
+                  : "Required — add an address above"}
               </li>
               <li>
                 <span className="font-medium text-[#101828]">AI visibility check:</span> included
@@ -545,12 +701,17 @@ export function ProspectAuditDashboard({
           <button
             type="button"
             className={cn(mock.btnPrimary, "h-11 w-full justify-center text-[15px]")}
-            disabled={busy || !kw1.trim()}
+            disabled={!canRun}
             onClick={() => void runAudit()}
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             Run Prospect Audit
           </button>
+          {!scanReady ? (
+            <p className="text-center text-[12px] text-[#B54708]">
+              Verify a scan-center address to enable Run.
+            </p>
+          ) : null}
         </div>
 
         <div>

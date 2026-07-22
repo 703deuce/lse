@@ -118,7 +118,9 @@ export async function startProspectAudit(params: {
     !Number.isFinite(Number(centerLng)) ||
     (Number(centerLat) === 0 && Number(centerLng) === 0)
   ) {
-    throw new Error("Set a scan center on this prospect before running the audit.");
+    throw new Error(
+      "Set a scan-center address on this prospect before running the audit. Service-area listings often hide the street address — enter a city or address so Maps grids land in the right market."
+    );
   }
 
   for (const keyword of keywords) {
