@@ -157,6 +157,37 @@ export async function POST(request: Request) {
           { status: 500 }
         );
       }
+    } else if (data.keywords?.length) {
+      const fromAddress = parseUsAddressCityState(scanCenterLabel ?? publicAddress);
+      const rows = data.keywords
+        .map((k) => k.trim())
+        .filter(Boolean)
+        .slice(0, 3)
+        .map((keyword, index) => {
+          const row: Record<string, unknown> = {
+            business_id: createdBusiness.id,
+            keyword,
+            is_primary: index === 0,
+            city: data.city ?? fromAddress.city,
+            state: data.state ?? fromAddress.state,
+            country: data.country ?? "US",
+          };
+          if (campaignId) {
+            row.campaign_id = campaignId;
+            row.active = true;
+            row.sort_order = index;
+          }
+          return row;
+        });
+      if (rows.length) {
+        const { error: keywordError } = await supabase.from("business_keywords").insert(rows);
+        if (keywordError) {
+          return NextResponse.json(
+            { error: `Business created but keywords failed: ${keywordError.message}` },
+            { status: 500 }
+          );
+        }
+      }
     }
 
     trackProductEvent(isTracked ? "client_created" : "prospect_created", {

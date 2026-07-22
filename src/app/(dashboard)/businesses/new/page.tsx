@@ -63,6 +63,8 @@ function NewBusinessPageInner() {
     name: "",
     city: "",
     keyword: "",
+    keyword2: "",
+    keyword3: "",
     website: "",
     service_area_mode: "storefront" as "storefront" | "service_area",
   });
@@ -143,6 +145,11 @@ function NewBusinessPageInner() {
     setLoading(true);
     setError(null);
     try {
+      const keywordList = [form.keyword, form.keyword2, form.keyword3]
+        .map((k) => k.trim())
+        .filter(Boolean)
+        .slice(0, 3);
+      const primaryKeyword = keywordList[0] || form.name;
       const res = await fetch("/api/businesses/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -160,7 +167,8 @@ function NewBusinessPageInner() {
           scan_center_lat: scanCenter?.lat ?? selected.lat ?? null,
           scan_center_lng: scanCenter?.lng ?? selected.lng ?? null,
           scan_center_label: scanCenter?.label ?? selected.address?.trim() ?? null,
-          keyword: form.keyword || form.name,
+          keyword: isProspect ? undefined : primaryKeyword,
+          keywords: isProspect ? (keywordList.length ? keywordList : [primaryKeyword]) : undefined,
           city: form.city,
           // Prospects do not consume an active location slot until converted.
           isTracked: !isProspect,
@@ -176,7 +184,11 @@ function NewBusinessPageInner() {
         }
         throw new Error(data.error ?? "Create failed");
       }
-      router.push(`/businesses/${data.business.id}/overview`);
+      if (isProspect) {
+        router.push(`/prospects/${data.business.id}/audit`);
+      } else {
+        router.push(`/businesses/${data.business.id}/overview`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Create failed");
     } finally {
@@ -236,13 +248,42 @@ function NewBusinessPageInner() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium">Primary keyword to track</label>
-              <input
-                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-                placeholder="e.g. plumber, dentist"
-                value={form.keyword}
-                onChange={(e) => setForm({ ...form, keyword: e.target.value })}
-              />
+              <label className="block text-sm font-medium">
+                {isProspect ? "Primary audit keywords" : "Primary keyword to track"}
+              </label>
+              {isProspect ? (
+                <div className="mt-1 space-y-2">
+                  <input
+                    required
+                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                    placeholder="Keyword 1 (required) — e.g. junk removal Woodbridge"
+                    value={form.keyword}
+                    onChange={(e) => setForm({ ...form, keyword: e.target.value })}
+                  />
+                  <input
+                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                    placeholder="Keyword 2 (optional)"
+                    value={form.keyword2}
+                    onChange={(e) => setForm({ ...form, keyword2: e.target.value })}
+                  />
+                  <input
+                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                    placeholder="Keyword 3 (optional)"
+                    value={form.keyword3}
+                    onChange={(e) => setForm({ ...form, keyword3: e.target.value })}
+                  />
+                  <p className="text-xs text-zinc-500">
+                    These prefill the Prospect Audit. You can still edit them before running.
+                  </p>
+                </div>
+              ) : (
+                <input
+                  className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                  placeholder="e.g. plumber, dentist"
+                  value={form.keyword}
+                  onChange={(e) => setForm({ ...form, keyword: e.target.value })}
+                />
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium">Website (optional)</label>

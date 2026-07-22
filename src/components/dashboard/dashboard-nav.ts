@@ -77,7 +77,15 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
   // location → that client's overview.
   const workItems: SidebarNavItem[] = [
     { href: "/workspace", label: "Workspace", icon: Briefcase },
-    { href: "/prospects", label: "Prospects", icon: Users },
+    {
+      href: "/prospects",
+      label: "Prospects",
+      icon: Users,
+      children: [
+        { href: "/prospects", label: "All prospects" },
+        { href: "/prospects/audits", label: "Prospect audits" },
+      ],
+    },
     { href: "/clients", label: "Clients", icon: Building2 },
     {
       href: loc("dashboard", businessId),
@@ -210,6 +218,25 @@ export function isSidebarHrefActive(
       pathname.startsWith("/clients/") ||
       pathname === "/agency/clients"
     );
+  }
+
+  // Prospects hierarchy: All prospects vs Prospect audits (nested under Prospects)
+  if (href === "/prospects/audits") {
+    return (
+      pathname === "/prospects/audits" ||
+      pathname.startsWith("/prospects/audits?") ||
+      /^\/prospects\/[^/]+\/audit(?:\/|$|\?)/.test(pathname)
+    );
+  }
+  if (href === "/prospects" && flags?.exact) {
+    return pathname === "/prospects" || pathname.startsWith("/prospects?");
+  }
+  if (href === "/prospects") {
+    // "All prospects" child — list + prospect overview, not audit routes
+    if (pathname === "/prospects" || pathname.startsWith("/prospects?")) return true;
+    if (/^\/prospects\/audits(?:\/|$|\?)/.test(pathname)) return false;
+    if (/^\/prospects\/[^/]+\/audit(?:\/|$|\?)/.test(pathname)) return false;
+    return /^\/prospects\/[^/]+\/?$/.test(pathname);
   }
 
   // Workspace home (org) — never treat client overview as Workspace

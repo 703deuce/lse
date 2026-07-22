@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -25,7 +25,26 @@ import type {
   ProspectAuditKeywordGrid,
   ProspectAuditReport,
 } from "@/lib/prospect-audit/types";
-import { ScanMap, type GridCell } from "@/components/maps/scan-map";
+import { ScanMap } from "@/components/maps/scan-map";
+
+const INCLUDED_ITEMS = [
+  "Google Maps visibility",
+  "Top competitors",
+  "Profile optimization checks",
+  "Reviews and review momentum",
+  "AI visibility",
+  "Local market opportunity",
+] as const;
+
+const RUNNING_STEPS = [
+  "Checking Google Maps rankings",
+  "Identifying local competitors",
+  "Auditing business profile signals",
+  "Checking AI visibility",
+  "Preparing prospect report",
+] as const;
+
+type ViewState = "setup" | "running" | "completed";
 
 function ScoreRing({ score }: { score: number | null }) {
   const value = score ?? 0;
@@ -110,6 +129,32 @@ function money(n: number | null): string {
   return `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })} / yr`;
 }
 
+function keywordsFromReport(report: ProspectAuditReport | null): [string, string, string] {
+  const kws = report?.scanInfo?.keywords ?? [];
+  return [kws[0] ?? "", kws[1] ?? "", kws[2] ?? ""];
+}
+
+function resolveViewState(report: ProspectAuditReport): ViewState {
+  if (report.status === "running") return "running";
+  if (report.status === "ready" || report.status === "shared") return "completed";
+  const hasReadyGrid = report.keywordGrids.some(
+    (g) => g.status === "ready" && g.cells.length > 0
+  );
+  if (report.metrics.seoScore != null || hasReadyGrid) return "completed";
+  return "setup";
+}
+
+function runningStepIndex(report: ProspectAuditReport): number {
+  if (report.status === "ready" || report.status === "shared") return RUNNING_STEPS.length;
+  let step = 0;
+  if (report.keywordGrids.some((g) => g.status === "running" || g.scanId)) step = Math.max(step, 1);
+  if (report.keywordGrids.some((g) => g.cells.length > 0)) step = Math.max(step, 2);
+  if (report.competitors.length > 0) step = Math.max(step, 3);
+  if (report.checklist.some((c) => c.id === "gbp" && c.done)) step = Math.max(step, 4);
+  if (report.metrics.seoScore != null) step = Math.max(step, 5);
+  return Math.min(Math.max(step, 1), RUNNING_STEPS.length);
+}
+
 export function ProspectAuditDashboard({
   businessId,
   initialReport,
@@ -123,9 +168,21 @@ export function ProspectAuditDashboard({
   const [loading, setLoading] = useState(!initialReport);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [keywordText, setKeywordText] = useState("");
+  const initialKws = keywordsFromReport(initialReport ?? null);
+  const [kw1, setKw1] = useState(initialKws[0]);
+  const [kw2, setKw2] = useState(initialKws[1]);
+  const [kw3, setKw3] = useState(initialKws[2]);
   const [activeKeywordIdx, setActiveKeywordIdx] = useState(0);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
+
+  const applyKeywords = useCallback((next: ProspectAuditReport | null) => {
+    const [a, b, c] = keywordsFromReport(next);
+    if (a || b || c) {
+      setKw1(a);
+      setKw2(b);
+      setKw3(c);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -135,45 +192,34 @@ export function ProspectAuditDashboard({
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to load");
       setReport(json.report);
-      if (json.report?.scanInfo?.keywords?.length) {
-        setKeywordText(json.report.scanInfo.keywords.join("\n"));
-      }
+      applyKeywords(json.report);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
       setLoading(false);
     }
-  }, [businessId]);
+  }, [businessId, applyKeywords]);
 
   useEffect(() => {
     if (!initialReport) void load();
-  }, [initialReport, load]);
+    else applyKeywords(initialReport);
+  }, [initialReport, load, applyKeywords]);
 
-  // Poll while running
   useEffect(() => {
     if (report?.status !== "running") return;
     const t = setInterval(() => void load(), 8000);
     return () => clearInterval(t);
   }, [report?.status, load]);
 
+  const viewState: ViewState = report ? resolveViewState(report) : "setup";
   const grids = report?.keywordGrids ?? [];
   const safeIdx = Math.min(activeKeywordIdx, Math.max(0, grids.length - 1));
   const activeGrid = grids[safeIdx] ?? null;
 
-  const mapCells: GridCell[] = useMemo(() => {
-    if (!activeGrid?.cells.length || report?.business.lat == null) return [];
-    // Heatmap cells lack lat/lng — map overview uses competitor pins only via center.
-    return [];
-  }, [activeGrid, report?.business.lat]);
-
   async function runAudit() {
-    const keywords = keywordText
-      .split(/[\n,]/)
-      .map((k) => k.trim())
-      .filter(Boolean)
-      .slice(0, 3);
+    const keywords = [kw1, kw2, kw3].map((k) => k.trim()).filter(Boolean).slice(0, 3);
     if (!keywords.length) {
-      setError("Add 1–3 keywords to run the prospect audit.");
+      setError("Add at least one keyword to run the prospect audit.");
       return;
     }
     setBusy(true);
@@ -188,12 +234,20 @@ export function ProspectAuditDashboard({
       const created = await createRes.json();
       if (!createRes.ok) throw new Error(created.error ?? "Failed to start");
 
+      if (created.report) {
+        setReport({ ...created.report, status: "running" });
+      } else {
+        setReport((prev) =>
+          prev ? { ...prev, status: "running", scanInfo: { ...prev.scanInfo, keywords } } : prev
+        );
+      }
+
       const scanIds: string[] = [];
       for (const keyword of keywords) {
         const scanRes = await fetch("/api/scans/run-for-keyword", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ businessId, keyword }),
+          body: JSON.stringify({ businessId, keyword, gridSize: 7 }),
         });
         const scanJson = await scanRes.json().catch(() => ({}));
         if (scanRes.ok && scanJson.scan?.id) scanIds.push(String(scanJson.scan.id));
@@ -317,9 +371,229 @@ export function ProspectAuditDashboard({
   }
 
   const b = report.business;
-  const shortName =
-    b.name.length > 42 ? `${b.name.slice(0, 40)}…` : b.name;
+  const shortName = b.name.length > 42 ? `${b.name.slice(0, 40)}…` : b.name;
 
+  if (viewState === "setup") {
+    return (
+      <div className="mx-auto max-w-2xl space-y-5">
+        <div>
+          <h1 className={mock.title}>Prospect Audit</h1>
+          <p className={mock.subtitle}>
+            Review the business, keywords, and scan settings — then run the audit.
+          </p>
+        </div>
+
+        {error ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            {error}
+          </div>
+        ) : null}
+
+        <div className={cn(mock.cardPad, "space-y-6")}>
+          <section>
+            <p className={mock.label}>Business</p>
+            <div className="mt-2 flex gap-3">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#F2F4F7] text-[#667085] ring-1 ring-[#E6EAF0]">
+                {b.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={b.photoUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <MapPin className="h-5 w-5" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-[15px] font-bold text-[#101828]">{b.name}</p>
+                <p className="mt-0.5 text-sm text-[#667085]">{b.address ?? "—"}</p>
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[12px] text-[#475467]">
+                  {b.phone ? <span>{b.phone}</span> : null}
+                  {b.website ? (
+                    <span className="truncate">{b.website.replace(/^https?:\/\//, "")}</span>
+                  ) : null}
+                  {b.primaryCategory ? <span>{b.primaryCategory}</span> : null}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <p className={mock.label}>Keywords to audit</p>
+            <p className="mt-1 text-[12px] text-[#667085]">
+              Prefills from the prospect. Edit before running — keyword 1 is required.
+            </p>
+            <div className="mt-3 space-y-2">
+              <label className="block">
+                <span className="mb-1 block text-[12px] font-medium text-[#475467]">
+                  1. Primary keyword
+                </span>
+                <input
+                  className="w-full rounded-lg border border-[#E6EAF0] px-3 py-2 text-sm outline-none focus:border-[#137752]"
+                  value={kw1}
+                  onChange={(e) => setKw1(e.target.value)}
+                  placeholder="e.g. junk removal Woodbridge"
+                  required
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[12px] font-medium text-[#475467]">
+                  2. Optional
+                </span>
+                <input
+                  className="w-full rounded-lg border border-[#E6EAF0] px-3 py-2 text-sm outline-none focus:border-[#137752]"
+                  value={kw2}
+                  onChange={(e) => setKw2(e.target.value)}
+                  placeholder="Keyword 2 (optional)"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[12px] font-medium text-[#475467]">
+                  3. Optional
+                </span>
+                <input
+                  className="w-full rounded-lg border border-[#E6EAF0] px-3 py-2 text-sm outline-none focus:border-[#137752]"
+                  value={kw3}
+                  onChange={(e) => setKw3(e.target.value)}
+                  placeholder="Keyword 3 (optional)"
+                />
+              </label>
+            </div>
+          </section>
+
+          <section>
+            <p className={mock.label}>Scan settings</p>
+            <ul className="mt-2 space-y-1.5 text-sm text-[#475467]">
+              <li>
+                <span className="font-medium text-[#101828]">Grid size:</span> 7×7
+              </li>
+              <li>
+                <span className="font-medium text-[#101828]">Radius:</span> 5 miles
+              </li>
+              <li>
+                <span className="font-medium text-[#101828]">Scan center:</span>{" "}
+                {b.address ?? "business address"}
+              </li>
+              <li>
+                <span className="font-medium text-[#101828]">AI visibility check:</span> included
+              </li>
+              <li>
+                <span className="font-medium text-[#101828]">Google profile audit:</span> included
+              </li>
+              <li>
+                <span className="font-medium text-[#101828]">Competitor analysis:</span> included
+              </li>
+            </ul>
+          </section>
+
+          <button
+            type="button"
+            className={cn(mock.btnPrimary, "h-11 w-full justify-center text-[15px]")}
+            disabled={busy || !kw1.trim()}
+            onClick={() => void runAudit()}
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Run Prospect Audit
+          </button>
+        </div>
+
+        <div>
+          <p className="text-[13px] font-semibold text-[#101828]">What this audit includes</p>
+          <ul className="mt-2 space-y-1.5">
+            {INCLUDED_ITEMS.map((item) => (
+              <li key={item} className="flex items-center gap-2 text-sm text-[#475467]">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-[#137752]" />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <Link href={`/prospects/${businessId}`} className={cn(mock.link, "inline-flex items-center gap-1")}>
+          <ChevronLeft className="h-4 w-4" />
+          Back to prospect
+        </Link>
+      </div>
+    );
+  }
+
+  if (viewState === "running") {
+    const doneThrough = runningStepIndex(report);
+    return (
+      <div className="mx-auto max-w-xl space-y-5">
+        <div>
+          <h1 className={mock.title}>Running Prospect Audit</h1>
+          <p className={mock.subtitle}>
+            Building the report for &lsquo;{shortName}&rsquo;. You can leave this page — it keeps
+            running.
+          </p>
+        </div>
+
+        {error ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            {error}
+          </div>
+        ) : null}
+
+        <div className={cn(mock.cardPad, "space-y-4")}>
+          <div className="flex items-center gap-2 text-sm font-medium text-[#137752]">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Audit in progress…
+          </div>
+          <ol className="space-y-3">
+            {RUNNING_STEPS.map((label, i) => {
+              const stepNum = i + 1;
+              const done = stepNum < doneThrough;
+              const current = stepNum === doneThrough;
+              return (
+                <li key={label} className="flex items-start gap-3">
+                  <span
+                    className={cn(
+                      "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
+                      done
+                        ? "bg-[#ECFDF3] text-[#027A48]"
+                        : current
+                          ? "bg-[#137752] text-white"
+                          : "bg-[#F2F4F7] text-[#98A2B3]"
+                    )}
+                  >
+                    {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : stepNum}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-sm",
+                      done || current ? "font-medium text-[#101828]" : "text-[#98A2B3]"
+                    )}
+                  >
+                    {label}
+                    {current ? (
+                      <Loader2 className="ml-2 inline h-3.5 w-3.5 animate-spin text-[#137752]" />
+                    ) : null}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="rounded-lg bg-[#F9FAFB] px-3 py-2 text-[12px] text-[#667085]">
+            Typically 3–5 minutes. Come back anytime — progress is saved on this prospect.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <Link href={`/prospects/${businessId}`} className={mock.btnSecondary}>
+            Leave page
+          </Link>
+          <Link href="/prospects/audits" className={mock.link}>
+            All prospect audits
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Completed report UI
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -364,30 +638,8 @@ export function ProspectAuditDashboard({
         </div>
       ) : null}
 
-      {/* Run controls when idle / no score */}
-      {(report.status === "idle" || report.metrics.seoScore == null) && (
-        <div className={cn(mock.cardPad, "space-y-3")}>
-          <h2 className="text-[15px] font-bold text-[#101828]">Run prospect audit</h2>
-          <p className="text-sm text-[#667085]">
-            Enter up to 3 keywords. We&apos;ll score SEO health, pull competitor gaps, and build a
-            Maps geo-grid per keyword for your sales conversation.
-          </p>
-          <textarea
-            className="min-h-[88px] w-full rounded-lg border border-[#E6EAF0] px-3 py-2 text-sm outline-none focus:border-[#137752]"
-            placeholder={"dentist near me\nemergency dentist\nfamily dentist chicago"}
-            value={keywordText}
-            onChange={(e) => setKeywordText(e.target.value)}
-          />
-          <button type="button" className={mock.btnPrimary} disabled={busy} onClick={() => void runAudit()}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Start audit
-          </button>
-        </div>
-      )}
-
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,18.5rem)]">
         <div className="space-y-5">
-          {/* KPI row */}
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className={cn(mock.card, "flex items-center gap-3 p-4")}>
               <ScoreRing score={report.metrics.seoScore} />
@@ -422,7 +674,6 @@ export function ProspectAuditDashboard({
             </div>
           </div>
 
-          {/* Profile + summary */}
           <div className="grid gap-3 lg:grid-cols-2">
             <div className={cn(mock.card, "flex gap-3 p-4")}>
               <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#F2F4F7] text-[#667085] ring-1 ring-[#E6EAF0]">
@@ -474,7 +725,6 @@ export function ProspectAuditDashboard({
             </div>
           </div>
 
-          {/* Factor grid */}
           <div>
             <h2 className="mb-3 text-[15px] font-bold text-[#101828]">Audit details</h2>
             <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
@@ -492,7 +742,6 @@ export function ProspectAuditDashboard({
             </div>
           </div>
 
-          {/* Competitors + map */}
           <div className="grid gap-3 lg:grid-cols-2">
             <div className={cn(mock.card, "overflow-hidden")}>
               <div className="border-b border-[#F2F4F7] px-4 py-3">
@@ -547,42 +796,30 @@ export function ProspectAuditDashboard({
                                 {c.rating.toFixed(1)}
                                 {c.reviewCount != null ? (
                                   <span className="font-medium text-[#667085]">
-                                    ({c.reviewCount.toLocaleString()})
+                                    ({c.reviewCount})
                                   </span>
                                 ) : null}
                               </span>
                             ) : null}
-                            {c.avgRank != null ? (
-                              <span>Avg rank {c.avgRank}</span>
-                            ) : null}
-                            {c.appearances > 0 ? (
-                              <span>{c.appearances} cells</span>
-                            ) : null}
-                            {c.totalPhotos != null && c.totalPhotos > 0 ? (
-                              <span>{c.totalPhotos} photos</span>
-                            ) : null}
+                            {c.avgRank != null ? <span>Avg rank {c.avgRank.toFixed(1)}</span> : null}
                           </div>
                           {c.address ? (
                             <p className="mt-0.5 truncate text-[11px] text-[#667085]">{c.address}</p>
                           ) : null}
                           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px]">
-                            {c.phone ? (
-                              <span className="text-[#475467]">{c.phone}</span>
-                            ) : null}
                             {c.website ? (
                               <a
                                 href={
-                                  c.website.startsWith("http")
-                                    ? c.website
-                                    : `https://${c.website}`
+                                  c.website.startsWith("http") ? c.website : `https://${c.website}`
                                 }
                                 target="_blank"
                                 rel="noreferrer"
-                                className="truncate font-medium text-[#137752] hover:underline"
+                                className="font-medium text-[#137752] hover:underline"
                               >
-                                {(c.domain || c.website).replace(/^https?:\/\//, "")}
+                                {(c.domain ?? c.website).replace(/^https?:\/\//, "")}
                               </a>
                             ) : null}
+                            {c.phone ? <span className="text-[#475467]">{c.phone}</span> : null}
                             {c.mapsUrl ? (
                               <a
                                 href={c.mapsUrl}
@@ -590,7 +827,7 @@ export function ProspectAuditDashboard({
                                 rel="noreferrer"
                                 className="font-medium text-[#137752] hover:underline"
                               >
-                                Google Maps
+                                Maps
                               </a>
                             ) : null}
                           </div>
@@ -601,6 +838,7 @@ export function ProspectAuditDashboard({
                 </ul>
               )}
             </div>
+
             <div className={cn(mock.card, "overflow-hidden")}>
               <div className="border-b border-[#F2F4F7] px-4 py-3">
                 <h2 className="text-[14px] font-bold text-[#101828]">Local Map Overview</h2>
@@ -609,7 +847,7 @@ export function ProspectAuditDashboard({
                 {b.lat != null && b.lng != null ? (
                   <ScanMap
                     officeCenter={[b.lat, b.lng]}
-                    cells={mapCells}
+                    cells={[]}
                     businessName={b.name}
                     height="220px"
                   />
@@ -622,7 +860,6 @@ export function ProspectAuditDashboard({
             </div>
           </div>
 
-          {/* Reviews + geo grid */}
           <div className="grid gap-3 lg:grid-cols-[minmax(12rem,16rem)_minmax(0,1fr)]">
             <div className={cn(mock.cardPad, "space-y-3")}>
               <h2 className="text-[14px] font-bold text-[#101828]">Reviews</h2>
@@ -706,7 +943,7 @@ export function ProspectAuditDashboard({
                       scanId: null,
                       averageRank: null,
                       visibilityScore: null,
-                      gridSize: 5,
+                      gridSize: 7,
                       cells: [],
                       status: "missing",
                     }
@@ -742,7 +979,6 @@ export function ProspectAuditDashboard({
           </div>
         </div>
 
-        {/* Right rail */}
         <aside className="space-y-4">
           <div className={cn(mock.cardPad, "space-y-3")}>
             <h2 className="text-[14px] font-bold text-[#101828]">Audit Details</h2>

@@ -392,7 +392,22 @@ export async function buildProspectAuditReport(
   }
 
   // Fill placeholders for requested keywords without scans yet
-  const requested = (auditRow?.keywords ?? []).filter(Boolean).slice(0, 3);
+  let requested = (auditRow?.keywords ?? []).filter(Boolean).slice(0, 3);
+  if (!requested.length) {
+    const { data: bizKeywords } = await supabase
+      .from("business_keywords")
+      .select("keyword, is_primary, sort_order")
+      .eq("business_id", businessId)
+      .order("sort_order", { ascending: true })
+      .limit(3);
+    const sorted = [...(bizKeywords ?? [])].sort((a, b) => {
+      if (a.is_primary === b.is_primary) {
+        return Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0);
+      }
+      return a.is_primary ? -1 : 1;
+    });
+    requested = sorted.map((k) => String(k.keyword ?? "").trim()).filter(Boolean).slice(0, 3);
+  }
   for (const kw of requested) {
     if (keywordGrids.some((g) => g.keyword.toLowerCase() === kw.toLowerCase())) continue;
     if (keywordGrids.length >= 3) break;
@@ -401,7 +416,7 @@ export async function buildProspectAuditReport(
       scanId: null,
       averageRank: null,
       visibilityScore: null,
-      gridSize: 5,
+      gridSize: 7,
       cells: [],
       status: auditRow?.status === "running" ? "running" : "missing",
     });

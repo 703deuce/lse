@@ -212,3 +212,69 @@ export const prospectAuditPreviewReport: ProspectAuditReport = {
   latestScanId: "preview-scan-1",
   errorMessage: null,
 };
+
+/** Pre-audit setup state — no empty report chrome. */
+export const prospectAuditSetupPreviewReport: ProspectAuditReport = {
+  ...prospectAuditPreviewReport,
+  auditId: null,
+  status: "idle",
+  metrics: {
+    seoScore: null,
+    missedRevenueYear: null,
+    trustIndicators: null,
+    trustLabel: "Not scored yet",
+    directoriesFound: null,
+  },
+  summary: "Run the prospect audit to score SEO health, Maps visibility, and competitor gaps.",
+  factors: prospectAuditPreviewReport.factors.map((f) => ({
+    ...f,
+    status: "unknown",
+    statusLabel: "Not checked",
+  })),
+  competitors: [],
+  keywordGrids: [],
+  checklist: prospectAuditPreviewReport.checklist.map((c) => ({ ...c, done: false })),
+  scanInfo: {
+    startedAt: null,
+    finishedAt: null,
+    keywords: [
+      "junk removal Woodbridge",
+      "junk removal near me",
+      "junk hauling Woodbridge",
+    ],
+  },
+  growthAuditId: null,
+  latestScanId: null,
+  business: {
+    ...prospectAuditPreviewReport.business,
+    name: "Junk Removal Woodbridge",
+    address: "13327 Kirkdale Ct, Woodbridge, VA",
+    primaryCategory: "Junk Removal Service",
+    photoUrl: null,
+    rating: null,
+    reviewCount: null,
+  },
+};
+
+/** In-progress audit state. */
+export const prospectAuditRunningPreviewReport: ProspectAuditReport = {
+  ...prospectAuditSetupPreviewReport,
+  auditId: "preview-audit-running",
+  status: "running",
+  scanInfo: {
+    startedAt: "2026-07-22T02:10:00.000Z",
+    finishedAt: null,
+    keywords: prospectAuditSetupPreviewReport.scanInfo.keywords,
+  },
+  keywordGrids: [
+    {
+      keyword: "junk removal Woodbridge",
+      scanId: "preview-scan-running",
+      averageRank: null,
+      visibilityScore: null,
+      gridSize: 7,
+      cells: [],
+      status: "running",
+    },
+  ],
+};

@@ -1,17 +1,28 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { DashboardUIProvider } from "@/components/dashboard/dashboard-context";
 import { DashboardSidebarPanel } from "@/components/dashboard/sidebar";
 import { ProspectAuditDashboard } from "@/components/prospect-audit/prospect-audit-dashboard";
 import {
   PROSPECT_AUDIT_PREVIEW_BUSINESS_ID,
   prospectAuditPreviewReport,
+  prospectAuditRunningPreviewReport,
+  prospectAuditSetupPreviewReport,
 } from "@/lib/prospect-audit/preview-data";
+import type { ProspectAuditReport } from "@/lib/prospect-audit/types";
 
 let fetchPatched = false;
 
-function patchPreviewFetch() {
+function reportForState(state: string | null): ProspectAuditReport {
+  if (state === "setup") return prospectAuditSetupPreviewReport;
+  if (state === "running") return prospectAuditRunningPreviewReport;
+  return prospectAuditPreviewReport;
+}
+
+function patchPreviewFetch(getReport: () => ProspectAuditReport) {
   if (typeof window === "undefined" || fetchPatched) return;
   fetchPatched = true;
   const originalFetch = window.fetch.bind(window);
@@ -20,14 +31,17 @@ function patchPreviewFetch() {
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.includes(`/api/prospect-audits?businessId=${bid}`)) {
-      return new Response(JSON.stringify({ report: prospectAuditPreviewReport }), {
+      return new Response(JSON.stringify({ report: getReport() }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
     }
     if (url.includes("/api/prospect-audits") && init?.method === "POST") {
       return new Response(
-        JSON.stringify({ auditId: "preview-audit-1", report: prospectAuditPreviewReport }),
+        JSON.stringify({
+          auditId: "preview-audit-1",
+          report: { ...getReport(), status: "running" },
+        }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -47,31 +61,50 @@ function patchPreviewFetch() {
   };
 }
 
-export default function ProspectAuditPreviewPage() {
+function ProspectAuditPreviewInner() {
+  const searchParams = useSearchParams();
+  const state = searchParams.get("state");
+  const report = useMemo(() => reportForState(state), [state]);
   const [ready, setReady] = useState(false);
+
   useLayoutEffect(() => {
-    patchPreviewFetch();
+    patchPreviewFetch(() => reportForState(state));
     setReady(true);
-  }, []);
+  }, [state]);
+
   if (!ready) return null;
+
+  const bizName = report.business.name;
 
   return (
     <DashboardUIProvider>
       <div className="flex min-h-screen bg-[#F9FAFB]">
         <DashboardSidebarPanel
           businessId={PROSPECT_AUDIT_PREVIEW_BUSINESS_ID}
-          pathname={`/prospects/${PROSPECT_AUDIT_PREVIEW_BUSINESS_ID}/audit`}
-          businessName="Plaza Dental"
+          pathname={
+            state === "setup" || state === "running"
+              ? `/prospects/${PROSPECT_AUDIT_PREVIEW_BUSINESS_ID}/audit`
+              : `/prospects/${PROSPECT_AUDIT_PREVIEW_BUSINESS_ID}/audit`
+          }
+          businessName={bizName}
           staticLinks
           showFooter={false}
         />
         <main className="min-w-0 flex-1 overflow-y-auto px-4 py-5 lg:px-6">
           <ProspectAuditDashboard
             businessId={PROSPECT_AUDIT_PREVIEW_BUSINESS_ID}
-            initialReport={prospectAuditPreviewReport}
+            initialReport={report}
           />
         </main>
       </div>
     </DashboardUIProvider>
+  );
+}
+
+export default function ProspectAuditPreviewPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProspectAuditPreviewInner />
+    </Suspense>
   );
 }

@@ -196,9 +196,8 @@ export function AccountDetail({
     if (mode === "prospect") {
       return [
         { href: `/prospects/${businessId}`, label: "Overview" },
-        { href: `/prospects/${businessId}/audit`, label: "Prospect Audit" },
-        { href: `${base}/scans`, label: "Maps scans" },
-        { href: `${base}/reports?type=single_scan&scope=prospect`, label: "Prospect report" },
+        { href: `/prospects/${businessId}/audit`, label: "Audit" },
+        { href: `${base}/reports?type=single_scan&scope=prospect`, label: "Reports" },
         { href: `/prospects/${businessId}#notes`, label: "Notes" },
       ];
     }

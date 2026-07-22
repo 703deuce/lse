@@ -25,6 +25,8 @@ export const createBusinessSchema = z.object({
   /** Private scan-center address (service-area / hidden GBP address). */
   scan_center_label: z.string().max(240).nullable().optional(),
   keyword: z.string().optional(),
+  /** Up to 3 primary audit keywords (prospects). First is required when provided. */
+  keywords: z.array(z.string().min(1).max(120)).max(3).optional(),
   city: z.string().optional(),
   state: z.string().optional(),
   country: z.string().optional(),
