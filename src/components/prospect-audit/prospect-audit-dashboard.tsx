@@ -135,13 +135,11 @@ function keywordsFromReport(report: ProspectAuditReport | null): [string, string
 }
 
 function resolveViewState(report: ProspectAuditReport): ViewState {
+  // Strict: only this prospect-audit row decides the page state.
+  // Do not show the finished layout from leftover Growth Audit / old scans.
   if (report.status === "running") return "running";
   if (report.status === "ready" || report.status === "shared") return "completed";
-  const hasReadyGrid = report.keywordGrids.some(
-    (g) => g.status === "ready" && g.cells.length > 0
-  );
-  if (report.metrics.seoScore != null || hasReadyGrid) return "completed";
-  return "setup";
+  return "setup"; // idle | draft | failed → review & run
 }
 
 function runningStepIndex(report: ProspectAuditReport): number {
