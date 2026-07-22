@@ -70,8 +70,11 @@ export async function POST(request: Request) {
     return NextResponse.json({
       auditId: started.auditId,
       keywords: keywords.slice(0, MAX_KEYWORDS),
+      scanBatchIds: started.scanBatchIds,
+      growthJobId: started.growthJobId,
+      aiVisibilityJobId: started.aiVisibilityJobId,
       warnings: started.warnings,
-      report,
+      report: report.status === "idle" ? { ...report, status: "running" } : report,
     });
   } catch (err) {
     return httpErrorFromException(err, "Failed to start prospect audit");

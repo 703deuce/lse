@@ -611,6 +611,20 @@ export async function buildProspectAuditReport(
   if (auditRow?.status) status = auditRow.status as ProspectAuditReport["status"];
   else if (growth || keywordGrids.some((g) => g.status === "ready")) status = "ready";
 
+  // Keep UI honest when user left the page: flip running → ready once jobs finish.
+  if (auditRow?.id && (status === "running" || status === "draft")) {
+    try {
+      const { maybeCompleteProspectAudit } = await import("@/lib/prospect-audit/run");
+      const next = await maybeCompleteProspectAudit(auditRow.id, businessId);
+      if (next === "ready" || next === "failed") {
+        status = next;
+        auditRow.status = next;
+      }
+    } catch {
+      // leave status as-is
+    }
+  }
+
   const checklist = [
     { id: "seo", label: "SEO Health", done: seoScore != null },
     { id: "technical", label: "Technical Audit", done: Boolean(sections?.website) },

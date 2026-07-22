@@ -226,6 +226,8 @@ export function ProspectAuditDashboard({
     setError(null);
     setShareMsg(null);
     try {
+      // One server call queues Maps grids + Growth Audit + AI Visibility.
+      // Jobs keep running after you leave — no browser required.
       const createRes = await fetch("/api/prospect-audits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -238,38 +240,14 @@ export function ProspectAuditDashboard({
         setReport({ ...created.report, status: "running" });
       } else {
         setReport((prev) =>
-          prev ? { ...prev, status: "running", scanInfo: { ...prev.scanInfo, keywords } } : prev
+          prev
+            ? { ...prev, status: "running", scanInfo: { ...prev.scanInfo, keywords } }
+            : prev
         );
       }
-
-      const scanIds: string[] = [];
-      for (const keyword of keywords) {
-        const scanRes = await fetch("/api/scans/run-for-keyword", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ businessId, keyword, gridSize: 7 }),
-        });
-        const scanJson = await scanRes.json().catch(() => ({}));
-        if (scanRes.ok && scanJson.scan?.id) scanIds.push(String(scanJson.scan.id));
+      if (Array.isArray(created.warnings) && created.warnings.length) {
+        setShareMsg(created.warnings.slice(0, 3).join(" · "));
       }
-
-      await fetch("/api/growth-audit/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId, keyword: keywords[0] }),
-      }).catch(() => null);
-
-      if (created.auditId && !String(created.auditId).startsWith("ephemeral-")) {
-        await fetch(`/api/prospect-audits/${created.auditId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            scanBatchIds: scanIds,
-            status: "running",
-          }),
-        });
-      }
-
       setActiveKeywordIdx(0);
       await load();
     } catch (e) {
@@ -577,7 +555,8 @@ export function ProspectAuditDashboard({
             })}
           </ol>
           <p className="rounded-lg bg-[#F9FAFB] px-3 py-2 text-[12px] text-[#667085]">
-            Typically 3–5 minutes. Come back anytime — progress is saved on this prospect.
+            Typically 3–5 minutes. Maps grids, profile checks, competitors, and AI visibility all
+            keep running on our servers — you can close this tab and come back anytime.
           </p>
         </div>
 
