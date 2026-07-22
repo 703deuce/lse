@@ -1,9 +1,13 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { CampaignSetupWizard } from "@/components/campaigns/campaign-setup-wizard";
+import {
+  CampaignSetupWizard,
+  MapsCampaignsWizardPageHeader,
+  type WizardExistingCampaign,
+} from "@/components/campaigns/campaign-setup-wizard";
 import { MapsCampaignsList } from "@/components/campaigns/maps-campaigns-list";
 import type {
   CampaignListBusiness,
@@ -50,15 +54,39 @@ export default function BusinessCampaignsPage() {
     void load();
   }, [load]);
 
+  const wizardCampaigns: WizardExistingCampaign[] = useMemo(
+    () =>
+      campaigns.map((c) => ({
+        id: c.id,
+        name: c.name,
+        schedule_type: c.schedule_type,
+        keywordCount: c.keywordCount,
+        default_grid_size: c.default_grid_size,
+        updated_at: c.updated_at ?? null,
+        status: c.status ?? "active",
+        locationLabel: business?.locationLabel,
+      })),
+    [campaigns, business?.locationLabel]
+  );
+
   if (showWizard) {
     return (
-      <CampaignSetupWizard
-        businessId={businessId}
-        onClose={() => {
-          setShowWizard(false);
-          void load();
-        }}
-      />
+      <div className="space-y-5">
+        <MapsCampaignsWizardPageHeader />
+        {error ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            {error}
+          </div>
+        ) : null}
+        <CampaignSetupWizard
+          businessId={businessId}
+          existingCampaigns={wizardCampaigns}
+          onClose={() => {
+            setShowWizard(false);
+            void load();
+          }}
+        />
+      </div>
     );
   }
 
