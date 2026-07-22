@@ -38,6 +38,9 @@ export type HeatmapCell = {
   rank: number | null;
   color: string;
   textColor: string;
+  /** Present when built from a real Maps grid scan (for map pin overlay). */
+  lat?: number | null;
+  lng?: number | null;
 };
 
 /** Optional AI Visibility block embedded in client HTML/PDF reports. */

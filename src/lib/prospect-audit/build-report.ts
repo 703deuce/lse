@@ -43,23 +43,77 @@ function checkRatio(
   return null;
 }
 
+const DEFAULT_GBP_FACTOR_TITLES = [
+  "Business Name",
+  "Phone Number",
+  "Google Category",
+  "GMB Photos",
+  "Google Review Count",
+  "GMB Description",
+  "Business Hours",
+  "Website",
+  "NAP Consistency",
+] as const;
+
+function titleFromGbpCheck(label: string, id: string): string {
+  const key = `${id} ${label}`.toLowerCase();
+  if (/name/.test(key)) return "Business Name";
+  if (/phone/.test(key)) return "Phone Number";
+  if (/categor/.test(key)) return "Google Category";
+  if (/photo/.test(key)) return "GMB Photos";
+  if (/review/.test(key)) return "Google Review Count";
+  if (/description/.test(key)) return "GMB Description";
+  if (/hours/.test(key)) return "Business Hours";
+  if (/address/.test(key)) return "Address";
+  if (/post/.test(key)) return "GMB Posts";
+  if (/website|url/.test(key)) return "Website";
+  return label.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function buildFactors(sections: GrowthAuditSections | null): ProspectAuditFactor[] {
+  const gbpChecks = sections?.gbp?.checks ?? [];
+  if (gbpChecks.length > 0) {
+    const fromGbp = gbpChecks.slice(0, 8).map((c) => {
+      const good =
+        c.status === "match" ? true : c.status === "partial" ? null : false;
+      const { status, statusLabel } = factorStatus(null, good);
+      return {
+        id: c.id,
+        title: titleFromGbpCheck(c.label, c.id),
+        status,
+        statusLabel,
+        detail: c.gbpValue ?? c.evidence ?? null,
+      };
+    });
+    const website = sections?.website;
+    if (website) {
+      const { status, statusLabel } = factorStatus(
+        website.score,
+        checkRatio(website.checks)
+      );
+      fromGbp.push({
+        id: "nap",
+        title: "NAP Consistency",
+        status,
+        statusLabel,
+        detail: `Website match ${website.score}`,
+      });
+    } else {
+      const hasWebsite = Boolean(sections?.gbp?.profile?.website);
+      fromGbp.push({
+        id: "website",
+        title: "Website",
+        status: hasWebsite ? "good" : "needs_attention",
+        statusLabel: hasWebsite ? "Good" : "Needs attention",
+        detail: sections?.gbp?.profile?.website ?? null,
+      });
+    }
+    return fromGbp.slice(0, 9);
+  }
+
   if (!sections) {
-    return [
-      "Keyword Density",
-      "GMB Optimization",
-      "Backlink Profile",
-      "Mobile Friendly",
-      "Page Speed",
-      "Meta Descriptions",
-      "Schema Markup",
-      "Image Alt Tags",
-      "Social Presence",
-      "Security (SSL)",
-      "NAP Consistency",
-      "Local Citations",
-    ].map((title, i) => ({
-      id: `factor-${i}`,
+    return DEFAULT_GBP_FACTOR_TITLES.map((title, i) => ({
+      id: `pending-${i}`,
       title,
       status: "unknown" as const,
       statusLabel: "Not checked",
@@ -67,17 +121,7 @@ function buildFactors(sections: GrowthAuditSections | null): ProspectAuditFactor
     }));
   }
 
-  const gbp = sections.gbp;
   const website = sections.website;
-  const coverage = sections.serviceCoverage;
-  const competitors = sections.competitorGap;
-  const sslCheck = website?.checks?.find((c) => /ssl|https|security/i.test(c.label));
-  const mobileCheck = website?.checks?.find((c) => /mobile/i.test(c.label));
-  const metaCheck = website?.checks?.find((c) => /meta/i.test(c.label));
-  const schemaCheck = website?.checks?.find((c) => /schema/i.test(c.label));
-  const altCheck = website?.checks?.find((c) => /alt|image/i.test(c.label));
-  const speedCheck = website?.checks?.find((c) => /speed|performance/i.test(c.label));
-
   const rows: Array<{
     id: string;
     title: string;
@@ -86,107 +130,11 @@ function buildFactors(sections: GrowthAuditSections | null): ProspectAuditFactor
     detail?: string | null;
   }> = [
     {
-      id: "keyword-density",
-      title: "Keyword Density",
-      score: coverage?.score,
-      good:
-        coverage?.core30 != null
-          ? coverage.core30.completionScore >= 60
-          : checkRatio(undefined),
-      detail: coverage ? `Coverage score ${coverage.score}` : null,
-    },
-    {
       id: "gmb",
       title: "GMB Optimization",
-      score: gbp?.score,
-      good: checkRatio(gbp?.checks),
-      detail: gbp ? `GBP score ${gbp.score}` : null,
-    },
-    {
-      id: "backlinks",
-      title: "Backlink Profile",
-      score: competitors?.score,
-      good: (competitors?.score ?? 0) >= 60,
-      detail: competitors ? `Competitor gap score ${competitors.score}` : null,
-    },
-    {
-      id: "mobile",
-      title: "Mobile Friendly",
-      good:
-        mobileCheck?.status === "match"
-          ? true
-          : mobileCheck
-            ? false
-            : null,
-      detail: mobileCheck?.evidence ?? mobileCheck?.gbpValue ?? null,
-    },
-    {
-      id: "speed",
-      title: "Page Speed",
-      good:
-        speedCheck?.status === "match"
-          ? true
-          : speedCheck
-            ? false
-            : null,
-      detail: speedCheck?.evidence ?? null,
-    },
-    {
-      id: "meta",
-      title: "Meta Descriptions",
-      good:
-        metaCheck?.status === "match"
-          ? true
-          : metaCheck
-            ? false
-            : null,
-      detail: metaCheck?.evidence ?? null,
-    },
-    {
-      id: "schema",
-      title: "Schema Markup",
-      good:
-        schemaCheck?.status === "match"
-          ? true
-          : schemaCheck
-            ? schemaCheck.status === "partial"
-              ? null
-              : false
-            : null,
-      detail: schemaCheck?.evidence ?? null,
-    },
-    {
-      id: "alt",
-      title: "Image Alt Tags",
-      good:
-        altCheck?.status === "match"
-          ? true
-          : altCheck
-            ? altCheck.status === "partial"
-              ? null
-              : false
-            : null,
-      detail: altCheck?.evidence ?? null,
-    },
-    {
-      id: "social",
-      title: "Social Presence",
-      score: sections.overview?.scanScores?.prominence ?? null,
-      good: (sections.overview?.scanScores?.prominence ?? 0) >= 60,
-      detail: null,
-    },
-    {
-      id: "ssl",
-      title: "Security (SSL)",
-      good:
-        sslCheck?.status === "match"
-          ? true
-          : sslCheck
-            ? false
-            : website?.checks?.length
-              ? true
-              : null,
-      detail: sslCheck?.evidence ?? null,
+      score: sections.gbp?.score,
+      good: checkRatio(sections.gbp?.checks),
+      detail: sections.gbp ? `GBP score ${sections.gbp.score}` : null,
     },
     {
       id: "nap",
@@ -270,6 +218,8 @@ async function heatmapFromScan(
           rank,
           color: rankHex(rank),
           textColor: rankTextColor(rankHex(rank)),
+          lat: typeof c.lat === "number" ? c.lat : null,
+          lng: typeof c.lng === "number" ? c.lng : null,
         };
       });
     const conf = (data.batch.confidence_summary ?? {}) as {

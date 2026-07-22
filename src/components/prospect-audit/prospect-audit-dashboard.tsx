@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  AlertTriangle,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -17,6 +16,7 @@ import {
   RefreshCw,
   Share2,
   Star,
+  XCircle,
 } from "lucide-react";
 import { mock } from "@/components/mockup/ui";
 import { cn } from "@/lib/utils";
@@ -25,7 +25,8 @@ import type {
   ProspectAuditKeywordGrid,
   ProspectAuditReport,
 } from "@/lib/prospect-audit/types";
-import { ScanMap } from "@/components/maps/scan-map";
+import { ScanMap, type GridCell } from "@/components/maps/scan-map";
+import { DEFAULT_RADIUS_METERS } from "@/lib/maps/grid-metrics";
 
 const INCLUDED_ITEMS = [
   "Google Maps visibility",
@@ -80,53 +81,43 @@ function ScoreRing({ score }: { score: number | null }) {
 
 function FactorIcon({ status }: { status: ProspectAuditFactor["status"] }) {
   if (status === "good") {
-    return <CheckCircle2 className="h-4 w-4 text-[#027A48]" />;
+    return <CheckCircle2 className="h-5 w-5 text-[#027A48]" />;
   }
   if (status === "needs_attention") {
-    return <AlertTriangle className="h-4 w-4 text-[#B42318]" />;
+    return <XCircle className="h-5 w-5 text-[#D92D20]" />;
   }
-  return <Info className="h-4 w-4 text-[#B54708]" />;
+  return <Info className="h-5 w-5 text-[#B54708]" />;
 }
 
-function factorBadge(status: ProspectAuditFactor["status"]) {
-  if (status === "good") return mock.badgeGreen;
-  if (status === "needs_attention") return mock.badgeRed;
-  if (status === "manual_check") return mock.badgeAmber;
-  return "inline-flex items-center rounded-full bg-[#F2F4F7] px-2 py-0.5 text-[11px] font-semibold text-[#475467]";
+function moneyMonth(yearTotal: number | null): string {
+  if (yearTotal == null) return "—";
+  const monthly = Math.round(yearTotal / 12);
+  return `$${monthly.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
 
-function HeatmapGrid({ grid }: { grid: ProspectAuditKeywordGrid }) {
-  if (!grid.cells.length) {
-    return (
-      <div className="flex min-h-[240px] flex-1 items-center justify-center rounded-xl border border-dashed border-[#E6EAF0] bg-[#F9FAFB] text-sm text-[#667085]">
-        {grid.status === "running"
-          ? "Grid scan running…"
-          : "No Maps grid for this keyword yet"}
-      </div>
-    );
+function cityFromAddress(address: string | null | undefined): string | null {
+  if (!address) return null;
+  // "…, Richmond, VA 23230" → "Richmond, VA"
+  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    const city = parts[parts.length - 2];
+    const stateZip = parts[parts.length - 1].replace(/\s+\d{5}(-\d{4})?$/, "").trim();
+    return stateZip ? `${city}, ${stateZip}` : city;
   }
-  return (
-    <div
-      className="mx-auto grid w-full max-w-[360px] gap-1.5"
-      style={{ gridTemplateColumns: `repeat(${grid.gridSize}, minmax(0, 1fr))` }}
-    >
-      {grid.cells.map((cell) => (
-        <div
-          key={`${cell.row}-${cell.col}`}
-          className="flex aspect-square items-center justify-center rounded-full text-[10px] font-bold shadow-sm sm:text-[11px]"
-          style={{ backgroundColor: cell.color, color: cell.textColor }}
-          title={`${cell.label}: ${cell.rank ?? "20+"}`}
-        >
-          {cell.rank ?? "20+"}
-        </div>
-      ))}
-    </div>
-  );
+  return address;
 }
 
-function money(n: number | null): string {
-  if (n == null) return "—";
-  return `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })} / yr`;
+function mapCellsFromGrid(grid: ProspectAuditKeywordGrid | null): GridCell[] {
+  if (!grid?.cells?.length) return [];
+  return grid.cells
+    .filter((c) => typeof c.lat === "number" && typeof c.lng === "number")
+    .map((c) => ({
+      label: c.label,
+      lat: c.lat as number,
+      lng: c.lng as number,
+      rank: c.rank,
+      notInResults: c.rank == null,
+    }));
 }
 
 function keywordsFromReport(report: ProspectAuditReport | null): [string, string, string] {
@@ -693,32 +684,33 @@ export function ProspectAuditDashboard({
             <div className={cn(mock.card, "flex items-center gap-3 p-4")}>
               <ScoreRing score={report.metrics.seoScore} />
               <div>
-                <p className={mock.label}>SEO Optimization Score</p>
+                <p className={mock.label}>Optimization Score</p>
                 <p className="mt-1 text-sm text-[#667085]">Overall local SEO health</p>
               </div>
             </div>
             <div className={cn(mock.cardPad, "space-y-1")}>
-              <p className={mock.label}>Missed Revenue Opportunities</p>
+              <p className={mock.label}>Estimated Value / Month</p>
               <p className="text-[26px] font-bold tracking-tight text-[#027A48]">
-                {money(report.metrics.missedRevenueYear)}
+                {moneyMonth(report.metrics.missedRevenueYear)}
               </p>
-              <p className="text-xs text-[#667085]">Estimated annual impact of gaps</p>
+              <p className="text-xs text-[#667085]">Impact of ranking &amp; profile gaps</p>
             </div>
             <div className={cn(mock.cardPad, "space-y-1")}>
-              <p className={mock.label}>Trust Indicators</p>
-              <p className="text-[26px] font-bold tracking-tight text-[#101828]">
-                {report.metrics.trustIndicators != null
-                  ? String(report.metrics.trustIndicators).padStart(2, "0")
+              <p className={mock.label}>Ads Monthly</p>
+              <p className="text-[26px] font-bold tracking-tight text-[#1570EF]">
+                {report.metrics.directoriesFound != null
+                  ? report.metrics.directoriesFound.toLocaleString()
                   : "—"}
               </p>
-              <p className="text-xs font-medium text-[#B54708]">{report.metrics.trustLabel}</p>
+              <p className="text-xs text-[#667085]">Estimated local search demand</p>
             </div>
             <div className={cn(mock.cardPad, "space-y-1")}>
-              <p className={mock.label}>Visibility</p>
-              <p className="text-[18px] font-bold leading-snug text-[#5925DC]">
-                {report.metrics.directoriesFound != null
-                  ? `Found on ${report.metrics.directoriesFound.toLocaleString()} directories`
-                  : "Run audit to estimate"}
+              <p className={mock.label}>Keyword</p>
+              <p className="text-[16px] font-bold leading-snug text-[#6927DA]">
+                {activeGrid?.keyword ?? report.scanInfo.keywords[0] ?? "—"}
+              </p>
+              <p className="text-xs font-medium text-[#667085]">
+                {cityFromAddress(b.address) ?? "—"}
               </p>
             </div>
           </div>
@@ -769,118 +761,62 @@ export function ProspectAuditDashboard({
               </div>
             </div>
             <div className={cn(mock.cardPad)}>
-              <p className="text-[14px] font-bold text-[#101828]">Audit Summary</p>
+              <p className="text-[14px] font-bold text-[#101828]">Audit Results</p>
               <p className="mt-2 text-sm leading-relaxed text-[#475467]">{report.summary}</p>
             </div>
           </div>
 
           <div>
-            <h2 className="mb-3 text-[15px] font-bold text-[#101828]">Audit details</h2>
+            <h2 className="mb-3 text-[15px] font-bold text-[#101828]">Audit checklist</h2>
             <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
               {report.factors.map((f) => (
-                <div key={f.id} className={cn(mock.card, "flex items-start gap-2.5 p-3.5")}>
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#F9FAFB]">
+                <div key={f.id} className={cn(mock.card, "flex items-center gap-3 p-3.5")}>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F9FAFB]">
                     <FactorIcon status={f.status} />
                   </span>
                   <div className="min-w-0">
                     <p className="text-[13px] font-semibold text-[#101828]">{f.title}</p>
-                    <span className={cn(factorBadge(f.status), "mt-1")}>{f.statusLabel}</span>
+                    <p className="mt-0.5 text-[11px] text-[#667085]">{f.statusLabel}</p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className={cn(mock.card, "overflow-hidden")}>
-            <div className="border-b border-[#F2F4F7] px-4 py-3">
-              <h2 className="text-[14px] font-bold text-[#101828]">Top Competitors</h2>
-              <p className="mt-0.5 text-[12px] text-[#667085]">
-                From Maps / DataForSEO listings on this audit
-              </p>
-            </div>
-            {!report.competitors.length ? (
-              <p className="px-4 py-6 text-sm text-[#667085]">
-                Competitors appear after a Maps grid finishes.
-              </p>
-            ) : (
-              <ul className="divide-y divide-[#F2F4F7]">
-                {report.competitors.map((c, i) => (
-                  <li key={`${c.placeId ?? c.cid ?? c.name}-${i}`} className="px-4 py-3">
-                      <div className="flex items-start gap-3">
-                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-[#F2F4F7] ring-1 ring-[#E6EAF0]">
-                          {c.mainImage ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={c.mainImage}
-                              alt=""
-                              className="h-full w-full object-cover"
-                              loading="lazy"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <span className="flex h-full w-full items-center justify-center text-[11px] font-bold text-[#98A2B3]">
-                              {c.name.slice(0, 1).toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="truncate text-[13px] font-semibold text-[#101828]">
-                                {c.name}
-                              </p>
-                              {c.category ? (
-                                <p className="truncate text-[11px] text-[#667085]">{c.category}</p>
-                              ) : null}
-                            </div>
-                            <span className="shrink-0 text-[15px] font-bold text-[#137752]">
-                              {c.score}
-                            </span>
-                          </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[#475467]">
-                            {c.rating != null ? (
-                              <span className="inline-flex items-center gap-0.5 font-semibold text-[#101828]">
-                                <Star className="h-3 w-3 fill-[#FDB022] text-[#FDB022]" />
-                                {c.rating.toFixed(1)}
-                                {c.reviewCount != null ? (
-                                  <span className="font-medium text-[#667085]">
-                                    ({c.reviewCount})
-                                  </span>
-                                ) : null}
-                              </span>
-                            ) : null}
-                            {c.avgRank != null ? <span>Avg rank {c.avgRank.toFixed(1)}</span> : null}
-                          </div>
-                          {c.address ? (
-                            <p className="mt-0.5 truncate text-[11px] text-[#667085]">{c.address}</p>
-                          ) : null}
-                          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px]">
-                            {c.website ? (
-                              <a
-                                href={
-                                  c.website.startsWith("http") ? c.website : `https://${c.website}`
-                                }
-                                target="_blank"
-                                rel="noreferrer"
-                                className="font-medium text-[#137752] hover:underline"
-                              >
-                                {(c.domain ?? c.website).replace(/^https?:\/\//, "")}
-                              </a>
-                            ) : null}
-                            {c.phone ? <span className="text-[#475467]">{c.phone}</span> : null}
-                            {c.mapsUrl ? (
-                              <a
-                                href={c.mapsUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="font-medium text-[#137752] hover:underline"
-                              >
-                                Maps
-                              </a>
-                            ) : null}
-                          </div>
-                        </div>
+          <div className="grid gap-3 lg:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)]">
+            <div className={cn(mock.card, "overflow-hidden")}>
+              <div className="border-b border-[#F2F4F7] px-4 py-3">
+                <h2 className="text-[14px] font-bold text-[#101828]">Top Competitors</h2>
+                <p className="mt-0.5 text-[12px] text-[#667085]">
+                  From Maps listings on this audit
+                </p>
+              </div>
+              {!report.competitors.length ? (
+                <p className="px-4 py-6 text-sm text-[#667085]">
+                  Competitors appear after a Maps grid finishes.
+                </p>
+              ) : (
+                <ul className="divide-y divide-[#F2F4F7]">
+                  {report.competitors.slice(0, 5).map((c, i) => (
+                    <li
+                      key={`${c.placeId ?? c.cid ?? c.name}-${i}`}
+                      className="flex items-center justify-between gap-3 px-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-[13px] font-semibold text-[#101828]">
+                          {c.name}
+                        </p>
+                        {c.avgRank != null ? (
+                          <p className="mt-0.5 text-[11px] text-[#667085]">
+                            Avg rank {c.avgRank.toFixed(1)}
+                          </p>
+                        ) : c.category ? (
+                          <p className="mt-0.5 truncate text-[11px] text-[#667085]">{c.category}</p>
+                        ) : null}
                       </div>
+                      <span className="shrink-0 text-[16px] font-bold text-[#137752]">
+                        {c.score}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -890,9 +826,9 @@ export function ProspectAuditDashboard({
             <div className={cn(mock.card, "overflow-hidden")}>
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#F2F4F7] px-4 py-3">
                 <div>
-                  <h2 className="text-[14px] font-bold text-[#101828]">Map &amp; ranking heatmap</h2>
+                  <h2 className="text-[14px] font-bold text-[#101828]">Local Map View</h2>
                   <p className="mt-0.5 text-[12px] text-[#667085]">
-                    Switch keywords to compare visibility around this prospect
+                    Ranking heatmap overlaid on the map
                   </p>
                 </div>
                 {grids.length > 1 ? (
@@ -937,73 +873,60 @@ export function ProspectAuditDashboard({
                   </div>
                 ) : null}
               </div>
-              <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-                <div className="min-w-0">
-                  {b.lat != null && b.lng != null ? (
-                    <div className="overflow-hidden rounded-xl ring-1 ring-[#E6EAF0]">
-                      <ScanMap
-                        officeCenter={[b.lat, b.lng]}
-                        cells={[]}
-                        businessName={b.name}
-                        height="320px"
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex h-[320px] items-center justify-center rounded-xl bg-[#F2F4F7] text-sm text-[#667085]">
-                      Set a scan center on this prospect to show the map.
-                    </div>
-                  )}
-                </div>
-                <div className="flex min-w-0 flex-col gap-3">
-                  <HeatmapGrid
-                    grid={
-                      activeGrid ?? {
-                        keyword: "—",
-                        scanId: null,
-                        averageRank: null,
-                        visibilityScore: null,
-                        gridSize: 7,
-                        cells: [],
-                        status: "missing",
-                      }
-                    }
-                  />
-                  <div className="space-y-1.5 rounded-xl bg-[#F9FAFB] px-3 py-2.5 text-[12px]">
-                    <p className="font-semibold text-[#101828]">Rank status</p>
-                    <p className="text-[#667085]">
+              <div className="space-y-3 p-4">
+                {b.lat != null && b.lng != null ? (
+                  <div className="overflow-hidden rounded-xl ring-1 ring-[#E6EAF0]">
+                    <ScanMap
+                      officeCenter={[b.lat, b.lng]}
+                      cells={mapCellsFromGrid(activeGrid)}
+                      businessName={b.name}
+                      height="380px"
+                      gridSize={activeGrid?.gridSize ?? 7}
+                      radiusMeters={DEFAULT_RADIUS_METERS}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex h-[380px] items-center justify-center rounded-xl bg-[#F2F4F7] text-sm text-[#667085]">
+                    Set a scan center on this prospect to show the map.
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F9FAFB] px-3 py-2.5 text-[12px]">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[#667085]">
+                    <span>
                       Keyword:{" "}
                       <span className="font-semibold text-[#101828]">
                         {activeGrid?.keyword ?? "—"}
                       </span>
-                    </p>
-                    <p className="text-[#667085]">
-                      Average rank:{" "}
+                    </span>
+                    <span>
+                      Avg rank:{" "}
                       <span className="font-semibold text-[#101828]">
                         {activeGrid?.averageRank != null
                           ? activeGrid.averageRank.toFixed(1)
                           : "—"}
                       </span>
-                    </p>
+                    </span>
                     {activeGrid?.visibilityScore != null ? (
-                      <p className="text-[#667085]">
+                      <span>
                         Visibility:{" "}
                         <span className="font-semibold text-[#101828]">
                           {Math.round(activeGrid.visibilityScore)}%
                         </span>
-                      </p>
-                    ) : null}
-                    {activeGrid?.scanId ? (
-                      <Link
-                        href={`/businesses/${businessId}/grid/${activeGrid.scanId}`}
-                        className={cn(mock.link, "inline-block pt-1")}
-                      >
-                        Open full grid
-                      </Link>
+                      </span>
                     ) : null}
                   </div>
+                  {activeGrid?.scanId ? (
+                    <Link
+                      href={`/businesses/${businessId}/grid/${activeGrid.scanId}`}
+                      className={mock.link}
+                    >
+                      Open full grid
+                    </Link>
+                  ) : null}
                 </div>
               </div>
             </div>
+          </div>
         </div>
 
         <aside className="space-y-4">

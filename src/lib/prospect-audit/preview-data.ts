@@ -15,6 +15,8 @@ function makeGrid(size: number, seed: number) {
         rank,
         color: rankHex(rank),
         textColor: rankTextColor(rankHex(rank)),
+        lat: 41.8925 + (row - (size - 1) / 2) * 0.008,
+        lng: -87.6244 + (col - (size - 1) / 2) * 0.01,
       });
     }
   }
@@ -49,18 +51,15 @@ export const prospectAuditPreviewReport: ProspectAuditReport = {
   summary:
     "Plaza Dental has a strong review footprint, but Maps visibility and GBP optimization gaps are leaving significant local demand to competitors. Critical issues include keyword coverage, page speed, and inconsistent NAP signals across the web.",
   factors: [
-    { id: "1", title: "Keyword Density", status: "needs_attention", statusLabel: "Needs attention", detail: null },
-    { id: "2", title: "GMB Optimization", status: "needs_attention", statusLabel: "Needs attention", detail: null },
-    { id: "3", title: "Backlink Profile", status: "good", statusLabel: "Good", detail: null },
-    { id: "4", title: "Mobile Friendly", status: "needs_attention", statusLabel: "Needs attention", detail: null },
-    { id: "5", title: "Page Speed", status: "needs_attention", statusLabel: "Needs attention", detail: null },
-    { id: "6", title: "Meta Descriptions", status: "needs_attention", statusLabel: "Needs attention", detail: null },
-    { id: "7", title: "Schema Markup", status: "manual_check", statusLabel: "Manual check", detail: null },
-    { id: "8", title: "Image Alt Tags", status: "manual_check", statusLabel: "Manual check", detail: null },
-    { id: "9", title: "Social Presence", status: "good", statusLabel: "Good", detail: null },
-    { id: "10", title: "Security (SSL)", status: "good", statusLabel: "Good", detail: null },
-    { id: "11", title: "NAP Consistency", status: "needs_attention", statusLabel: "Needs attention", detail: null },
-    { id: "12", title: "Local Citations", status: "needs_attention", statusLabel: "Needs attention", detail: null },
+    { id: "nap-name", title: "Business Name", status: "good", statusLabel: "Good", detail: "Plaza Dental" },
+    { id: "nap-phone", title: "Phone Number", status: "good", statusLabel: "Good", detail: "(312) 555-0142" },
+    { id: "primary-category", title: "Google Category", status: "needs_attention", statusLabel: "Needs attention", detail: null },
+    { id: "photos", title: "GMB Photos", status: "needs_attention", statusLabel: "Needs attention", detail: "4" },
+    { id: "reviews", title: "Google Review Count", status: "good", statusLabel: "Good", detail: "372" },
+    { id: "description", title: "GMB Description", status: "needs_attention", statusLabel: "Needs attention", detail: null },
+    { id: "hours", title: "Business Hours", status: "good", statusLabel: "Good", detail: null },
+    { id: "posts", title: "GMB Posts", status: "needs_attention", statusLabel: "Needs attention", detail: "0" },
+    { id: "nap", title: "NAP Consistency", status: "needs_attention", statusLabel: "Needs attention", detail: null },
   ],
   competitors: [
     {
