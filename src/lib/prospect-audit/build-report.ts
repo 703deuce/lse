@@ -55,9 +55,21 @@ const DEFAULT_GBP_FACTOR_TITLES = [
   "NAP Consistency",
 ] as const;
 
+/** Prefer mockup order so Reviews is never dropped by a blind slice(0, 8). */
+const PREFERRED_GBP_CHECK_IDS = [
+  "nap-name",
+  "nap-phone",
+  "primary-category",
+  "photos",
+  "reviews",
+  "description",
+  "hours",
+  "posts",
+] as const;
+
 function titleFromGbpCheck(label: string, id: string): string {
   const key = `${id} ${label}`.toLowerCase();
-  if (/name/.test(key)) return "Business Name";
+  if (/name/.test(key) && !/description/.test(key)) return "Business Name";
   if (/phone/.test(key)) return "Phone Number";
   if (/categor/.test(key)) return "Google Category";
   if (/photo/.test(key)) return "GMB Photos";
@@ -70,12 +82,34 @@ function titleFromGbpCheck(label: string, id: string): string {
   return label.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function pickGbpChecks(
+  checks: Array<{
+    id: string;
+    label: string;
+    status: string;
+    gbpValue?: string;
+    evidence?: string;
+  }>
+) {
+  const byId = new Map(checks.map((c) => [c.id, c]));
+  const picked: typeof checks = [];
+  for (const id of PREFERRED_GBP_CHECK_IDS) {
+    const hit = byId.get(id);
+    if (hit) picked.push(hit);
+  }
+  for (const c of checks) {
+    if (picked.length >= 8) break;
+    if (!picked.some((p) => p.id === c.id)) picked.push(c);
+  }
+  return picked.slice(0, 8);
+}
+
 function buildFactors(sections: GrowthAuditSections | null): ProspectAuditFactor[] {
   const gbpChecks = sections?.gbp?.checks ?? [];
   if (gbpChecks.length > 0) {
-    const fromGbp = gbpChecks.slice(0, 8).map((c) => {
-      const good =
-        c.status === "match" ? true : c.status === "partial" ? null : false;
+    const fromGbp = pickGbpChecks(gbpChecks).map((c) => {
+      // Sales checklist is binary: match = check, anything else = X
+      const good = c.status === "match";
       const { status, statusLabel } = factorStatus(null, good);
       return {
         id: c.id,
@@ -111,59 +145,14 @@ function buildFactors(sections: GrowthAuditSections | null): ProspectAuditFactor
     return fromGbp.slice(0, 9);
   }
 
-  if (!sections) {
-    return DEFAULT_GBP_FACTOR_TITLES.map((title, i) => ({
-      id: `pending-${i}`,
-      title,
-      status: "unknown" as const,
-      statusLabel: "Not checked",
-      detail: null,
-    }));
-  }
-
-  const website = sections.website;
-  const rows: Array<{
-    id: string;
-    title: string;
-    score?: number | null;
-    good?: boolean | null;
-    detail?: string | null;
-  }> = [
-    {
-      id: "gmb",
-      title: "GMB Optimization",
-      score: sections.gbp?.score,
-      good: checkRatio(sections.gbp?.checks),
-      detail: sections.gbp ? `GBP score ${sections.gbp.score}` : null,
-    },
-    {
-      id: "nap",
-      title: "NAP Consistency",
-      score: website?.score,
-      good: checkRatio(website?.checks),
-      detail: website ? `Website match ${website.score}` : null,
-    },
-    {
-      id: "citations",
-      title: "Local Citations",
-      score: sections.localCoverage?.score,
-      good: (sections.localCoverage?.score ?? 0) >= 60,
-      detail: sections.localCoverage
-        ? `${sections.localCoverage.opportunities?.length ?? 0} local opportunities`
-        : null,
-    },
-  ];
-
-  return rows.map((r) => {
-    const { status, statusLabel } = factorStatus(r.score, r.good ?? null);
-    return {
-      id: r.id,
-      title: r.title,
-      status,
-      statusLabel,
-      detail: r.detail ?? null,
-    };
-  });
+  // No GBP checks yet — keep the sales checklist shape (empty/unknown), not SEO factors
+  return DEFAULT_GBP_FACTOR_TITLES.map((title, i) => ({
+    id: `pending-${i}`,
+    title,
+    status: "unknown" as const,
+    statusLabel: "Not checked",
+    detail: null,
+  }));
 }
 
 function estimateMissedRevenue(params: {

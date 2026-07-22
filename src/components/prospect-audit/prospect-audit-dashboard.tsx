@@ -110,7 +110,13 @@ function cityFromAddress(address: string | null | undefined): string | null {
 function mapCellsFromGrid(grid: ProspectAuditKeywordGrid | null): GridCell[] {
   if (!grid?.cells?.length) return [];
   return grid.cells
-    .filter((c) => typeof c.lat === "number" && typeof c.lng === "number")
+    .filter(
+      (c) =>
+        typeof c.lat === "number" &&
+        typeof c.lng === "number" &&
+        Number.isFinite(c.lat) &&
+        Number.isFinite(c.lng)
+    )
     .map((c) => ({
       label: c.label,
       lat: c.lat as number,
@@ -118,6 +124,36 @@ function mapCellsFromGrid(grid: ProspectAuditKeywordGrid | null): GridCell[] {
       rank: c.rank,
       notInResults: c.rank == null,
     }));
+}
+
+/** Compact circle grid — only used if geo pins are missing (legacy/partial scans). */
+function HeatmapGridFallback({ grid }: { grid: ProspectAuditKeywordGrid }) {
+  if (!grid.cells.length) {
+    return (
+      <div className="flex min-h-[160px] items-center justify-center rounded-xl border border-dashed border-[#E6EAF0] bg-[#F9FAFB] text-sm text-[#667085]">
+        {grid.status === "running"
+          ? "Grid scan running…"
+          : "No Maps grid for this keyword yet"}
+      </div>
+    );
+  }
+  return (
+    <div
+      className="mx-auto grid w-full max-w-[320px] gap-1"
+      style={{ gridTemplateColumns: `repeat(${grid.gridSize}, minmax(0, 1fr))` }}
+    >
+      {grid.cells.map((cell) => (
+        <div
+          key={`${cell.row}-${cell.col}`}
+          className="flex aspect-square items-center justify-center rounded-full text-[10px] font-bold shadow-sm"
+          style={{ backgroundColor: cell.color, color: cell.textColor }}
+          title={`${cell.label}: ${cell.rank ?? "20+"}`}
+        >
+          {cell.rank ?? "20+"}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function keywordsFromReport(report: ProspectAuditReport | null): [string, string, string] {
@@ -253,6 +289,7 @@ export function ProspectAuditDashboard({
     setError(null);
     setShareMsg(null);
     setForceSetup(false);
+    markedReadyRef.current = false;
     try {
       // One server call queues Maps grids + Growth Audit + AI Visibility.
       // Jobs keep running after you leave — no browser required.
@@ -874,22 +911,38 @@ export function ProspectAuditDashboard({
                 ) : null}
               </div>
               <div className="space-y-3 p-4">
-                {b.lat != null && b.lng != null ? (
-                  <div className="overflow-hidden rounded-xl ring-1 ring-[#E6EAF0]">
-                    <ScanMap
-                      officeCenter={[b.lat, b.lng]}
-                      cells={mapCellsFromGrid(activeGrid)}
-                      businessName={b.name}
-                      height="380px"
-                      gridSize={activeGrid?.gridSize ?? 7}
-                      radiusMeters={DEFAULT_RADIUS_METERS}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex h-[380px] items-center justify-center rounded-xl bg-[#F2F4F7] text-sm text-[#667085]">
-                    Set a scan center on this prospect to show the map.
-                  </div>
-                )}
+                {(() => {
+                  const mapCells = mapCellsFromGrid(activeGrid);
+                  const hasGeoPins = mapCells.length > 0;
+                  return (
+                    <>
+                      {b.lat != null && b.lng != null ? (
+                        <div className="overflow-hidden rounded-xl ring-1 ring-[#E6EAF0]">
+                          <ScanMap
+                            officeCenter={[b.lat, b.lng]}
+                            cells={mapCells}
+                            businessName={b.name}
+                            height="380px"
+                            gridSize={activeGrid?.gridSize ?? 7}
+                            radiusMeters={DEFAULT_RADIUS_METERS}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex h-[380px] items-center justify-center rounded-xl bg-[#F2F4F7] text-sm text-[#667085]">
+                          Set a scan center on this prospect to show the map.
+                        </div>
+                      )}
+                      {!hasGeoPins && activeGrid && activeGrid.cells.length > 0 ? (
+                        <div className="rounded-xl bg-[#F9FAFB] p-3">
+                          <p className="mb-2 text-[11px] font-medium text-[#667085]">
+                            Rank grid (map pins unavailable for this scan)
+                          </p>
+                          <HeatmapGridFallback grid={activeGrid} />
+                        </div>
+                      ) : null}
+                    </>
+                  );
+                })()}
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F9FAFB] px-3 py-2.5 text-[12px]">
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-[#667085]">
                     <span>
