@@ -21,6 +21,7 @@ import {
 import { mock } from "@/components/mockup/ui";
 import { cn } from "@/lib/utils";
 import type {
+  ProspectAuditCompetitor,
   ProspectAuditFactor,
   ProspectAuditKeywordGrid,
   ProspectAuditReport,
@@ -28,6 +29,7 @@ import type {
 import { ScanMap, type GridCell } from "@/components/maps/scan-map";
 import { DEFAULT_RADIUS_METERS } from "@/lib/maps/grid-metrics";
 import { updateBusinessSettings } from "@/lib/actions/mutations";
+import { GridStarRating } from "@/components/scan/grid-rank-ui";
 
 const INCLUDED_ITEMS = [
   "Google Maps visibility",
@@ -167,6 +169,89 @@ function hasUsableScanCenter(b: {
     Number.isFinite(b.lat) &&
     Number.isFinite(b.lng) &&
     !(b.lat === 0 && b.lng === 0)
+  );
+}
+
+function competitorRankRing(rank: number | null): string {
+  if (rank == null) return "#98A2B3";
+  if (rank <= 3) return "#0B7A29";
+  if (rank <= 10) return "#D8BD31";
+  if (rank <= 20) return "#E86520";
+  return "#98A2B3";
+}
+
+function CompetitorListRow({
+  competitor: c,
+  index,
+}: {
+  competitor: ProspectAuditCompetitor;
+  index: number;
+}) {
+  const displayRank =
+    c.avgRank != null && Number.isFinite(c.avgRank) ? Math.max(1, Math.round(c.avgRank)) : index + 1;
+  const ring = competitorRankRing(c.avgRank);
+  return (
+    <li className="flex items-start gap-2.5 px-3 py-2.5 hover:bg-[#F9FAFB]">
+      <div
+        className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[#F2F4F7]"
+        style={{ boxShadow: `0 0 0 2.5px ${ring}` }}
+        title={c.avgRank != null ? `Avg rank ${c.avgRank.toFixed(1)}` : `Competitor ${index + 1}`}
+      >
+        {c.mainImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={c.mainImage}
+            alt=""
+            className="h-full w-full object-cover"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center text-[12px] font-bold text-[#98A2B3]">
+            {c.name.slice(0, 1).toUpperCase()}
+          </span>
+        )}
+        <span
+          className="absolute -bottom-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white shadow-sm"
+          style={{ backgroundColor: ring }}
+        >
+          {displayRank}
+        </span>
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-semibold leading-snug text-[#101828]">
+              {c.name}
+            </p>
+            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-[#667085]">
+              <GridStarRating rating={c.rating} reviewCount={c.reviewCount} />
+              {c.category ? <span className="truncate">· {c.category}</span> : null}
+            </div>
+            {c.avgRank != null ? (
+              <p className="mt-0.5 text-[11px] text-[#667085]">
+                Avg rank{" "}
+                <span className="font-semibold tabular-nums text-[#101828]">
+                  {c.avgRank.toFixed(1)}
+                </span>
+                {c.appearances > 0 ? (
+                  <span>
+                    {" "}
+                    · {c.appearances} cell{c.appearances === 1 ? "" : "s"}
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
+            {c.address ? (
+              <p className="mt-0.5 truncate text-[11px] text-[#98A2B3]">{c.address}</p>
+            ) : null}
+          </div>
+          <span className="shrink-0 text-[15px] font-bold tabular-nums text-[#137752]">
+            {c.score}
+          </span>
+        </div>
+      </div>
+    </li>
   );
 }
 
@@ -980,167 +1065,6 @@ export function ProspectAuditDashboard({
               ))}
             </div>
           </div>
-
-          <div className="grid gap-3 lg:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)]">
-            <div className={cn(mock.card, "overflow-hidden")}>
-              <div className="border-b border-[#F2F4F7] px-4 py-3">
-                <h2 className="text-[14px] font-bold text-[#101828]">Top Competitors</h2>
-                <p className="mt-0.5 text-[12px] text-[#667085]">
-                  From Maps listings on this audit
-                </p>
-              </div>
-              {!report.competitors.length ? (
-                <p className="px-4 py-6 text-sm text-[#667085]">
-                  Competitors appear after a Maps grid finishes.
-                </p>
-              ) : (
-                <ul className="divide-y divide-[#F2F4F7]">
-                  {report.competitors.slice(0, 5).map((c, i) => (
-                    <li
-                      key={`${c.placeId ?? c.cid ?? c.name}-${i}`}
-                      className="flex items-center justify-between gap-3 px-4 py-3"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-[13px] font-semibold text-[#101828]">
-                          {c.name}
-                        </p>
-                        {c.avgRank != null ? (
-                          <p className="mt-0.5 text-[11px] text-[#667085]">
-                            Avg rank {c.avgRank.toFixed(1)}
-                          </p>
-                        ) : c.category ? (
-                          <p className="mt-0.5 truncate text-[11px] text-[#667085]">{c.category}</p>
-                        ) : null}
-                      </div>
-                      <span className="shrink-0 text-[16px] font-bold text-[#137752]">
-                        {c.score}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <div className={cn(mock.card, "overflow-hidden")}>
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#F2F4F7] px-4 py-3">
-                <div>
-                  <h2 className="text-[14px] font-bold text-[#101828]">Local Map View</h2>
-                  <p className="mt-0.5 text-[12px] text-[#667085]">
-                    Ranking heatmap overlaid on the map
-                  </p>
-                </div>
-                {grids.length > 1 ? (
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      className="rounded-md p-1 hover:bg-[#F2F4F7] disabled:opacity-40"
-                      disabled={safeIdx <= 0}
-                      onClick={() => setActiveKeywordIdx((i) => Math.max(0, i - 1))}
-                      aria-label="Previous keyword"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <div className="flex flex-wrap gap-1">
-                      {grids.map((g, i) => (
-                        <button
-                          key={g.keyword + i}
-                          type="button"
-                          onClick={() => setActiveKeywordIdx(i)}
-                          className={cn(
-                            "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                            i === safeIdx
-                              ? "bg-[#137752] text-white"
-                              : "bg-[#F2F4F7] text-[#475467]"
-                          )}
-                        >
-                          {g.keyword.length > 20 ? `${g.keyword.slice(0, 18)}…` : g.keyword}
-                        </button>
-                      ))}
-                    </div>
-                    <button
-                      type="button"
-                      className="rounded-md p-1 hover:bg-[#F2F4F7] disabled:opacity-40"
-                      disabled={safeIdx >= grids.length - 1}
-                      onClick={() =>
-                        setActiveKeywordIdx((i) => Math.min(grids.length - 1, i + 1))
-                      }
-                      aria-label="Next keyword"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-              <div className="space-y-3 p-4">
-                {(() => {
-                  const mapCells = mapCellsFromGrid(activeGrid);
-                  const hasGeoPins = mapCells.length > 0;
-                  return (
-                    <>
-                      {b.lat != null && b.lng != null ? (
-                        <div className="overflow-hidden rounded-xl ring-1 ring-[#E6EAF0]">
-                          <ScanMap
-                            officeCenter={[b.lat, b.lng]}
-                            cells={mapCells}
-                            businessName={b.name}
-                            height="380px"
-                            gridSize={activeGrid?.gridSize ?? 7}
-                            radiusMeters={DEFAULT_RADIUS_METERS}
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex h-[380px] items-center justify-center rounded-xl bg-[#F2F4F7] text-sm text-[#667085]">
-                          Set a scan center on this prospect to show the map.
-                        </div>
-                      )}
-                      {!hasGeoPins && activeGrid && activeGrid.cells.length > 0 ? (
-                        <div className="rounded-xl bg-[#F9FAFB] p-3">
-                          <p className="mb-2 text-[11px] font-medium text-[#667085]">
-                            Rank grid (map pins unavailable for this scan)
-                          </p>
-                          <HeatmapGridFallback grid={activeGrid} />
-                        </div>
-                      ) : null}
-                    </>
-                  );
-                })()}
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F9FAFB] px-3 py-2.5 text-[12px]">
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[#667085]">
-                    <span>
-                      Keyword:{" "}
-                      <span className="font-semibold text-[#101828]">
-                        {activeGrid?.keyword ?? "—"}
-                      </span>
-                    </span>
-                    <span>
-                      Avg rank:{" "}
-                      <span className="font-semibold text-[#101828]">
-                        {activeGrid?.averageRank != null
-                          ? activeGrid.averageRank.toFixed(1)
-                          : "—"}
-                      </span>
-                    </span>
-                    {activeGrid?.visibilityScore != null ? (
-                      <span>
-                        Visibility:{" "}
-                        <span className="font-semibold text-[#101828]">
-                          {Math.round(activeGrid.visibilityScore)}%
-                        </span>
-                      </span>
-                    ) : null}
-                  </div>
-                  {activeGrid?.scanId ? (
-                    <Link
-                      href={`/businesses/${businessId}/grid/${activeGrid.scanId}`}
-                      className={mock.link}
-                    >
-                      Open full grid
-                    </Link>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         <aside className="space-y-4">
@@ -1216,6 +1140,153 @@ export function ProspectAuditDashboard({
             ) : null}
           </div>
         </aside>
+      </div>
+
+      {/* Full-width: competitors 1/3 · map 2/3 — avoids empty third column beside a narrow map */}
+      <div className="grid gap-3 lg:grid-cols-3">
+            <div className={cn(mock.card, "overflow-hidden lg:col-span-1")}>
+              <div className="border-b border-[#F2F4F7] px-4 py-3">
+                <h2 className="text-[14px] font-bold text-[#101828]">Top Competitors</h2>
+                <p className="mt-0.5 text-[12px] text-[#667085]">
+                  From Maps listings on this audit
+                </p>
+              </div>
+              {!report.competitors.length ? (
+                <p className="px-4 py-6 text-sm text-[#667085]">
+                  Competitors appear after a Maps grid finishes.
+                </p>
+              ) : (
+                <ul className="divide-y divide-[#F2F4F7]">
+                  {report.competitors.slice(0, 5).map((c, i) => (
+                    <CompetitorListRow
+                      key={`${c.placeId ?? c.cid ?? c.name}-${i}`}
+                      competitor={c}
+                      index={i}
+                    />
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className={cn(mock.card, "overflow-hidden lg:col-span-2")}>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#F2F4F7] px-4 py-3">
+                <div>
+                  <h2 className="text-[14px] font-bold text-[#101828]">Local Map View</h2>
+                  <p className="mt-0.5 text-[12px] text-[#667085]">
+                    Ranking heatmap overlaid on the map
+                  </p>
+                </div>
+                {grids.length > 1 ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      className="rounded-md p-1 hover:bg-[#F2F4F7] disabled:opacity-40"
+                      disabled={safeIdx <= 0}
+                      onClick={() => setActiveKeywordIdx((i) => Math.max(0, i - 1))}
+                      aria-label="Previous keyword"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <div className="flex flex-wrap gap-1">
+                      {grids.map((g, i) => (
+                        <button
+                          key={g.keyword + i}
+                          type="button"
+                          onClick={() => setActiveKeywordIdx(i)}
+                          className={cn(
+                            "rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                            i === safeIdx
+                              ? "bg-[#137752] text-white"
+                              : "bg-[#F2F4F7] text-[#475467]"
+                          )}
+                        >
+                          {g.keyword.length > 20 ? `${g.keyword.slice(0, 18)}…` : g.keyword}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-md p-1 hover:bg-[#F2F4F7] disabled:opacity-40"
+                      disabled={safeIdx >= grids.length - 1}
+                      onClick={() =>
+                        setActiveKeywordIdx((i) => Math.min(grids.length - 1, i + 1))
+                      }
+                      aria-label="Next keyword"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+              <div className="space-y-3 p-4">
+                {(() => {
+                  const mapCells = mapCellsFromGrid(activeGrid);
+                  const hasGeoPins = mapCells.length > 0;
+                  return (
+                    <>
+                      {b.lat != null && b.lng != null ? (
+                        <div className="overflow-hidden rounded-xl ring-1 ring-[#E6EAF0]">
+                          <ScanMap
+                            officeCenter={[b.lat, b.lng]}
+                            cells={mapCells}
+                            businessName={b.name}
+                            height="min(52vh, 520px)"
+                            gridSize={activeGrid?.gridSize ?? 7}
+                            radiusMeters={DEFAULT_RADIUS_METERS}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex h-[min(52vh,520px)] min-h-[320px] items-center justify-center rounded-xl bg-[#F2F4F7] text-sm text-[#667085]">
+                          Set a scan center on this prospect to show the map.
+                        </div>
+                      )}
+                      {!hasGeoPins && activeGrid && activeGrid.cells.length > 0 ? (
+                        <div className="rounded-xl bg-[#F9FAFB] p-3">
+                          <p className="mb-2 text-[11px] font-medium text-[#667085]">
+                            Rank grid (map pins unavailable for this scan)
+                          </p>
+                          <HeatmapGridFallback grid={activeGrid} />
+                        </div>
+                      ) : null}
+                    </>
+                  );
+                })()}
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F9FAFB] px-3 py-2.5 text-[12px]">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[#667085]">
+                    <span>
+                      Keyword:{" "}
+                      <span className="font-semibold text-[#101828]">
+                        {activeGrid?.keyword ?? "—"}
+                      </span>
+                    </span>
+                    <span>
+                      Avg rank:{" "}
+                      <span className="font-semibold text-[#101828]">
+                        {activeGrid?.averageRank != null
+                          ? activeGrid.averageRank.toFixed(1)
+                          : "—"}
+                      </span>
+                    </span>
+                    {activeGrid?.visibilityScore != null ? (
+                      <span>
+                        Visibility:{" "}
+                        <span className="font-semibold text-[#101828]">
+                          {Math.round(activeGrid.visibilityScore)}%
+                        </span>
+                      </span>
+                    ) : null}
+                  </div>
+                  {activeGrid?.scanId ? (
+                    <Link
+                      href={`/businesses/${businessId}/grid/${activeGrid.scanId}`}
+                      className={mock.link}
+                    >
+                      Open full grid
+                    </Link>
+                  ) : null}
+                </div>
+              </div>
+            </div>
       </div>
     </div>
   );
