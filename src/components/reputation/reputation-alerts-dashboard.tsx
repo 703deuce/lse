@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, ChevronRight, Settings } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronRight, RefreshCw, Settings } from "lucide-react";
 import {
   ModuleHeader,
   ModulePage,
@@ -117,6 +117,7 @@ export function ReputationAlertsDashboard({
   const [activeAlerts, setActiveAlerts] = useState(data.activeAlerts);
   const [resolvedAlerts, setResolvedAlerts] = useState(data.resolvedAlerts);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   async function resolveAlert(alert: ReputationAlertRow) {
     setResolvingId(alert.id);
@@ -138,6 +139,24 @@ export function ReputationAlertsDashboard({
     }
   }
 
+  async function refreshAlerts() {
+    setRefreshing(true);
+    try {
+      const res = await fetch("/api/reputation/alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId, action: "run" }),
+      });
+      const json = await res.json();
+      if (res.ok && json.data) {
+        setActiveAlerts(json.data.activeAlerts ?? []);
+        setResolvedAlerts(json.data.resolvedAlerts ?? []);
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   return (
     <ModulePage className={moduleStack}>
       <ModuleHeader
@@ -150,13 +169,24 @@ export function ReputationAlertsDashboard({
           </span>
         }
         actions={
-          <Link
-            href={`/businesses/${businessId}/reputation/overview`}
-            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-[13px] font-semibold text-zinc-700 shadow-sm hover:bg-zinc-50"
-          >
-            Overview
-            <ChevronRight className="h-3.5 w-3.5" />
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void refreshAlerts()}
+              disabled={refreshing}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-[13px] font-semibold text-zinc-700 shadow-sm hover:bg-zinc-50 disabled:opacity-60"
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
+              Refresh alerts
+            </button>
+            <Link
+              href={`/businesses/${businessId}/reputation/overview`}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-[13px] font-semibold text-zinc-700 shadow-sm hover:bg-zinc-50"
+            >
+              Overview
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
         }
       />
 

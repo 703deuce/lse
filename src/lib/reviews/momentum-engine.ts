@@ -111,6 +111,7 @@ async function syncAndLoadReviews(
     fetchedReviews: NormalizedReview[];
     entityKey: string;
     lookbackDays: number;
+    reconcileAbsent?: boolean;
   }
 ): Promise<NormalizedReview[]> {
   try {
@@ -121,6 +122,10 @@ async function syncAndLoadReviews(
       provider: params.provider,
       reviews: params.fetchedReviews,
       entityKey: params.entityKey,
+      reconcileAbsent: params.reconcileAbsent,
+      observedSourceIds: params.fetchedReviews
+        .map((review) => review.sourceReviewId)
+        .filter((id): id is string => Boolean(id)),
     });
   } catch (err) {
     console.warn("[ReviewMomentum] business_reviews upsert skipped:", err);
@@ -168,6 +173,7 @@ async function fetchMergeAndLoadLookback(
     fetchedReviews: fetch.reviews,
     entityKey: params.entityKey,
     lookbackDays: params.lookbackDays,
+    reconcileAbsent: fetch.dataIdValidated && params.knownIds.size === 0 && fetch.stoppedReason !== "incremental_sync",
   });
 
   if (fetch.incrementalNoNew && reviews.length === 0 && params.knownIds.size > 0) {
@@ -189,6 +195,7 @@ async function fetchMergeAndLoadLookback(
       fetchedReviews: fetch.reviews,
       entityKey: params.entityKey,
       lookbackDays: params.lookbackDays,
+      reconcileAbsent: fetch.dataIdValidated && fetch.stoppedReason !== "incremental_sync",
     });
   }
 

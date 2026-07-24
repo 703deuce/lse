@@ -22,12 +22,13 @@ import {
 import { cn } from "@/lib/utils";
 import type { CompetitorIntelligenceData } from "@/lib/reviews/competitor-intelligence-data";
 
-type TabId = "leaderboard" | "gap" | "strengths" | "content";
+type TabId = "leaderboard" | "gap" | "strengths" | "opportunities" | "content";
 
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: "leaderboard", label: "Leaderboard" },
   { id: "gap", label: "Review Gap" },
   { id: "strengths", label: "Strengths and Weaknesses" },
+  { id: "opportunities", label: "Opportunities" },
   { id: "content", label: "Content Comparison" },
 ];
 
@@ -87,7 +88,6 @@ export function CompetitorIntelligenceDashboard({
   data: CompetitorIntelligenceData;
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("leaderboard");
-  const topRows = data.leaderboardRows.slice(0, 8);
   const contentChart = [
     { name: "You", avgLength: data.contentComparison.you.avgLength, pctWithText: data.contentComparison.you.pctWithText },
     {
@@ -136,7 +136,7 @@ export function CompetitorIntelligenceDashboard({
                 </tr>
               </thead>
               <tbody>
-                {topRows.map((row) => (
+                {data.leaderboardRows.map((row) => (
                   <tr key={row.id} className={cn("border-b border-zinc-50", row.isYou && "bg-emerald-50/40")}>
                     <td className="px-3 py-2 font-semibold text-zinc-900">{row.isYou ? "You" : row.name}</td>
                     <td className="px-3 py-2 tabular-nums text-zinc-700">{row.totalReviews}</td>
@@ -144,7 +144,9 @@ export function CompetitorIntelligenceDashboard({
                     <td className="px-3 py-2 tabular-nums text-zinc-700">{row.reviews30} / {row.reviews60} / {row.reviews90}</td>
                     <td className="px-3 py-2 tabular-nums text-zinc-700">{fmt(row.reviewsPerMonth, 1)}</td>
                     <td className="px-3 py-2"><MomentumBadge label={row.momentumLabel} /></td>
-                    <td className="px-3 py-2 tabular-nums text-zinc-700">{row.responseRate}%</td>
+                    <td className="px-3 py-2 tabular-nums text-zinc-700">
+                      {row.responseRate}% · {row.responseSpeedDaysAvg == null ? "—" : `${row.responseSpeedDaysAvg}d`}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -166,6 +168,7 @@ export function CompetitorIntelligenceDashboard({
                     <th className="px-3 py-2">Velocity gap</th>
                     <th className="px-3 py-2">Needed</th>
                     <th className="px-3 py-2">Catch-up</th>
+                    <th className="px-3 py-2">ETA</th>
                     <th className="px-3 py-2">Trend</th>
                   </tr>
                 </thead>
@@ -176,11 +179,15 @@ export function CompetitorIntelligenceDashboard({
                       <td className="px-3 py-2 tabular-nums text-zinc-700">{row.totalGap}</td>
                       <td className="px-3 py-2 tabular-nums text-zinc-700">{row.monthlyVelocityGap}</td>
                       <td className="px-3 py-2 tabular-nums text-zinc-700">{row.neededToCatch}</td>
-                      <td className="px-3 py-2 text-zinc-700">{row.estimatedCatchUp}</td>
+                      <td className="px-3 py-2 text-zinc-700">
+                        {row.estimatedCatchUpMonths == null ? row.estimatedCatchUp : `${row.estimatedCatchUpMonths} mo`}
+                      </td>
+                      <td className="px-3 py-2 text-zinc-700">{row.estimatedCatchUpDate ?? "—"}</td>
                       <td className="px-3 py-2">
                         <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", row.gapExpanding ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700")}>
                           {row.gapExpanding ? "Expanding" : "Closing"}
                         </span>
+                        {row.warning ? <p className="mt-1 max-w-xs text-[11px] leading-snug text-red-600">{row.warning}</p> : null}
                       </td>
                     </tr>
                   ))}
@@ -208,6 +215,48 @@ export function CompetitorIntelligenceDashboard({
           <ThemeList title="Your negative themes" items={data.strengths.negative} tone="negative" />
           <ThemeList title="Competitor positive themes" items={data.strengths.competitorPositive} tone="positive" />
           <ThemeList title="Competitor negative themes" items={data.strengths.competitorNegative} tone="negative" />
+        </div>
+      ) : null}
+
+      {activeTab === "opportunities" ? (
+        <div className="grid gap-2 lg:grid-cols-2">
+          <Card>
+            <h2 className="text-[14px] font-semibold text-zinc-900">Competitor complaint patterns</h2>
+            <ul className="mt-3 space-y-2.5">
+              {data.complaintPatterns.length === 0 ? (
+                <li className="text-[13px] text-zinc-500">No competitor negative theme gaps found yet.</li>
+              ) : (
+                data.complaintPatterns.map((pattern) => (
+                  <li key={pattern.theme} className="rounded-xl bg-zinc-50 p-3 text-[13px]">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold text-zinc-900">{pattern.theme}</span>
+                      <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+                        Gap {pattern.gap}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-zinc-500">
+                      Competitors: {pattern.competitorMentions} · You: {pattern.yourMentions}
+                    </p>
+                  </li>
+                ))
+              )}
+            </ul>
+          </Card>
+          <Card>
+            <h2 className="text-[14px] font-semibold text-zinc-900">Positioning opportunities</h2>
+            <div className="mt-3 space-y-3">
+              {data.positioningOpportunities.length === 0 ? (
+                <p className="text-[13px] text-zinc-500">Opportunities will appear as competitor complaints build a theme baseline.</p>
+              ) : (
+                data.positioningOpportunities.map((opportunity) => (
+                  <div key={opportunity.title} className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3 text-[13px]">
+                    <p className="font-semibold text-zinc-900">{opportunity.title}</p>
+                    <p className="mt-1 leading-relaxed text-zinc-600">{opportunity.description}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
         </div>
       ) : null}
 

@@ -80,6 +80,35 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
+function KeywordPanel({
+  title,
+  items,
+}: {
+  title: string;
+  items: Array<{ keyword: string; count: number }>;
+}) {
+  return (
+    <Card>
+      <h2 className="text-[14px] font-semibold capitalize text-zinc-900">{title}</h2>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {items.length === 0 ? (
+          <p className="text-[13px] text-zinc-500">No mentions found yet.</p>
+        ) : (
+          items.map((item) => (
+            <span
+              key={item.keyword}
+              className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 text-[12px] font-medium capitalize text-zinc-700"
+            >
+              {item.keyword}
+              <span className="text-zinc-400">{item.count}</span>
+            </span>
+          ))
+        )}
+      </div>
+    </Card>
+  );
+}
+
 export function ReviewInsightsDashboard({
   businessId,
   data,
@@ -123,27 +152,37 @@ export function ReviewInsightsDashboard({
       ) : null}
 
       {activeTab === "keywords" ? (
-        <Card>
-          <div className="mb-3 flex items-center gap-2">
-            <Search className="h-4 w-4 text-[#137752]" />
-            <h2 className="text-[14px] font-semibold text-zinc-900">Services and keyword mentions</h2>
+        <div className="space-y-2">
+          <Card>
+            <div className="mb-3 flex items-center gap-2">
+              <Search className="h-4 w-4 text-[#137752]" />
+              <h2 className="text-[14px] font-semibold text-zinc-900">Top uncategorized keyword mentions</h2>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {data.servicesAndKeywords.length === 0 ? (
+                <p className="text-[13px] text-zinc-500">No written review keywords found yet.</p>
+              ) : (
+                data.servicesAndKeywords.map((item) => (
+                  <span
+                    key={item.keyword}
+                    className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 text-[12px] font-medium capitalize text-zinc-700"
+                  >
+                    {item.keyword}
+                    <span className="text-zinc-400">{item.count}</span>
+                  </span>
+                ))
+              )}
+            </div>
+          </Card>
+          <div className="grid gap-2 lg:grid-cols-2 xl:grid-cols-3">
+            <KeywordPanel title="services" items={data.categorizedKeywords.services} />
+            <KeywordPanel title="cities" items={data.categorizedKeywords.cities} />
+            <KeywordPanel title="employees" items={data.categorizedKeywords.employees} />
+            <KeywordPanel title="pricing" items={data.categorizedKeywords.pricing} />
+            <KeywordPanel title="speed" items={data.categorizedKeywords.speed} />
+            <KeywordPanel title="communication" items={data.categorizedKeywords.communication} />
           </div>
-          <div className="flex flex-wrap gap-2">
-            {data.servicesAndKeywords.length === 0 ? (
-              <p className="text-[13px] text-zinc-500">No written review keywords found yet.</p>
-            ) : (
-              data.servicesAndKeywords.map((item) => (
-                <span
-                  key={item.keyword}
-                  className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 text-[12px] font-medium capitalize text-zinc-700"
-                >
-                  {item.keyword}
-                  <span className="text-zinc-400">{item.count}</span>
-                </span>
-              ))
-            )}
-          </div>
-        </Card>
+        </div>
       ) : null}
 
       {activeTab === "performance" ? (
@@ -182,12 +221,56 @@ export function ReviewInsightsDashboard({
                   {data.responseQuality.genericResponseSuspected} generic replies suspected
                 </h2>
                 <p className="mt-2 text-[13px] leading-relaxed text-zinc-700">
-                  Generic replies are detected from short repeated phrases like thank-you-only responses. Use specifics from the customer review to improve trust.
+                  Quality heuristics check personalization, copy/paste clusters, defensive wording, issue addressing, and resolution offers.
                 </p>
               </div>
             </div>
           </Card>
           <Stat label="Generic response rate" value={`${data.responseQuality.genericResponsePct}%`} sub="Of answered written reviews" />
+          <Stat label="Personalized" value={`${data.responseQuality.qualitySummary.personalizedPct}%`} sub="Mentions reviewer or review specifics" />
+          <Stat label="Copy/paste" value={`${data.responseQuality.qualitySummary.copyPastePct}%`} sub="Repeated response clusters" />
+          <Stat label="Addresses issue" value={`${data.responseQuality.qualitySummary.addressesIssuePct}%`} sub="For low-rating complaints" />
+          <Stat label="Offers resolution" value={`${data.responseQuality.qualitySummary.offersResolutionPct}%`} sub="Refund, call, credit, resolve, etc." />
+          <Stat label="Defensive replies" value={String(data.responseQuality.qualitySummary.defensiveCount)} sub="Phrases likely to escalate" />
+          <Card className="lg:col-span-3">
+            <h2 className="text-[14px] font-semibold text-zinc-900">Response quality rows</h2>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-left text-[13px]">
+                <thead>
+                  <tr className="border-b border-zinc-100 text-[11px] uppercase tracking-[0.06em] text-zinc-400">
+                    <th className="px-3 py-2">Review</th>
+                    <th className="px-3 py-2">Personalized</th>
+                    <th className="px-3 py-2">Generic</th>
+                    <th className="px-3 py-2">Copy/paste</th>
+                    <th className="px-3 py-2">Defensive</th>
+                    <th className="px-3 py-2">Issue</th>
+                    <th className="px-3 py-2">Resolution</th>
+                    <th className="px-3 py-2">Evidence</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.responseQuality.rows.length === 0 ? (
+                    <tr>
+                      <td className="px-3 py-6 text-zinc-500" colSpan={8}>No owner responses found in the current window.</td>
+                    </tr>
+                  ) : (
+                    data.responseQuality.rows.slice(0, 50).map((row, idx) => (
+                      <tr key={row.reviewId ?? idx} className="border-b border-zinc-50">
+                        <td className="max-w-[12rem] truncate px-3 py-2 text-zinc-500">{row.reviewId ?? "—"}</td>
+                        <td className="px-3 py-2">{row.personalized ? "Yes" : "No"}</td>
+                        <td className="px-3 py-2">{row.generic ? "Yes" : "No"}</td>
+                        <td className="px-3 py-2">{row.copyPasteClusterId ?? "—"}</td>
+                        <td className="px-3 py-2">{row.defensive ? "Yes" : "No"}</td>
+                        <td className="px-3 py-2">{row.addressesIssue ? "Yes" : "No"}</td>
+                        <td className="px-3 py-2">{row.offersResolution ? "Yes" : "No"}</td>
+                        <td className="max-w-sm px-3 py-2 text-zinc-500">{row.evidence.join("; ") || "—"}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </div>
       ) : null}
     </ModulePage>

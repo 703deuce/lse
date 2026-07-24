@@ -1,13 +1,13 @@
 import { differenceInCalendarDays, subDays } from "date-fns";
 import { createServiceClient } from "@/lib/db/client";
-import { auditOwnerResponses } from "@/lib/reputation/response-audit";
+import { auditOwnerResponsesFromStored, type ResponseQualityRow, type ResponseQualitySummary } from "@/lib/reputation/response-audit";
 import {
   loadStoredReviews,
   reviewsInWindow,
-  storedRowToNormalized,
   type StoredReviewRow,
 } from "@/lib/reviews/review-store";
 import {
+  REVIEW_THEME_CATEGORIES,
   buildThemeBreakdown,
   classifyReviewSentiment,
   extractThemeTagsFromText,
@@ -29,6 +29,10 @@ export type ReviewInsightsData = {
     emerging: Array<ReviewInsightTheme & { delta: number }>;
   };
   servicesAndKeywords: Array<{ keyword: string; count: number }>;
+  categorizedKeywords: Record<
+    "services" | "cities" | "employees" | "pricing" | "speed" | "communication",
+    Array<{ keyword: string; count: number }>
+  >;
   responsePerformance: {
     responseRate: number;
     totalWithText: number;
@@ -41,6 +45,8 @@ export type ReviewInsightsData = {
   responseQuality: {
     genericResponseSuspected: number;
     genericResponsePct: number;
+    qualitySummary: ResponseQualitySummary;
+    rows: ResponseQualityRow[];
   };
 };
 
@@ -79,6 +85,68 @@ const STOP_WORDS = new Set([
   "with",
   "would",
   "your",
+]);
+
+const CATEGORY_SIGNALS = {
+  pricing: REVIEW_THEME_CATEGORIES.find((theme) => theme.id === "pricing_value")?.signals ?? [],
+  speed: REVIEW_THEME_CATEGORIES.find((theme) => theme.id === "speed_scheduling")?.signals ?? [],
+  communication: REVIEW_THEME_CATEGORIES.find((theme) => theme.id === "communication")?.signals ?? [],
+  services: [
+    "repair",
+    "installation",
+    "install",
+    "replacement",
+    "maintenance",
+    "cleaning",
+    "estimate",
+    "inspection",
+    "project",
+    "job",
+    "service",
+    "appointment",
+    "emergency",
+    "consultation",
+  ],
+} as const;
+
+const COMMON_LOCATION_WORDS = new Set([
+  "Downtown",
+  "Midtown",
+  "Uptown",
+  "Northside",
+  "Southside",
+  "Eastside",
+  "Westside",
+  "Georgetown",
+  "Springfield",
+  "Franklin",
+  "Clinton",
+  "Arlington",
+  "Madison",
+  "Greenville",
+  "Riverside",
+  "Fairview",
+  "Oakwood",
+  "Lakewood",
+  "Woodbridge",
+  "Alexandria",
+  "Richmond",
+  "Dallas",
+  "Austin",
+  "Houston",
+  "Phoenix",
+  "Denver",
+  "Charlotte",
+  "Raleigh",
+  "Orlando",
+  "Tampa",
+  "Miami",
+  "Seattle",
+  "Portland",
+  "Boston",
+  "Chicago",
+  "Atlanta",
+  "Nashville",
 ]);
 
 function storedToThemeInput(row: StoredReviewRow, businessName: string): ReviewThemeInput {
@@ -121,6 +189,111 @@ function extractKeywordMentions(rows: StoredReviewRow[]): Array<{ keyword: strin
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .slice(0, 20)
     .map(([keyword, count]) => ({ keyword, count }));
+}
+
+function addMention(counts: Map<string, Set<string>>, keyword: string, rowId: string) {
+  const normalized = keyword.trim().replace(/\s+/g, " ");
+  if (!normalized || normalized.length < 3) return;
+  const current = counts.get(normalized) ?? new Set<string>();
+  current.add(rowId);
+  counts.set(normalized, current);
+}
+
+function extractCapitalizedLocations(text: string): string[] {
+  const locations = new Set<string>();
+  const afterPreposition = text.match(/\b(?:in|from|near|around)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})/g) ?? [];
+  for (const match of afterPreposition) {
+    const loc = match.replace(/^(?:in|from|near|around)\s+/i, "").trim();
+    if (!/^(The|Our|This|That|They|Google|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/.test(loc)) {
+      locations.add(loc);
+    }
+  }
+
+  for (const word of COMMON_LOCATION_WORDS) {
+    if (new RegExp(`\\b${word}\\b`).test(text)) locations.add(word);
+  }
+  return Array.from(locations);
+}
+
+function extractEmployeeNames(text: string): string[] {
+  const names = new Set<string>();
+  const patterns = [
+    /\b(?:with|by|named|technician|tech|manager)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/g,
+    /\b([A-Z][a-z]+\s+[A-Z][a-z]+)\s+(?:was|were|did|helped|arrived|called)/g,
+  ];
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const name = match[1]?.trim();
+      if (name && !/^(The|Our|Their|This|That|Google|Customer Service)\b/.test(name)) names.add(name);
+    }
+  }
+  return Array.from(names);
+}
+
+function extractSignalMentions(text: string, signals: readonly string[]): string[] {
+  const lower = text.toLowerCase();
+  return signals.filter((signal) => lower.includes(signal.toLowerCase()));
+}
+
+function extractCategorizedKeywords(
+  rows: StoredReviewRow[]
+): ReviewInsightsData["categorizedKeywords"] {
+  const counts = {
+    services: new Map<string, Set<string>>(),
+    cities: new Map<string, Set<string>>(),
+    employees: new Map<string, Set<string>>(),
+    pricing: new Map<string, Set<string>>(),
+    speed: new Map<string, Set<string>>(),
+    communication: new Map<string, Set<string>>(),
+  };
+
+  for (const row of rows) {
+    const text = row.review_text ?? "";
+    if (!text.trim()) continue;
+    const id = row.id;
+
+    for (const tag of extractThemeTagsFromText(text, 6)) {
+      if (/service|quality|customer|cleanup|care|staff|crew|professional/i.test(tag)) {
+        addMention(counts.services, tag, id);
+      }
+    }
+    for (const signal of extractSignalMentions(text, CATEGORY_SIGNALS.services)) {
+      addMention(counts.services, signal, id);
+    }
+    for (const signal of extractSignalMentions(text, CATEGORY_SIGNALS.pricing)) {
+      addMention(counts.pricing, signal, id);
+    }
+    for (const signal of extractSignalMentions(text, CATEGORY_SIGNALS.speed)) {
+      addMention(counts.speed, signal, id);
+    }
+    for (const signal of extractSignalMentions(text, CATEGORY_SIGNALS.communication)) {
+      addMention(counts.communication, signal, id);
+    }
+    for (const location of extractCapitalizedLocations(text)) {
+      addMention(counts.cities, location, id);
+    }
+    for (const employee of extractEmployeeNames(text)) {
+      addMention(counts.employees, employee, id);
+    }
+    if (/\b(crew|team|staff|technician|tech)\b/i.test(text)) {
+      addMention(counts.employees, "Staff / crew", id);
+    }
+  }
+
+  const toRows = (map: Map<string, Set<string>>) =>
+    Array.from(map.entries())
+      .map(([keyword, ids]) => ({ keyword, count: ids.size }))
+      .sort((a, b) => b.count - a.count || a.keyword.localeCompare(b.keyword))
+      .slice(0, 15);
+
+  return {
+    services: toRows(counts.services),
+    cities: toRows(counts.cities),
+    employees: toRows(counts.employees),
+    pricing: toRows(counts.pricing),
+    speed: toRows(counts.speed),
+    communication: toRows(counts.communication),
+  };
 }
 
 async function loadResponseTimingRows(businessId: string): Promise<ResponseTimingRow[]> {
@@ -207,7 +380,15 @@ export async function loadReviewInsightsData(businessId: string): Promise<Review
     .sort((a, b) => b.delta - a.delta || b.count - a.count)
     .slice(0, 8);
 
-  const responseAudit = auditOwnerResponses(currentRows.map(storedRowToNormalized));
+  const responseAudit = auditOwnerResponsesFromStored(currentRows.map((row) => ({
+    id: row.id,
+    rating: row.rating,
+    review_text: row.review_text,
+    owner_response_text: row.owner_response_text,
+    published_at: row.published_at ?? (row.review_date ? `${row.review_date}T00:00:00Z` : null),
+    owner_responded_at: row.owner_responded_at ?? null,
+    reviewer_name: row.reviewer_name,
+  })));
   const genericPct =
     responseAudit.answered > 0
       ? Math.round((responseAudit.genericResponseSuspected / responseAudit.answered) * 100)
@@ -222,6 +403,7 @@ export async function loadReviewInsightsData(businessId: string): Promise<Review
       emerging,
     },
     servicesAndKeywords: extractKeywordMentions(currentRows),
+    categorizedKeywords: extractCategorizedKeywords(currentRows),
     responsePerformance: {
       responseRate: responseAudit.responseRate,
       totalWithText: responseAudit.totalWithText,
@@ -229,11 +411,13 @@ export async function loadReviewInsightsData(businessId: string): Promise<Review
       unansweredPositive: responseAudit.unansweredPositive,
       unansweredNegative: responseAudit.unansweredNegative,
       unansweredNeutral: responseAudit.unansweredNeutral,
-      avgResponseTimeDays: avgResponseTimeDays(timingRows),
+      avgResponseTimeDays: responseAudit.avgResponseTimeDays ?? avgResponseTimeDays(timingRows),
     },
     responseQuality: {
       genericResponseSuspected: responseAudit.genericResponseSuspected,
       genericResponsePct: genericPct,
+      qualitySummary: responseAudit.qualitySummary,
+      rows: responseAudit.responseQualityRows,
     },
   };
 }

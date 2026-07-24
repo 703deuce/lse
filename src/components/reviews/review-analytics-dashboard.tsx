@@ -9,6 +9,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -23,7 +24,10 @@ import {
   moduleStack,
 } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
-import type { ReviewAnalyticsData, ReviewAnalyticsTimelinePoint } from "@/lib/reviews/review-analytics-data";
+import {
+  aggregateReviewAnalyticsTimeline,
+  type ReviewAnalyticsData,
+} from "@/lib/reviews/review-analytics-data";
 
 const GREEN = "#137752";
 const BLUE = "#3B82F6";
@@ -56,27 +60,6 @@ function fmt(value: number | null | undefined, suffix = "") {
   return `${value}${suffix}`;
 }
 
-function aggregateTimeline(points: ReviewAnalyticsTimelinePoint[], mode: GroupMode): ReviewAnalyticsTimelinePoint[] {
-  if (mode === "daily") return points;
-  const buckets = new Map<string, { you: number; competitorAvg: number; days: number }>();
-
-  for (let i = 0; i < points.length; i++) {
-    const point = points[i]!;
-    const key = mode === "weekly" ? `Week ${Math.floor(i / 7) + 1}` : point.date.slice(0, 7);
-    const bucket = buckets.get(key) ?? { you: 0, competitorAvg: 0, days: 0 };
-    bucket.you += point.you;
-    bucket.competitorAvg += point.competitorAvg;
-    bucket.days += 1;
-    buckets.set(key, bucket);
-  }
-
-  return Array.from(buckets.entries()).map(([date, bucket]) => ({
-    date,
-    you: bucket.you,
-    competitorAvg: Math.round(bucket.competitorAvg * 10) / 10,
-  }));
-}
-
 function DeltaText({ value }: { value: number }) {
   const positive = value >= 0;
   return (
@@ -97,14 +80,16 @@ export function ReviewAnalyticsDashboard({
   const [activeTab, setActiveTab] = useState<TabId>("timeline");
   const [groupMode, setGroupMode] = useState<GroupMode>("daily");
   const timeline = useMemo(
-    () => aggregateTimeline(data.timelinePoints, groupMode),
+    () => aggregateReviewAnalyticsTimeline(data.timelinePoints, groupMode),
     [data.timelinePoints, groupMode]
   );
-  const velocityBars = [
-    { label: "7d", current: data.rolling7d, prior: data.priorPeriod.rolling7d },
-    { label: "30d", current: data.rolling30d, prior: data.priorPeriod.rolling30d },
-    { label: "90d", current: data.timelinePoints.reduce((sum, point) => sum + point.you, 0), prior: data.priorPeriod.rolling90d },
-  ];
+  const markerLines = timeline.filter((point) => point.events.length > 0);
+  const velocityBars = data.rollingPeriods.map((period) => ({
+    label: `${period.days}d`,
+    current: period.current,
+    prior: period.previous,
+    deltaPct: period.deltaPct,
+  }));
 
   return (
     <ModulePage className={moduleStack}>
@@ -129,9 +114,11 @@ export function ReviewAnalyticsDashboard({
         }
       />
 
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
         <StatCard label="Rolling 7d" value={fmt(data.rolling7d)} sub={`${data.priorPeriod.rolling7dDelta >= 0 ? "+" : ""}${data.priorPeriod.rolling7dDelta} vs prior`} />
         <StatCard label="Rolling 30d" value={fmt(data.rolling30d)} sub={`${data.priorPeriod.rolling30dDelta >= 0 ? "+" : ""}${data.priorPeriod.rolling30dDelta} vs prior`} />
+        <StatCard label="Rolling 60d" value={fmt(data.rolling60d)} sub={`${data.priorPeriod.rolling60dDelta >= 0 ? "+" : ""}${data.priorPeriod.rolling60dDelta} vs prior`} />
+        <StatCard label="Response rate" value={fmt(data.responseRate, "%")} sub={data.avgResponseTimeDays == null ? "Response time unavailable" : `${data.avgResponseTimeDays}d avg response`} />
         <StatCard label="Avg Days Between" value={fmt(data.avgDaysBetweenReviews)} sub={`Median ${fmt(data.medianDaysBetweenReviews)} days`} />
         <StatCard label="Longest Drought" value={fmt(data.longestDroughtDays, "d")} sub={`${data.activeStreakDays}d active streak`} />
       </div>
@@ -143,7 +130,7 @@ export function ReviewAnalyticsDashboard({
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-[14px] font-semibold text-zinc-900">Review timeline</h2>
-              <p className="mt-0.5 text-[12px] text-zinc-500">Your daily review count vs competitor average.</p>
+              <p className="mt-0.5 text-[12px] text-zinc-500">Your review count vs competitor average, with campaign and scan markers.</p>
             </div>
             <div className="flex rounded-full bg-zinc-100 p-1">
               {data.groupModes.map((mode) => (
@@ -169,6 +156,15 @@ export function ReviewAnalyticsDashboard({
                 <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#71717A" }} tickLine={false} axisLine={false} />
                 <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #E4E4E7", fontSize: 12 }} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
+                {markerLines.map((point) => (
+                  <ReferenceLine
+                    key={`${point.date}-${point.events.map((event) => event.id).join("-")}`}
+                    x={point.date}
+                    stroke={point.events.some((event) => event.type === "campaign_start") ? "#F59E0B" : "#8B5CF6"}
+                    strokeDasharray="3 3"
+                    label={{ value: point.events.length > 1 ? `${point.events.length} events` : point.events[0]?.type === "campaign_start" ? "Campaign" : "Scan", fontSize: 10, fill: "#71717A" }}
+                  />
+                ))}
                 <Line type="monotone" dataKey="you" name="You" stroke={GREEN} strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
                 <Line type="monotone" dataKey="competitorAvg" name="Competitor avg" stroke={BLUE} strokeWidth={2} strokeDasharray="4 4" dot={false} />
               </LineChart>
@@ -206,14 +202,17 @@ export function ReviewAnalyticsDashboard({
                 <span className="text-zinc-500">Monthly velocity</span>
                 <span className="font-semibold text-zinc-900">{data.monthlyVelocity} reviews</span>
               </div>
-              <div className="flex justify-between gap-2">
-                <span className="text-zinc-500">7d delta</span>
-                <DeltaText value={data.priorPeriod.weeklyVelocityDelta} />
-              </div>
-              <div className="flex justify-between gap-2">
-                <span className="text-zinc-500">30d delta</span>
-                <DeltaText value={data.priorPeriod.monthlyVelocityDelta} />
-              </div>
+              {data.rollingPeriods.map((period) => (
+                <div key={period.days} className="flex justify-between gap-2">
+                  <span className="text-zinc-500">{period.days}d delta</span>
+                  <span className="font-semibold">
+                    <DeltaText value={period.delta} />{" "}
+                    <span className="text-zinc-400">
+                      {period.deltaPct == null ? "" : `(${period.deltaPct >= 0 ? "+" : ""}${period.deltaPct}%)`}
+                    </span>
+                  </span>
+                </div>
+              ))}
             </div>
           </Card>
         </div>
@@ -228,8 +227,11 @@ export function ReviewAnalyticsDashboard({
               </span>
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-700">Momentum</p>
-                <h2 className="mt-1 text-xl font-bold text-zinc-900">{data.momentumLabel}</h2>
+                <h2 className="mt-1 text-xl font-bold text-zinc-900">{data.momentumStatus}</h2>
                 <p className="mt-2 text-[13px] leading-relaxed text-zinc-700">{data.explanation}</p>
+                {data.momentumLabel !== data.momentumStatus ? (
+                  <p className="mt-1 text-[12px] text-zinc-500">Latest audit label: {data.momentumLabel}</p>
+                ) : null}
                 <p className="mt-2 text-[13px] leading-relaxed text-zinc-600">{data.competitorRelative}</p>
               </div>
             </div>
@@ -250,6 +252,16 @@ export function ReviewAnalyticsDashboard({
                 <dd className="font-semibold text-zinc-900">{fmt(data.longestDroughtDays, "d")}</dd>
               </div>
             </dl>
+          </Card>
+          <Card className="lg:col-span-3">
+            <h2 className="text-[14px] font-semibold text-zinc-900">Momentum drivers</h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {data.drivers.map((driver) => (
+                <span key={driver} className="rounded-full bg-zinc-100 px-3 py-1 text-[12px] font-medium text-zinc-700">
+                  {driver}
+                </span>
+              ))}
+            </div>
           </Card>
         </div>
       ) : null}

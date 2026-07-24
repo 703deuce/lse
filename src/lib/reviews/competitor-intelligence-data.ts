@@ -1,4 +1,4 @@
-import { subDays } from "date-fns";
+import { addMonths, differenceInCalendarDays, subDays } from "date-fns";
 import { createServiceClient } from "@/lib/db/client";
 import { loadLatestMomentumRun } from "@/lib/reviews/momentum-engine";
 import {
@@ -26,6 +26,7 @@ export type CompetitorLeaderboardRow = {
   reviewsPerMonth: number;
   momentumLabel: string;
   responseRate: number;
+  responseSpeedDaysAvg: number | null;
 };
 
 export type CompetitorGapRow = {
@@ -38,6 +39,9 @@ export type CompetitorGapRow = {
   pace6Months: number;
   pace12Months: number;
   estimatedCatchUp: string;
+  estimatedCatchUpDate: string | null;
+  estimatedCatchUpMonths: number | null;
+  warning: string | null;
   gapExpanding: boolean;
 };
 
@@ -56,6 +60,17 @@ export type CompetitorIntelligenceData = {
   businessName: string;
   leaderboardRows: CompetitorLeaderboardRow[];
   gapRows: CompetitorGapRow[];
+  complaintPatterns: Array<{
+    theme: string;
+    competitorMentions: number;
+    yourMentions: number;
+    gap: number;
+  }>;
+  positioningOpportunities: Array<{
+    title: string;
+    description: string;
+    sourceTheme: string;
+  }>;
   strengths: {
     positive: CompetitorThemeStrength[];
     negative: CompetitorThemeStrength[];
@@ -99,6 +114,19 @@ function contentComparison(rows: StoredReviewRow[]): CompetitorContentComparison
     avgLength: withText.length ? Math.round(totalLength / withText.length) : 0,
     pctWithText: Math.round((withText.length / rows.length) * 100),
   };
+}
+
+function responseSpeedDaysAvg(rows: StoredReviewRow[]): number | null {
+  const durations: number[] = [];
+  for (const row of rows) {
+    if (!row.owner_response_text?.trim() || !row.owner_responded_at) continue;
+    const published = row.published_at ?? (row.review_date ? `${row.review_date}T00:00:00Z` : null);
+    if (!published) continue;
+    const days = differenceInCalendarDays(new Date(row.owner_responded_at), new Date(published));
+    if (Number.isFinite(days) && days >= 0) durations.push(days);
+  }
+  if (!durations.length) return null;
+  return round1(durations.reduce((sum, days) => sum + days, 0) / durations.length);
 }
 
 function themeCounts(inputs: ReviewThemeInput[]): CompetitorThemeStrength[] {
@@ -156,6 +184,7 @@ export async function loadCompetitorIntelligenceData(
       reviewsPerMonth: round1(targetRows90.length / 3),
       momentumLabel: String(targetEntity?.momentum_label ?? "Stable"),
       responseRate: calcResponseRate(targetRows90),
+      responseSpeedDaysAvg: responseSpeedDaysAvg(targetRows90),
     },
     ...competitorEntities.map((entity) => {
       const rows = entity.competitor_id ? rowsByCompetitor.get(entity.competitor_id) ?? [] : [];
@@ -172,6 +201,7 @@ export async function loadCompetitorIntelligenceData(
         reviewsPerMonth: round1(rows90.length / 3),
         momentumLabel: String(entity.momentum_label ?? "Stable"),
         responseRate: calcResponseRate(rows90),
+        responseSpeedDaysAvg: responseSpeedDaysAvg(rows90),
       };
     }),
   ].sort((a, b) => b.totalReviews - a.totalReviews);
@@ -185,14 +215,27 @@ export async function loadCompetitorIntelligenceData(
     const monthlyVelocityGap = competitorVelocity - targetMonthlyVelocity;
     const neededToCatch = Math.max(0, totalGap + 1);
     const relativeMonthlyGain = targetMonthlyVelocity - competitorVelocity;
+    const estimatedCatchUpMonths =
+      neededToCatch <= 0
+        ? 0
+        : relativeMonthlyGain > 0
+          ? Math.ceil(neededToCatch / relativeMonthlyGain)
+          : null;
+    const estimatedCatchUpDate =
+      estimatedCatchUpMonths != null && estimatedCatchUpMonths > 0
+        ? addMonths(new Date(), estimatedCatchUpMonths).toISOString().slice(0, 10)
+        : neededToCatch <= 0
+          ? new Date().toISOString().slice(0, 10)
+          : null;
     const estimatedCatchUp =
       neededToCatch <= 0
         ? "Caught up"
-        : relativeMonthlyGain > 0
-          ? `${Math.ceil(neededToCatch / relativeMonthlyGain)} mo`
+        : estimatedCatchUpMonths != null
+          ? `${estimatedCatchUpMonths} mo`
           : "Not at current pace";
     const projectedGap = (months: number) =>
       Math.round(totalReviews + competitorVelocity * months - (targetTotal + targetMonthlyVelocity * months));
+    const gapExpanding = monthlyVelocityGap > 0;
 
     return {
       competitorId: id,
@@ -204,7 +247,14 @@ export async function loadCompetitorIntelligenceData(
       pace6Months: projectedGap(6),
       pace12Months: projectedGap(12),
       estimatedCatchUp,
-      gapExpanding: monthlyVelocityGap > 0,
+      estimatedCatchUpDate,
+      estimatedCatchUpMonths,
+      warning: gapExpanding
+        ? `${entity.name ?? "Competitor"} is adding ${monthlyVelocityGap} more reviews per month, so the gap is widening.`
+        : estimatedCatchUpMonths == null && neededToCatch > 0
+          ? "At the current monthly pace, this competitor will remain ahead."
+          : null,
+      gapExpanding,
     };
   });
 
@@ -239,11 +289,35 @@ export async function loadCompetitorIntelligenceData(
     classifyReviewSentiment(review.reviewText, review.rating) === "negative"
   );
 
+  const yourNegativeThemes = themeCounts(negativeTarget);
+  const competitorNegativeThemes = themeCounts(negativeCompetitors);
+  const yourNegativeByTheme = new Map(yourNegativeThemes.map((theme) => [theme.label, theme.count]));
+  const complaintPatterns = competitorNegativeThemes
+    .map((theme) => {
+      const yourMentions = yourNegativeByTheme.get(theme.label) ?? 0;
+      return {
+        theme: theme.label,
+        competitorMentions: theme.count,
+        yourMentions,
+        gap: theme.count - yourMentions,
+      };
+    })
+    .filter((row) => row.gap > 0)
+    .slice(0, 8);
+
+  const positioningOpportunities = complaintPatterns.slice(0, 5).map((pattern) => ({
+    title: `Position against ${pattern.theme.toLowerCase()} complaints`,
+    description: `Competitor negative reviews mention ${pattern.theme.toLowerCase()} ${pattern.competitorMentions} times vs ${pattern.yourMentions} for you. Highlight your process for avoiding this issue in review requests, replies, and sales copy.`,
+    sourceTheme: pattern.theme,
+  }));
+
   return {
     businessId,
     businessName,
     leaderboardRows,
     gapRows,
+    complaintPatterns,
+    positioningOpportunities,
     strengths: {
       positive: themeCounts(positiveTarget),
       negative: themeCounts(negativeTarget),
