@@ -28,7 +28,6 @@ import {
   ModulePage,
   cardClass,
   moduleStack,
-  pageTitleClass,
 } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
 import type { ReviewOverviewData } from "@/lib/reviews/review-overview-preview-data";
@@ -91,8 +90,8 @@ function ViewLink({ href, children }: { href: string; children: React.ReactNode 
   );
 }
 
-function ResponseRing({ pct }: { pct: number }) {
-  const size = 56;
+function ResponseRing({ pct, showLabel = false }: { pct: number; showLabel?: boolean }) {
+  const size = 52;
   const strokeWidth = 5;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -122,9 +121,11 @@ function ResponseRing({ pct }: { pct: number }) {
           strokeDashoffset={offset}
         />
       </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-sm font-bold tabular-nums text-zinc-900">{Math.round(clamped)}%</span>
-      </div>
+      {showLabel ? (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-xs font-bold tabular-nums text-zinc-900">{Math.round(clamped)}%</span>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -160,7 +161,7 @@ export function ReviewOverviewDashboard({
     <ModulePage className={moduleStack}>
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <h1 className={pageTitleClass}>Review Overview</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Review Overview</h1>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -290,13 +291,14 @@ export function ReviewOverviewDashboard({
         <SoftCard>
           <CardLabel>Response Rate</CardLabel>
           <div className="mt-2 flex items-center gap-3">
+            <span className="text-2xl font-bold tabular-nums leading-none text-zinc-900">
+              {data.responseRatePct}%
+            </span>
             <ResponseRing pct={data.responseRatePct} />
-            <div>
-              <p className="text-[11px] leading-snug text-zinc-500">
-                {data.answeredCount} of {data.answeredOf} reviews answered
-              </p>
-            </div>
           </div>
+          <p className="mt-2 text-[11px] leading-snug text-zinc-500">
+            {data.answeredCount} of {data.answeredOf} reviews answered
+          </p>
         </SoftCard>
 
         <SoftCard className="border-red-100 bg-gradient-to-br from-white to-red-50/40">
@@ -385,11 +387,11 @@ export function ReviewOverviewDashboard({
             </h2>
             <ViewLink href={competitorsHref}>See All Competitors</ViewLink>
           </div>
-          <ul className="space-y-3">
+          <ul className="space-y-3.5">
             {data.impactRows.map((row) => (
               <li key={row.name}>
-                <div className="mb-1 flex items-baseline justify-between gap-2">
-                  <div className="min-w-0">
+                <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                  <div className="min-w-0 truncate">
                     <span
                       className={cn(
                         "text-[13px] font-semibold",
@@ -398,25 +400,25 @@ export function ReviewOverviewDashboard({
                     >
                       {row.name}
                     </span>
+                    <span className="ml-1.5 text-[12px] font-bold tabular-nums text-zinc-900">
+                      +{row.reviewsGained} reviews
+                    </span>
                     {row.status ? (
                       <span
                         className={cn(
-                          "ml-2 text-[11px] font-medium",
+                          "ml-1.5 text-[11px] font-medium",
                           row.isYou ? "text-emerald-600" : "text-zinc-500"
                         )}
                       >
-                        {row.status}
+                        ({row.status})
                       </span>
                     ) : null}
                   </div>
-                  <span className="shrink-0 text-[13px] font-bold tabular-nums text-zinc-900">
-                    +{row.reviewsGained} reviews
-                  </span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+                <div className="h-2.5 overflow-hidden rounded-full bg-zinc-100">
                   <div
                     className={cn(
-                      "h-full rounded-full",
+                      "h-full rounded-full transition-all",
                       row.isYou ? "bg-[#137752]" : "bg-zinc-300"
                     )}
                     style={{ width: `${row.barPct}%` }}

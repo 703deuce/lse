@@ -66,7 +66,7 @@ export type ReviewOverviewData = {
 };
 
 export const reviewOverviewPreviewData: ReviewOverviewData = {
-  dateRangeLabel: "May 27 — Jun 25, 2024",
+  dateRangeLabel: "May 27 - Jun 25, 2024",
   googleRating: 4.6,
   competitorAvgRatingNearby: 4.5,
   nearbyMiles: 4,
