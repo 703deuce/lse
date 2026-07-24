@@ -7,7 +7,9 @@ export type ReviewOverviewMomentumLabel =
   | "Healthy"
   | "Stable"
   | "Slowing"
-  | "Stalled";
+  | "Stalled"
+  | "Recovering"
+  | "Volatile";
 
 export type ReviewOverviewData = {
   hasReviewsData: boolean;

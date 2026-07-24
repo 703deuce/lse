@@ -185,7 +185,8 @@ export function ReviewOverviewDashboard({
   const showMomentumArrow =
     data.momentumLabel === "Accelerating" ||
     data.momentumLabel === "Exploding" ||
-    data.momentumLabel === "Healthy";
+    data.momentumLabel === "Healthy" ||
+    data.momentumLabel === "Recovering";
 
   return (
     <ModulePage className={moduleStack}>

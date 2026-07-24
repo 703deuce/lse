@@ -63,7 +63,12 @@ function mapMomentumLabel(
       return "Stable";
     case "Slowing":
       return "Slowing";
+    case "Recovering":
+      return "Recovering";
+    case "Volatile":
+      return "Volatile";
     case "Dormant":
+    case "Stalled":
       return "Stalled";
     default:
       return "Stable";
@@ -82,6 +87,10 @@ function momentumSubtitle(label: ReviewOverviewData["momentumLabel"]): string {
       return "Steady review pace";
     case "Slowing":
       return "Growth is cooling off";
+    case "Recovering":
+      return "Pace is coming back";
+    case "Volatile":
+      return "Inconsistent review pace";
     case "Stalled":
       return "Review velocity has stalled";
     default:

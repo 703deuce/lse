@@ -52,6 +52,16 @@ export async function PUT(request: Request) {
         daily_summary: body.dailySummary ?? body.daily_summary,
         weekly_summary: body.weeklySummary ?? body.weekly_summary,
         email_recipients,
+        velocity_drop: body.velocityDrop ?? body.velocity_drop,
+        competitor_velocity_spike:
+          body.competitorVelocitySpike ?? body.competitor_velocity_spike,
+        no_reviews_days: body.noReviewsDays ?? body.no_reviews_days,
+        rating_changed: body.ratingChanged ?? body.rating_changed,
+        response_overdue: body.responseOverdue ?? body.response_overdue,
+        campaign_delivery_problem:
+          body.campaignDeliveryProblem ?? body.campaign_delivery_problem,
+        review_gap_widening: body.reviewGapWidening ?? body.review_gap_widening,
+        maps_visibility_moved: body.mapsVisibilityMoved ?? body.maps_visibility_moved,
       },
     });
     return NextResponse.json({ settings });

@@ -542,24 +542,29 @@ export async function loadStoredReviews(
     limit?: number;
     /** When true, also select raw_json (default: omit for lean list payloads). */
     includeRaw?: boolean;
+    /** When true, include soft-deleted reviews. Default false. */
+    includeDeleted?: boolean;
   }
 ): Promise<StoredReviewRow[]> {
   const lookbackDays = params.lookbackDays ?? 90;
-  const cutoff = subDays(new Date(), lookbackDays).toISOString().slice(0, 10);
+  const cutoffDate = subDays(new Date(), lookbackDays).toISOString().slice(0, 10);
+  const cutoffTs = subDays(new Date(), lookbackDays).toISOString();
 
-  let query = params.includeRaw
-    ? supabase
-        .from("business_reviews")
-        .select(
-          "id, organization_id, business_id, competitor_id, source_provider, source_review_id, reviewer_name, rating, review_text, review_date, relative_date_text, owner_response_text, review_url, created_at, updated_at, raw_json"
-        )
-        .gte("review_date", cutoff)
-        .order("review_date", { ascending: false })
-    : supabase
-        .from("business_reviews")
-        .select(REVIEW_LIST_COLUMNS)
-        .gte("review_date", cutoff)
-        .order("review_date", { ascending: false });
+  const selectCols = params.includeRaw
+    ? `${REVIEW_LIST_COLUMNS}, raw_json`
+    : REVIEW_LIST_COLUMNS;
+
+  let query = supabase
+    .from("business_reviews")
+    .select(selectCols)
+    // Prefer published_at when present; also accept legacy review_date rows.
+    .or(`published_at.gte.${cutoffTs},and(published_at.is.null,review_date.gte.${cutoffDate})`)
+    .order("published_at", { ascending: false, nullsFirst: false });
+
+  if (!params.includeDeleted) {
+    // Graceful if migration 077 not applied yet — PostgREST may error on missing column.
+    query = query.or("is_deleted.is.null,is_deleted.eq.false");
+  }
 
   if (params.businessId) {
     query = query.eq("business_id", params.businessId);
@@ -572,15 +577,38 @@ export async function loadStoredReviews(
   }
 
   if (params.limit) query = query.limit(params.limit);
-  const { data } = await query;
+  const { data, error } = await query;
+  if (error) {
+    // Fallback for DBs without published_at / is_deleted columns yet.
+    if (/column .* does not exist|schema cache/i.test(error.message)) {
+      let legacy = supabase
+        .from("business_reviews")
+        .select(
+          params.includeRaw
+            ? "id, organization_id, business_id, competitor_id, source_provider, source_review_id, reviewer_name, rating, review_text, review_date, relative_date_text, owner_response_text, review_url, created_at, updated_at, raw_json"
+            : "id, organization_id, business_id, competitor_id, source_provider, source_review_id, reviewer_name, rating, review_text, review_date, relative_date_text, owner_response_text, review_url, created_at, updated_at"
+        )
+        .gte("review_date", cutoffDate)
+        .order("review_date", { ascending: false });
+      if (params.businessId) legacy = legacy.eq("business_id", params.businessId);
+      else if (params.competitorId) legacy = legacy.eq("competitor_id", params.competitorId);
+      else if (params.competitorIds?.length) legacy = legacy.in("competitor_id", params.competitorIds);
+      if (params.limit) legacy = legacy.limit(params.limit);
+      const { data: legacyData } = await legacy;
+      return (legacyData ?? []) as unknown as StoredReviewRow[];
+    }
+    throw new Error(error.message);
+  }
   return (data ?? []) as unknown as StoredReviewRow[];
 }
 
 export function reviewsInWindow(rows: StoredReviewRow[], days: number): StoredReviewRow[] {
-  const cutoff = subDays(new Date(), days);
+  const cutoff = startOfDay(subDays(new Date(), days));
   return rows.filter((r) => {
-    if (!r.review_date) return false;
-    return startOfDay(new Date(r.review_date)) >= startOfDay(cutoff);
+    if (r.is_deleted) return false;
+    const raw = r.published_at ?? r.review_date;
+    if (!raw) return false;
+    return startOfDay(new Date(raw)) >= cutoff;
   });
 }
 

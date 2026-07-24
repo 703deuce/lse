@@ -9,6 +9,14 @@ export type NotificationSettings = {
   daily_summary: boolean;
   weekly_summary: boolean;
   email_recipients: string[];
+  velocity_drop: boolean;
+  competitor_velocity_spike: boolean;
+  no_reviews_days: number;
+  rating_changed: boolean;
+  response_overdue: boolean;
+  campaign_delivery_problem: boolean;
+  review_gap_widening: boolean;
+  maps_visibility_moved: boolean;
 };
 
 const DEFAULT_SETTINGS: NotificationSettings = {
@@ -18,7 +26,44 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   daily_summary: false,
   weekly_summary: false,
   email_recipients: [],
+  velocity_drop: true,
+  competitor_velocity_spike: true,
+  no_reviews_days: 14,
+  rating_changed: true,
+  response_overdue: true,
+  campaign_delivery_problem: true,
+  review_gap_widening: true,
+  maps_visibility_moved: true,
 };
+
+function mapSettingsRow(data: Record<string, unknown> | null | undefined): NotificationSettings {
+  if (!data) return { ...DEFAULT_SETTINGS };
+  return {
+    every_new_review: Boolean(data.every_new_review ?? DEFAULT_SETTINGS.every_new_review),
+    low_rating_only: Boolean(data.low_rating_only),
+    unanswered_only: Boolean(data.unanswered_only),
+    daily_summary: Boolean(data.daily_summary),
+    weekly_summary: Boolean(data.weekly_summary),
+    email_recipients: Array.isArray(data.email_recipients)
+      ? (data.email_recipients as string[]).map(String)
+      : [],
+    velocity_drop: Boolean(data.velocity_drop ?? DEFAULT_SETTINGS.velocity_drop),
+    competitor_velocity_spike: Boolean(
+      data.competitor_velocity_spike ?? DEFAULT_SETTINGS.competitor_velocity_spike
+    ),
+    no_reviews_days:
+      data.no_reviews_days != null ? Number(data.no_reviews_days) : DEFAULT_SETTINGS.no_reviews_days,
+    rating_changed: Boolean(data.rating_changed ?? DEFAULT_SETTINGS.rating_changed),
+    response_overdue: Boolean(data.response_overdue ?? DEFAULT_SETTINGS.response_overdue),
+    campaign_delivery_problem: Boolean(
+      data.campaign_delivery_problem ?? DEFAULT_SETTINGS.campaign_delivery_problem
+    ),
+    review_gap_widening: Boolean(data.review_gap_widening ?? DEFAULT_SETTINGS.review_gap_widening),
+    maps_visibility_moved: Boolean(
+      data.maps_visibility_moved ?? DEFAULT_SETTINGS.maps_visibility_moved
+    ),
+  };
+}
 
 export async function getNotificationSettings(businessId: string): Promise<NotificationSettings> {
   const supabase = createServiceClient();
@@ -27,17 +72,7 @@ export async function getNotificationSettings(businessId: string): Promise<Notif
     .select("*")
     .eq("business_id", businessId)
     .maybeSingle();
-  if (!data) return { ...DEFAULT_SETTINGS };
-  return {
-    every_new_review: Boolean(data.every_new_review),
-    low_rating_only: Boolean(data.low_rating_only),
-    unanswered_only: Boolean(data.unanswered_only),
-    daily_summary: Boolean(data.daily_summary),
-    weekly_summary: Boolean(data.weekly_summary),
-    email_recipients: Array.isArray(data.email_recipients)
-      ? (data.email_recipients as string[]).map(String)
-      : [],
-  };
+  return mapSettingsRow(data as Record<string, unknown> | null);
 }
 
 export async function upsertNotificationSettings(params: {
@@ -51,23 +86,54 @@ export async function upsertNotificationSettings(params: {
     ...current,
     ...params.settings,
     email_recipients: params.settings.email_recipients ?? current.email_recipients,
+    no_reviews_days: params.settings.no_reviews_days ?? current.no_reviews_days,
   };
 
-  const { error } = await supabase.from("review_notification_settings").upsert(
-    {
-      organization_id: params.organizationId,
-      business_id: params.businessId,
-      every_new_review: next.every_new_review,
-      low_rating_only: next.low_rating_only,
-      unanswered_only: next.unanswered_only,
-      daily_summary: next.daily_summary,
-      weekly_summary: next.weekly_summary,
-      email_recipients: next.email_recipients,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "business_id" }
-  );
-  if (error) throw new Error(error.message);
+  const payload = {
+    organization_id: params.organizationId,
+    business_id: params.businessId,
+    every_new_review: next.every_new_review,
+    low_rating_only: next.low_rating_only,
+    unanswered_only: next.unanswered_only,
+    daily_summary: next.daily_summary,
+    weekly_summary: next.weekly_summary,
+    email_recipients: next.email_recipients,
+    velocity_drop: next.velocity_drop,
+    competitor_velocity_spike: next.competitor_velocity_spike,
+    no_reviews_days: next.no_reviews_days,
+    rating_changed: next.rating_changed,
+    response_overdue: next.response_overdue,
+    campaign_delivery_problem: next.campaign_delivery_problem,
+    review_gap_widening: next.review_gap_widening,
+    maps_visibility_moved: next.maps_visibility_moved,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase
+    .from("review_notification_settings")
+    .upsert(payload, { onConflict: "business_id" });
+  if (error) {
+    // Migration 077 not applied — save base fields only.
+    if (/column .* does not exist|schema cache/i.test(error.message)) {
+      const { error: legacyError } = await supabase.from("review_notification_settings").upsert(
+        {
+          organization_id: params.organizationId,
+          business_id: params.businessId,
+          every_new_review: next.every_new_review,
+          low_rating_only: next.low_rating_only,
+          unanswered_only: next.unanswered_only,
+          daily_summary: next.daily_summary,
+          weekly_summary: next.weekly_summary,
+          email_recipients: next.email_recipients,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "business_id" }
+      );
+      if (legacyError) throw new Error(legacyError.message);
+      return next;
+    }
+    throw new Error(error.message);
+  }
   return next;
 }
 
