@@ -4,10 +4,13 @@ import {
   Area,
   Bar,
   BarChart,
+  Brush,
   CartesianGrid,
   Cell,
   ComposedChart,
   Legend,
+  Line,
+  LineChart,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -40,6 +43,18 @@ type Marker = {
   label: string;
   color?: string;
 };
+
+function formatAxisDate(value: string): string {
+  const date = new Date(`${value}T12:00:00Z`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" });
+}
+
+function formatTooltipDate(value: string): string {
+  const date = new Date(`${value}T12:00:00Z`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+}
 
 /** Smooth multi-series area chart — mockup-quality velocity graphs. */
 export function RepAreaTrendChart({
@@ -127,6 +142,108 @@ export function RepAreaTrendChart({
             />
           ))}
         </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/**
+ * Cumulative multi-series line chart (Review Velocity Over Time).
+ * Solid primary line + dashed competitor lines, with brush zoom under the plot.
+ */
+export function RepCumulativeLineChart({
+  data,
+  series,
+  xKey = "date",
+  height = 420,
+  markers = [],
+  showBrush = true,
+}: {
+  data: Array<Record<string, unknown>>;
+  series: Series[];
+  xKey?: string;
+  height?: number;
+  markers?: Marker[];
+  showBrush?: boolean;
+}) {
+  const useBrush = showBrush && data.length > 14;
+
+  return (
+    <div style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 16, right: 18, left: 4, bottom: useBrush ? 8 : 4 }}>
+          <CartesianGrid stroke={GRID} strokeDasharray="4 6" vertical={false} />
+          <XAxis
+            dataKey={xKey}
+            tick={{ fontSize: 11, fill: TICK }}
+            tickLine={false}
+            axisLine={false}
+            minTickGap={36}
+            tickFormatter={formatAxisDate}
+          />
+          <YAxis
+            allowDecimals={false}
+            tick={{ fontSize: 11, fill: TICK }}
+            tickLine={false}
+            axisLine={false}
+            width={44}
+            tickFormatter={(value: number) =>
+              value >= 1000 ? `${Math.round(value / 100) / 10}k` : String(value)
+            }
+          />
+          <Tooltip
+            contentStyle={TOOLTIP_STYLE}
+            labelFormatter={(label) => formatTooltipDate(String(label))}
+            formatter={(value, name) => [Number(value).toLocaleString(), name]}
+          />
+          <Legend
+            verticalAlign="top"
+            align="right"
+            height={28}
+            iconType="plainline"
+            wrapperStyle={{ fontSize: 12, paddingBottom: 4 }}
+          />
+          {markers.map((marker) => (
+            <ReferenceLine
+              key={`${marker.x}-${marker.label}`}
+              x={marker.x}
+              stroke={marker.color ?? "#F79009"}
+              strokeDasharray="4 4"
+              label={{
+                value: marker.label,
+                fontSize: 9,
+                fill: "#667085",
+                position: "insideTopLeft",
+              }}
+            />
+          ))}
+          {series.map((s, index) => (
+            <Line
+              key={s.dataKey}
+              type="monotone"
+              dataKey={s.dataKey}
+              name={s.name}
+              stroke={s.color}
+              strokeWidth={s.strokeWidth ?? (index === 0 ? 3 : 2)}
+              strokeDasharray={s.dashed ? "6 4" : undefined}
+              dot={false}
+              activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }}
+              isAnimationActive
+              animationDuration={650}
+              connectNulls
+            />
+          ))}
+          {useBrush ? (
+            <Brush
+              dataKey={xKey}
+              height={28}
+              stroke="#D0D5DD"
+              fill="#F9FAFB"
+              travellerWidth={10}
+              tickFormatter={formatAxisDate}
+            />
+          ) : null}
+        </LineChart>
       </ResponsiveContainer>
     </div>
   );

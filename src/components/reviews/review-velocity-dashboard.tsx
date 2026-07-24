@@ -20,7 +20,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import { RepAreaTrendChart, RepHorizontalGapChart } from "@/components/reputation/rep-charts";
+import { RepCumulativeLineChart, RepHorizontalGapChart } from "@/components/reputation/rep-charts";
 import { REP_GREEN, RepBadge, RepMetricCard, rep } from "@/components/reputation/rep-ui";
 import { ReputationSyncButton } from "@/components/reputation/reputation-sync-button";
 import type {
@@ -34,19 +34,21 @@ import { cn } from "@/lib/utils";
 const BLUE = "#2563EB";
 const AMBER = "#F79009";
 const RED = "#D92D20";
+const COMPETITOR_LINE_COLORS = ["#7DD3FC", "#A78BFA", "#C4B5FD", "#94A3B8", "#67E8F9", "#F9A8D4"];
 
 type ReviewVelocityDashboardProps = {
   businessId: string;
   data: ReviewAnalyticsData;
 };
 
-type RangeId = "1M" | "3M" | "6M" | "1Y" | "YTD" | "ALL";
+type RangeId = "1M" | "3M" | "6M" | "1Y" | "2Y" | "YTD" | "ALL";
 
 const rangeOptions: Array<{ id: RangeId; label: string; days?: number }> = [
   { id: "1M", label: "1M", days: 30 },
   { id: "3M", label: "3M", days: 90 },
   { id: "6M", label: "6M", days: 180 },
   { id: "1Y", label: "1Y", days: 365 },
+  { id: "2Y", label: "2Y", days: 730 },
   { id: "YTD", label: "YTD" },
   { id: "ALL", label: "ALL" },
 ];
@@ -157,30 +159,96 @@ function SectionCard({
   );
 }
 
+function toCumulative(values: number[]): number[] {
+  let running = 0;
+  return values.map((value) => {
+    running += value;
+    return running;
+  });
+}
+
 function MiniSparkline({
   values,
   color = REP_GREEN,
   height = 34,
+  cumulative = false,
 }: {
   values: number[];
   color?: string;
   height?: number;
+  cumulative?: boolean;
 }) {
-  const max = Math.max(...values, 1);
-  const points = values.length
-    ? values
+  const series = cumulative ? toCumulative(values) : values;
+  const max = Math.max(...series, 1);
+  const min = Math.min(...series, 0);
+  const span = Math.max(max - min, 1);
+  const points = series.length
+    ? series
         .map((value, index) => {
-          const x = values.length === 1 ? 50 : (index / (values.length - 1)) * 100;
-          const y = height - 4 - (value / max) * (height - 8);
+          const x = series.length === 1 ? 50 : (index / (series.length - 1)) * 100;
+          const y = height - 4 - ((value - min) / span) * (height - 8);
           return `${x},${y}`;
         })
         .join(" ")
     : "";
   return (
     <svg viewBox={`0 0 100 ${height}`} className="h-8 w-24 overflow-visible" aria-hidden>
-      <polyline fill="none" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" points={points} />
+      <polyline fill="none" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" points={points} />
     </svg>
   );
+}
+
+/** Build lifetime-style cumulative totals, then filter to the selected range. */
+function buildCumulativeVelocitySeries(
+  points: ReviewAnalyticsTimelinePoint[],
+  competitors: ReviewAnalyticsCompetitor[],
+  totalReviews: number,
+  range: RangeId
+) {
+  const competitorIds = competitors.map((competitor) => competitor.id);
+  const youWindowSum = points.reduce((sum, point) => sum + point.you, 0);
+  let you = Math.max(0, totalReviews - youWindowSum);
+  const competitorTotals = Object.fromEntries(
+    competitors.map((competitor) => {
+      const windowSum = points.reduce((sum, point) => sum + (point.competitorSeries?.[competitor.id] ?? 0), 0);
+      return [competitor.id, Math.max(0, competitor.totalReviews - windowSum)];
+    })
+  );
+  let competitorAvg = 0;
+  if (competitorIds.length) {
+    const avgWindowSum = points.reduce((sum, point) => sum + point.competitorAvg, 0);
+    const avgLifetime =
+      competitors.reduce((sum, competitor) => sum + competitor.totalReviews, 0) / competitorIds.length;
+    competitorAvg = Math.max(0, avgLifetime - avgWindowSum);
+  }
+
+  const cumulative = points.map((point) => {
+    you += point.you;
+    competitorAvg += point.competitorAvg;
+    const row: Record<string, string | number> = {
+      date: point.date,
+      you: Math.round(you * 10) / 10,
+      competitorAvg: Math.round(competitorAvg * 10) / 10,
+    };
+    for (const competitorId of competitorIds) {
+      competitorTotals[competitorId] = (competitorTotals[competitorId] ?? 0) + (point.competitorSeries?.[competitorId] ?? 0);
+      row[`c_${competitorId}`] = competitorTotals[competitorId] ?? 0;
+    }
+    return row;
+  });
+
+  if (!cumulative.length || range === "ALL") return cumulative;
+  const latest = new Date(`${cumulative[cumulative.length - 1]!.date}T12:00:00Z`);
+  if (range === "YTD") {
+    const start = `${latest.getUTCFullYear()}-01-01`;
+    return cumulative.filter((row) => String(row.date) >= start);
+  }
+  const days = rangeOptions.find((option) => option.id === range)?.days;
+  if (!days) return cumulative;
+  const cutoff = new Date(latest);
+  cutoff.setUTCDate(cutoff.getUTCDate() - days + 1);
+  const cutoffKey = cutoff.toISOString().slice(0, 10);
+  return cumulative.filter((row) => String(row.date) >= cutoffKey);
 }
 
 function StarRating({ rating }: { rating: number | null }) {
@@ -444,12 +512,34 @@ export function ReviewVelocityDashboard({ businessId, data }: ReviewVelocityDash
   const trustScore = useMemo(() => calculateTrustScore(data), [data]);
   const scorePct = Math.round(trustScore * 10);
   const filteredTimeline = useMemo(() => filterTimeline(data.timelinePoints, range), [data.timelinePoints, range]);
-  const hasCompetitorAverage = filteredTimeline.some((point) => point.competitorAvg > 0);
-  const chartData = filteredTimeline.map((point) => ({
-    date: point.date,
-    you: point.you,
-    competitorAvg: point.competitorAvg,
-  }));
+  const chartData = useMemo(
+    () => buildCumulativeVelocitySeries(data.timelinePoints, data.competitors, data.totalReviews, range),
+    [data.competitors, data.timelinePoints, data.totalReviews, range]
+  );
+  const chartSeries = useMemo(() => {
+    const series: Array<{ dataKey: string; name: string; color: string; strokeWidth?: number; dashed?: boolean }> = [
+      { dataKey: "you", name: data.businessName || "You", color: BLUE, strokeWidth: 3 },
+    ];
+    data.competitors.slice(0, 4).forEach((competitor, index) => {
+      series.push({
+        dataKey: `c_${competitor.id}`,
+        name: competitor.name,
+        color: COMPETITOR_LINE_COLORS[index % COMPETITOR_LINE_COLORS.length]!,
+        strokeWidth: 2,
+        dashed: true,
+      });
+    });
+    if (!data.competitors.length && chartData.some((row) => Number(row.competitorAvg) > 0)) {
+      series.push({
+        dataKey: "competitorAvg",
+        name: "Competitor avg",
+        color: "#94A3B8",
+        strokeWidth: 2,
+        dashed: true,
+      });
+    }
+    return series;
+  }, [chartData, data.businessName, data.competitors]);
   const events = filteredTimeline.filter((point) => point.events.length > 0);
   const velocityRows = useMemo(() => {
     const sourceRows = data.sources.length
@@ -571,8 +661,8 @@ export function ReviewVelocityDashboard({ businessId, data }: ReviewVelocityDash
       </div>
 
       <SectionCard
-        title="Review Volume Over Time"
-        subtitle="Your Google review velocity over the selected period, with competitor average when available."
+        title="Review Velocity Over Time"
+        subtitle="Cumulative review totals for you and tracked competitors. Use the range chips or brush to zoom."
         action={
           <div className="flex flex-wrap rounded-lg bg-[#F2F4F7] p-1">
             {rangeOptions.map((option) => (
@@ -593,20 +683,15 @@ export function ReviewVelocityDashboard({ businessId, data }: ReviewVelocityDash
       >
         <div ref={chartRef}>
           {chartData.length ? (
-            <RepAreaTrendChart
+            <RepCumulativeLineChart
               data={chartData}
-              height={390}
+              height={420}
               markers={events.map((point) => ({
                 x: point.date,
                 label: point.events[0]?.label ?? "",
                 color: point.events.some((event) => event.type === "campaign_start") ? AMBER : BLUE,
               }))}
-              series={[
-                { dataKey: "you", name: "You", color: REP_GREEN, strokeWidth: 3, fillOpacity: 0.26 },
-                ...(hasCompetitorAverage
-                  ? [{ dataKey: "competitorAvg", name: "Competitor avg", color: BLUE, strokeWidth: 2.2, fillOpacity: 0.1, dashed: true }]
-                  : []),
-              ]}
+              series={chartSeries}
             />
           ) : (
             <div className="flex flex-col items-center gap-3 py-16 text-center">
@@ -640,7 +725,7 @@ export function ReviewVelocityDashboard({ businessId, data }: ReviewVelocityDash
                         vs previous {days}d
                       </p>
                     </div>
-                    <MiniSparkline values={spark} />
+                    <MiniSparkline values={spark} cumulative />
                   </div>
                 </div>
               );
