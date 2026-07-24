@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { getAuthContext } from "@/lib/auth/context";
+import { getDevAuthContext, isDevPreviewBusiness } from "@/lib/auth/dev";
 import { getBusiness } from "@/lib/db/queries";
 
 const UUID_RE =
@@ -16,6 +17,12 @@ export async function requireBusinessPage(businessId: string): Promise<{
   organizationId: string;
   email: string | null;
 }> {
+  // Local/mock preview business id (e.g. "preview") — skip UUID + DB checks.
+  if (isDevPreviewBusiness(businessId)) {
+    const dev = getDevAuthContext();
+    return { userId: dev.userId, organizationId: dev.organizationId, email: dev.email };
+  }
+
   if (!UUID_RE.test(businessId)) {
     redirect("/clients?error=invalid_business");
   }
