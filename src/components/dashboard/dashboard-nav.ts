@@ -161,7 +161,7 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
           title: "Intelligence",
           items: [
             { href: loc("reviews", businessId), label: "Reviews", icon: Star },
-            { href: loc("review-analytics", businessId), label: "Analytics", icon: TrendingUp },
+            { href: loc("review-analytics", businessId), label: "Review Velocity", icon: TrendingUp },
             { href: loc("review-competitors", businessId), label: "Competitors", icon: Swords },
             { href: loc("review-insights", businessId), label: "Insights", icon: Gauge },
             {

@@ -395,7 +395,7 @@ export function ReviewOverviewDashboard({
             <div>
               <h2 className="text-[14px] font-semibold text-zinc-900">Review Trend (90 days)</h2>
             </div>
-            <ViewLink href={analyticsHref}>View Full Analytics</ViewLink>
+            <ViewLink href={analyticsHref}>View Review Velocity</ViewLink>
           </div>
           {data.trendSeries.length > 0 ? (
             <RepAreaTrendChart
