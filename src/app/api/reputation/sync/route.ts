@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { hasFeature } from "@/lib/plans";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 import { assertRateLimit } from "@/lib/security/rate-limit";
@@ -22,6 +23,20 @@ export async function POST(request: Request) {
 
     if (!businessId) {
       return NextResponse.json({ error: "businessId required" }, { status: 400 });
+    }
+
+    // Local preview business has no queue/DB — acknowledge the CTA without enqueue.
+    if (isDevPreviewBusiness(businessId)) {
+      return NextResponse.json({
+        queued: true,
+        status: "preview",
+        message:
+          "Preview mode: sync is simulated. On a real business this queues Review Momentum + Reputation Audit together.",
+        jobs: [
+          { kind: "review_momentum_run", jobId: "preview", queued: true },
+          { kind: "reputation_audit", jobId: "preview", queued: true },
+        ],
+      });
     }
 
     const auth = await requireBusinessAccess(businessId);
