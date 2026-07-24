@@ -1,10 +1,21 @@
 /** Preview / mockup numbers for Review Overview (Intelligence). */
 export const REVIEW_OVERVIEW_PREVIEW_BUSINESS_ID = "preview-review-overview";
 
+export type ReviewOverviewMomentumLabel =
+  | "Exploding"
+  | "Accelerating"
+  | "Healthy"
+  | "Stable"
+  | "Slowing"
+  | "Stalled";
+
 export type ReviewOverviewData = {
+  hasReviewsData: boolean;
+  hasMapsData: boolean;
+  hasCampaignData: boolean;
   dateRangeLabel: string;
-  googleRating: number;
-  competitorAvgRatingNearby: number;
+  googleRating: number | null;
+  competitorAvgRatingNearby: number | null;
   nearbyMiles: number;
   totalReviews: number;
   gained30d: number;
@@ -20,12 +31,12 @@ export type ReviewOverviewData = {
   reviewsPerMonth: number;
   reviewsPerWeekBaseline90d: number;
   velocitySparkline: number[];
-  momentumLabel: "Accelerating" | "Stable" | "Slowing" | "Stalled";
+  momentumLabel: ReviewOverviewMomentumLabel;
   momentumSubtitle: string;
   momentumDetail: string;
-  competitorRank: number;
-  competitorPoolSize: number;
-  competitorRankDelta: number;
+  competitorRank: number | null;
+  competitorPoolSize: number | null;
+  competitorRankDelta: number | null;
   responseRatePct: number;
   answeredCount: number;
   answeredOf: number;
@@ -43,13 +54,13 @@ export type ReviewOverviewData = {
     isYou?: boolean;
     barPct: number;
   }>;
-  mapsAvgRank: number;
-  mapsAvgRankDelta: number;
+  mapsAvgRank: number | null;
+  mapsAvgRankDelta: number | null;
   mapsRankSparkline: number[];
-  top3VisibilityPct: number;
-  top3VisibilityDelta: number;
-  top10VisibilityPct: number;
-  top10VisibilityDelta: number;
+  top3VisibilityPct: number | null;
+  top3VisibilityDelta: number | null;
+  top10VisibilityPct: number | null;
+  top10VisibilityDelta: number | null;
   campaign: {
     sent: number;
     clickedPct: number;
@@ -66,6 +77,9 @@ export type ReviewOverviewData = {
 };
 
 export const reviewOverviewPreviewData: ReviewOverviewData = {
+  hasReviewsData: true,
+  hasMapsData: true,
+  hasCampaignData: true,
   dateRangeLabel: "May 27 - Jun 25, 2024",
   googleRating: 4.6,
   competitorAvgRatingNearby: 4.5,

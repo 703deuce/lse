@@ -1,7 +1,12 @@
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { ReviewOverviewDashboard } from "@/components/reviews/review-overview-dashboard";
-import { reviewOverviewPreviewData } from "@/lib/reviews/review-overview-preview-data";
+import { loadReviewOverviewData } from "@/lib/reviews/review-overview-data";
+
+async function ReviewOverviewLoaded({ businessId }: { businessId: string }) {
+  const data = await loadReviewOverviewData(businessId);
+  return <ReviewOverviewDashboard businessId={businessId} data={data} />;
+}
 
 export default async function ReviewOverviewPage({
   params,
@@ -18,7 +23,7 @@ export default async function ReviewOverviewPage({
         </div>
       }
     >
-      <ReviewOverviewDashboard businessId={businessId} data={reviewOverviewPreviewData} />
+      <ReviewOverviewLoaded businessId={businessId} />
     </Suspense>
   );
 }
