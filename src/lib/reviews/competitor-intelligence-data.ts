@@ -25,6 +25,11 @@ export type CompetitorLeaderboardRow = {
   reviews30: number;
   reviews60: number;
   reviews90: number;
+  deltas?: {
+    reviews30?: number;
+    reviews60?: number;
+    reviews90?: number;
+  };
   reviewsPerMonth: number;
   momentumLabel: string;
   responseRate: number;

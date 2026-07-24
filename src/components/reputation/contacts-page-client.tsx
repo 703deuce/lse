@@ -1,11 +1,24 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Plus } from "lucide-react";
-import { ModulePage, TabBar } from "@/components/ui/design-system";
-import { PageHeader } from "@/components/ui/page-header";
+import {
+  Ban,
+  CheckCircle2,
+  Download,
+  History,
+  Megaphone,
+  MoreHorizontal,
+  Plus,
+  Send,
+  Settings,
+  Upload,
+  Users,
+} from "lucide-react";
+import { RepBadge, RepMetricCard, RepPageHeader, RepSearch, RepTabs, RepViewLink, rep } from "@/components/reputation/rep-ui";
 import { ReviewCampaignsUpgrade } from "@/components/reputation/review-campaigns-upgrade";
 import { ContactsImportWizard } from "@/components/reputation/contacts-import-wizard";
+import { cn } from "@/lib/utils";
 
 type ContactTab =
   | "all"
@@ -16,12 +29,12 @@ type ContactTab =
   | "import_history";
 
 const CONTACT_TABS: Array<{ id: ContactTab; label: string }> = [
-  { id: "all", label: "All" },
-  { id: "eligible", label: "Eligible for request" },
-  { id: "requested", label: "Review requested" },
-  { id: "detected", label: "Review detected" },
-  { id: "opted_out", label: "Opted out" },
-  { id: "import_history", label: "Import history" },
+  { id: "all", label: "All Contacts" },
+  { id: "eligible", label: "Eligible" },
+  { id: "requested", label: "Requested" },
+  { id: "detected", label: "Review Received" },
+  { id: "opted_out", label: "Opted Out" },
+  { id: "import_history", label: "Import History" },
 ];
 
 type ContactRow = {
@@ -41,6 +54,7 @@ type ContactRow = {
   review_completion?: unknown;
   created_at?: string;
   updated_at: string;
+  last_service_at?: string | null;
 };
 
 function tagsInclude(contact: ContactRow, terms: string[]) {
@@ -85,18 +99,50 @@ function contactStatus(contact: ContactRow) {
   return "Active";
 }
 
+function contactName(contact: ContactRow) {
+  return (
+    contact.customer_name ||
+    [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
+    "Unknown contact"
+  );
+}
+
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function fmtDate(value: string | null | undefined) {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function reviewStatusTone(contact: ContactRow): "green" | "blue" | "amber" | "gray" | "red" {
+  if (contact.sms_opt_out || contact.email_unsubscribed) return "red";
+  if (hasReviewDetectedSignal(contact)) return "green";
+  if (hasReviewRequestSignal(contact)) return "blue";
+  if (isEligibleForRequest(contact)) return "amber";
+  return "gray";
+}
+
 export function ContactsPageClient({
   businessId,
   allowed,
+  initialContacts,
 }: {
   businessId: string;
   allowed: boolean;
+  initialContacts?: ContactRow[];
 }) {
-  const [items, setItems] = useState<ContactRow[]>([]);
+  const [items, setItems] = useState<ContactRow[]>(initialContacts ?? []);
   const [cursor, setCursor] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [q, setQ] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialContacts);
   const [error, setError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -110,6 +156,7 @@ export function ContactsPageClient({
   const load = useCallback(
     async (opts?: { reset?: boolean; cursor?: string | null }) => {
       if (!allowed) return;
+      if (initialContacts) return;
       setLoading(true);
       setError(null);
       try {
@@ -131,38 +178,51 @@ export function ContactsPageClient({
         setLoading(false);
       }
     },
-    [allowed, businessId, cursor, q]
+    [allowed, businessId, cursor, initialContacts, q]
   );
 
   useEffect(() => {
-    setCursor(null);
-    void load({ reset: true });
+    if (initialContacts) return;
+    queueMicrotask(() => void load({ reset: true }));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- search on mount / allowed
-  }, [allowed, businessId]);
+  }, [allowed, businessId, initialContacts]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("import") === "1") setShowImport(true);
+    if (params.get("import") === "1") queueMicrotask(() => setShowImport(true));
   }, []);
 
   const visibleItems = useMemo(() => {
-    switch (activeTab) {
-      case "eligible":
-        return items.filter(isEligibleForRequest);
-      case "requested":
-        return items.filter(hasReviewRequestSignal);
-      case "detected":
-        return items.filter(hasReviewDetectedSignal);
-      case "opted_out":
-        return items.filter((c) => c.sms_opt_out || c.email_unsubscribed);
-      case "import_history":
-        return items.filter(hasImportSignal);
-      case "all":
-      default:
-        return items;
-    }
-  }, [activeTab, items]);
+    const tabItems = (() => {
+      switch (activeTab) {
+        case "eligible":
+          return items.filter(isEligibleForRequest);
+        case "requested":
+          return items.filter(hasReviewRequestSignal);
+        case "detected":
+          return items.filter(hasReviewDetectedSignal);
+        case "opted_out":
+          return items.filter((c) => c.sms_opt_out || c.email_unsubscribed);
+        case "import_history":
+          return items.filter(hasImportSignal);
+        case "all":
+        default:
+          return items;
+      }
+    })();
+    const needle = q.trim().toLowerCase();
+    if (!needle) return tabItems;
+    return tabItems.filter((contact) =>
+      [
+        contactName(contact),
+        contact.email_normalized ?? "",
+        contact.phone_e164 ?? "",
+        contact.source ?? "",
+        ...(contact.tags ?? []),
+      ].some((value) => value.toLowerCase().includes(needle))
+    );
+  }, [activeTab, items, q]);
 
   const emptyMessage = useMemo(() => {
     if (activeTab === "eligible") {
@@ -182,6 +242,17 @@ export function ContactsPageClient({
     }
     return "No contacts yet. Add a customer or import via a campaign.";
   }, [activeTab]);
+
+  const contactStats = useMemo(
+    () => ({
+      all: items.length,
+      eligible: items.filter(isEligibleForRequest).length,
+      requested: items.filter(hasReviewRequestSignal).length,
+      received: items.filter(hasReviewDetectedSignal).length,
+      optedOut: items.filter((contact) => contact.sms_opt_out || contact.email_unsubscribed).length,
+    }),
+    [items]
+  );
 
   if (!allowed) {
     return <ReviewCampaignsUpgrade businessId={businessId} />;
@@ -221,52 +292,55 @@ export function ContactsPageClient({
   }
 
   return (
-    <ModulePage>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <PageHeader
-          title="Contacts"
-          subtitle="Customers eligible for review campaigns. Opted-out contacts stay suppressed even after CSV re-upload."
-        />
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            onClick={() => setShowImport((v) => !v)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
-          >
-            Import CSV
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowAdd((v) => !v)}
-            className="inline-flex items-center gap-1.5 rounded-full bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#0f6344]"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add Customer
-          </button>
-        </div>
+    <div className={rep.page}>
+      <RepPageHeader
+        title="Contacts"
+        subtitle="Manage your customers and their review request status."
+        showCompare={false}
+        showExport={false}
+        showFilters={false}
+        actions={
+          <>
+            <button type="button" onClick={() => setShowAdd((value) => !value)} className={rep.btnPrimary}>
+              <Plus className="h-4 w-4" />
+              Add Contact
+            </button>
+            <button type="button" onClick={() => setShowImport((value) => !value)} className={rep.btnSecondary}>
+              <Upload className="h-4 w-4" />
+              Import
+            </button>
+            <button type="button" className={rep.btnSecondary}>
+              <Download className="h-4 w-4" />
+              Export
+            </button>
+            <button type="button" onClick={() => setActiveTab("import_history")} className={rep.btnSecondary}>
+              <History className="h-4 w-4" />
+              Import History
+            </button>
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <RepMetricCard label="All Contacts" value={contactStats.all} icon={Users}>
+          <RepViewLink href={`/businesses/${businessId}/reputation/contacts`}>View</RepViewLink>
+        </RepMetricCard>
+        <RepMetricCard label="Eligible" value={contactStats.eligible} icon={CheckCircle2} hint="Can receive SMS or email">
+          <button type="button" onClick={() => setActiveTab("eligible")} className={rep.link}>View</button>
+        </RepMetricCard>
+        <RepMetricCard label="Review Requested" value={contactStats.requested} icon={Send} hint="At least one request">
+          <button type="button" onClick={() => setActiveTab("requested")} className={rep.link}>View</button>
+        </RepMetricCard>
+        <RepMetricCard label="Review Received" value={contactStats.received} icon={CheckCircle2} hint="Detected completion">
+          <button type="button" onClick={() => setActiveTab("detected")} className={rep.link}>View</button>
+        </RepMetricCard>
+        <RepMetricCard label="Opted Out" value={contactStats.optedOut} icon={Ban} iconClassName="bg-[#FEF3F2] text-[#B42318]">
+          <button type="button" onClick={() => setActiveTab("opted_out")} className={rep.link}>View</button>
+        </RepMetricCard>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search name, phone, email…"
-          className="h-8 w-full max-w-xs rounded-md border border-zinc-200 px-2.5 text-[13px]"
-        />
-        <button
-          type="button"
-          onClick={() => {
-            setCursor(null);
-            void load({ reset: true });
-          }}
-          className="h-8 rounded-md border border-zinc-200 px-2.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
-        >
-          Search
-        </button>
-      </div>
-
-      {showImport && (
-        <div className="mt-3">
+      {showImport ? (
+        <div className={cn(rep.card, "p-4")}>
           <ContactsImportWizard
             businessId={businessId}
             onDone={() => {
@@ -275,146 +349,188 @@ export function ContactsPageClient({
             }}
           />
         </div>
-      )}
+      ) : null}
 
-      {showAdd && (
-        <div className="mt-3 grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 sm:grid-cols-4">
-          <input
-            className="h-8 rounded-md border border-zinc-200 px-2 text-[13px]"
-            placeholder="First name"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-          />
-          <input
-            className="h-8 rounded-md border border-zinc-200 px-2 text-[13px]"
-            placeholder="Last name"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-          />
-          <input
-            className="h-8 rounded-md border border-zinc-200 px-2 text-[13px]"
-            placeholder="Phone"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
-          <input
-            className="h-8 rounded-md border border-zinc-200 px-2 text-[13px]"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => void saveContact()}
-            className="h-8 rounded-full bg-[#137752] px-2.5 text-[12px] font-semibold text-white disabled:opacity-60 sm:col-span-4 sm:w-fit"
-          >
-            {saving ? "Saving…" : "Save contact"}
+      {showAdd ? (
+        <div className={cn(rep.card, "grid gap-3 p-4 md:grid-cols-4")}>
+          <input className={rep.input} placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+          <input className={rep.input} placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+          <input className={rep.input} placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <input className={rep.input} placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <button type="button" disabled={saving} onClick={() => void saveContact()} className={cn(rep.btnPrimary, "md:col-span-4 md:w-fit disabled:opacity-60")}>
+            {saving ? "Saving..." : "Save contact"}
           </button>
         </div>
-      )}
+      ) : null}
 
-      {error && <p className="mt-2 text-[12px] text-red-600">{error}</p>}
+      {error ? <p className="text-sm text-[#B42318]">{error}</p> : null}
 
-      <TabBar tabs={CONTACT_TABS} active={activeTab} onChange={setActiveTab} className="mt-4" />
+      <RepTabs tabs={CONTACT_TABS} active={activeTab} onChange={(id) => setActiveTab(id as ContactTab)} />
 
-      <div className="mt-2 rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-[11px] text-zinc-500">
-        Filters are applied client-side to the loaded contacts. Use Load more to bring additional contacts into these tabs.
+      <div className={cn(rep.card, "flex flex-col gap-3 p-3 lg:flex-row lg:items-center")}>
+        <RepSearch value={q} onChange={setQ} placeholder="Search name, email, phone, source, or tag..." />
+        <div className="flex flex-wrap gap-2">
+          <select className={rep.select} defaultValue="all">
+            <option value="all">All sources</option>
+            <option value="csv">CSV import</option>
+            <option value="manual">Manual</option>
+            <option value="webhook">Webhook</option>
+          </select>
+          <select className={rep.select} defaultValue="all">
+            <option value="all">All campaigns</option>
+            <option value="requested">Requested</option>
+            <option value="not-requested">Not requested</option>
+          </select>
+          <button
+            type="button"
+            onClick={() => {
+              setCursor(null);
+              void load({ reset: true });
+            }}
+            className={rep.btnSecondary}
+          >
+            Search
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2 text-xs text-[#667085]">
+        Filters apply to loaded contacts. Use Load more to bring additional contacts into these tabs.
         {activeTab === "import_history"
-          ? " Import batch records are not included in /api/reputation/contacts, so this tab uses contact source/tags where present."
+          ? " Import batch records are approximated from contact source/tags when the contacts endpoint is the only loaded source."
           : null}
       </div>
 
-      <div className="mt-3 overflow-x-auto rounded-lg border border-zinc-200 bg-white">
-        <table className="min-w-full text-left text-[12px]">
-          <thead className="border-b border-zinc-100 bg-zinc-50/80 text-[10px] uppercase tracking-wide text-zinc-500">
-            <tr>
-              <th className="px-2.5 py-2 font-medium">Customer</th>
-              <th className="px-2.5 py-2 font-medium">Phone</th>
-              <th className="px-2.5 py-2 font-medium">Email</th>
-              <th className="px-2.5 py-2 font-medium">Status</th>
-              <th className="px-2.5 py-2 font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleItems.map((c) => (
-              <tr key={c.id} className="border-b border-zinc-50">
-                <td className="px-2.5 py-1.5 font-medium text-zinc-900">
-                  {c.customer_name ||
-                    [c.first_name, c.last_name].filter(Boolean).join(" ") ||
-                    "—"}
-                  {c.source ? (
-                    <span className="ml-1 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-normal text-zinc-500">
-                      {c.source}
-                    </span>
-                  ) : null}
-                </td>
-                <td className="px-2.5 py-1.5 tabular-nums text-zinc-700">{c.phone_e164 || "—"}</td>
-                <td className="px-2.5 py-1.5 text-zinc-700">{c.email_normalized || "—"}</td>
-                <td className="px-2.5 py-1.5 text-zinc-600">
-                  {contactStatus(c)}
-                  {c.last_contacted_at ? (
-                    <span className="block text-[10px] text-zinc-400">
-                      Last requested {new Date(c.last_contacted_at).toLocaleDateString()}
-                    </span>
-                  ) : null}
-                </td>
-                <td className="px-2.5 py-1.5">
-                  <button
-                    type="button"
-                    className="text-[11px] font-medium text-emerald-700 hover:underline"
-                    onClick={() => {
-                      void (async () => {
-                        const suppressed = c.sms_opt_out || c.email_unsubscribed;
-                        const res = await fetch("/api/reputation/contacts", {
-                          method: "PATCH",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            businessId,
-                            contactId: c.id,
-                            action: suppressed ? "unsuppress" : "suppress",
-                            channel: "both",
-                          }),
-                        });
-                        if (res.ok) {
-                          setCursor(null);
-                          await load({ reset: true });
-                        }
-                      })();
-                    }}
-                  >
-                    {c.sms_opt_out || c.email_unsubscribed ? "Clear suppression" : "Suppress"}
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {!loading && visibleItems.length === 0 && (
+      <div className={cn(rep.card, "overflow-hidden")}>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead className="border-b border-[#E6EAF0] bg-[#F9FAFB] text-[11px] uppercase tracking-[0.06em] text-[#667085]">
               <tr>
-                <td colSpan={5} className="px-2.5 py-8 text-center text-zinc-500">
-                  {emptyMessage}
-                </td>
+                <th className="w-10 px-4 py-3">
+                  <input type="checkbox" className="h-4 w-4 rounded border-[#D0D5DD]" aria-label="Select all contacts" />
+                </th>
+                <th className="min-w-[260px] px-4 py-3 font-semibold">Contact</th>
+                <th className="px-4 py-3 font-semibold">Email</th>
+                <th className="px-4 py-3 font-semibold">Phone</th>
+                <th className="px-4 py-3 font-semibold">Last service/request</th>
+                <th className="px-4 py-3 font-semibold">Review status</th>
+                <th className="px-4 py-3 font-semibold">Campaign status</th>
+                <th className="px-4 py-3 font-semibold">Tags</th>
+                <th className="px-4 py-3 font-semibold">Actions</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-[#EEF2F6]">
+              {visibleItems.map((contact) => {
+                const name = contactName(contact);
+                const suppressed = contact.sms_opt_out || contact.email_unsubscribed;
+                return (
+                  <tr key={contact.id} className="bg-white hover:bg-[#F9FAFB]">
+                    <td className="px-4 py-3">
+                      <input type="checkbox" className="h-4 w-4 rounded border-[#D0D5DD]" aria-label={`Select ${name}`} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ECFDF3] text-xs font-bold text-[#137752]">
+                          {initials(name)}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-[#101828]">{name}</p>
+                          <p className="text-xs text-[#667085]">{contact.source ?? "Manual"}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-[#344054]">{contact.email_normalized || "—"}</td>
+                    <td className="px-4 py-3 tabular-nums text-[#344054]">{contact.phone_e164 || "—"}</td>
+                    <td className="px-4 py-3 text-[#344054]">
+                      <span className="block">{fmtDate(contact.last_service_at ?? contact.updated_at)}</span>
+                      <span className="text-xs text-[#667085]">Requested {fmtDate(contact.last_contacted_at)}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <RepBadge tone={reviewStatusTone(contact)}>{contactStatus(contact)}</RepBadge>
+                    </td>
+                    <td className="px-4 py-3 text-[#344054]">
+                      {hasReviewRequestSignal(contact) ? `${contact.campaign_attempts ?? 1} attempts` : "Not enrolled"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex max-w-[220px] flex-wrap gap-1">
+                        {(contact.tags ?? []).slice(0, 3).map((tag) => (
+                          <RepBadge key={tag} tone="gray">{tag}</RepBadge>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="text-xs font-semibold text-[#137752] hover:underline"
+                          onClick={() => {
+                            void (async () => {
+                              const res = await fetch("/api/reputation/contacts", {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  businessId,
+                                  contactId: contact.id,
+                                  action: suppressed ? "unsuppress" : "suppress",
+                                  channel: "both",
+                                }),
+                              });
+                              if (res.ok) {
+                                setCursor(null);
+                                await load({ reset: true });
+                              }
+                            })();
+                          }}
+                        >
+                          {suppressed ? "Clear" : "Suppress"}
+                        </button>
+                        <button type="button" className="rounded-lg p-1.5 text-[#98A2B3] hover:bg-[#F2F4F7]">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {!loading && visibleItems.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-[#667085]">
+                    {emptyMessage}
+                  </td>
+                </tr>
+              ) : null}
+              {loading ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-[#667085]">
+                    Loading contacts...
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {loading && (
-        <div className="mt-2 flex items-center gap-2 text-[12px] text-zinc-500">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
-        </div>
-      )}
-      {nextCursor && (
-        <button
-          type="button"
-          className="mt-2 text-[12px] font-medium text-emerald-700 hover:underline"
-          onClick={() => {
-            void load({ cursor: nextCursor });
-          }}
-        >
-          Load more
+      {nextCursor ? (
+        <button type="button" className={rep.link} onClick={() => void load({ cursor: nextCursor })}>
+          Load more contacts
         </button>
-      )}
-    </ModulePage>
+      ) : null}
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {[
+          { title: "Import customers", body: "Upload a CSV and map fields safely.", icon: Upload, href: `/businesses/${businessId}/reputation/contacts?import=1` },
+          { title: "Send requests", body: "Start a one-time review request flow.", icon: Send, href: `/businesses/${businessId}/reputation/requests` },
+          { title: "Campaigns", body: "Enroll eligible contacts into automations.", icon: Megaphone, href: `/businesses/${businessId}/reputation/campaigns` },
+          { title: "Consent settings", body: "Manage opt-out and quiet-hour rules.", icon: Settings, href: `/businesses/${businessId}/reputation/settings` },
+        ].map((card) => (
+          <Link key={card.title} href={card.href} className={cn(rep.card, "block p-4 transition hover:-translate-y-0.5 hover:shadow-md")}>
+            <card.icon className="h-5 w-5 text-[#137752]" />
+            <h3 className="mt-3 text-sm font-semibold text-[#101828]">{card.title}</h3>
+            <p className="mt-1 text-sm text-[#667085]">{card.body}</p>
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }

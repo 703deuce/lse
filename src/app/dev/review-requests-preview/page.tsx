@@ -1,14 +1,8 @@
 "use client";
 
 import { useLayoutEffect, useState } from "react";
-import { ReviewRequestsPanel } from "@/components/reputation/review-requests-panel";
-import type { ReviewRequestsSection } from "@/components/reputation/review-requests-sub-tabs";
-import {
-  ReviewRequestsPageHeader,
-  ReviewRequestsSubTabsBar,
-  ReviewRequestsTopBar,
-} from "@/components/reputation/review-requests-ui";
-import { ModulePage } from "@/components/ui/design-system";
+import { DashboardSidebarPanel } from "@/components/dashboard/sidebar";
+import { ReviewRequestsDashboard } from "@/components/reputation/review-requests-dashboard";
 import {
   REVIEW_REQUESTS_PREVIEW_BUSINESS_ID,
   reviewRequestsPreviewCampaigns,
@@ -60,7 +54,7 @@ function patchReviewRequestsPreviewFetch() {
 
 export default function ReviewRequestsPreviewPage() {
   const [ready, setReady] = useState(false);
-  const [section, setSection] = useState<ReviewRequestsSection>("poster");
+  const path = `/businesses/${REVIEW_REQUESTS_PREVIEW_BUSINESS_ID}/reputation/requests`;
 
   useLayoutEffect(() => {
     patchReviewRequestsPreviewFetch();
@@ -70,19 +64,19 @@ export default function ReviewRequestsPreviewPage() {
   if (!ready) return null;
 
   return (
-    <div className="px-5 py-6 lg:px-8">
-      <ModulePage>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <ReviewRequestsPageHeader />
-          <ReviewRequestsTopBar />
-        </div>
-        <ReviewRequestsSubTabsBar active={section} onChange={setSection} />
-        <ReviewRequestsPanel
+    <div className="flex min-h-screen bg-[#F9FAFB]">
+      <DashboardSidebarPanel
+        businessId={REVIEW_REQUESTS_PREVIEW_BUSINESS_ID}
+        pathname={path}
+        businessName="Premier Junk Removal"
+        staticLinks
+        showFooter={false}
+      />
+      <main className="min-w-0 flex-1 overflow-y-auto px-5 py-6 lg:px-8">
+        <ReviewRequestsDashboard
           businessId={REVIEW_REQUESTS_PREVIEW_BUSINESS_ID}
-          section={section}
-          hideSubTabs
         />
-      </ModulePage>
+      </main>
     </div>
   );
 }

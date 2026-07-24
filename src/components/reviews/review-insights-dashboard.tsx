@@ -1,24 +1,38 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
   Bar,
   BarChart,
   CartesianGrid,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { ChevronRight, MessageSquareText, Search, Sparkles } from "lucide-react";
 import {
-  ModuleHeader,
+  AlertTriangle,
+  Camera,
+  FileText,
+  MessageSquareText,
+  Search,
+  Sparkles,
+  UserRoundCheck,
+} from "lucide-react";
+import {
   ModulePage,
-  TabBar,
-  cardClass,
   moduleStack,
 } from "@/components/ui/design-system";
+import {
+  REP_GREEN,
+  RepBadge,
+  RepMetricCard,
+  RepPageHeader,
+  RepTabs,
+  rep,
+} from "@/components/reputation/rep-ui";
 import { cn } from "@/lib/utils";
 import type { ReviewInsightsData, ReviewInsightTheme } from "@/lib/reviews/review-insights-data";
 
@@ -26,13 +40,41 @@ type TabId = "themes" | "keywords" | "performance" | "quality";
 
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: "themes", label: "Themes" },
-  { id: "keywords", label: "Services and Keywords" },
+  { id: "keywords", label: "Services & Keywords" },
   { id: "performance", label: "Response Performance" },
   { id: "quality", label: "Response Quality" },
 ];
 
-function Card({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn(cardClass, "p-4", className)}>{children}</div>;
+function formatNum(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return "--";
+  return value.toLocaleString();
+}
+
+function Card({
+  title,
+  description,
+  children,
+  className,
+  action,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+  className?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <section className={cn(rep.card, "overflow-hidden", className)}>
+      <div className="flex items-start justify-between gap-3 border-b border-[#E6EAF0] px-4 py-3">
+        <div>
+          <h2 className="text-[15px] font-semibold text-[#101828]">{title}</h2>
+          {description ? <p className="mt-0.5 text-xs text-[#667085]">{description}</p> : null}
+        </div>
+        {action}
+      </div>
+      <div className="p-4">{children}</div>
+    </section>
+  );
 }
 
 function ThemePanel({
@@ -42,26 +84,32 @@ function ThemePanel({
 }: {
   title: string;
   items: ReviewInsightTheme[];
-  tone: "positive" | "negative" | "emerging";
+  tone: "positive" | "negative";
 }) {
-  const styles = {
-    positive: "bg-emerald-50 text-emerald-700",
-    negative: "bg-red-50 text-red-700",
-    emerging: "bg-blue-50 text-blue-700",
-  };
+  const max = Math.max(...items.map((item) => item.count), 1);
+  const bar = tone === "positive" ? "bg-[#137752]" : "bg-[#D92D20]";
+  const text = tone === "positive" ? "text-[#137752]" : "text-[#B42318]";
+
   return (
-    <Card>
-      <h2 className="text-[14px] font-semibold text-zinc-900">{title}</h2>
-      <ul className="mt-3 space-y-2.5">
+    <Card title={title}>
+      <ul className="space-y-3">
         {items.length === 0 ? (
-          <li className="text-[13px] text-zinc-500">No matching themes yet.</li>
+          <li className="py-8 text-center text-sm text-[#667085]">No matching themes yet.</li>
         ) : (
           items.map((item) => (
-            <li key={item.label} className="flex items-center justify-between gap-3 text-[13px]">
-              <span className="font-medium text-zinc-700">{item.label}</span>
-              <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", styles[tone])}>
-                {item.count} · {item.pct}%
-              </span>
+            <li key={item.label}>
+              <div className="mb-1.5 flex items-center justify-between gap-3">
+                <span className="truncate text-sm font-semibold text-[#344054]">{item.label}</span>
+                <span className={cn("text-xs font-bold tabular-nums", text)}>
+                  {item.count} ({item.pct}%)
+                </span>
+              </div>
+              <div className="h-2.5 overflow-hidden rounded-full bg-[#F2F4F7]">
+                <div
+                  className={cn("h-full rounded-full", bar)}
+                  style={{ width: `${Math.max(8, (item.count / max) * 100)}%` }}
+                />
+              </div>
             </li>
           ))
         )}
@@ -71,13 +119,7 @@ function ThemePanel({
 }
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <Card>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-400">{label}</p>
-      <p className="mt-1.5 text-2xl font-bold tabular-nums text-zinc-900">{value}</p>
-      {sub ? <p className="mt-1 text-[12px] text-zinc-500">{sub}</p> : null}
-    </Card>
-  );
+  return <RepMetricCard label={label} value={value} hint={sub} />;
 }
 
 function KeywordPanel({
@@ -88,25 +130,61 @@ function KeywordPanel({
   items: Array<{ keyword: string; count: number }>;
 }) {
   return (
-    <Card>
-      <h2 className="text-[14px] font-semibold capitalize text-zinc-900">{title}</h2>
-      <div className="mt-3 flex flex-wrap gap-2">
+    <Card title={title}>
+      <div className="flex flex-wrap gap-2">
         {items.length === 0 ? (
-          <p className="text-[13px] text-zinc-500">No mentions found yet.</p>
+          <p className="py-4 text-sm text-[#667085]">No mentions found yet.</p>
         ) : (
           items.map((item) => (
             <span
               key={item.keyword}
-              className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 text-[12px] font-medium capitalize text-zinc-700"
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-1 text-xs font-semibold capitalize text-[#344054]"
             >
               {item.keyword}
-              <span className="text-zinc-400">{item.count}</span>
+              <span className="text-[#98A2B3]">{item.count}</span>
             </span>
           ))
         )}
       </div>
     </Card>
   );
+}
+
+function MentionList({
+  items,
+  empty,
+}: {
+  items: Array<{ keyword: string; count: number }>;
+  empty: string;
+}) {
+  const max = Math.max(...items.map((item) => item.count), 1);
+
+  if (!items.length) {
+    return <p className="py-8 text-center text-sm text-[#667085]">{empty}</p>;
+  }
+
+  return (
+    <ul className="space-y-3">
+      {items.slice(0, 8).map((item) => (
+        <li key={item.keyword}>
+          <div className="mb-1.5 flex items-center justify-between gap-3">
+            <span className="truncate text-sm font-semibold capitalize text-[#344054]">{item.keyword}</span>
+            <span className="text-xs font-bold tabular-nums text-[#101828]">{item.count}</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-[#F2F4F7]">
+            <div
+              className="h-full rounded-full bg-[#137752]"
+              style={{ width: `${Math.max(8, (item.count / max) * 100)}%` }}
+            />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function BoolBadge({ value }: { value: boolean }) {
+  return <RepBadge tone={value ? "green" : "gray"}>{value ? "Yes" : "No"}</RepBadge>;
 }
 
 export function ReviewInsightsDashboard({
@@ -117,6 +195,13 @@ export function ReviewInsightsDashboard({
   data: ReviewInsightsData;
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("themes");
+  void businessId;
+
+  const trendRows = data.themes.themeFrequencyOverTime.map((theme) => ({
+    label: theme.label,
+    "Recent 30d": theme.recent30,
+    "Prior 30d": theme.prior30,
+  }));
   const responseBars = [
     { label: "Answered", count: data.responsePerformance.answered },
     { label: "Unanswered +", count: data.responsePerformance.unansweredPositive },
@@ -126,137 +211,173 @@ export function ReviewInsightsDashboard({
 
   return (
     <ModulePage className={moduleStack}>
-      <ModuleHeader
+      <RepPageHeader
         title="Review Insights"
-        subtitle={`Themes, service mentions, and response quality signals for ${data.businessName}.`}
-        icon={Sparkles}
-        actions={
-          <Link
-            href={`/businesses/${businessId}/reputation/overview`}
-            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-[13px] font-semibold text-zinc-700 shadow-sm hover:bg-zinc-50"
-          >
-            Overview
-            <ChevronRight className="h-3.5 w-3.5" />
-          </Link>
-        }
+        subtitle="Discover what customers are saying and how you're responding."
+        dateRangeLabel="Last 90 days"
+        showCompare
       />
 
-      <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} />
+      <RepTabs tabs={TABS} active={activeTab} onChange={(id) => setActiveTab(id as TabId)} />
 
       {activeTab === "themes" ? (
-        <div className="grid gap-2 lg:grid-cols-3">
-          <ThemePanel title="Positive themes" items={data.themes.positive} tone="positive" />
-          <ThemePanel title="Negative themes" items={data.themes.negative} tone="negative" />
-          <ThemePanel title="Emerging themes" items={data.themes.emerging} tone="emerging" />
-          <Card className="lg:col-span-3">
-            <h2 className="text-[14px] font-semibold text-zinc-900">Theme frequency over time</h2>
-            <p className="mt-0.5 text-[12px] text-zinc-500">Recent 30 days compared with the prior 30 days.</p>
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full text-left text-[13px]">
-                <thead>
-                  <tr className="border-b border-zinc-100 text-[11px] uppercase tracking-[0.06em] text-zinc-400">
-                    <th className="px-3 py-2">Theme</th>
-                    <th className="px-3 py-2">Recent 30d</th>
-                    <th className="px-3 py-2">Prior 30d</th>
-                    <th className="px-3 py-2">Delta</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.themes.themeFrequencyOverTime.length === 0 ? (
-                    <tr>
-                      <td className="px-3 py-6 text-zinc-500" colSpan={4}>No theme movement available yet.</td>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+            <RepMetricCard
+              label="Positive Themes"
+              value={formatNum(data.metrics.positiveThemeMentions)}
+              hint="Top positive mentions"
+              icon={Sparkles}
+            />
+            <RepMetricCard
+              label="Negative Themes"
+              value={formatNum(data.metrics.negativeThemeMentions)}
+              hint="Top negative mentions"
+              icon={AlertTriangle}
+              iconClassName="bg-[#FEF3F2] text-[#D92D20]"
+            />
+            <RepMetricCard
+              label="Total Review Text"
+              value={formatNum(data.metrics.totalReviewText)}
+              hint="Written reviews analyzed"
+              icon={FileText}
+            />
+            <RepMetricCard
+              label="Avg Review Length"
+              value={data.metrics.avgReviewLength == null ? "--" : `${data.metrics.avgReviewLength}`}
+              hint="Characters per review"
+              icon={MessageSquareText}
+            />
+            <RepMetricCard
+              label="Reviews with Photos"
+              value={data.metrics.reviewsWithPhotos == null ? "--" : formatNum(data.metrics.reviewsWithPhotos)}
+              hint={data.metrics.reviewsWithPhotos == null ? "Photo data unavailable" : "Detected with media"}
+              icon={Camera}
+            />
+            <RepMetricCard
+              label="Employee Mentions"
+              value={formatNum(data.metrics.employeeMentions)}
+              hint="Names or crew mentions"
+              icon={UserRoundCheck}
+            />
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-3">
+            <ThemePanel title="Top Positive Themes" items={data.themes.positive} tone="positive" />
+            <ThemePanel title="Top Negative Themes" items={data.themes.negative} tone="negative" />
+            <Card title="Theme Trend 30d" description="Recent 30 days compared with the prior 30 days.">
+              {trendRows.length ? (
+                <div className="h-[248px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={trendRows} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+                      <CartesianGrid stroke="#F2F4F7" strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#98A2B3" }} tickLine={false} axisLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#98A2B3" }} tickLine={false} axisLine={false} />
+                      <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #E6EAF0", fontSize: 12 }} />
+                      <Line type="monotone" dataKey="Recent 30d" stroke={REP_GREEN} strokeWidth={2.5} dot={false} />
+                      <Line type="monotone" dataKey="Prior 30d" stroke="#98A2B3" strokeWidth={2} strokeDasharray="4 4" dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <p className="py-24 text-center text-sm text-[#667085]">No theme movement available yet.</p>
+              )}
+            </Card>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-3">
+            <Card
+              title="Theme Comparison vs Competitors"
+              description="Uses competitor reviews from the latest Review Momentum run when available."
+              className="xl:col-span-2"
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-[#E6EAF0] text-[11px] uppercase tracking-[0.06em] text-[#98A2B3]">
+                      <th className="px-3 py-2 font-semibold">Theme</th>
+                      <th className="px-3 py-2 font-semibold">You</th>
+                      <th className="px-3 py-2 font-semibold">Competitors</th>
+                      <th className="px-3 py-2 font-semibold">Competitor Avg</th>
+                      <th className="px-3 py-2 font-semibold">Avg Gap</th>
                     </tr>
-                  ) : (
-                    data.themes.themeFrequencyOverTime.map((theme) => (
-                      <tr key={theme.label} className="border-b border-zinc-50">
-                        <td className="px-3 py-2 font-medium text-zinc-900">{theme.label}</td>
-                        <td className="px-3 py-2 tabular-nums text-zinc-700">{theme.recent30}</td>
-                        <td className="px-3 py-2 tabular-nums text-zinc-700">{theme.prior30}</td>
-                        <td className={cn("px-3 py-2 tabular-nums font-semibold", theme.delta >= 0 ? "text-emerald-600" : "text-red-600")}>
-                          {theme.delta >= 0 ? "+" : ""}{theme.delta}
+                  </thead>
+                  <tbody>
+                    {data.themes.competitorThemes.length === 0 ? (
+                      <tr>
+                        <td className="px-3 py-8 text-[#667085]" colSpan={5}>
+                          Run Review Momentum with competitors to compare competitor review themes.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      data.themes.competitorThemes.map((theme) => (
+                        <tr key={theme.label} className="border-b border-[#F2F4F7] last:border-0">
+                          <td className="px-3 py-3 font-semibold text-[#101828]">{theme.label}</td>
+                          <td className="px-3 py-3 tabular-nums text-[#344054]">{theme.yourCount}</td>
+                          <td className="px-3 py-3 tabular-nums text-[#344054]">{theme.competitorCount}</td>
+                          <td className="px-3 py-3 tabular-nums text-[#344054]">{theme.competitorAvg}</td>
+                          <td className={cn("px-3 py-3 tabular-nums font-semibold", theme.gap > 0 ? "text-[#B42318]" : "text-[#027A48]")}>
+                            {theme.gap > 0 ? "+" : ""}{theme.gap}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+            <div className="space-y-4">
+              <Card title="Most Mentioned Services">
+                <MentionList items={data.categorizedKeywords.services} empty="No service mentions found yet." />
+              </Card>
+              <Card title="Location Mentions">
+                <MentionList items={data.categorizedKeywords.cities} empty="No location mentions found yet." />
+              </Card>
             </div>
-          </Card>
-          <Card className="lg:col-span-3">
-            <h2 className="text-[14px] font-semibold text-zinc-900">Competitor theme comparison</h2>
-            <p className="mt-0.5 text-[12px] text-zinc-500">Uses competitor reviews from the latest Review Momentum run when available.</p>
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full text-left text-[13px]">
-                <thead>
-                  <tr className="border-b border-zinc-100 text-[11px] uppercase tracking-[0.06em] text-zinc-400">
-                    <th className="px-3 py-2">Theme</th>
-                    <th className="px-3 py-2">You</th>
-                    <th className="px-3 py-2">Competitors</th>
-                    <th className="px-3 py-2">Competitor avg</th>
-                    <th className="px-3 py-2">Avg gap</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.themes.competitorThemes.length === 0 ? (
-                    <tr>
-                      <td className="px-3 py-6 text-zinc-500" colSpan={5}>Run Review Momentum with competitors to compare competitor review themes.</td>
-                    </tr>
-                  ) : (
-                    data.themes.competitorThemes.map((theme) => (
-                      <tr key={theme.label} className="border-b border-zinc-50">
-                        <td className="px-3 py-2 font-medium text-zinc-900">{theme.label}</td>
-                        <td className="px-3 py-2 tabular-nums text-zinc-700">{theme.yourCount}</td>
-                        <td className="px-3 py-2 tabular-nums text-zinc-700">{theme.competitorCount}</td>
-                        <td className="px-3 py-2 tabular-nums text-zinc-700">{theme.competitorAvg}</td>
-                        <td className={cn("px-3 py-2 tabular-nums font-semibold", theme.gap > 0 ? "text-red-600" : "text-emerald-600")}>
-                          {theme.gap > 0 ? "+" : ""}{theme.gap}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+          </div>
+
+          <div className="rounded-xl border border-[#D1FADF] bg-[#ECFDF3] px-4 py-3 text-xs leading-relaxed text-[#027A48]">
+            AI-generated review themes are directional and should be validated against source reviews before making business decisions.
+          </div>
         </div>
       ) : null}
 
       {activeTab === "keywords" ? (
-        <div className="space-y-2">
-          <Card>
-            <div className="mb-3 flex items-center gap-2">
-              <Search className="h-4 w-4 text-[#137752]" />
-              <h2 className="text-[14px] font-semibold text-zinc-900">Top uncategorized keyword mentions</h2>
-            </div>
+        <div className="space-y-4">
+          <Card
+            title="Top Keyword Mentions"
+            description="Uncategorized words and phrases found in recent written reviews."
+            action={<Search className="h-4 w-4 text-[#137752]" />}
+          >
             <div className="flex flex-wrap gap-2">
               {data.servicesAndKeywords.length === 0 ? (
-                <p className="text-[13px] text-zinc-500">No written review keywords found yet.</p>
+                <p className="py-6 text-sm text-[#667085]">No written review keywords found yet.</p>
               ) : (
                 data.servicesAndKeywords.map((item) => (
                   <span
                     key={item.keyword}
-                    className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 text-[12px] font-medium capitalize text-zinc-700"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[#E6EAF0] bg-white px-3 py-1.5 text-xs font-semibold capitalize text-[#344054]"
                   >
                     {item.keyword}
-                    <span className="text-zinc-400">{item.count}</span>
+                    <span className="text-[#98A2B3]">{item.count}</span>
                   </span>
                 ))
               )}
             </div>
           </Card>
-          <div className="grid gap-2 lg:grid-cols-2 xl:grid-cols-3">
-            <KeywordPanel title="services" items={data.categorizedKeywords.services} />
-            <KeywordPanel title="cities" items={data.categorizedKeywords.cities} />
-            <KeywordPanel title="employees" items={data.categorizedKeywords.employees} />
-            <KeywordPanel title="pricing" items={data.categorizedKeywords.pricing} />
-            <KeywordPanel title="speed" items={data.categorizedKeywords.speed} />
-            <KeywordPanel title="communication" items={data.categorizedKeywords.communication} />
+          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            <KeywordPanel title="Services" items={data.categorizedKeywords.services} />
+            <KeywordPanel title="Cities" items={data.categorizedKeywords.cities} />
+            <KeywordPanel title="Employees" items={data.categorizedKeywords.employees} />
+            <KeywordPanel title="Pricing" items={data.categorizedKeywords.pricing} />
+            <KeywordPanel title="Speed" items={data.categorizedKeywords.speed} />
+            <KeywordPanel title="Communication" items={data.categorizedKeywords.communication} />
           </div>
         </div>
       ) : null}
 
       {activeTab === "performance" ? (
-        <div className="grid gap-2 xl:grid-cols-4">
+        <div className="grid gap-4 xl:grid-cols-4">
           <Stat label="Response rate" value={`${data.responsePerformance.responseRate}%`} sub={`${data.responsePerformance.answered} of ${data.responsePerformance.totalWithText} written reviews`} />
           <Stat label="Avg response time" value={data.responsePerformance.avgResponseTimeDays == null ? "—" : `${data.responsePerformance.avgResponseTimeDays}d`} sub="Uses exact timestamps when available" />
           <Stat label="Unanswered negative" value={String(data.responsePerformance.unansweredNegative)} sub="Prioritize these first" />
@@ -268,16 +389,15 @@ export function ReviewInsightsDashboard({
             value={data.responsePerformance.oldestUnansweredDays == null ? "—" : `${data.responsePerformance.oldestUnansweredDays}d`}
             sub={data.responsePerformance.oldestUnansweredAt ?? "No unanswered reviews in window"}
           />
-          <Card className="xl:col-span-4">
-            <h2 className="text-[14px] font-semibold text-zinc-900">Response coverage</h2>
-            <div className="mt-3 h-[300px]">
+          <Card title="Response Coverage" description="Answered and unanswered written reviews by sentiment." className="xl:col-span-4">
+            <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={responseBars} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
-                  <CartesianGrid stroke="#F4F4F5" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#71717A" }} tickLine={false} axisLine={false} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#71717A" }} tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #E4E4E7", fontSize: 12 }} />
-                  <Bar dataKey="count" fill="#137752" radius={[8, 8, 0, 0]} />
+                  <CartesianGrid stroke="#F2F4F7" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#667085" }} tickLine={false} axisLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#667085" }} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #E6EAF0", fontSize: 12 }} />
+                  <Bar dataKey="count" fill={REP_GREEN} radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -286,35 +406,34 @@ export function ReviewInsightsDashboard({
       ) : null}
 
       {activeTab === "quality" ? (
-        <div className="grid gap-2 lg:grid-cols-3">
-          <Card className="border-emerald-100 bg-gradient-to-br from-emerald-50/80 to-white lg:col-span-2">
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className={cn(rep.card, "border-[#D1FADF] bg-gradient-to-br from-[#ECFDF3]/80 to-white p-4 lg:col-span-2")}>
             <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-[#137752]">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#D1FADF] text-[#137752]">
                 <MessageSquareText className="h-5 w-5" />
               </span>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-700">Response quality</p>
-                <h2 className="mt-1 text-xl font-bold text-zinc-900">
+                <p className={cn(rep.label, "text-[#137752]")}>Response Quality</p>
+                <h2 className="mt-1 text-xl font-bold text-[#101828]">
                   {data.responseQuality.genericResponseSuspected} generic replies suspected
                 </h2>
-                <p className="mt-2 text-[13px] leading-relaxed text-zinc-700">
+                <p className="mt-2 text-sm leading-relaxed text-[#344054]">
                   Quality heuristics check personalization, copy/paste clusters, defensive wording, issue addressing, and resolution offers.
                 </p>
               </div>
             </div>
-          </Card>
+          </div>
           <Stat label="Generic response rate" value={`${data.responseQuality.genericResponsePct}%`} sub="Of answered written reviews" />
           <Stat label="Personalized" value={`${data.responseQuality.qualitySummary.personalizedPct}%`} sub="Mentions reviewer or review specifics" />
           <Stat label="Copy/paste" value={`${data.responseQuality.qualitySummary.copyPastePct}%`} sub="Repeated response clusters" />
           <Stat label="Addresses issue" value={`${data.responseQuality.qualitySummary.addressesIssuePct}%`} sub="For low-rating complaints" />
           <Stat label="Offers resolution" value={`${data.responseQuality.qualitySummary.offersResolutionPct}%`} sub="Refund, call, credit, resolve, etc." />
           <Stat label="Defensive replies" value={String(data.responseQuality.qualitySummary.defensiveCount)} sub="Phrases likely to escalate" />
-          <Card className="lg:col-span-3">
-            <h2 className="text-[14px] font-semibold text-zinc-900">Response quality rows</h2>
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full text-left text-[13px]">
+          <Card title="Response Quality Rows" description="Review-level quality signals from owner responses." className="lg:col-span-3">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-zinc-100 text-[11px] uppercase tracking-[0.06em] text-zinc-400">
+                  <tr className="border-b border-[#E6EAF0] text-[11px] uppercase tracking-[0.06em] text-[#98A2B3]">
                     <th className="px-3 py-2">Review</th>
                     <th className="px-3 py-2">Personalized</th>
                     <th className="px-3 py-2">Generic</th>
@@ -328,19 +447,19 @@ export function ReviewInsightsDashboard({
                 <tbody>
                   {data.responseQuality.rows.length === 0 ? (
                     <tr>
-                      <td className="px-3 py-6 text-zinc-500" colSpan={8}>No owner responses found in the current window.</td>
+                      <td className="px-3 py-8 text-[#667085]" colSpan={8}>No owner responses found in the current window.</td>
                     </tr>
                   ) : (
                     data.responseQuality.rows.slice(0, 50).map((row, idx) => (
-                      <tr key={row.reviewId ?? idx} className="border-b border-zinc-50">
-                        <td className="max-w-[12rem] truncate px-3 py-2 text-zinc-500">{row.reviewId ?? "—"}</td>
-                        <td className="px-3 py-2">{row.personalized ? "Yes" : "No"}</td>
-                        <td className="px-3 py-2">{row.generic ? "Yes" : "No"}</td>
-                        <td className="px-3 py-2">{row.copyPasteClusterId ?? "—"}</td>
-                        <td className="px-3 py-2">{row.defensive ? "Yes" : "No"}</td>
-                        <td className="px-3 py-2">{row.addressesIssue ? "Yes" : "No"}</td>
-                        <td className="px-3 py-2">{row.offersResolution ? "Yes" : "No"}</td>
-                        <td className="max-w-sm px-3 py-2 text-zinc-500">{row.evidence.join("; ") || "—"}</td>
+                      <tr key={row.reviewId ?? idx} className="border-b border-[#F2F4F7] last:border-0">
+                        <td className="max-w-[12rem] truncate px-3 py-3 text-[#667085]">{row.reviewId ?? "—"}</td>
+                        <td className="px-3 py-3"><BoolBadge value={row.personalized} /></td>
+                        <td className="px-3 py-3"><BoolBadge value={row.generic} /></td>
+                        <td className="px-3 py-3 text-[#344054]">{row.copyPasteClusterId ?? "—"}</td>
+                        <td className="px-3 py-3"><BoolBadge value={row.defensive} /></td>
+                        <td className="px-3 py-3"><BoolBadge value={row.addressesIssue} /></td>
+                        <td className="px-3 py-3"><BoolBadge value={row.offersResolution} /></td>
+                        <td className="max-w-sm px-3 py-3 text-[#667085]">{row.evidence.join("; ") || "—"}</td>
                       </tr>
                     ))
                   )}

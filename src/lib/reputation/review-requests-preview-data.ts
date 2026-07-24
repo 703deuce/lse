@@ -86,14 +86,16 @@ export const reviewRequestsPreviewKit = {
 };
 
 export const reviewRequestsPreviewStats = {
-  total_sent: 128,
-  email_sent: 74,
-  sms_sent: 46,
-  manual_sent: 8,
-  failed: 6,
-  last_7_days: 22,
-  last_30_days: 61,
-  replies: 19,
+  total_sent: 248,
+  email_sent: 138,
+  sms_sent: 94,
+  manual_sent: 16,
+  failed: 8,
+  last_7_days: 42,
+  last_30_days: 248,
+  replies: 51,
+  reviews_generated: 37,
+  review_link_clicks: 89,
   inbound_reply_domain: "reply.mapsgrowth.app",
   trial_sms_template: null,
   recent_sends: [

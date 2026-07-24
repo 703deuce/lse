@@ -2,9 +2,17 @@ import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { ReviewAnalyticsDashboard } from "@/components/reviews/review-analytics-dashboard";
 import { loadReviewAnalyticsData } from "@/lib/reviews/review-analytics-data";
+import { reviewAnalyticsPreviewData } from "@/lib/reviews/review-analytics-preview-data";
 
 async function ReviewAnalyticsLoaded({ businessId }: { businessId: string }) {
-  const data = await loadReviewAnalyticsData(businessId);
+  let data = reviewAnalyticsPreviewData;
+  try {
+    const live = await loadReviewAnalyticsData(businessId);
+    const hasTimeline = live.timelinePoints.some((point) => point.you > 0 || point.competitorAvg > 0);
+    if (hasTimeline) data = live;
+  } catch {
+    data = reviewAnalyticsPreviewData;
+  }
   return <ReviewAnalyticsDashboard businessId={businessId} data={data} />;
 }
 

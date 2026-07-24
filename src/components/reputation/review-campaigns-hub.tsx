@@ -3,229 +3,166 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, Upload, UserPlus, FileText } from "lucide-react";
-import { ModulePage, TabBar } from "@/components/ui/design-system";
-import { PageHeader } from "@/components/ui/page-header";
 import {
-  ReviewRequestsCampaignsTable,
-  type CampaignRow,
-} from "@/components/reputation/review-requests-campaigns";
-import { ReviewRequestsPanel } from "@/components/reputation/review-requests-panel";
+  Activity,
+  BarChart3,
+  Copy,
+  DollarSign,
+  ExternalLink,
+  FileText,
+  Loader2,
+  MoreHorizontal,
+  Pause,
+  Play,
+  Plus,
+  Send,
+  Star,
+  Users,
+  X,
+} from "lucide-react";
+import { ModulePage } from "@/components/ui/design-system";
+import type { CampaignRow } from "@/components/reputation/review-requests-campaigns";
 import { CampaignCreateWizard } from "@/components/reputation/campaign-create-wizard";
+import {
+  RepBadge,
+  RepMetricCard,
+  RepPageHeader,
+  RepSearch,
+  rep,
+} from "@/components/reputation/rep-ui";
 import { cn } from "@/lib/utils";
-
-type CampaignTab = "active" | "drafts" | "completed" | "analytics";
-
-const CAMPAIGN_TABS: Array<{ id: CampaignTab; label: string }> = [
-  { id: "active", label: "Active" },
-  { id: "drafts", label: "Drafts" },
-  { id: "completed", label: "Completed" },
-  { id: "analytics", label: "Analytics" },
-];
-
-function MicroStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-[calc(50%-0.25rem)] flex-1 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 sm:min-w-[7.5rem] sm:flex-none">
-      <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className="mt-0.5 text-[15px] font-semibold tabular-nums text-zinc-900">{value}</p>
-    </div>
-  );
-}
 
 function pct(numerator: number, denominator: number) {
   return denominator > 0 ? `${Math.round((numerator / denominator) * 100)}%` : "—";
 }
 
-function CampaignAnalytics({ campaigns, loading }: { campaigns: CampaignRow[]; loading: boolean }) {
-  const analytics = useMemo(() => {
-    const sent = campaigns.reduce((n, c) => n + (c.sent ?? 0), 0);
-    const delivered = campaigns.reduce((n, c) => n + (c.delivered ?? 0), 0);
-    const clicked = campaigns.reduce((n, c) => n + (c.clicked ?? 0), 0);
-    const opted = campaigns.reduce((n, c) => n + (c.opted_out ?? 0), 0);
-    const reviews = campaigns.reduce((n, c) => n + (c.reviews_detected ?? 0), 0);
-    const byChannel = ["sms", "email", "both"].map((channel) => {
-      const rows = campaigns.filter((c) => c.channel === channel);
-      return {
-        channel,
-        campaigns: rows.length,
-        sent: rows.reduce((n, c) => n + (c.sent ?? 0), 0),
-        clicked: rows.reduce((n, c) => n + (c.clicked ?? 0), 0),
-        opted: rows.reduce((n, c) => n + (c.opted_out ?? 0), 0),
-      };
-    });
-    const byTemplate = new Map<
-      string,
-      { label: string; campaigns: number; sent: number; clicked: number; reviews: number }
-    >();
-    for (const c of campaigns) {
-      const ids = [c.source_template_id, c.template_id, c.email_template_id].filter(Boolean);
-      const key = ids.join(" + ") || "No template id";
-      const bucket = byTemplate.get(key) ?? {
-        label: key,
-        campaigns: 0,
-        sent: 0,
-        clicked: 0,
-        reviews: 0,
-      };
-      bucket.campaigns++;
-      bucket.sent += c.sent ?? 0;
-      bucket.clicked += c.clicked ?? 0;
-      bucket.reviews += c.reviews_detected ?? 0;
-      byTemplate.set(key, bucket);
-    }
-    const byWindow = new Map<string, { window: string; campaigns: number; sent: number; clicked: number }>();
-    for (const c of campaigns) {
-      const window =
-        c.send_window_start && c.send_window_end
-          ? `${c.send_window_start}-${c.send_window_end}${c.timezone ? ` ${c.timezone}` : ""}`
-          : "—";
-      const bucket = byWindow.get(window) ?? { window, campaigns: 0, sent: 0, clicked: 0 };
-      bucket.campaigns++;
-      bucket.sent += c.sent ?? 0;
-      bucket.clicked += c.clicked ?? 0;
-      byWindow.set(window, bucket);
-    }
-    return {
-      sent,
-      delivered,
-      clicked,
-      opted,
-      reviews,
-      byChannel,
-      byTemplate: [...byTemplate.values()].sort((a, b) => b.sent - a.sent),
-      byWindow: [...byWindow.values()].sort((a, b) => b.sent - a.sent),
-    };
-  }, [campaigns]);
+function fmt(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return "—";
+  return value.toLocaleString();
+}
 
-  if (loading) {
-    return (
-      <div className="flex items-center gap-2 py-8 text-[13px] text-zinc-500">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading campaign analytics…
-      </div>
-    );
-  }
+function statusTone(status: string): "green" | "blue" | "amber" | "red" | "gray" {
+  if (status === "active") return "green";
+  if (status === "scheduled") return "blue";
+  if (status === "paused" || status === "draft" || status === "incomplete") return "amber";
+  if (status === "failed" || status === "cancelled") return "red";
+  return "gray";
+}
 
-  if (!campaigns.length) {
-    return (
-      <div className="rounded-xl border border-dashed border-zinc-200 bg-white px-4 py-8 text-center text-[13px] text-zinc-500">
-        No campaign data yet. Launch a campaign before analytics are available.
-      </div>
-    );
-  }
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function nextStep(campaign: CampaignRow): string {
+  if (campaign.status === "draft" || campaign.status === "incomplete") return "Finish setup";
+  if (campaign.status === "paused") return "Resume enrollment";
+  if (campaign.status === "scheduled") return "Starts soon";
+  if (campaign.queued > 0) return `${campaign.queued} queued`;
+  if (campaign.status === "active") return "Monitor performance";
+  if (campaign.status === "completed") return "Review results";
+  return "No action";
+}
+
+function CampaignPerformance({ campaigns }: { campaigns: CampaignRow[] }) {
+  const sent = campaigns.reduce((sum, campaign) => sum + (campaign.sent ?? 0), 0);
+  const delivered = campaigns.reduce((sum, campaign) => sum + (campaign.delivered ?? campaign.sent ?? 0), 0);
+  const clicked = campaigns.reduce((sum, campaign) => sum + (campaign.clicked ?? 0), 0);
+  const reviews = campaigns.reduce((sum, campaign) => sum + (campaign.reviews_detected ?? 0), 0);
+  const maxSent = Math.max(...campaigns.map((campaign) => campaign.sent ?? 0), 1);
 
   return (
-    <div className="space-y-3">
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-        <MicroStat label="Requests sent" value={String(analytics.sent)} />
-        <MicroStat label="Delivery rate" value={pct(analytics.delivered, analytics.sent)} />
-        <MicroStat label="Click rate" value={pct(analytics.clicked, analytics.delivered || analytics.sent)} />
-        <MicroStat label="Opt-out rate" value={pct(analytics.opted, analytics.sent)} />
-        <MicroStat label="Likely/confirmed reviews" value={String(analytics.reviews)} />
+    <section className={cn(rep.card, "p-4")}>
+      <div className="mb-4 flex items-center gap-2">
+        <BarChart3 className="h-4 w-4 text-[#137752]" />
+        <h2 className="text-[15px] font-semibold text-[#101828]">Campaign Performance</h2>
       </div>
-
-      <div className="rounded-xl border border-zinc-200 bg-white">
-        <div className="border-b border-zinc-100 px-3.5 py-2.5">
-          <h3 className="text-[13px] font-semibold text-zinc-900">SMS vs email</h3>
-          <p className="text-[11px] text-zinc-500">
-            Grouped by configured campaign channel. Per-message channel performance is not included in the loaded campaign summary.
-          </p>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div>
+          <p className={rep.label}>Delivery</p>
+          <p className="mt-1 text-xl font-bold text-[#101828]">{pct(delivered, sent)}</p>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-[12px]">
-            <thead className="bg-zinc-50 text-[10px] uppercase tracking-wide text-zinc-500">
-              <tr>
-                <th className="px-3.5 py-2 font-medium">Channel</th>
-                <th className="px-3.5 py-2 text-right font-medium">Campaigns</th>
-                <th className="px-3.5 py-2 text-right font-medium">Sent</th>
-                <th className="px-3.5 py-2 text-right font-medium">Clicked</th>
-                <th className="px-3.5 py-2 text-right font-medium">Opt-outs</th>
-                <th className="px-3.5 py-2 text-right font-medium">Click rate</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {analytics.byChannel.map((row) => (
-                <tr key={row.channel}>
-                  <td className="px-3.5 py-2 capitalize text-zinc-900">{row.channel}</td>
-                  <td className="px-3.5 py-2 text-right tabular-nums">{row.campaigns}</td>
-                  <td className="px-3.5 py-2 text-right tabular-nums">{row.sent}</td>
-                  <td className="px-3.5 py-2 text-right tabular-nums">{row.clicked}</td>
-                  <td className="px-3.5 py-2 text-right tabular-nums">{row.opted}</td>
-                  <td className="px-3.5 py-2 text-right tabular-nums">{pct(row.clicked, row.sent)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div>
+          <p className={rep.label}>Click Rate</p>
+          <p className="mt-1 text-xl font-bold text-[#101828]">{pct(clicked, delivered || sent)}</p>
+        </div>
+        <div>
+          <p className={rep.label}>Reviews</p>
+          <p className="mt-1 text-xl font-bold text-[#101828]">{fmt(reviews)}</p>
+        </div>
+        <div>
+          <p className={rep.label}>Conversion</p>
+          <p className="mt-1 text-xl font-bold text-[#101828]">{pct(reviews, sent)}</p>
         </div>
       </div>
-
-      <div className="grid gap-3 lg:grid-cols-2">
-        <div className="rounded-xl border border-zinc-200 bg-white">
-          <div className="border-b border-zinc-100 px-3.5 py-2.5">
-            <h3 className="text-[13px] font-semibold text-zinc-900">Template comparison</h3>
-            <p className="text-[11px] text-zinc-500">
-              Template names and usage counts are not loaded here, so IDs are shown when available.
-            </p>
+      <div className="mt-5 space-y-3">
+        {campaigns.slice(0, 5).map((campaign) => (
+          <div key={campaign.id}>
+            <div className="mb-1.5 flex items-center justify-between gap-3">
+              <span className="truncate text-sm font-semibold text-[#344054]">{campaign.name}</span>
+              <span className="text-xs font-bold tabular-nums text-[#101828]">{fmt(campaign.sent)}</span>
+            </div>
+            <div className="h-2.5 overflow-hidden rounded-full bg-[#F2F4F7]">
+              <div
+                className="h-full rounded-full bg-[#137752]"
+                style={{ width: `${Math.max(8, ((campaign.sent ?? 0) / maxSent) * 100)}%` }}
+              />
+            </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-[12px]">
-              <thead className="bg-zinc-50 text-[10px] uppercase tracking-wide text-zinc-500">
-                <tr>
-                  <th className="px-3.5 py-2 font-medium">Template</th>
-                  <th className="px-3.5 py-2 text-right font-medium">Campaigns</th>
-                  <th className="px-3.5 py-2 text-right font-medium">Sent</th>
-                  <th className="px-3.5 py-2 text-right font-medium">Clicked</th>
-                  <th className="px-3.5 py-2 text-right font-medium">Reviews</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {analytics.byTemplate.map((row) => (
-                  <tr key={row.label}>
-                    <td className="max-w-[16rem] truncate px-3.5 py-2 font-mono text-[11px] text-zinc-700">
-                      {row.label}
-                    </td>
-                    <td className="px-3.5 py-2 text-right tabular-nums">{row.campaigns}</td>
-                    <td className="px-3.5 py-2 text-right tabular-nums">{row.sent}</td>
-                    <td className="px-3.5 py-2 text-right tabular-nums">{row.clicked}</td>
-                    <td className="px-3.5 py-2 text-right tabular-nums">{row.reviews}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-zinc-200 bg-white">
-          <div className="border-b border-zinc-100 px-3.5 py-2.5">
-            <h3 className="text-[13px] font-semibold text-zinc-900">Send-time windows</h3>
-            <p className="text-[11px] text-zinc-500">
-              Uses configured send windows. Per-hour send performance is not in the loaded campaign summary.
-            </p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-[12px]">
-              <thead className="bg-zinc-50 text-[10px] uppercase tracking-wide text-zinc-500">
-                <tr>
-                  <th className="px-3.5 py-2 font-medium">Window</th>
-                  <th className="px-3.5 py-2 text-right font-medium">Campaigns</th>
-                  <th className="px-3.5 py-2 text-right font-medium">Sent</th>
-                  <th className="px-3.5 py-2 text-right font-medium">Click rate</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {analytics.byWindow.map((row) => (
-                  <tr key={row.window}>
-                    <td className="px-3.5 py-2 text-zinc-700">{row.window}</td>
-                    <td className="px-3.5 py-2 text-right tabular-nums">{row.campaigns}</td>
-                    <td className="px-3.5 py-2 text-right tabular-nums">{row.sent}</td>
-                    <td className="px-3.5 py-2 text-right tabular-nums">{pct(row.clicked, row.sent)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        ))}
       </div>
-    </div>
+    </section>
+  );
+}
+
+function RecentActivity({ campaigns }: { campaigns: CampaignRow[] }) {
+  const activity = campaigns
+    .flatMap((campaign) => [
+      {
+        id: `${campaign.id}-created`,
+        at: campaign.created_at,
+        label: `${campaign.name} created`,
+        detail: `${fmt(campaign.recipients_ready)} eligible recipients`,
+      },
+      campaign.sent > 0
+        ? {
+            id: `${campaign.id}-sent`,
+            at: campaign.created_at,
+            label: `${campaign.name} sent ${fmt(campaign.sent)} messages`,
+            detail: `${fmt(campaign.clicked)} clicks, ${fmt(campaign.reviews_detected)} reviews`,
+          }
+        : null,
+    ])
+    .filter((item): item is { id: string; at: string; label: string; detail: string } => Boolean(item))
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+    .slice(0, 6);
+
+  return (
+    <section className={cn(rep.card, "p-4")}>
+      <div className="mb-4 flex items-center gap-2">
+        <Activity className="h-4 w-4 text-[#137752]" />
+        <h2 className="text-[15px] font-semibold text-[#101828]">Recent Activity</h2>
+      </div>
+      {activity.length === 0 ? (
+        <p className="py-8 text-center text-sm text-[#667085]">No campaign activity yet.</p>
+      ) : (
+        <ol className="space-y-4">
+          {activity.map((item) => (
+            <li key={item.id} className="flex gap-3">
+              <span className="mt-1 h-2 w-2 rounded-full bg-[#137752]" />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-[#101828]">{item.label}</span>
+                <span className="mt-0.5 block text-xs text-[#667085]">
+                  {formatDate(item.at)} · {item.detail}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
   );
 }
 
@@ -234,9 +171,11 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
-  const [showQuickSend, setShowQuickSend] = useState(false);
-  const [tableRefreshKey, setTableRefreshKey] = useState(0);
-  const [activeTab, setActiveTab] = useState<CampaignTab>("active");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [channelFilter, setChannelFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -256,107 +195,99 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
   const stats = useMemo(() => {
     const active = campaigns.filter((c) => c.status === "active" || c.status === "scheduled").length;
     const sent = campaigns.reduce((n, c) => n + (c.sent ?? 0), 0);
-    const delivered = campaigns.reduce((n, c) => n + (c.delivered ?? c.sent ?? 0), 0);
-    const clicked = campaigns.reduce((n, c) => n + (c.clicked ?? 0), 0);
-    const opted = campaigns.reduce((n, c) => n + (c.opted_out ?? 0), 0);
-    const deliveryRate = sent > 0 ? Math.round((delivered / sent) * 100) : 0;
-    const clickRate = delivered > 0 ? Math.round((clicked / delivered) * 100) : 0;
-    const optRate = sent > 0 ? Math.round((opted / sent) * 100) : 0;
     const reviews = campaigns.reduce((n, c) => n + (c.reviews_detected ?? 0), 0);
-    const automatic = campaigns.filter((c) => c.trigger_type === "webhook" || c.trigger_type === "api")
-      .length;
-    return { active, sent, deliveryRate, clickRate, optRate, reviews, automatic };
-  }, [campaigns]);
-
-  const filteredCampaigns = useMemo(() => {
-    const activeStatuses = new Set(["active", "scheduled", "paused"]);
-    const draftStatuses = new Set(["draft", "incomplete"]);
-    const completedStatuses = new Set(["completed", "archived", "cancelled", "failed"]);
     return {
-      active: campaigns.filter((c) => activeStatuses.has(c.status)),
-      drafts: campaigns.filter((c) => draftStatuses.has(c.status)),
-      completed: campaigns.filter((c) => completedStatuses.has(c.status)),
+      active,
+      sent,
+      reviews,
+      conversion: pct(reviews, sent),
     };
   }, [campaigns]);
 
-  return (
-    <ModulePage>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <PageHeader
-          title="Review Campaigns"
-          subtitle="Choose how customers enter — manually or via webhook — then run one shared sequence engine."
-        />
-        <div className="flex w-full flex-wrap gap-1.5 sm:w-auto">
-          <button
-            type="button"
-            onClick={() => {
-              setShowWizard(true);
-              setShowQuickSend(false);
-            }}
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#137752] px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#0f6344] sm:flex-none"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            New campaign
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setShowQuickSend(true);
-              setShowWizard(false);
-            }}
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50 sm:flex-none"
-          >
-            Quick Send
-          </button>
-          <Link
-            href={`/businesses/${businessId}/reputation/contacts?import=1`}
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50 sm:flex-none"
-          >
-            <Upload className="h-3.5 w-3.5" />
-            Import Customers
-          </Link>
-          <Link
-            href={`/businesses/${businessId}/reputation/contacts`}
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50 sm:flex-none"
-          >
-            <UserPlus className="h-3.5 w-3.5" />
-            Add Customer
-          </Link>
-          <Link
-            href={`/businesses/${businessId}/reputation/templates`}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50 sm:w-auto"
-          >
-            <FileText className="h-3.5 w-3.5" />
-            Manage Templates
-          </Link>
-        </div>
-      </div>
+  const filteredCampaigns = useMemo(
+    () =>
+      campaigns.filter((campaign) => {
+        if (statusFilter !== "all" && campaign.status !== statusFilter) return false;
+        if (channelFilter !== "all" && campaign.channel !== channelFilter) return false;
+        if (search.trim()) {
+          const q = search.toLowerCase();
+          if (!campaign.name.toLowerCase().includes(q) && !campaign.status.toLowerCase().includes(q)) {
+            return false;
+          }
+        }
+        return true;
+      }),
+    [campaigns, channelFilter, search, statusFilter]
+  );
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        {loading ? (
-          <div className="flex items-center gap-2 text-[12px] text-zinc-500">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading summary…
-          </div>
-        ) : (
-          <>
-            <MicroStat label="Active campaigns" value={String(stats.active)} />
-            <MicroStat label="Automatic triggers" value={String(stats.automatic)} />
-            <MicroStat label="Requests sent" value={String(stats.sent)} />
-            <MicroStat label="Delivery rate" value={`${stats.deliveryRate}%`} />
-            <MicroStat label="Click rate" value={`${stats.clickRate}%`} />
-            <MicroStat label="Likely/confirmed reviews" value={String(stats.reviews)} />
-          </>
-        )}
+  async function campaignAction(campaignId: string, act: string) {
+    setMenuId(null);
+    setActionError(null);
+    const res = await fetch(`/api/reputation/review-requests/campaigns/${campaignId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ businessId, action: act }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setActionError(typeof json.error === "string" ? json.error : `Failed to ${act} campaign`);
+      return;
+    }
+    await load();
+  }
+
+  async function duplicateCampaign(campaignId: string) {
+    setMenuId(null);
+    setActionError(null);
+    const res = await fetch("/api/reputation/review-requests/campaigns", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ businessId, duplicateFrom: campaignId }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setActionError(typeof json.error === "string" ? json.error : "Failed to duplicate campaign");
+      return;
+    }
+    await load();
+  }
+
+  return (
+    <ModulePage className={rep.page}>
+      <RepPageHeader
+        title="Campaigns"
+        subtitle="Build automated sequences to get more reviews."
+        dateRangeLabel="Last 30 days"
+        showFilters={false}
+        actions={
+          <Link href={`/businesses/${businessId}/reputation/templates`} className={rep.btnSecondary}>
+            <FileText className="h-4 w-4" />
+            Templates
+          </Link>
+        }
+        primaryAction={
+          <button type="button" onClick={() => setShowWizard((show) => !show)} className={rep.btnPrimary}>
+            <Plus className="h-4 w-4" />
+            New Campaign
+          </button>
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <RepMetricCard label="Active Campaigns" value={loading ? "—" : fmt(stats.active)} hint="Active or scheduled" icon={Users} />
+        <RepMetricCard label="Messages Sent 30d" value={loading ? "—" : fmt(stats.sent)} hint="Loaded campaign totals" icon={Send} />
+        <RepMetricCard label="Reviews Generated 30d" value={loading ? "—" : fmt(stats.reviews)} hint="Likely or confirmed" icon={Star} />
+        <RepMetricCard label="Est Conversion" value={loading ? "—" : stats.conversion} hint="Reviews / messages" icon={BarChart3} />
+        <RepMetricCard label="Cost per Review" value="—" hint="Cost data unavailable" icon={DollarSign} />
       </div>
 
       {showWizard ? (
-        <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-3">
+        <div className={cn(rep.card, "p-4")}>
           <CampaignCreateWizard
             businessId={businessId}
             onCancel={() => setShowWizard(false)}
             onComplete={(campaignId) => {
               setShowWizard(false);
-              setTableRefreshKey((k) => k + 1);
               void load();
               if (campaignId) {
                 router.push(`/businesses/${businessId}/reputation/campaigns/${campaignId}`);
@@ -366,65 +297,159 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
         </div>
       ) : null}
 
-      {showQuickSend ? (
-        <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-[13px] font-semibold text-zinc-900">Quick Send</p>
-            <button
-              type="button"
-              onClick={() => setShowQuickSend(false)}
-              className={cn("text-[12px] font-medium text-zinc-500 hover:text-zinc-800")}
-            >
-              Close
-            </button>
+      <section className={cn(rep.card, "overflow-hidden")}>
+        <div className="border-b border-[#E6EAF0] px-4 py-3">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-[15px] font-semibold text-[#101828]">Your Campaigns</h2>
+              <p className="mt-0.5 text-xs text-[#667085]">Mixed statuses with channel, enrollment, send, and review performance.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={rep.select}>
+                <option value="all">All Statuses</option>
+                {Array.from(new Set(campaigns.map((campaign) => campaign.status))).map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+              <select value={channelFilter} onChange={(e) => setChannelFilter(e.target.value)} className={rep.select}>
+                <option value="all">All Channels</option>
+                {Array.from(new Set(campaigns.map((campaign) => campaign.channel))).map((channel) => (
+                  <option key={channel} value={channel}>{channel}</option>
+                ))}
+              </select>
+              <RepSearch value={search} onChange={setSearch} placeholder="Search campaigns..." className="min-w-[240px]" />
+            </div>
           </div>
-          <ReviewRequestsPanel businessId={businessId} section="send" hideSubTabs />
         </div>
-      ) : null}
 
-      <TabBar tabs={CAMPAIGN_TABS} active={activeTab} onChange={setActiveTab} className="mt-4" />
+        {actionError ? (
+          <div className="border-b border-[#FDA29B] bg-[#FEF3F2] px-4 py-3 text-sm text-[#B42318]">{actionError}</div>
+        ) : null}
 
-      <div className="mt-4">
-        {activeTab === "active" ? (
-          <ReviewRequestsCampaignsTable
-            businessId={businessId}
-            refreshKey={tableRefreshKey}
-            campaigns={filteredCampaigns.active}
-            loading={loading}
-            onRefresh={load}
-            title="Active campaigns"
-            description="Running, scheduled, and paused campaigns from the loaded campaign list."
-            emptyMessage="No active or scheduled campaigns. Start a draft or create a new campaign."
-          />
-        ) : null}
-        {activeTab === "drafts" ? (
-          <ReviewRequestsCampaignsTable
-            businessId={businessId}
-            refreshKey={tableRefreshKey}
-            campaigns={filteredCampaigns.drafts}
-            loading={loading}
-            onRefresh={load}
-            title="Draft campaigns"
-            description="Draft and incomplete campaigns that have not launched."
-            emptyMessage="No draft campaigns. Save a new campaign as draft to see it here."
-          />
-        ) : null}
-        {activeTab === "completed" ? (
-          <ReviewRequestsCampaignsTable
-            businessId={businessId}
-            refreshKey={tableRefreshKey}
-            campaigns={filteredCampaigns.completed}
-            loading={loading}
-            onRefresh={load}
-            title="Completed campaigns"
-            description="Closed campaigns with available send, click, opt-out, and likely/confirmed review results."
-            emptyMessage="No completed or archived campaigns yet."
-            resultColumns
-          />
-        ) : null}
-        {activeTab === "analytics" ? (
-          <CampaignAnalytics campaigns={campaigns} loading={loading} />
-        ) : null}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1050px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-[#E6EAF0] bg-[#F9FAFB] text-[11px] uppercase tracking-[0.06em] text-[#98A2B3]">
+                <th className="px-4 py-2 font-semibold">Campaign</th>
+                <th className="px-4 py-2 font-semibold">Status</th>
+                <th className="px-4 py-2 font-semibold">Channel</th>
+                <th className="px-4 py-2 text-right font-semibold">Enrolled</th>
+                <th className="px-4 py-2 font-semibold">Messages Sent</th>
+                <th className="px-4 py-2 text-right font-semibold">Reviews</th>
+                <th className="px-4 py-2 text-right font-semibold">Conversion</th>
+                <th className="px-4 py-2 font-semibold">Next Step</th>
+                <th className="px-4 py-2 font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-[#667085]">
+                    <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
+                    Loading campaigns...
+                  </td>
+                </tr>
+              ) : filteredCampaigns.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-[#667085]">
+                    No campaigns match these filters.
+                  </td>
+                </tr>
+              ) : (
+                filteredCampaigns.map((campaign) => {
+                  const progress = campaign.recipients_ready > 0
+                    ? Math.min(100, Math.round(((campaign.sent ?? 0) / campaign.recipients_ready) * 100))
+                    : 0;
+                  return (
+                    <tr key={campaign.id} className="border-b border-[#F2F4F7] last:border-0 hover:bg-[#F9FAFB]">
+                      <td className="px-4 py-3">
+                        <Link
+                          href={`/businesses/${businessId}/reputation/campaigns/${campaign.id}`}
+                          className="font-semibold text-[#101828] hover:text-[#137752] hover:underline"
+                        >
+                          {campaign.name}
+                        </Link>
+                        <p className="mt-0.5 text-xs text-[#667085]">Created {formatDate(campaign.created_at)}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <RepBadge tone={statusTone(campaign.status)}>{campaign.status}</RepBadge>
+                      </td>
+                      <td className="px-4 py-3 capitalize text-[#344054]">{campaign.channel}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-[#344054]">{fmt(campaign.recipients_ready)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold tabular-nums text-[#101828]">{fmt(campaign.sent)}</span>
+                          <span className="text-xs text-[#667085]">{progress}%</span>
+                        </div>
+                        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[#F2F4F7]">
+                          <div className="h-full rounded-full bg-[#137752]" style={{ width: `${progress}%` }} />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums text-[#344054]">{fmt(campaign.reviews_detected)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums font-semibold text-[#101828]">
+                        {pct(campaign.reviews_detected ?? 0, campaign.sent ?? 0)}
+                      </td>
+                      <td className="px-4 py-3 text-[#344054]">{nextStep(campaign)}</td>
+                      <td className="relative px-4 py-3">
+                        <button
+                          type="button"
+                          className={rep.btnSecondary}
+                          onClick={() => setMenuId(menuId === campaign.id ? null : campaign.id)}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+                        {menuId === campaign.id ? (
+                          <div className="absolute right-4 z-10 mt-1 w-40 rounded-lg border border-[#E6EAF0] bg-white py-1 shadow-lg">
+                            <Link
+                              href={`/businesses/${businessId}/reputation/campaigns/${campaign.id}`}
+                              className="flex items-center gap-2 px-3 py-2 text-xs text-[#344054] hover:bg-[#F9FAFB]"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              Open
+                            </Link>
+                            {campaign.status === "active" ? (
+                              <button type="button" onClick={() => void campaignAction(campaign.id, "pause")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#344054] hover:bg-[#F9FAFB]">
+                                <Pause className="h-3.5 w-3.5" />
+                                Pause
+                              </button>
+                            ) : null}
+                            {campaign.status === "paused" ? (
+                              <button type="button" onClick={() => void campaignAction(campaign.id, "resume")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#344054] hover:bg-[#F9FAFB]">
+                                <Play className="h-3.5 w-3.5" />
+                                Resume
+                              </button>
+                            ) : null}
+                            {campaign.status === "draft" ? (
+                              <button type="button" onClick={() => void campaignAction(campaign.id, "start")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#344054] hover:bg-[#F9FAFB]">
+                                <Play className="h-3.5 w-3.5" />
+                                Start
+                              </button>
+                            ) : null}
+                            <button type="button" onClick={() => void duplicateCampaign(campaign.id)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#344054] hover:bg-[#F9FAFB]">
+                              <Copy className="h-3.5 w-3.5" />
+                              Duplicate
+                            </button>
+                            {!["completed", "cancelled", "archived"].includes(campaign.status) ? (
+                              <button type="button" onClick={() => void campaignAction(campaign.id, "cancel")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#B42318] hover:bg-[#FEF3F2]">
+                                <X className="h-3.5 w-3.5" />
+                                Cancel
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <CampaignPerformance campaigns={campaigns} />
+        <RecentActivity campaigns={campaigns} />
       </div>
     </ModulePage>
   );

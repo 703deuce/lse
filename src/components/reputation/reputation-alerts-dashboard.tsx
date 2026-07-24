@@ -1,141 +1,66 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { AlertTriangle, CheckCircle2, ChevronRight, RefreshCw, Settings } from "lucide-react";
+import { useMemo, useState } from "react";
 import {
-  ModuleHeader,
-  ModulePage,
-  TabBar,
-  cardClass,
-  moduleStack,
-} from "@/components/ui/design-system";
-import { ReviewAlertSettings } from "@/components/reputation/review-alert-settings";
-import { cn } from "@/lib/utils";
+  AlertCircle,
+  AlertTriangle,
+  Bell,
+  CheckCircle2,
+  Mail,
+  MessageSquare,
+  MoreHorizontal,
+  Plus,
+  Settings,
+  ShieldCheck,
+  SlidersHorizontal,
+  Zap,
+} from "lucide-react";
+import { RepBadge, RepMetricCard, RepPageHeader, RepTabs, rep } from "@/components/reputation/rep-ui";
 import type {
   ReputationAlertRow,
   ReputationAlertsData,
   ReputationAlertSeverity,
 } from "@/lib/reputation/alerts-data";
+import { cn } from "@/lib/utils";
 
-type TabId = "active" | "resolved" | "preferences";
-type AlertCategoryFilter =
-  | "all"
-  | "new_negative_review"
-  | "new_positive_review"
-  | "velocity_drop"
-  | "competitor_velocity_spike"
-  | "no_reviews"
-  | "rating_changed"
-  | "response_overdue"
-  | "campaign_delivery_problem"
-  | "review_gap_widening"
-  | "maps_visibility_moved";
+type AlertTab = "all" | "critical" | "warning" | "info" | "resolved";
 
-const TABS: Array<{ id: TabId; label: string }> = [
-  { id: "active", label: "Active" },
+const TABS: Array<{ id: AlertTab; label: string }> = [
+  { id: "all", label: "All Alerts" },
+  { id: "critical", label: "Critical" },
+  { id: "warning", label: "Warning" },
+  { id: "info", label: "Info" },
   { id: "resolved", label: "Resolved" },
-  { id: "preferences", label: "Preferences" },
 ];
 
-const ALERT_CATEGORY_OPTIONS: Array<{ id: AlertCategoryFilter; label: string }> = [
-  { id: "all", label: "All" },
-  { id: "new_negative_review", label: "New negative" },
-  { id: "new_positive_review", label: "New positive" },
-  { id: "velocity_drop", label: "Velocity drop" },
-  { id: "competitor_velocity_spike", label: "Competitor spike" },
-  { id: "no_reviews", label: "No reviews" },
-  { id: "rating_changed", label: "Rating changed" },
-  { id: "response_overdue", label: "Response overdue" },
-  { id: "campaign_delivery_problem", label: "Campaign delivery" },
-  { id: "review_gap_widening", label: "Review gap" },
-  { id: "maps_visibility_moved", label: "Maps visibility" },
-];
-
-const SEVERITY_CLASS: Record<ReputationAlertSeverity, string> = {
-  low: "bg-zinc-100 text-zinc-700",
-  medium: "bg-amber-50 text-amber-700 ring-1 ring-amber-100",
-  high: "bg-orange-50 text-orange-700 ring-1 ring-orange-100",
-  critical: "bg-red-50 text-red-700 ring-1 ring-red-100",
+const SEVERITY_TONE: Record<ReputationAlertSeverity, "red" | "amber" | "blue" | "gray"> = {
+  critical: "red",
+  high: "red",
+  medium: "amber",
+  low: "blue",
 };
 
-function Card({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn(cardClass, "p-4", className)}>{children}</div>;
+function fmtDate(value: string | null | undefined) {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-function SeverityBadge({ severity }: { severity: ReputationAlertSeverity }) {
-  return (
-    <span className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize", SEVERITY_CLASS[severity])}>
-      {severity}
-    </span>
-  );
+function severityGroup(severity: ReputationAlertSeverity): AlertTab {
+  if (severity === "critical" || severity === "high") return "critical";
+  if (severity === "medium") return "warning";
+  return "info";
 }
 
-function EmptyState({ title, body }: { title: string; body: string }) {
-  return (
-    <Card className="py-10 text-center">
-      <CheckCircle2 className="mx-auto h-8 w-8 text-[#137752]" />
-      <h2 className="mt-3 text-[15px] font-semibold text-zinc-900">{title}</h2>
-      <p className="mt-1 text-[13px] text-zinc-500">{body}</p>
-    </Card>
-  );
+function categoryLabel(category: string) {
+  return category.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function matchesCategory(alert: ReputationAlertRow, category: AlertCategoryFilter): boolean {
-  if (category === "all") return true;
-  if (alert.category === category) return true;
-  return category === "response_overdue" && alert.category === "unanswered_negative";
-}
-
-function AlertList({
-  rows,
-  onResolve,
-  resolvingId,
-  showResolve,
-}: {
-  rows: ReputationAlertRow[];
-  onResolve?: (alert: ReputationAlertRow) => void;
-  resolvingId?: string | null;
-  showResolve?: boolean;
-}) {
-  return (
-    <div className="space-y-2">
-      {rows.map((alert) => (
-        <Card key={alert.id} className={alert.severity === "critical" ? "border-red-100 bg-red-50/30" : undefined}>
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <SeverityBadge severity={alert.severity} />
-                <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[11px] font-medium capitalize text-zinc-600">
-                  {alert.category.replace(/_/g, " ")}
-                </span>
-                <span className="text-[11px] text-zinc-400">
-                  {new Date(alert.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                </span>
-              </div>
-              <h2 className="mt-2 text-[15px] font-semibold text-zinc-900">{alert.title}</h2>
-              {alert.body ? <p className="mt-1 line-clamp-3 text-[13px] leading-snug text-zinc-600">{alert.body}</p> : null}
-              {alert.recommendedAction ? (
-                <p className="mt-2 rounded-lg bg-white/80 px-3 py-2 text-[12px] font-medium text-zinc-700 ring-1 ring-zinc-100">
-                  Recommended: {alert.recommendedAction}
-                </p>
-              ) : null}
-            </div>
-            {showResolve ? (
-              <button
-                type="button"
-                disabled={resolvingId === alert.id}
-                onClick={() => onResolve?.(alert)}
-                className="inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-[#137752] px-3 text-[12px] font-semibold text-white shadow-[0_4px_14px_rgba(19,119,82,0.22)] disabled:opacity-60"
-              >
-                {resolvingId === alert.id ? "Resolving..." : "Resolve"}
-              </button>
-            ) : null}
-          </div>
-        </Card>
-      ))}
-    </div>
-  );
+function AlertStatusBadge({ alert }: { alert: ReputationAlertRow }) {
+  if (alert.status === "resolved" || alert.status === "dismissed") {
+    return <RepBadge tone="green">Resolved</RepBadge>;
+  }
+  if (alert.source === "persisted") return <RepBadge tone="amber">Acknowledged</RepBadge>;
+  return <RepBadge tone="blue">New</RepBadge>;
 }
 
 export function ReputationAlertsDashboard({
@@ -145,16 +70,40 @@ export function ReputationAlertsDashboard({
   businessId: string;
   data: ReputationAlertsData;
 }) {
-  const [activeTab, setActiveTab] = useState<TabId>("active");
+  const [activeTab, setActiveTab] = useState<AlertTab>("all");
   const [activeAlerts, setActiveAlerts] = useState(data.activeAlerts);
   const [resolvedAlerts, setResolvedAlerts] = useState(data.resolvedAlerts);
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [locationFilter, setLocationFilter] = useState("all");
   const [resolvingId, setResolvingId] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<AlertCategoryFilter>("all");
-  const filteredActiveAlerts = activeAlerts.filter((alert) => matchesCategory(alert, selectedCategory));
-  const filteredResolvedAlerts = resolvedAlerts.filter((alert) => matchesCategory(alert, selectedCategory));
-  const selectedCategoryLabel =
-    ALERT_CATEGORY_OPTIONS.find((category) => category.id === selectedCategory)?.label ?? "Selected category";
+  const [now] = useState(() => Date.now());
+
+  const allRows = useMemo(() => [...activeAlerts, ...resolvedAlerts], [activeAlerts, resolvedAlerts]);
+  const categories = useMemo(
+    () => Array.from(new Set(allRows.map((alert) => alert.category))).sort(),
+    [allRows]
+  );
+  const filteredRows = useMemo(() => {
+    const base = activeTab === "resolved" ? resolvedAlerts : activeAlerts;
+    return base.filter((alert) => {
+      const tabMatch = activeTab === "all" || activeTab === "resolved" || severityGroup(alert.severity) === activeTab;
+      const categoryMatch = categoryFilter === "all" || alert.category === categoryFilter;
+      return tabMatch && categoryMatch;
+    });
+  }, [activeAlerts, activeTab, categoryFilter, resolvedAlerts]);
+  const categoryCounts = useMemo(
+    () =>
+      categories.map((category) => ({
+        category,
+        count: allRows.filter((alert) => alert.category === category).length,
+      })),
+    [allRows, categories]
+  );
+  const requiringAction = activeAlerts.filter((alert) => alert.severity === "critical" || alert.severity === "high").length;
+  const resolved30d = resolvedAlerts.filter((alert) => {
+    const resolvedAt = alert.resolvedAt ? new Date(alert.resolvedAt).getTime() : 0;
+    return resolvedAt > now - 30 * 86_400_000;
+  }).length;
 
   async function resolveAlert(alert: ReputationAlertRow) {
     setResolvingId(alert.id);
@@ -165,170 +114,214 @@ export function ReputationAlertsDashboard({
         body: JSON.stringify({ businessId, alertId: alert.id, source: alert.source }),
       });
     } finally {
-      const resolved: ReputationAlertRow = {
-        ...alert,
-        status: "resolved",
-        resolvedAt: new Date().toISOString(),
-      };
+      const resolved = { ...alert, status: "resolved" as const, resolvedAt: new Date().toISOString() };
       setActiveAlerts((rows) => rows.filter((row) => row.id !== alert.id));
       setResolvedAlerts((rows) => [resolved, ...rows]);
       setResolvingId(null);
     }
   }
 
-  async function refreshAlerts() {
-    setRefreshing(true);
-    try {
-      const res = await fetch("/api/reputation/alerts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId, action: "run" }),
-      });
-      const json = await res.json();
-      if (res.ok && json.data) {
-        setActiveAlerts(json.data.activeAlerts ?? []);
-        setResolvedAlerts(json.data.resolvedAlerts ?? []);
-      }
-    } finally {
-      setRefreshing(false);
-    }
-  }
-
   return (
-    <ModulePage className={moduleStack}>
-      <ModuleHeader
-        title="Reputation Alerts"
-        subtitle={`Active risks, resolved alerts, and notification preferences for ${data.businessName}.`}
-        icon={AlertTriangle}
-        meta={
-          <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-[12px] font-medium text-zinc-600">
-            {activeAlerts.length} active · {resolvedAlerts.length} resolved
-          </span>
-        }
+    <div className={rep.page}>
+      <RepPageHeader
+        title="Alerts"
+        subtitle={`Monitor reputation risks, opportunities, and notifications for ${data.businessName}.`}
+        showCompare={false}
+        showExport={false}
+        showFilters={false}
         actions={
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void refreshAlerts()}
-              disabled={refreshing}
-              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-[13px] font-semibold text-zinc-700 shadow-sm hover:bg-zinc-50 disabled:opacity-60"
-            >
-              <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
-              Refresh alerts
+          <>
+            <button type="button" className={rep.btnPrimary}>
+              <Plus className="h-4 w-4" />
+              New Alert
             </button>
-            <Link
-              href={`/businesses/${businessId}/reputation/overview`}
-              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-[13px] font-semibold text-zinc-700 shadow-sm hover:bg-zinc-50"
-            >
-              Overview
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
+            <button type="button" className={rep.btnSecondary}>
+              <Settings className="h-4 w-4" />
+              Alert Settings
+            </button>
+            <button type="button" className={rep.btnSecondary}>
+              <Bell className="h-4 w-4" />
+              Notification Preferences
+            </button>
+          </>
         }
       />
 
-      <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <RepMetricCard label="Active Alerts" value={activeAlerts.length} icon={AlertTriangle} hint="Open reputation events" />
+        <RepMetricCard label="Requiring Action" value={requiringAction} icon={AlertCircle} iconClassName="bg-[#FEF3F2] text-[#B42318]" hint="High or critical" />
+        <RepMetricCard label="Resolved 30d" value={resolved30d} icon={CheckCircle2} hint="Recently closed" />
+        <RepMetricCard label="Notifications Sent" value={data.preferences.email_recipients?.length ? "On" : "0"} icon={Mail} hint="Email recipients configured" />
+        <RepMetricCard label="Alert Accuracy" value="—" icon={ShieldCheck} hint="Calibrates with usage" />
+      </div>
 
-      {activeTab !== "preferences" ? (
-        <Card>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-[14px] font-semibold text-zinc-900">Category filter</h2>
-              <p className="mt-0.5 text-[12px] text-zinc-500">Filter active and resolved alerts by product IA category.</p>
+      <RepTabs tabs={TABS} active={activeTab} onChange={(id) => setActiveTab(id as AlertTab)} />
+
+      <div className="flex flex-col gap-3 lg:flex-row">
+        <main className="min-w-0 flex-1 space-y-3">
+          <div className={cn(rep.card, "flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between")}>
+            <div className="flex flex-wrap gap-2">
+              <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className={rep.select}>
+                <option value="all">All categories</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {categoryLabel(category)}
+                  </option>
+                ))}
+              </select>
+              <select value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)} className={rep.select}>
+                <option value="all">All locations</option>
+                <option value={businessId}>{data.businessName}</option>
+              </select>
             </div>
-            <select
-              value={selectedCategory}
-              onChange={(event) => setSelectedCategory(event.target.value as AlertCategoryFilter)}
-              className="h-9 rounded-full border border-zinc-200 bg-white px-3 text-[12px] font-semibold text-zinc-700 shadow-sm sm:hidden"
-            >
-              {ALERT_CATEGORY_OPTIONS.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.label}
-                </option>
-              ))}
-            </select>
+            <p className="text-xs text-[#667085]">
+              Showing {filteredRows.length} alert{filteredRows.length === 1 ? "" : "s"} · {locationFilter === "all" ? "All locations" : data.businessName}
+            </p>
           </div>
-          <div className="mt-3 hidden flex-wrap gap-2 sm:flex">
-            {ALERT_CATEGORY_OPTIONS.map((category) => (
-              <button
-                key={category.id}
-                type="button"
-                onClick={() => setSelectedCategory(category.id)}
-                className={cn(
-                  "rounded-full px-3 py-1 text-[12px] font-semibold",
-                  selectedCategory === category.id
-                    ? "bg-[#137752] text-white shadow-[0_4px_14px_rgba(19,119,82,0.18)]"
-                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-                )}
-              >
-                {category.label}
-              </button>
+
+          <div className={cn(rep.card, "overflow-hidden")}>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="border-b border-[#E6EAF0] bg-[#F9FAFB] text-[11px] uppercase tracking-[0.06em] text-[#667085]">
+                  <tr>
+                    <th className="min-w-[320px] px-4 py-3 font-semibold">Alert</th>
+                    <th className="px-4 py-3 font-semibold">Severity</th>
+                    <th className="px-4 py-3 font-semibold">Business</th>
+                    <th className="px-4 py-3 font-semibold">Triggered</th>
+                    <th className="px-4 py-3 font-semibold">Status</th>
+                    <th className="px-4 py-3 font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#EEF2F6]">
+                  {filteredRows.map((alert) => (
+                    <tr key={alert.id} className="bg-white hover:bg-[#F9FAFB]">
+                      <td className="px-4 py-3">
+                        <div className="flex items-start gap-3">
+                          <span className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg bg-[#FEF3F2] text-[#B42318]">
+                            <AlertTriangle className="h-4 w-4" />
+                          </span>
+                          <div>
+                            <p className="font-semibold text-[#101828]">{alert.title}</p>
+                            {alert.body ? <p className="mt-1 max-w-xl line-clamp-2 text-xs text-[#667085]">{alert.body}</p> : null}
+                            <p className="mt-1 text-xs text-[#98A2B3]">{categoryLabel(alert.category)}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <RepBadge tone={SEVERITY_TONE[alert.severity]}>{alert.severity}</RepBadge>
+                      </td>
+                      <td className="px-4 py-3 text-[#344054]">{data.businessName}</td>
+                      <td className="px-4 py-3 text-[#667085]">{fmtDate(alert.createdAt)}</td>
+                      <td className="px-4 py-3"><AlertStatusBadge alert={alert} /></td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          {alert.status === "active" ? (
+                            <button
+                              type="button"
+                              disabled={resolvingId === alert.id}
+                              onClick={() => void resolveAlert(alert)}
+                              className="text-xs font-semibold text-[#137752] hover:underline disabled:opacity-60"
+                            >
+                              {resolvingId === alert.id ? "Resolving..." : "Resolve"}
+                            </button>
+                          ) : (
+                            <span className="text-xs text-[#98A2B3]">Closed</span>
+                          )}
+                          <button type="button" className="rounded-lg p-1.5 text-[#98A2B3] hover:bg-[#F2F4F7]">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-10 text-center text-sm text-[#667085]">
+                        No alerts match the selected filters.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </main>
+
+        <aside className="w-full space-y-3 lg:w-[340px]">
+          <div className={cn(rep.card, "p-4")}>
+            <h2 className="text-sm font-semibold text-[#101828]">Alert Categories</h2>
+            <div className="mt-3 space-y-2">
+              {categoryCounts.slice(0, 6).map((item) => (
+                <div key={item.category} className="flex items-center justify-between rounded-lg bg-[#F9FAFB] px-3 py-2">
+                  <span className="text-sm text-[#344054]">{categoryLabel(item.category)}</span>
+                  <span className="text-sm font-semibold text-[#101828]">{item.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className={cn(rep.card, "p-4")}>
+            <h2 className="text-sm font-semibold text-[#101828]">Severity Guide</h2>
+            <div className="mt-3 space-y-2 text-sm text-[#667085]">
+              <p><span className="font-semibold text-[#B42318]">Critical:</span> immediate reputation or customer risk.</p>
+              <p><span className="font-semibold text-[#B54708]">Warning:</span> trend needs attention this week.</p>
+              <p><span className="font-semibold text-[#175CD3]">Info:</span> monitor or tune settings.</p>
+            </div>
+          </div>
+          <div className="rounded-xl border border-[#B7E4CC] bg-[#ECFDF3] p-4">
+            <div className="flex items-start gap-3">
+              <Zap className="h-5 w-5 text-[#137752]" />
+              <p className="text-sm text-[#344054]">
+                Smart tip: resolve unanswered negative reviews first; they affect conversion and Maps trust fastest.
+              </p>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div className="grid gap-3 xl:grid-cols-3">
+        <div className={cn(rep.card, "p-4")}>
+          <h2 className="text-sm font-semibold text-[#101828]">Common Triggers</h2>
+          <div className="mt-3 space-y-2">
+            {["Negative review without response", "Review velocity drop", "Campaign delivery issue"].map((trigger) => (
+              <div key={trigger} className="flex items-center gap-2 rounded-lg bg-[#F9FAFB] px-3 py-2 text-sm text-[#344054]">
+                <SlidersHorizontal className="h-4 w-4 text-[#98A2B3]" />
+                {trigger}
+              </div>
             ))}
           </div>
-        </Card>
-      ) : null}
-
-      {activeTab === "active" ? (
-        filteredActiveAlerts.length > 0 ? (
-          <AlertList rows={filteredActiveAlerts} onResolve={resolveAlert} resolvingId={resolvingId} showResolve />
-        ) : (
-          <EmptyState
-            title="No active alerts"
-            body={
-              selectedCategory === "all"
-                ? "No unanswered negatives or configured alert issues are active right now."
-                : `No active ${selectedCategoryLabel.toLowerCase()} alerts are active right now.`
-            }
-          />
-        )
-      ) : null}
-
-      {activeTab === "resolved" ? (
-        filteredResolvedAlerts.length > 0 ? (
-          <AlertList rows={filteredResolvedAlerts} />
-        ) : (
-          <EmptyState
-            title="No resolved alerts yet"
-            body={
-              selectedCategory === "all"
-                ? "Resolved or dismissed persisted alerts will appear here."
-                : `No resolved ${selectedCategoryLabel.toLowerCase()} alerts found.`
-            }
-          />
-        )
-      ) : null}
-
-      {activeTab === "preferences" ? (
-        <div className="grid gap-2 lg:grid-cols-3">
-          <Card>
-            <div className="flex items-center gap-2">
-              <Settings className="h-4 w-4 text-[#137752]" />
-              <h2 className="text-[14px] font-semibold text-zinc-900">Current preferences</h2>
-            </div>
-            <dl className="mt-3 space-y-2 text-[13px]">
-              <div className="flex justify-between gap-2">
-                <dt className="text-zinc-500">Every new review</dt>
-                <dd className="font-semibold text-zinc-900">{data.preferences.every_new_review ? "On" : "Off"}</dd>
-              </div>
-              <div className="flex justify-between gap-2">
-                <dt className="text-zinc-500">Low rating only</dt>
-                <dd className="font-semibold text-zinc-900">{data.preferences.low_rating_only ? "On" : "Off"}</dd>
-              </div>
-              <div className="flex justify-between gap-2">
-                <dt className="text-zinc-500">Unanswered only</dt>
-                <dd className="font-semibold text-zinc-900">{data.preferences.unanswered_only ? "On" : "Off"}</dd>
-              </div>
-              <div className="flex justify-between gap-2">
-                <dt className="text-zinc-500">Recipients</dt>
-                <dd className="font-semibold text-zinc-900">{data.preferences.email_recipients.length}</dd>
-              </div>
-            </dl>
-          </Card>
-          <Card className="lg:col-span-2">
-            <ReviewAlertSettings businessId={businessId} />
-          </Card>
         </div>
-      ) : null}
-    </ModulePage>
+        <div className={cn(rep.card, "p-4")}>
+          <h2 className="text-sm font-semibold text-[#101828]">Notification Channels</h2>
+          <div className="mt-4 space-y-3">
+            {[
+              { label: "Email", value: data.preferences.email_recipients?.length ? 100 : 0, icon: Mail },
+              { label: "In-app", value: 72, icon: Bell },
+              { label: "SMS", value: 38, icon: MessageSquare },
+            ].map((channel) => (
+              <div key={channel.label}>
+                <div className="mb-1 flex items-center justify-between text-sm">
+                  <span className="inline-flex items-center gap-2 text-[#344054]"><channel.icon className="h-4 w-4 text-[#98A2B3]" />{channel.label}</span>
+                  <span className="font-semibold text-[#101828]">{channel.value}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-[#F2F4F7]">
+                  <div className="h-2 rounded-full bg-[#137752]" style={{ width: `${channel.value}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className={cn(rep.card, "p-4")}>
+          <h2 className="text-sm font-semibold text-[#101828]">Recommended Actions</h2>
+          <div className="mt-3 space-y-2">
+            {(activeAlerts.length ? activeAlerts : resolvedAlerts).slice(0, 3).map((alert) => (
+              <div key={alert.id} className="rounded-lg bg-[#F9FAFB] p-3">
+                <p className="text-sm font-medium text-[#101828]">{alert.recommendedAction ?? "Review the alert details and assign an owner."}</p>
+                <button type="button" className={cn(rep.btnSecondary, "mt-2 h-8 px-2.5 text-xs")}>Open CTA</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

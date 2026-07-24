@@ -2,9 +2,16 @@ import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { CompetitorIntelligenceDashboard } from "@/components/reviews/competitor-intelligence-dashboard";
 import { loadCompetitorIntelligenceData } from "@/lib/reviews/competitor-intelligence-data";
+import { competitorIntelligencePreviewData } from "@/lib/reviews/competitor-intelligence-preview-data";
 
 async function CompetitorIntelligenceLoaded({ businessId }: { businessId: string }) {
-  const data = await loadCompetitorIntelligenceData(businessId);
+  let data = competitorIntelligencePreviewData;
+  try {
+    const live = await loadCompetitorIntelligenceData(businessId);
+    if (live.leaderboardRows.length > 1) data = live;
+  } catch {
+    data = competitorIntelligencePreviewData;
+  }
   return <CompetitorIntelligenceDashboard businessId={businessId} data={data} />;
 }
 

@@ -40,6 +40,14 @@ export type ReviewInsightCompetitorTheme = {
 export type ReviewInsightsData = {
   businessId: string;
   businessName: string;
+  metrics: {
+    positiveThemeMentions: number;
+    negativeThemeMentions: number;
+    totalReviewText: number;
+    avgReviewLength: number | null;
+    reviewsWithPhotos: number | null;
+    employeeMentions: number;
+  };
   themes: {
     positive: ReviewInsightTheme[];
     negative: ReviewInsightTheme[];
@@ -501,6 +509,8 @@ export async function loadReviewInsightsData(businessId: string): Promise<Review
   );
 
   const currentThemes = mapThemeBreakdown(currentInputs);
+  const positiveThemes = mapThemeBreakdown(positiveInputs).slice(0, 8);
+  const negativeThemes = mapThemeBreakdown(negativeInputs).slice(0, 8);
   const priorThemeCounts = new Map(
     mapThemeBreakdown(priorRows.map((row) => storedToThemeInput(row, businessName))).map((theme) => [
       theme.label,
@@ -527,13 +537,27 @@ export async function loadReviewInsightsData(businessId: string): Promise<Review
       ? Math.round((responseAudit.genericResponseSuspected / responseAudit.answered) * 100)
       : 0;
   const oldest = oldestUnanswered(currentRows);
+  const textLengths = currentRows
+    .map((row) => row.review_text?.trim().length ?? 0)
+    .filter((length) => length > 0);
+  const categorizedKeywords = extractCategorizedKeywords(currentRows);
 
   return {
     businessId,
     businessName,
+    metrics: {
+      positiveThemeMentions: positiveThemes.reduce((sum, theme) => sum + theme.count, 0),
+      negativeThemeMentions: negativeThemes.reduce((sum, theme) => sum + theme.count, 0),
+      totalReviewText: textLengths.length,
+      avgReviewLength: textLengths.length
+        ? Math.round(textLengths.reduce((sum, length) => sum + length, 0) / textLengths.length)
+        : null,
+      reviewsWithPhotos: null,
+      employeeMentions: categorizedKeywords.employees.reduce((sum, item) => sum + item.count, 0),
+    },
     themes: {
-      positive: mapThemeBreakdown(positiveInputs).slice(0, 8),
-      negative: mapThemeBreakdown(negativeInputs).slice(0, 8),
+      positive: positiveThemes,
+      negative: negativeThemes,
       emerging,
       themeFrequencyOverTime: buildThemeFrequencyOverTime(recent30Rows, prior30Rows, businessName),
       competitorThemes: buildCompetitorThemeComparison({
@@ -543,7 +567,7 @@ export async function loadReviewInsightsData(businessId: string): Promise<Review
       }),
     },
     servicesAndKeywords: extractKeywordMentions(currentRows),
-    categorizedKeywords: extractCategorizedKeywords(currentRows),
+    categorizedKeywords,
     responsePerformance: {
       responseRate: responseAudit.responseRate,
       totalWithText: responseAudit.totalWithText,

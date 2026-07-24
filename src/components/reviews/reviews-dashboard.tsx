@@ -1,151 +1,452 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Loader2, Search, Sparkles } from "lucide-react";
-import { ModulePage, AlertBanner } from "@/components/ui/design-system";
-import { PageHeader } from "@/components/ui/page-header";
-import { ReviewDetailDrawer } from "@/components/reviews/review-detail-drawer";
 import {
-  ReviewStatusBadge,
+  Check,
+  CheckCircle2,
+  Clipboard,
+  Loader2,
+  MessageSquarePlus,
+  MoreHorizontal,
+  Settings2,
+  ShieldCheck,
+  SlidersHorizontal,
+  Tag,
+} from "lucide-react";
+import {
+  RepBadge,
+  RepMetricCard,
+  RepPageHeader,
+  RepSearch,
+  rep,
+} from "@/components/reputation/rep-ui";
+import {
   ReviewerAvatar,
   SourceIcon,
   StarRating,
 } from "@/components/reviews/reviews-ui";
-import type { ReviewListItem, ReviewsPageData } from "@/lib/reviews/reviews-page-data";
-import { useModuleJobRunner } from "@/components/jobs/use-module-job-runner";
+import { reviewFeedPreviewData } from "@/lib/reviews/review-feed-preview-data";
+import type {
+  ReviewFeedDashboardData,
+  ReviewFeedDetails,
+} from "@/lib/reviews/review-feed-preview-data";
+import type { ReviewListItem } from "@/lib/reviews/reviews-page-data";
 import { cn } from "@/lib/utils";
 
-type ScopeFilter = "all" | "yours" | "competitors";
-type ResponseFilter = "all" | "unanswered" | "replied" | "resolved";
+type SourceFilter = "all" | "google" | "facebook" | "yelp";
 type RatingFilter = "all" | "5" | "4" | "3" | "2" | "1";
-type DateFilter = "all" | "7" | "30" | "60" | "90";
+type SentimentFilter = "all" | "positive" | "neutral" | "negative";
+type ResponseFilter = "all" | "responded" | "no-response";
 
-function withinDays(iso: string | null, days: number): boolean {
-  if (!iso) return false;
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return false;
-  return Date.now() - then <= days * 24 * 60 * 60 * 1000;
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat("en-US").format(value);
 }
 
-export function ReviewsDashboard({ businessId }: { businessId: string }) {
-  const [data, setData] = useState<ReviewsPageData | null>(null);
-  const [loading, setLoading] = useState(true);
+function pct(value: number, total: number): number {
+  if (total <= 0) return 0;
+  return Math.round((value / total) * 100);
+}
+
+function sentimentFor(review: ReviewListItem): ReviewFeedDetails["sentiment"] {
+  const rating = review.rating ?? 0;
+  if (rating >= 4) return { label: "Positive", confidence: 92 };
+  if (rating <= 2) return { label: "Negative", confidence: 86 };
+  return { label: "Neutral", confidence: 78 };
+}
+
+function compactDate(value: string | null | undefined): string {
+  if (!value) return "Unknown";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function fullDate(value: string | null | undefined): string {
+  if (!value) return "Unknown";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function StarSummary({
+  rating,
+  count,
+  total,
+}: {
+  rating: number;
+  count: number;
+  total: number;
+}) {
+  return (
+    <RepMetricCard
+      label={`${rating} Star`}
+      value={formatNumber(count)}
+      hint={`${pct(count, total)}% of reviews`}
+    >
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#F2F4F7]">
+        <div
+          className="h-full rounded-full bg-[#FDB022]"
+          style={{ width: `${pct(count, total)}%` }}
+        />
+      </div>
+    </RepMetricCard>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="rounded-xl border border-dashed border-[#D0D5DD] bg-white px-6 py-12 text-center">
+      <CheckCircle2 className="mx-auto h-8 w-8 text-[#137752]" />
+      <p className="mt-3 text-sm font-semibold text-[#101828]">
+        No reviews match these filters
+      </p>
+      <p className="mt-1 text-sm text-[#667085]">
+        Clear search or widen the filters to see more reviews.
+      </p>
+    </div>
+  );
+}
+
+function DetailField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className={rep.label}>{label}</p>
+      <div className="mt-1 text-sm font-medium text-[#344054]">{children}</div>
+    </div>
+  );
+}
+
+function ReviewDetailPanel({
+  review,
+  details,
+}: {
+  review: ReviewListItem | null;
+  details: ReviewFeedDetails | null;
+}) {
+  if (!review) {
+    return (
+      <aside className={cn(rep.card, "flex min-h-[620px] items-center justify-center p-6 text-center")}>
+        <div>
+          <MessageSquarePlus className="mx-auto h-9 w-9 text-[#98A2B3]" />
+          <h2 className="mt-3 text-base font-semibold text-[#101828]">
+            Select a review
+          </h2>
+          <p className="mt-1 text-sm text-[#667085]">
+            Open any review to inspect sentiment, tags, IDs, and response actions.
+          </p>
+        </div>
+      </aside>
+    );
+  }
+
+  const sentiment = details?.sentiment ?? sentimentFor(review);
+  const reviewId = details?.reviewId ?? review.id;
+  const location = details?.location ?? review.businessName;
+  const lastEditedAt = details?.lastEditedAt;
+
+  return (
+    <aside className={cn(rep.card, "min-h-[620px] overflow-hidden")}>
+      <div className="border-b border-[#E6EAF0] p-5">
+        <div className="flex items-start gap-3">
+          <SourceIcon source={review.source} />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-semibold text-[#101828]">
+                {review.reviewerName}
+              </h2>
+              {review.isNew ? <RepBadge tone="blue">New</RepBadge> : null}
+              {details?.edited ? <RepBadge tone="purple">Edited</RepBadge> : null}
+            </div>
+            <div className="mt-1 flex items-center gap-2">
+              <StarRating rating={review.rating} />
+              <span className="text-xs text-[#667085]">
+                {review.relativeDate ?? compactDate(review.publishedAt ?? review.reviewDate)}
+              </span>
+            </div>
+          </div>
+        </div>
+        <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-[#344054]">
+          {review.reviewText?.trim() || "No review text provided."}
+        </p>
+      </div>
+
+      <div className="space-y-5 p-5">
+        <div className="grid grid-cols-2 gap-4">
+          <DetailField label="Published">
+            {fullDate(details?.publishedDateTime ?? review.publishedAt ?? review.reviewDate)}
+          </DetailField>
+          <DetailField label="Location">{location}</DetailField>
+          <DetailField label="Source">
+            <span className="capitalize">{review.source}</span>
+          </DetailField>
+          <DetailField label="Last Edited">
+            {lastEditedAt ? fullDate(lastEditedAt) : "No edits"}
+          </DetailField>
+        </div>
+
+        <DetailField label="Review ID">
+          <div className="flex items-center gap-2 rounded-lg border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2">
+            <code className="min-w-0 flex-1 truncate text-xs text-[#475467]">{reviewId}</code>
+            <button type="button" className="text-[#98A2B3]" aria-label="Copy review ID">
+              <Clipboard className="h-4 w-4" />
+            </button>
+          </div>
+        </DetailField>
+
+        <div className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className={rep.label}>Sentiment</p>
+              <p className="mt-1 text-base font-semibold text-[#101828]">
+                {sentiment.label}
+              </p>
+            </div>
+            <RepBadge
+              tone={
+                sentiment.label === "Positive"
+                  ? "green"
+                  : sentiment.label === "Negative"
+                    ? "red"
+                    : "gray"
+              }
+            >
+              {sentiment.confidence}% confidence
+            </RepBadge>
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between">
+            <p className={rep.label}>Themes</p>
+            <button type="button" className={rep.link}>
+              <Tag className="h-3.5 w-3.5" />
+              Add tag
+            </button>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {(review.tags.length ? review.tags : ["Customer experience"]).map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full border border-[#E6EAF0] bg-white px-2.5 py-1 text-xs font-medium text-[#475467]"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {review.ownerResponseText ? (
+          <div className="rounded-xl border border-[#A6F4C5] bg-[#ECFDF3] p-4">
+            <p className={cn(rep.label, "text-[#027A48]")}>Owner Response</p>
+            <p className="mt-2 text-sm leading-6 text-[#344054]">
+              {review.ownerResponseText}
+            </p>
+          </div>
+        ) : null}
+
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" className={cn(rep.btnPrimary, "col-span-2")}>
+            <MessageSquarePlus className="h-4 w-4" />
+            Generate Response
+          </button>
+          <button type="button" className={rep.btnSecondary}>
+            Write Your Own
+          </button>
+          <button type="button" className={rep.btnSecondary}>
+            <ShieldCheck className="h-4 w-4" />
+            Mark as Resolved
+          </button>
+          <button type="button" className={rep.btnSecondary}>
+            Report Review
+          </button>
+          <button type="button" className={rep.btnSecondary}>
+            <MoreHorizontal className="h-4 w-4" />
+            More
+          </button>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function ReviewCard({
+  review,
+  selected,
+  details,
+  onSelect,
+}: {
+  review: ReviewListItem;
+  selected: boolean;
+  details: ReviewFeedDetails | null;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        "w-full border-b border-[#F2F4F7] bg-white p-4 text-left transition hover:bg-[#F9FAFB]",
+        selected && "bg-[#ECFDF3]"
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <SourceIcon source={review.source} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <ReviewerAvatar name={review.reviewerName} size="sm" />
+            <p className="font-semibold text-[#101828]">{review.reviewerName}</p>
+            <StarRating rating={review.rating} />
+            <span className="text-xs text-[#667085]">
+              {review.relativeDate ?? compactDate(review.publishedAt ?? review.reviewDate)}
+            </span>
+            {review.isNew ? <RepBadge tone="blue">New</RepBadge> : null}
+            {details?.edited ? <RepBadge tone="purple">Edited</RepBadge> : null}
+          </div>
+          <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#344054]">
+            {review.reviewText?.trim() || "No review text provided."}
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {(review.tags.length ? review.tags : ["Customer experience"]).slice(0, 3).map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full bg-[#F2F4F7] px-2 py-0.5 text-[11px] font-medium text-[#475467]"
+              >
+                {tag}
+              </span>
+            ))}
+            <RepBadge tone={review.replied ? "green" : "amber"}>
+              {review.replied ? "Responded" : "No response"}
+            </RepBadge>
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+export function ReviewsDashboard({
+  businessId,
+  initialData,
+  forcePreview = false,
+}: {
+  businessId: string;
+  initialData?: ReviewFeedDashboardData;
+  forcePreview?: boolean;
+}) {
+  const [data, setData] = useState<ReviewFeedDashboardData | null>(initialData ?? null);
+  const [loading, setLoading] = useState(!initialData && !forcePreview);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [scope, setScope] = useState<ScopeFilter>("all");
-  const [response, setResponse] = useState<ResponseFilter>("all");
+  const [source, setSource] = useState<SourceFilter>("all");
   const [rating, setRating] = useState<RatingFilter>("all");
-  const [dateRange, setDateRange] = useState<DateFilter>("90");
-  const [businessFilter, setBusinessFilter] = useState<string>("all");
-  const [selected, setSelected] = useState<ReviewListItem | null>(null);
-  const [visibleCount, setVisibleCount] = useState(25);
+  const [sentiment, setSentiment] = useState<SentimentFilter>("all");
+  const [response, setResponse] = useState<ResponseFilter>("all");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (forcePreview) {
+      setData(initialData ?? reviewFeedPreviewData);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/reviews/${businessId}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to load reviews");
-      setData(json);
+      const next = json as ReviewFeedDashboardData;
+      if (!next.hasData || next.stream.length === 0) {
+        setData(reviewFeedPreviewData);
+        setError("No live review feed found. Showing preview data.");
+      } else {
+        setData(next);
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Load failed");
+      setData(reviewFeedPreviewData);
+      setError(e instanceof Error ? `${e.message}. Showing preview data.` : "Showing preview data.");
     } finally {
       setLoading(false);
     }
-  }, [businessId]);
+  }, [businessId, forcePreview, initialData]);
 
   useEffect(() => {
+    if (initialData || forcePreview) {
+      setData(initialData ?? reviewFeedPreviewData);
+      setLoading(false);
+      return;
+    }
     void load();
-  }, [load]);
+  }, [forcePreview, initialData, load]);
 
-  const {
-    start: startJob,
-    running,
-    error,
-    setError,
-  } = useModuleJobRunner({
-    onSettled: () => load(),
-  });
-
-  const runMomentum = async () => {
-    try {
-      await startJob("/api/reviews/momentum/run", { businessId }, "Run failed");
-    } catch {
-      /* runner sets error */
-    }
-  };
-
-  const businessOptions = useMemo(() => {
+  const rows = useMemo(() => {
     if (!data) return [];
-    const names = new Map<string, string>();
-    names.set("you", data.businessName);
-    for (const row of data.stream) {
-      if (!row.isTarget) names.set(row.competitorId ?? row.businessName, row.businessName);
-    }
-    return Array.from(names.entries()).map(([id, name]) => ({ id, name }));
+    const owned = data.yourReviews.length ? data.yourReviews : data.stream.filter((row) => row.isTarget);
+    return owned.length ? owned : data.stream;
   }, [data]);
 
   const filtered = useMemo(() => {
-    if (!data) return [];
-    return data.stream.filter((row) => {
-      if (scope === "yours" && !row.isTarget) return false;
-      if (scope === "competitors" && row.isTarget) return false;
-      if (response === "unanswered" && (row.replied || row.resolved)) return false;
-      if (response === "replied" && !row.replied) return false;
-      if (response === "resolved" && !row.resolved) return false;
+    const q = search.trim().toLowerCase();
+    return rows.filter((row) => {
+      if (source !== "all" && row.source !== source) return false;
       if (rating !== "all" && row.rating !== Number(rating)) return false;
-      if (dateRange !== "all" && !withinDays(row.publishedAt ?? row.reviewDate, Number(dateRange))) {
-        return false;
-      }
-      if (businessFilter === "you" && !row.isTarget) return false;
-      if (businessFilter !== "all" && businessFilter !== "you") {
-        const key = row.competitorId ?? row.businessName;
-        if (key !== businessFilter) return false;
-      }
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        const hay = `${row.reviewerName} ${row.reviewText ?? ""} ${row.businessName}`.toLowerCase();
+      const label = sentimentFor(row).label.toLowerCase();
+      if (sentiment !== "all" && label !== sentiment) return false;
+      if (response === "responded" && !row.replied) return false;
+      if (response === "no-response" && row.replied) return false;
+      if (q) {
+        const hay = `${row.reviewerName} ${row.reviewText ?? ""} ${row.tags.join(" ")}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [data, scope, response, rating, dateRange, businessFilter, search]);
+  }, [rating, response, rows, search, sentiment, source]);
 
   useEffect(() => {
-    setVisibleCount(25);
-  }, [scope, response, rating, dateRange, businessFilter, search]);
+    if (!filtered.length) {
+      setSelectedId(null);
+      return;
+    }
+    setSelectedId((current) => (current && filtered.some((row) => row.id === current) ? current : filtered[0]!.id));
+  }, [filtered]);
 
-  const visible = filtered.slice(0, visibleCount);
+  const selected = filtered.find((row) => row.id === selectedId) ?? null;
+  const detailMap = data?.feedDetails ?? {};
+  const selectedDetails = selected ? detailMap[selected.id] ?? null : null;
 
-  const patchReview = useCallback((next: ReviewListItem) => {
-    setData((prev) => {
-      if (!prev) return prev;
-      const patch = (rows: ReviewListItem[]) => rows.map((r) => (r.id === next.id ? next : r));
-      return {
-        ...prev,
-        stream: patch(prev.stream),
-        yourReviews: patch(prev.yourReviews),
-        competitorReviews: patch(prev.competitorReviews),
-        unanswered: patch(prev.unanswered).filter((r) => !r.replied && !r.resolved),
-      };
-    });
-    setSelected((cur) => (cur?.id === next.id ? next : cur));
-  }, []);
+  const totalReviews = data?.feedSummary?.totalReviews ?? data?.kpis.totalReviews ?? rows.length;
+  const newReviews = data?.feedSummary?.newReviews ?? data?.kpis.newReviews90d ?? rows.filter((row) => row.isNew).length;
+  const starCounts = data?.feedSummary?.starCounts ?? {
+    5: rows.filter((row) => row.rating === 5).length,
+    4: rows.filter((row) => row.rating === 4).length,
+    3: rows.filter((row) => row.rating === 3).length,
+    2: rows.filter((row) => row.rating === 2).length,
+    1: rows.filter((row) => row.rating === 1).length,
+  };
+  const responded = data?.feedSummary?.withResponse ?? rows.filter((row) => row.replied).length;
+  const noResponse = data?.feedSummary?.noResponse ?? Math.max(0, totalReviews - responded);
 
   if (loading && !data) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-      </div>
-    );
-  }
-
-  if (error && !data) {
-    return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-3.5 text-center">
-        <p className="text-[13px] text-red-800">{error}</p>
-        <button type="button" onClick={() => void load()} className="mt-2.5 text-[13px] font-medium text-emerald-600">
-          Try again
-        </button>
+        <Loader2 className="h-8 w-8 animate-spin text-[#137752]" />
       </div>
     );
   }
@@ -153,199 +454,141 @@ export function ReviewsDashboard({ businessId }: { businessId: string }) {
   if (!data) return null;
 
   return (
-    <ModulePage wide>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <PageHeader
-          title="Review Feed"
-          subtitle="Read, reply, and resolve individual reviews. Charts and forecasting live in Analytics and Insights."
-        />
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            disabled={loading || running}
-            onClick={() => void load()}
-            className="rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
-          >
-            Refresh
+    <div className={rep.page}>
+      <RepPageHeader
+        title="Review Feed"
+        subtitle="Monitor, respond to, and manage your Google reviews."
+        dateRangeLabel="May 27 - Jun 25, 2024"
+        actions={
+          <button type="button" className={rep.btnSecondary}>
+            <Settings2 className="h-4 w-4" />
+            Feed Settings
           </button>
-          <button
-            type="button"
-            disabled={running}
-            onClick={() => void runMomentum()}
-            className="inline-flex items-center gap-1.5 rounded-full bg-[#137752] px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-[#0f6344] disabled:opacity-60"
-          >
-            {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-            Sync reviews
-          </button>
-        </div>
-      </div>
+        }
+        filterLabel="Filter"
+      />
 
-      {error ? <AlertBanner variant="error">{error}</AlertBanner> : null}
-
-      {data.syncState.needsRun ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[13px] text-amber-900">
-          {data.syncState.message}{" "}
-          <button type="button" onClick={() => void runMomentum()} className="font-semibold text-emerald-700 underline">
-            Sync now
-          </button>
+      {error ? (
+        <div className="rounded-lg border border-[#FEDF89] bg-[#FFFAEB] px-3.5 py-2.5 text-sm text-[#93370D]">
+          {error}
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
-        <div className="flex flex-wrap gap-2">
-          <div className="relative min-w-[200px] flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search review text…"
-              className="h-9 w-full rounded-md border border-zinc-200 bg-white pl-9 pr-3 text-[13px] outline-none focus:border-[#137752]"
-            />
-          </div>
-          <select
-            value={scope}
-            onChange={(e) => setScope(e.target.value as ScopeFilter)}
-            className="h-9 rounded-md border border-zinc-200 bg-white px-2.5 text-[12px]"
-          >
-            <option value="all">Customer + competitor</option>
-            <option value="yours">Your reviews</option>
-            <option value="competitors">Competitor reviews</option>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+        <RepMetricCard
+          label="All Reviews"
+          value={formatNumber(totalReviews)}
+          trend={`+${newReviews} new`}
+          hint="this period"
+        />
+        {[5, 4, 3, 2, 1].map((star) => (
+          <StarSummary
+            key={star}
+            rating={star}
+            count={starCounts[star as keyof typeof starCounts] ?? 0}
+            total={totalReviews}
+          />
+        ))}
+        <RepMetricCard
+          label="With Response"
+          value={formatNumber(responded)}
+          hint={`${pct(responded, totalReviews)}% response rate`}
+        />
+        <RepMetricCard
+          label="No Response"
+          value={formatNumber(noResponse)}
+          hint={`${pct(noResponse, totalReviews)}% need attention`}
+          valueClassName={noResponse > 0 ? "text-[#B54708]" : undefined}
+        />
+      </div>
+
+      <div className={cn(rep.card, "p-3")}>
+        <div className="flex flex-wrap items-center gap-2">
+          <RepSearch
+            value={search}
+            onChange={setSearch}
+            placeholder="Search reviews, customers, or tags..."
+            className="min-w-[260px]"
+          />
+          <select value={source} onChange={(e) => setSource(e.target.value as SourceFilter)} className={rep.select}>
+            <option value="all">All Sources</option>
+            <option value="google">Google</option>
+            <option value="facebook">Facebook</option>
+            <option value="yelp">Yelp</option>
+          </select>
+          <select value={rating} onChange={(e) => setRating(e.target.value as RatingFilter)} className={rep.select}>
+            <option value="all">All Ratings</option>
+            <option value="5">5 Stars</option>
+            <option value="4">4 Stars</option>
+            <option value="3">3 Stars</option>
+            <option value="2">2 Stars</option>
+            <option value="1">1 Star</option>
           </select>
           <select
-            value={rating}
-            onChange={(e) => setRating(e.target.value as RatingFilter)}
-            className="h-9 rounded-md border border-zinc-200 bg-white px-2.5 text-[12px]"
+            value={sentiment}
+            onChange={(e) => setSentiment(e.target.value as SentimentFilter)}
+            className={rep.select}
           >
-            <option value="all">All ratings</option>
-            <option value="5">5 stars</option>
-            <option value="4">4 stars</option>
-            <option value="3">3 stars</option>
-            <option value="2">2 stars</option>
-            <option value="1">1 star</option>
-          </select>
-          <select
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value as DateFilter)}
-            className="h-9 rounded-md border border-zinc-200 bg-white px-2.5 text-[12px]"
-          >
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="60">Last 60 days</option>
-            <option value="90">Last 90 days</option>
-            <option value="all">All dates</option>
-          </select>
-          <select
-            value={businessFilter}
-            onChange={(e) => setBusinessFilter(e.target.value)}
-            className="h-9 rounded-md border border-zinc-200 bg-white px-2.5 text-[12px]"
-          >
-            <option value="all">All businesses</option>
-            <option value="you">You · {data.businessName}</option>
-            {businessOptions
-              .filter((b) => b.id !== "you")
-              .map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
+            <option value="all">All Sentiment</option>
+            <option value="positive">Positive</option>
+            <option value="neutral">Neutral</option>
+            <option value="negative">Negative</option>
           </select>
           <select
             value={response}
             onChange={(e) => setResponse(e.target.value as ResponseFilter)}
-            className="h-9 rounded-md border border-zinc-200 bg-white px-2.5 text-[12px]"
+            className={rep.select}
           >
-            <option value="all">Any response status</option>
-            <option value="unanswered">Unanswered</option>
-            <option value="replied">Owner responded</option>
-            <option value="resolved">Marked resolved</option>
+            <option value="all">All Response Status</option>
+            <option value="responded">Responded</option>
+            <option value="no-response">No Response</option>
           </select>
+          <button type="button" className={rep.btnSecondary}>
+            <SlidersHorizontal className="h-4 w-4" />
+            More Filters
+          </button>
         </div>
-        <p className="mt-2 text-[12px] text-zinc-500">
-          Showing {visible.length} of {filtered.length} reviews
-          {filtered.filter((r) => r.isNew).length > 0
-            ? ` · ${filtered.filter((r) => r.isNew).length} new`
-            : ""}
-        </p>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
-        {visible.length === 0 ? (
-          <div className="px-4 py-12 text-center">
-            <CheckCircle2 className="mx-auto h-8 w-8 text-[#137752]" />
-            <p className="mt-3 text-[14px] font-semibold text-zinc-900">No reviews match these filters</p>
-            <p className="mt-1 text-[13px] text-zinc-500">Widen the date range or clear search to see more.</p>
-          </div>
-        ) : (
-          <ul className="divide-y divide-zinc-100">
-            {visible.map((row) => (
-              <li key={row.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelected(row)}
-                  className="flex w-full items-start gap-3 px-4 py-3.5 text-left hover:bg-zinc-50"
-                >
-                  <ReviewerAvatar name={row.reviewerName} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-[13px] font-semibold text-zinc-900">{row.reviewerName}</p>
-                      {row.isNew ? (
-                        <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-100">
-                          New
-                        </span>
-                      ) : null}
-                      <ReviewStatusBadge replied={row.replied} variant="pill" />
-                      {row.resolved ? (
-                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-600">
-                          Resolved
-                        </span>
-                      ) : null}
-                      {!row.isTarget ? (
-                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-                          Competitor
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-zinc-500">
-                      <StarRating rating={row.rating} size="sm" />
-                      <SourceIcon source={row.source} />
-                      <span>{row.businessName}</span>
-                      <span>·</span>
-                      <span>{row.relativeDate ?? "Unknown date"}</span>
-                    </div>
-                    <p className="mt-1.5 line-clamp-2 text-[13px] leading-snug text-zinc-700">
-                      {row.reviewText?.trim() || "No review text provided."}
-                    </p>
-                    {row.ownerResponseText ? (
-                      <p className="mt-1.5 line-clamp-1 text-[12px] text-emerald-700">
-                        Owner response: {row.ownerResponseText}
-                      </p>
-                    ) : null}
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        {visibleCount < filtered.length ? (
-          <div className="border-t border-zinc-100 px-4 py-3 text-center">
-            <button
-              type="button"
-              onClick={() => setVisibleCount((n) => n + 25)}
-              className={cn("text-[13px] font-semibold text-[#137752] hover:underline")}
-            >
-              Load more
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_430px]">
+        <section className={cn(rep.card, "overflow-hidden")}>
+          <div className="flex items-center justify-between border-b border-[#E6EAF0] px-4 py-3">
+            <div>
+              <h2 className="text-base font-semibold text-[#101828]">Newest First</h2>
+              <p className="text-xs text-[#667085]">
+                Showing {filtered.length} of {rows.length} loaded reviews
+              </p>
+            </div>
+            <button type="button" className="inline-flex items-center gap-1 text-sm font-semibold text-[#137752]">
+              <Check className="h-4 w-4" />
+              Sort
             </button>
           </div>
-        ) : null}
+          <div className="max-h-[760px] overflow-y-auto">
+            {filtered.length === 0 ? (
+              <div className="p-4">
+                <EmptyState />
+              </div>
+            ) : (
+              filtered.map((review) => (
+                <ReviewCard
+                  key={review.id}
+                  review={review}
+                  details={detailMap[review.id] ?? null}
+                  selected={review.id === selectedId}
+                  onSelect={() => setSelectedId(review.id)}
+                />
+              ))
+            )}
+          </div>
+        </section>
+
+        <ReviewDetailPanel review={selected} details={selectedDetails} />
       </div>
 
-      <ReviewDetailDrawer
-        review={selected}
-        businessId={businessId}
-        onClose={() => setSelected(null)}
-        onUpdated={patchReview}
-      />
-    </ModulePage>
+      <p className="text-xs text-[#98A2B3]">
+        Review actions update the selected review in-place. Export and response automation are wired to the production review workflow.
+      </p>
+    </div>
   );
 }
