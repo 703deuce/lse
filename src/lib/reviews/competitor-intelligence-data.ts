@@ -9,8 +9,10 @@ import {
   type StoredReviewRow,
 } from "@/lib/reviews/review-store";
 import {
+  REVIEW_THEME_CATEGORIES,
   buildThemeBreakdown,
   classifyReviewSentiment,
+  extractThemeTagsFromText,
   type ReviewThemeInput,
 } from "@/lib/reviews/review-themes";
 
@@ -50,9 +52,26 @@ export type CompetitorThemeStrength = {
   count: number;
 };
 
+export type CompetitorMentionCount = {
+  term: string;
+  count: number;
+};
+
+export type CompetitorServiceGapRow = {
+  label: string;
+  yourMentions: number;
+  competitorMentions: number;
+  gap: number;
+};
+
 export type CompetitorContentComparison = {
   avgLength: number;
   pctWithText: number;
+  locationTerms: number;
+  serviceTerms: number;
+  employeeMentions: number;
+  pctGeneric: number;
+  pctDetailed: number;
 };
 
 export type CompetitorIntelligenceData = {
@@ -76,6 +95,9 @@ export type CompetitorIntelligenceData = {
     negative: CompetitorThemeStrength[];
     competitorPositive: CompetitorThemeStrength[];
     competitorNegative: CompetitorThemeStrength[];
+    serviceGaps: CompetitorServiceGapRow[];
+    frequentlyPraisedServices: CompetitorMentionCount[];
+    frequentlyMentionedEmployees: CompetitorMentionCount[];
   };
   contentComparison: {
     you: CompetitorContentComparison;
@@ -106,13 +128,178 @@ function countSince(rows: StoredReviewRow[], days: number): number {
   return reviewsInWindow(rows, days).length;
 }
 
+const SERVICE_TERM_SIGNALS = [
+  "repair",
+  "installation",
+  "install",
+  "replacement",
+  "maintenance",
+  "cleaning",
+  "estimate",
+  "inspection",
+  "project",
+  "job",
+  "service",
+  "appointment",
+  "emergency",
+  "consultation",
+];
+
+const COMMON_LOCATION_WORDS = new Set([
+  "Downtown",
+  "Midtown",
+  "Uptown",
+  "Northside",
+  "Southside",
+  "Eastside",
+  "Westside",
+  "Georgetown",
+  "Springfield",
+  "Franklin",
+  "Clinton",
+  "Arlington",
+  "Madison",
+  "Greenville",
+  "Riverside",
+  "Fairview",
+  "Oakwood",
+  "Lakewood",
+  "Woodbridge",
+  "Alexandria",
+  "Richmond",
+  "Dallas",
+  "Austin",
+  "Houston",
+  "Phoenix",
+  "Denver",
+  "Charlotte",
+  "Raleigh",
+  "Orlando",
+  "Tampa",
+  "Miami",
+  "Seattle",
+  "Portland",
+  "Boston",
+  "Chicago",
+  "Atlanta",
+  "Nashville",
+]);
+
+function addTerm(counts: Map<string, Set<string>>, term: string, rowId: string) {
+  const normalized = term.trim().replace(/\s+/g, " ");
+  if (!normalized || normalized.length < 3) return;
+  const current = counts.get(normalized) ?? new Set<string>();
+  current.add(rowId);
+  counts.set(normalized, current);
+}
+
+function extractCapitalizedLocations(text: string): string[] {
+  const locations = new Set<string>();
+  const afterPreposition = text.match(/\b(?:in|from|near|around)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})/g) ?? [];
+  for (const match of afterPreposition) {
+    const loc = match.replace(/^(?:in|from|near|around)\s+/i, "").trim();
+    if (!/^(The|Our|This|That|They|Google|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/.test(loc)) {
+      locations.add(loc);
+    }
+  }
+  for (const word of COMMON_LOCATION_WORDS) {
+    if (new RegExp(`\\b${word}\\b`).test(text)) locations.add(word);
+  }
+  return Array.from(locations);
+}
+
+function extractEmployeeNames(text: string): string[] {
+  const names = new Set<string>();
+  const patterns = [
+    /\b(?:with|by|named|technician|tech|manager)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/g,
+    /\b([A-Z][a-z]+\s+[A-Z][a-z]+)\s+(?:was|were|did|helped|arrived|called)/g,
+  ];
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const name = match[1]?.trim();
+      if (name && !/^(The|Our|Their|This|That|Google|Customer Service)\b/.test(name)) names.add(name);
+    }
+  }
+  return Array.from(names);
+}
+
+function extractServiceTerms(text: string): string[] {
+  const terms = new Set<string>();
+  const lower = text.toLowerCase();
+  for (const tag of extractThemeTagsFromText(text, 6)) {
+    if (/service|quality|cleanup|care|staff|crew|professional|customer|speed|scheduling|pricing|communication/i.test(tag)) {
+      terms.add(tag);
+    }
+  }
+  for (const signal of SERVICE_TERM_SIGNALS) {
+    if (lower.includes(signal)) terms.add(signal);
+  }
+  for (const category of REVIEW_THEME_CATEGORIES) {
+    if (category.signals.some((signal) => lower.includes(signal.toLowerCase()))) {
+      terms.add(category.label);
+    }
+  }
+  return Array.from(terms);
+}
+
+function mentionCounts(rows: StoredReviewRow[], extractor: (text: string) => string[], limit = 10): CompetitorMentionCount[] {
+  const counts = new Map<string, Set<string>>();
+  for (const row of rows) {
+    const text = row.review_text ?? "";
+    if (!text.trim()) continue;
+    for (const term of extractor(text)) {
+      addTerm(counts, term, row.id);
+    }
+  }
+  return Array.from(counts.entries())
+    .map(([term, rowIds]) => ({ term, count: rowIds.size }))
+    .sort((a, b) => b.count - a.count || a.term.localeCompare(b.term))
+    .slice(0, limit);
+}
+
 function contentComparison(rows: StoredReviewRow[]): CompetitorContentComparison {
-  if (!rows.length) return { avgLength: 0, pctWithText: 0 };
+  if (!rows.length) {
+    return {
+      avgLength: 0,
+      pctWithText: 0,
+      locationTerms: 0,
+      serviceTerms: 0,
+      employeeMentions: 0,
+      pctGeneric: 0,
+      pctDetailed: 0,
+    };
+  }
   const withText = rows.filter((row) => (row.review_text ?? "").trim().length > 0);
   const totalLength = withText.reduce((sum, row) => sum + (row.review_text ?? "").trim().length, 0);
+  let generic = 0;
+  let detailed = 0;
+  let locationTerms = 0;
+  let serviceTerms = 0;
+  let employeeMentions = 0;
+  for (const row of rows) {
+    const text = (row.review_text ?? "").trim();
+    const services = text ? extractServiceTerms(text) : [];
+    const locations = text ? extractCapitalizedLocations(text) : [];
+    const employees = text ? extractEmployeeNames(text) : [];
+    const detailCount = services.length + locations.length + employees.length;
+    locationTerms += locations.length;
+    serviceTerms += services.length;
+    employeeMentions += employees.length;
+    if (!text || ((text.length < 30 || /^(great|excellent|good|bad|terrible|awesome|amazing) service[.!]?$/i.test(text)) && detailCount === 0)) {
+      generic++;
+    }
+    if (text.length >= 120 || detailCount >= 2) {
+      detailed++;
+    }
+  }
   return {
     avgLength: withText.length ? Math.round(totalLength / withText.length) : 0,
     pctWithText: Math.round((withText.length / rows.length) * 100),
+    locationTerms,
+    serviceTerms,
+    employeeMentions,
+    pctGeneric: Math.round((generic / rows.length) * 100),
+    pctDetailed: Math.round((detailed / rows.length) * 100),
   };
 }
 
@@ -291,6 +478,22 @@ export async function loadCompetitorIntelligenceData(
 
   const yourNegativeThemes = themeCounts(negativeTarget);
   const competitorNegativeThemes = themeCounts(negativeCompetitors);
+  const yourPositiveThemes = themeCounts(positiveTarget);
+  const competitorPositiveThemes = themeCounts(positiveCompetitors);
+  const yourPositiveByTheme = new Map(yourPositiveThemes.map((theme) => [theme.label, theme.count]));
+  const serviceGaps = competitorPositiveThemes
+    .map((theme) => {
+      const yourMentions = yourPositiveByTheme.get(theme.label) ?? 0;
+      return {
+        label: theme.label,
+        yourMentions,
+        competitorMentions: theme.count,
+        gap: theme.count - yourMentions,
+      };
+    })
+    .filter((row) => row.gap > 0)
+    .sort((a, b) => b.gap - a.gap || b.competitorMentions - a.competitorMentions)
+    .slice(0, 8);
   const yourNegativeByTheme = new Map(yourNegativeThemes.map((theme) => [theme.label, theme.count]));
   const complaintPatterns = competitorNegativeThemes
     .map((theme) => {
@@ -321,8 +524,16 @@ export async function loadCompetitorIntelligenceData(
     strengths: {
       positive: themeCounts(positiveTarget),
       negative: themeCounts(negativeTarget),
-      competitorPositive: themeCounts(positiveCompetitors),
+      competitorPositive: competitorPositiveThemes,
       competitorNegative: themeCounts(negativeCompetitors),
+      serviceGaps,
+      frequentlyPraisedServices: mentionCounts(
+        positiveTarget
+          .map((review) => targetRows90.find((row) => row.id === review.id))
+          .filter((row): row is StoredReviewRow => Boolean(row)),
+        extractServiceTerms
+      ),
+      frequentlyMentionedEmployees: mentionCounts(targetRows90, extractEmployeeNames),
     },
     contentComparison: {
       you: contentComparison(targetRows90),

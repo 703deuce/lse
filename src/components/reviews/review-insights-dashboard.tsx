@@ -148,6 +148,76 @@ export function ReviewInsightsDashboard({
           <ThemePanel title="Positive themes" items={data.themes.positive} tone="positive" />
           <ThemePanel title="Negative themes" items={data.themes.negative} tone="negative" />
           <ThemePanel title="Emerging themes" items={data.themes.emerging} tone="emerging" />
+          <Card className="lg:col-span-3">
+            <h2 className="text-[14px] font-semibold text-zinc-900">Theme frequency over time</h2>
+            <p className="mt-0.5 text-[12px] text-zinc-500">Recent 30 days compared with the prior 30 days.</p>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-left text-[13px]">
+                <thead>
+                  <tr className="border-b border-zinc-100 text-[11px] uppercase tracking-[0.06em] text-zinc-400">
+                    <th className="px-3 py-2">Theme</th>
+                    <th className="px-3 py-2">Recent 30d</th>
+                    <th className="px-3 py-2">Prior 30d</th>
+                    <th className="px-3 py-2">Delta</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.themes.themeFrequencyOverTime.length === 0 ? (
+                    <tr>
+                      <td className="px-3 py-6 text-zinc-500" colSpan={4}>No theme movement available yet.</td>
+                    </tr>
+                  ) : (
+                    data.themes.themeFrequencyOverTime.map((theme) => (
+                      <tr key={theme.label} className="border-b border-zinc-50">
+                        <td className="px-3 py-2 font-medium text-zinc-900">{theme.label}</td>
+                        <td className="px-3 py-2 tabular-nums text-zinc-700">{theme.recent30}</td>
+                        <td className="px-3 py-2 tabular-nums text-zinc-700">{theme.prior30}</td>
+                        <td className={cn("px-3 py-2 tabular-nums font-semibold", theme.delta >= 0 ? "text-emerald-600" : "text-red-600")}>
+                          {theme.delta >= 0 ? "+" : ""}{theme.delta}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+          <Card className="lg:col-span-3">
+            <h2 className="text-[14px] font-semibold text-zinc-900">Competitor theme comparison</h2>
+            <p className="mt-0.5 text-[12px] text-zinc-500">Uses competitor reviews from the latest Review Momentum run when available.</p>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-left text-[13px]">
+                <thead>
+                  <tr className="border-b border-zinc-100 text-[11px] uppercase tracking-[0.06em] text-zinc-400">
+                    <th className="px-3 py-2">Theme</th>
+                    <th className="px-3 py-2">You</th>
+                    <th className="px-3 py-2">Competitors</th>
+                    <th className="px-3 py-2">Competitor avg</th>
+                    <th className="px-3 py-2">Avg gap</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.themes.competitorThemes.length === 0 ? (
+                    <tr>
+                      <td className="px-3 py-6 text-zinc-500" colSpan={5}>Run Review Momentum with competitors to compare competitor review themes.</td>
+                    </tr>
+                  ) : (
+                    data.themes.competitorThemes.map((theme) => (
+                      <tr key={theme.label} className="border-b border-zinc-50">
+                        <td className="px-3 py-2 font-medium text-zinc-900">{theme.label}</td>
+                        <td className="px-3 py-2 tabular-nums text-zinc-700">{theme.yourCount}</td>
+                        <td className="px-3 py-2 tabular-nums text-zinc-700">{theme.competitorCount}</td>
+                        <td className="px-3 py-2 tabular-nums text-zinc-700">{theme.competitorAvg}</td>
+                        <td className={cn("px-3 py-2 tabular-nums font-semibold", theme.gap > 0 ? "text-red-600" : "text-emerald-600")}>
+                          {theme.gap > 0 ? "+" : ""}{theme.gap}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </div>
       ) : null}
 
@@ -191,6 +261,13 @@ export function ReviewInsightsDashboard({
           <Stat label="Avg response time" value={data.responsePerformance.avgResponseTimeDays == null ? "—" : `${data.responsePerformance.avgResponseTimeDays}d`} sub="Uses exact timestamps when available" />
           <Stat label="Unanswered negative" value={String(data.responsePerformance.unansweredNegative)} sub="Prioritize these first" />
           <Stat label="Unanswered positive" value={String(data.responsePerformance.unansweredPositive)} sub="Good candidates for quick replies" />
+          <Stat label="Positive response rate" value={`${data.responsePerformance.positiveResponseRate}%`} sub="Among positive reviews in the window" />
+          <Stat label="Negative response rate" value={`${data.responsePerformance.negativeResponseRate}%`} sub="Among negative reviews in the window" />
+          <Stat
+            label="Oldest unanswered"
+            value={data.responsePerformance.oldestUnansweredDays == null ? "—" : `${data.responsePerformance.oldestUnansweredDays}d`}
+            sub={data.responsePerformance.oldestUnansweredAt ?? "No unanswered reviews in window"}
+          />
           <Card className="xl:col-span-4">
             <h2 className="text-[14px] font-semibold text-zinc-900">Response coverage</h2>
             <div className="mt-3 h-[300px]">

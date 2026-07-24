@@ -19,11 +19,37 @@ import type {
 } from "@/lib/reputation/alerts-data";
 
 type TabId = "active" | "resolved" | "preferences";
+type AlertCategoryFilter =
+  | "all"
+  | "new_negative_review"
+  | "new_positive_review"
+  | "velocity_drop"
+  | "competitor_velocity_spike"
+  | "no_reviews"
+  | "rating_changed"
+  | "response_overdue"
+  | "campaign_delivery_problem"
+  | "review_gap_widening"
+  | "maps_visibility_moved";
 
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: "active", label: "Active" },
   { id: "resolved", label: "Resolved" },
   { id: "preferences", label: "Preferences" },
+];
+
+const ALERT_CATEGORY_OPTIONS: Array<{ id: AlertCategoryFilter; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "new_negative_review", label: "New negative" },
+  { id: "new_positive_review", label: "New positive" },
+  { id: "velocity_drop", label: "Velocity drop" },
+  { id: "competitor_velocity_spike", label: "Competitor spike" },
+  { id: "no_reviews", label: "No reviews" },
+  { id: "rating_changed", label: "Rating changed" },
+  { id: "response_overdue", label: "Response overdue" },
+  { id: "campaign_delivery_problem", label: "Campaign delivery" },
+  { id: "review_gap_widening", label: "Review gap" },
+  { id: "maps_visibility_moved", label: "Maps visibility" },
 ];
 
 const SEVERITY_CLASS: Record<ReputationAlertSeverity, string> = {
@@ -53,6 +79,12 @@ function EmptyState({ title, body }: { title: string; body: string }) {
       <p className="mt-1 text-[13px] text-zinc-500">{body}</p>
     </Card>
   );
+}
+
+function matchesCategory(alert: ReputationAlertRow, category: AlertCategoryFilter): boolean {
+  if (category === "all") return true;
+  if (alert.category === category) return true;
+  return category === "response_overdue" && alert.category === "unanswered_negative";
 }
 
 function AlertList({
@@ -118,6 +150,11 @@ export function ReputationAlertsDashboard({
   const [resolvedAlerts, setResolvedAlerts] = useState(data.resolvedAlerts);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<AlertCategoryFilter>("all");
+  const filteredActiveAlerts = activeAlerts.filter((alert) => matchesCategory(alert, selectedCategory));
+  const filteredResolvedAlerts = resolvedAlerts.filter((alert) => matchesCategory(alert, selectedCategory));
+  const selectedCategoryLabel =
+    ALERT_CATEGORY_OPTIONS.find((category) => category.id === selectedCategory)?.label ?? "Selected category";
 
   async function resolveAlert(alert: ReputationAlertRow) {
     setResolvingId(alert.id);
@@ -192,19 +229,72 @@ export function ReputationAlertsDashboard({
 
       <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
+      {activeTab !== "preferences" ? (
+        <Card>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-[14px] font-semibold text-zinc-900">Category filter</h2>
+              <p className="mt-0.5 text-[12px] text-zinc-500">Filter active and resolved alerts by product IA category.</p>
+            </div>
+            <select
+              value={selectedCategory}
+              onChange={(event) => setSelectedCategory(event.target.value as AlertCategoryFilter)}
+              className="h-9 rounded-full border border-zinc-200 bg-white px-3 text-[12px] font-semibold text-zinc-700 shadow-sm sm:hidden"
+            >
+              {ALERT_CATEGORY_OPTIONS.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mt-3 hidden flex-wrap gap-2 sm:flex">
+            {ALERT_CATEGORY_OPTIONS.map((category) => (
+              <button
+                key={category.id}
+                type="button"
+                onClick={() => setSelectedCategory(category.id)}
+                className={cn(
+                  "rounded-full px-3 py-1 text-[12px] font-semibold",
+                  selectedCategory === category.id
+                    ? "bg-[#137752] text-white shadow-[0_4px_14px_rgba(19,119,82,0.18)]"
+                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                )}
+              >
+                {category.label}
+              </button>
+            ))}
+          </div>
+        </Card>
+      ) : null}
+
       {activeTab === "active" ? (
-        activeAlerts.length > 0 ? (
-          <AlertList rows={activeAlerts} onResolve={resolveAlert} resolvingId={resolvingId} showResolve />
+        filteredActiveAlerts.length > 0 ? (
+          <AlertList rows={filteredActiveAlerts} onResolve={resolveAlert} resolvingId={resolvingId} showResolve />
         ) : (
-          <EmptyState title="No active alerts" body="No unanswered negatives or configured alert issues are active right now." />
+          <EmptyState
+            title="No active alerts"
+            body={
+              selectedCategory === "all"
+                ? "No unanswered negatives or configured alert issues are active right now."
+                : `No active ${selectedCategoryLabel.toLowerCase()} alerts are active right now.`
+            }
+          />
         )
       ) : null}
 
       {activeTab === "resolved" ? (
-        resolvedAlerts.length > 0 ? (
-          <AlertList rows={resolvedAlerts} />
+        filteredResolvedAlerts.length > 0 ? (
+          <AlertList rows={filteredResolvedAlerts} />
         ) : (
-          <EmptyState title="No resolved alerts yet" body="Resolved or dismissed persisted alerts will appear here." />
+          <EmptyState
+            title="No resolved alerts yet"
+            body={
+              selectedCategory === "all"
+                ? "Resolved or dismissed persisted alerts will appear here."
+                : `No resolved ${selectedCategoryLabel.toLowerCase()} alerts found.`
+            }
+          />
         )
       ) : null}
 

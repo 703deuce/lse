@@ -1,6 +1,8 @@
-import { differenceInCalendarDays, subDays } from "date-fns";
+import { differenceInCalendarDays, startOfDay, subDays } from "date-fns";
 import { createServiceClient } from "@/lib/db/client";
 import { auditOwnerResponsesFromStored, type ResponseQualityRow, type ResponseQualitySummary } from "@/lib/reputation/response-audit";
+import { hasOwnerResponse } from "@/lib/reviews/normalize";
+import { loadLatestMomentumRun } from "@/lib/reviews/momentum-engine";
 import {
   loadStoredReviews,
   reviewsInWindow,
@@ -20,6 +22,21 @@ export type ReviewInsightTheme = {
   pct: number;
 };
 
+export type ReviewInsightThemeFrequency = {
+  label: string;
+  recent30: number;
+  prior30: number;
+  delta: number;
+};
+
+export type ReviewInsightCompetitorTheme = {
+  label: string;
+  yourCount: number;
+  competitorCount: number;
+  competitorAvg: number;
+  gap: number;
+};
+
 export type ReviewInsightsData = {
   businessId: string;
   businessName: string;
@@ -27,6 +44,8 @@ export type ReviewInsightsData = {
     positive: ReviewInsightTheme[];
     negative: ReviewInsightTheme[];
     emerging: Array<ReviewInsightTheme & { delta: number }>;
+    themeFrequencyOverTime: ReviewInsightThemeFrequency[];
+    competitorThemes: ReviewInsightCompetitorTheme[];
   };
   servicesAndKeywords: Array<{ keyword: string; count: number }>;
   categorizedKeywords: Record<
@@ -41,6 +60,10 @@ export type ReviewInsightsData = {
     unansweredNegative: number;
     unansweredNeutral: number;
     avgResponseTimeDays: number | null;
+    positiveResponseRate: number;
+    negativeResponseRate: number;
+    oldestUnansweredAt: string | null;
+    oldestUnansweredDays: number | null;
   };
   responseQuality: {
     genericResponseSuspected: number;
@@ -149,7 +172,11 @@ const COMMON_LOCATION_WORDS = new Set([
   "Nashville",
 ]);
 
-function storedToThemeInput(row: StoredReviewRow, businessName: string): ReviewThemeInput {
+function round1(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+function storedToThemeInput(row: StoredReviewRow, businessName: string, isTarget = true): ReviewThemeInput {
   return {
     id: row.id,
     reviewerName: row.reviewer_name ?? "Anonymous",
@@ -157,7 +184,7 @@ function storedToThemeInput(row: StoredReviewRow, businessName: string): ReviewT
     reviewText: row.review_text,
     reviewDate: row.review_date,
     businessName,
-    isTarget: true,
+    isTarget,
   };
 }
 
@@ -296,6 +323,98 @@ function extractCategorizedKeywords(
   };
 }
 
+function dateForRow(row: StoredReviewRow): Date | null {
+  const raw = row.published_at ?? row.review_date;
+  if (!raw) return null;
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function rowsBetweenDaysAgo(rows: StoredReviewRow[], olderDaysAgo: number, newerDaysAgo: number): StoredReviewRow[] {
+  const now = new Date();
+  const start = startOfDay(subDays(now, olderDaysAgo));
+  const end = startOfDay(subDays(now, newerDaysAgo));
+  return rows.filter((row) => {
+    if (row.is_deleted) return false;
+    const date = dateForRow(row);
+    if (!date) return false;
+    const day = startOfDay(date);
+    return day >= start && day < end;
+  });
+}
+
+function buildThemeFrequencyOverTime(
+  recentRows: StoredReviewRow[],
+  priorRows: StoredReviewRow[],
+  businessName: string
+): ReviewInsightThemeFrequency[] {
+  const recent = mapThemeBreakdown(recentRows.map((row) => storedToThemeInput(row, businessName)));
+  const prior = mapThemeBreakdown(priorRows.map((row) => storedToThemeInput(row, businessName)));
+  const recentByLabel = new Map(recent.map((theme) => [theme.label, theme.count]));
+  const priorByLabel = new Map(prior.map((theme) => [theme.label, theme.count]));
+  return Array.from(new Set([...recentByLabel.keys(), ...priorByLabel.keys()]))
+    .map((label) => {
+      const recent30 = recentByLabel.get(label) ?? 0;
+      const prior30 = priorByLabel.get(label) ?? 0;
+      return { label, recent30, prior30, delta: recent30 - prior30 };
+    })
+    .sort((a, b) => b.recent30 + b.prior30 - (a.recent30 + a.prior30) || b.delta - a.delta)
+    .slice(0, 8);
+}
+
+function buildCompetitorThemeComparison(params: {
+  targetInputs: ReviewThemeInput[];
+  competitorInputs: ReviewThemeInput[];
+  competitorCount: number;
+}): ReviewInsightCompetitorTheme[] {
+  if (params.competitorCount === 0 || params.competitorInputs.length === 0) return [];
+  const yourThemes = mapThemeBreakdown(params.targetInputs);
+  const competitorThemes = mapThemeBreakdown(params.competitorInputs);
+  const yourByLabel = new Map(yourThemes.map((theme) => [theme.label, theme.count]));
+  const competitorByLabel = new Map(competitorThemes.map((theme) => [theme.label, theme.count]));
+  return Array.from(new Set([...yourByLabel.keys(), ...competitorByLabel.keys()]))
+    .map((label) => {
+      const yourCount = yourByLabel.get(label) ?? 0;
+      const competitorCount = competitorByLabel.get(label) ?? 0;
+      const competitorAvg = round1(competitorCount / params.competitorCount);
+      return {
+        label,
+        yourCount,
+        competitorCount,
+        competitorAvg,
+        gap: round1(competitorAvg - yourCount),
+      };
+    })
+    .sort((a, b) => b.competitorAvg - a.competitorAvg || b.yourCount - a.yourCount)
+    .slice(0, 10);
+}
+
+function sentimentResponseRate(
+  rows: StoredReviewRow[],
+  sentiment: "positive" | "negative"
+): number {
+  const matching = rows.filter((row) =>
+    classifyReviewSentiment(row.review_text, row.rating != null ? Number(row.rating) : null) === sentiment
+  );
+  if (!matching.length) return 0;
+  const answered = matching.filter((row) => hasOwnerResponse(row.owner_response_text)).length;
+  return Math.round((answered / matching.length) * 100);
+}
+
+function oldestUnanswered(rows: StoredReviewRow[]): { at: string | null; days: number | null } {
+  const unanswered = rows
+    .filter((row) => !hasOwnerResponse(row.owner_response_text))
+    .map((row) => dateForRow(row))
+    .filter((date): date is Date => Boolean(date))
+    .sort((a, b) => a.getTime() - b.getTime());
+  const oldest = unanswered[0];
+  if (!oldest) return { at: null, days: null };
+  return {
+    at: oldest.toISOString().slice(0, 10),
+    days: Math.max(0, differenceInCalendarDays(new Date(), oldest)),
+  };
+}
+
 async function loadResponseTimingRows(businessId: string): Promise<ResponseTimingRow[]> {
   const supabase = createServiceClient();
   const cutoff = subDays(new Date(), 90).toISOString().slice(0, 10);
@@ -346,12 +465,23 @@ export async function loadReviewInsightsData(businessId: string): Promise<Review
   if (!business) throw new Error("Business not found");
   const businessName = String(business.name ?? "Your business");
 
-  const [storedRows, timingRows] = await Promise.all([
+  const [storedRows, timingRows, momentum] = await Promise.all([
     loadStoredReviews(supabase, { businessId, lookbackDays: 180 }),
     loadResponseTimingRows(businessId),
+    loadLatestMomentumRun(businessId),
   ]);
+  const competitorEntities = momentum?.entities.filter((entity) => entity.entity_type === "competitor") ?? [];
+  const competitorIds = competitorEntities.map((entity) => entity.competitor_id).filter(Boolean) as string[];
+  const competitorRows = competitorIds.length
+    ? await loadStoredReviews(supabase, { competitorIds, lookbackDays: 90 })
+    : [];
+  const competitorNameById = new Map(
+    competitorEntities.map((entity) => [entity.competitor_id ?? entity.id, String(entity.name ?? "Competitor")])
+  );
 
   const currentRows = reviewsInWindow(storedRows, 90);
+  const recent30Rows = reviewsInWindow(storedRows, 30);
+  const prior30Rows = rowsBetweenDaysAgo(storedRows, 60, 30);
   const priorRows = storedRows.filter((row) => {
     if (!row.review_date) return false;
     const date = new Date(row.review_date);
@@ -360,6 +490,9 @@ export async function loadReviewInsightsData(businessId: string): Promise<Review
   });
 
   const currentInputs = currentRows.map((row) => storedToThemeInput(row, businessName));
+  const competitorInputs = reviewsInWindow(competitorRows, 90).map((row) =>
+    storedToThemeInput(row, competitorNameById.get(row.competitor_id ?? "") ?? "Competitor", false)
+  );
   const positiveInputs = currentInputs.filter((review) =>
     classifyReviewSentiment(review.reviewText, review.rating) === "positive"
   );
@@ -393,6 +526,7 @@ export async function loadReviewInsightsData(businessId: string): Promise<Review
     responseAudit.answered > 0
       ? Math.round((responseAudit.genericResponseSuspected / responseAudit.answered) * 100)
       : 0;
+  const oldest = oldestUnanswered(currentRows);
 
   return {
     businessId,
@@ -401,6 +535,12 @@ export async function loadReviewInsightsData(businessId: string): Promise<Review
       positive: mapThemeBreakdown(positiveInputs).slice(0, 8),
       negative: mapThemeBreakdown(negativeInputs).slice(0, 8),
       emerging,
+      themeFrequencyOverTime: buildThemeFrequencyOverTime(recent30Rows, prior30Rows, businessName),
+      competitorThemes: buildCompetitorThemeComparison({
+        targetInputs: currentInputs,
+        competitorInputs,
+        competitorCount: competitorIds.length,
+      }),
     },
     servicesAndKeywords: extractKeywordMentions(currentRows),
     categorizedKeywords: extractCategorizedKeywords(currentRows),
@@ -412,6 +552,10 @@ export async function loadReviewInsightsData(businessId: string): Promise<Review
       unansweredNegative: responseAudit.unansweredNegative,
       unansweredNeutral: responseAudit.unansweredNeutral,
       avgResponseTimeDays: responseAudit.avgResponseTimeDays ?? avgResponseTimeDays(timingRows),
+      positiveResponseRate: sentimentResponseRate(currentRows, "positive"),
+      negativeResponseRate: sentimentResponseRate(currentRows, "negative"),
+      oldestUnansweredAt: oldest.at,
+      oldestUnansweredDays: oldest.days,
     },
     responseQuality: {
       genericResponseSuspected: responseAudit.genericResponseSuspected,

@@ -80,6 +80,35 @@ function ThemeList({
   );
 }
 
+function MentionList({
+  title,
+  items,
+}: {
+  title: string;
+  items: Array<{ term: string; count: number }>;
+}) {
+  return (
+    <Card>
+      <h2 className="text-[14px] font-semibold text-zinc-900">{title}</h2>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {items.length === 0 ? (
+          <p className="text-[13px] text-zinc-500">No matching mentions found yet.</p>
+        ) : (
+          items.map((item) => (
+            <span
+              key={item.term}
+              className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 text-[12px] font-medium capitalize text-zinc-700"
+            >
+              {item.term}
+              <span className="text-zinc-400">{item.count}</span>
+            </span>
+          ))
+        )}
+      </div>
+    </Card>
+  );
+}
+
 export function CompetitorIntelligenceDashboard({
   businessId,
   data,
@@ -89,11 +118,19 @@ export function CompetitorIntelligenceDashboard({
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("leaderboard");
   const contentChart = [
-    { name: "You", avgLength: data.contentComparison.you.avgLength, pctWithText: data.contentComparison.you.pctWithText },
+    {
+      name: "You",
+      avgLength: data.contentComparison.you.avgLength,
+      pctWithText: data.contentComparison.you.pctWithText,
+      pctGeneric: data.contentComparison.you.pctGeneric,
+      pctDetailed: data.contentComparison.you.pctDetailed,
+    },
     {
       name: "Competitors",
       avgLength: data.contentComparison.competitors.avgLength,
       pctWithText: data.contentComparison.competitors.pctWithText,
+      pctGeneric: data.contentComparison.competitors.pctGeneric,
+      pctDetailed: data.contentComparison.competitors.pctDetailed,
     },
   ];
 
@@ -215,6 +252,39 @@ export function CompetitorIntelligenceDashboard({
           <ThemeList title="Your negative themes" items={data.strengths.negative} tone="negative" />
           <ThemeList title="Competitor positive themes" items={data.strengths.competitorPositive} tone="positive" />
           <ThemeList title="Competitor negative themes" items={data.strengths.competitorNegative} tone="negative" />
+          <Card className="lg:col-span-2">
+            <h2 className="text-[14px] font-semibold text-zinc-900">Service gaps</h2>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-left text-[13px]">
+                <thead>
+                  <tr className="border-b border-zinc-100 text-[11px] uppercase tracking-[0.06em] text-zinc-400">
+                    <th className="px-3 py-2">Theme</th>
+                    <th className="px-3 py-2">Competitor positive</th>
+                    <th className="px-3 py-2">Your positive</th>
+                    <th className="px-3 py-2">Gap</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.strengths.serviceGaps.length === 0 ? (
+                    <tr>
+                      <td className="px-3 py-6 text-zinc-500" colSpan={4}>No positive competitor service gaps found yet.</td>
+                    </tr>
+                  ) : (
+                    data.strengths.serviceGaps.map((row) => (
+                      <tr key={row.label} className="border-b border-zinc-50">
+                        <td className="px-3 py-2 font-medium text-zinc-900">{row.label}</td>
+                        <td className="px-3 py-2 tabular-nums text-zinc-700">{row.competitorMentions}</td>
+                        <td className="px-3 py-2 tabular-nums text-zinc-700">{row.yourMentions}</td>
+                        <td className="px-3 py-2 tabular-nums font-semibold text-red-600">+{row.gap}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+          <MentionList title="Frequently praised services" items={data.strengths.frequentlyPraisedServices} />
+          <MentionList title="Frequently mentioned employees" items={data.strengths.frequentlyMentionedEmployees} />
         </div>
       ) : null}
 
@@ -273,6 +343,8 @@ export function CompetitorIntelligenceDashboard({
                   <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #E4E4E7", fontSize: 12 }} />
                   <Bar dataKey="avgLength" name="Avg length" fill="#137752" radius={[8, 8, 0, 0]} />
                   <Bar dataKey="pctWithText" name="% with text" fill="#3B82F6" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="pctGeneric" name="% generic" fill="#F59E0B" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="pctDetailed" name="% detailed" fill="#8B5CF6" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -296,6 +368,47 @@ export function CompetitorIntelligenceDashboard({
                 <span className="text-zinc-500">Competitor written reviews</span>
                 <span className="font-semibold text-zinc-900">{data.contentComparison.competitors.pctWithText}%</span>
               </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-zinc-500">Your generic / detailed</span>
+                <span className="font-semibold text-zinc-900">
+                  {data.contentComparison.you.pctGeneric}% / {data.contentComparison.you.pctDetailed}%
+                </span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-zinc-500">Competitor generic / detailed</span>
+                <span className="font-semibold text-zinc-900">
+                  {data.contentComparison.competitors.pctGeneric}% / {data.contentComparison.competitors.pctDetailed}%
+                </span>
+              </div>
+            </div>
+          </Card>
+          <Card className="xl:col-span-3">
+            <h2 className="text-[14px] font-semibold text-zinc-900">Content signal counts</h2>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-left text-[13px]">
+                <thead>
+                  <tr className="border-b border-zinc-100 text-[11px] uppercase tracking-[0.06em] text-zinc-400">
+                    <th className="px-3 py-2">Group</th>
+                    <th className="px-3 py-2">Location terms</th>
+                    <th className="px-3 py-2">Service terms</th>
+                    <th className="px-3 py-2">Employee mentions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-zinc-50">
+                    <td className="px-3 py-2 font-semibold text-zinc-900">You</td>
+                    <td className="px-3 py-2 tabular-nums text-zinc-700">{data.contentComparison.you.locationTerms}</td>
+                    <td className="px-3 py-2 tabular-nums text-zinc-700">{data.contentComparison.you.serviceTerms}</td>
+                    <td className="px-3 py-2 tabular-nums text-zinc-700">{data.contentComparison.you.employeeMentions}</td>
+                  </tr>
+                  <tr className="border-b border-zinc-50">
+                    <td className="px-3 py-2 font-semibold text-zinc-900">Competitors</td>
+                    <td className="px-3 py-2 tabular-nums text-zinc-700">{data.contentComparison.competitors.locationTerms}</td>
+                    <td className="px-3 py-2 tabular-nums text-zinc-700">{data.contentComparison.competitors.serviceTerms}</td>
+                    <td className="px-3 py-2 tabular-nums text-zinc-700">{data.contentComparison.competitors.employeeMentions}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </Card>
         </div>

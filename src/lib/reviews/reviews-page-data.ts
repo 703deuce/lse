@@ -17,6 +17,8 @@ export type ReviewListItem = {
   rating: number | null;
   reviewText: string | null;
   reviewDate: string | null;
+  publishedAt: string | null;
+  firstObservedAt: string | null;
   relativeDate: string | null;
   source: "google" | "facebook" | "yelp";
   tags: string[];
@@ -27,6 +29,9 @@ export type ReviewListItem = {
   competitorId: string | null;
   daysWaiting: number | null;
   urgency: "urgent" | "high" | "medium" | "low" | null;
+  isNew: boolean;
+  resolved: boolean;
+  resolvedAt: string | null;
   /** Honest campaign attribution when matched — never invents confirmed. */
   campaignAttribution?: "confirmed" | "likely" | "unattributed" | null;
 };
@@ -125,11 +130,16 @@ function toListItem(
   row: StoredReviewRow,
   params: { isTarget: boolean; businessName: string; now: Date }
 ): ReviewListItem {
-  const reviewDate = row.review_date;
+  const publishedAt = row.published_at ?? (row.review_date ? `${row.review_date}T00:00:00Z` : null);
+  const reviewDate = row.review_date ?? (publishedAt ? publishedAt.slice(0, 10) : null);
+  const firstObservedAt = row.first_observed_at ?? row.created_at ?? null;
   const daysWaiting =
-    reviewDate && !hasOwnerResponse(row.owner_response_text)
-      ? differenceInCalendarDays(params.now, startOfDay(new Date(reviewDate)))
+    publishedAt && !hasOwnerResponse(row.owner_response_text)
+      ? differenceInCalendarDays(params.now, new Date(publishedAt))
       : null;
+  const isNew =
+    firstObservedAt != null &&
+    differenceInCalendarDays(params.now, new Date(firstObservedAt)) <= 7;
 
   return {
     id: row.id,
@@ -137,8 +147,10 @@ function toListItem(
     rating: row.rating != null ? Number(row.rating) : null,
     reviewText: row.review_text,
     reviewDate,
-    relativeDate: reviewDate
-      ? formatDistanceToNow(new Date(reviewDate), { addSuffix: true })
+    publishedAt,
+    firstObservedAt,
+    relativeDate: publishedAt
+      ? formatDistanceToNow(new Date(publishedAt), { addSuffix: true })
       : row.relative_date_text,
     source: inferSource(row),
     tags: extractThemeTagsFromText(row.review_text, 4),
@@ -149,6 +161,9 @@ function toListItem(
     competitorId: row.competitor_id,
     daysWaiting,
     urgency: daysWaiting != null && !hasOwnerResponse(row.owner_response_text) ? urgencyFromDays(daysWaiting) : null,
+    isNew,
+    resolved: Boolean(row.resolved_at),
+    resolvedAt: row.resolved_at ?? null,
     campaignAttribution: null,
   };
 }

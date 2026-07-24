@@ -98,9 +98,10 @@ function parseReviewDate(raw: Record<string, unknown>): {
     if (isValid(edited)) lastEditedAt = edited;
   }
 
+  // Exact timestamps keep full UTC precision — never collapse to startOfDay.
   if (typeof raw.time === "number" && raw.time > 0) {
     return {
-      date: startOfDay(new Date(raw.time * 1000)),
+      date: new Date(raw.time * 1000),
       relative,
       warning: false,
       precision: "exact",
@@ -111,7 +112,7 @@ function parseReviewDate(raw: Record<string, unknown>): {
   if (typeof raw.timestamp === "number" && raw.timestamp > 0) {
     const ts = raw.timestamp > 1e12 ? raw.timestamp : raw.timestamp * 1000;
     return {
-      date: startOfDay(new Date(ts)),
+      date: new Date(ts),
       relative,
       warning: false,
       precision: "exact",
@@ -122,13 +123,13 @@ function parseReviewDate(raw: Record<string, unknown>): {
   if (typeof raw.iso_date === "string") {
     const d = parseISO(raw.iso_date);
     if (isValid(d)) {
-      return { date: startOfDay(d), relative, warning: false, precision: "exact", lastEditedAt };
+      return { date: d, relative, warning: false, precision: "exact", lastEditedAt };
     }
   }
 
   if (lastEditedAt) {
     return {
-      date: startOfDay(lastEditedAt),
+      date: lastEditedAt,
       relative,
       warning: false,
       precision: "exact",
@@ -139,14 +140,15 @@ function parseReviewDate(raw: Record<string, unknown>): {
   if (typeof raw.review_datetime === "string") {
     const d = parseISO(raw.review_datetime);
     if (isValid(d)) {
-      return { date: startOfDay(d), relative, warning: false, precision: "exact", lastEditedAt };
+      return { date: d, relative, warning: false, precision: "exact", lastEditedAt };
     }
   }
 
   if (typeof raw.date === "string" && !raw.date.match(/ago|week|month|day|year|hour|minute/i)) {
     const d = parseISO(raw.date);
     if (isValid(d)) {
-      return { date: startOfDay(d), relative, warning: false, precision: "exact", lastEditedAt };
+      // Date-only strings (YYYY-MM-DD) parse as UTC midnight — still mark exact when ISO-valid.
+      return { date: d, relative, warning: false, precision: "exact", lastEditedAt };
     }
   }
 

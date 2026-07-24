@@ -26,6 +26,7 @@ export type ReviewAnalyticsTimelinePoint = {
   date: string;
   you: number;
   competitorAvg: number;
+  competitorSeries?: Record<string, number>;
   events: ReviewAnalyticsEvent[];
 };
 
@@ -35,7 +36,9 @@ export type ReviewAnalyticsData = {
   timezone: string;
   lastSyncedAt: string | null;
   groupModes: GroupMode[];
+  competitors: Array<{ id: string; name: string }>;
   timelinePoints: ReviewAnalyticsTimelinePoint[];
+  timelineByCompetitor?: Record<string, number[]>;
   timelineEvents: ReviewAnalyticsEvent[];
   weeklyVelocity: number;
   monthlyVelocity: number;
@@ -216,12 +219,18 @@ export function aggregateReviewAnalyticsTimeline(
   mode: GroupMode
 ): ReviewAnalyticsTimelinePoint[] {
   if (mode === "daily") return points;
-  const buckets = new Map<string, { you: number; competitorAvg: number; days: number; events: ReviewAnalyticsEvent[] }>();
+  const buckets = new Map<
+    string,
+    { you: number; competitorAvg: number; competitorSeries: Record<string, number>; days: number; events: ReviewAnalyticsEvent[] }
+  >();
   for (const point of points) {
     const key = bucketLabel(point.date, mode);
-    const bucket = buckets.get(key) ?? { you: 0, competitorAvg: 0, days: 0, events: [] };
+    const bucket = buckets.get(key) ?? { you: 0, competitorAvg: 0, competitorSeries: {}, days: 0, events: [] };
     bucket.you += point.you;
     bucket.competitorAvg += point.competitorAvg;
+    for (const [competitorId, count] of Object.entries(point.competitorSeries ?? {})) {
+      bucket.competitorSeries[competitorId] = (bucket.competitorSeries[competitorId] ?? 0) + count;
+    }
     bucket.days += 1;
     bucket.events.push(...point.events);
     buckets.set(key, bucket);
@@ -230,13 +239,14 @@ export function aggregateReviewAnalyticsTimeline(
     date,
     you: bucket.you,
     competitorAvg: round1(bucket.competitorAvg),
+    competitorSeries: bucket.competitorSeries,
     events: bucket.events,
   }));
 }
 
-async function loadTimelineEvents(businessId: string, timezone: string): Promise<ReviewAnalyticsEvent[]> {
+async function loadTimelineEvents(businessId: string, timezone: string, lookbackDays = 180): Promise<ReviewAnalyticsEvent[]> {
   const supabase = createServiceClient();
-  const since = subDays(new Date(), 90).toISOString();
+  const since = subDays(new Date(), lookbackDays).toISOString();
   const [campaignResult, scanResult] = await Promise.all([
     supabase
       .from("review_request_campaigns")
@@ -352,21 +362,35 @@ export async function loadReviewAnalyticsData(businessId: string): Promise<Revie
   ]);
 
   const competitorEntities = momentum?.entities.filter((entity) => entity.entity_type === "competitor") ?? [];
-  const competitorIds = competitorEntities.map((entity) => entity.competitor_id).filter(Boolean) as string[];
+  const competitors = competitorEntities
+    .map((entity) => ({
+      id: entity.competitor_id ?? entity.id,
+      name: String(entity.name ?? "Competitor"),
+    }))
+    .filter((competitor) => Boolean(competitor.id));
+  const competitorIds = competitors.map((competitor) => competitor.id);
 
   const [targetRows, competitorRows, timelineEvents] = await Promise.all([
     loadStoredReviews(supabase, { businessId, lookbackDays: 180 }),
     competitorIds.length ? loadStoredReviews(supabase, { competitorIds, lookbackDays: 180 }) : Promise.resolve([]),
-    loadTimelineEvents(businessId, timezone),
+    loadTimelineEvents(businessId, timezone, 180),
   ]);
 
-  const keys90 = dateKeys(90, timezone);
+  const keys180 = dateKeys(180, timezone);
+  const keys90 = keys180.slice(-90);
   const keyStart90 = keys90[0]!;
   const keyEnd90 = keys90[keys90.length - 1]!;
   const target90 = rowsInWindow(targetRows, keyStart90, keyEnd90, timezone);
-  const targetCounts = countByDate(target90, timezone);
+  const targetCounts = countByDate(targetRows, timezone);
 
   const competitorCountsByDate = countByDate(competitorRows, timezone);
+  const competitorCountsById = new Map<string, Map<string, number>>();
+  for (const competitorId of competitorIds) {
+    competitorCountsById.set(
+      competitorId,
+      countByDate(competitorRows.filter((row) => row.competitor_id === competitorId), timezone)
+    );
+  }
   const competitorDivisor = Math.max(competitorIds.length, 1);
   const eventsByDate = new Map<string, ReviewAnalyticsEvent[]>();
   for (const event of timelineEvents) {
@@ -374,12 +398,23 @@ export async function loadReviewAnalyticsData(businessId: string): Promise<Revie
     bucket.push(event);
     eventsByDate.set(event.date, bucket);
   }
-  const timelinePoints = keys90.map((date) => ({
-    date,
-    you: targetCounts.get(date) ?? 0,
-    competitorAvg: round1((competitorCountsByDate.get(date) ?? 0) / competitorDivisor),
-    events: eventsByDate.get(date) ?? [],
-  }));
+  const timelineByCompetitor: Record<string, number[]> = {};
+  for (const competitorId of competitorIds) {
+    const counts = competitorCountsById.get(competitorId);
+    timelineByCompetitor[competitorId] = keys180.map((date) => counts?.get(date) ?? 0);
+  }
+  const timelinePoints = keys180.map((date, index) => {
+    const competitorSeries = Object.fromEntries(
+      competitorIds.map((competitorId) => [competitorId, timelineByCompetitor[competitorId]?.[index] ?? 0])
+    );
+    return {
+      date,
+      you: targetCounts.get(date) ?? 0,
+      competitorAvg: round1((competitorCountsByDate.get(date) ?? 0) / competitorDivisor),
+      competitorSeries,
+      events: eventsByDate.get(date) ?? [],
+    };
+  });
 
   const rollingPeriods = ([7, 30, 60, 90] as const).map((days) => rollingPeriod(targetRows, days, timezone));
   const rolling7 = rollingPeriods.find((period) => period.days === 7)!;
@@ -436,7 +471,9 @@ export async function loadReviewAnalyticsData(businessId: string): Promise<Revie
     timezone,
     lastSyncedAt: momentum?.run.finished_at ?? momentum?.run.created_at ?? null,
     groupModes: ["daily", "weekly", "monthly"],
+    competitors,
     timelinePoints,
+    timelineByCompetitor,
     timelineEvents,
     weeklyVelocity,
     monthlyVelocity,

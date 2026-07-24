@@ -34,6 +34,7 @@ const BLUE = "#3B82F6";
 
 type TabId = "timeline" | "velocity" | "momentum";
 type GroupMode = "daily" | "weekly" | "monthly";
+type RangePreset = "30" | "60" | "90" | "custom";
 
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: "timeline", label: "Timeline" },
@@ -79,11 +80,43 @@ export function ReviewAnalyticsDashboard({
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("timeline");
   const [groupMode, setGroupMode] = useState<GroupMode>("daily");
+  const [rangePreset, setRangePreset] = useState<RangePreset>("90");
+  const [customStartDate, setCustomStartDate] = useState(data.timelinePoints[0]?.date ?? "");
+  const [customEndDate, setCustomEndDate] = useState(data.timelinePoints[data.timelinePoints.length - 1]?.date ?? "");
+  const [selectedCompetitorId, setSelectedCompetitorId] = useState<string>("average");
+  const availableStartDate = data.timelinePoints[0]?.date ?? "";
+  const availableEndDate = data.timelinePoints[data.timelinePoints.length - 1]?.date ?? "";
+  const selectedCompetitor = data.competitors.find((competitor) => competitor.id === selectedCompetitorId);
+  const rangeLabel =
+    rangePreset === "custom"
+      ? `${customStartDate || availableStartDate} to ${customEndDate || availableEndDate}`
+      : `Last ${rangePreset} days`;
+  const filteredTimelinePoints = useMemo(() => {
+    if (rangePreset === "custom") {
+      const start = customStartDate || availableStartDate;
+      const end = customEndDate || availableEndDate;
+      return data.timelinePoints.filter((point) => (!start || point.date >= start) && (!end || point.date <= end));
+    }
+    return data.timelinePoints.slice(-Number(rangePreset));
+  }, [availableEndDate, availableStartDate, customEndDate, customStartDate, data.timelinePoints, rangePreset]);
+  const comparisonTimelinePoints = useMemo(
+    () =>
+      filteredTimelinePoints.map((point) => ({
+        ...point,
+        competitorAvg:
+          selectedCompetitorId === "average"
+            ? point.competitorAvg
+            : point.competitorSeries?.[selectedCompetitorId] ?? 0,
+      })),
+    [filteredTimelinePoints, selectedCompetitorId]
+  );
   const timeline = useMemo(
-    () => aggregateReviewAnalyticsTimeline(data.timelinePoints, groupMode),
-    [data.timelinePoints, groupMode]
+    () => aggregateReviewAnalyticsTimeline(comparisonTimelinePoints, groupMode),
+    [comparisonTimelinePoints, groupMode]
   );
   const markerLines = timeline.filter((point) => point.events.length > 0);
+  const comparisonName =
+    selectedCompetitorId === "average" ? "Competitor avg" : selectedCompetitor?.name ?? "Selected competitor";
   const velocityBars = data.rollingPeriods.map((period) => ({
     label: `${period.days}d`,
     current: period.current,
@@ -100,7 +133,7 @@ export function ReviewAnalyticsDashboard({
         meta={
           <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-[12px] font-medium text-zinc-600">
             <Calendar className="h-3.5 w-3.5" />
-            Last 90 days · {data.timezone}
+            {rangeLabel} · {data.timezone}
           </span>
         }
         actions={
@@ -127,27 +160,79 @@ export function ReviewAnalyticsDashboard({
 
       {activeTab === "timeline" ? (
         <Card>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-[14px] font-semibold text-zinc-900">Review timeline</h2>
-              <p className="mt-0.5 text-[12px] text-zinc-500">Your review count vs competitor average, with campaign and scan markers.</p>
+              <p className="mt-0.5 text-[12px] text-zinc-500">Your review count vs selected competitor benchmark, with campaign and scan markers.</p>
             </div>
-            <div className="flex rounded-full bg-zinc-100 p-1">
-              {data.groupModes.map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setGroupMode(mode)}
-                  className={cn(
-                    "rounded-full px-3 py-1 text-[12px] font-semibold capitalize",
-                    groupMode === mode ? "bg-white text-[#137752] shadow-sm" : "text-zinc-500"
-                  )}
-                >
-                  {mode}
-                </button>
-              ))}
+            <div className="flex flex-wrap justify-end gap-2">
+              <div className="flex rounded-full bg-zinc-100 p-1">
+                {(["30", "60", "90", "custom"] as const).map((range) => (
+                  <button
+                    key={range}
+                    type="button"
+                    onClick={() => setRangePreset(range)}
+                    className={cn(
+                      "rounded-full px-3 py-1 text-[12px] font-semibold capitalize",
+                      rangePreset === range ? "bg-white text-[#137752] shadow-sm" : "text-zinc-500"
+                    )}
+                  >
+                    {range === "custom" ? "Custom" : `${range}d`}
+                  </button>
+                ))}
+              </div>
+              <select
+                value={selectedCompetitorId}
+                onChange={(event) => setSelectedCompetitorId(event.target.value)}
+                className="h-8 rounded-full border border-zinc-200 bg-white px-3 text-[12px] font-semibold text-zinc-700 shadow-sm"
+              >
+                <option value="average">Average</option>
+                {data.competitors.map((competitor) => (
+                  <option key={competitor.id} value={competitor.id}>
+                    {competitor.name}
+                  </option>
+                ))}
+              </select>
+              <div className="flex rounded-full bg-zinc-100 p-1">
+                {data.groupModes.map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setGroupMode(mode)}
+                    className={cn(
+                      "rounded-full px-3 py-1 text-[12px] font-semibold capitalize",
+                      groupMode === mode ? "bg-white text-[#137752] shadow-sm" : "text-zinc-500"
+                    )}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
+          {rangePreset === "custom" ? (
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl bg-zinc-50 p-3 text-[12px] text-zinc-600">
+              <span className="font-semibold text-zinc-700">Custom range</span>
+              <input
+                type="date"
+                value={customStartDate}
+                min={availableStartDate}
+                max={availableEndDate}
+                onChange={(event) => setCustomStartDate(event.target.value)}
+                className="h-8 rounded-lg border border-zinc-200 bg-white px-2 text-[12px]"
+              />
+              <span>to</span>
+              <input
+                type="date"
+                value={customEndDate}
+                min={availableStartDate}
+                max={availableEndDate}
+                onChange={(event) => setCustomEndDate(event.target.value)}
+                className="h-8 rounded-lg border border-zinc-200 bg-white px-2 text-[12px]"
+              />
+              <span className="text-zinc-400">Loaded window: {availableStartDate} to {availableEndDate}</span>
+            </div>
+          ) : null}
           <div className="h-[340px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={timeline} margin={{ top: 10, right: 18, left: -12, bottom: 0 }}>
@@ -166,7 +251,7 @@ export function ReviewAnalyticsDashboard({
                   />
                 ))}
                 <Line type="monotone" dataKey="you" name="You" stroke={GREEN} strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
-                <Line type="monotone" dataKey="competitorAvg" name="Competitor avg" stroke={BLUE} strokeWidth={2} strokeDasharray="4 4" dot={false} />
+                <Line type="monotone" dataKey="competitorAvg" name={comparisonName} stroke={BLUE} strokeWidth={2} strokeDasharray="4 4" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>

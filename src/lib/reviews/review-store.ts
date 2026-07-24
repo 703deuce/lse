@@ -7,7 +7,7 @@ type Supabase = ReturnType<typeof createServiceClient>;
 
 /** Columns needed for list/UI metrics — excludes bulky raw_json. */
 export const REVIEW_LIST_COLUMNS =
-  "id, organization_id, business_id, competitor_id, source_provider, source_review_id, reviewer_name, rating, review_text, review_date, published_at, last_edited_at, first_observed_at, last_observed_at, owner_responded_at, date_precision, is_deleted, absent_pull_count, relative_date_text, owner_response_text, review_url, created_at, updated_at";
+  "id, organization_id, business_id, competitor_id, source_provider, source_review_id, reviewer_name, rating, review_text, review_date, published_at, last_edited_at, first_observed_at, last_observed_at, owner_responded_at, date_precision, is_deleted, absent_pull_count, relative_date_text, owner_response_text, review_url, resolved_at, created_at, updated_at";
 
 export type StoredReviewRow = {
   id: string;
@@ -31,6 +31,7 @@ export type StoredReviewRow = {
   relative_date_text: string | null;
   owner_response_text: string | null;
   review_url: string | null;
+  resolved_at?: string | null;
   raw_json?: Record<string, unknown>;
   created_at: string;
   updated_at?: string;

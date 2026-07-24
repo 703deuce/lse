@@ -1,4 +1,4 @@
-import { WebhooksClient } from "@/components/integrations/webhooks-client";
+import { AutomationsHub } from "@/components/reputation/automations-hub";
 
 export default async function ReputationAutomationsPage({
   params,
@@ -6,5 +6,5 @@ export default async function ReputationAutomationsPage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
-  return <WebhooksClient businessId={businessId} />;
+  return <AutomationsHub businessId={businessId} />;
 }

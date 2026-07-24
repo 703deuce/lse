@@ -11,14 +11,15 @@ import {
 } from "@/components/reputation/review-requests-ui";
 import { ModulePage } from "@/components/ui/design-system";
 
-const VALID_SECTIONS: ReviewRequestsSection[] = ["poster", "messages", "triggers", "settings"];
+const VALID_SECTIONS: ReviewRequestsSection[] = ["send", "bulk", "tracking", "poster", "messages"];
 
 function parseSection(value: string | null): ReviewRequestsSection {
-  if (value === "send" || value === "bulk" || value === "tracking") return "poster";
+  if (value === "templates" || value === "messages") return "poster";
+  if (value === "triggers" || value === "settings") return "send";
   if (value && VALID_SECTIONS.includes(value as ReviewRequestsSection)) {
     return value as ReviewRequestsSection;
   }
-  return "poster";
+  return "send";
 }
 
 export function ReviewRequestsDashboard({ businessId }: { businessId: string }) {
@@ -37,7 +38,7 @@ export function ReviewRequestsDashboard({ businessId }: { businessId: string }) 
       setSection(next);
       const params = new URLSearchParams(searchParams.toString());
       params.set("tab", next);
-      router.replace(`/businesses/${businessId}/review-requests?${params.toString()}`, {
+      router.replace(`/businesses/${businessId}/reputation/requests?${params.toString()}`, {
         scroll: false,
       });
     },
@@ -48,7 +49,7 @@ export function ReviewRequestsDashboard({ businessId }: { businessId: string }) 
     <ModulePage>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <ReviewRequestsPageHeader
-          campaignsHref={`/businesses/${businessId}/review-campaigns`}
+          campaignsHref={`/businesses/${businessId}/reputation/campaigns`}
         />
         <ReviewRequestsTopBar />
       </div>

@@ -173,10 +173,10 @@ export function CampaignCreateWizard({
             <p className="text-[12px] text-zinc-600">
               No webhook endpoints yet.{" "}
               <Link
-                href={`/businesses/${businessId}/integrations`}
+                href={`/businesses/${businessId}/reputation/automations`}
                 className="font-medium text-emerald-700 underline"
               >
-                Create one in Review Triggers
+                Create one in Automations
               </Link>
               , then return here.
             </p>
