@@ -158,15 +158,15 @@ function signedDelta(n: number | null | undefined, digits = 0, suffix = ""): str
 function nextActionHref(businessId: string, ctaLabel: string): string {
   const label = ctaLabel.toLowerCase();
   if (label.includes("respond") || label.includes("unanswered")) {
-    return `/businesses/${businessId}/reviews?tab=unanswered`;
+    return `/businesses/${businessId}/reputation/reviews?tab=unanswered`;
   }
   if (label.includes("request")) {
-    return `/businesses/${businessId}/review-requests`;
+    return `/businesses/${businessId}/reputation/requests`;
   }
-  if (label.includes("momentum") || label.includes("action plan") || label.includes("sync")) {
-    return `/businesses/${businessId}/review-momentum`;
+  if (label.includes("momentum") || label.includes("action plan") || label.includes("sync") || label.includes("analytics")) {
+    return `/businesses/${businessId}/reputation/analytics`;
   }
-  return `/businesses/${businessId}/reviews`;
+  return `/businesses/${businessId}/reputation/reviews`;
 }
 
 export function ReviewOverviewDashboard({
@@ -176,11 +176,11 @@ export function ReviewOverviewDashboard({
   businessId: string;
   data: ReviewOverviewData;
 }) {
-  const analyticsHref = `/businesses/${businessId}/review-momentum`;
-  const competitorsHref = `/businesses/${businessId}/reviews?tab=competitor-reviews`;
+  const analyticsHref = `/businesses/${businessId}/reputation/analytics`;
+  const competitorsHref = `/businesses/${businessId}/reputation/competitors`;
   const mapsHref = `/businesses/${businessId}/scans`;
-  const campaignsHref = `/businesses/${businessId}/review-campaigns`;
-  const unansweredHref = `/businesses/${businessId}/reviews?tab=unanswered`;
+  const campaignsHref = `/businesses/${businessId}/reputation/campaigns`;
+  const unansweredHref = `/businesses/${businessId}/reputation/reviews?tab=unanswered`;
   const actionHref = nextActionHref(businessId, data.nextAction.ctaLabel);
   const showMomentumArrow =
     data.momentumLabel === "Accelerating" ||
@@ -207,7 +207,7 @@ export function ReviewOverviewDashboard({
             Show Report
           </Link>
           <Link
-            href={`/businesses/${businessId}/review-requests`}
+            href={`/businesses/${businessId}/reputation/requests`}
             className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#137752] px-3.5 text-[13px] font-semibold text-white shadow-[0_4px_14px_rgba(19,119,82,0.28)] hover:bg-[#0f6244]"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -635,7 +635,7 @@ export function ReviewOverviewDashboard({
           ) : (
             <p className="py-6 text-center text-[13px] text-zinc-500">
               No campaign sends in the last 30 days.{" "}
-              <Link href={`/businesses/${businessId}/review-requests`} className="font-semibold text-[#137752] hover:underline">
+              <Link href={`/businesses/${businessId}/reputation/requests`} className="font-semibold text-[#137752] hover:underline">
                 Send a review request
               </Link>
             </p>

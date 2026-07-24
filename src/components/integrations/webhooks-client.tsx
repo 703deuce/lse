@@ -311,7 +311,7 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
   return (
     <ModulePage>
       <ModuleHeader
-        title="Automatic Review Triggers"
+        title="Automations"
         subtitle="When a job, invoice, or appointment completes in your CRM, enroll the customer in a Review Campaign — via Zapier, Make, n8n, or custom HTTP."
         icon={Webhook}
         actions={

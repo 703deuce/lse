@@ -113,7 +113,7 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
             Add Customer
           </Link>
           <Link
-            href={`/businesses/${businessId}/review-templates`}
+            href={`/businesses/${businessId}/reputation/templates`}
             className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50 sm:w-auto"
           >
             <FileText className="h-3.5 w-3.5" />
@@ -149,7 +149,7 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
               setTableRefreshKey((k) => k + 1);
               void load();
               if (campaignId) {
-                router.push(`/businesses/${businessId}/review-campaigns/${campaignId}`);
+                router.push(`/businesses/${businessId}/reputation/campaigns/${campaignId}`);
               }
             }}
           />

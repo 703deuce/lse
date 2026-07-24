@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Award,
+  Bell,
   Bot,
   Briefcase,
   Building2,
@@ -8,6 +9,7 @@ import {
   FileSearch,
   FileText,
   FolderKanban,
+  Gauge,
   Grid3X3,
   History,
   LayoutDashboard,
@@ -19,6 +21,7 @@ import {
   Settings2,
   Sparkles,
   Star,
+  Swords,
   TrendingUp,
   Users,
   Webhook,
@@ -45,9 +48,19 @@ export type SidebarNavSection = {
   items: SidebarNavItem[];
 };
 
-export type SidebarReputationNav = {
+export type SidebarNavGroup = {
   title: string;
   items: SidebarNavItem[];
+};
+
+export type SidebarReputationNav = {
+  title: string;
+  /** Flattened items for mobile / back-compat */
+  items: SidebarNavItem[];
+  /** Grouped Intelligence / Growth / Automation / Configuration */
+  groups: SidebarNavGroup[];
+  /** Top-level Overview item (shown above groups) */
+  overview: SidebarNavItem;
   subLinks: SidebarNavChild[];
 };
 
@@ -136,32 +149,66 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
         { href: loc("ai-visibility", businessId), label: "AI Visibility", icon: Bot },
       ],
     },
-    reputation: {
-      title: "Reputation",
-      items: [
+    reputation: (() => {
+      const overview: SidebarNavItem = {
+        href: loc("review-overview", businessId),
+        label: "Overview",
+        icon: Sparkles,
+      };
+      const groups: SidebarNavGroup[] = [
         {
-          href: loc("review-overview", businessId),
-          label: "Review Overview",
-          icon: Sparkles,
+          title: "Intelligence",
+          items: [
+            { href: loc("reviews", businessId), label: "Reviews", icon: Star },
+            { href: loc("review-analytics", businessId), label: "Analytics", icon: TrendingUp },
+            { href: loc("review-competitors", businessId), label: "Competitors", icon: Swords },
+            { href: loc("review-insights", businessId), label: "Insights", icon: Gauge },
+            {
+              href: loc("reputation-audit", businessId),
+              label: "Reputation Audit",
+              icon: FileSearch,
+            },
+          ],
         },
-        { href: loc("reviews", businessId), label: "Review Feed", icon: Star },
-        { href: loc("review-momentum", businessId), label: "Review Momentum", icon: TrendingUp },
         {
-          href: loc("review-requests", businessId),
-          label: "Review Requests",
-          icon: MessageSquareText,
+          title: "Growth",
+          items: [
+            {
+              href: loc("review-requests", businessId),
+              label: "Review Requests",
+              icon: MessageSquareText,
+            },
+            { href: loc("review-campaigns", businessId), label: "Campaigns", icon: FolderKanban },
+            { href: loc("review-templates", businessId), label: "Templates", icon: FileText },
+            { href: loc("contacts", businessId), label: "Contacts", icon: Users },
+          ],
         },
-        { href: loc("contacts", businessId), label: "Contacts", icon: Users },
-        { href: loc("review-templates", businessId), label: "Templates", icon: FileText },
-        { href: loc("integrations", businessId), label: "Review Triggers", icon: Webhook },
         {
-          href: loc("review-settings", businessId),
-          label: "Review settings",
-          icon: Settings2,
+          title: "Automation",
+          items: [
+            { href: loc("integrations", businessId), label: "Automations", icon: Webhook },
+            { href: loc("review-alerts", businessId), label: "Alerts", icon: Bell },
+          ],
         },
-      ],
-      subLinks: [],
-    },
+        {
+          title: "Configuration",
+          items: [
+            {
+              href: loc("review-settings", businessId),
+              label: "Reputation Settings",
+              icon: Settings2,
+            },
+          ],
+        },
+      ];
+      return {
+        title: "Reputation",
+        overview,
+        groups,
+        items: [overview, ...groups.flatMap((g) => g.items)],
+        subLinks: [],
+      };
+    })(),
     deliverables: {
       title: "Deliverables",
       items: [
@@ -267,20 +314,26 @@ export function isSidebarHrefActive(
     return false;
   }
 
-  // Review Overview intelligence page
+  // Review Overview intelligence page (exact; not other /reputation/*)
   if (businessId && href === `/businesses/${businessId}/reputation/overview`) {
-    return (
-      pathname === href ||
-      pathname.startsWith(`${href}?`) ||
-      pathname.startsWith(`${href}/`)
-    );
+    return pathname === href || pathname.startsWith(`${href}?`);
+  }
+
+  // Reputation audit — exact match so it doesn't steal /reputation/overview etc.
+  if (businessId && href === `/businesses/${businessId}/reputation/audit`) {
+    return pathname === href || pathname.startsWith(`${href}?`) || pathname.startsWith(`${href}/`);
   }
 
   if (href === "/onboarding") {
     return pathname === "/onboarding" || pathname.startsWith("/onboarding/");
   }
 
-  if (flags?.exact || href.endsWith("/review-requests") || href.endsWith("/tools/go/review-requests")) {
+  if (
+    flags?.exact ||
+    href.endsWith("/review-requests") ||
+    href.endsWith("/reputation/requests") ||
+    href.endsWith("/tools/go/review-requests")
+  ) {
     return pathname === href || pathname.startsWith(`${href}?`);
   }
 

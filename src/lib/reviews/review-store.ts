@@ -20,6 +20,13 @@ export type StoredReviewRow = {
   rating: number | null;
   review_text: string | null;
   review_date: string | null;
+  published_at?: string | null;
+  last_edited_at?: string | null;
+  first_observed_at?: string | null;
+  last_observed_at?: string | null;
+  owner_responded_at?: string | null;
+  date_precision?: string | null;
+  is_deleted?: boolean | null;
   relative_date_text: string | null;
   owner_response_text: string | null;
   review_url: string | null;
@@ -29,14 +36,23 @@ export type StoredReviewRow = {
 };
 
 export function storedRowToNormalized(row: StoredReviewRow): NormalizedReview {
+  const publishedAt = row.published_at
+    ? new Date(row.published_at)
+    : row.review_date
+      ? startOfDay(new Date(row.review_date))
+      : null;
   return {
     sourceReviewId: row.source_review_id,
     reviewerName: row.reviewer_name,
     rating: row.rating != null ? Number(row.rating) : null,
     reviewText: row.review_text,
-    reviewDate: row.review_date ? startOfDay(new Date(row.review_date)) : null,
+    reviewDate: publishedAt ? startOfDay(publishedAt) : null,
+    publishedAt,
+    lastEditedAt: row.last_edited_at ? new Date(row.last_edited_at) : null,
+    datePrecision: (row.date_precision as NormalizedReview["datePrecision"]) ?? "unknown",
     relativeDateText: row.relative_date_text,
     ownerResponseText: row.owner_response_text,
+    ownerRespondedAt: row.owner_responded_at ? new Date(row.owner_responded_at) : null,
     reviewUrl: row.review_url,
     raw: row.raw_json ?? {},
   };
@@ -81,28 +97,24 @@ export async function upsertReviews(
   }
 
   const now = new Date().toISOString();
-  const bySourceId = new Map<
-    string,
-    {
-      organization_id: string;
-      business_id: string | null;
-      competitor_id: string | null;
-      source_provider: string;
-      source_review_id: string;
-      reviewer_name: string | null;
-      rating: number | null;
-      review_text: string | null;
-      review_date: string | null;
-      relative_date_text: string | null;
-      owner_response_text: string | null;
-      review_url: string | null;
-      raw_json: Record<string, unknown>;
-      updated_at: string;
-    }
-  >();
+  type UpsertPayload = ReviewUpsertRow & {
+    published_at: string | null;
+    last_edited_at: string | null;
+    first_observed_at: string;
+    last_observed_at: string;
+    owner_responded_at: string | null;
+    date_precision: string;
+    is_deleted: boolean;
+    absent_pull_count: number;
+  };
+
+  const bySourceId = new Map<string, UpsertPayload>();
 
   for (const review of params.reviews) {
     const sourceReviewId = review.sourceReviewId ?? dedupeKey(review, params.entityKey).slice(0, 120);
+    const publishedIso =
+      review.publishedAt?.toISOString() ??
+      (review.reviewDate ? review.reviewDate.toISOString() : null);
     bySourceId.set(sourceReviewId, {
       organization_id: params.organizationId,
       business_id: params.businessId ?? null,
@@ -118,15 +130,24 @@ export async function upsertReviews(
       review_url: review.reviewUrl,
       raw_json: review.raw,
       updated_at: now,
+      published_at: publishedIso,
+      last_edited_at: review.lastEditedAt?.toISOString() ?? null,
+      first_observed_at: now,
+      last_observed_at: now,
+      owner_responded_at: review.ownerRespondedAt?.toISOString() ?? null,
+      date_precision: review.datePrecision ?? "unknown",
+      is_deleted: false,
+      absent_pull_count: 0,
     });
   }
 
-  const rows = Array.from(bySourceId.values());
-  const sourceIds = rows.map((r) => r.source_review_id);
+  const sourceIds = Array.from(bySourceId.keys());
 
   let existingQuery = supabase
     .from("business_reviews")
-    .select("source_review_id")
+    .select(
+      "id, source_review_id, published_at, first_observed_at, date_precision, rating, review_text, owner_response_text"
+    )
     .eq("source_provider", params.provider)
     .in("source_review_id", sourceIds);
 
@@ -134,9 +155,23 @@ export async function upsertReviews(
   else existingQuery = existingQuery.eq("competitor_id", params.competitorId!);
 
   const { data: existingRows } = await existingQuery;
-  const existingSet = new Set(
-    (existingRows ?? []).map((r) => r.source_review_id).filter((id): id is string => Boolean(id))
+  const existingBySource = new Map(
+    (existingRows ?? [])
+      .filter((r) => r.source_review_id)
+      .map((r) => [r.source_review_id as string, r])
   );
+  const existingSet = new Set(existingBySource.keys());
+
+  // Never replace published_at / first_observed_at on update; preserve exact dates.
+  for (const [sourceId, row] of bySourceId) {
+    const prior = existingBySource.get(sourceId);
+    if (!prior) continue;
+    if (prior.published_at) row.published_at = prior.published_at as string;
+    if (prior.first_observed_at) row.first_observed_at = prior.first_observed_at as string;
+    if (prior.date_precision === "exact") row.date_precision = "exact";
+  }
+
+  const rows = Array.from(bySourceId.values());
 
   const onConflict = params.businessId
     ? "business_id,source_provider,source_review_id"
@@ -168,6 +203,53 @@ export async function upsertReviews(
 
   const updated = rows.filter((r) => existingSet.has(r.source_review_id)).length;
   const inserted = rows.length - updated;
+
+  // Snapshot rows that changed text/rating/response for history.
+  try {
+    const changed = rows.filter((r) => {
+      const prior = existingBySource.get(r.source_review_id);
+      if (!prior) return true;
+      return (
+        String(prior.rating ?? "") !== String(r.rating ?? "") ||
+        String(prior.review_text ?? "") !== String(r.review_text ?? "") ||
+        String(prior.owner_response_text ?? "") !== String(r.owner_response_text ?? "")
+      );
+    });
+    if (changed.length) {
+      const ids = changed.map((r) => r.source_review_id);
+      let idQuery = supabase
+        .from("business_reviews")
+        .select("id, organization_id, business_id, competitor_id, source_provider, source_review_id, rating, review_text, published_at, last_edited_at, owner_response_text, owner_responded_at, relative_date_text, raw_json")
+        .eq("source_provider", params.provider)
+        .in("source_review_id", ids);
+      if (params.businessId) idQuery = idQuery.eq("business_id", params.businessId);
+      else idQuery = idQuery.eq("competitor_id", params.competitorId!);
+      const { data: fresh } = await idQuery;
+      if (fresh?.length) {
+        await supabase.from("business_review_snapshots").insert(
+          fresh.map((row) => ({
+            review_id: row.id,
+            organization_id: row.organization_id,
+            business_id: row.business_id,
+            competitor_id: row.competitor_id,
+            source_provider: row.source_provider,
+            source_review_id: row.source_review_id,
+            rating: row.rating,
+            review_text: row.review_text,
+            published_at: row.published_at,
+            last_edited_at: row.last_edited_at,
+            owner_response_text: row.owner_response_text,
+            owner_responded_at: row.owner_responded_at,
+            relative_date_text: row.relative_date_text,
+            raw_json: row.raw_json ?? {},
+            observed_at: now,
+          }))
+        );
+      }
+    }
+  } catch {
+    /* snapshots are best-effort until migration is applied */
+  }
 
   // Soft attribution pass after new reviews land (never invents confirmed).
   if (params.businessId && inserted > 0) {
@@ -213,6 +295,14 @@ type ReviewUpsertRow = {
   review_url: string | null;
   raw_json: Record<string, unknown>;
   updated_at: string;
+  published_at?: string | null;
+  last_edited_at?: string | null;
+  first_observed_at?: string;
+  last_observed_at?: string;
+  owner_responded_at?: string | null;
+  date_precision?: string;
+  is_deleted?: boolean;
+  absent_pull_count?: number;
 };
 
 /**

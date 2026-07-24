@@ -1,20 +1,10 @@
-import { Suspense } from "react";
-import { ReputationAuditDashboard } from "@/components/reputation/reputation-audit-dashboard";
+import { redirect } from "next/navigation";
 
-export default async function ReputationPage({
+export default async function ReputationIndexPage({
   params,
 }: {
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
-
-  return (
-    <Suspense
-      fallback={
-        <div className="py-20 text-center text-sm text-zinc-500">Loading reputation data…</div>
-      }
-    >
-      <ReputationAuditDashboard businessId={businessId} />
-    </Suspense>
-  );
+  redirect(`/businesses/${businessId}/reputation/overview`);
 }
