@@ -17,6 +17,7 @@ import {
   Palette,
   Settings,
   Settings2,
+  Sparkles,
   Star,
   TrendingUp,
   Users,
@@ -138,6 +139,11 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
     reputation: {
       title: "Reputation",
       items: [
+        {
+          href: loc("review-overview", businessId),
+          label: "Review Overview",
+          icon: Sparkles,
+        },
         { href: loc("reviews", businessId), label: "Review Feed", icon: Star },
         { href: loc("review-momentum", businessId), label: "Review Momentum", icon: TrendingUp },
         {
@@ -249,12 +255,25 @@ export function isSidebarHrefActive(
   }
 
   // Dashboard — picker or location overview only (not CRM /clients|/prospects detail)
-  if (href === "/tools/go/dashboard" || href.endsWith("/overview")) {
+  // Exact location dashboard: .../overview — not .../reputation/overview
+  if (
+    href === "/tools/go/dashboard" ||
+    (businessId && href === `/businesses/${businessId}/overview`)
+  ) {
     if (pathname === "/tools/go/dashboard") return true;
     if (businessId && pathname === `/businesses/${businessId}/overview`) {
       return true;
     }
     return false;
+  }
+
+  // Review Overview intelligence page
+  if (businessId && href === `/businesses/${businessId}/reputation/overview`) {
+    return (
+      pathname === href ||
+      pathname.startsWith(`${href}?`) ||
+      pathname.startsWith(`${href}/`)
+    );
   }
 
   if (href === "/onboarding") {

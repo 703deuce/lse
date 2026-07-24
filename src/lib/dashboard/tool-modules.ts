@@ -43,6 +43,11 @@ export const LOCATION_TOOL_MODULES = {
     path: "ai-visibility",
     description: "Track whether AI engines mention this business.",
   },
+  "review-overview": {
+    title: "Review Overview",
+    path: "reputation/overview",
+    description: "High-level review intelligence dashboard.",
+  },
   reviews: {
     title: "Review Feed",
     path: "reviews",
