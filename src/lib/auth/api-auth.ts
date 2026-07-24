@@ -2,6 +2,7 @@ import { requireAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
 import {
   isDevBypassEnabled,
+  isDevMockAuthEnabled,
   isDevPreviewBusiness,
   getDevAuthContext,
 } from "@/lib/auth/dev";
@@ -12,7 +13,9 @@ export async function requireBusinessAccess(businessId: string): Promise<{
 }> {
   if (
     isDevBypassEnabled() &&
-    (process.env.DEV_BYPASS_BUSINESS_ACCESS === "true" || isDevPreviewBusiness(businessId))
+    (process.env.DEV_BYPASS_BUSINESS_ACCESS === "true" ||
+      isDevPreviewBusiness(businessId) ||
+      isDevMockAuthEnabled())
   ) {
     const auth = getDevAuthContext();
     return { userId: auth.userId, organizationId: auth.organizationId };

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  CalendarClock,
   Check,
   ChevronDown,
   Copy,
@@ -20,12 +19,12 @@ import {
   Sparkles,
   Tag,
   Upload,
-  UserRoundPlus,
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ReviewRequestsPanel } from "@/components/reputation/review-requests-panel";
 import type { ReviewRequestsSection } from "@/components/reputation/review-requests-sub-tabs";
+import type { CampaignRow } from "@/components/reputation/review-requests-campaigns";
 import {
   RepBadge,
   RepPageHeader,
@@ -115,6 +114,12 @@ type Stats = {
   conversion_rate_trend?: number;
   recent_sends: SendRow[];
   trial_sms_template?: string | null;
+};
+
+export type ReviewRequestsDashboardPreviewData = {
+  kit: KitData;
+  stats?: Stats | null;
+  campaigns?: CampaignRow[];
 };
 
 const TABS: Array<{ id: RequestTab; label: string }> = [
@@ -409,13 +414,11 @@ function RecipientsTable({
 }
 
 function OneTimeSend({
-  businessId,
   data,
   stats,
   loading,
   onRefresh,
 }: {
-  businessId: string;
   data: KitData | null;
   stats: Stats | null;
   loading: boolean;
@@ -798,7 +801,15 @@ function OneTimeSend({
   );
 }
 
-function LinkSharePanel({ data, businessId }: { data: KitData | null; businessId: string }) {
+function LinkSharePanel({
+  data,
+  businessId,
+  previewData,
+}: {
+  data: KitData | null;
+  businessId: string;
+  previewData?: ReviewRequestsDashboardPreviewData;
+}) {
   const reviewUrl = data?.link?.review_url ?? null;
   const shortUrl = data?.link?.short_url ? `reviews.mapsgrowth.app/${data.link.short_url}` : null;
 
@@ -821,25 +832,32 @@ function LinkSharePanel({ data, businessId }: { data: KitData | null; businessId
           </button>
         </div>
       </div>
-      <ReviewRequestsPanel businessId={businessId} section="messages" hideSubTabs />
+      <ReviewRequestsPanel businessId={businessId} section="messages" hideSubTabs previewData={previewData} />
     </div>
   );
 }
 
-export function ReviewRequestsDashboard({ businessId }: { businessId: string }) {
+export function ReviewRequestsDashboard({
+  businessId,
+  previewData,
+}: {
+  businessId: string;
+  previewData?: ReviewRequestsDashboardPreviewData;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<RequestTab>(() => parseTab(searchParams.get("tab")));
-  const [data, setData] = useState<KitData | null>(null);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<KitData | null>(previewData?.kit ?? null);
+  const [stats, setStats] = useState<Stats | null>(previewData?.stats ?? null);
+  const [loading, setLoading] = useState(!previewData);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setTab(parseTab(searchParams.get("tab")));
+    queueMicrotask(() => setTab(parseTab(searchParams.get("tab"))));
   }, [searchParams]);
 
   const load = useCallback(async () => {
+    if (previewData) return;
     setLoading(true);
     setError(null);
     try {
@@ -859,11 +877,12 @@ export function ReviewRequestsDashboard({ businessId }: { businessId: string }) 
     } finally {
       setLoading(false);
     }
-  }, [businessId]);
+  }, [businessId, previewData]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (previewData) return;
+    queueMicrotask(() => void load());
+  }, [load, previewData]);
 
   const handleTabChange = useCallback(
     (next: string) => {
@@ -912,11 +931,21 @@ export function ReviewRequestsDashboard({ businessId }: { businessId: string }) 
       ) : null}
 
       {tab === "send" ? (
-        <OneTimeSend businessId={businessId} data={data} stats={stats} loading={loading} onRefresh={load} />
+        <OneTimeSend
+          data={data}
+          stats={stats}
+          loading={loading}
+          onRefresh={load}
+        />
       ) : null}
 
       {tab === "bulk" ? (
-        <ReviewRequestsPanel businessId={businessId} section={panelSectionForTab(tab)} hideSubTabs />
+        <ReviewRequestsPanel
+          businessId={businessId}
+          section={panelSectionForTab(tab)}
+          hideSubTabs
+          previewData={previewData}
+        />
       ) : null}
 
       {tab === "qr" ? (
@@ -933,11 +962,13 @@ export function ReviewRequestsDashboard({ businessId }: { businessId: string }) 
               Open QR Poster
             </Link>
           </div>
-          <ReviewRequestsPanel businessId={businessId} section="poster" hideSubTabs />
+          <ReviewRequestsPanel businessId={businessId} section="poster" hideSubTabs previewData={previewData} />
         </div>
       ) : null}
 
-      {tab === "link" ? <LinkSharePanel businessId={businessId} data={data} /> : null}
+      {tab === "link" ? (
+        <LinkSharePanel businessId={businessId} data={data} previewData={previewData} />
+      ) : null}
     </ModulePage>
   );
 }

@@ -1,10 +1,14 @@
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { ReputationAlertsDashboard } from "@/components/reputation/reputation-alerts-dashboard";
+import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { loadReputationAlertsData } from "@/lib/reputation/alerts-data";
+import { reputationAlertsPreviewData } from "@/lib/reputation/reputation-page-preview-data";
 
 async function ReputationAlertsLoaded({ businessId }: { businessId: string }) {
-  const data = await loadReputationAlertsData(businessId);
+  const data = isDevPreviewBusiness(businessId)
+    ? reputationAlertsPreviewData
+    : await loadReputationAlertsData(businessId);
   return <ReputationAlertsDashboard businessId={businessId} data={data} />;
 }
 

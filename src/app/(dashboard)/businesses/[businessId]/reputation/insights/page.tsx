@@ -1,10 +1,14 @@
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { ReviewInsightsDashboard } from "@/components/reviews/review-insights-dashboard";
+import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { loadReviewInsightsData } from "@/lib/reviews/review-insights-data";
+import { reviewInsightsPreviewData } from "@/lib/reviews/review-insights-preview-data";
 
 async function ReviewInsightsLoaded({ businessId }: { businessId: string }) {
-  const data = await loadReviewInsightsData(businessId);
+  const data = isDevPreviewBusiness(businessId)
+    ? { ...reviewInsightsPreviewData, businessId }
+    : await loadReviewInsightsData(businessId);
   return <ReviewInsightsDashboard businessId={businessId} data={data} />;
 }
 

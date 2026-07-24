@@ -1,5 +1,6 @@
 import { getOrganizationPlan, type PlanFeatures } from "@/lib/plans";
 import { createServiceClient } from "@/lib/db/client";
+import { isDevMockAuthEnabled } from "@/lib/auth/dev";
 
 /** Paid / feature add-ons for Review Campaigns and messaging. */
 export type AddonEntitlement =
@@ -21,38 +22,53 @@ export class EntitlementError extends Error {
 type OrgAddons = Partial<Record<AddonEntitlement, boolean>>;
 
 async function getOrgAddons(organizationId: string): Promise<OrgAddons> {
-  const supabase = createServiceClient();
-  const { data } = await supabase
-    .from("organizations")
-    .select("addons, billing_status")
-    .eq("id", organizationId)
-    .maybeSingle();
-  const addons = (data?.addons ?? {}) as OrgAddons;
-  return addons;
+  try {
+    const supabase = createServiceClient();
+    const { data } = await supabase
+      .from("organizations")
+      .select("addons, billing_status")
+      .eq("id", organizationId)
+      .maybeSingle();
+    const addons = (data?.addons ?? {}) as OrgAddons;
+    return addons;
+  } catch (error) {
+    if (isDevMockAuthEnabled()) return {};
+    throw error;
+  }
 }
 
 /** Org-level kill switch for Reputation outbound (campaigns / SMS / email). */
 export async function isOutboundPaused(organizationId: string): Promise<boolean> {
-  const supabase = createServiceClient();
-  const { data } = await supabase
-    .from("organizations")
-    .select("outbound_paused, status")
-    .eq("id", organizationId)
-    .maybeSingle();
-  if (String(data?.status ?? "active") === "suspended") return true;
-  return Boolean(data?.outbound_paused);
+  try {
+    const supabase = createServiceClient();
+    const { data } = await supabase
+      .from("organizations")
+      .select("outbound_paused, status")
+      .eq("id", organizationId)
+      .maybeSingle();
+    if (String(data?.status ?? "active") === "suspended") return true;
+    return Boolean(data?.outbound_paused);
+  } catch (error) {
+    if (isDevMockAuthEnabled()) return false;
+    throw error;
+  }
 }
 
 export async function getOrgBillingStatus(
   organizationId: string
 ): Promise<string> {
-  const supabase = createServiceClient();
-  const { data } = await supabase
-    .from("organizations")
-    .select("billing_status")
-    .eq("id", organizationId)
-    .maybeSingle();
-  return String(data?.billing_status ?? "manual");
+  try {
+    const supabase = createServiceClient();
+    const { data } = await supabase
+      .from("organizations")
+      .select("billing_status")
+      .eq("id", organizationId)
+      .maybeSingle();
+    return String(data?.billing_status ?? "manual");
+  } catch (error) {
+    if (isDevMockAuthEnabled()) return "manual";
+    throw error;
+  }
 }
 
 /** Billing statuses that may continue scheduling outbound campaign messages. */
@@ -73,6 +89,10 @@ export async function hasEntitlement(
   organizationId: string,
   entitlement: AddonEntitlement
 ): Promise<boolean> {
+  if (isDevMockAuthEnabled() && entitlement === "review_campaigns") {
+    return true;
+  }
+
   const addons = await getOrgAddons(organizationId);
   if (Object.prototype.hasOwnProperty.call(addons, entitlement)) {
     return Boolean(addons[entitlement]);

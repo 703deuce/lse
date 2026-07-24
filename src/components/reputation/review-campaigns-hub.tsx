@@ -58,6 +58,12 @@ type ActivityItem = {
   relativeTime: string;
 };
 
+export type ReviewCampaignsPreviewData = {
+  campaigns: CampaignRow[];
+  stats?: OverrideStats;
+  activity?: ActivityItem[];
+};
+
 function pct(numerator: number, denominator: number) {
   return denominator > 0 ? `${Math.round((numerator / denominator) * 100)}%` : "—";
 }
@@ -313,14 +319,16 @@ export function ReviewCampaignsHub({
   businessId,
   overrideStats,
   previewActivity,
+  previewData,
 }: {
   businessId: string;
   overrideStats?: OverrideStats;
   previewActivity?: ActivityItem[];
+  previewData?: ReviewCampaignsPreviewData;
 }) {
   const router = useRouter();
-  const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [campaigns, setCampaigns] = useState<CampaignRow[]>(previewData?.campaigns ?? []);
+  const [loading, setLoading] = useState(!previewData?.campaigns);
   const [showWizard, setShowWizard] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [channelFilter, setChannelFilter] = useState("all");
@@ -329,6 +337,7 @@ export function ReviewCampaignsHub({
   const [actionError, setActionError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (previewData?.campaigns) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/reputation/review-requests/campaigns?businessId=${businessId}`);
@@ -337,10 +346,10 @@ export function ReviewCampaignsHub({
     } finally {
       setLoading(false);
     }
-  }, [businessId]);
+  }, [businessId, previewData?.campaigns]);
 
   useEffect(() => {
-    void load();
+    queueMicrotask(() => void load());
   }, [load]);
 
   const computedStats = useMemo(() => {
@@ -363,7 +372,8 @@ export function ReviewCampaignsHub({
     };
   }, [campaigns]);
 
-  const stats = overrideStats ?? computedStats;
+  const stats = previewData?.stats ?? overrideStats ?? computedStats;
+  const activity = previewData?.activity ?? previewActivity;
 
   const filteredCampaigns = useMemo(
     () =>
@@ -684,7 +694,7 @@ export function ReviewCampaignsHub({
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <CampaignPerformance campaigns={campaigns} />
-        <RecentActivity previewActivity={previewActivity} campaigns={campaigns} />
+        <RecentActivity previewActivity={activity} campaigns={campaigns} />
       </div>
     </ModulePage>
   );

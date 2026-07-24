@@ -2,9 +2,20 @@ import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { ReviewAnalyticsDashboard } from "@/components/reviews/review-analytics-dashboard";
 import { ReputationEmptySyncState } from "@/components/reputation/reputation-sync-button";
+import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { loadReviewAnalyticsData } from "@/lib/reviews/review-analytics-data";
+import { reviewAnalyticsPreviewData } from "@/lib/reviews/review-analytics-preview-data";
 
 async function ReviewAnalyticsLoaded({ businessId }: { businessId: string }) {
+  if (isDevPreviewBusiness(businessId)) {
+    return (
+      <ReviewAnalyticsDashboard
+        businessId={businessId}
+        data={{ ...reviewAnalyticsPreviewData, businessId } as typeof reviewAnalyticsPreviewData}
+      />
+    );
+  }
+
   try {
     const live = await loadReviewAnalyticsData(businessId);
     const hasTimeline = live.timelinePoints.some((point) => point.you > 0 || point.competitorAvg > 0);

@@ -13,7 +13,10 @@ import {
 import { ReviewPosterPreview } from "@/components/reputation/review-poster-preview";
 import { ReviewRequestsSendSection } from "@/components/reputation/review-requests-send-section";
 import { ReviewRequestsBulkWizard } from "@/components/reputation/review-requests-bulk-wizard";
-import { ReviewRequestsCampaignsTable } from "@/components/reputation/review-requests-campaigns";
+import {
+  ReviewRequestsCampaignsTable,
+  type CampaignRow,
+} from "@/components/reputation/review-requests-campaigns";
 import { ReviewRequestRepliesPanel, type ReviewReplyRow } from "@/components/reputation/review-request-replies";
 import type { ReviewRequestsSection } from "@/components/reputation/review-requests-sub-tabs";
 import { statusPill, rrInputClass, rrLabelClass, rrOutlineBtn, rrPrimaryBtn } from "@/components/reputation/review-requests-ui";
@@ -72,6 +75,37 @@ type KitData = {
   keywordSuggestions: Array<{ id?: string; keyword: string; keyword_type?: string; gap?: number }>;
 };
 
+type ReviewRequestsPanelStats = {
+  total_sent: number;
+  email_sent: number;
+  sms_sent: number;
+  manual_sent: number;
+  failed: number;
+  last_7_days: number;
+  last_30_days: number;
+  recent_sends: Array<{
+    id: string;
+    channel: string;
+    recipient_email?: string | null;
+    recipient_phone?: string | null;
+    status: string;
+    message_body: string;
+    sent_at?: string | null;
+    created_at: string;
+    has_reply?: boolean;
+    review_request_contacts?: { customer_name?: string | null } | null;
+  }>;
+  recent_replies?: ReviewReplyRow[];
+  replies?: number;
+  inbound_reply_domain?: string | null;
+};
+
+export type ReviewRequestsPanelPreviewData = {
+  kit: KitData;
+  stats?: ReviewRequestsPanelStats | null;
+  campaigns?: CampaignRow[];
+};
+
 type TemplateChannel = "sms" | "email" | "generic";
 
 function MessageWithLink({
@@ -111,13 +145,15 @@ export function ReviewRequestsPanel({
   businessId,
   section: controlledSection,
   hideSubTabs = false,
+  previewData,
 }: {
   businessId: string;
   section?: ReviewRequestsSection;
   hideSubTabs?: boolean;
+  previewData?: ReviewRequestsPanelPreviewData;
 }) {
-  const [data, setData] = useState<KitData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<KitData | null>(previewData?.kit ?? null);
+  const [loading, setLoading] = useState(!previewData);
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -129,8 +165,8 @@ export function ReviewRequestsPanel({
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const posterRef = useRef<HTMLDivElement>(null);
 
-  const [poster, setPoster] = useState<PosterConfig>(DEFAULT_POSTER_CONFIG);
-  const [shortSlug, setShortSlug] = useState("");
+  const [poster, setPoster] = useState<PosterConfig>(previewData?.kit.posterConfig ?? DEFAULT_POSTER_CONFIG);
+  const [shortSlug, setShortSlug] = useState(previewData?.kit.link?.short_url ?? "");
   const [manualForm, setManualForm] = useState({
     customerName: "",
     customerPhone: "",
@@ -140,41 +176,20 @@ export function ReviewRequestsPanel({
     notes: "",
   });
   const [submittingManual, setSubmittingManual] = useState(false);
-  const [stats, setStats] = useState<{
-    total_sent: number;
-    email_sent: number;
-    sms_sent: number;
-    manual_sent: number;
-    failed: number;
-    last_7_days: number;
-    last_30_days: number;
-    recent_sends: Array<{
-      id: string;
-      channel: string;
-      recipient_email?: string | null;
-      recipient_phone?: string | null;
-      status: string;
-      message_body: string;
-      sent_at?: string | null;
-      created_at: string;
-      has_reply?: boolean;
-      review_request_contacts?: { customer_name?: string | null } | null;
-    }>;
-    recent_replies?: ReviewReplyRow[];
-    replies?: number;
-    inbound_reply_domain?: string | null;
-  } | null>(null);
+  const [stats, setStats] = useState<ReviewRequestsPanelStats | null>(previewData?.stats ?? null);
 
   const loadStats = useCallback(async () => {
+    if (previewData) return;
     try {
       const res = await fetch(`/api/reputation/review-requests/stats/${businessId}`);
       if (res.ok) setStats(await res.json());
     } catch {
       setStats(null);
     }
-  }, [businessId]);
+  }, [businessId, previewData]);
 
   const load = useCallback(async () => {
+    if (previewData) return;
     setLoading(true);
     setError(null);
     try {
@@ -190,19 +205,22 @@ export function ReviewRequestsPanel({
     } finally {
       setLoading(false);
     }
-  }, [businessId]);
+  }, [businessId, previewData, loadStats]);
 
   useEffect(() => {
-    void load();
-    void loadStats();
-  }, [load, loadStats]);
+    if (previewData) return;
+    queueMicrotask(() => {
+      void load();
+      void loadStats();
+    });
+  }, [load, loadStats, previewData]);
 
   const reviewUrl = data?.link?.review_url ?? null;
   const displayLink = shortSlug ? `reviews.mapsgrowth.app/${shortSlug}` : null;
 
   useEffect(() => {
     if (!reviewUrl) {
-      setQrDataUrl(null);
+      queueMicrotask(() => setQrDataUrl(null));
       return;
     }
     void QRCode.toDataURL(reviewUrl, { width: 400, margin: 1, color: { dark: "#111827", light: "#ffffff" } }).then(
@@ -652,6 +670,7 @@ export function ReviewRequestsPanel({
           events={data.events}
           sends={stats?.recent_sends ?? []}
           replies={stats?.recent_replies ?? []}
+          previewCampaigns={previewData?.campaigns}
           manualForm={manualForm}
           setManualForm={setManualForm}
           submitting={submittingManual}
@@ -976,6 +995,7 @@ function TrackingSection({
   events,
   sends,
   replies,
+  previewCampaigns,
   manualForm,
   setManualForm,
   submitting,
@@ -1004,6 +1024,7 @@ function TrackingSection({
     review_request_contacts?: { customer_name?: string | null } | null;
   }>;
   replies: ReviewReplyRow[];
+  previewCampaigns?: CampaignRow[];
   manualForm: {
     customerName: string;
     customerPhone: string;
@@ -1032,7 +1053,11 @@ function TrackingSection({
 
   return (
     <div className="space-y-4">
-      <ReviewRequestsCampaignsTable businessId={businessId} />
+      <ReviewRequestsCampaignsTable
+        businessId={businessId}
+        campaigns={previewCampaigns}
+        loading={previewCampaigns ? false : undefined}
+      />
 
       {stats && (
         <KpiRow cols={6}>

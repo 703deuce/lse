@@ -2,9 +2,20 @@ import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { CompetitorIntelligenceDashboard } from "@/components/reviews/competitor-intelligence-dashboard";
 import { ReputationEmptySyncState } from "@/components/reputation/reputation-sync-button";
+import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { loadCompetitorIntelligenceData } from "@/lib/reviews/competitor-intelligence-data";
+import { competitorIntelligencePreviewData } from "@/lib/reviews/competitor-intelligence-preview-data";
 
 async function CompetitorIntelligenceLoaded({ businessId }: { businessId: string }) {
+  if (isDevPreviewBusiness(businessId)) {
+    return (
+      <CompetitorIntelligenceDashboard
+        businessId={businessId}
+        data={{ ...competitorIntelligencePreviewData, businessId }}
+      />
+    );
+  }
+
   try {
     const live = await loadCompetitorIntelligenceData(businessId);
     if (live.leaderboardRows.length === 0) {

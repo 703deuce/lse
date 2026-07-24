@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { Info, QrCode } from "lucide-react";
-import { ReviewRequestsPanel } from "@/components/reputation/review-requests-panel";
+import {
+  ReviewRequestsPanel,
+  type ReviewRequestsPanelPreviewData,
+} from "@/components/reputation/review-requests-panel";
 import { rep } from "@/components/reputation/rep-ui";
 import { ModulePage } from "@/components/ui/design-system";
 
@@ -10,7 +13,13 @@ import { ModulePage } from "@/components/ui/design-system";
  * Dedicated QR / printable poster page — the existing Review Poster kit
  * (brand colors, company name, QR, downloadable poster) as its own surface.
  */
-export function QrPosterPage({ businessId }: { businessId: string }) {
+export function QrPosterPage({
+  businessId,
+  previewData,
+}: {
+  businessId: string;
+  previewData?: ReviewRequestsPanelPreviewData;
+}) {
   return (
     <ModulePage className={rep.page}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -47,7 +56,7 @@ export function QrPosterPage({ businessId }: { businessId: string }) {
         </p>
       </div>
 
-      <ReviewRequestsPanel businessId={businessId} section="poster" hideSubTabs />
+      <ReviewRequestsPanel businessId={businessId} section="poster" hideSubTabs previewData={previewData} />
     </ModulePage>
   );
 }
