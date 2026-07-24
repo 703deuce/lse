@@ -12,10 +12,9 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const businessId = url.searchParams.get("businessId");
     if (!businessId) return NextResponse.json({ error: "businessId required" }, { status: 400 });
-    const auth = await requireBusinessAccess(businessId);
+    await requireBusinessAccess(businessId);
     // Allow read during first-time setup even before campaign entitlements.
     const settings = await getNotificationSettings(businessId);
-    void auth;
     return NextResponse.json({ settings });
   } catch (err) {
     if (err instanceof EntitlementError) {
