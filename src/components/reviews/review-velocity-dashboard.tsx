@@ -602,31 +602,32 @@ export function ReviewVelocityDashboard({ businessId, data }: ReviewVelocityDash
             100
         ) / 100
       : 0;
-  const leaderCompetitor = [...data.competitors].sort((a, b) => b.rolling30d - a.rolling30d)[0] ?? null;
-  const leaderWeeklyPace = leaderCompetitor
-    ? Math.round((leaderCompetitor.rolling30d / (30 / 7)) * 100) / 100
+  const paceLeader = [...data.competitors].sort((a, b) => b.rolling30d - a.rolling30d)[0] ?? null;
+  const leaderWeeklyPace = paceLeader
+    ? Math.round((paceLeader.rolling30d / (30 / 7)) * 100) / 100
     : yourWeeklyPace;
   const paceGap = Math.max(0, Math.round((leaderWeeklyPace - yourWeeklyPace) * 100) / 100);
 
   const velocityTarget = useMemo(() => {
-    if (!leaderCompetitor) return null;
-    const totalGap = Math.max(0, leaderCompetitor.totalReviews - data.totalReviews);
-    const neededWeekly = Math.max(leaderWeeklyPace + 0.2, yourWeeklyPace + 0.1);
-    const weeklyGain = neededWeekly - leaderWeeklyPace;
+    const ahead = [...data.competitors]
+      .filter((competitor) => competitor.totalReviews > data.totalReviews)
+      .sort((a, b) => b.totalReviews - a.totalReviews)[0];
+    if (!ahead) return null;
+    const totalGap = ahead.totalReviews - data.totalReviews;
+    const theirWeekly = Math.round((ahead.rolling30d / (30 / 7)) * 100) / 100;
+    // Need to beat their weekly pace enough to close the gap in a reasonable window.
+    const neededWeekly = Math.max(theirWeekly + 0.5, yourWeeklyPace + 0.5, 1);
+    const weeklyGain = neededWeekly - theirWeekly;
     const months =
-      totalGap <= 0
-        ? 0
-        : weeklyGain > 0
-          ? Math.round(((totalGap / weeklyGain) / (52 / 12)) * 10) / 10
-          : null;
+      weeklyGain > 0 ? Math.round(((totalGap / weeklyGain) / (52 / 12)) * 10) / 10 : null;
     return {
-      name: leaderCompetitor.name,
+      name: ahead.name,
       current: yourWeeklyPace,
       needed: Math.round(neededWeekly * 100) / 100,
       difference: Math.round((neededWeekly - yourWeeklyPace) * 100) / 100,
       months,
     };
-  }, [data.totalReviews, leaderCompetitor, leaderWeeklyPace, yourWeeklyPace]);
+  }, [data.competitors, data.totalReviews, yourWeeklyPace]);
 
   const filteredRecentReviews = useMemo(() => {
     let reviews = data.recentReviews;
@@ -733,7 +734,7 @@ export function ReviewVelocityDashboard({ businessId, data }: ReviewVelocityDash
           label="Review Pace"
           value={`${fmt(yourWeeklyPace)}/wk`}
           hint={
-            leaderCompetitor
+            paceLeader
               ? `Market ${fmt(marketWeeklyPace)} · Leader ${fmt(leaderWeeklyPace)}`
               : "reviews per week (30d)"
           }
