@@ -6,6 +6,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   CheckCircle2,
+  MapPin,
   MessageSquare,
   Plus,
   Star,
@@ -726,6 +727,22 @@ export function CompetitorIntelligenceDashboard({
           />
         }
       />
+
+      <div className="flex flex-col gap-3 rounded-xl border border-[#D1FAE5] bg-[#ECFDF3]/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#137752]" />
+          <p className="text-[13px] leading-snug text-zinc-700">
+            A competitor with fewer reviews can still appear above you on Maps. Run a local
+            visibility scan to see where you actually rank across your service area.
+          </p>
+        </div>
+        <Link
+          href={`/businesses/${businessId}/local-visibility`}
+          className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-[#137752] px-3.5 text-[12px] font-semibold text-white hover:bg-[#0f6244]"
+        >
+          Check Local Visibility
+        </Link>
+      </div>
 
       <RepTabs tabs={tabs} active={activeTab} onChange={(tab) => setActiveTab(tab as TabId)} />
 
