@@ -1,27 +1,12 @@
 "use client";
 
-import type { ReactNode } from "react";
 import Link from "next/link";
+import { ArrowDownRight, ArrowUpRight, Minus, Play } from "lucide-react";
+import { MockMetricCard, MockPageHeader, mock } from "@/components/mockup/ui";
 import {
-  ArrowRight,
-  CalendarClock,
-  Grid3X3,
-  MapPin,
-  Plus,
-  RefreshCw,
-  Search,
-  Swords,
-  TrendingUp,
-} from "lucide-react";
-import {
-  ModuleHeader,
-  ModulePage,
-  btnPrimary,
-  btnSecondary,
-  cardClass,
-  cardPadding,
-  cardGrid,
-} from "@/components/ui/design-system";
+  VisibilityHeatmap,
+  type HeatmapRankCell,
+} from "@/components/maps/visibility-heatmap";
 import { cn } from "@/lib/utils";
 
 export type MapsOverviewScan = {
@@ -58,6 +43,8 @@ export type MapsOverviewDashboardProps = {
   keywordMovement: MapsOverviewKeywordMovement[];
   nextScheduledAt: string | null;
   topCompetitorLabels: string[];
+  heatmapCells: HeatmapRankCell[];
+  keywordsTracked: number;
 };
 
 function fmtRank(n: number | null | undefined): string {
@@ -67,34 +54,32 @@ function fmtRank(n: number | null | undefined): string {
 
 function fmtPct(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "—";
-  return `${Math.round(n * 10) / 10}%`;
+  return `${Math.round(n)}%`;
 }
 
-function fmtDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function ChangeText({ value, invert }: { value: number | null; invert?: boolean }) {
+function RankChange({ value }: { value: number | null }) {
   if (value == null || value === 0) {
-    return <span className="text-zinc-400">No change</span>;
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[#98A2B3]">
+        <Minus className="h-3.5 w-3.5" />
+        —
+      </span>
+    );
   }
-  // For rank, lower is better → positive change text when value > 0 means improved
-  const improved = invert ? value > 0 : value > 0;
+  const improved = value > 0;
   return (
     <span
       className={cn(
-        "font-semibold tabular-nums",
+        "inline-flex items-center gap-0.5 font-semibold tabular-nums",
         improved ? "text-[#027A48]" : "text-[#B42318]"
       )}
     >
-      {value > 0 ? "+" : ""}
-      {value}
-      {invert ? " rank" : " pts"}
+      {improved ? (
+        <ArrowUpRight className="h-3.5 w-3.5" />
+      ) : (
+        <ArrowDownRight className="h-3.5 w-3.5" />
+      )}
+      {Math.abs(value)}
     </span>
   );
 }
@@ -103,236 +88,148 @@ export function MapsOverviewDashboard({
   businessId,
   businessName,
   latestScan,
-  previousScan,
   keywordMovement,
-  nextScheduledAt,
-  topCompetitorLabels,
+  heatmapCells,
+  keywordsTracked,
 }: MapsOverviewDashboardProps) {
-  const scansHref = `/businesses/${businessId}/scans`;
-  const campaignsHref = `/businesses/${businessId}/campaigns`;
-  const keywordsHref = `/businesses/${businessId}/keywords`;
+  const setupHref = `/businesses/${businessId}/maps/setup`;
   const gridHref = latestScan
     ? `/businesses/${businessId}/grid/${latestScan.id}`
-    : scansHref;
+    : `/businesses/${businessId}/scans`;
 
-  const visibilityChange =
-    latestScan?.top10Pct != null && previousScan?.top10Pct != null
-      ? Math.round((latestScan.top10Pct - previousScan.top10Pct) * 10) / 10
-      : latestScan?.visibilityScore != null && previousScan?.visibilityScore != null
-        ? Math.round((latestScan.visibilityScore - previousScan.visibilityScore) * 10) / 10
-        : null;
-
-  const rankChange =
-    latestScan?.averageRank != null && previousScan?.averageRank != null
-      ? Math.round((previousScan.averageRank - latestScan.averageRank) * 10) / 10
+  const top3Count =
+    latestScan?.top3Pct != null && latestScan.gridSize
+      ? Math.round((latestScan.top3Pct / 100) * latestScan.gridSize * latestScan.gridSize)
+      : null;
+  const top10Count =
+    latestScan?.top10Pct != null && latestScan.gridSize
+      ? Math.round((latestScan.top10Pct / 100) * latestScan.gridSize * latestScan.gridSize)
       : null;
 
   return (
-    <ModulePage>
-      <ModuleHeader
-        icon={MapPin}
+    <div className={mock.page}>
+      <MockPageHeader
         title="Maps Overview"
-        subtitle={`Local visibility for ${businessName}`}
+        subtitle={`Local ranking visibility for ${businessName}`}
         actions={
-          <div className="flex flex-wrap gap-2">
-            <Link href={gridHref} className={btnSecondary}>
-              View grid
-            </Link>
-            <Link href={`/businesses/${businessId}/maps/setup`} className={btnPrimary}>
-              <RefreshCw className="h-4 w-4" />
-              Run scan
-            </Link>
-          </div>
+          <Link href={setupHref} className={mock.btnPrimary}>
+            <Play className="h-4 w-4 fill-current" />
+            Run New Scan
+          </Link>
         }
       />
 
-      <section className={cn(cardClass, cardPadding)}>
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <h2 className="text-[14px] font-semibold text-zinc-900">Latest visibility</h2>
-            <p className="mt-0.5 text-[12px] text-zinc-500">
-              {latestScan?.keyword
-                ? `Keyword: ${latestScan.keyword}`
-                : "Most recent usable Maps scan"}
-            </p>
-          </div>
-          <div className="text-right text-[12px] text-zinc-500">
-            <p>Last scan: {fmtDate(latestScan?.finishedAt ?? latestScan?.createdAt)}</p>
-            <p className="mt-0.5 inline-flex items-center gap-1">
-              <CalendarClock className="h-3.5 w-3.5" />
-              Next scheduled:{" "}
-              {nextScheduledAt ? fmtDate(nextScheduledAt) : "Not scheduled"}
-            </p>
-          </div>
-        </div>
-
-        <div className={cardGrid}>
-          <Stat label="Avg rank" value={fmtRank(latestScan?.averageRank)} />
-          <Stat label="Top 3" value={fmtPct(latestScan?.top3Pct)} />
-          <Stat label="Top 10" value={fmtPct(latestScan?.top10Pct ?? latestScan?.visibilityScore)} />
-          <Stat
-            label="Visibility change"
-            valueNode={
-              <span className="text-lg font-bold text-zinc-900">
-                <ChangeText value={visibilityChange} />
-              </span>
-            }
-          />
-        </div>
-
-        {rankChange != null ? (
-          <p className="mt-3 text-[12px] text-zinc-500">
-            Average rank change vs prior scan:{" "}
-            <ChangeText value={rankChange} invert />
-          </p>
-        ) : null}
-      </section>
-
-      <section className={cn(cardClass, cardPadding)}>
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-[14px] font-semibold text-zinc-900">Keyword movement</h2>
-          <Link href={keywordsHref} className="text-[12px] font-semibold text-[#137752]">
-            Manage keywords
-          </Link>
-        </div>
-        {keywordMovement.length ? (
-          <ul className="divide-y divide-zinc-100">
-            {keywordMovement.slice(0, 6).map((k) => (
-              <li
-                key={k.keywordId}
-                className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-[13px]"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium text-zinc-900">{k.keyword}</p>
-                  <p className="text-[11px] text-zinc-500">
-                    Avg rank {fmtRank(k.latestAvgRank)}
-                    {k.latestTop3Pct != null ? ` · Top 3 ${fmtPct(k.latestTop3Pct)}` : ""}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <ChangeText value={k.change} invert />
-                  {k.latestScanId ? (
-                    <Link
-                      href={`/businesses/${businessId}/grid/${k.latestScanId}`}
-                      className="text-[12px] font-semibold text-[#137752]"
-                    >
-                      Grid
-                    </Link>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="py-6 text-center text-[13px] text-zinc-500">
-            Run scans for multiple keywords to see movement here.
-          </p>
-        )}
-      </section>
-
-      <div className="grid gap-3 lg:grid-cols-2">
-        <section className={cn(cardClass, cardPadding)}>
-          <h2 className="flex items-center gap-2 text-[14px] font-semibold text-zinc-900">
-            <TrendingUp className="h-4 w-4 text-[#137752]" />
-            Geographic movement
-          </h2>
-          <p className="mt-2 text-[13px] leading-snug text-zinc-600">
-            {latestScan
-              ? `Your latest ${latestScan.gridSize}×${latestScan.gridSize} grid${
-                  latestScan.centerLabel ? ` around ${latestScan.centerLabel}` : ""
-                } shows where you hold or lose map-pack positions across nearby search points.`
-              : "Geographic movement unlocks after your first Maps scan."}
-          </p>
-          {latestScan ? (
-            <Link
-              href={gridHref}
-              className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-[#137752]"
-            >
-              Open visibility grid
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          ) : null}
-        </section>
-
-        <section className={cn(cardClass, cardPadding)}>
-          <h2 className="flex items-center gap-2 text-[14px] font-semibold text-zinc-900">
-            <Swords className="h-4 w-4 text-[#137752]" />
-            Competitor movement
-          </h2>
-          {topCompetitorLabels.length ? (
-            <>
-              <p className="mt-2 text-[13px] text-zinc-600">
-                Businesses showing up most often in your latest grid:
-              </p>
-              <ul className="mt-2 space-y-1">
-                {topCompetitorLabels.slice(0, 5).map((name) => (
-                  <li key={name} className="text-[13px] font-medium text-zinc-800">
-                    {name}
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : (
-            <p className="mt-2 text-[13px] text-zinc-600">
-              Competitor movement appears after a scan finishes enriching grid competitors.
-            </p>
-          )}
-          <Link
-            href={`/businesses/${businessId}/maps/competitors`}
-            className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-[#137752]"
-          >
-            View competitors
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </section>
+      {/* KPI row */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <MockMetricCard label="Keywords Tracked" value={keywordsTracked || "—"} />
+        <MockMetricCard
+          label="Top 3 Rankings"
+          value={top3Count != null ? top3Count : fmtPct(latestScan?.top3Pct)}
+          hint={latestScan?.top3Pct != null ? `${fmtPct(latestScan.top3Pct)} of grid` : undefined}
+        />
+        <MockMetricCard
+          label="Top 10 Rankings"
+          value={top10Count != null ? top10Count : fmtPct(latestScan?.top10Pct)}
+          hint={
+            latestScan?.top10Pct != null ? `${fmtPct(latestScan.top10Pct)} of grid` : undefined
+          }
+        />
+        <MockMetricCard label="Avg. Rank" value={fmtRank(latestScan?.averageRank)} />
+        <MockMetricCard
+          label="Visibility Score"
+          value={
+            latestScan?.visibilityScore != null
+              ? Math.round(latestScan.visibilityScore)
+              : fmtPct(latestScan?.top10Pct)
+          }
+        />
       </div>
 
-      <section className={cn(cardClass, cardPadding)}>
-        <h2 className="text-[14px] font-semibold text-zinc-900">Actions</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Link href={scansHref} className={btnSecondary}>
-            <RefreshCw className="h-4 w-4" />
-            Rerun keyword
-          </Link>
-          <Link href={keywordsHref} className={btnSecondary}>
-            <Plus className="h-4 w-4" />
-            Add keyword
-          </Link>
-          <Link href={scansHref} className={btnSecondary}>
-            <Grid3X3 className="h-4 w-4" />
-            Change grid
-          </Link>
-          <Link href={campaignsHref} className={btnSecondary}>
-            <CalendarClock className="h-4 w-4" />
-            Schedule
-          </Link>
-          <Link href={`/businesses/${businessId}/maps/profile`} className={btnSecondary}>
-            <Search className="h-4 w-4" />
-            GBP / profile
-          </Link>
-        </div>
-      </section>
-    </ModulePage>
-  );
-}
+      <div className="grid gap-4 xl:grid-cols-5">
+        {/* Heatmap */}
+        <section className={cn(mock.card, "p-5 xl:col-span-3")}>
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 className="text-[16px] font-semibold text-[#101828]">Local Ranking Heatmap</h2>
+              <p className="mt-0.5 text-[13px] text-[#667085]">
+                {latestScan?.keyword
+                  ? `“${latestScan.keyword}” · ${latestScan.gridSize}×${latestScan.gridSize} grid`
+                  : "Latest scan grid"}
+              </p>
+            </div>
+            <Link href={gridHref} className={mock.link}>
+              Open full grid →
+            </Link>
+          </div>
+          {heatmapCells.length > 0 ? (
+            <VisibilityHeatmap
+              cells={heatmapCells}
+              gridSize={latestScan?.gridSize ?? 7}
+            />
+          ) : (
+            <div className="flex min-h-[240px] flex-col items-center justify-center rounded-xl border border-dashed border-[#E6EAF0] bg-[#F9FAFB] px-4 text-center">
+              <p className="text-sm text-[#667085]">No grid ranks yet for this scan.</p>
+              <Link href={setupHref} className={cn(mock.btnPrimary, "mt-3")}>
+                Run New Scan
+              </Link>
+            </div>
+          )}
+        </section>
 
-function Stat({
-  label,
-  value,
-  valueNode,
-}: {
-  label: string;
-  value?: string;
-  valueNode?: ReactNode;
-}) {
-  return (
-    <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
-        {label}
-      </p>
-      {valueNode ?? (
-        <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900">{value}</p>
-      )}
+        {/* Keyword performance */}
+        <section className={cn(mock.card, "overflow-hidden xl:col-span-2")}>
+          <div className="flex items-center justify-between border-b border-[#E6EAF0] px-5 py-4">
+            <h2 className="text-[16px] font-semibold text-[#101828]">Keyword Performance</h2>
+            <Link
+              href={`/businesses/${businessId}/keywords`}
+              className={mock.link}
+            >
+              Manage
+            </Link>
+          </div>
+          {keywordMovement.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[280px]">
+                <thead>
+                  <tr className={mock.tableHead}>
+                    <th className="px-5 py-2.5">Keyword</th>
+                    <th className="px-3 py-2.5 text-right">Avg. Rank</th>
+                    <th className="px-5 py-2.5 text-right">Change</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {keywordMovement.slice(0, 8).map((k) => (
+                    <tr key={k.keywordId} className="border-t border-[#F2F4F7]">
+                      <td className="px-5 py-3.5">
+                        {k.latestScanId ? (
+                          <Link
+                            href={`/businesses/${businessId}/grid/${k.latestScanId}`}
+                            className="text-sm font-medium text-[#101828] hover:text-[#137752]"
+                          >
+                            {k.keyword}
+                          </Link>
+                        ) : (
+                          <span className="text-sm font-medium text-[#101828]">{k.keyword}</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3.5 text-right text-sm font-semibold tabular-nums text-[#344054]">
+                        {fmtRank(k.latestAvgRank)}
+                      </td>
+                      <td className="px-5 py-3.5 text-right text-sm">
+                        <RankChange value={k.change} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="px-5 py-10 text-center text-sm text-[#667085]">
+              Run scans for your keywords to see performance here.
+            </p>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

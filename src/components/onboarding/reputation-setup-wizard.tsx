@@ -701,36 +701,49 @@ export function ReputationSetupWizard({
   }
 
   return (
-    <div className="mx-auto w-full max-w-xl space-y-4 pb-10">
+    <div className="mx-auto w-full max-w-3xl space-y-5 pb-10">
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#137752]">
-          Local SEO Express
+          Local SEO Wizard
         </p>
-        <h1 className="mt-1 text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl">
+        <h1 className="mt-1 text-[28px] font-bold tracking-tight text-[#101828]">
           Reputation setup
         </h1>
-        <p className="mt-1 text-[13px] text-zinc-500">
+        <p className="mt-1 text-sm text-[#667085]">
           Connect Google reviews, see where you stand, and turn on collection + alerts.
         </p>
       </div>
 
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[12px] font-medium text-zinc-600">
-          Step {step} of 6
-        </p>
-        <div className="flex flex-1 justify-end gap-1">
-          {([1, 2, 3, 4, 5, 6] as WizardStep[]).map((n) => (
-            <span
-              key={n}
+      <nav className="flex flex-wrap gap-2" aria-label="Setup steps">
+        {(
+          [
+            "Business",
+            "Connect GBP",
+            "Analyze",
+            "Collection",
+            "Alerts",
+            "Ready",
+          ] as const
+        ).map((label, i) => {
+          const n = (i + 1) as WizardStep;
+          const done = n < step;
+          const active = n === step;
+          return (
+            <div
+              key={label}
               className={cn(
-                "h-1.5 w-6 rounded-full sm:w-8",
-                n <= step ? "bg-[#137752]" : "bg-zinc-200"
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold",
+                active && "bg-[#137752] text-white",
+                done && !active && "bg-[#ECFDF3] text-[#137752]",
+                !active && !done && "bg-[#F2F4F7] text-[#667085]"
               )}
-              style={n <= step ? { backgroundColor: ACCENT } : undefined}
-            />
-          ))}
-        </div>
-      </div>
+            >
+              {done ? <Check className="h-3.5 w-3.5" /> : <span>{n}</span>}
+              <span className="hidden sm:inline">{label}</span>
+            </div>
+          );
+        })}
+      </nav>
 
       {error ? (
         <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
@@ -740,7 +753,7 @@ export function ReputationSetupWizard({
 
       {/* Step 1 */}
       {step === 1 ? (
-        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-5">
+        <section className="space-y-4 rounded-xl border border-[#E6EAF0] bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] sm:p-6">
           <div>
             <h2 className="text-[15px] font-semibold text-zinc-900">Create the business</h2>
             <p className="mt-1 text-[13px] text-zinc-500">
@@ -822,7 +835,7 @@ export function ReputationSetupWizard({
 
       {/* Step 2 */}
       {step === 2 ? (
-        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-5">
+        <section className="space-y-4 rounded-xl border border-[#E6EAF0] bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] sm:p-6">
           <div>
             <h2 className="text-[15px] font-semibold text-zinc-900">
               Connect Google Business Profile
@@ -971,7 +984,7 @@ export function ReputationSetupWizard({
 
       {/* Step 3 */}
       {step === 3 ? (
-        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-5">
+        <section className="space-y-4 rounded-xl border border-[#E6EAF0] bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] sm:p-6">
           <div>
             <h2 className="text-[15px] font-semibold text-zinc-900">Analyze the reputation</h2>
             <p className="mt-1 text-[13px] text-zinc-500">
@@ -1104,7 +1117,7 @@ export function ReputationSetupWizard({
 
       {/* Step 4 */}
       {step === 4 ? (
-        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-5">
+        <section className="space-y-4 rounded-xl border border-[#E6EAF0] bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] sm:p-6">
           <div>
             <h2 className="text-[15px] font-semibold text-zinc-900">
               Set up review collection
@@ -1228,7 +1241,7 @@ export function ReputationSetupWizard({
 
       {/* Step 5 */}
       {step === 5 ? (
-        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-5">
+        <section className="space-y-4 rounded-xl border border-[#E6EAF0] bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] sm:p-6">
           <div>
             <h2 className="flex items-center gap-2 text-[15px] font-semibold text-zinc-900">
               <Bell className="h-4 w-4 text-[#137752]" />
@@ -1321,7 +1334,7 @@ export function ReputationSetupWizard({
 
       {/* Step 6 */}
       {step === 6 ? (
-        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-5">
+        <section className="space-y-4 rounded-xl border border-[#E6EAF0] bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] sm:p-6">
           <div>
             <h2 className="text-[15px] font-semibold text-zinc-900">
               Your Google review system is ready.

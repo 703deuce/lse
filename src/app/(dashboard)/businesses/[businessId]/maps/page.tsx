@@ -132,17 +132,39 @@ async function MapsOverviewLoaded({ businessId }: { businessId: string }) {
   });
 
   let topCompetitorLabels: string[] = [];
+  let heatmapCells: Array<{ rank: number | null; label?: string }> = [];
+
   if (latestScan) {
     const { data: points } = await supabase
       .from("scan_points")
-      .select("id")
-      .eq("scan_batch_id", latestScan.id);
-    const pointIds = (points ?? []).map((p) => p.id);
+      .select("id, grid_label")
+      .eq("scan_batch_id", latestScan.id)
+      .order("grid_label", { ascending: true });
+    const pointIds = (points ?? []).map((p) => p.id as string);
     if (pointIds.length) {
       const { data: results } = await supabase
         .from("scan_results")
-        .select("top_competitors_json")
+        .select("scan_point_id, target_rank, target_found, top_competitors_json")
         .in("scan_point_id", pointIds);
+      const rankByPoint = new Map<string, number | null>();
+      for (const r of results ?? []) {
+        const pid = String(r.scan_point_id);
+        if (!rankByPoint.has(pid)) {
+          rankByPoint.set(
+            pid,
+            r.target_found === false
+              ? null
+              : r.target_rank != null
+                ? Number(r.target_rank)
+                : null
+          );
+        }
+      }
+      heatmapCells = (points ?? []).map((p) => ({
+        rank: rankByPoint.get(String(p.id)) ?? null,
+        label: String(p.grid_label ?? ""),
+      }));
+
       const competitors = aggregateCompetitors(results ?? [], {
         excludeCid: business.cid,
         excludePlaceId: business.place_id,
@@ -170,6 +192,8 @@ async function MapsOverviewLoaded({ businessId }: { businessId: string }) {
       keywordMovement={keywordMovement}
       nextScheduledAt={nextScheduledAt}
       topCompetitorLabels={topCompetitorLabels}
+      heatmapCells={heatmapCells}
+      keywordsTracked={(keywords ?? []).length}
     />
   );
 }
