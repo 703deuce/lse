@@ -171,7 +171,9 @@ export function ReviewOverviewDashboard({
 }) {
   const analyticsHref = `/businesses/${businessId}/reputation/analytics`;
   const competitorsHref = `/businesses/${businessId}/reputation/competitors`;
-  const mapsHref = `/businesses/${businessId}/scans`;
+  const mapsHref = data.hasMapsData
+    ? `/businesses/${businessId}/maps`
+    : `/businesses/${businessId}/local-visibility`;
   const campaignsHref = `/businesses/${businessId}/reputation/campaigns`;
   const unansweredHref = `/businesses/${businessId}/reputation/reviews?tab=unanswered`;
   const actionHref = nextActionHref(businessId, data.nextAction.ctaLabel);
@@ -543,7 +545,10 @@ export function ReviewOverviewDashboard({
             </>
           ) : (
             <p className="py-10 text-center text-[13px] text-zinc-500">
-              Run a Maps scan to unlock visibility metrics.
+              Run a Maps scan to unlock visibility metrics.{" "}
+              <Link href={mapsHref} className="font-semibold text-[#137752] hover:underline">
+                Check local visibility
+              </Link>
             </p>
           )}
         </SoftCard>
