@@ -158,6 +158,8 @@ export interface BusinessRow {
   scan_center_lng: number | null;
   /** Private app-only address used when the public GBP listing has none. */
   scan_center_label: string | null;
+  /** IANA timezone for charts / quiet hours (default America/New_York). */
+  timezone?: string | null;
   is_tracked?: boolean;
   tracking_source?: string;
   account_type?: "prospect" | "client";

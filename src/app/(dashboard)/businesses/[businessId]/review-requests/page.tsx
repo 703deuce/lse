@@ -1,33 +1,10 @@
-import { Suspense } from "react";
-import { Loader2 } from "lucide-react";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
-import { hasEntitlement } from "@/lib/auth/entitlements";
-import { ReviewRequestsDashboard } from "@/components/reputation/review-requests-dashboard";
-import { ReviewRequestsUpgrade } from "@/components/reputation/review-requests-upgrade";
+import { redirect } from "next/navigation";
 
-/** Review Requests stays in nav; gated users see a full upgrade preview — not a dead lock. */
-export default async function ReviewRequestsPage({
+export default async function ReviewRequestsRedirectPage({
   params,
 }: {
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
-  const auth = await requireBusinessAccess(businessId);
-  const allowed = await hasEntitlement(auth.organizationId, "review_campaigns");
-
-  if (!allowed) {
-    return <ReviewRequestsUpgrade businessId={businessId} />;
-  }
-
-  return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-[400px] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-        </div>
-      }
-    >
-      <ReviewRequestsDashboard businessId={businessId} />
-    </Suspense>
-  );
+  redirect(`/businesses/${businessId}/reputation/requests`);
 }

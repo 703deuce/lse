@@ -31,8 +31,13 @@ export interface NormalizedReview {
   rating: number | null;
   reviewText: string | null;
   reviewDate: Date | null;
+  /** Authoritative publish timestamp when iso_date (or equivalent) was available. */
+  publishedAt: Date | null;
+  lastEditedAt: Date | null;
+  datePrecision: "exact" | "estimated" | "unknown";
   relativeDateText: string | null;
   ownerResponseText: string | null;
+  ownerRespondedAt: Date | null;
   reviewUrl: string | null;
   raw: Record<string, unknown>;
   dateParseWarning?: boolean;
@@ -74,59 +79,112 @@ function parseRelativeDate(text: string, now = new Date()): Date | null {
   return null;
 }
 
-function parseReviewDate(raw: Record<string, unknown>): { date: Date | null; relative: string | null; warning: boolean } {
+function parseReviewDate(raw: Record<string, unknown>): {
+  date: Date | null;
+  relative: string | null;
+  warning: boolean;
+  precision: "exact" | "estimated" | "unknown";
+  lastEditedAt: Date | null;
+} {
   const relative =
     (raw.relative_date as string) ??
     (raw.relative_time as string) ??
     (typeof raw.date === "string" && raw.date.match(/ago|week|month|day|year|hour|minute/i) ? raw.date : null) ??
     null;
 
+  let lastEditedAt: Date | null = null;
+  if (typeof raw.iso_date_of_last_edit === "string") {
+    const edited = parseISO(raw.iso_date_of_last_edit);
+    if (isValid(edited)) lastEditedAt = edited;
+  }
+
+  // Exact timestamps keep full UTC precision — never collapse to startOfDay.
   if (typeof raw.time === "number" && raw.time > 0) {
-    return { date: startOfDay(new Date(raw.time * 1000)), relative, warning: false };
+    return {
+      date: new Date(raw.time * 1000),
+      relative,
+      warning: false,
+      precision: "exact",
+      lastEditedAt,
+    };
   }
 
   if (typeof raw.timestamp === "number" && raw.timestamp > 0) {
     const ts = raw.timestamp > 1e12 ? raw.timestamp : raw.timestamp * 1000;
-    return { date: startOfDay(new Date(ts)), relative, warning: false };
+    return {
+      date: new Date(ts),
+      relative,
+      warning: false,
+      precision: "exact",
+      lastEditedAt,
+    };
   }
 
   if (typeof raw.iso_date === "string") {
     const d = parseISO(raw.iso_date);
-    if (isValid(d)) return { date: startOfDay(d), relative, warning: false };
+    if (isValid(d)) {
+      return { date: d, relative, warning: false, precision: "exact", lastEditedAt };
+    }
   }
 
-  if (typeof raw.iso_date_of_last_edit === "string") {
-    const d = parseISO(raw.iso_date_of_last_edit);
-    if (isValid(d)) return { date: startOfDay(d), relative, warning: false };
+  if (lastEditedAt) {
+    return {
+      date: lastEditedAt,
+      relative,
+      warning: false,
+      precision: "exact",
+      lastEditedAt,
+    };
   }
 
   if (typeof raw.review_datetime === "string") {
     const d = parseISO(raw.review_datetime);
-    if (isValid(d)) return { date: startOfDay(d), relative, warning: false };
+    if (isValid(d)) {
+      return { date: d, relative, warning: false, precision: "exact", lastEditedAt };
+    }
   }
 
   if (typeof raw.date === "string" && !raw.date.match(/ago|week|month|day|year|hour|minute/i)) {
     const d = parseISO(raw.date);
-    if (isValid(d)) return { date: startOfDay(d), relative, warning: false };
+    if (isValid(d)) {
+      // Date-only strings (YYYY-MM-DD) parse as UTC midnight — still mark exact when ISO-valid.
+      return { date: d, relative, warning: false, precision: "exact", lastEditedAt };
+    }
   }
 
   if (relative) {
     const parsed = parseRelativeDate(relative);
-    if (parsed) return { date: parsed, relative, warning: true };
+    if (parsed) {
+      return { date: parsed, relative, warning: true, precision: "estimated", lastEditedAt };
+    }
   }
 
-  return { date: null, relative, warning: !!relative };
+  return { date: null, relative, warning: !!relative, precision: "unknown", lastEditedAt };
 }
 
 export function normalizeScrapingDogReview(raw: unknown): NormalizedReview {
   const r = (raw ?? {}) as Record<string, unknown>;
-  const { date, relative, warning } = parseReviewDate({
+  const { date, relative, warning, precision, lastEditedAt } = parseReviewDate({
     ...r,
-    iso_date: r.iso_date ?? r.iso_date_of_last_edit,
+    iso_date: r.iso_date,
+    iso_date_of_last_edit: r.iso_date_of_last_edit,
     time: r.time,
     date: r.date,
     relative_date: r.relative_date ?? r.relative_time,
   });
+  const ownerResponseText =
+    coerceOwnerResponseText(r.owner_response) ??
+    coerceOwnerResponseText((r.owner_response as { text?: string })?.text) ??
+    coerceOwnerResponseText(r.response);
+  let ownerRespondedAt: Date | null = null;
+  const ownerObj = r.owner_response as { date?: string; iso_date?: string } | string | undefined;
+  if (ownerObj && typeof ownerObj === "object") {
+    const od = ownerObj.iso_date ?? ownerObj.date;
+    if (typeof od === "string") {
+      const parsed = parseISO(od);
+      if (isValid(parsed)) ownerRespondedAt = parsed;
+    }
+  }
   return {
     sourceReviewId:
       (r.review_id as string) ??
@@ -141,11 +199,12 @@ export function normalizeScrapingDogReview(raw: unknown): NormalizedReview {
     rating: r.rating != null ? Number(r.rating) : null,
     reviewText: (r.snippet as string) ?? (r.text as string) ?? (r.description as string) ?? null,
     reviewDate: date,
+    publishedAt: precision === "exact" && date ? date : date,
+    lastEditedAt,
+    datePrecision: precision,
     relativeDateText: relative,
-    ownerResponseText:
-      coerceOwnerResponseText(r.owner_response) ??
-      coerceOwnerResponseText((r.owner_response as { text?: string })?.text) ??
-      coerceOwnerResponseText(r.response),
+    ownerResponseText,
+    ownerRespondedAt,
     reviewUrl: (r.link as string) ?? (r.review_url as string) ?? null,
     raw: r,
     dateParseWarning: warning,
@@ -161,7 +220,7 @@ export function normalizeDataForSeoReview(raw: unknown): NormalizedReview {
       : r.rating != null
         ? Number(r.rating)
         : null;
-  const { date, relative, warning } = parseReviewDate({
+  const { date, relative, warning, precision, lastEditedAt } = parseReviewDate({
     ...r,
     iso_date: r.timestamp ?? r.datetime,
   });
@@ -171,8 +230,12 @@ export function normalizeDataForSeoReview(raw: unknown): NormalizedReview {
     rating: ratingVal,
     reviewText: (r.review_text as string) ?? (r.text as string) ?? null,
     reviewDate: date,
+    publishedAt: date,
+    lastEditedAt,
+    datePrecision: precision,
     relativeDateText: relative ?? (r.time_ago as string) ?? null,
     ownerResponseText: coerceOwnerResponseText(r.owner_answer) ?? coerceOwnerResponseText(r.owner_response),
+    ownerRespondedAt: null,
     reviewUrl: (r.url as string) ?? null,
     raw: r,
     dateParseWarning: warning,

@@ -184,6 +184,10 @@ export async function runReputationAudit(params: {
         provider: targetFetch.provider,
         reviews: targetFetch.reviews,
         entityKey: `biz:${params.businessId}`,
+        reconcileAbsent: targetFetch.dataIdValidated && targetFetch.stoppedReason !== "incremental_sync",
+        observedSourceIds: targetFetch.reviews
+          .map((review) => review.sourceReviewId)
+          .filter((id): id is string => Boolean(id)),
       });
     } catch (err) {
       console.warn("[ReputationAudit] business_reviews upsert skipped:", err);
@@ -249,6 +253,10 @@ export async function runReputationAudit(params: {
                 provider: fetchResult.provider,
                 reviews: fetchResult.reviews,
                 entityKey: `comp:${competitorId}`,
+                reconcileAbsent: fetchResult.dataIdValidated && fetchResult.stoppedReason !== "incremental_sync",
+                observedSourceIds: fetchResult.reviews
+                  .map((review) => review.sourceReviewId)
+                  .filter((id): id is string => Boolean(id)),
               });
             } catch (err) {
               console.warn("[ReputationAudit] competitor reviews upsert skipped:", err);

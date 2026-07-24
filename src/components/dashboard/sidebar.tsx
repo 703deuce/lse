@@ -15,6 +15,7 @@ import { BusinessSwitcher } from "@/components/dashboard/business-switcher";
 import {
   buildUnifiedSidebarNav,
   isSidebarHrefActive,
+  type SidebarNavGroup,
   type SidebarNavItem,
 } from "@/components/dashboard/dashboard-nav";
 
@@ -113,6 +114,62 @@ function SidebarNavSubItemRow({
     >
       {content}
     </Link>
+  );
+}
+
+function ReputationNavSection({
+  title,
+  overview,
+  groups,
+  businessId,
+  pathname,
+  staticLinks,
+  onNavigate,
+}: {
+  title: string;
+  overview: SidebarNavItem;
+  groups: SidebarNavGroup[];
+  businessId?: string | null;
+  pathname: string;
+  staticLinks?: boolean;
+  onNavigate?: () => void;
+}) {
+  return (
+    <div className="mb-2">
+      <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+        {title}
+      </p>
+      <div className="space-y-0.5">
+        <SidebarNavItemRow
+          href={overview.href}
+          label={overview.label}
+          icon={overview.icon}
+          active={isSidebarHrefActive(pathname, overview.href, businessId)}
+          staticLinks={staticLinks}
+          onNavigate={onNavigate}
+        />
+        {groups.map((group) => (
+          <div key={group.title} className="pt-1.5">
+            <p className="mb-0.5 px-3 text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500/80">
+              {group.title}
+            </p>
+            <div className="space-y-0.5">
+              {group.items.map((item) => (
+                <SidebarNavItemRow
+                  key={`${item.label}-${item.href}`}
+                  href={item.href}
+                  label={item.badge ? `${item.label} · ${item.badge}` : item.label}
+                  icon={item.icon}
+                  active={isSidebarHrefActive(pathname, item.href, businessId)}
+                  staticLinks={staticLinks}
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -268,9 +325,10 @@ export function DashboardSidebarPanel({
           staticLinks={staticLinks}
           onNavigate={onNavigate}
         />
-        <NavSection
+        <ReputationNavSection
           title={nav.reputation.title}
-          items={nav.reputation.items}
+          overview={nav.reputation.overview}
+          groups={nav.reputation.groups}
           businessId={businessId}
           pathname={pathname}
           staticLinks={staticLinks}

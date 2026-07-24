@@ -11,22 +11,35 @@ import {
 } from "@/components/overview/dashboard-ui";
 import { cn } from "@/lib/utils";
 
-type CampaignRow = {
+export type CampaignRow = {
   id: string;
   name: string;
   status: string;
   channel: string;
   created_at: string;
+  completed_at?: string | null;
+  template_id?: string | null;
+  email_template_id?: string | null;
+  source_template_id?: string | null;
+  source_template_version?: string | null;
+  send_window_start?: string | null;
+  send_window_end?: string | null;
+  timezone?: string | null;
+  daily_send_limit?: number | null;
   recipients_total: number;
   recipients_ready: number;
   queued: number;
   sent: number;
+  delivered?: number;
   failed: number;
   clicked: number;
   opted_out: number;
+  reviews_detected?: number | null;
   trigger_type?: string;
   trigger_config?: { eventType?: string } | null;
   enrollments_paused?: boolean;
+  next_step_label?: string;
+  conversion_rate?: number;
 };
 
 function triggerBadge(c: CampaignRow) {
@@ -72,34 +85,56 @@ function statusBadge(status: string) {
 export function ReviewRequestsCampaignsTable({
   businessId,
   refreshKey = 0,
+  campaigns: controlledCampaigns,
+  loading: controlledLoading,
+  onRefresh,
+  emptyMessage = "No campaigns yet. Create one from Campaigns or import customers with a CSV.",
+  title = "Campaigns",
+  description = "Paced SMS/email requests — clicks tracked, not review attribution.",
+  resultColumns = false,
 }: {
   businessId: string;
   refreshKey?: number;
+  campaigns?: CampaignRow[];
+  loading?: boolean;
+  onRefresh?: () => Promise<void> | void;
+  emptyMessage?: string;
+  title?: string;
+  description?: string;
+  resultColumns?: boolean;
 }) {
-  const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [localCampaigns, setLocalCampaigns] = useState<CampaignRow[]>([]);
+  const [localLoading, setLocalLoading] = useState(true);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const isControlled = controlledCampaigns !== undefined;
+  const campaigns = controlledCampaigns ?? localCampaigns;
+  const loading = controlledLoading ?? (!isControlled && localLoading);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    if (isControlled) {
+      await onRefresh?.();
+      return;
+    }
+    setLocalLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/reputation/review-requests/campaigns?businessId=${businessId}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to load campaigns");
-      setCampaigns(json.campaigns ?? []);
+      setLocalCampaigns(json.campaigns ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load campaigns");
-      setCampaigns([]);
+      setLocalCampaigns([]);
     } finally {
-      setLoading(false);
+      setLocalLoading(false);
     }
-  }, [businessId]);
+  }, [businessId, isControlled, onRefresh]);
 
   useEffect(() => {
+    if (isControlled) return;
     void load();
-  }, [load, refreshKey]);
+  }, [isControlled, load, refreshKey]);
 
   async function action(campaignId: string, act: string) {
     setMenuId(null);
@@ -149,7 +184,7 @@ export function ReviewRequestsCampaignsTable({
           "border-dashed px-3.5 py-8 text-center text-[13px] text-zinc-500"
         )}
       >
-        No campaigns yet. Create one from Campaigns or import customers with a CSV.
+        {emptyMessage}
       </div>
     );
   }
@@ -162,10 +197,8 @@ export function ReviewRequestsCampaignsTable({
         </div>
       )}
       <div className="border-b border-zinc-100 px-3.5 py-2.5">
-        <h3 className={dashboardCardTitle}>Campaigns</h3>
-        <p className={dashboardMicro}>
-          Paced SMS/email requests — clicks tracked, not review attribution.
-        </p>
+        <h3 className={dashboardCardTitle}>{title}</h3>
+        <p className={dashboardMicro}>{description}</p>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-[12px]">
@@ -176,10 +209,22 @@ export function ReviewRequestsCampaignsTable({
               <th className="px-3.5 py-2">Status</th>
               <th className="px-3.5 py-2">Channel</th>
               <th className="px-3.5 py-2 text-right">Recipients</th>
-              <th className="px-3.5 py-2 text-right">Queued</th>
-              <th className="px-3.5 py-2 text-right">Sent</th>
-              <th className="px-3.5 py-2 text-right">Failed</th>
-              <th className="px-3.5 py-2 text-right">Clicked</th>
+              {resultColumns ? (
+                <>
+                  <th className="px-3.5 py-2 text-right">Sent</th>
+                  <th className="px-3.5 py-2 text-right">Delivered</th>
+                  <th className="px-3.5 py-2 text-right">Clicked</th>
+                  <th className="px-3.5 py-2 text-right">Reviews</th>
+                  <th className="px-3.5 py-2 text-right">Opt-outs</th>
+                </>
+              ) : (
+                <>
+                  <th className="px-3.5 py-2 text-right">Queued</th>
+                  <th className="px-3.5 py-2 text-right">Sent</th>
+                  <th className="px-3.5 py-2 text-right">Failed</th>
+                  <th className="px-3.5 py-2 text-right">Clicked</th>
+                </>
+              )}
               <th className="px-3.5 py-2">Created</th>
               <th className="px-3.5 py-2">Actions</th>
             </tr>
@@ -189,7 +234,7 @@ export function ReviewRequestsCampaignsTable({
               <tr key={c.id} className="hover:bg-zinc-50/80">
                 <td className="px-3.5 py-2 font-medium text-zinc-900">
                   <Link
-                    href={`/businesses/${businessId}/review-campaigns/${c.id}`}
+                    href={`/businesses/${businessId}/reputation/campaigns/${c.id}`}
                     className="hover:text-emerald-700 hover:underline"
                   >
                     {c.name}
@@ -199,10 +244,24 @@ export function ReviewRequestsCampaignsTable({
                 <td className="px-3.5 py-2">{statusBadge(c.status)}</td>
                 <td className="px-3.5 py-2 capitalize text-zinc-600">{c.channel}</td>
                 <td className="px-3.5 py-2 text-right tabular-nums">{c.recipients_ready}</td>
-                <td className="px-3.5 py-2 text-right tabular-nums">{c.queued}</td>
-                <td className="px-3.5 py-2 text-right tabular-nums text-emerald-700">{c.sent}</td>
-                <td className="px-3.5 py-2 text-right tabular-nums text-red-600">{c.failed}</td>
-                <td className="px-3.5 py-2 text-right tabular-nums">{c.clicked}</td>
+                {resultColumns ? (
+                  <>
+                    <td className="px-3.5 py-2 text-right tabular-nums text-emerald-700">{c.sent}</td>
+                    <td className="px-3.5 py-2 text-right tabular-nums">{c.delivered ?? "—"}</td>
+                    <td className="px-3.5 py-2 text-right tabular-nums">{c.clicked}</td>
+                    <td className="px-3.5 py-2 text-right tabular-nums">
+                      {c.reviews_detected ?? "—"}
+                    </td>
+                    <td className="px-3.5 py-2 text-right tabular-nums">{c.opted_out}</td>
+                  </>
+                ) : (
+                  <>
+                    <td className="px-3.5 py-2 text-right tabular-nums">{c.queued}</td>
+                    <td className="px-3.5 py-2 text-right tabular-nums text-emerald-700">{c.sent}</td>
+                    <td className="px-3.5 py-2 text-right tabular-nums text-red-600">{c.failed}</td>
+                    <td className="px-3.5 py-2 text-right tabular-nums">{c.clicked}</td>
+                  </>
+                )}
                 <td className="px-3.5 py-2 text-[11px] text-zinc-500">
                   {new Date(c.created_at).toLocaleDateString()}
                 </td>
@@ -217,7 +276,7 @@ export function ReviewRequestsCampaignsTable({
                   {menuId === c.id && (
                     <div className="absolute right-3 z-10 mt-1 w-36 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
                       <Link
-                        href={`/businesses/${businessId}/review-campaigns/${c.id}`}
+                        href={`/businesses/${businessId}/reputation/campaigns/${c.id}`}
                         className="block px-3.5 py-2 text-left text-xs hover:bg-zinc-50"
                         onClick={() => setMenuId(null)}
                       >

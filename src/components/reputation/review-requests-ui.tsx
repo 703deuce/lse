@@ -21,7 +21,7 @@ export function ReviewRequestsPageHeader({
     <div className="flex flex-wrap items-end gap-3">
       <ModuleHeader
         title="Review Requests"
-        subtitle="Create review links and reusable templates. Manage contacts, triggers, and settings from the Reputation menu."
+        subtitle="One-time and bulk sends only — choose contacts, channel, template, preview, then send or schedule."
         className="[&_h1]:text-xl [&_p]:text-[13px] [&_p]:leading-snug"
       />
       {campaignsHref ? (
@@ -41,8 +41,10 @@ export function ReviewRequestsTopBar() {
 }
 
 const SECTIONS: Array<{ id: ReviewRequestsSection; label: string }> = [
-  { id: "poster", label: "Review Poster" },
-  { id: "messages", label: "Templates" },
+  { id: "send", label: "One-time request" },
+  { id: "bulk", label: "Bulk request" },
+  { id: "tracking", label: "Delivery results" },
+  { id: "poster", label: "QR / Poster" },
 ];
 
 export function ReviewRequestsSubTabsBar({

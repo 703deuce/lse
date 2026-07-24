@@ -10,7 +10,30 @@ type Settings = {
   daily_summary: boolean;
   weekly_summary: boolean;
   email_recipients: string[];
+  velocity_drop: boolean;
+  competitor_velocity_spike: boolean;
+  no_reviews_days: number;
+  rating_changed: boolean;
+  response_overdue: boolean;
+  campaign_delivery_problem: boolean;
+  review_gap_widening: boolean;
+  maps_visibility_moved: boolean;
 };
+
+const BOOL_KEYS = [
+  ["every_new_review", "Email on every new review"],
+  ["low_rating_only", "Only ratings 1–3 stars"],
+  ["unanswered_only", "Only unanswered reviews"],
+  ["velocity_drop", "Alert when review velocity drops"],
+  ["competitor_velocity_spike", "Alert on competitor velocity spikes"],
+  ["rating_changed", "Alert when Google rating changes"],
+  ["response_overdue", "Alert when responses are overdue"],
+  ["campaign_delivery_problem", "Alert on campaign delivery failures"],
+  ["review_gap_widening", "Alert when review gap is widening"],
+  ["maps_visibility_moved", "Alert when Maps visibility moves with momentum"],
+  ["daily_summary", "Daily summary (reserved)"],
+  ["weekly_summary", "Weekly summary (reserved)"],
+] as const;
 
 export function ReviewAlertSettings({ businessId }: { businessId: string }) {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -48,6 +71,14 @@ export function ReviewAlertSettings({ businessId }: { businessId: string }) {
           dailySummary: settings.daily_summary,
           weeklySummary: settings.weekly_summary,
           emailRecipients: emails,
+          velocityDrop: settings.velocity_drop,
+          competitorVelocitySpike: settings.competitor_velocity_spike,
+          noReviewsDays: settings.no_reviews_days,
+          ratingChanged: settings.rating_changed,
+          responseOverdue: settings.response_overdue,
+          campaignDeliveryProblem: settings.campaign_delivery_problem,
+          reviewGapWidening: settings.review_gap_widening,
+          mapsVisibilityMoved: settings.maps_visibility_moved,
         }),
       });
       const json = await res.json();
@@ -73,21 +104,12 @@ export function ReviewAlertSettings({ businessId }: { businessId: string }) {
   return (
     <div className="space-y-2 rounded-lg border border-zinc-200 bg-white p-3">
       <div>
-        <p className="text-[13px] font-semibold text-zinc-900">New review alerts</p>
+        <p className="text-[13px] font-semibold text-zinc-900">Reputation alerts</p>
         <p className="text-[11px] text-zinc-500">
-          Emails fire from the campaign worker when new Google reviews are detected. Confirmed
-          attribution still requires tracking evidence in Campaigns.
+          Email and inbox alerts for new reviews, velocity, competitors, campaigns, and Maps moves.
         </p>
       </div>
-      {(
-        [
-          ["every_new_review", "Email on every new review"],
-          ["low_rating_only", "Only ratings 1–3 stars"],
-          ["unanswered_only", "Only unanswered reviews"],
-          ["daily_summary", "Daily summary (reserved)"],
-          ["weekly_summary", "Weekly summary (reserved)"],
-        ] as const
-      ).map(([key, label]) => (
+      {BOOL_KEYS.map(([key, label]) => (
         <label key={key} className="flex items-center gap-2 text-[12px] text-zinc-700">
           <input
             type="checkbox"
@@ -97,6 +119,19 @@ export function ReviewAlertSettings({ businessId }: { businessId: string }) {
           {label}
         </label>
       ))}
+      <label className="block text-[12px] font-medium text-zinc-700">
+        No-review drought threshold (days)
+        <input
+          type="number"
+          min={1}
+          max={90}
+          className="mt-1 w-28 rounded-md border border-zinc-200 px-2.5 py-1.5 text-[13px]"
+          value={settings.no_reviews_days}
+          onChange={(e) =>
+            setSettings({ ...settings, no_reviews_days: Math.max(1, Number(e.target.value) || 14) })
+          }
+        />
+      </label>
       <label className="block text-[12px] font-medium text-zinc-700">
         Alert recipients (comma-separated)
         <input

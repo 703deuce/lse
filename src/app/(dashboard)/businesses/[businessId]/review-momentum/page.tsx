@@ -1,10 +1,10 @@
-import { ReviewMomentumDashboard } from "@/components/reviews/review-momentum-dashboard";
+import { redirect } from "next/navigation";
 
-export default async function ReviewMomentumPage({
+export default async function ReviewMomentumRedirectPage({
   params,
 }: {
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
-  return <ReviewMomentumDashboard businessId={businessId} />;
+  redirect(`/businesses/${businessId}/reputation/analytics`);
 }

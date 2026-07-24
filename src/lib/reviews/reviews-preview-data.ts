@@ -12,6 +12,8 @@ function review(
       overrides.reviewText ??
       "Great experience from start to finish. The team was professional, on time, and explained everything clearly.",
     reviewDate: overrides.reviewDate ?? "2026-06-18",
+    publishedAt: overrides.publishedAt ?? null,
+    firstObservedAt: overrides.firstObservedAt ?? "2026-06-18T12:00:00.000Z",
     relativeDate: overrides.relativeDate ?? "3 weeks ago",
     source: overrides.source ?? "google",
     tags: overrides.tags ?? ["friendly staff", "clean office"],
@@ -22,6 +24,9 @@ function review(
     competitorId: overrides.competitorId ?? null,
     daysWaiting: overrides.daysWaiting ?? null,
     urgency: overrides.urgency ?? null,
+    isNew: overrides.isNew ?? false,
+    resolved: overrides.resolved ?? false,
+    resolvedAt: overrides.resolvedAt ?? null,
   };
 }
 

@@ -64,7 +64,13 @@ function MicroStat({ label, value }: { label: string; value: string }) {
 
 const STEPS = ["Name", "Trigger", "Mapping", "Security", "Activate"] as const;
 
-export function WebhooksClient({ businessId }: { businessId: string }) {
+export function WebhooksClient({
+  businessId,
+  embedded = false,
+}: {
+  businessId: string;
+  embedded?: boolean;
+}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [endpoints, setEndpoints] = useState<EndpointRow[]>([]);
@@ -308,13 +314,31 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
   const sample = detail?.samplePayload as Record<string, unknown> | undefined;
   const campaignName = campaigns.find((c) => c.id === campaignId)?.name ?? "—";
 
-  return (
-    <ModulePage>
-      <ModuleHeader
-        title="Automatic Review Triggers"
-        subtitle="When a job, invoice, or appointment completes in your CRM, enroll the customer in a Review Campaign — via Zapier, Make, n8n, or custom HTTP."
-        icon={Webhook}
-        actions={
+  const content = (
+    <>
+      {!embedded ? (
+        <ModuleHeader
+          title="Automations"
+          subtitle="When a job, invoice, or appointment completes in your CRM, enroll the customer in a Review Campaign — via Zapier, Make, n8n, or custom HTTP."
+          icon={Webhook}
+          actions={
+            <button
+              type="button"
+              onClick={openWizard}
+              className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-800 hover:bg-zinc-50"
+            >
+              <Plus className="h-3.5 w-3.5" /> New trigger
+            </button>
+          }
+        />
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-[14px] font-semibold text-zinc-900">Triggers</h2>
+            <p className="text-[12px] text-zinc-500">
+              Webhook triggers that enroll customers into active review campaigns.
+            </p>
+          </div>
           <button
             type="button"
             onClick={openWizard}
@@ -322,8 +346,8 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
           >
             <Plus className="h-3.5 w-3.5" /> New trigger
           </button>
-        }
-      />
+        </div>
+      )}
 
       {metrics ? (
         <div className="mb-3 flex flex-wrap gap-2">
@@ -910,6 +934,8 @@ export function WebhooksClient({ businessId }: { businessId: string }) {
           )}
         </div>
       )}
-    </ModulePage>
+    </>
   );
+
+  return embedded ? <div className="space-y-3">{content}</div> : <ModulePage>{content}</ModulePage>;
 }

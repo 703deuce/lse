@@ -45,7 +45,10 @@ export function MobileMoreSheet() {
         ]
       : []),
     { title: nav.growthTools.title, items: nav.growthTools.items },
-    { title: nav.reputation.title, items: nav.reputation.items },
+    {
+      title: "Reputation",
+      items: [nav.reputation.overview, ...nav.reputation.groups.flatMap((g) => g.items)],
+    },
     { title: nav.deliverables.title, items: nav.deliverables.items },
     { title: nav.account.title, items: nav.account.items },
   ];

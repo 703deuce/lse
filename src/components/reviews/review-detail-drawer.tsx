@@ -1,6 +1,7 @@
 "use client";
 
-import { X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Loader2, X } from "lucide-react";
 import type { ReviewListItem } from "@/lib/reviews/reviews-page-data";
 import {
   BusinessCell,
@@ -30,24 +31,104 @@ function readableOwnerResponse(text: string | null): string | null {
 export function ReviewDetailDrawer({
   review,
   highlightPhrases = [],
+  businessId,
   onClose,
+  onUpdated,
 }: {
   review: ReviewListItem | null;
   highlightPhrases?: string[];
+  businessId?: string;
   onClose: () => void;
+  onUpdated?: (review: ReviewListItem) => void;
 }) {
-  if (!review) return null;
+  const [draft, setDraft] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [resolving, setResolving] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const dateLabel = review.reviewDate
-    ? new Date(review.reviewDate).toLocaleDateString("en-US", {
+  useEffect(() => {
+    setDraft("");
+    setStatusMsg(null);
+    setError(null);
+  }, [review?.id]);
+
+  if (!review) return null;
+  const currentReview = review;
+
+  const dateLabel = currentReview.publishedAt || currentReview.reviewDate
+    ? new Date(currentReview.publishedAt ?? currentReview.reviewDate!).toLocaleString("en-US", {
         weekday: "long",
         month: "long",
         day: "numeric",
         year: "numeric",
+        hour: currentReview.publishedAt ? "numeric" : undefined,
+        minute: currentReview.publishedAt ? "2-digit" : undefined,
       })
     : null;
 
-  const ownerReply = readableOwnerResponse(review.ownerResponseText);
+  const ownerReply = readableOwnerResponse(currentReview.ownerResponseText);
+
+  async function generateReply() {
+    if (!businessId) return;
+    setGenerating(true);
+    setError(null);
+    setStatusMsg(null);
+    try {
+      const res = await fetch("/api/reputation/responses/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId, reviewIds: [currentReview.id] }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        drafts?: Array<{ draftText?: string; reply?: string }>;
+        reply?: string;
+        error?: string;
+      };
+      const fromDrafts = json.drafts?.[0]?.draftText || json.drafts?.[0]?.reply;
+      const reply = fromDrafts || json.reply;
+      if (!res.ok || !reply) {
+        const firstName = currentReview.reviewerName.split(" ")[0] || "there";
+        setDraft(
+          `Hi ${firstName},\n\nThank you for sharing your feedback. We appreciate you taking the time to review us and want to make sure we address anything that matters.\n\nBest regards`
+        );
+        setStatusMsg("Suggested reply ready (fallback)");
+        return;
+      }
+      setDraft(reply);
+      setStatusMsg("Suggested reply ready — copy into Google Business Profile to publish");
+    } catch {
+      setError("Could not generate a reply");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function toggleResolved() {
+    if (!businessId) return;
+    setResolving(true);
+    setError(null);
+    try {
+      const nextResolved = !currentReview.resolved;
+      const res = await fetch(`/api/reviews/${businessId}/resolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewId: currentReview.id, resolved: nextResolved }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to update");
+      onUpdated?.({
+        ...currentReview,
+        resolved: nextResolved,
+        resolvedAt: nextResolved ? json.review?.resolved_at ?? new Date().toISOString() : null,
+      });
+      setStatusMsg(nextResolved ? "Marked resolved" : "Reopened");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update");
+    } finally {
+      setResolving(false);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose} role="presentation">
@@ -62,13 +143,23 @@ export function ReviewDetailDrawer({
           <div className="flex min-w-0 items-start gap-3">
             <ReviewerAvatar name={review.reviewerName} />
             <div className="min-w-0">
-              <p className="font-semibold text-zinc-900">{review.reviewerName}</p>
-              {!review.isTarget && (
-                <p className="text-sm text-zinc-500">{review.businessName}</p>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-semibold text-zinc-900">{review.reviewerName}</p>
+                {review.isNew ? (
+                  <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-100">
+                    New
+                  </span>
+                ) : null}
+              </div>
+              {!review.isTarget && <p className="text-sm text-zinc-500">{review.businessName}</p>}
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <StarRating rating={review.rating} size="md" />
                 <ReviewStatusBadge replied={review.replied} variant="pill" />
+                {review.resolved ? (
+                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-600">
+                    Resolved
+                  </span>
+                ) : null}
               </div>
             </div>
           </div>
@@ -101,9 +192,6 @@ export function ReviewDetailDrawer({
                   phrases={highlightPhrases}
                   className="text-base text-zinc-800"
                 />
-                <p className="mt-2 text-xs text-zinc-500">
-                  Highlighted words are what triggered this theme match.
-                </p>
               </div>
             ) : (
               <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-zinc-800">
@@ -127,15 +215,68 @@ export function ReviewDetailDrawer({
               <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">{ownerReply}</p>
             </div>
           )}
+
+          {review.isTarget && businessId ? (
+            <div className="space-y-2 rounded-lg border border-zinc-200 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Generate response</p>
+                <button
+                  type="button"
+                  disabled={generating}
+                  onClick={() => void generateReply()}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#137752] px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-[#0f6344] disabled:opacity-60"
+                >
+                  {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  {generating ? "Generating…" : "Generate"}
+                </button>
+              </div>
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                rows={6}
+                placeholder="Generated reply appears here. Copy into Google Business Profile to publish — we do not auto-post."
+                className="w-full rounded-md border border-zinc-200 px-3 py-2 text-[13px] outline-none focus:border-[#137752]"
+              />
+              {draft ? (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(draft);
+                    setStatusMsg("Copied to clipboard");
+                  }}
+                  className="text-[12px] font-semibold text-[#137752] hover:underline"
+                >
+                  Copy reply
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {statusMsg ? (
+            <p className="inline-flex items-center gap-1.5 text-[12px] font-medium text-emerald-700">
+              <Check className="h-3.5 w-3.5" />
+              {statusMsg}
+            </p>
+          ) : null}
+          {error ? <p className="text-[12px] font-medium text-red-600">{error}</p> : null}
         </div>
 
-        <div className="flex gap-2 border-t border-zinc-200 px-6 py-4">
-          {!review.replied && (
-            <button type="button" className="rounded-full bg-[#137752] px-4 py-2 text-sm font-medium text-white hover:bg-[#0f6344]">
-              Reply
+        <div className="flex flex-wrap gap-2 border-t border-zinc-200 px-6 py-4">
+          {review.isTarget && businessId ? (
+            <button
+              type="button"
+              disabled={resolving}
+              onClick={() => void toggleResolved()}
+              className="rounded-full bg-[#137752] px-4 py-2 text-sm font-medium text-white hover:bg-[#0f6344] disabled:opacity-60"
+            >
+              {resolving ? "Saving…" : review.resolved ? "Reopen" : "Mark resolved"}
             </button>
-          )}
-          <button type="button" onClick={onClose} className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+          ) : null}
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          >
             Close
           </button>
         </div>

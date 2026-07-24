@@ -1,10 +1,10 @@
-import { WebhooksClient } from "@/components/integrations/webhooks-client";
+import { redirect } from "next/navigation";
 
-export default async function IntegrationsPage({
+export default async function IntegrationsRedirectPage({
   params,
 }: {
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
-  return <WebhooksClient businessId={businessId} />;
+  redirect(`/businesses/${businessId}/reputation/automations`);
 }

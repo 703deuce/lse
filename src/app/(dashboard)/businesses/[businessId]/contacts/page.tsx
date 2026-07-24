@@ -1,14 +1,19 @@
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
-import { hasEntitlement } from "@/lib/auth/entitlements";
-import { ContactsPageClient } from "@/components/reputation/contacts-page-client";
+import { redirect } from "next/navigation";
 
-export default async function ContactsPage({
+export default async function ContactsRedirectPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { businessId } = await params;
-  const auth = await requireBusinessAccess(businessId);
-  const allowed = await hasEntitlement(auth.organizationId, "review_campaigns");
-  return <ContactsPageClient businessId={businessId} allowed={allowed} />;
+  const sp = await searchParams;
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) {
+    if (typeof v === "string") qs.set(k, v);
+    else if (Array.isArray(v) && v[0]) qs.set(k, v[0]);
+  }
+  const q = qs.toString();
+  redirect(`/businesses/${businessId}/reputation/contacts${q ? `?${q}` : ""}`);
 }

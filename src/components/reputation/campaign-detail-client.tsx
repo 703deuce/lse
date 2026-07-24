@@ -225,7 +225,7 @@ export function CampaignDetailClient({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link
-            href={`/businesses/${businessId}/review-campaigns`}
+            href={`/businesses/${businessId}/reputation/campaigns`}
             className="inline-flex items-center gap-1 text-[12px] font-medium text-zinc-500 hover:text-zinc-800"
           >
             <ArrowLeft className="h-3.5 w-3.5" />

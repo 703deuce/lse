@@ -1,23 +1,19 @@
-import { Suspense } from "react";
-import { Loader2 } from "lucide-react";
-import { ReviewsDashboard } from "@/components/reviews/reviews-dashboard";
+import { redirect } from "next/navigation";
 
-export default async function ReviewsPage({
+export default async function ReviewsRedirectPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { businessId } = await params;
-
-  return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-[400px] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-        </div>
-      }
-    >
-      <ReviewsDashboard businessId={businessId} />
-    </Suspense>
-  );
+  const sp = await searchParams;
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) {
+    if (typeof v === "string") qs.set(k, v);
+    else if (Array.isArray(v) && v[0]) qs.set(k, v[0]);
+  }
+  const q = qs.toString();
+  redirect(`/businesses/${businessId}/reputation/reviews${q ? `?${q}` : ""}`);
 }
