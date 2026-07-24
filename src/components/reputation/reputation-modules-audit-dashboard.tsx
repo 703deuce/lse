@@ -410,7 +410,12 @@ export function ReputationStrategyReport({
           </div>
         </SectionCard>
 
-        <SectionCard id="maps-impact" title="Maps Visibility Impact" icon={MapPinned} viewLink="#">
+        <SectionCard
+          id="maps-impact"
+          title="Maps Visibility Impact"
+          icon={MapPinned}
+          viewLink={`/businesses/${businessId}/local-visibility`}
+        >
           <p className="text-sm leading-6 text-[#344054]">{data.mapsVisibility.summary}</p>
           <dl className="mt-4 space-y-2 text-sm">
             <div className="flex justify-between">

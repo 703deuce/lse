@@ -161,6 +161,7 @@ function emptyOverview(dateRangeLabel: string): ReviewOverviewData {
     reviews60dDeltaPct: 0,
     reviews90d: 0,
     reviews90dDeltaPct: 0,
+    reviews365d: 0,
     reviewsPerWeek: 0,
     reviewsPerMonth: 0,
     reviewsPerWeekBaseline90d: 0,
@@ -469,7 +470,7 @@ export async function loadReviewOverviewData(
 
   const targetRows = await loadStoredReviews(supabase, {
     businessId,
-    lookbackDays: 180,
+    lookbackDays: 365,
   });
 
   const targetEntity = momentum?.entities.find((e) => e.entity_type === "target") ?? null;
@@ -684,6 +685,9 @@ export async function loadReviewOverviewData(
     responseAudit.unansweredNegative +
     responseAudit.unansweredNeutral;
 
+  // Prefer a true 365d window from stored reviews when available.
+  const reviews365d = countLastDays(targetRows, now, 365);
+
   const competitorAvgReviews =
     competitorEntities.length > 0
       ? Math.round(
@@ -821,6 +825,7 @@ export async function loadReviewOverviewData(
     reviews60dDeltaPct: pctDelta(reviews60d, prior60d),
     reviews90d,
     reviews90dDeltaPct: pctDelta(reviews90d, prior90d),
+    reviews365d,
     reviewsPerWeek,
     reviewsPerMonth,
     reviewsPerWeekBaseline90d,

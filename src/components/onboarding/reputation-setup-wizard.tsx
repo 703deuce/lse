@@ -180,13 +180,9 @@ export function ReputationSetupWizard({
 
   // Prefill when continuing with an existing business
   useEffect(() => {
-    if (!initialBusinessId) {
-      setLoadingExisting(false);
-      return;
-    }
+    if (!initialBusinessId) return;
     let cancelled = false;
     (async () => {
-      setLoadingExisting(true);
       try {
         const [accountRes, settingsRes] = await Promise.all([
           fetch(`/api/businesses/${initialBusinessId}/account`),
@@ -298,16 +294,20 @@ export function ReputationSetupWizard({
     try {
       // Already have a business with place_id connected — just continue
       if (businessId && gbpConnected && (selected?.place_id || existingPlaceId)) {
-        // Optionally refresh place_id on re-select
         if (selected?.place_id && selected.place_id !== existingPlaceId) {
-          await fetch("/api/reputation/settings", {
-            method: "PUT",
+          await fetch(`/api/businesses/${businessId}/attach-listing`, {
+            method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              businessId,
-              placeId: selected.place_id,
-              defaultSenderName: senderName || undefined,
-              defaultSenderEmail: senderEmail || undefined,
+              place_id: selected.place_id,
+              cid: selected.cid ?? null,
+              name: selected.name,
+              website_url: selected.website ?? null,
+              phone: selected.phone ?? null,
+              address_text: selected.address ?? null,
+              lat: selected.lat ?? null,
+              lng: selected.lng ?? null,
+              primary_category: selected.category ?? null,
             }),
           }).catch(() => null);
           setExistingPlaceId(selected.place_id);
@@ -317,14 +317,25 @@ export function ReputationSetupWizard({
         return;
       }
 
-      // Existing business without place_id — attach listing via settings
+      // Existing business without place_id — attach listing (no campaign entitlement)
       if (businessId && selected) {
-        const patchRes = await fetch("/api/reputation/settings", {
-          method: "PUT",
+        const patchRes = await fetch(`/api/businesses/${businessId}/attach-listing`, {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            businessId,
-            placeId: selected.place_id ?? null,
+            place_id: selected.place_id ?? null,
+            cid: selected.cid ?? null,
+            name: selected.name || form.name.trim(),
+            website_url: selected.website || form.website.trim() || null,
+            phone: selected.phone || form.phone.trim() || null,
+            address_text: selected.address?.trim() || null,
+            lat: selected.lat ?? null,
+            lng: selected.lng ?? null,
+            primary_category: selected.category || form.primaryService.trim() || null,
+            service_area_mode: serviceAreaMode,
+            scan_center_lat: selected.lat ?? null,
+            scan_center_lng: selected.lng ?? null,
+            scan_center_label: selected.address?.trim() || form.city.trim() || null,
           }),
         });
         if (patchRes.ok) {
@@ -333,7 +344,7 @@ export function ReputationSetupWizard({
           setStep(3);
           return;
         }
-        // Fall through to create if settings update isn't available
+        // Fall through to create if attach isn't available
       }
 
       if (!selected) {
@@ -414,9 +425,11 @@ export function ReputationSetupWizard({
       const totalReviews = Number(overview.totalReviews ?? 0);
       const reviewsPerMonth = Number(overview.reviewsPerMonth ?? 0);
       const reviews365Approx =
-        totalReviews > 0 && reviews90d * 4 > totalReviews
-          ? totalReviews
-          : Math.max(reviews90d * 4, reviews30d * 12, totalReviews);
+        overview.reviews365d != null
+          ? Number(overview.reviews365d)
+          : totalReviews > 0 && reviews90d * 4 > totalReviews
+            ? totalReviews
+            : Math.max(reviews90d * 4, reviews30d * 12, totalReviews);
 
       const impactRows = (overview.impactRows as Array<{
         name: string;
@@ -516,7 +529,7 @@ export function ReputationSetupWizard({
     });
   }, []);
 
-  // Step 3: sequential analysis UI + sync
+  // Step 3: sequential analysis UI + sync, then poll for summary data
   useEffect(() => {
     if (step !== 3 || !businessId || analyzeStarted.current) return;
     analyzeStarted.current = true;
@@ -538,13 +551,41 @@ export function ReputationSetupWizard({
         }, i * 900)
       );
     });
+
+    let cancelled = false;
+    const pollSummary = async () => {
+      const deadline = Date.now() + 18_000;
+      while (!cancelled && Date.now() < deadline) {
+        await loadSummary(businessId);
+        // Stop early once we have meaningful review totals
+        // (loadSummary sets state; re-read via a lightweight check)
+        try {
+          const res = await fetch(
+            `/api/reviews/overview?businessId=${encodeURIComponent(businessId)}`
+          );
+          if (res.ok) {
+            const json = (await res.json()) as { totalReviews?: number; hasReviewsData?: boolean };
+            if (json.hasReviewsData || Number(json.totalReviews ?? 0) > 0) break;
+          }
+        } catch {
+          /* keep polling */
+        }
+        await new Promise((r) => setTimeout(r, 2500));
+      }
+      if (!cancelled) {
+        await loadSummary(businessId);
+        setAnalyzeDone(true);
+      }
+    };
+
     timers.push(
       setTimeout(() => {
-        void loadSummary(businessId).finally(() => setAnalyzeDone(true));
+        void pollSummary();
       }, ANALYZE_MESSAGES.length * 900 + 200)
     );
 
     return () => {
+      cancelled = true;
       timers.forEach(clearTimeout);
     };
   }, [step, businessId, loadSummary]);
@@ -564,19 +605,19 @@ export function ReputationSetupWizard({
     setError(null);
     try {
       if (!skip) {
-        const name = (displayName || form.name).trim();
-        const body: Record<string, unknown> = { businessId };
-        if (name) body.defaultSenderName = senderName.trim() || name;
-        if (senderName.trim()) {
-          body.defaultSenderName = senderName.trim();
-          body.emailSenderName = senderName.trim();
-        }
-        if (senderEmail.trim()) body.defaultSenderEmail = senderEmail.trim();
-        // Persist sender fields when API supports them; ignore failures
-        await fetch("/api/reputation/settings", {
+        await fetch("/api/workflow/setup-preferences", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
+          body: JSON.stringify({
+            businessId,
+            displayName: (displayName || form.name).trim(),
+            requestMessage: requestMessage.trim(),
+            senderName: senderName.trim() || (displayName || form.name).trim(),
+            senderEmail: senderEmail.trim() || undefined,
+            followUpDays,
+            channels,
+            qrBrandingNote: "Use brand colors on the QR poster from Reputation → QR Poster.",
+          }),
         }).catch(() => null);
       }
       setStep(5);
@@ -598,6 +639,7 @@ export function ReputationSetupWizard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           businessId,
+          fromSetup: true,
           every_new_review: notify.every_new_review,
           low_rating_only: notify.low_rating_only,
           unanswered_only: notify.unanswered_only,
@@ -606,11 +648,14 @@ export function ReputationSetupWizard({
           competitor_velocity_spike: notify.competitor_velocity_spike,
         }),
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error ?? "Could not save notification settings");
+      // Soft-continue on entitlement/API failures so setup never gets stuck
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        console.warn("Notification save skipped:", json.error ?? res.status);
+      }
       setStep(6);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save notifications");
+    } catch {
+      setStep(6);
     } finally {
       setSavingNotify(false);
     }
@@ -621,17 +666,22 @@ export function ReputationSetupWizard({
     setFinishing(true);
     setError(null);
     try {
-      await fetch("/api/workflow/setup-complete", {
+      const res = await fetch("/api/workflow/setup-complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ businessId }),
-      }).catch(() => null);
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error ?? "Could not complete setup");
+      }
       const href =
         path === "overview"
           ? `/businesses/${businessId}/reputation/overview`
           : `/businesses/${businessId}/reputation/requests`;
       router.push(href);
-    } finally {
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not finish setup");
       setFinishing(false);
     }
   }

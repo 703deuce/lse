@@ -13,8 +13,9 @@ export async function GET(request: Request) {
     const businessId = url.searchParams.get("businessId");
     if (!businessId) return NextResponse.json({ error: "businessId required" }, { status: 400 });
     const auth = await requireBusinessAccess(businessId);
-    await requireEntitlement(auth.organizationId, "review_campaigns");
+    // Allow read during first-time setup even before campaign entitlements.
     const settings = await getNotificationSettings(businessId);
+    void auth;
     return NextResponse.json({ settings });
   } catch (err) {
     if (err instanceof EntitlementError) {
@@ -30,7 +31,9 @@ export async function PUT(request: Request) {
     const businessId = body.businessId as string | undefined;
     if (!businessId) return NextResponse.json({ error: "businessId required" }, { status: 400 });
     const auth = await requireBusinessAccess(businessId);
-    await requireEntitlement(auth.organizationId, "review_campaigns");
+    // Setup wizard must be able to save alert prefs; full campaign features
+    // remain entitlement-gated elsewhere.
+    const fromSetup = Boolean(body.fromSetup);
 
     const recipientsRaw = body.emailRecipients ?? body.email_recipients;
     const email_recipients = Array.isArray(recipientsRaw)
@@ -41,6 +44,10 @@ export async function PUT(request: Request) {
             .map((e: string) => e.trim())
             .filter(Boolean)
         : undefined;
+
+    if (!fromSetup) {
+      await requireEntitlement(auth.organizationId, "review_campaigns");
+    }
 
     const settings = await upsertNotificationSettings({
       organizationId: auth.organizationId,

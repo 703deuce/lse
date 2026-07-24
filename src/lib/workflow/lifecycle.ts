@@ -14,6 +14,12 @@ export type BusinessLifecycleState = {
   hasMapsScan: boolean;
   latestScanId: string | null;
   placeId: string | null;
+  /** Explicit wizard finish (migration 079 column). */
+  setupCompletedAt: string | null;
+  /**
+   * True when the wizard was finished OR the business already has review data
+   * (grandfathered accounts that never ran the new wizard).
+   */
   setupCompleted: boolean;
 };
 
@@ -120,9 +126,13 @@ export async function loadBusinessLifecycleState(
     businessHasReviewsData(businessId),
   ]);
 
-  // Completed setup, or already has review data from a prior import.
-  const setupCompleted =
-    business.reputation_setup_completed_at != null || hasReviewsData;
+  const setupCompletedAt =
+    business.reputation_setup_completed_at != null
+      ? String(business.reputation_setup_completed_at)
+      : null;
+
+  // Explicit finish, or grandfathered account that already imported reviews/maps.
+  const setupCompleted = setupCompletedAt != null || hasReviewsData || hasMapsScan;
 
   const phase: LifecyclePhase = hasMapsScan
     ? "maps_activated"
@@ -138,6 +148,7 @@ export async function loadBusinessLifecycleState(
     hasMapsScan,
     latestScanId,
     placeId: business.place_id != null ? String(business.place_id) : null,
+    setupCompletedAt,
     setupCompleted,
   };
 }

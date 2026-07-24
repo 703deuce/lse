@@ -174,6 +174,7 @@ export function ReviewOverviewDashboard({
   data: ReviewOverviewData;
 }) {
   const [draftStatus, setDraftStatus] = useState<string | null>(null);
+  const [draftByReviewId, setDraftByReviewId] = useState<Record<string, string>>({});
   const analyticsHref = `/businesses/${businessId}/reputation/analytics`;
   const competitorsHref = `/businesses/${businessId}/reputation/competitors`;
   const mapsHref = data.hasMapsData
@@ -191,7 +192,7 @@ export function ReviewOverviewDashboard({
     data.momentumLabel === "Healthy" ||
     data.momentumLabel === "Recovering";
 
-  async function generateAndCopy(reviewId: string, reviewerName: string) {
+  async function generateResponse(reviewId: string, reviewerName: string) {
     setDraftStatus(null);
     try {
       const res = await fetch("/api/reputation/responses/generate", {
@@ -208,11 +209,27 @@ export function ReviewOverviewDashboard({
         json.drafts?.[0]?.reply ||
         json.reply ||
         `Hi ${reviewerName.split(" ")[0] || "there"},\n\nThank you for your review. We appreciate your feedback.\n\nBest regards`;
+      setDraftByReviewId((prev) => ({ ...prev, [reviewId]: reply }));
       await navigator.clipboard.writeText(reply);
-      setDraftStatus("Response copied — paste it in Google to publish");
+      setDraftStatus("Response generated and copied — paste it in Google to publish");
     } catch {
       setDraftStatus("Could not generate a response right now");
     }
+  }
+
+  async function copyResponse(reviewId: string, reviewerName: string) {
+    setDraftStatus(null);
+    const existing = draftByReviewId[reviewId];
+    if (existing) {
+      try {
+        await navigator.clipboard.writeText(existing);
+        setDraftStatus("Response copied — paste it in Google to publish");
+      } catch {
+        setDraftStatus("Could not copy to clipboard");
+      }
+      return;
+    }
+    await generateResponse(reviewId, reviewerName);
   }
 
   return (
@@ -487,9 +504,10 @@ export function ReviewOverviewDashboard({
 
         <SoftCard>
           <div className="mb-3 flex items-start justify-between gap-2">
-            <h2 className="text-[14px] font-semibold text-zinc-900">
-              Review Impact vs Competitors (90 days)
-            </h2>
+            <div>
+              <h2 className="text-[14px] font-semibold text-zinc-900">Competitive movement</h2>
+              <p className="mt-0.5 text-[12px] text-zinc-500">Review impact vs competitors (90 days)</p>
+            </div>
             <ViewLink href={competitorsHref}>See All Competitors</ViewLink>
           </div>
           {data.impactRows.length > 0 ? (
@@ -672,7 +690,7 @@ export function ReviewOverviewDashboard({
                 <div className="flex flex-wrap gap-1.5 sm:shrink-0">
                   <button
                     type="button"
-                    onClick={() => void generateAndCopy(review.id, review.reviewerName)}
+                    onClick={() => void generateResponse(review.id, review.reviewerName)}
                     className="inline-flex h-8 items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2.5 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50"
                   >
                     <MessageSquare className="h-3.5 w-3.5" />
@@ -680,7 +698,7 @@ export function ReviewOverviewDashboard({
                   </button>
                   <button
                     type="button"
-                    onClick={() => void generateAndCopy(review.id, review.reviewerName)}
+                    onClick={() => void copyResponse(review.id, review.reviewerName)}
                     className="inline-flex h-8 items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2.5 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50"
                   >
                     <Copy className="h-3.5 w-3.5" />

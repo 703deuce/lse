@@ -25,7 +25,9 @@ export default async function OnboardingPage({
 
   if (businessId) {
     const state = await loadBusinessLifecycleState(businessId);
-    if (state && state.phase !== "needs_onboarding") {
+    // Only skip the wizard after an explicit finish.
+    // Mid-wizard review sync must not kick the user out of steps 4–6.
+    if (state?.setupCompletedAt) {
       redirect(`/businesses/${businessId}/reputation/overview`);
     }
   }

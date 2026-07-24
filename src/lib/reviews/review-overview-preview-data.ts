@@ -44,6 +44,7 @@ export type ReviewOverviewData = {
   reviews60dDeltaPct: number;
   reviews90d: number;
   reviews90dDeltaPct: number;
+  reviews365d: number;
   reviewsPerWeek: number;
   reviewsPerMonth: number;
   reviewsPerWeekBaseline90d: number;
@@ -124,6 +125,7 @@ export const reviewOverviewPreviewData: ReviewOverviewData = {
   reviews60dDeltaPct: 5,
   reviews90d: 71,
   reviews90dDeltaPct: 8,
+  reviews365d: 198,
   reviewsPerWeek: 2.8,
   reviewsPerMonth: 11.7,
   reviewsPerWeekBaseline90d: 2.3,
