@@ -12,8 +12,10 @@ import {
   Gauge,
   Grid3X3,
   History,
+  KeyRound,
   LayoutDashboard,
   Link2,
+  Map,
   MapPin,
   MessageSquareText,
   Palette,
@@ -28,6 +30,7 @@ import {
   Webhook,
 } from "lucide-react";
 import { toolHref, type LocationToolSlug } from "@/lib/dashboard/tool-modules";
+import type { LifecyclePhase } from "@/lib/workflow/lifecycle";
 
 export type SidebarNavChild = {
   href: string;
@@ -65,6 +68,13 @@ export type SidebarReputationNav = {
   subLinks: SidebarNavChild[];
 };
 
+export type SidebarLifecycleOptions = {
+  /** When set, Local Visibility expands after first Maps scan. */
+  mapsActivated?: boolean;
+  /** Hide Get started once a business is past onboarding. */
+  phase?: LifecyclePhase | null;
+};
+
 function loc(slug: LocationToolSlug, businessId?: string | null): string {
   return toolHref(slug, businessId);
 }
@@ -72,24 +82,39 @@ function loc(slug: LocationToolSlug, businessId?: string | null): string {
 /**
  * One sidebar for the whole app.
  *
- * Naming rules:
- * - Workspace = org home (clients, prospects, work queue)
- * - Dashboard = always under Work (picker if no location; overview if selected)
- * - Never under Account; never appears/disappears when switching locations
+ * Customer lifecycle structure (when a location is selected):
+ * Overview → Reputation → Grow Reviews → Local Visibility → Account
+ *
+ * Work / Growth Tools / Deliverables remain for consultant org workflows.
  */
-export function buildUnifiedSidebarNav(businessId?: string | null): {
-  getStarted: SidebarNavItem;
+export function buildUnifiedSidebarNav(
+  businessId?: string | null,
+  options?: SidebarLifecycleOptions
+): {
+  getStarted: SidebarNavItem | null;
+  overview: SidebarNavItem | null;
   work: SidebarNavSection;
   /** @deprecated Kept for callers that still destructure; menu structure is stable. */
   thisLocation: SidebarNavSection | null;
   growthTools: SidebarNavSection;
   reputation: SidebarReputationNav;
+  growReviews: SidebarNavSection;
+  localVisibility: SidebarNavSection;
   deliverables: SidebarNavSection;
   account: SidebarNavSection;
 } {
-  // Dashboard always stays under Work in the same slot — never disappears / pops
-  // into another section when a client is selected. No location → picker; with
-  // location → that client's overview.
+  const mapsActivated = Boolean(options?.mapsActivated);
+  const phase = options?.phase ?? null;
+  const showGetStarted = !phase || phase === "needs_onboarding";
+
+  const overview: SidebarNavItem | null = businessId
+    ? {
+        href: loc("review-overview", businessId),
+        label: "Overview",
+        icon: Sparkles,
+      }
+    : null;
+
   const workItems: SidebarNavItem[] = [
     { href: "/workspace", label: "Workspace", icon: Briefcase },
     {
@@ -109,33 +134,86 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
     },
   ];
 
-  workItems.push(
-    {
-      href: loc("maps-scans", businessId),
-      label: "Maps Scans",
-      icon: Grid3X3,
-      isRankGrid: true,
-    },
-    {
-      href: loc("maps-campaigns", businessId),
-      label: "Maps Campaigns",
-      icon: FolderKanban,
-    },
-    {
-      href: "/scans",
-      label: "Recent Scans",
-      icon: History,
-    }
-  );
-
   const thisLocation: SidebarNavSection | null = null;
 
-  return {
-    getStarted: {
-      href: "/onboarding",
-      label: "Get started",
-      icon: MapPin,
+  const reputationItems: SidebarNavItem[] = [
+    { href: loc("reviews", businessId), label: "Reviews", icon: Star },
+    { href: loc("review-analytics", businessId), label: "Review Velocity", icon: TrendingUp },
+    { href: loc("review-competitors", businessId), label: "Competitors", icon: Swords },
+    { href: loc("review-insights", businessId), label: "Insights", icon: Gauge },
+    { href: loc("reputation-audit", businessId), label: "Reputation Audit", icon: FileSearch },
+  ];
+
+  const growReviewsItems: SidebarNavItem[] = [
+    {
+      href: loc("review-requests", businessId),
+      label: "Review Requests",
+      icon: MessageSquareText,
     },
+    { href: loc("review-campaigns", businessId), label: "Campaigns", icon: FolderKanban },
+    { href: loc("contacts", businessId), label: "Contacts", icon: Users },
+    { href: loc("integrations", businessId), label: "Automations", icon: Webhook },
+    { href: loc("review-templates", businessId), label: "Templates", icon: FileText },
+    { href: loc("review-qr", businessId), label: "QR Poster", icon: QrCode },
+  ];
+
+  const localVisibilityItems: SidebarNavItem[] = mapsActivated
+    ? [
+        {
+          href: businessId ? `/businesses/${businessId}/maps` : "/scans",
+          label: "Maps Overview",
+          icon: Map,
+        },
+        {
+          href: loc("maps-scans", businessId),
+          label: "Rank Scans",
+          icon: Grid3X3,
+          isRankGrid: true,
+        },
+        {
+          href: loc("keywords", businessId),
+          label: "Keywords",
+          icon: KeyRound,
+        },
+        {
+          href: businessId ? `/businesses/${businessId}/scans` : "/scans",
+          label: "Grid Reports",
+          icon: History,
+        },
+        {
+          href: businessId
+            ? `/businesses/${businessId}/maps/competitors`
+            : loc("maps-scans", businessId),
+          label: "Maps Competitors",
+          icon: Swords,
+        },
+        {
+          href: businessId
+            ? `/businesses/${businessId}/maps/profile`
+            : loc("growth-audit", businessId),
+          label: "Profile Analysis",
+          icon: FileSearch,
+        },
+      ]
+    : [
+        {
+          href: businessId
+            ? `/businesses/${businessId}/local-visibility`
+            : "/scans/new",
+          label: "Check Maps Rankings",
+          icon: MapPin,
+        },
+      ];
+
+  return {
+    getStarted: showGetStarted
+      ? {
+          href: "/onboarding",
+          label: "Get started",
+          icon: MapPin,
+        }
+      : null,
+    overview,
     work: {
       title: "Work",
       items: workItems,
@@ -150,67 +228,26 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
         { href: loc("ai-visibility", businessId), label: "AI Visibility", icon: Bot },
       ],
     },
-    reputation: (() => {
-      const overview: SidebarNavItem = {
+    reputation: {
+      title: "Reputation",
+      overview: overview ?? {
         href: loc("review-overview", businessId),
         label: "Overview",
         icon: Sparkles,
-      };
-      const groups: SidebarNavGroup[] = [
-        {
-          title: "Intelligence",
-          items: [
-            { href: loc("reviews", businessId), label: "Reviews", icon: Star },
-            { href: loc("review-analytics", businessId), label: "Review Velocity", icon: TrendingUp },
-            { href: loc("review-competitors", businessId), label: "Competitors", icon: Swords },
-            { href: loc("review-insights", businessId), label: "Insights", icon: Gauge },
-            {
-              href: loc("reputation-audit", businessId),
-              label: "Reputation Audit",
-              icon: FileSearch,
-            },
-          ],
-        },
-        {
-          title: "Growth",
-          items: [
-            {
-              href: loc("review-requests", businessId),
-              label: "Review Requests",
-              icon: MessageSquareText,
-            },
-            { href: loc("review-qr", businessId), label: "QR Poster", icon: QrCode },
-            { href: loc("review-campaigns", businessId), label: "Campaigns", icon: FolderKanban },
-            { href: loc("review-templates", businessId), label: "Templates", icon: FileText },
-            { href: loc("contacts", businessId), label: "Contacts", icon: Users },
-          ],
-        },
-        {
-          title: "Automation",
-          items: [
-            { href: loc("integrations", businessId), label: "Automations", icon: Webhook },
-            { href: loc("review-alerts", businessId), label: "Alerts", icon: Bell },
-          ],
-        },
-        {
-          title: "Configuration",
-          items: [
-            {
-              href: loc("review-settings", businessId),
-              label: "Reputation Settings",
-              icon: Settings2,
-            },
-          ],
-        },
-      ];
-      return {
-        title: "Reputation",
-        overview,
-        groups,
-        items: [overview, ...groups.flatMap((g) => g.items)],
-        subLinks: [],
-      };
-    })(),
+      },
+      // Groups kept for back-compat; sidebar renders flat Reputation + Grow Reviews sections.
+      groups: [{ title: "Reputation", items: reputationItems }],
+      items: reputationItems,
+      subLinks: [],
+    },
+    growReviews: {
+      title: "Grow Reviews",
+      items: growReviewsItems,
+    },
+    localVisibility: {
+      title: "Local Visibility",
+      items: localVisibilityItems,
+    },
     deliverables: {
       title: "Deliverables",
       items: [
@@ -221,8 +258,11 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
     account: {
       title: "Account",
       items: [
+        { href: loc("review-alerts", businessId), label: "Alerts", icon: Bell },
+        { href: loc("integrations", businessId), label: "Integrations", icon: Webhook },
+        { href: loc("review-settings", businessId), label: "Settings", icon: Settings2 },
         { href: "/branding", label: "Branding", icon: Palette },
-        { href: "/settings", label: "Settings", icon: Settings },
+        { href: "/settings", label: "Account Settings", icon: Settings },
       ],
     },
   };
@@ -318,6 +358,16 @@ export function isSidebarHrefActive(
 
   // Review Overview intelligence page (exact; not other /reputation/*)
   if (businessId && href === `/businesses/${businessId}/reputation/overview`) {
+    return pathname === href || pathname.startsWith(`${href}?`);
+  }
+
+  // Maps overview
+  if (businessId && href === `/businesses/${businessId}/maps`) {
+    return pathname === href || pathname.startsWith(`${href}?`);
+  }
+
+  // Local visibility bridge
+  if (businessId && href === `/businesses/${businessId}/local-visibility`) {
     return pathname === href || pathname.startsWith(`${href}?`);
   }
 

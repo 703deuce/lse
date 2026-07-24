@@ -1,4 +1,4 @@
-import { format, startOfDay, subDays } from "date-fns";
+import { format, formatDistanceToNowStrict, startOfDay, subDays } from "date-fns";
 import { createServiceClient } from "@/lib/db/client";
 import { listCampaigns } from "@/lib/reputation/campaigns";
 import { auditOwnerResponses } from "@/lib/reputation/response-audit";
@@ -161,6 +161,7 @@ function emptyOverview(dateRangeLabel: string): ReviewOverviewData {
     reviews60dDeltaPct: 0,
     reviews90d: 0,
     reviews90dDeltaPct: 0,
+    reviews365d: 0,
     reviewsPerWeek: 0,
     reviewsPerMonth: 0,
     reviewsPerWeekBaseline90d: 0,
@@ -171,10 +172,21 @@ function emptyOverview(dateRangeLabel: string): ReviewOverviewData {
     competitorRank: null,
     competitorPoolSize: null,
     competitorRankDelta: null,
+    competitorReviewGap: null,
+    competitorAvgReviews: null,
     responseRatePct: 0,
     answeredCount: 0,
     answeredOf: 0,
     unansweredNegative: 0,
+    unansweredTotal: 0,
+    recommendedMonthlyPace: 8,
+    movement: [],
+    recentReviews: [],
+    bestCampaignName: null,
+    combinedInsight: null,
+    mapsBridgeMessage: null,
+    strongestKeyword: null,
+    weakestKeyword: null,
     trendSeries: [],
     impactRows: [],
     mapsAvgRank: null,
@@ -191,6 +203,7 @@ function emptyOverview(dateRangeLabel: string): ReviewOverviewData {
       reviews: 0,
       badReviews: 0,
       convRatePct: 0,
+      delivered: 0,
     },
     nextAction: {
       title: "Sync your reviews",
@@ -210,11 +223,15 @@ async function loadMapsVisibility(businessId: string): Promise<{
   top10VisibilityPct: number | null;
   top10VisibilityDelta: number | null;
   nearbyMiles: number;
+  strongestKeyword: string | null;
+  weakestKeyword: string | null;
 }> {
   const supabase = createServiceClient();
   const { data: batches } = await supabase
     .from("scan_batches")
-    .select("id, created_at, finished_at, aggregate_metrics, radius_meters, status")
+    .select(
+      "id, created_at, finished_at, aggregate_metrics, radius_meters, status, confidence_summary"
+    )
     .eq("business_id", businessId)
     .in("status", ["ready", "partial", "rank_ready"])
     .order("created_at", { ascending: false })
@@ -236,6 +253,8 @@ async function loadMapsVisibility(businessId: string): Promise<{
       top10VisibilityPct: null,
       top10VisibilityDelta: null,
       nearbyMiles: 4,
+      strongestKeyword: null,
+      weakestKeyword: null,
     };
   }
 
@@ -283,6 +302,17 @@ async function loadMapsVisibility(businessId: string): Promise<{
   const nearbyMiles =
     radiusMeters > 0 ? Math.max(1, Math.round((radiusMeters / 1609.34) * 10) / 10) : 4;
 
+  // Best / weakest keyword from recent scans (lower avg rank = stronger).
+  const byKeyword = new Map<string, number>();
+  for (const batch of usable) {
+    const conf = (batch.confidence_summary ?? {}) as { keyword_label?: string };
+    const label = conf.keyword_label?.trim();
+    const avg = metricsOf(batch).avgRank;
+    if (!label || avg == null) continue;
+    if (!byKeyword.has(label)) byKeyword.set(label, avg);
+  }
+  const rankedKeywords = [...byKeyword.entries()].sort((a, b) => a[1] - b[1]);
+
   return {
     hasMapsData: true,
     mapsAvgRank: current.avgRank != null ? round1(current.avgRank) : null,
@@ -302,21 +332,32 @@ async function loadMapsVisibility(businessId: string): Promise<{
         ? round1(current.top10Pct - previous.top10Pct)
         : null,
     nearbyMiles,
+    strongestKeyword: rankedKeywords[0]?.[0] ?? null,
+    weakestKeyword:
+      rankedKeywords.length > 1
+        ? rankedKeywords[rankedKeywords.length - 1]![0]
+        : null,
   };
 }
 
 async function loadCampaignPerformance(businessId: string): Promise<{
   hasCampaignData: boolean;
   campaign: ReviewOverviewData["campaign"];
+  bestCampaignName: string | null;
 }> {
   const supabase = createServiceClient();
   const since = subDays(new Date(), 30).toISOString();
 
   const campaigns = await listCampaigns(businessId).catch(() => []);
   const campaignIds = campaigns.map((c) => c.id as string);
+  const campaignNameById = new Map(
+    campaigns.map((c) => [c.id as string, String(c.name ?? "Campaign")])
+  );
 
   let sent = 0;
+  let delivered = 0;
   let clicked = 0;
+  const sentByCampaign = new Map<string, number>();
 
   if (campaignIds.length) {
     const { data: messages } = await supabase
@@ -328,7 +369,12 @@ async function loadCampaignPerformance(businessId: string): Promise<{
       const when = String(m.sent_at ?? m.created_at ?? "");
       if (!when || when < since) continue;
       const s = String(m.status);
-      if (s === "sent" || s === "delivered" || s === "clicked") sent++;
+      if (s === "sent" || s === "delivered" || s === "clicked") {
+        sent++;
+        const cid = String(m.campaign_id ?? "");
+        if (cid) sentByCampaign.set(cid, (sentByCampaign.get(cid) ?? 0) + 1);
+      }
+      if (s === "delivered" || s === "clicked") delivered++;
       if (s === "clicked") clicked++;
     }
   }
@@ -373,8 +419,21 @@ async function loadCampaignPerformance(businessId: string): Promise<{
   const convRatePct = sent > 0 ? Math.round((reviewsDetected / sent) * 100) : 0;
   const hasCampaignData = sent > 0 || reviewsDetected > 0 || campaigns.length > 0;
 
+  let bestCampaignName: string | null = null;
+  let bestSent = 0;
+  for (const [cid, count] of sentByCampaign) {
+    if (count > bestSent) {
+      bestSent = count;
+      bestCampaignName = campaignNameById.get(cid) ?? null;
+    }
+  }
+  if (!bestCampaignName && campaigns[0]) {
+    bestCampaignName = String(campaigns[0].name ?? "Campaign");
+  }
+
   return {
     hasCampaignData,
+    bestCampaignName,
     campaign: {
       sent,
       clickedPct,
@@ -382,6 +441,7 @@ async function loadCampaignPerformance(businessId: string): Promise<{
       reviews: reviewsDetected,
       badReviews,
       convRatePct,
+      delivered: delivered || sent,
     },
   };
 }
@@ -410,7 +470,7 @@ export async function loadReviewOverviewData(
 
   const targetRows = await loadStoredReviews(supabase, {
     businessId,
-    lookbackDays: 180,
+    lookbackDays: 365,
   });
 
   const targetEntity = momentum?.entities.find((e) => e.entity_type === "target") ?? null;
@@ -620,6 +680,133 @@ export async function loadReviewOverviewData(
     };
   }
 
+  const unansweredTotal =
+    responseAudit.unansweredPositive +
+    responseAudit.unansweredNegative +
+    responseAudit.unansweredNeutral;
+
+  // Prefer a true 365d window from stored reviews when available.
+  const reviews365d = countLastDays(targetRows, now, 365);
+
+  const competitorAvgReviews =
+    competitorEntities.length > 0
+      ? Math.round(
+          competitorEntities.reduce(
+            (a, e) => a + Number(e.total_reviews_current ?? e.reviews_90d ?? 0),
+            0
+          ) / competitorEntities.length
+        )
+      : null;
+  const competitorReviewGap =
+    competitorAvgReviews != null ? Math.max(0, competitorAvgReviews - totalReviews) : null;
+
+  const velocityDeltaPct = pctDelta(reviews30d, prior30d);
+  const recommendedMonthlyPace = Math.max(
+    8,
+    Math.round(reviewsPerMonth * 2),
+    Math.round(reviewsPerMonth + 4)
+  );
+
+  const movement: ReviewOverviewData["movement"] = [];
+  if (hasReviewsData) {
+    movement.push({ label: "Rating unchanged", tone: "neutral" });
+    if (reviews30d > 0) {
+      movement.push({
+        label: `${reviews30d} new review${reviews30d === 1 ? "" : "s"}`,
+        tone: "positive",
+      });
+    }
+    if (velocityDeltaPct !== 0) {
+      movement.push({
+        label:
+          velocityDeltaPct > 0
+            ? `Velocity increased ${velocityDeltaPct}%`
+            : `Velocity decreased ${Math.abs(velocityDeltaPct)}%`,
+        tone: velocityDeltaPct > 0 ? "positive" : "warning",
+      });
+    }
+    if (competitorRankDelta != null && competitorRankDelta !== 0) {
+      movement.push({
+        label:
+          competitorRankDelta > 0
+            ? `Competitor gap improved by ${competitorRankDelta}`
+            : `Competitor gap widened by ${Math.abs(competitorRankDelta)}`,
+        tone: competitorRankDelta > 0 ? "positive" : "warning",
+      });
+    }
+    if (unansweredTotal > 0) {
+      movement.push({
+        label: `${unansweredTotal} review${unansweredTotal === 1 ? "" : "s"} remain unanswered`,
+        tone: "warning",
+      });
+    }
+  }
+
+  const recentSorted = [...targetRows]
+    .sort((a, b) => {
+      const da = new Date(a.published_at ?? a.review_date ?? a.created_at).getTime();
+      const db = new Date(b.published_at ?? b.review_date ?? b.created_at).getTime();
+      return db - da;
+    })
+    .slice(0, 5);
+
+  const recentReviews: ReviewOverviewData["recentReviews"] = recentSorted.map((row) => {
+    const text = (row.review_text ?? "").trim();
+    const when = row.published_at ?? row.review_date ?? row.created_at;
+    return {
+      id: row.id,
+      rating: row.rating != null ? Number(row.rating) : null,
+      reviewerName: row.reviewer_name?.trim() || "Google reviewer",
+      excerpt: text.length > 120 ? `${text.slice(0, 117)}…` : text || "No written review",
+      dateLabel: when
+        ? formatDistanceToNowStrict(new Date(when), { addSuffix: true })
+        : "Recently",
+      responded: Boolean(row.owner_response_text?.trim()),
+      reviewUrl: row.review_url,
+    };
+  });
+
+  const youImpact = impactRows.find((r) => r.isYou)?.reviewsGained ?? reviews30d;
+  const marketAvg =
+    impactRows.find((r) => r.name.toLowerCase().includes("benchmark"))?.reviewsGained ?? null;
+
+  let combinedInsight: string | null = null;
+  let mapsBridgeMessage: string | null = null;
+
+  if (maps.hasMapsData && hasReviewsData) {
+    if (
+      maps.top3VisibilityDelta != null &&
+      maps.top3VisibilityDelta > 0 &&
+      reviews30d > 0
+    ) {
+      combinedInsight = `You gained ${reviews30d} reviews during the last 30 days, and your top-3 coverage increased${
+        maps.top3VisibilityDelta != null ? ` by ${maps.top3VisibilityDelta}%` : ""
+      }.`;
+    } else if (
+      reviewsPerMonth > 0 &&
+      marketAvg != null &&
+      reviews30d >= marketAvg &&
+      (maps.top3VisibilityDelta == null || maps.top3VisibilityDelta <= 0)
+    ) {
+      combinedInsight =
+        "Your review velocity is above the market average, but Maps visibility has remained unchanged. Review performance is probably not the main limitation right now.";
+    } else if (competitorEntities[0]) {
+      const cName = String(competitorEntities[0].name ?? "A competitor");
+      const cGain = Number(competitorEntities[0].reviews_30d ?? 0);
+      combinedInsight = `${cName} gained ${cGain} reviews recently while your Maps visibility ${
+        maps.mapsAvgRankDelta != null && maps.mapsAvgRankDelta > 0
+          ? "improved"
+          : "stayed flat"
+      }.`;
+    }
+  } else if (hasReviewsData && !maps.hasMapsData) {
+    const aheadOfMarket =
+      marketAvg != null ? youImpact >= marketAvg : reviews30d >= reviewsPerWeekBaseline90d * 2;
+    mapsBridgeMessage = aheadOfMarket
+      ? "You are gaining reviews faster than most competitors, but your business may still be less visible across your service area."
+      : "Reviews are only one part of Google Maps visibility. A local scan shows where you actually appear across your service area.";
+  }
+
   return {
     hasReviewsData,
     hasMapsData: maps.hasMapsData,
@@ -638,6 +825,7 @@ export async function loadReviewOverviewData(
     reviews60dDeltaPct: pctDelta(reviews60d, prior60d),
     reviews90d,
     reviews90dDeltaPct: pctDelta(reviews90d, prior90d),
+    reviews365d,
     reviewsPerWeek,
     reviewsPerMonth,
     reviewsPerWeekBaseline90d,
@@ -648,10 +836,21 @@ export async function loadReviewOverviewData(
     competitorRank: currentRank?.rank ?? null,
     competitorPoolSize: currentRank?.poolSize ?? null,
     competitorRankDelta,
+    competitorReviewGap,
+    competitorAvgReviews,
     responseRatePct: Math.round(responseAudit.responseRate),
     answeredCount: responseAudit.answered,
     answeredOf: responseAudit.totalWithText,
     unansweredNegative: responseAudit.unansweredNegative,
+    unansweredTotal,
+    recommendedMonthlyPace,
+    movement,
+    recentReviews,
+    bestCampaignName: campaignBlock.bestCampaignName,
+    combinedInsight,
+    mapsBridgeMessage,
+    strongestKeyword: maps.strongestKeyword,
+    weakestKeyword: maps.weakestKeyword,
     trendSeries,
     impactRows,
     mapsAvgRank: maps.mapsAvgRank,

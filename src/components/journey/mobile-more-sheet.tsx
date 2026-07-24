@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { useDashboardUI } from "@/components/dashboard/dashboard-context";
 import {
@@ -27,28 +28,51 @@ export function MobileMoreSheet() {
   const pathname = usePathname();
   const { mobileNavOpen, setMobileNavOpen } = useDashboardUI();
   const businessId = businessIdFromPath(pathname);
-  const nav = buildUnifiedSidebarNav(businessId);
+  const [mapsActivated, setMapsActivated] = useState(false);
+  const [phase, setPhase] = useState<
+    "needs_onboarding" | "reputation_ready" | "maps_activated" | null
+  >(null);
+
+  useEffect(() => {
+    if (!businessId) {
+      setMapsActivated(false);
+      setPhase(null);
+      return;
+    }
+    void fetch(`/api/workflow/lifecycle?businessId=${encodeURIComponent(businessId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        const state = json?.state as
+          | {
+              phase?: "needs_onboarding" | "reputation_ready" | "maps_activated";
+              hasMapsScan?: boolean;
+            }
+          | undefined;
+        if (!state) return;
+        setPhase(state.phase ?? null);
+        setMapsActivated(Boolean(state.hasMapsScan) || state.phase === "maps_activated");
+      })
+      .catch(() => undefined);
+  }, [businessId]);
+
+  const nav = buildUnifiedSidebarNav(businessId, { mapsActivated, phase });
 
   if (!mobileNavOpen) return null;
 
   const close = () => setMobileNavOpen(false);
 
   const sections = [
-    { title: null as string | null, items: [nav.getStarted] },
-    { title: nav.work.title, items: nav.work.items },
-    ...(nav.thisLocation
-      ? [
-          {
-            title: businessId ? "This location" : nav.thisLocation.title,
-            items: nav.thisLocation.items,
-          },
-        ]
+    ...(nav.getStarted
+      ? [{ title: null as string | null, items: [nav.getStarted] }]
       : []),
+    ...(nav.overview
+      ? [{ title: null as string | null, items: [nav.overview] }]
+      : []),
+    { title: nav.work.title, items: nav.work.items },
+    { title: nav.reputation.title, items: nav.reputation.items },
+    { title: nav.growReviews.title, items: nav.growReviews.items },
+    { title: nav.localVisibility.title, items: nav.localVisibility.items },
     { title: nav.growthTools.title, items: nav.growthTools.items },
-    {
-      title: "Reputation",
-      items: [nav.reputation.overview, ...nav.reputation.groups.flatMap((g) => g.items)],
-    },
     { title: nav.deliverables.title, items: nav.deliverables.items },
     { title: nav.account.title, items: nav.account.items },
   ];
@@ -78,51 +102,37 @@ export function MobileMoreSheet() {
           </button>
         </div>
 
-        <div className="space-y-3 p-3">
-          {sections.map((section) => (
-            <div key={section.title ?? "get-started"}>
+        <div className="space-y-4 px-3 py-4">
+          {sections.map((section, idx) => (
+            <div key={`${section.title ?? "top"}-${idx}`}>
               {section.title ? (
-                <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
                   {section.title}
                 </p>
               ) : null}
-              <ul className="grid grid-cols-2 gap-2">
+              <div className="space-y-0.5">
                 {section.items.map((item) => {
-                  const Icon = item.icon;
                   const active = isSidebarHrefActive(pathname, item.href, businessId, {
                     isRankGrid: item.isRankGrid,
-                    exact: Boolean(item.children?.length),
                   });
                   return (
-                    <li key={`${item.label}-${item.href}`}>
-                      <Link
-                        href={item.href}
-                        onClick={close}
-                        className={cn(
-                          "flex items-center gap-2.5 rounded-xl border border-zinc-200/70 bg-white px-3 py-3 text-[13px] font-medium shadow-sm",
-                          active
-                            ? "border-emerald-200 bg-emerald-50/80 text-emerald-800"
-                            : "text-zinc-700 hover:border-emerald-200 hover:bg-emerald-50/40"
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset",
-                            active
-                              ? "bg-emerald-100 text-emerald-700 ring-emerald-200"
-                              : "bg-emerald-50 text-emerald-600 ring-emerald-100"
-                          )}
-                        >
-                          <Icon className="h-3.5 w-3.5" />
-                        </span>
-                        <span className="min-w-0 truncate">
-                          {item.badge ? `${item.label} · ${item.badge}` : item.label}
-                        </span>
-                      </Link>
-                    </li>
+                    <Link
+                      key={`${item.label}-${item.href}`}
+                      href={item.href}
+                      onClick={close}
+                      className={cn(
+                        "flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[14px] font-medium",
+                        active
+                          ? "bg-[#ECFDF3] text-[#137752]"
+                          : "text-zinc-800 hover:bg-zinc-50"
+                      )}
+                    >
+                      <item.icon className="h-4 w-4 shrink-0 opacity-70" />
+                      {item.label}
+                    </Link>
                   );
                 })}
-              </ul>
+              </div>
             </div>
           ))}
         </div>

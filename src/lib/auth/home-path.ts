@@ -1,34 +1,19 @@
-import { createServiceClient } from "@/lib/db/client";
+import { resolveLifecycleHomePath } from "@/lib/workflow/lifecycle";
 
 /**
  * Where to land after sign-in / visiting `/`.
- * - First login (no locations yet) → Get started
- * - Otherwise → Workspace (never a random client page)
+ * - First login (no locations yet) → Get started / reputation setup
+ * - Otherwise → Reputation Overview for the primary business
  */
 export async function resolvePostLoginPath(organizationId: string): Promise<string> {
-  if (!organizationId) return "/onboarding";
-
-  const supabase = createServiceClient();
-  const { count } = await supabase
-    .from("businesses")
-    .select("id", { count: "exact", head: true })
-    .eq("organization_id", organizationId)
-    .is("archived_at", null);
-
-  if (!count || count < 1) return "/onboarding";
-  return "/workspace";
+  return resolveLifecycleHomePath(organizationId);
 }
 
 /**
- * Soft home destinations — still run first-login vs Workspace resolution.
- * Deep links and real hubs (/clients, /prospects, /scans, …) are honored as-is.
+ * Soft home destinations — resolve to lifecycle home (onboarding or Reputation Overview).
+ * Explicit hubs (/workspace, /clients, /prospects, /scans, …) are honored as-is.
  */
 export function isSoftHomePath(path: string): boolean {
   const bare = path.split("?")[0] ?? path;
-  return (
-    bare === "/" ||
-    bare === "/businesses" ||
-    bare === "/dashboard" ||
-    bare === "/workspace"
-  );
+  return bare === "/" || bare === "/businesses" || bare === "/dashboard";
 }

@@ -11,8 +11,10 @@ import { OrgJourneyHome } from "@/components/journey/org-journey-home";
 export default async function WorkspacePage() {
   const auth = await requirePageAuth();
   const home = await resolvePostLoginPath(auth.organizationId);
-  if (home === "/onboarding") {
-    redirect("/onboarding");
+  // First login still goes to setup. Returning users can open Workspace
+  // explicitly from the sidebar; soft-home login lands on Overview instead.
+  if (home.startsWith("/onboarding")) {
+    redirect(home);
   }
 
   const supabase = createServiceClient();
