@@ -1,11 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
   ArrowUpRight,
   Calendar,
   ChevronRight,
+  Copy,
+  ExternalLink,
+  MapPin,
   MessageSquare,
   Shield,
   Star,
@@ -169,13 +173,17 @@ export function ReviewOverviewDashboard({
   businessId: string;
   data: ReviewOverviewData;
 }) {
+  const [draftStatus, setDraftStatus] = useState<string | null>(null);
   const analyticsHref = `/businesses/${businessId}/reputation/analytics`;
   const competitorsHref = `/businesses/${businessId}/reputation/competitors`;
   const mapsHref = data.hasMapsData
     ? `/businesses/${businessId}/maps`
     : `/businesses/${businessId}/local-visibility`;
   const campaignsHref = `/businesses/${businessId}/reputation/campaigns`;
+  const reviewsHref = `/businesses/${businessId}/reputation/reviews`;
   const unansweredHref = `/businesses/${businessId}/reputation/reviews?tab=unanswered`;
+  const requestsHref = `/businesses/${businessId}/reputation/requests`;
+  const contactsHref = `/businesses/${businessId}/reputation/contacts`;
   const actionHref = nextActionHref(businessId, data.nextAction.ctaLabel);
   const showMomentumArrow =
     data.momentumLabel === "Accelerating" ||
@@ -183,11 +191,38 @@ export function ReviewOverviewDashboard({
     data.momentumLabel === "Healthy" ||
     data.momentumLabel === "Recovering";
 
+  async function generateAndCopy(reviewId: string, reviewerName: string) {
+    setDraftStatus(null);
+    try {
+      const res = await fetch("/api/reputation/responses/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId, reviewIds: [reviewId] }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        drafts?: Array<{ draftText?: string; reply?: string }>;
+        reply?: string;
+      };
+      const reply =
+        json.drafts?.[0]?.draftText ||
+        json.drafts?.[0]?.reply ||
+        json.reply ||
+        `Hi ${reviewerName.split(" ")[0] || "there"},\n\nThank you for your review. We appreciate your feedback.\n\nBest regards`;
+      await navigator.clipboard.writeText(reply);
+      setDraftStatus("Response copied — paste it in Google to publish");
+    } catch {
+      setDraftStatus("Could not generate a response right now");
+    }
+  }
+
   return (
     <ModulePage className={moduleStack}>
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Review Overview</h1>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Overview</h1>
+          <p className="mt-1 text-[13px] text-zinc-500">What has happened since you were last here</p>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -209,7 +244,34 @@ export function ReviewOverviewDashboard({
         </div>
       </div>
 
-      {/* Row 1 — six KPIs */}
+      {data.combinedInsight ? (
+        <SoftCard className="border-[#D1FAE5] bg-gradient-to-br from-[#ECFDF3]/70 to-white">
+          <CardLabel>Combined insight</CardLabel>
+          <p className="mt-1.5 text-[14px] font-medium leading-snug text-zinc-800">
+            {data.combinedInsight}
+          </p>
+        </SoftCard>
+      ) : null}
+
+      {data.movement.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {data.movement.map((item) => (
+            <span
+              key={item.label}
+              className={cn(
+                "inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-medium",
+                item.tone === "positive" && "bg-[#ECFDF3] text-[#137752]",
+                item.tone === "warning" && "bg-amber-50 text-amber-800",
+                item.tone === "neutral" && "bg-zinc-100 text-zinc-600"
+              )}
+            >
+              {item.label}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {/* Current reputation — six KPIs */}
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
         <SoftCard>
           <CardLabel>Google Rating</CardLabel>
@@ -541,60 +603,189 @@ export function ReviewOverviewDashboard({
                     ) : null}
                   </span>
                 </div>
+                {data.strongestKeyword ? (
+                  <div className="flex items-center justify-between gap-2 text-[13px]">
+                    <span className="text-zinc-600">Strongest keyword</span>
+                    <span className="truncate font-semibold text-zinc-900">{data.strongestKeyword}</span>
+                  </div>
+                ) : null}
+                {data.weakestKeyword ? (
+                  <div className="flex items-center justify-between gap-2 text-[13px]">
+                    <span className="text-zinc-600">Weakest keyword</span>
+                    <span className="truncate font-semibold text-zinc-900">{data.weakestKeyword}</span>
+                  </div>
+                ) : null}
               </div>
             </>
           ) : (
-            <p className="py-10 text-center text-[13px] text-zinc-500">
-              Run a Maps scan to unlock visibility metrics.{" "}
-              <Link href={mapsHref} className="font-semibold text-[#137752] hover:underline">
-                Check local visibility
+            <div className="space-y-3 py-4 text-center">
+              <MapPin className="mx-auto h-8 w-8 text-[#137752]" />
+              <p className="text-[13px] leading-snug text-zinc-600">
+                {data.mapsBridgeMessage ??
+                  "Reviews are only one part of Google Maps visibility. See where you actually appear."}
+              </p>
+              <Link
+                href={mapsHref}
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-[#137752] px-4 text-[13px] font-semibold text-white hover:bg-[#0f6244]"
+              >
+                Check Local Visibility
               </Link>
-            </p>
+            </div>
           )}
         </SoftCard>
       </div>
 
+      {/* Recent activity — handle newest reviews without leaving Overview */}
+      <SoftCard>
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="text-[14px] font-semibold text-zinc-900">Recent activity</h2>
+            <p className="mt-0.5 text-[12px] text-zinc-500">Latest Google reviews</p>
+          </div>
+          <ViewLink href={reviewsHref}>View All Reviews</ViewLink>
+        </div>
+        {draftStatus ? (
+          <p className="mb-3 text-[12px] font-medium text-[#137752]">{draftStatus}</p>
+        ) : null}
+        {data.recentReviews.length > 0 ? (
+          <ul className="divide-y divide-zinc-100">
+            {data.recentReviews.map((review) => (
+              <li key={review.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {review.rating != null ? <YellowStars rating={review.rating} /> : null}
+                    <span className="text-[13px] font-semibold text-zinc-900">{review.reviewerName}</span>
+                    <span className="text-[11px] text-zinc-400">{review.dateLabel}</span>
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                        review.responded
+                          ? "bg-[#ECFDF3] text-[#137752]"
+                          : "bg-amber-50 text-amber-800"
+                      )}
+                    >
+                      {review.responded ? "Responded" : "Needs response"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[13px] leading-snug text-zinc-600">{review.excerpt}</p>
+                </div>
+                <div className="flex flex-wrap gap-1.5 sm:shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => void generateAndCopy(review.id, review.reviewerName)}
+                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2.5 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    Generate
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void generateAndCopy(review.id, review.reviewerName)}
+                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2.5 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    Copy
+                  </button>
+                  {review.reviewUrl ? (
+                    <a
+                      href={review.reviewUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex h-8 items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2.5 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Google
+                    </a>
+                  ) : (
+                    <Link
+                      href={reviewsHref}
+                      className="inline-flex h-8 items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2.5 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50"
+                    >
+                      Open
+                    </Link>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="py-6 text-center text-[13px] text-zinc-500">
+            Sync reviews to see recent activity here.
+          </p>
+        )}
+      </SoftCard>
+
       {/* Bottom row */}
       <div className="grid grid-cols-1 gap-2 xl:grid-cols-5">
         <SoftCard className="xl:col-span-3">
-          <div className="mb-4 flex items-start justify-between gap-2">
-            <h2 className="text-[14px] font-semibold text-zinc-900">
-              Campaign Performance (Last 30 days)
-            </h2>
-            <ViewLink href={campaignsHref}>View All Campaigns</ViewLink>
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 className="text-[14px] font-semibold text-zinc-900">
+                Review collection performance
+              </h2>
+              <p className="mt-0.5 text-[12px] text-zinc-500">Last 30 days</p>
+            </div>
+            <ViewLink href={campaignsHref}>Open Campaigns</ViewLink>
           </div>
           {data.hasCampaignData || data.campaign.sent > 0 ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-              <CampaignStat
-                icon={<MessageSquare className="h-4 w-4" />}
-                value={String(data.campaign.sent)}
-                label="Sent"
-              />
-              <CampaignStat
-                icon={<ClickIcon className="h-4 w-4" />}
-                value={`${data.campaign.clickedPct}%`}
-                label={`(${data.campaign.clickedCount}) Clicked`}
-              />
-              <CampaignStat
-                icon={<Star className="h-4 w-4" />}
-                value={String(data.campaign.reviews)}
-                label="reviews"
-              />
-              <CampaignStat
-                icon={<Shield className="h-4 w-4" />}
-                value={String(data.campaign.badReviews)}
-                label="bad reviews"
-              />
-              <CampaignStat
-                icon={<Trophy className="h-4 w-4" />}
-                value={`${data.campaign.convRatePct}%`}
-                label="Conv. Rate"
-              />
-            </div>
+            <>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <CampaignStat
+                  icon={<MessageSquare className="h-4 w-4" />}
+                  value={String(data.campaign.sent)}
+                  label="Requests sent"
+                />
+                <CampaignStat
+                  icon={<Shield className="h-4 w-4" />}
+                  value={String(data.campaign.delivered)}
+                  label="Delivered"
+                />
+                <CampaignStat
+                  icon={<ClickIcon className="h-4 w-4" />}
+                  value={`${data.campaign.clickedPct}%`}
+                  label={`(${data.campaign.clickedCount}) Link clicks`}
+                />
+                <CampaignStat
+                  icon={<Star className="h-4 w-4" />}
+                  value={String(data.campaign.reviews)}
+                  label="Reviews received"
+                />
+                <CampaignStat
+                  icon={<Trophy className="h-4 w-4" />}
+                  value={`${data.campaign.convRatePct}%`}
+                  label="Conversion"
+                />
+                <CampaignStat
+                  icon={<Zap className="h-4 w-4" />}
+                  value={data.bestCampaignName ?? "—"}
+                  label="Best campaign"
+                />
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2 border-t border-zinc-100 pt-3">
+                <Link
+                  href={requestsHref}
+                  className="inline-flex h-9 items-center rounded-lg bg-[#137752] px-3 text-[12px] font-semibold text-white hover:bg-[#0f6244]"
+                >
+                  Send another request
+                </Link>
+                <Link
+                  href={contactsHref}
+                  className="inline-flex h-9 items-center rounded-lg border border-zinc-200 bg-white px-3 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50"
+                >
+                  Add contacts
+                </Link>
+                <Link
+                  href={`/businesses/${businessId}/reputation/templates`}
+                  className="inline-flex h-9 items-center rounded-lg border border-zinc-200 bg-white px-3 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50"
+                >
+                  Adjust a template
+                </Link>
+              </div>
+            </>
           ) : (
             <p className="py-6 text-center text-[13px] text-zinc-500">
               No campaign sends in the last 30 days.{" "}
-              <Link href={`/businesses/${businessId}/reputation/requests`} className="font-semibold text-[#137752] hover:underline">
+              <Link href={requestsHref} className="font-semibold text-[#137752] hover:underline">
                 Send a review request
               </Link>
             </p>

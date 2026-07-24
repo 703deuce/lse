@@ -11,6 +11,21 @@ export type ReviewOverviewMomentumLabel =
   | "Recovering"
   | "Volatile";
 
+export type ReviewOverviewRecentReview = {
+  id: string;
+  rating: number | null;
+  reviewerName: string;
+  excerpt: string;
+  dateLabel: string;
+  responded: boolean;
+  reviewUrl: string | null;
+};
+
+export type ReviewOverviewMovementItem = {
+  label: string;
+  tone: "neutral" | "positive" | "warning";
+};
+
 export type ReviewOverviewData = {
   hasReviewsData: boolean;
   hasMapsData: boolean;
@@ -39,10 +54,20 @@ export type ReviewOverviewData = {
   competitorRank: number | null;
   competitorPoolSize: number | null;
   competitorRankDelta: number | null;
+  /** Gap vs competitor average total / 90d reviews when available */
+  competitorReviewGap: number | null;
+  competitorAvgReviews: number | null;
   responseRatePct: number;
   answeredCount: number;
   answeredOf: number;
   unansweredNegative: number;
+  unansweredTotal: number;
+  recommendedMonthlyPace: number;
+  movement: ReviewOverviewMovementItem[];
+  recentReviews: ReviewOverviewRecentReview[];
+  bestCampaignName: string | null;
+  combinedInsight: string | null;
+  mapsBridgeMessage: string | null;
   trendSeries: Array<{
     label: string;
     you: number;
@@ -63,6 +88,8 @@ export type ReviewOverviewData = {
   top3VisibilityDelta: number | null;
   top10VisibilityPct: number | null;
   top10VisibilityDelta: number | null;
+  strongestKeyword: string | null;
+  weakestKeyword: string | null;
   campaign: {
     sent: number;
     clickedPct: number;
@@ -70,6 +97,7 @@ export type ReviewOverviewData = {
     reviews: number;
     badReviews: number;
     convRatePct: number;
+    delivered: number;
   };
   nextAction: {
     title: string;
@@ -106,10 +134,48 @@ export const reviewOverviewPreviewData: ReviewOverviewData = {
   competitorRank: 2,
   competitorPoolSize: 12,
   competitorRankDelta: 1,
+  competitorReviewGap: 39,
+  competitorAvgReviews: 126,
   responseRatePct: 82,
   answeredCount: 21,
   answeredOf: 23,
   unansweredNegative: 3,
+  unansweredTotal: 5,
+  recommendedMonthlyPace: 16,
+  movement: [
+    { label: "Rating unchanged", tone: "neutral" },
+    { label: "6 new reviews", tone: "positive" },
+    { label: "Velocity increased 18%", tone: "positive" },
+    { label: "Competitor gap decreased by 3", tone: "positive" },
+    { label: "2 reviews remain unanswered", tone: "warning" },
+  ],
+  recentReviews: [
+    {
+      id: "r1",
+      rating: 5,
+      reviewerName: "Maria K.",
+      excerpt: "On-time, professional, and the crew cleaned up after themselves.",
+      dateLabel: "2 days ago",
+      responded: false,
+      reviewUrl: "https://maps.google.com",
+    },
+    {
+      id: "r2",
+      rating: 4,
+      reviewerName: "James T.",
+      excerpt: "Great junk removal. Would book again for a garage cleanout.",
+      dateLabel: "5 days ago",
+      responded: true,
+      reviewUrl: null,
+    },
+  ],
+  bestCampaignName: "Post-job SMS",
+  combinedInsight:
+    "You gained 23 reviews during the last 30 days, and your top-3 coverage increased from 18% to 29%.",
+  mapsBridgeMessage:
+    "You are gaining reviews faster than most competitors, but your business may still be less visible across your service area.",
+  strongestKeyword: "Junk removal Woodbridge",
+  weakestKeyword: "Appliance removal near me",
   trendSeries: [
     { label: "Mar 1", you: 12, benchmark: 10, competitor: 8 },
     { label: "Mar 15", you: 18, benchmark: 14, competitor: 11 },
@@ -140,6 +206,7 @@ export const reviewOverviewPreviewData: ReviewOverviewData = {
     reviews: 42,
     badReviews: 0,
     convRatePct: 12,
+    delivered: 318,
   },
   nextAction: {
     title: "Boost your momentum",

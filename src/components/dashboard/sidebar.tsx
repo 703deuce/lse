@@ -233,6 +233,8 @@ export function DashboardSidebarPanel({
   showFooter = true,
   className,
   onNavigate,
+  mapsActivated = false,
+  phase = null,
 }: {
   businessId?: string;
   pathname: string;
@@ -241,8 +243,10 @@ export function DashboardSidebarPanel({
   showFooter?: boolean;
   className?: string;
   onNavigate?: () => void;
+  mapsActivated?: boolean;
+  phase?: "needs_onboarding" | "reputation_ready" | "maps_activated" | null;
 }) {
-  const nav = buildUnifiedSidebarNav(businessId);
+  const nav = buildUnifiedSidebarNav(businessId, { mapsActivated, phase });
 
   return (
     <aside
@@ -297,16 +301,31 @@ export function DashboardSidebarPanel({
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto overscroll-contain p-2.5" suppressHydrationWarning>
-        <div className="mb-2">
-          <SidebarNavItemRow
-            href={nav.getStarted.href}
-            label={nav.getStarted.label}
-            icon={nav.getStarted.icon}
-            active={isSidebarHrefActive(pathname, nav.getStarted.href, businessId)}
-            staticLinks={staticLinks}
-            onNavigate={onNavigate}
-          />
-        </div>
+        {nav.getStarted ? (
+          <div className="mb-2">
+            <SidebarNavItemRow
+              href={nav.getStarted.href}
+              label={nav.getStarted.label}
+              icon={nav.getStarted.icon}
+              active={isSidebarHrefActive(pathname, nav.getStarted.href, businessId)}
+              staticLinks={staticLinks}
+              onNavigate={onNavigate}
+            />
+          </div>
+        ) : null}
+
+        {nav.overview ? (
+          <div className="mb-2">
+            <SidebarNavItemRow
+              href={nav.overview.href}
+              label={nav.overview.label}
+              icon={nav.overview.icon}
+              active={isSidebarHrefActive(pathname, nav.overview.href, businessId)}
+              staticLinks={staticLinks}
+              onNavigate={onNavigate}
+            />
+          </div>
+        ) : null}
 
         <NavSection
           title={nav.work.title}
@@ -318,17 +337,33 @@ export function DashboardSidebarPanel({
         />
 
         <NavSection
-          title={nav.growthTools.title}
-          items={nav.growthTools.items}
+          title={nav.reputation.title}
+          items={nav.reputation.items}
           businessId={businessId}
           pathname={pathname}
           staticLinks={staticLinks}
           onNavigate={onNavigate}
         />
-        <ReputationNavSection
-          title={nav.reputation.title}
-          overview={nav.reputation.overview}
-          groups={nav.reputation.groups}
+        <NavSection
+          title={nav.growReviews.title}
+          items={nav.growReviews.items}
+          businessId={businessId}
+          pathname={pathname}
+          staticLinks={staticLinks}
+          onNavigate={onNavigate}
+        />
+        <NavSection
+          title={nav.localVisibility.title}
+          items={nav.localVisibility.items}
+          businessId={businessId}
+          pathname={pathname}
+          staticLinks={staticLinks}
+          onNavigate={onNavigate}
+        />
+
+        <NavSection
+          title={nav.growthTools.title}
+          items={nav.growthTools.items}
           businessId={businessId}
           pathname={pathname}
           staticLinks={staticLinks}
@@ -419,16 +454,37 @@ function DashboardSidebarInner({
 }) {
   const pathname = usePathname();
   const [businessName, setBusinessName] = useState<string | null>(null);
+  const [mapsActivated, setMapsActivated] = useState(false);
+  const [phase, setPhase] = useState<
+    "needs_onboarding" | "reputation_ready" | "maps_activated" | null
+  >(null);
 
   useEffect(() => {
     if (!businessId) {
       setBusinessName(null);
+      setMapsActivated(false);
+      setPhase(null);
       return;
     }
     void fetch(`/api/businesses/${businessId}/account`)
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
         if (json?.account?.name) setBusinessName(json.account.name as string);
+      })
+      .catch(() => undefined);
+
+    void fetch(`/api/workflow/lifecycle?businessId=${encodeURIComponent(businessId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        const state = json?.state as
+          | {
+              phase?: "needs_onboarding" | "reputation_ready" | "maps_activated";
+              hasMapsScan?: boolean;
+            }
+          | undefined;
+        if (!state) return;
+        setPhase(state.phase ?? null);
+        setMapsActivated(Boolean(state.hasMapsScan) || state.phase === "maps_activated");
       })
       .catch(() => undefined);
   }, [businessId]);
@@ -440,6 +496,8 @@ function DashboardSidebarInner({
       businessName={businessName}
       className={className}
       onNavigate={onNavigate}
+      mapsActivated={mapsActivated}
+      phase={phase}
     />
   );
 }

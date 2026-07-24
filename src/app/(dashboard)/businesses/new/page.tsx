@@ -186,8 +186,10 @@ function NewBusinessPageInner() {
       }
       if (isProspect) {
         router.push(`/prospects/${data.business.id}/audit`);
+      } else if (searchParams.get("from") === "onboarding") {
+        router.push(`/onboarding?businessId=${data.business.id}`);
       } else {
-        router.push(`/businesses/${data.business.id}/overview`);
+        router.push(`/businesses/${data.business.id}/reputation/overview`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Create failed");
