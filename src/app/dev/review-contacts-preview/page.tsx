@@ -3,9 +3,11 @@
 import { DashboardSidebarPanel } from "@/components/dashboard/sidebar";
 import { ContactsPageClient } from "@/components/reputation/contacts-page-client";
 import {
+  REPUTATION_CONTACTS_PREVIEW_TOTAL,
   REPUTATION_PREVIEW_BUSINESS_ID,
   REPUTATION_PREVIEW_BUSINESS_NAME,
   reputationContactsPreviewData,
+  reputationContactsPreviewKpis,
 } from "@/lib/reputation/reputation-page-preview-data";
 
 export default function ReviewContactsPreviewPage() {
@@ -25,6 +27,8 @@ export default function ReviewContactsPreviewPage() {
           businessId={REPUTATION_PREVIEW_BUSINESS_ID}
           allowed
           initialContacts={reputationContactsPreviewData}
+          previewStats={reputationContactsPreviewKpis}
+          previewTotalCount={REPUTATION_CONTACTS_PREVIEW_TOTAL}
         />
       </main>
     </div>

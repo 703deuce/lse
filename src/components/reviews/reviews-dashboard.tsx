@@ -7,10 +7,11 @@ import {
   Clipboard,
   Loader2,
   MessageSquarePlus,
-  MoreHorizontal,
+  PencilLine,
   Settings2,
   ShieldCheck,
   SlidersHorizontal,
+  Sparkles,
   Tag,
 } from "lucide-react";
 import {
@@ -49,9 +50,9 @@ function pct(value: number, total: number): number {
 
 function sentimentFor(review: ReviewListItem): ReviewFeedDetails["sentiment"] {
   const rating = review.rating ?? 0;
-  if (rating >= 4) return { label: "Positive", confidence: 92 };
-  if (rating <= 2) return { label: "Negative", confidence: 86 };
-  return { label: "Neutral", confidence: 78 };
+  if (rating >= 4) return { label: "Positive", confidence: 0.92 };
+  if (rating <= 2) return { label: "Negative", confidence: 0.86 };
+  return { label: "Neutral", confidence: 0.78 };
 }
 
 function compactDate(value: string | null | undefined): string {
@@ -78,6 +79,14 @@ function fullDate(value: string | null | undefined): string {
   });
 }
 
+const STAR_BAR_COLORS: Record<number, string> = {
+  5: "#137752",
+  4: "#FDB022",
+  3: "#F79009",
+  2: "#EF4444",
+  1: "#B42318",
+};
+
 function StarSummary({
   rating,
   count,
@@ -87,6 +96,7 @@ function StarSummary({
   count: number;
   total: number;
 }) {
+  const barColor = STAR_BAR_COLORS[rating] ?? "#FDB022";
   return (
     <RepMetricCard
       label={`${rating} Star`}
@@ -95,8 +105,8 @@ function StarSummary({
     >
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#F2F4F7]">
         <div
-          className="h-full rounded-full bg-[#FDB022]"
-          style={{ width: `${pct(count, total)}%` }}
+          className="h-full rounded-full"
+          style={{ width: `${pct(count, total)}%`, backgroundColor: barColor }}
         />
       </div>
     </RepMetricCard>
@@ -113,6 +123,15 @@ function EmptyState() {
       <p className="mt-1 text-sm text-[#667085]">
         Clear search or widen the filters to see more reviews.
       </p>
+    </div>
+  );
+}
+
+function DetailSection({ heading, children }: { heading: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-3">
+      <p className={cn(rep.label, "border-b border-[#F2F4F7] pb-1")}>{heading}</p>
+      {children}
     </div>
   );
 }
@@ -159,9 +178,15 @@ function ReviewDetailPanel({
   const reviewId = details?.reviewId ?? review.id;
   const location = details?.location ?? review.businessName;
   const lastEditedAt = details?.lastEditedAt;
+  // Confidence: stored as 0–1 decimal
+  const confidenceDecimal =
+    typeof sentiment.confidence === "number" && sentiment.confidence > 1
+      ? sentiment.confidence / 100
+      : sentiment.confidence;
 
   return (
     <aside className={cn(rep.card, "min-h-[620px] overflow-hidden")}>
+      {/* Review header */}
       <div className="border-b border-[#E6EAF0] p-5">
         <div className="flex items-start gap-3">
           <SourceIcon source={review.source} />
@@ -170,8 +195,8 @@ function ReviewDetailPanel({
               <h2 className="text-lg font-semibold text-[#101828]">
                 {review.reviewerName}
               </h2>
-              {review.isNew ? <RepBadge tone="blue">New</RepBadge> : null}
-              {details?.edited ? <RepBadge tone="purple">Edited</RepBadge> : null}
+              {review.isNew ? <RepBadge tone="green">New</RepBadge> : null}
+              {details?.edited ? <RepBadge tone="blue">Edited</RepBadge> : null}
             </div>
             <div className="mt-1 flex items-center gap-2">
               <StarRating rating={review.rating} />
@@ -186,102 +211,129 @@ function ReviewDetailPanel({
         </p>
       </div>
 
-      <div className="space-y-5 p-5">
-        <div className="grid grid-cols-2 gap-4">
-          <DetailField label="Published">
-            {fullDate(details?.publishedDateTime ?? review.publishedAt ?? review.reviewDate)}
-          </DetailField>
-          <DetailField label="Location">{location}</DetailField>
-          <DetailField label="Source">
-            <span className="capitalize">{review.source}</span>
-          </DetailField>
-          <DetailField label="Last Edited">
-            {lastEditedAt ? fullDate(lastEditedAt) : "No edits"}
-          </DetailField>
-        </div>
-
-        <DetailField label="Review ID">
-          <div className="flex items-center gap-2 rounded-lg border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2">
-            <code className="min-w-0 flex-1 truncate text-xs text-[#475467]">{reviewId}</code>
-            <button type="button" className="text-[#98A2B3]" aria-label="Copy review ID">
-              <Clipboard className="h-4 w-4" />
-            </button>
+      <div className="space-y-5 overflow-y-auto p-5" style={{ maxHeight: "calc(100vh - 260px)" }}>
+        {/* Details section */}
+        <DetailSection heading="Details">
+          <div className="grid grid-cols-2 gap-4">
+            <DetailField label="Published">
+              {fullDate(details?.publishedDateTime ?? review.publishedAt ?? review.reviewDate)}
+            </DetailField>
+            <DetailField label="Location">{location}</DetailField>
+            <DetailField label="Source">Google Business Profile</DetailField>
+            <DetailField label="Last Edited">
+              {lastEditedAt ? fullDate(lastEditedAt) : "No edits"}
+            </DetailField>
           </div>
-        </DetailField>
+          <DetailField label="Review ID">
+            <div className="flex items-center gap-2 rounded-lg border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2">
+              <code className="min-w-0 flex-1 truncate text-xs text-[#475467]">{reviewId}</code>
+              <button type="button" className="text-[#98A2B3] hover:text-[#475467]" aria-label="Copy review ID">
+                <Clipboard className="h-4 w-4" />
+              </button>
+            </div>
+          </DetailField>
+        </DetailSection>
 
-        <div className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className={rep.label}>Sentiment</p>
-              <p className="mt-1 text-base font-semibold text-[#101828]">
+        {/* Sentiment & Themes section */}
+        <DetailSection heading="Sentiment & Themes">
+          <div className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-base font-semibold text-[#101828]">
+                  {sentiment.label}
+                </p>
+                <p className="mt-0.5 text-xs text-[#667085]">
+                  Confidence: {confidenceDecimal.toFixed(2)}
+                </p>
+              </div>
+              <RepBadge
+                tone={
+                  sentiment.label === "Positive"
+                    ? "green"
+                    : sentiment.label === "Negative"
+                      ? "red"
+                      : "gray"
+                }
+              >
                 {sentiment.label}
+              </RepBadge>
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between">
+              <p className={rep.label}>Themes</p>
+              <button type="button" className={rep.link}>
+                <Tag className="h-3.5 w-3.5" />
+                Add tag
+              </button>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {(review.tags.length ? review.tags : ["Customer experience"]).map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full border border-[#E6EAF0] bg-white px-2.5 py-1 text-xs font-medium text-[#475467]"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        </DetailSection>
+
+        {/* Response section */}
+        <DetailSection heading="Response">
+          {review.ownerResponseText ? (
+            <div className="rounded-xl border border-[#A6F4C5] bg-[#ECFDF3] p-4">
+              <p className={cn(rep.label, "text-[#027A48]")}>Owner Response</p>
+              <p className="mt-2 text-sm leading-6 text-[#344054]">
+                {review.ownerResponseText}
               </p>
             </div>
-            <RepBadge
-              tone={
-                sentiment.label === "Positive"
-                  ? "green"
-                  : sentiment.label === "Negative"
-                    ? "red"
-                    : "gray"
-              }
-            >
-              {sentiment.confidence}% confidence
-            </RepBadge>
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between">
-            <p className={rep.label}>Themes</p>
-            <button type="button" className={rep.link}>
-              <Tag className="h-3.5 w-3.5" />
-              Add tag
-            </button>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {(review.tags.length ? review.tags : ["Customer experience"]).map((tag) => (
-              <span
-                key={tag}
-                className="rounded-full border border-[#E6EAF0] bg-white px-2.5 py-1 text-xs font-medium text-[#475467]"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {review.ownerResponseText ? (
-          <div className="rounded-xl border border-[#A6F4C5] bg-[#ECFDF3] p-4">
-            <p className={cn(rep.label, "text-[#027A48]")}>Owner Response</p>
-            <p className="mt-2 text-sm leading-6 text-[#344054]">
-              {review.ownerResponseText}
+          ) : (
+            <p className="rounded-lg bg-[#FEF3F2] px-3 py-2 text-sm font-medium text-[#B42318]">
+              No response yet
             </p>
-          </div>
-        ) : null}
-
-        <div className="grid grid-cols-2 gap-2">
-          <button type="button" className={cn(rep.btnPrimary, "col-span-2")}>
-            <MessageSquarePlus className="h-4 w-4" />
+          )}
+          <button type="button" className={cn(rep.btnPrimary, "w-full justify-center")}>
+            <Sparkles className="h-4 w-4" />
             Generate Response
           </button>
-          <button type="button" className={rep.btnSecondary}>
+          <button type="button" className={cn(rep.btnSecondary, "w-full justify-center")}>
+            <PencilLine className="h-4 w-4" />
             Write Your Own
           </button>
-          <button type="button" className={rep.btnSecondary}>
-            <ShieldCheck className="h-4 w-4" />
-            Mark as Resolved
-          </button>
-          <button type="button" className={rep.btnSecondary}>
-            Report Review
-          </button>
-          <button type="button" className={rep.btnSecondary}>
-            <MoreHorizontal className="h-4 w-4" />
-            More
-          </button>
-        </div>
+        </DetailSection>
+
+        {/* More Actions section */}
+        <DetailSection heading="More Actions">
+          <div className="flex flex-col gap-2">
+            <button type="button" className={cn(rep.btnSecondary, "justify-center")}>
+              <ShieldCheck className="h-4 w-4" />
+              Mark as Resolved
+            </button>
+            <button type="button" className={cn(rep.btnSecondary, "justify-center")}>
+              Report Review
+            </button>
+          </div>
+        </DetailSection>
       </div>
     </aside>
+  );
+}
+
+function ResponseStatus({ replied }: { replied: boolean }) {
+  if (replied) {
+    return (
+      <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-[#667085]">
+        <Check className="h-3.5 w-3.5" />
+        Responded
+      </span>
+    );
+  }
+  return (
+    <span className="shrink-0 text-xs font-semibold text-[#B42318]">
+      No response
+    </span>
   );
 }
 
@@ -302,37 +354,43 @@ function ReviewCard({
       onClick={onSelect}
       className={cn(
         "w-full border-b border-[#F2F4F7] bg-white p-4 text-left transition hover:bg-[#F9FAFB]",
-        selected && "bg-[#ECFDF3]"
+        selected && "border-l-4 border-l-[#137752] bg-[#ECFDF3] hover:bg-[#ECFDF3]"
       )}
     >
       <div className="flex items-start gap-3">
         <SourceIcon source={review.source} />
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <ReviewerAvatar name={review.reviewerName} size="sm" />
-            <p className="font-semibold text-[#101828]">{review.reviewerName}</p>
-            <StarRating rating={review.rating} />
-            <span className="text-xs text-[#667085]">
-              {review.relativeDate ?? compactDate(review.publishedAt ?? review.reviewDate)}
-            </span>
-            {review.isNew ? <RepBadge tone="blue">New</RepBadge> : null}
-            {details?.edited ? <RepBadge tone="purple">Edited</RepBadge> : null}
+          {/* Top row: name / stars / time / badges / response status far right */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <ReviewerAvatar name={review.reviewerName} size="sm" />
+              <p className="font-semibold text-[#101828]">{review.reviewerName}</p>
+              <StarRating rating={review.rating} />
+              <span className="text-xs text-[#667085]">
+                {review.relativeDate ?? compactDate(review.publishedAt ?? review.reviewDate)}
+              </span>
+              {review.isNew ? <RepBadge tone="green">New</RepBadge> : null}
+              {details?.edited ? <RepBadge tone="blue">Edited</RepBadge> : null}
+            </div>
+            <ResponseStatus replied={review.replied} />
           </div>
           <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#344054]">
             {review.reviewText?.trim() || "No review text provided."}
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {(review.tags.length ? review.tags : ["Customer experience"]).slice(0, 3).map((tag) => (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {(review.tags.length ? review.tags : ["Customer experience"]).slice(0, 4).map((tag, i) => (
               <span
-                key={tag}
-                className="rounded-full bg-[#F2F4F7] px-2 py-0.5 text-[11px] font-medium text-[#475467]"
+                key={`${tag}-${i}`}
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[11px] font-medium",
+                  tag === "Positive" || tag === "Professionalism"
+                    ? "bg-[#ECFDF3] text-[#027A48]"
+                    : "bg-[#F2F4F7] text-[#475467]"
+                )}
               >
                 {tag}
               </span>
             ))}
-            <RepBadge tone={review.replied ? "green" : "amber"}>
-              {review.replied ? "Responded" : "No response"}
-            </RepBadge>
           </div>
         </div>
       </div>
@@ -402,9 +460,22 @@ export function ReviewsDashboard({
     return owned.length ? owned : data.stream;
   }, [data]);
 
+  // Sort by date descending (Newest First)
+  const sorted = useMemo(
+    () =>
+      [...rows].sort((a, b) => {
+        const aTime = new Date(a.publishedAt ?? a.reviewDate ?? "").getTime();
+        const bTime = new Date(b.publishedAt ?? b.reviewDate ?? "").getTime();
+        return bTime - aTime;
+      }),
+    [rows]
+  );
+
+  const detailMap = data?.feedDetails ?? {};
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return rows.filter((row) => {
+    return sorted.filter((row) => {
       if (source !== "all" && row.source !== source) return false;
       if (rating !== "all" && row.rating !== Number(rating)) return false;
       const label = sentimentFor(row).label.toLowerCase();
@@ -417,7 +488,7 @@ export function ReviewsDashboard({
       }
       return true;
     });
-  }, [rating, response, rows, search, sentiment, source]);
+  }, [rating, response, sorted, search, sentiment, source]);
 
   useEffect(() => {
     if (!filtered.length) {
@@ -428,7 +499,6 @@ export function ReviewsDashboard({
   }, [filtered]);
 
   const selected = filtered.find((row) => row.id === selectedId) ?? null;
-  const detailMap = data?.feedDetails ?? {};
   const selectedDetails = selected ? detailMap[selected.id] ?? null : null;
 
   const totalReviews = data?.feedSummary?.totalReviews ?? data?.kpis.totalReviews ?? rows.length;
@@ -457,15 +527,15 @@ export function ReviewsDashboard({
     <div className={rep.page}>
       <RepPageHeader
         title="Review Feed"
-        subtitle="Monitor, respond to, and manage your Google reviews."
-        dateRangeLabel="May 27 - Jun 25, 2024"
+        subtitle="Monitor, respond to, and manage your Google Business Profile reviews."
+        dateRangeLabel="May 10 – Jun 8, 2025"
         actions={
           <button type="button" className={rep.btnSecondary}>
             <Settings2 className="h-4 w-4" />
             Feed Settings
           </button>
         }
-        filterLabel="Filter"
+        filterLabel="Filters"
       />
 
       {error ? (
@@ -480,6 +550,7 @@ export function ReviewsDashboard({
           value={formatNumber(totalReviews)}
           trend={`+${newReviews} new`}
           hint="this period"
+          trendPositive
         />
         {[5, 4, 3, 2, 1].map((star) => (
           <StarSummary
@@ -507,8 +578,8 @@ export function ReviewsDashboard({
           <RepSearch
             value={search}
             onChange={setSearch}
-            placeholder="Search reviews, customers, or tags..."
-            className="min-w-[260px]"
+            placeholder="Search reviews..."
+            className="min-w-[240px]"
           />
           <select value={source} onChange={(e) => setSource(e.target.value as SourceFilter)} className={rep.select}>
             <option value="all">All Sources</option>
@@ -556,13 +627,9 @@ export function ReviewsDashboard({
             <div>
               <h2 className="text-base font-semibold text-[#101828]">Newest First</h2>
               <p className="text-xs text-[#667085]">
-                Showing {filtered.length} of {rows.length} loaded reviews
+                Showing {filtered.length} of {sorted.length} loaded reviews
               </p>
             </div>
-            <button type="button" className="inline-flex items-center gap-1 text-sm font-semibold text-[#137752]">
-              <Check className="h-4 w-4" />
-              Sort
-            </button>
           </div>
           <div className="max-h-[760px] overflow-y-auto">
             {filtered.length === 0 ? (
@@ -587,7 +654,7 @@ export function ReviewsDashboard({
       </div>
 
       <p className="text-xs text-[#98A2B3]">
-        Review actions update the selected review in-place. Export and response automation are wired to the production review workflow.
+        Review data sourced from Google Business Profile. Export and response automation are wired to the production review workflow.
       </p>
     </div>
   );

@@ -35,6 +35,16 @@ export type ReputationAlertsData = {
     review_gap_widening?: boolean;
     maps_visibility_moved?: boolean;
   };
+  previewMetrics?: {
+    activeCount: number;
+    criticalCount: number;
+    warningCount: number;
+    infoCount: number;
+    requiringAction: number;
+    resolved30d: number;
+    notificationsSent: number;
+    alertAccuracy: number;
+  };
 };
 
 type PersistedAlertRow = {

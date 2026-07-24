@@ -12,29 +12,44 @@ function addDays(date: Date, days: number): Date {
   return next;
 }
 
-const start = new Date("2024-03-28T12:00:00.000Z");
+// Start Mar 10, 2025 → 90 days → ends Jun 7, 2025 (inclusive of Jun 8)
+const start = new Date("2025-03-10T12:00:00.000Z");
 
 const timelinePoints = Array.from({ length: 90 }, (_, index) => {
   const date = ymd(addDays(start, index));
-  const wave = index % 9;
-  const you = [0, 1, 0, 1, 0, 2, 1, 0, 1][wave] ?? 0;
-  const top = [1, 0, 1, 1, 0, 1, 1, 2, 0][wave] ?? 0;
-  const second = [0, 1, 0, 0, 1, 0, 1, 0, 1][wave] ?? 0;
-  const events = [];
-  if (index === 28) {
+  // Gradually increasing volume towards end to reflect accelerating momentum
+  const baseWave = index % 9;
+  const accelerationFactor = 1 + index / 120;
+  const you = Math.round(([0, 1, 0, 1, 0, 2, 1, 0, 1][baseWave] ?? 0) * accelerationFactor);
+  const top = [1, 0, 1, 1, 0, 1, 1, 2, 0][baseWave] ?? 0;
+  const second = [0, 1, 0, 0, 1, 0, 1, 0, 1][baseWave] ?? 0;
+  const events: Array<{ id: string; date: string; type: "campaign_start" | "maps_scan"; label: string }> = [];
+
+  // Campaign Started (around April 14, 2025, index 35)
+  if (index === 35) {
     events.push({
-      id: "campaign-summer-cleanouts",
+      id: "campaign-spring-2025",
       date,
       type: "campaign_start" as const,
-      label: "Summer cleanout review request",
+      label: "Campaign Started",
     });
   }
-  if (index === 58) {
+  // SMS Campaign Sent (around May 4, 2025, index 55)
+  if (index === 55) {
     events.push({
-      id: "maps-scan-june",
+      id: "sms-campaign-may-2025",
+      date,
+      type: "campaign_start" as const,
+      label: "SMS Campaign Sent",
+    });
+  }
+  // Maps Scan (around May 24, 2025, index 75)
+  if (index === 75) {
+    events.push({
+      id: "maps-scan-may-2025",
       date,
       type: "maps_scan" as const,
-      label: "June Maps scan",
+      label: "Maps Scan",
     });
   }
   return {
@@ -42,8 +57,8 @@ const timelinePoints = Array.from({ length: 90 }, (_, index) => {
     you,
     competitorAvg: Math.round(((top + second) / 2) * 10) / 10,
     competitorSeries: {
-      drainmasters: top,
-      clearflow: second,
+      "top-competitor": top,
+      "2nd-competitor": second,
     },
     events,
   };
@@ -53,66 +68,83 @@ export const reviewAnalyticsPreviewData: ReviewAnalyticsDashboardData = {
   businessId: REVIEW_ANALYTICS_PREVIEW_BUSINESS_ID,
   businessName: "A-Team Junk Removal",
   timezone: "America/New_York",
-  lastSyncedAt: "2024-06-25T17:10:00.000Z",
+  lastSyncedAt: "2025-06-08T17:10:00.000Z",
   groupModes: ["daily", "weekly", "monthly"],
   competitors: [
-    { id: "drainmasters", name: "Drain Masters" },
-    { id: "clearflow", name: "ClearFlow Pros" },
+    { id: "top-competitor", name: "Top Competitor" },
+    { id: "2nd-competitor", name: "2nd Competitor" },
   ],
   timelinePoints,
   timelineByCompetitor: {
-    drainmasters: timelinePoints.map((point) => point.competitorSeries?.drainmasters ?? 0),
-    clearflow: timelinePoints.map((point) => point.competitorSeries?.clearflow ?? 0),
+    "top-competitor": timelinePoints.map((point) => point.competitorSeries?.["top-competitor"] ?? 0),
+    "2nd-competitor": timelinePoints.map((point) => point.competitorSeries?.["2nd-competitor"] ?? 0),
   },
   timelineEvents: timelinePoints.flatMap((point) => point.events),
-  weeklyVelocity: 9,
-  monthlyVelocity: 24,
+  // weeklyVelocity and monthlyVelocity are avg rates over the period
+  weeklyVelocity: 2.8,
+  monthlyVelocity: 12.1,
   rolling7d: 9,
   rolling30d: 24,
   rolling60d: 42,
   rolling90d: 71,
   rollingPeriods: [
-    { days: 7, current: 9, previous: 7, delta: 2, deltaPct: 29 },
-    { days: 30, current: 24, previous: 19, delta: 5, deltaPct: 26 },
-    { days: 60, current: 42, previous: 33, delta: 9, deltaPct: 27 },
-    { days: 90, current: 71, previous: 57, delta: 14, deltaPct: 25 },
+    // 7d: 9 ▲50%  → prev=6, delta=3
+    { days: 7, current: 9, previous: 6, delta: 3, deltaPct: 50 },
+    // 30d: 24 ▲60% → prev=15, delta=9
+    { days: 30, current: 24, previous: 15, delta: 9, deltaPct: 60 },
+    // 60d: 42 ▲75% → prev=24, delta=18
+    { days: 60, current: 42, previous: 24, delta: 18, deltaPct: 75 },
+    // 90d: 71 ▲91% → prev=37, delta=34
+    { days: 90, current: 71, previous: 37, delta: 34, deltaPct: 91 },
   ],
   priorPeriod: {
-    rolling7d: 7,
-    rolling30d: 19,
-    rolling60d: 33,
-    rolling90d: 57,
-    rolling7dDelta: 2,
-    rolling30dDelta: 5,
-    rolling60dDelta: 9,
-    rolling90dDelta: 14,
-    weeklyVelocityDelta: 2,
-    monthlyVelocityDelta: 5,
+    rolling7d: 6,
+    rolling30d: 15,
+    rolling60d: 24,
+    rolling90d: 37,
+    rolling7dDelta: 3,
+    rolling30dDelta: 9,
+    rolling60dDelta: 18,
+    rolling90dDelta: 34,
+    // weeklyVelocity 2.8 ▲75% → prev=1.6, delta=1.2
+    weeklyVelocityDelta: 1.2,
+    // monthlyVelocity 12.1 ▲60% → prev=7.6, delta=4.5
+    monthlyVelocityDelta: 4.5,
   },
   responseRate: 82,
   avgResponseTimeDays: 1.8,
-  avgDaysBetweenReviews: 2.8,
-  medianDaysBetweenReviews: 2,
-  longestDroughtDays: 6,
-  activeStreakDays: 5,
-  accelerationPct: 26,
+  avgDaysBetweenReviews: 1.4,
+  medianDaysBetweenReviews: 1.3,
+  longestDroughtDays: 5,
+  // 8 consecutive weeks = 56 days
+  activeStreakDays: 56,
+  accelerationPct: 60,
   momentumStatus: "Accelerating",
   momentumLabel: "Accelerating",
   drivers: [
-    "30-day reviews up 5 vs prior period",
-    "7-day reviews up 2 vs prior week",
+    "30-day reviews up 9 vs prior period (60% increase)",
+    "7-day reviews up 3 vs prior week (50% increase)",
     "Review requests launched before the last velocity spike",
-    "Competitors averaged 21 reviews in 30 days vs your 24",
+    "You're ahead of competitor average over the last 30 days (24 vs 19)",
   ],
-  explanation: "Momentum is accelerating: 30-day volume is up 26% and the active streak is holding.",
-  competitorRelative: "You are slightly ahead of the competitor average over the last 30 days (24 vs 21).",
+  explanation: "Momentum is accelerating: 30-day volume is up 60% and all rolling windows are growing.",
+  competitorRelative: "You're slightly ahead of the competitor average over the last 30 days (24 vs 19).",
   totalReviews: 327,
-  dateRangeLabel: "May 27 - Jun 25, 2024",
+  dateRangeLabel: "May 10 – Jun 8, 2025",
   momentumScore: 82,
+  momentumFactors: [
+    { label: "Recent Velocity", strength: "Very Strong" },
+    { label: "Velocity Change", strength: "Strong" },
+    { label: "Consistency", strength: "Strong" },
+    { label: "Recency", strength: "Very Strong" },
+    { label: "Competitor Compare", strength: "Strong" },
+  ],
+  avgDaysBetweenDelta: -0.3,
   periodRows: [
-    { label: "Last 7 days", reviews: 9, previous: 7, delta: 2, deltaPct: 29 },
-    { label: "Last 30 days", reviews: 24, previous: 19, delta: 5, deltaPct: 26 },
-    { label: "Last 60 days", reviews: 42, previous: 33, delta: 9, deltaPct: 27 },
-    { label: "Last 90 days", reviews: 71, previous: 57, delta: 14, deltaPct: 25 },
+    { label: "Last 7 days", reviews: 9, previous: 6, delta: 3, deltaPct: 50 },
+    { label: "Last 30 days", reviews: 24, previous: 15, delta: 9, deltaPct: 60 },
+    { label: "Last 60 days", reviews: 42, previous: 24, delta: 18, deltaPct: 75 },
+    { label: "Last 90 days", reviews: 71, previous: 37, delta: 34, deltaPct: 91 },
+    { label: "Last 12 months", reviews: 280, previous: 241, delta: 39, deltaPct: 16 },
   ],
 };

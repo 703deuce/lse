@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Archive,
+  Clock,
   Copy,
   Edit3,
   FileText,
@@ -14,9 +15,9 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { RepBadge, RepMetricCard, RepPageHeader, RepSearch, RepTabs, rep } from "@/components/reputation/rep-ui";
+import { RepBadge, RepMetricCard, RepPageHeader, RepSearch, RepTabs, RepViewLink, rep } from "@/components/reputation/rep-ui";
 import { renderTemplate } from "@/lib/reputation/template-vars";
-import type { ReputationTemplateRow } from "@/lib/reputation/reputation-page-preview-data";
+import type { ReputationTemplatePreviewKpis, ReputationTemplateRow } from "@/lib/reputation/reputation-page-preview-data";
 import { cn } from "@/lib/utils";
 
 type TemplateTab = "all" | "sms" | "email" | "sequences" | "mine" | "archived";
@@ -59,6 +60,11 @@ function fmtDate(value: string | null | undefined) {
   return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function fmtDateByYou(value: string | null | undefined) {
+  if (!value) return "—";
+  return `${fmtDate(value)} by You`;
+}
+
 function TemplateChannelIcon({
   channel,
   className,
@@ -75,6 +81,12 @@ function channelTone(channel: ReputationTemplateRow["channel"]): "green" | "blue
   if (channel === "email") return "blue";
   if (channel === "sequence") return "purple";
   return "green";
+}
+
+function channelLabel(channel: ReputationTemplateRow["channel"]) {
+  if (channel === "email") return "Email";
+  if (channel === "sequence") return "Sequence";
+  return "SMS";
 }
 
 function mapApiTemplate(template: ApiTemplate): ReputationTemplateRow {
@@ -142,7 +154,6 @@ function TemplatePreview({
   businessId: string;
   onSelectDraft: (channel: "sms" | "email") => void;
 }) {
-  const [testTo, setTestTo] = useState("");
   const renderedBody = selected
     ? renderTemplate(selected.body, {
         first_name: "Sam",
@@ -163,35 +174,31 @@ function TemplatePreview({
     <aside className={cn(rep.card, "h-fit p-4")}>
       {selected ? (
         <>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#ECFDF3] text-[#137752]">
-                <TemplateChannelIcon channel={selected.channel} className="h-5 w-5" />
-              </span>
-              <div>
-                <h2 className="text-[15px] font-semibold text-[#101828]">{selected.name}</h2>
-                <div className="mt-1 flex flex-wrap gap-1.5">
-                  <RepBadge tone={channelTone(selected.channel)}>{selected.channel}</RepBadge>
-                  {selected.isDefault ? <RepBadge>Default</RepBadge> : null}
-                </div>
-              </div>
-            </div>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-[#101828]">Template Preview</h2>
             <button type="button" className="rounded-lg p-1.5 text-[#98A2B3] hover:bg-[#F2F4F7]">
               <MoreHorizontal className="h-4 w-4" />
             </button>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <div className="rounded-xl bg-[#F9FAFB] p-3">
-              <p className={rep.label}>Used</p>
-              <p className="mt-1 text-xl font-bold text-[#101828]">{selected.usageCount.toLocaleString()}</p>
+          <div className="flex items-center gap-2">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#ECFDF3] text-[#137752]">
+              <TemplateChannelIcon channel={selected.channel} className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="font-semibold text-[#101828]">{selected.name}</p>
+              <div className="mt-0.5 flex flex-wrap gap-1">
+                <RepBadge tone={channelTone(selected.channel)}>{channelLabel(selected.channel)}</RepBadge>
+                {selected.isDefault ? <RepBadge>Default</RepBadge> : null}
+              </div>
             </div>
-            <div className="rounded-xl bg-[#F9FAFB] p-3">
-              <p className={rep.label}>Conversion</p>
-              <p className="mt-1 text-xl font-bold text-[#101828]">
-                {selected.conversionPct == null ? "—" : `${selected.conversionPct}%`}
-              </p>
-            </div>
+          </div>
+
+          <div className="mt-4 rounded-xl bg-[#F9FAFB] px-4 py-2.5 text-center">
+            <p className="text-xs font-bold tracking-wider text-[#667085] uppercase">
+              Used {selected.usageCount.toLocaleString()} times
+              {selected.conversionPct != null ? ` | Conversion ${selected.conversionPct}%` : ""}
+            </p>
           </div>
 
           <div className="mt-4 rounded-[22px] border border-[#D0D5DD] bg-[#F9FAFB] p-3">
@@ -213,23 +220,52 @@ function TemplatePreview({
 
           <dl className="mt-4 space-y-2 text-sm">
             <div className="flex justify-between gap-4">
+              <dt className="text-[#667085]">Channel</dt>
+              <dd className="font-medium text-[#101828]">{channelLabel(selected.channel)}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
               <dt className="text-[#667085]">Type</dt>
               <dd className="font-medium text-[#101828]">{selected.type}</dd>
             </div>
+            {selected.createdAt ? (
+              <div className="flex justify-between gap-4">
+                <dt className="text-[#667085]">Created</dt>
+                <dd className="font-medium text-[#101828]">{fmtDateByYou(selected.createdAt)}</dd>
+              </div>
+            ) : null}
             <div className="flex justify-between gap-4">
-              <dt className="text-[#667085]">Last updated</dt>
-              <dd className="font-medium text-[#101828]">{fmtDate(selected.lastUpdated)}</dd>
-            </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-[#667085]">Source</dt>
-              <dd className="font-medium capitalize text-[#101828]">{selected.source ?? "business"}</dd>
+              <dt className="text-[#667085]">Last Updated</dt>
+              <dd className="font-medium text-[#101828]">{fmtDateByYou(selected.lastUpdated)}</dd>
             </div>
           </dl>
+
+          {selected.mergeFields && selected.mergeFields.length > 0 ? (
+            <div className="mt-4">
+              <p className="mb-2 text-xs font-semibold text-[#667085]">Merge Fields</p>
+              <div className="flex flex-wrap gap-1.5">
+                {selected.mergeFields.map((field) => (
+                  <span key={field} className="inline-flex items-center rounded-full bg-[#EFF8FF] px-2 py-0.5 text-[11px] font-semibold text-[#175CD3]">
+                    {`{{${field}}}`}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {selected.recommendedTiming ? (
+            <div className="mt-4 flex items-start gap-2 rounded-xl bg-[#FFFAEB] px-3 py-2.5">
+              <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#B54708]" />
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#B54708]">Recommended Timing</p>
+                <p className="mt-0.5 text-xs text-[#344054]">{selected.recommendedTiming}</p>
+              </div>
+            </div>
+          ) : null}
 
           <div className="mt-4 grid grid-cols-3 gap-2">
             <button type="button" className={rep.btnPrimary}>
               <Edit3 className="h-4 w-4" />
-              Edit
+              Edit Template
             </button>
             <button type="button" className={rep.btnSecondary}>
               <Copy className="h-4 w-4" />
@@ -240,19 +276,6 @@ function TemplatePreview({
               Delete
             </button>
           </div>
-          {selected.channel !== "sequence" ? (
-            <div className="mt-3 flex gap-2">
-              <input
-                value={testTo}
-                onChange={(e) => setTestTo(e.target.value)}
-                placeholder={selected.channel === "sms" ? "Test phone" : "Test email"}
-                className={rep.input}
-              />
-              <button type="button" className={rep.btnSecondary} disabled={!testTo.trim()}>
-                Test
-              </button>
-            </div>
-          ) : null}
         </>
       ) : (
         <div className="py-8 text-center">
@@ -277,9 +300,11 @@ function TemplatePreview({
 export function TemplatesHub({
   businessId,
   initialTemplates,
+  previewKpis,
 }: {
   businessId: string;
   initialTemplates?: ReputationTemplateRow[];
+  previewKpis?: ReputationTemplatePreviewKpis;
 }) {
   const [templates, setTemplates] = useState<ReputationTemplateRow[]>(initialTemplates ?? []);
   const [activeTab, setActiveTab] = useState<TemplateTab>("all");
@@ -288,7 +313,8 @@ export function TemplatesHub({
   const [typeFilter, setTypeFilter] = useState("all");
   const [loading, setLoading] = useState(!initialTemplates);
   const [error, setError] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(initialTemplates?.[0]?.id ?? null);
+  const defaultSelected = initialTemplates?.find((t) => t.isDefault)?.id ?? initialTemplates?.[0]?.id ?? null;
+  const [selectedId, setSelectedId] = useState<string | null>(defaultSelected);
 
   const load = useCallback(async () => {
     if (initialTemplates) return;
@@ -344,6 +370,7 @@ export function TemplatesHub({
   }, [activeTab, channelFilter, query, templates, typeFilter]);
 
   const stats = useMemo(() => {
+    if (previewKpis) return previewKpis;
     const active = templates.filter((template) => template.status !== "archived");
     return {
       sms: active.filter((template) => template.channel === "sms").length,
@@ -352,7 +379,7 @@ export function TemplatesHub({
       industry: active.filter((template) => template.source === "industry").length,
       mine: active.filter((template) => template.source !== "industry").length,
     };
-  }, [templates]);
+  }, [templates, previewKpis]);
 
   function selectDraft(channel: "sms" | "email") {
     const draft = emptyTemplate(channel);
@@ -388,11 +415,21 @@ export function TemplatesHub({
       />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <RepMetricCard label="SMS Templates" value={stats.sms} icon={MessageSquare} hint="Active request copy" />
-        <RepMetricCard label="Email Templates" value={stats.email} icon={Mail} hint="Subject + body variants" />
-        <RepMetricCard label="Sequence Templates" value={stats.sequences} icon={Sparkles} hint="Multi-step workflows" />
-        <RepMetricCard label="Industry Templates" value={stats.industry} icon={FileText} hint="Ready-made starters" />
-        <RepMetricCard label="My Templates" value={stats.mine} icon={Edit3} hint="Business-owned templates" />
+        <RepMetricCard label="SMS Templates" value={stats.sms} icon={MessageSquare} trend="^2 this month" trendPositive>
+          <RepViewLink href="#">View SMS →</RepViewLink>
+        </RepMetricCard>
+        <RepMetricCard label="Email Templates" value={stats.email} icon={Mail} trend="^1 this month" trendPositive>
+          <RepViewLink href="#">View Email →</RepViewLink>
+        </RepMetricCard>
+        <RepMetricCard label="Sequences" value={stats.sequences} icon={Sparkles}>
+          <RepViewLink href="#">View Sequences →</RepViewLink>
+        </RepMetricCard>
+        <RepMetricCard label="Industry Templates" value={stats.industry} icon={FileText} hint="Ready-made starters">
+          <RepViewLink href="#">View Industry →</RepViewLink>
+        </RepMetricCard>
+        <RepMetricCard label="My Templates" value={stats.mine} icon={Edit3} hint="Business-owned">
+          <RepViewLink href="#">View Mine →</RepViewLink>
+        </RepMetricCard>
       </div>
 
       <RepTabs tabs={TABS} active={activeTab} onChange={(id) => setActiveTab(id as TemplateTab)} />
@@ -410,8 +447,8 @@ export function TemplatesHub({
               </select>
               <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className={rep.select}>
                 <option value="all">All types</option>
-                <option value="default">Default</option>
-                <option value="industry">Industry</option>
+                <option value="single">Single Message</option>
+                <option value="industry">Industry Starter</option>
                 <option value="sequence">Sequence</option>
               </select>
             </div>
@@ -430,7 +467,7 @@ export function TemplatesHub({
                     <th className="min-w-[320px] px-4 py-3 font-semibold">Template</th>
                     <th className="px-4 py-3 font-semibold">Channel</th>
                     <th className="px-4 py-3 font-semibold">Type</th>
-                    <th className="px-4 py-3 font-semibold">Last updated</th>
+                    <th className="px-4 py-3 font-semibold">Last Updated</th>
                     <th className="px-4 py-3 text-right font-semibold">Usage</th>
                     <th className="px-4 py-3 text-right font-semibold">Conversion</th>
                     <th className="w-12 px-4 py-3" />
@@ -466,11 +503,16 @@ export function TemplatesHub({
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <RepBadge tone={channelTone(template.channel)}>{template.channel}</RepBadge>
+                          <RepBadge tone={channelTone(template.channel)}>{channelLabel(template.channel)}</RepBadge>
                         </td>
                         <td className="px-4 py-3 text-[#344054]">{template.type}</td>
-                        <td className="px-4 py-3 text-[#667085]">{fmtDate(template.lastUpdated)}</td>
-                        <td className="px-4 py-3 text-right tabular-nums text-[#344054]">{template.usageCount.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-[#667085]">
+                          <span className="block">{fmtDate(template.lastUpdated)}</span>
+                          <span className="text-xs text-[#98A2B3]">by You</span>
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums text-[#344054]">
+                          {template.usageCount.toLocaleString()} sends
+                        </td>
                         <td className="px-4 py-3 text-right tabular-nums text-[#344054]">
                           {template.conversionPct == null ? "—" : `${template.conversionPct}%`}
                         </td>
@@ -512,13 +554,15 @@ export function TemplatesHub({
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-[#137752]">
             <Sparkles className="h-4 w-4" />
           </span>
-          <div>
-            <h3 className="text-sm font-semibold text-[#101828]">Tip: personalized merge fields improve conversion</h3>
-            <p className="mt-1 text-sm text-[#344054]">
-              Templates using {"{{first_name}}"}, {"{{business_name}}"}, {"{{location_name}}"}, and {"{{review_link}}"} typically receive higher click-through and review completion rates.
-            </p>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm font-semibold text-[#101828]">
+              Improve your results: Templates with personalized merge fields and a clear value statement get 34% higher conversion.
+            </h3>
+            <button type="button" className={cn(rep.link, "mt-1")}>
+              View best practices →
+            </button>
           </div>
-          <Archive className="ml-auto hidden h-5 w-5 text-[#137752] sm:block" />
+          <Archive className="ml-auto hidden h-5 w-5 shrink-0 text-[#137752] sm:block" />
         </div>
       </div>
     </div>

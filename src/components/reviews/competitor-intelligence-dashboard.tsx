@@ -11,7 +11,16 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowDownRight, ArrowUpRight, Plus, Star, Trophy, Users } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  CheckCircle2,
+  MessageSquare,
+  Plus,
+  Star,
+  Trophy,
+  Users,
+} from "lucide-react";
 import {
   RepBadge,
   RepMetricCard,
@@ -26,13 +35,34 @@ import type {
 import { cn } from "@/lib/utils";
 
 const GREEN = "#137752";
-const BLUE = "#2563EB";
+const BLUE = "#3B82F6";
 const GRID = "#EEF2F6";
 
 type TabId = "leaderboard" | "gap" | "strengths" | "content" | "platforms";
 
+export type OpportunityItem = {
+  icon: "check" | "star" | "chat";
+  label: string;
+};
+
+export type PlatformPresenceItem = {
+  platform: string;
+  reviews: number;
+  rating: number;
+  status: "Connected" | "Estimated" | "Not Connected";
+  verified: boolean;
+  note?: string;
+};
+
+export type CatchUpForecastRow = {
+  competitor: string;
+  monthsToCatchUp: number;
+  reviewsNeededPerMonth: number;
+};
+
 export type CompetitorIntelligenceDashboardData = Omit<CompetitorIntelligenceData, "leaderboardRows"> & {
   dateRangeLabel?: string;
+  requiredPaceOverride?: number;
   leaderboardRows: Array<
     CompetitorLeaderboardRow & {
       deltas?: {
@@ -43,6 +73,9 @@ export type CompetitorIntelligenceDashboardData = Omit<CompetitorIntelligenceDat
     }
   >;
   opportunities?: string[];
+  opportunityItems?: OpportunityItem[];
+  platformPresence?: PlatformPresenceItem[];
+  catchUpForecast?: CatchUpForecastRow[];
 };
 
 const tabs: Array<{ id: TabId; label: string }> = [
@@ -111,7 +144,9 @@ function MomentumPill({ label }: { label: string }) {
       ? "green"
       : lower.includes("slow") || lower.includes("stall")
         ? "amber"
-        : "gray";
+        : lower.includes("recov")
+          ? "blue"
+          : "gray";
   return <RepBadge tone={tone}>{label}</RepBadge>;
 }
 
@@ -146,6 +181,22 @@ function ResponseRing({ pct }: { pct: number }) {
   );
 }
 
+function DeltaChip({ value }: { value: number | undefined }) {
+  if (value == null) return null;
+  const positive = value >= 0;
+  return (
+    <span
+      className={cn(
+        "ml-1 inline-flex items-center gap-0.5 text-[10px] font-semibold",
+        positive ? "text-[#027A48]" : "text-[#B42318]"
+      )}
+    >
+      {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+      {signed(value)}
+    </span>
+  );
+}
+
 function LeaderboardTable({
   rows,
   businessId,
@@ -171,18 +222,20 @@ function LeaderboardTable({
       }
     >
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[980px] text-left text-sm">
+        <table className="w-full min-w-[1020px] text-left text-sm">
           <thead className="bg-[#F9FAFB] text-[11px] uppercase tracking-[0.06em] text-[#98A2B3]">
             <tr>
               <th className="px-3 py-2 font-semibold">Rank</th>
               <th className="px-3 py-2 font-semibold">Business</th>
               <th className="px-3 py-2 font-semibold">Total</th>
               <th className="px-3 py-2 font-semibold">Rating</th>
-              <th className="px-3 py-2 font-semibold">30 / 60 / 90</th>
-              <th className="px-3 py-2 font-semibold">Reviews / mo</th>
+              <th className="px-3 py-2 font-semibold">30d</th>
+              <th className="px-3 py-2 font-semibold">60d</th>
+              <th className="px-3 py-2 font-semibold">90d</th>
+              <th className="px-3 py-2 font-semibold">Rev / mo</th>
               <th className="px-3 py-2 font-semibold">Momentum</th>
               <th className="px-3 py-2 font-semibold">Response</th>
-              <th className="px-3 py-2 font-semibold">Avg Response</th>
+              <th className="px-3 py-2 font-semibold">Avg Days</th>
             </tr>
           </thead>
           <tbody>
@@ -191,7 +244,16 @@ function LeaderboardTable({
                 key={row.id}
                 className={cn("border-b border-[#F2F4F7]", row.isYou && "bg-[#ECFDF3]")}
               >
-                <td className="px-3 py-3 font-bold tabular-nums text-[#101828]">#{index + 1}</td>
+                <td className="px-3 py-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold tabular-nums text-[#101828]">#{index + 1}</span>
+                    {index === 0 ? (
+                      <RepBadge tone="amber">Top Competitor</RepBadge>
+                    ) : row.isYou && index <= 2 ? (
+                      <RepBadge tone="green">Top 3</RepBadge>
+                    ) : null}
+                  </div>
+                </td>
                 <td className="px-3 py-3">
                   <div className="flex items-center gap-2">
                     <span
@@ -204,20 +266,27 @@ function LeaderboardTable({
                     </span>
                     <div>
                       <p className="font-semibold text-[#101828]">{row.isYou ? "You" : row.name}</p>
-                      {row.isYou ? <p className="text-xs text-[#667085]">{row.name}</p> : null}
+                      {row.isYou ? (
+                        <p className="text-xs text-[#667085]">{row.name}</p>
+                      ) : (
+                        <p className="text-xs text-[#98A2B3]">({fmt(row.totalReviews)} total)</p>
+                      )}
                     </div>
                   </div>
                 </td>
                 <td className="px-3 py-3 font-semibold tabular-nums text-[#101828]">{fmt(row.totalReviews)}</td>
                 <td className="px-3 py-3"><Rating value={row.rating} /></td>
-                <td className="px-3 py-3">
-                  <div className="flex gap-2 tabular-nums text-[#344054]">
-                    <span>{row.reviews30}<small className="ml-0.5 text-[#027A48]">{signed(row.deltas?.reviews30 ?? row.reviews30)}</small></span>
-                    <span>/</span>
-                    <span>{row.reviews60}<small className="ml-0.5 text-[#027A48]">{signed(row.deltas?.reviews60 ?? row.reviews60)}</small></span>
-                    <span>/</span>
-                    <span>{row.reviews90}<small className="ml-0.5 text-[#027A48]">{signed(row.deltas?.reviews90 ?? row.reviews90)}</small></span>
-                  </div>
+                <td className="px-3 py-3 tabular-nums text-[#344054]">
+                  {row.reviews30}
+                  <DeltaChip value={row.deltas?.reviews30} />
+                </td>
+                <td className="px-3 py-3 tabular-nums text-[#344054]">
+                  {row.reviews60}
+                  <DeltaChip value={row.deltas?.reviews60} />
+                </td>
+                <td className="px-3 py-3 tabular-nums text-[#344054]">
+                  {row.reviews90}
+                  <DeltaChip value={row.deltas?.reviews90} />
                 </td>
                 <td className="px-3 py-3 tabular-nums text-[#344054]">{fmt(row.reviewsPerMonth, 1)}</td>
                 <td className="px-3 py-3"><MomentumPill label={row.momentumLabel} /></td>
@@ -234,50 +303,120 @@ function LeaderboardTable({
   );
 }
 
-function GapWidgets({ data }: { data: CompetitorIntelligenceDashboardData }) {
-  const you = data.leaderboardRows.find((row) => row.isYou);
-  const chartRows = data.leaderboardRows.slice(0, 6).map((row) => ({
-    name: row.isYou ? "You" : row.name,
-    reviews: row.totalReviews,
+type GapMode = "total" | "velocity";
+
+function GapAnalysisChart({
+  rows,
+  mode,
+}: {
+  rows: CompetitorIntelligenceDashboardData["leaderboardRows"];
+  mode: GapMode;
+}) {
+  const chartRows = rows.slice(0, 6).map((row) => ({
+    name: row.isYou ? "You" : row.name.split(" ")[0] ?? row.name,
+    value: mode === "total" ? row.totalReviews : row.reviews30,
     fill: row.isYou ? GREEN : BLUE,
   }));
 
   return (
+    <div className="h-[200px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={chartRows}
+          layout="vertical"
+          margin={{ top: 4, right: 24, left: 8, bottom: 0 }}
+        >
+          <CartesianGrid stroke={GRID} strokeDasharray="3 3" horizontal={false} />
+          <XAxis type="number" tick={{ fontSize: 11, fill: "#667085" }} tickLine={false} axisLine={false} />
+          <YAxis
+            type="category"
+            dataKey="name"
+            tick={{ fontSize: 11, fill: "#667085" }}
+            tickLine={false}
+            axisLine={false}
+            width={72}
+          />
+          <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #E6EAF0", fontSize: 12 }} />
+          <Bar dataKey="value" radius={[0, 8, 8, 0]} name={mode === "total" ? "Total Reviews" : "30d Reviews"}>
+            {chartRows.map((row) => (
+              <Cell key={row.name} fill={row.fill} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function GapWidgets({ data }: { data: CompetitorIntelligenceDashboardData }) {
+  const [gapMode, setGapMode] = useState<GapMode>("total");
+  const you = data.leaderboardRows.find((row) => row.isYou);
+
+  const forecastRows = data.catchUpForecast ?? data.gapRows.slice(0, 4).map((row) => ({
+    competitor: row.competitorName,
+    monthsToCatchUp: row.estimatedCatchUpMonths ?? 0,
+    reviewsNeededPerMonth: Math.max(you?.reviews30 ?? 24, (you?.reviews30 ?? 24) + (row.monthlyVelocityGap > 0 ? row.monthlyVelocityGap + 1 : 0)),
+  }));
+
+  const oppItems = data.opportunityItems ?? (data.opportunities ?? data.positioningOpportunities.map((item) => item.title)).slice(0, 5).map((label) => ({
+    icon: "check" as const,
+    label: typeof label === "string" ? label : label,
+  }));
+
+  const OppIcon = ({ icon }: { icon: OpportunityItem["icon"] }) => {
+    if (icon === "star") return <Star className="h-4 w-4 shrink-0 text-[#137752]" />;
+    if (icon === "chat") return <MessageSquare className="h-4 w-4 shrink-0 text-[#137752]" />;
+    return <CheckCircle2 className="h-4 w-4 shrink-0 text-[#137752]" />;
+  };
+
+  return (
     <div className="grid gap-4 xl:grid-cols-3">
-      <Card title="Review Gap Analysis" subtitle="Total review count by competitor.">
-        <div className="h-[260px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartRows} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
-              <CartesianGrid stroke={GRID} strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#667085" }} tickLine={false} axisLine={false} interval={0} />
-              <YAxis tick={{ fontSize: 11, fill: "#667085" }} tickLine={false} axisLine={false} />
-              <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #E6EAF0", fontSize: 12 }} />
-              <Bar dataKey="reviews" radius={[8, 8, 0, 0]}>
-                {chartRows.map((row) => <Cell key={row.name} fill={row.fill} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      <Card
+        title="Review Gap Analysis"
+        subtitle="Total review count by competitor."
+        action={
+          <div className="flex rounded-lg bg-[#F2F4F7] p-0.5">
+            {(["total", "velocity"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setGapMode(mode)}
+                className={cn(
+                  "rounded-md px-2.5 py-1 text-xs font-semibold",
+                  gapMode === mode ? "bg-white text-[#137752] shadow-sm" : "text-[#667085]"
+                )}
+              >
+                {mode === "total" ? "Total Reviews Gap" : "Velocity Gap (30d)"}
+              </button>
+            ))}
+          </div>
+        }
+      >
+        <GapAnalysisChart rows={data.leaderboardRows} mode={gapMode} />
       </Card>
 
-      <Card title="Catch-Up Forecast" subtitle="Projected gap if current pace holds.">
+      <Card title="Catch-Up Forecast" subtitle="Projected months to reach each competitor.">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="text-[11px] uppercase tracking-[0.06em] text-[#98A2B3]">
               <tr>
                 <th className="py-2 font-semibold">Competitor</th>
-                <th className="py-2 font-semibold">3m</th>
-                <th className="py-2 font-semibold">6m</th>
-                <th className="py-2 font-semibold">ETA</th>
+                <th className="py-2 font-semibold">Months</th>
+                <th className="py-2 font-semibold">Reviews / mo</th>
               </tr>
             </thead>
             <tbody>
-              {data.gapRows.slice(0, 4).map((row) => (
-                <tr key={row.competitorId} className="border-t border-[#F2F4F7]">
-                  <td className="py-3 font-medium text-[#101828]">{row.competitorName}</td>
-                  <td className="py-3 tabular-nums text-[#344054]">{fmt(row.pace3Months)}</td>
-                  <td className="py-3 tabular-nums text-[#344054]">{fmt(row.pace6Months)}</td>
-                  <td className="py-3 text-[#667085]">{row.estimatedCatchUp}</td>
+              {forecastRows.slice(0, 4).map((row) => (
+                <tr key={row.competitor} className="border-t border-[#F2F4F7]">
+                  <td className="py-3 font-medium text-[#101828]">{row.competitor}</td>
+                  <td className="py-3 tabular-nums text-[#344054]">
+                    {row.monthsToCatchUp === 0 ? (
+                      <RepBadge tone="green">Caught up</RepBadge>
+                    ) : (
+                      `${fmt(row.monthsToCatchUp, 1)} mo`
+                    )}
+                  </td>
+                  <td className="py-3 tabular-nums text-[#344054]">{fmt(row.reviewsNeededPerMonth)}</td>
                 </tr>
               ))}
             </tbody>
@@ -287,14 +426,19 @@ function GapWidgets({ data }: { data: CompetitorIntelligenceDashboardData }) {
 
       <Card title="Top Opportunities" subtitle="Where to close the gap fastest.">
         <div className="space-y-2">
-          {(data.opportunities ?? data.positioningOpportunities.map((item) => item.title)).slice(0, 5).map((item) => (
-            <div key={item} className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-3 text-sm text-[#344054]">
-              {item}
+          {oppItems.slice(0, 5).map((item, i) => (
+            <div
+              key={i}
+              className="flex items-start gap-2.5 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-3 text-sm text-[#344054]"
+            >
+              <OppIcon icon={item.icon} />
+              <span>{item.label}</span>
             </div>
           ))}
           {you ? (
             <div className="rounded-xl bg-[#ECFDF3] p-3 text-sm text-[#027A48]">
-              You are adding {fmt(you.reviews30)} reviews/month. Increase review requests to improve catch-up pace.
+              You are adding <strong>{fmt(you.reviews30)}</strong> reviews/month. Increase
+              review requests to reach the target pace.
             </div>
           ) : null}
         </div>
@@ -305,31 +449,64 @@ function GapWidgets({ data }: { data: CompetitorIntelligenceDashboardData }) {
 
 function StrengthsTab({ data }: { data: CompetitorIntelligenceDashboardData }) {
   const groups = [
-    ["Your strengths", data.strengths.positive, "green"],
-    ["Your weaknesses", data.strengths.negative, "red"],
-    ["Competitor strengths", data.strengths.competitorPositive, "blue"],
-    ["Competitor weaknesses", data.strengths.competitorNegative, "amber"],
-  ] as const;
+    {
+      title: "Your Strengths",
+      items: data.strengths.positive,
+      tone: "green" as const,
+      description: "Themes mentioned positively in your reviews",
+    },
+    {
+      title: "Your Weaknesses",
+      items: data.strengths.negative,
+      tone: "red" as const,
+      description: "Themes mentioned negatively in your reviews",
+    },
+    {
+      title: "Competitor Strengths",
+      items: data.strengths.competitorPositive,
+      tone: "blue" as const,
+      description: "What competitors are praised for",
+    },
+    {
+      title: "Competitor Weaknesses",
+      items: data.strengths.competitorNegative,
+      tone: "amber" as const,
+      description: "Where competitors are criticized",
+    },
+  ];
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      {groups.map(([title, items, tone]) => (
-        <Card key={title} title={title}>
-          <div className="space-y-2">
+      {groups.map(({ title, items, tone, description }) => (
+        <Card key={title} title={title} subtitle={description}>
+          <div className="space-y-1.5">
             {items.length === 0 ? (
               <p className="text-sm text-[#667085]">No review themes found yet.</p>
             ) : (
               items.map((item) => (
-                <div key={item.label} className="flex items-center justify-between rounded-lg bg-[#F9FAFB] px-3 py-2 text-sm">
-                  <span className="font-medium text-[#344054]">{item.label}</span>
-                  <RepBadge tone={tone}>{item.count}</RepBadge>
+                <div
+                  key={item.label}
+                  className="flex items-center justify-between rounded-lg bg-[#F9FAFB] px-3 py-2.5 text-sm"
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="h-1.5 w-1.5 rounded-full"
+                      style={{ backgroundColor: tone === "green" ? "#137752" : tone === "red" ? "#B42318" : tone === "blue" ? "#3B82F6" : "#F79009" }}
+                    />
+                    <span className="font-medium text-[#344054]">{item.label}</span>
+                  </div>
+                  <RepBadge tone={tone}>{item.count} reviews</RepBadge>
                 </div>
               ))
             )}
           </div>
         </Card>
       ))}
-      <Card title="Service Gaps" subtitle="Competitor praise themes that appear less often in your reviews." className="lg:col-span-2">
+      <Card
+        title="Service Gaps"
+        subtitle="Competitor praise themes that appear less often in your reviews."
+        className="lg:col-span-2"
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-[#F9FAFB] text-[11px] uppercase tracking-[0.06em] text-[#98A2B3]">
@@ -338,6 +515,7 @@ function StrengthsTab({ data }: { data: CompetitorIntelligenceDashboardData }) {
                 <th className="px-3 py-2 font-semibold">Competitors</th>
                 <th className="px-3 py-2 font-semibold">You</th>
                 <th className="px-3 py-2 font-semibold">Gap</th>
+                <th className="px-3 py-2 font-semibold">Opportunity</th>
               </tr>
             </thead>
             <tbody>
@@ -347,6 +525,9 @@ function StrengthsTab({ data }: { data: CompetitorIntelligenceDashboardData }) {
                   <td className="px-3 py-3 tabular-nums text-[#344054]">{row.competitorMentions}</td>
                   <td className="px-3 py-3 tabular-nums text-[#344054]">{row.yourMentions}</td>
                   <td className="px-3 py-3 font-semibold tabular-nums text-[#B42318]">+{row.gap}</td>
+                  <td className="px-3 py-3">
+                    <RepBadge tone="amber">High</RepBadge>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -358,46 +539,136 @@ function StrengthsTab({ data }: { data: CompetitorIntelligenceDashboardData }) {
 }
 
 function ContentTab({ data }: { data: CompetitorIntelligenceDashboardData }) {
-  const rows = [
-    { name: "You", ...data.contentComparison.you },
-    { name: "Competitors", ...data.contentComparison.competitors },
+  const metrics = [
+    { label: "Avg review length", you: `${data.contentComparison.you.avgLength} chars`, comp: `${data.contentComparison.competitors.avgLength} chars`, youBetter: data.contentComparison.you.avgLength > data.contentComparison.competitors.avgLength },
+    { label: "% with text", you: `${data.contentComparison.you.pctWithText}%`, comp: `${data.contentComparison.competitors.pctWithText}%`, youBetter: data.contentComparison.you.pctWithText > data.contentComparison.competitors.pctWithText },
+    { label: "Detailed reviews", you: `${data.contentComparison.you.pctDetailed}%`, comp: `${data.contentComparison.competitors.pctDetailed}%`, youBetter: data.contentComparison.you.pctDetailed > data.contentComparison.competitors.pctDetailed },
+    { label: "Generic reviews", you: `${data.contentComparison.you.pctGeneric}%`, comp: `${data.contentComparison.competitors.pctGeneric}%`, youBetter: data.contentComparison.you.pctGeneric < data.contentComparison.competitors.pctGeneric },
+    { label: "Location mentions", you: `${data.contentComparison.you.locationTerms}`, comp: `${data.contentComparison.competitors.locationTerms}`, youBetter: data.contentComparison.you.locationTerms > data.contentComparison.competitors.locationTerms },
+    { label: "Service mentions", you: `${data.contentComparison.you.serviceTerms}`, comp: `${data.contentComparison.competitors.serviceTerms}`, youBetter: data.contentComparison.you.serviceTerms > data.contentComparison.competitors.serviceTerms },
+    { label: "Employee mentions", you: `${data.contentComparison.you.employeeMentions}`, comp: `${data.contentComparison.competitors.employeeMentions}`, youBetter: data.contentComparison.you.employeeMentions > data.contentComparison.competitors.employeeMentions },
   ];
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <Card title="Review Content Comparison" subtitle="Depth and specificity of review text.">
-        <div className="h-[340px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={rows} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
-              <CartesianGrid stroke={GRID} strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#667085" }} tickLine={false} axisLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "#667085" }} tickLine={false} axisLine={false} />
-              <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #E6EAF0", fontSize: 12 }} />
-              <Bar dataKey="avgLength" name="Avg length" fill={GREEN} radius={[8, 8, 0, 0]} />
-              <Bar dataKey="pctWithText" name="% with text" fill={BLUE} radius={[8, 8, 0, 0]} />
-              <Bar dataKey="pctDetailed" name="% detailed" fill="#7C3AED" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <Card title="Review Content Comparison" subtitle="How your review text quality compares with competitors.">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-[#F9FAFB] text-[11px] uppercase tracking-[0.06em] text-[#98A2B3]">
+              <tr>
+                <th className="px-3 py-2 font-semibold">Metric</th>
+                <th className="px-3 py-2 font-semibold">You</th>
+                <th className="px-3 py-2 font-semibold">Competitors</th>
+                <th className="px-3 py-2 font-semibold">Edge</th>
+              </tr>
+            </thead>
+            <tbody>
+              {metrics.map((row) => (
+                <tr key={row.label} className="border-b border-[#F2F4F7]">
+                  <td className="px-3 py-3 font-medium text-[#101828]">{row.label}</td>
+                  <td className={cn("px-3 py-3 tabular-nums font-semibold", row.youBetter ? "text-[#027A48]" : "text-[#344054]")}>{row.you}</td>
+                  <td className="px-3 py-3 tabular-nums text-[#667085]">{row.comp}</td>
+                  <td className="px-3 py-3">
+                    <RepBadge tone={row.youBetter ? "green" : "gray"}>
+                      {row.youBetter ? "You lead" : "Behind"}
+                    </RepBadge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </Card>
-      <Card title="Content Signals">
-        <dl className="space-y-3 text-sm">
-          {[
-            ["Your avg length", `${data.contentComparison.you.avgLength} chars`],
-            ["Competitor avg length", `${data.contentComparison.competitors.avgLength} chars`],
-            ["Your detailed reviews", `${data.contentComparison.you.pctDetailed}%`],
-            ["Competitor detailed reviews", `${data.contentComparison.competitors.pctDetailed}%`],
-            ["Your generic reviews", `${data.contentComparison.you.pctGeneric}%`],
-            ["Competitor generic reviews", `${data.contentComparison.competitors.pctGeneric}%`],
-          ].map(([label, value]) => (
-            <div key={label} className="flex items-center justify-between gap-3">
-              <dt className="text-[#667085]">{label}</dt>
-              <dd className="font-semibold text-[#101828]">{value}</dd>
-            </div>
-          ))}
-        </dl>
-      </Card>
+      <div className="space-y-4">
+        <Card title="Your Top Praised Services">
+          <div className="space-y-2">
+            {data.strengths.frequentlyPraisedServices.map((item) => (
+              <div key={item.term} className="flex items-center justify-between rounded-lg bg-[#F9FAFB] px-3 py-2.5 text-sm">
+                <span className="font-medium text-[#344054] capitalize">{item.term}</span>
+                <RepBadge tone="green">{item.count} mentions</RepBadge>
+              </div>
+            ))}
+          </div>
+        </Card>
+        <Card title="Employee Mentions">
+          <div className="space-y-2">
+            {data.strengths.frequentlyMentionedEmployees.length > 0 ? (
+              data.strengths.frequentlyMentionedEmployees.map((item) => (
+                <div key={item.term} className="flex items-center justify-between rounded-lg bg-[#F9FAFB] px-3 py-2.5 text-sm">
+                  <span className="font-medium text-[#344054]">{item.term}</span>
+                  <RepBadge tone="blue">{item.count} reviews</RepBadge>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-[#667085]">No employee mentions detected yet.</p>
+            )}
+          </div>
+        </Card>
+      </div>
     </div>
+  );
+}
+
+function PlatformsTab({ data }: { data: CompetitorIntelligenceDashboardData }) {
+  const platforms = data.platformPresence ?? [
+    { platform: "Google", reviews: data.leaderboardRows.find((r) => r.isYou)?.totalReviews ?? 0, rating: data.leaderboardRows.find((r) => r.isYou)?.rating ?? 4.5, status: "Connected" as const, verified: true, note: "Primary review source via Google Business Profile." },
+    { platform: "Facebook", reviews: 89, rating: 4.5, status: "Estimated" as const, verified: false, note: "Estimated from public signals. Connect Facebook to verify." },
+    { platform: "Yelp", reviews: 43, rating: 4.3, status: "Estimated" as const, verified: false, note: "Estimated from public signals. Connect Yelp to verify." },
+  ];
+
+  const PLATFORM_COLORS: Record<string, string> = {
+    Google: "#4285F4",
+    Facebook: "#1877F2",
+    Yelp: "#D32323",
+  };
+
+  return (
+    <Card title="Platform Presence" subtitle="Review coverage across major platforms.">
+      <div className="grid gap-4 md:grid-cols-3">
+        {platforms.map((platform) => (
+          <div
+            key={platform.platform}
+            className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-5"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold text-white"
+                  style={{ backgroundColor: PLATFORM_COLORS[platform.platform] ?? "#667085" }}
+                >
+                  {platform.platform[0]}
+                </span>
+                <p className="font-semibold text-[#101828]">{platform.platform}</p>
+              </div>
+              <RepBadge tone={platform.verified ? "green" : "gray"}>
+                {platform.status}
+              </RepBadge>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">Reviews</p>
+                <p className="mt-0.5 text-xl font-bold text-[#101828]">{platform.reviews}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">Rating</p>
+                <div className="mt-0.5 flex items-baseline gap-1">
+                  <p className="text-xl font-bold text-[#101828]">{platform.rating.toFixed(1)}</p>
+                  <Star className="h-4 w-4 fill-[#FDB022] text-[#FDB022]" />
+                </div>
+              </div>
+            </div>
+            {platform.note ? (
+              <p className="mt-3 text-xs text-[#667085]">{platform.note}</p>
+            ) : null}
+            {!platform.verified ? (
+              <button type="button" className={cn(rep.btnSecondary, "mt-3 w-full justify-center text-xs")}>
+                Connect {platform.platform}
+              </button>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }
 
@@ -422,16 +693,17 @@ export function CompetitorIntelligenceDashboard({
     .sort((a, b) => b.totalGap - a.totalGap)[0];
   const velocityGap = you && topCompetitor ? you.reviews30 - topCompetitor.reviews30 : 0;
   const requiredMonthlyPace =
-    topCompetitor && primaryGap
+    data.requiredPaceOverride ??
+    (topCompetitor && primaryGap
       ? Math.max(topCompetitor.reviews30 + 1, you?.reviews30 ?? 0)
-      : you?.reviews30 ?? 0;
+      : you?.reviews30 ?? 0);
 
   return (
     <div className={rep.page}>
       <RepPageHeader
         title="Competitor Intelligence"
         subtitle={`Review position, gap, and content quality compared with nearby competitors for ${data.businessName}.`}
-        dateRangeLabel={data.dateRangeLabel ?? "Last 90 days"}
+        dateRangeLabel={data.dateRangeLabel ?? "May 10 – Jun 8, 2025"}
         showCompare
         filterLabel="Filters"
       />
@@ -441,11 +713,25 @@ export function CompetitorIntelligenceDashboard({
       {activeTab === "leaderboard" ? (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <RepMetricCard label="You Rank" value={youRank ? `#${youRank}` : "—"} hint={`of ${sortedRows.length} businesses`} icon={Trophy} />
-            <RepMetricCard label="Top Competitor 30d" value={fmt(topCompetitor?.reviews30)} hint={topCompetitor?.name ?? "No competitor"} icon={Users} />
-            <RepMetricCard label="Review Gap" value={fmt(primaryGap?.totalGap ?? 0)} hint={primaryGap?.competitorName ?? "No gap"} />
             <RepMetricCard
-              label="Velocity Gap"
+              label="Your Rank"
+              value={youRank ? `#${youRank} of ${sortedRows.length}` : "—"}
+              hint={youRank && youRank <= 3 ? "Top 3 in your area" : `of ${sortedRows.length} businesses`}
+              icon={Trophy}
+            />
+            <RepMetricCard
+              label="Top Competitor 30d"
+              value={`+${fmt(topCompetitor?.reviews30)}`}
+              hint={topCompetitor?.name ?? "No competitor"}
+              icon={Users}
+            />
+            <RepMetricCard
+              label="Review Gap"
+              value={primaryGap ? `${fmt(primaryGap.totalGap)}` : "—"}
+              hint={primaryGap ? `behind ${primaryGap.competitorName}` : "No gap"}
+            />
+            <RepMetricCard
+              label="Velocity Gap (30d)"
               value={signed(velocityGap)}
               hint="you vs top competitor"
               trendPositive={velocityGap >= 0}
@@ -453,8 +739,16 @@ export function CompetitorIntelligenceDashboard({
               icon={velocityGap < 0 ? ArrowDownRight : ArrowUpRight}
               iconClassName={velocityGap < 0 ? "bg-[#FEF3F2] text-[#B42318]" : undefined}
             />
-            <RepMetricCard label="Est Months to Catch Up" value={primaryGap?.estimatedCatchUpMonths == null ? "—" : fmt(primaryGap.estimatedCatchUpMonths)} hint={primaryGap?.estimatedCatchUp ?? "At current pace"} />
-            <RepMetricCard label="Required Monthly Pace" value={fmt(requiredMonthlyPace)} hint="reviews / month" />
+            <RepMetricCard
+              label="Est. Months to Catch Up"
+              value={primaryGap?.estimatedCatchUpMonths == null ? "—" : fmt(primaryGap.estimatedCatchUpMonths, 1)}
+              hint={primaryGap?.estimatedCatchUp ?? "At current pace"}
+            />
+            <RepMetricCard
+              label="Required Monthly Pace"
+              value={fmt(requiredMonthlyPace)}
+              hint={you ? `+${fmt(requiredMonthlyPace - (you.reviews30 ?? 0))} vs current` : "reviews / month"}
+            />
           </div>
           <LeaderboardTable rows={sortedRows} businessId={businessId} />
           <GapWidgets data={{ ...data, leaderboardRows: sortedRows }} />
@@ -482,7 +776,9 @@ export function CompetitorIntelligenceDashboard({
                     <tr key={row.competitorId} className="border-b border-[#F2F4F7]">
                       <td className="px-3 py-3 font-medium text-[#101828]">{row.competitorName}</td>
                       <td className="px-3 py-3 tabular-nums text-[#344054]">{fmt(row.totalGap)}</td>
-                      <td className="px-3 py-3 tabular-nums text-[#344054]">{fmt(row.monthlyVelocityGap)}</td>
+                      <td className={cn("px-3 py-3 tabular-nums font-semibold", row.monthlyVelocityGap < 0 ? "text-[#B42318]" : "text-[#027A48]")}>
+                        {signed(row.monthlyVelocityGap, "/mo")}
+                      </td>
                       <td className="px-3 py-3 tabular-nums text-[#344054]">{fmt(row.neededToCatch)}</td>
                       <td className="px-3 py-3 text-[#667085]">{row.estimatedCatchUp}</td>
                       <td className="px-3 py-3">
@@ -501,20 +797,7 @@ export function CompetitorIntelligenceDashboard({
 
       {activeTab === "strengths" ? <StrengthsTab data={data} /> : null}
       {activeTab === "content" ? <ContentTab data={data} /> : null}
-      {activeTab === "platforms" ? (
-        <Card title="Platform Presence" subtitle="Structured placeholder for non-Google review source coverage.">
-          <div className="grid gap-3 md:grid-cols-3">
-            {["Google", "Facebook", "Yelp"].map((platform) => (
-              <div key={platform} className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
-                <p className="font-semibold text-[#101828]">{platform}</p>
-                <p className="mt-1 text-sm text-[#667085]">
-                  {platform === "Google" ? "Connected through review feed data." : "Coming soon"}
-                </p>
-              </div>
-            ))}
-          </div>
-        </Card>
-      ) : null}
+      {activeTab === "platforms" ? <PlatformsTab data={data} /> : null}
     </div>
   );
 }

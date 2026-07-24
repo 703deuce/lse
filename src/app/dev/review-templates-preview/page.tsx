@@ -6,6 +6,7 @@ import {
   REPUTATION_PREVIEW_BUSINESS_ID,
   REPUTATION_PREVIEW_BUSINESS_NAME,
   reputationTemplatesPreviewData,
+  reputationTemplatesPreviewKpis,
 } from "@/lib/reputation/reputation-page-preview-data";
 
 export default function ReviewTemplatesPreviewPage() {
@@ -21,7 +22,7 @@ export default function ReviewTemplatesPreviewPage() {
         showFooter={false}
       />
       <main className="min-w-0 flex-1 overflow-y-auto px-5 py-6 lg:px-8">
-        <TemplatesHub businessId={REPUTATION_PREVIEW_BUSINESS_ID} initialTemplates={reputationTemplatesPreviewData} />
+        <TemplatesHub businessId={REPUTATION_PREVIEW_BUSINESS_ID} initialTemplates={reputationTemplatesPreviewData} previewKpis={reputationTemplatesPreviewKpis} />
       </main>
     </div>
   );

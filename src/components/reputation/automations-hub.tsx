@@ -5,10 +5,10 @@ import {
   Activity,
   CheckCircle2,
   Code2,
-  History,
   MoreHorizontal,
   PlugZap,
   Plus,
+  Search,
   Settings,
   Users,
   Webhook,
@@ -50,24 +50,29 @@ const TABS: Array<{ id: AutomationTab; label: string }> = [
 ];
 
 function fmtDateTime(value: string | null | undefined) {
-  if (!value) return "Never";
-  return new Date(value).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 function statusTone(status: TriggerRow["status"]): "green" | "amber" | "gray" {
   if (status === "Active") return "green";
+  if (status === "Paused") return "amber";
   if (status === "Test") return "amber";
   return "gray";
 }
 
-function IntegrationCard({ item, icon: Icon }: { item: IntegrationRow; icon: typeof PlugZap }) {
+function IntegrationCard({ item }: { item: IntegrationRow }) {
+  const n = item.name.toLowerCase();
   return (
     <div className={cn(rep.card, "p-4")}>
       <div className="flex items-start gap-3">
         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#ECFDF3] text-[#137752]">
-          <Icon className="h-5 w-5" />
+          {n.includes("zapier") ? <Zap className="h-5 w-5" />
+            : n.includes("webhook") || n.includes("generic") ? <Webhook className="h-5 w-5" />
+              : n.includes("api") ? <Code2 className="h-5 w-5" />
+                : <PlugZap className="h-5 w-5" />}
         </span>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-semibold text-[#101828]">{item.name}</h3>
             <RepBadge tone={item.status === "Connected" ? "green" : "gray"}>{item.status}</RepBadge>
@@ -94,7 +99,7 @@ function ActivityFeed({ rows }: { rows: ActivityRow[] }) {
           <li key={row.id} className="flex gap-3">
             <span
               className={cn(
-                "mt-1 h-2.5 w-2.5 rounded-full",
+                "mt-1 h-2.5 w-2.5 shrink-0 rounded-full",
                 row.tone === "red" ? "bg-[#D92D20]" : row.tone === "amber" ? "bg-[#F79009]" : "bg-[#137752]"
               )}
             />
@@ -129,6 +134,43 @@ function ConnectedIntegrations({ rows }: { rows: IntegrationRow[] }) {
   );
 }
 
+function WorkflowHistoryTable({ triggers }: { triggers: TriggerRow[] }) {
+  return (
+    <div className={cn(rep.card, "overflow-hidden")}>
+      <div className="border-b border-[#E6EAF0] px-4 py-3">
+        <h2 className="text-sm font-semibold text-[#101828]">Workflow History</h2>
+        <p className="text-xs text-[#667085]">Recent automation run history and enrollment counts.</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-left text-sm">
+          <thead className="bg-[#F9FAFB] text-[11px] uppercase tracking-[0.06em] text-[#667085]">
+            <tr>
+              <th className="min-w-[220px] px-4 py-3 font-semibold">Workflow</th>
+              <th className="px-4 py-3 font-semibold">Campaign</th>
+              <th className="px-4 py-3 font-semibold">Status</th>
+              <th className="px-4 py-3 font-semibold">Last Run</th>
+              <th className="px-4 py-3 text-right font-semibold">Enrolled</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#EEF2F6]">
+            {triggers.map((trigger) => (
+              <tr key={trigger.id} className="bg-white hover:bg-[#F9FAFB]">
+                <td className="px-4 py-3 font-semibold text-[#101828]">{trigger.name}</td>
+                <td className="px-4 py-3 text-[#344054]">{trigger.campaign}</td>
+                <td className="px-4 py-3">
+                  <RepBadge tone={statusTone(trigger.status)}>{trigger.status}</RepBadge>
+                </td>
+                <td className="px-4 py-3 text-[#667085]">{fmtDateTime(trigger.lastFired)}</td>
+                <td className="px-4 py-3 text-right tabular-nums text-[#344054]">{trigger.enrolled.toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export function AutomationsHub({
   businessId,
   previewData,
@@ -141,6 +183,8 @@ export function AutomationsHub({
   const [metrics, setMetrics] = useState(previewData?.metrics ?? null);
   const [loading, setLoading] = useState(!previewData);
   const [error, setError] = useState<string | null>(null);
+  const [triggerSearch, setTriggerSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const load = useCallback(async () => {
     if (previewData) return;
@@ -214,6 +258,21 @@ export function AutomationsHub({
       successPct: 0,
     };
 
+  const filteredTriggers = useMemo(() => {
+    const needle = triggerSearch.trim().toLowerCase();
+    return triggers.filter((t) => {
+      const statusMatch = statusFilter === "all" || t.status.toLowerCase() === statusFilter.toLowerCase();
+      const searchMatch = !needle || [t.name, t.source, t.campaign].some((v) => v.toLowerCase().includes(needle));
+      return statusMatch && searchMatch;
+    });
+  }, [triggers, triggerSearch, statusFilter]);
+
+  function trendLabel(pct: number | undefined) {
+    if (pct == null) return null;
+    const sign = pct >= 0 ? "▲" : "▼";
+    return `${sign}${Math.abs(pct)}%`;
+  }
+
   return (
     <div className={rep.page}>
       <RepPageHeader
@@ -241,11 +300,44 @@ export function AutomationsHub({
       />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <RepMetricCard label="Active Automations" value={safeMetrics.active} icon={Zap} hint="Live triggers" />
-        <RepMetricCard label="Triggers Fired 30d" value={safeMetrics.fired30d.toLocaleString()} icon={Activity} hint="Webhook events" />
-        <RepMetricCard label="Contacts Enrolled" value={safeMetrics.enrolled.toLocaleString()} icon={Users} hint="From automations" />
-        <RepMetricCard label="Reviews Generated" value={safeMetrics.reviewsGenerated.toLocaleString()} icon={CheckCircle2} hint="Estimated/attributed" />
-        <RepMetricCard label="Automation Success" value={`${safeMetrics.successPct}%`} icon={Webhook} hint="Processed events" />
+        <RepMetricCard
+          label="Active Automations"
+          value={safeMetrics.active}
+          icon={Zap}
+          hint={safeMetrics.activeRunning != null ? `${safeMetrics.activeRunning} running` : "Live triggers"}
+        />
+        <RepMetricCard
+          label="Triggers Fired 30d"
+          value={safeMetrics.fired30d.toLocaleString()}
+          icon={Activity}
+          trend={trendLabel(safeMetrics.fired30dTrend) ?? undefined}
+          trendPositive={safeMetrics.fired30dTrend != null && safeMetrics.fired30dTrend >= 0}
+          hint="vs prior period"
+        />
+        <RepMetricCard
+          label="Contacts Enrolled"
+          value={safeMetrics.enrolled.toLocaleString()}
+          icon={Users}
+          trend={trendLabel(safeMetrics.enrolledTrend) ?? undefined}
+          trendPositive={safeMetrics.enrolledTrend != null && safeMetrics.enrolledTrend >= 0}
+          hint="From automations"
+        />
+        <RepMetricCard
+          label="Reviews Generated"
+          value={safeMetrics.reviewsGenerated.toLocaleString()}
+          icon={CheckCircle2}
+          trend={trendLabel(safeMetrics.reviewsGeneratedTrend) ?? undefined}
+          trendPositive={safeMetrics.reviewsGeneratedTrend != null && safeMetrics.reviewsGeneratedTrend >= 0}
+          hint="Attributed reviews"
+        />
+        <RepMetricCard
+          label="Automation Success"
+          value={`${safeMetrics.successPct}%`}
+          icon={Webhook}
+          trend={safeMetrics.successPctDelta != null ? `${safeMetrics.successPctDelta > 0 ? "▲" : "▼"}${Math.abs(safeMetrics.successPctDelta)}%` : undefined}
+          trendPositive={safeMetrics.successPctDelta == null || safeMetrics.successPctDelta >= 0}
+          hint="Processed events"
+        />
       </div>
 
       <RepTabs tabs={TABS} active={activeTab} onChange={(id) => setActiveTab(id as AutomationTab)} />
@@ -255,16 +347,47 @@ export function AutomationsHub({
           <div className="space-y-3">
             <div className={cn(rep.card, "overflow-hidden")}>
               <div className="border-b border-[#E6EAF0] px-4 py-3">
-                <h2 className="text-sm font-semibold text-[#101828]">Trigger workflows</h2>
-                <p className="text-xs text-[#667085]">Webhook and integration events mapped into review campaigns.</p>
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h2 className="text-sm font-semibold text-[#101828]">Automation Triggers</h2>
+                    <p className="text-xs text-[#667085]">Webhook and integration events mapped into review campaigns.</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className={cn(rep.select, "h-9 text-xs")}
+                    >
+                      <option value="all">All Statuses</option>
+                      <option value="active">Active</option>
+                      <option value="paused">Paused</option>
+                      <option value="draft">Draft</option>
+                      <option value="test">Test</option>
+                    </select>
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#98A2B3]" />
+                      <input
+                        type="search"
+                        value={triggerSearch}
+                        onChange={(e) => setTriggerSearch(e.target.value)}
+                        placeholder="Search triggers..."
+                        className={cn(rep.input, "h-9 pl-8 text-xs")}
+                        style={{ minWidth: 160 }}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full text-left text-sm">
                   <thead className="bg-[#F9FAFB] text-[11px] uppercase tracking-[0.06em] text-[#667085]">
                     <tr>
-                      <th className="min-w-[260px] px-4 py-3 font-semibold">Trigger</th>
+                      <th className="w-10 px-4 py-3">
+                        <input type="checkbox" className="h-4 w-4 rounded border-[#D0D5DD]" aria-label="Select all triggers" />
+                      </th>
+                      <th className="min-w-[200px] px-4 py-3 font-semibold">Trigger</th>
                       <th className="px-4 py-3 font-semibold">Source</th>
-                      <th className="px-4 py-3 font-semibold">Campaign</th>
+                      <th className="min-w-[200px] px-4 py-3 font-semibold">Campaign</th>
                       <th className="px-4 py-3 font-semibold">Status</th>
                       <th className="px-4 py-3 font-semibold">Last Fired</th>
                       <th className="px-4 py-3 text-right font-semibold">Enrolled</th>
@@ -272,11 +395,13 @@ export function AutomationsHub({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#EEF2F6]">
-                    {triggers.map((trigger) => (
+                    {filteredTriggers.map((trigger) => (
                       <tr key={trigger.id} className="bg-white hover:bg-[#F9FAFB]">
                         <td className="px-4 py-3">
+                          <input type="checkbox" className="h-4 w-4 rounded border-[#D0D5DD]" aria-label={`Select ${trigger.name}`} />
+                        </td>
+                        <td className="px-4 py-3">
                           <p className="font-semibold text-[#101828]">{trigger.name}</p>
-                          <p className="text-xs text-[#667085]">{trigger.id}</p>
                         </td>
                         <td className="px-4 py-3 text-[#344054]">{trigger.source}</td>
                         <td className="px-4 py-3 text-[#344054]">{trigger.campaign}</td>
@@ -292,16 +417,16 @@ export function AutomationsHub({
                         </td>
                       </tr>
                     ))}
-                    {!loading && triggers.length === 0 ? (
+                    {!loading && filteredTriggers.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-10 text-center text-sm text-[#667085]">
-                          No triggers yet. Create a webhook automation to enroll contacts automatically.
+                        <td colSpan={8} className="px-4 py-10 text-center text-sm text-[#667085]">
+                          No triggers match the current filters.
                         </td>
                       </tr>
                     ) : null}
                     {loading ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-10 text-center text-sm text-[#667085]">
+                        <td colSpan={8} className="px-4 py-10 text-center text-sm text-[#667085]">
                           Loading automations...
                         </td>
                       </tr>
@@ -326,33 +451,54 @@ export function AutomationsHub({
       ) : null}
 
       {activeTab === "integrations" ? (
-        <div className="grid gap-3 lg:grid-cols-3">
-          <IntegrationCard item={integrations[0] ?? { id: "zapier", name: "Zapier", status: "Available", detail: "Create a trigger and copy the webhook URL." }} icon={PlugZap} />
-          <IntegrationCard item={integrations[1] ?? { id: "webhook", name: "Generic webhook", status: "Available", detail: "POST mapped JSON from any system." }} icon={Webhook} />
-          <IntegrationCard item={integrations[2] ?? { id: "api", name: "API", status: "Available", detail: "Server-side automation events." }} icon={Code2} />
+        <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
+          {integrations.map((item) => (
+            <IntegrationCard key={item.id} item={item} />
+          ))}
         </div>
       ) : null}
 
       {activeTab === "activity" ? (
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <ActivityFeed rows={activities} />
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className={cn(rep.card, "p-4")}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-[#101828]">Activity Log</h2>
+              <Activity className="h-4 w-4 text-[#98A2B3]" />
+            </div>
+            <ul className="space-y-3">
+              {activities.map((row) => (
+                <li key={row.id} className="flex gap-3 rounded-xl bg-[#F9FAFB] p-3">
+                  <span
+                    className={cn(
+                      "mt-1 h-2.5 w-2.5 shrink-0 rounded-full",
+                      row.tone === "red" ? "bg-[#D92D20]" : row.tone === "amber" ? "bg-[#F79009]" : "bg-[#137752]"
+                    )}
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-[#101828]">{row.title}</p>
+                    <p className="text-xs text-[#667085]">{row.detail}</p>
+                    <p className="mt-1 text-xs text-[#98A2B3]">{row.at}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
           <ConnectedIntegrations rows={integrations} />
         </div>
       ) : null}
 
       {activeTab === "history" ? (
-        <div className={cn(rep.card, "p-4")}>
-          <div className="flex items-center gap-2">
-            <History className="h-4 w-4 text-[#137752]" />
-            <h2 className="text-sm font-semibold text-[#101828]">Workflow History</h2>
-          </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            {triggers.slice(0, 3).map((trigger) => (
-              <div key={trigger.id} className="rounded-xl bg-[#F9FAFB] p-3">
-                <p className="text-sm font-semibold text-[#101828]">{trigger.name}</p>
-                <p className="mt-1 text-xs text-[#667085]">
-                  Last run {fmtDateTime(trigger.lastFired)} · {trigger.enrolled.toLocaleString()} enrolled
-                </p>
+        <div className="space-y-3">
+          <WorkflowHistoryTable triggers={triggers} />
+          <div className="grid gap-3 md:grid-cols-3">
+            {[
+              { label: "Total Runs (30d)", value: safeMetrics.fired30d.toLocaleString() },
+              { label: "Contacts Enrolled (30d)", value: safeMetrics.enrolled.toLocaleString() },
+              { label: "Success Rate", value: `${safeMetrics.successPct}%` },
+            ].map((stat) => (
+              <div key={stat.label} className={cn(rep.card, "p-4 text-center")}>
+                <p className={rep.label}>{stat.label}</p>
+                <p className="mt-2 text-2xl font-bold text-[#101828]">{stat.value}</p>
               </div>
             ))}
           </div>
@@ -361,3 +507,4 @@ export function AutomationsHub({
     </div>
   );
 }
+

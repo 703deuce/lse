@@ -18,6 +18,7 @@ import {
 import { RepBadge, RepMetricCard, RepPageHeader, RepSearch, RepTabs, RepViewLink, rep } from "@/components/reputation/rep-ui";
 import { ReviewCampaignsUpgrade } from "@/components/reputation/review-campaigns-upgrade";
 import { ContactsImportWizard } from "@/components/reputation/contacts-import-wizard";
+import type { ReputationContactPreviewKpis } from "@/lib/reputation/reputation-page-preview-data";
 import { cn } from "@/lib/utils";
 
 type ContactTab =
@@ -55,6 +56,7 @@ type ContactRow = {
   created_at?: string;
   updated_at: string;
   last_service_at?: string | null;
+  campaign_status?: string;
 };
 
 function tagsInclude(contact: ContactRow, terms: string[]) {
@@ -91,11 +93,12 @@ function hasImportSignal(contact: ContactRow) {
 }
 
 function contactStatus(contact: ContactRow) {
-  if (contact.sms_opt_out && contact.email_unsubscribed) return "SMS + email suppressed";
-  if (contact.sms_opt_out) return "SMS suppressed";
-  if (contact.email_unsubscribed) return "Email suppressed";
-  if (hasReviewDetectedSignal(contact)) return "Review detected";
-  if (hasReviewRequestSignal(contact)) return "Review requested";
+  if (contact.sms_opt_out && contact.email_unsubscribed) return "Opted Out";
+  if (contact.sms_opt_out) return "SMS Opted Out";
+  if (contact.email_unsubscribed) return "Email Unsub";
+  if (hasReviewDetectedSignal(contact)) return "Review Received";
+  if (hasReviewRequestSignal(contact)) return "Requested";
+  if (isEligibleForRequest(contact)) return "Eligible";
   return "Active";
 }
 
@@ -121,6 +124,18 @@ function fmtDate(value: string | null | undefined) {
   return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function fmtPhone(phone: string | null | undefined) {
+  if (!phone) return "—";
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 11 && digits[0] === "1") {
+    return `(${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  return phone;
+}
+
 function reviewStatusTone(contact: ContactRow): "green" | "blue" | "amber" | "gray" | "red" {
   if (contact.sms_opt_out || contact.email_unsubscribed) return "red";
   if (hasReviewDetectedSignal(contact)) return "green";
@@ -129,19 +144,34 @@ function reviewStatusTone(contact: ContactRow): "green" | "blue" | "amber" | "gr
   return "gray";
 }
 
+function tagTone(tag: string): "green" | "blue" | "amber" | "gray" | "purple" | "red" {
+  const t = tag.toLowerCase();
+  if (t === "vip") return "purple";
+  if (t === "reviewed" || t === "google") return "green";
+  if (t === "opted_out") return "red";
+  if (t === "eligible" || t === "repeat") return "blue";
+  return "gray";
+}
+
 export function ContactsPageClient({
   businessId,
   allowed,
   initialContacts,
+  previewStats,
+  previewTotalCount,
 }: {
   businessId: string;
   allowed: boolean;
   initialContacts?: ContactRow[];
+  previewStats?: ReputationContactPreviewKpis;
+  previewTotalCount?: number;
 }) {
   const [items, setItems] = useState<ContactRow[]>(initialContacts ?? []);
   const [cursor, setCursor] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [campaignFilter, setCampaignFilter] = useState("all");
   const [loading, setLoading] = useState(!initialContacts);
   const [error, setError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -212,8 +242,18 @@ export function ContactsPageClient({
       }
     })();
     const needle = q.trim().toLowerCase();
-    if (!needle) return tabItems;
-    return tabItems.filter((contact) =>
+    const sourceFiltered =
+      sourceFilter === "all"
+        ? tabItems
+        : tabItems.filter((c) => (c.source?.toLowerCase() ?? "").includes(sourceFilter));
+    const campaignFiltered =
+      campaignFilter === "all"
+        ? sourceFiltered
+        : campaignFilter === "requested"
+          ? sourceFiltered.filter(hasReviewRequestSignal)
+          : sourceFiltered.filter((c) => !hasReviewRequestSignal(c));
+    if (!needle) return campaignFiltered;
+    return campaignFiltered.filter((contact) =>
       [
         contactName(contact),
         contact.email_normalized ?? "",
@@ -222,37 +262,29 @@ export function ContactsPageClient({
         ...(contact.tags ?? []),
       ].some((value) => value.toLowerCase().includes(needle))
     );
-  }, [activeTab, items, q]);
+  }, [activeTab, campaignFilter, items, q, sourceFilter]);
 
   const emptyMessage = useMemo(() => {
-    if (activeTab === "eligible") {
-      return "No eligible contacts in the loaded results. Contacts need at least one unsuppressed phone or email.";
-    }
-    if (activeTab === "requested") {
-      return "No loaded contacts show review-request history. The API exposes last_contacted_at and campaign_attempts when available.";
-    }
-    if (activeTab === "detected") {
-      return "No loaded contacts show detected review completion. Review detection appears when review_completion or matching tags are returned.";
-    }
-    if (activeTab === "opted_out") {
-      return "No loaded contacts are opted out or unsubscribed.";
-    }
-    if (activeTab === "import_history") {
-      return "No import-sourced contacts found in the loaded results. Batch import history is not returned by this contacts endpoint.";
-    }
+    if (activeTab === "eligible") return "No eligible contacts in the loaded results.";
+    if (activeTab === "requested") return "No loaded contacts show review-request history.";
+    if (activeTab === "detected") return "No loaded contacts show detected review completion.";
+    if (activeTab === "opted_out") return "No loaded contacts are opted out or unsubscribed.";
+    if (activeTab === "import_history") return "No import-sourced contacts found in the loaded results.";
     return "No contacts yet. Add a customer or import via a campaign.";
   }, [activeTab]);
 
-  const contactStats = useMemo(
-    () => ({
+  const contactStats = useMemo(() => {
+    if (previewStats) return previewStats;
+    return {
       all: items.length,
       eligible: items.filter(isEligibleForRequest).length,
       requested: items.filter(hasReviewRequestSignal).length,
       received: items.filter(hasReviewDetectedSignal).length,
       optedOut: items.filter((contact) => contact.sms_opt_out || contact.email_unsubscribed).length,
-    }),
-    [items]
-  );
+    };
+  }, [items, previewStats]);
+
+  const totalCount = previewTotalCount ?? items.length;
 
   if (!allowed) {
     return <ReviewCampaignsUpgrade businessId={businessId} />;
@@ -291,6 +323,11 @@ export function ContactsPageClient({
     }
   }
 
+  const eligiblePct = totalCount > 0 ? Math.round((contactStats.eligible / totalCount) * 100) : 0;
+  const requestedPct = totalCount > 0 ? Math.round((contactStats.requested / totalCount) * 100) : 0;
+  const receivedPct = totalCount > 0 ? Math.round((contactStats.received / totalCount) * 100) : 0;
+  const optedOutPct = totalCount > 0 ? Math.round((contactStats.optedOut / totalCount) * 100) : 0;
+
   return (
     <div className={rep.page}>
       <RepPageHeader
@@ -322,20 +359,20 @@ export function ContactsPageClient({
       />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <RepMetricCard label="All Contacts" value={contactStats.all} icon={Users}>
-          <RepViewLink href={`/businesses/${businessId}/reputation/contacts`}>View</RepViewLink>
+        <RepMetricCard label="All Contacts" value={totalCount.toLocaleString()} icon={Users}>
+          <RepViewLink href={`/businesses/${businessId}/reputation/contacts`}>View →</RepViewLink>
         </RepMetricCard>
-        <RepMetricCard label="Eligible" value={contactStats.eligible} icon={CheckCircle2} hint="Can receive SMS or email">
-          <button type="button" onClick={() => setActiveTab("eligible")} className={rep.link}>View</button>
+        <RepMetricCard label="Eligible" value={contactStats.eligible.toLocaleString()} icon={CheckCircle2} hint={`${eligiblePct}% of total`}>
+          <button type="button" onClick={() => setActiveTab("eligible")} className={rep.link}>View →</button>
         </RepMetricCard>
-        <RepMetricCard label="Review Requested" value={contactStats.requested} icon={Send} hint="At least one request">
-          <button type="button" onClick={() => setActiveTab("requested")} className={rep.link}>View</button>
+        <RepMetricCard label="Requested" value={contactStats.requested.toLocaleString()} icon={Send} hint={`${requestedPct}% of total`}>
+          <button type="button" onClick={() => setActiveTab("requested")} className={rep.link}>View →</button>
         </RepMetricCard>
-        <RepMetricCard label="Review Received" value={contactStats.received} icon={CheckCircle2} hint="Detected completion">
-          <button type="button" onClick={() => setActiveTab("detected")} className={rep.link}>View</button>
+        <RepMetricCard label="Review Received" value={contactStats.received.toLocaleString()} icon={CheckCircle2} hint={`${receivedPct}% of total`}>
+          <button type="button" onClick={() => setActiveTab("detected")} className={rep.link}>View →</button>
         </RepMetricCard>
-        <RepMetricCard label="Opted Out" value={contactStats.optedOut} icon={Ban} iconClassName="bg-[#FEF3F2] text-[#B42318]">
-          <button type="button" onClick={() => setActiveTab("opted_out")} className={rep.link}>View</button>
+        <RepMetricCard label="Opted Out" value={contactStats.optedOut.toLocaleString()} icon={Ban} iconClassName="bg-[#FEF3F2] text-[#B42318]" hint={`${optedOutPct}% of total`}>
+          <button type="button" onClick={() => setActiveTab("opted_out")} className={rep.link}>View →</button>
         </RepMetricCard>
       </div>
 
@@ -370,13 +407,14 @@ export function ContactsPageClient({
       <div className={cn(rep.card, "flex flex-col gap-3 p-3 lg:flex-row lg:items-center")}>
         <RepSearch value={q} onChange={setQ} placeholder="Search name, email, phone, source, or tag..." />
         <div className="flex flex-wrap gap-2">
-          <select className={rep.select} defaultValue="all">
+          <select className={rep.select} value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}>
             <option value="all">All sources</option>
             <option value="csv">CSV import</option>
             <option value="manual">Manual</option>
+            <option value="housecall">Housecall Pro</option>
             <option value="webhook">Webhook</option>
           </select>
-          <select className={rep.select} defaultValue="all">
+          <select className={rep.select} value={campaignFilter} onChange={(e) => setCampaignFilter(e.target.value)}>
             <option value="all">All campaigns</option>
             <option value="requested">Requested</option>
             <option value="not-requested">Not requested</option>
@@ -394,13 +432,6 @@ export function ContactsPageClient({
         </div>
       </div>
 
-      <div className="rounded-lg border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2 text-xs text-[#667085]">
-        Filters apply to loaded contacts. Use Load more to bring additional contacts into these tabs.
-        {activeTab === "import_history"
-          ? " Import batch records are approximated from contact source/tags when the contacts endpoint is the only loaded source."
-          : null}
-      </div>
-
       <div className={cn(rep.card, "overflow-hidden")}>
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
@@ -409,13 +440,12 @@ export function ContactsPageClient({
                 <th className="w-10 px-4 py-3">
                   <input type="checkbox" className="h-4 w-4 rounded border-[#D0D5DD]" aria-label="Select all contacts" />
                 </th>
-                <th className="min-w-[260px] px-4 py-3 font-semibold">Contact</th>
-                <th className="px-4 py-3 font-semibold">Email</th>
+                <th className="min-w-[200px] px-4 py-3 font-semibold">Contact</th>
                 <th className="px-4 py-3 font-semibold">Phone</th>
-                <th className="px-4 py-3 font-semibold">Last service/request</th>
-                <th className="px-4 py-3 font-semibold">Review status</th>
-                <th className="px-4 py-3 font-semibold">Campaign status</th>
+                <th className="px-4 py-3 font-semibold">Campaign Status</th>
+                <th className="px-4 py-3 font-semibold">Review Status</th>
                 <th className="px-4 py-3 font-semibold">Tags</th>
+                <th className="px-4 py-3 font-semibold">Last Service</th>
                 <th className="px-4 py-3 font-semibold">Actions</th>
               </tr>
             </thead>
@@ -423,6 +453,8 @@ export function ContactsPageClient({
               {visibleItems.map((contact) => {
                 const name = contactName(contact);
                 const suppressed = contact.sms_opt_out || contact.email_unsubscribed;
+                const status = contactStatus(contact);
+                const tone = reviewStatusTone(contact);
                 return (
                   <tr key={contact.id} className="bg-white hover:bg-[#F9FAFB]">
                     <td className="px-4 py-3">
@@ -430,7 +462,7 @@ export function ContactsPageClient({
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ECFDF3] text-xs font-bold text-[#137752]">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#ECFDF3] text-xs font-bold text-[#137752]">
                           {initials(name)}
                         </span>
                         <div className="min-w-0">
@@ -439,24 +471,27 @@ export function ContactsPageClient({
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-[#344054]">{contact.email_normalized || "—"}</td>
-                    <td className="px-4 py-3 tabular-nums text-[#344054]">{contact.phone_e164 || "—"}</td>
-                    <td className="px-4 py-3 text-[#344054]">
-                      <span className="block">{fmtDate(contact.last_service_at ?? contact.updated_at)}</span>
-                      <span className="text-xs text-[#667085]">Requested {fmtDate(contact.last_contacted_at)}</span>
+                    <td className="px-4 py-3 tabular-nums text-[#344054]">{fmtPhone(contact.phone_e164)}</td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm text-[#344054]">
+                        {contact.campaign_status ??
+                          (hasReviewRequestSignal(contact)
+                            ? `${contact.campaign_attempts ?? 1} attempt${Number(contact.campaign_attempts ?? 1) !== 1 ? "s" : ""}`
+                            : "Not enrolled")}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
-                      <RepBadge tone={reviewStatusTone(contact)}>{contactStatus(contact)}</RepBadge>
-                    </td>
-                    <td className="px-4 py-3 text-[#344054]">
-                      {hasReviewRequestSignal(contact) ? `${contact.campaign_attempts ?? 1} attempts` : "Not enrolled"}
+                      <RepBadge tone={tone}>{status}</RepBadge>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex max-w-[220px] flex-wrap gap-1">
+                      <div className="flex max-w-[180px] flex-wrap gap-1">
                         {(contact.tags ?? []).slice(0, 3).map((tag) => (
-                          <RepBadge key={tag} tone="gray">{tag}</RepBadge>
+                          <RepBadge key={tag} tone={tagTone(tag)}>{tag}</RepBadge>
                         ))}
                       </div>
+                    </td>
+                    <td className="px-4 py-3 text-[#667085]">
+                      {fmtDate(contact.last_service_at ?? contact.updated_at)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
@@ -494,14 +529,14 @@ export function ContactsPageClient({
               })}
               {!loading && visibleItems.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-[#667085]">
+                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-[#667085]">
                     {emptyMessage}
                   </td>
                 </tr>
               ) : null}
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-[#667085]">
+                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-[#667085]">
                     Loading contacts...
                   </td>
                 </tr>
@@ -509,13 +544,17 @@ export function ContactsPageClient({
             </tbody>
           </table>
         </div>
+        <div className="flex items-center justify-between border-t border-[#E6EAF0] px-4 py-3 text-sm text-[#667085]">
+          <span>
+            Showing {visibleItems.length > 0 ? 1 : 0} to {visibleItems.length} of {totalCount.toLocaleString()} contacts
+          </span>
+          {nextCursor ? (
+            <button type="button" className={rep.link} onClick={() => void load({ cursor: nextCursor })}>
+              Load more →
+            </button>
+          ) : null}
+        </div>
       </div>
-
-      {nextCursor ? (
-        <button type="button" className={rep.link} onClick={() => void load({ cursor: nextCursor })}>
-          Load more contacts
-        </button>
-      ) : null}
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {[
