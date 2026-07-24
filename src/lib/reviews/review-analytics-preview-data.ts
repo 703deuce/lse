@@ -1,4 +1,4 @@
-import type { ReviewAnalyticsDashboardData } from "@/components/reviews/review-analytics-dashboard";
+import type { ReviewAnalyticsData } from "@/lib/reviews/review-analytics-data";
 
 export const REVIEW_ANALYTICS_PREVIEW_BUSINESS_ID = "preview-review-analytics";
 
@@ -64,15 +64,93 @@ const timelinePoints = Array.from({ length: 90 }, (_, index) => {
   };
 });
 
-export const reviewAnalyticsPreviewData: ReviewAnalyticsDashboardData = {
+export const reviewAnalyticsPreviewData: ReviewAnalyticsData & Record<string, unknown> = {
   businessId: REVIEW_ANALYTICS_PREVIEW_BUSINESS_ID,
   businessName: "A-Team Junk Removal",
   timezone: "America/New_York",
   lastSyncedAt: "2025-06-08T17:10:00.000Z",
   groupModes: ["daily", "weekly", "monthly"],
+  totalReviews: 327,
+  avgRating: 4.6,
+  avgRatingDelta: 0.1,
+  responseRateDelta: 4,
+  ratingDistribution: { 1: 4, 2: 7, 3: 18, 4: 96, 5: 202 },
+  sources: [
+    {
+      id: "google",
+      name: "Google",
+      provider: "google",
+      rating: 4.6,
+      reviews: 327,
+      last30d: 24,
+      last60d: 42,
+      last90d: 71,
+      total: 327,
+      prior30d: 15,
+    },
+  ],
+  recentReviews: [
+    {
+      id: "preview-review-1",
+      reviewerName: "Maya Thompson",
+      rating: 5,
+      text: "Fast pickup, friendly crew, and clear communication from booking through cleanup.",
+      date: "2025-06-07T14:30:00.000Z",
+    },
+    {
+      id: "preview-review-2",
+      reviewerName: "Chris Walker",
+      rating: 5,
+      text: "They arrived on time and removed everything without damaging the driveway.",
+      date: "2025-06-05T18:10:00.000Z",
+    },
+    {
+      id: "preview-review-3",
+      reviewerName: "Priya S.",
+      rating: 4,
+      text: "Good experience overall. The team was professional and the price was fair.",
+      date: "2025-06-03T12:20:00.000Z",
+    },
+  ],
+  tasks: [
+    {
+      id: "task-reply",
+      title: "Reply to four new reviews",
+      description: "Recent 4-5 star reviews are waiting for owner responses.",
+      priority: "High",
+      status: "open",
+    },
+    {
+      id: "task-requests",
+      title: "Send requests after completed jobs",
+      description: "Keep the weekly review target on pace with an automated request batch.",
+      priority: "Medium",
+      status: "open",
+    },
+  ],
   competitors: [
-    { id: "top-competitor", name: "Top Competitor" },
-    { id: "2nd-competitor", name: "2nd Competitor" },
+    {
+      id: "top-competitor",
+      name: "Top Competitor",
+      rating: 4.5,
+      totalReviews: 375,
+      rolling7d: 7,
+      rolling30d: 19,
+      rolling60d: 36,
+      rolling90d: 64,
+      prior30d: 16,
+    },
+    {
+      id: "2nd-competitor",
+      name: "2nd Competitor",
+      rating: 4.4,
+      totalReviews: 298,
+      rolling7d: 5,
+      rolling30d: 18,
+      rolling60d: 31,
+      rolling90d: 52,
+      prior30d: 20,
+    },
   ],
   timelinePoints,
   timelineByCompetitor: {
@@ -129,7 +207,6 @@ export const reviewAnalyticsPreviewData: ReviewAnalyticsDashboardData = {
   ],
   explanation: "Momentum is accelerating: 30-day volume is up 60% and all rolling windows are growing.",
   competitorRelative: "You're slightly ahead of the competitor average over the last 30 days (24 vs 19).",
-  totalReviews: 327,
   dateRangeLabel: "May 10 – Jun 8, 2025",
   momentumScore: 82,
   momentumFactors: [

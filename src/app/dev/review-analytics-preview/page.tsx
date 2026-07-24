@@ -1,7 +1,7 @@
 "use client";
 
 import { DashboardSidebarPanel } from "@/components/dashboard/sidebar";
-import { ReviewAnalyticsDashboard } from "@/components/reviews/review-analytics-dashboard";
+import { ReviewVelocityDashboard } from "@/components/reviews/review-velocity-dashboard";
 import {
   REVIEW_ANALYTICS_PREVIEW_BUSINESS_ID,
   reviewAnalyticsPreviewData,
@@ -20,7 +20,7 @@ export default function ReviewAnalyticsPreviewPage() {
         showFooter={false}
       />
       <main className="min-w-0 flex-1 overflow-y-auto px-5 py-6 lg:px-8">
-        <ReviewAnalyticsDashboard
+        <ReviewVelocityDashboard
           businessId={REVIEW_ANALYTICS_PREVIEW_BUSINESS_ID}
           data={reviewAnalyticsPreviewData}
         />

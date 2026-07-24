@@ -140,7 +140,7 @@ export async function POST(request: Request) {
       queued: true,
       status: "queued",
       message:
-        "Reputation sync queued. Feed, Analytics, Competitors, Insights, and Audit will refresh when jobs finish.",
+        "Reputation sync queued. Feed, Review Velocity, Competitors, Insights, and Audit will refresh when jobs finish.",
       jobs,
     });
   } catch (err) {

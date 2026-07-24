@@ -30,13 +30,62 @@ export type ReviewAnalyticsTimelinePoint = {
   events: ReviewAnalyticsEvent[];
 };
 
+export type ReviewAnalyticsCompetitor = {
+  id: string;
+  name: string;
+  rating: number | null;
+  totalReviews: number;
+  rolling7d: number;
+  rolling30d: number;
+  rolling60d: number;
+  rolling90d: number;
+  prior30d: number;
+};
+
+export type ReviewAnalyticsSource = {
+  id: string;
+  name: string;
+  provider: string;
+  rating: number | null;
+  reviews: number;
+  last30d: number;
+  last60d: number;
+  last90d: number;
+  total: number;
+  prior30d: number;
+};
+
+export type ReviewAnalyticsRecentReview = {
+  id: string;
+  reviewerName: string;
+  rating: number | null;
+  text: string | null;
+  date: string | null;
+};
+
+export type ReviewAnalyticsTask = {
+  id: string;
+  title: string;
+  description: string | null;
+  priority: string | null;
+  status: string | null;
+};
+
 export type ReviewAnalyticsData = {
   businessId: string;
   businessName: string;
   timezone: string;
   lastSyncedAt: string | null;
   groupModes: GroupMode[];
-  competitors: Array<{ id: string; name: string }>;
+  totalReviews: number;
+  avgRating: number | null;
+  avgRatingDelta: number | null;
+  responseRateDelta: number | null;
+  ratingDistribution: Record<1 | 2 | 3 | 4 | 5, number>;
+  sources: ReviewAnalyticsSource[];
+  recentReviews: ReviewAnalyticsRecentReview[];
+  tasks: ReviewAnalyticsTask[];
+  competitors: ReviewAnalyticsCompetitor[];
   timelinePoints: ReviewAnalyticsTimelinePoint[];
   timelineByCompetitor?: Record<string, number[]>;
   timelineEvents: ReviewAnalyticsEvent[];
@@ -128,6 +177,12 @@ function rowsInWindow(rows: StoredReviewRow[], startYmd: string, endYmd: string,
   });
 }
 
+function rowsFromLastDays(rows: StoredReviewRow[], days: number, timezone: string): StoredReviewRow[] {
+  const start = ymdInTimeZone(subDays(new Date(), days - 1), timezone);
+  const end = ymdInTimeZone(new Date(), timezone);
+  return rowsInWindow(rows, start, end, timezone);
+}
+
 function countWindow(rows: StoredReviewRow[], daysAgoStart: number, daysAgoEnd: number, timezone: string): number {
   const now = new Date();
   const start = ymdInTimeZone(subDays(now, daysAgoStart), timezone);
@@ -152,6 +207,44 @@ function median(values: number[]): number | null {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 0 ? round1((sorted[mid - 1]! + sorted[mid]!) / 2) : sorted[mid]!;
+}
+
+function avgRating(rows: StoredReviewRow[]): number | null {
+  const rated = rows.filter((row) => row.rating != null);
+  if (!rated.length) return null;
+  return round1(rated.reduce((sum, row) => sum + Number(row.rating), 0) / rated.length);
+}
+
+function ratingDistribution(rows: StoredReviewRow[]): Record<1 | 2 | 3 | 4 | 5, number> {
+  const distribution: Record<1 | 2 | 3 | 4 | 5, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  for (const row of rows) {
+    if (row.rating == null) continue;
+    const rating = Math.max(1, Math.min(5, Math.round(Number(row.rating)))) as 1 | 2 | 3 | 4 | 5;
+    distribution[rating] += 1;
+  }
+  return distribution;
+}
+
+function providerLabel(provider: string | null | undefined): string {
+  const normalized = String(provider ?? "google").toLowerCase();
+  if (normalized.includes("google") || normalized.includes("scrapingdog")) return "Google";
+  return normalized
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ") || "Google";
+}
+
+function toResponseAuditRows(rows: StoredReviewRow[]) {
+  return rows.map((row) => ({
+    id: row.id,
+    rating: row.rating,
+    review_text: row.review_text,
+    owner_response_text: row.owner_response_text,
+    published_at: row.published_at ?? (row.review_date ? `${row.review_date}T00:00:00Z` : null),
+    owner_responded_at: row.owner_responded_at ?? null,
+    reviewer_name: row.reviewer_name,
+  }));
 }
 
 function daysBetweenStats(rows90: StoredReviewRow[], timezone: string): {
@@ -362,13 +455,13 @@ export async function loadReviewAnalyticsData(businessId: string): Promise<Revie
   ]);
 
   const competitorEntities = momentum?.entities.filter((entity) => entity.entity_type === "competitor") ?? [];
-  const competitors = competitorEntities
+  const competitorRefs = competitorEntities
     .map((entity) => ({
       id: entity.competitor_id ?? entity.id,
       name: String(entity.name ?? "Competitor"),
     }))
     .filter((competitor) => Boolean(competitor.id));
-  const competitorIds = competitors.map((competitor) => competitor.id);
+  const competitorIds = competitorRefs.map((competitor) => competitor.id);
 
   const [targetRows, competitorRows, timelineEvents] = await Promise.all([
     loadStoredReviews(supabase, { businessId, lookbackDays: 180 }),
@@ -385,10 +478,13 @@ export async function loadReviewAnalyticsData(businessId: string): Promise<Revie
 
   const competitorCountsByDate = countByDate(competitorRows, timezone);
   const competitorCountsById = new Map<string, Map<string, number>>();
+  const competitorRowsById = new Map<string, StoredReviewRow[]>();
   for (const competitorId of competitorIds) {
+    const rows = competitorRows.filter((row) => row.competitor_id === competitorId);
+    competitorRowsById.set(competitorId, rows);
     competitorCountsById.set(
       competitorId,
-      countByDate(competitorRows.filter((row) => row.competitor_id === competitorId), timezone)
+      countByDate(rows, timezone)
     );
   }
   const competitorDivisor = Math.max(competitorIds.length, 1);
@@ -426,6 +522,76 @@ export async function loadReviewAnalyticsData(businessId: string): Promise<Revie
   const weeklyVelocity = rolling7.current;
   const monthlyVelocity = rolling30.current;
   const stats = daysBetweenStats(target90, timezone);
+  const target30 = rowsFromLastDays(targetRows, 30, timezone);
+  const prior30Start = ymdInTimeZone(subDays(new Date(), 59), timezone);
+  const prior30End = ymdInTimeZone(subDays(new Date(), 30), timezone);
+  const targetPrior30 = rowsInWindow(targetRows, prior30Start, prior30End, timezone);
+  const target90AvgRating = avgRating(target90);
+  const prior90Start = ymdInTimeZone(subDays(new Date(), 179), timezone);
+  const prior90End = ymdInTimeZone(subDays(new Date(), 90), timezone);
+  const targetPrior90 = rowsInWindow(targetRows, prior90Start, prior90End, timezone);
+  const targetPrior90AvgRating = avgRating(targetPrior90);
+  const currentRating =
+    targetEntity?.rating_current != null ? Number(targetEntity.rating_current) : target90AvgRating ?? avgRating(targetRows);
+  const totalReviews = Number(targetEntity?.total_reviews_current ?? targetRows.length);
+
+  const responseAudit30 = auditOwnerResponsesFromStored(toResponseAuditRows(target30));
+  const priorResponseAudit30 = auditOwnerResponsesFromStored(toResponseAuditRows(targetPrior30));
+  const responseRateDelta =
+    targetPrior30.length > 0 ? Math.round((responseAudit30.responseRate - priorResponseAudit30.responseRate) * 10) / 10 : null;
+
+  const providerGroups = new Map<string, StoredReviewRow[]>();
+  for (const row of targetRows) {
+    const provider = row.source_provider || "google";
+    const group = providerGroups.get(provider) ?? [];
+    group.push(row);
+    providerGroups.set(provider, group);
+  }
+  if (targetRows.length > 0 && providerGroups.size === 0) {
+    providerGroups.set("google", targetRows);
+  }
+  const sources = Array.from(providerGroups.entries()).map(([provider, rows]) => ({
+    id: provider.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "google",
+    name: providerLabel(provider),
+    provider,
+    rating: avgRating(rowsFromLastDays(rows, 90, timezone)) ?? avgRating(rows),
+    reviews: rows.length,
+    last30d: countWindow(rows, 29, 0, timezone),
+    last60d: countWindow(rows, 59, 0, timezone),
+    last90d: countWindow(rows, 89, 0, timezone),
+    total: providerLabel(provider) === "Google" ? totalReviews : rows.length,
+    prior30d: countWindow(rows, 59, 30, timezone),
+  }));
+  if (targetRows.length > 0 && sources.length === 0) {
+    sources.push({
+      id: "google",
+      name: "Google",
+      provider: "google",
+      rating: currentRating,
+      reviews: totalReviews,
+      last30d: rolling30.current,
+      last60d: rolling60.current,
+      last90d: rolling90.current,
+      total: totalReviews,
+      prior30d: rolling30.previous,
+    });
+  }
+
+  const competitors = competitorRefs.map((competitor) => {
+    const entity = competitorEntities.find((candidate) => (candidate.competitor_id ?? candidate.id) === competitor.id);
+    const rows = competitorRowsById.get(competitor.id) ?? [];
+    return {
+      id: competitor.id,
+      name: competitor.name,
+      rating: entity?.rating_current != null ? Number(entity.rating_current) : avgRating(rowsFromLastDays(rows, 90, timezone)) ?? avgRating(rows),
+      totalReviews: Number(entity?.total_reviews_current ?? rows.length),
+      rolling7d: Number(entity?.reviews_7d ?? countWindow(rows, 6, 0, timezone)),
+      rolling30d: Number(entity?.reviews_30d ?? countWindow(rows, 29, 0, timezone)),
+      rolling60d: countWindow(rows, 59, 0, timezone),
+      rolling90d: Number(entity?.reviews_90d ?? countWindow(rows, 89, 0, timezone)),
+      prior30d: countWindow(rows, 59, 30, timezone),
+    };
+  });
 
   const competitor30dAvg =
     competitorIds.length > 0
@@ -455,15 +621,31 @@ export async function loadReviewAnalyticsData(businessId: string): Promise<Revie
         ? `You matched or beat the competitor average over 30 days (${rolling30.current} vs ${competitor30dAvg}).`
         : `Competitors averaged ${competitor30dAvg} reviews in 30 days vs your ${rolling30.current}.`;
 
-  const responseAudit = auditOwnerResponsesFromStored(target90.map((row) => ({
-    id: row.id,
-    rating: row.rating,
-    review_text: row.review_text,
-    owner_response_text: row.owner_response_text,
-    published_at: row.published_at ?? (row.review_date ? `${row.review_date}T00:00:00Z` : null),
-    owner_responded_at: row.owner_responded_at ?? null,
-    reviewer_name: row.reviewer_name,
-  })));
+  const responseAudit = target30.length > 0
+    ? responseAudit30
+    : auditOwnerResponsesFromStored(toResponseAuditRows(target90));
+  const recentReviews = targetRows
+    .filter((row) => !row.is_deleted)
+    .sort((a, b) => {
+      const aDate = a.published_at ?? (a.review_date ? `${a.review_date}T00:00:00Z` : a.created_at);
+      const bDate = b.published_at ?? (b.review_date ? `${b.review_date}T00:00:00Z` : b.created_at);
+      return new Date(bDate).getTime() - new Date(aDate).getTime();
+    })
+    .slice(0, 3)
+    .map((row) => ({
+      id: row.id,
+      reviewerName: row.reviewer_name ?? "Anonymous",
+      rating: row.rating != null ? Number(row.rating) : null,
+      text: row.review_text,
+      date: row.published_at ?? (row.review_date ? `${row.review_date}T00:00:00Z` : null),
+    }));
+  const tasks = (momentum?.tasks ?? []).slice(0, 5).map((task) => ({
+    id: String(task.id),
+    title: String(task.title ?? "Review task"),
+    description: task.description != null ? String(task.description) : null,
+    priority: task.priority != null ? String(task.priority) : null,
+    status: task.status != null ? String(task.status) : null,
+  }));
 
   return {
     businessId,
@@ -471,6 +653,17 @@ export async function loadReviewAnalyticsData(businessId: string): Promise<Revie
     timezone,
     lastSyncedAt: momentum?.run.finished_at ?? momentum?.run.created_at ?? null,
     groupModes: ["daily", "weekly", "monthly"],
+    totalReviews,
+    avgRating: currentRating,
+    avgRatingDelta:
+      target90AvgRating != null && targetPrior90AvgRating != null
+        ? Math.round((target90AvgRating - targetPrior90AvgRating) * 10) / 10
+        : null,
+    responseRateDelta,
+    ratingDistribution: ratingDistribution(targetRows),
+    sources,
+    recentReviews,
+    tasks,
     competitors,
     timelinePoints,
     timelineByCompetitor,

@@ -54,15 +54,15 @@ export const LOCATION_TOOL_MODULES = {
     description: "Monitor and respond to individual reviews.",
   },
   "review-analytics": {
-    title: "Review Analytics",
+    title: "Review Velocity",
     path: "reputation/analytics",
-    description: "Timeline, velocity, and momentum analysis.",
+    description: "Review volume, velocity, and trust performance dashboard.",
   },
   /** @deprecated Prefer review-analytics */
   "review-momentum": {
-    title: "Review Analytics",
+    title: "Review Velocity",
     path: "reputation/analytics",
-    description: "Timeline, velocity, and momentum analysis.",
+    description: "Review volume, velocity, and trust performance dashboard.",
   },
   "review-competitors": {
     title: "Competitor Intelligence",
