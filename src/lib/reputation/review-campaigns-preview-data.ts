@@ -123,8 +123,8 @@ export const reviewCampaignsPreviewCampaigns: CampaignRow[] = [
 ];
 
 export const reviewCampaignsPreviewStats = {
-  activeCampaigns: 3,
-  pausedCampaigns: 1,
+  activeCampaigns: 6,
+  pausedCampaigns: 2,
   totalCampaigns: 6,
   messagesSent30d: 1248,
   messagesSentTrend: 18,
