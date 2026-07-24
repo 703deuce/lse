@@ -11,20 +11,12 @@ import {
   Loader2,
   MapPin,
   Plus,
-  Search,
   Star,
   Trophy,
 } from "lucide-react";
-import {
-  ModuleHeader,
-  ModulePage,
-  btnPrimary,
-  btnSecondary,
-  cardClass,
-  cardPadding,
-  fieldLabelClass,
-  inputClass,
-} from "@/components/ui/design-system";
+import { mock, MockPageHeader } from "@/components/mockup/ui";
+import { SetupMap } from "@/components/maps/setup-map";
+import { GridPreviewCanvas } from "@/components/scan/grid-preview-canvas";
 import {
   DEFAULT_GRID_SIZE,
   DEFAULT_RADIUS_METERS,
@@ -95,6 +87,11 @@ const PROGRESS_MESSAGES = [
   "Building your visibility map…",
 ] as const;
 
+const fieldControl =
+  "mt-1.5 h-10 w-full rounded-lg border border-[#E6EAF0] bg-white px-3 text-sm text-[#101828] shadow-sm outline-none transition focus:border-[#137752] focus:ring-1 focus:ring-[#137752]/25";
+
+const EMPTY_EXCLUDED = new Set<string>();
+
 type ScanSummary = {
   scanId: string;
   keyword: string;
@@ -157,6 +154,87 @@ function pct(cells: number | null | undefined, total: number | null | undefined)
 function fmtRank(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "—";
   return String(Math.round(n * 10) / 10);
+}
+
+function hasValidCenter(lat: number, lng: number): boolean {
+  return Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0);
+}
+
+function KeywordChip({
+  label,
+  selected,
+  onClick,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-lg border px-3 py-1.5 text-[13px] font-medium transition",
+        selected
+          ? "border-[#137752] bg-[#ECFDF3] text-[#137752]"
+          : "border-[#E6EAF0] bg-white text-[#344054] hover:bg-[#F9FAFB]"
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+function MapPlaceholder({ message }: { message: string }) {
+  return (
+    <div className="flex aspect-square min-h-[280px] w-full flex-col items-center justify-center gap-3 bg-[#F9FAFB] sm:min-h-[360px]">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#98A2B3] shadow-sm ring-1 ring-[#E6EAF0]">
+        <MapPin className="h-5 w-5" />
+      </span>
+      <p className="max-w-[220px] text-center text-sm text-[#667085]">{message}</p>
+    </div>
+  );
+}
+
+function WizardFooter({
+  onBack,
+  onNext,
+  nextLabel = "Next Step",
+  nextDisabled,
+  nextBusy,
+  hideBack,
+}: {
+  onBack?: () => void;
+  onNext?: () => void;
+  nextLabel?: string;
+  nextDisabled?: boolean;
+  nextBusy?: boolean;
+  hideBack?: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#F2F4F7] pt-4">
+      {hideBack || !onBack ? (
+        <span />
+      ) : (
+        <button type="button" className={mock.btnSecondary} onClick={onBack}>
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </button>
+      )}
+      {onNext ? (
+        <button
+          type="button"
+          className={cn(mock.btnPrimary, "disabled:opacity-50")}
+          disabled={nextDisabled || nextBusy}
+          onClick={onNext}
+        >
+          {nextBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          {nextLabel}
+          {!nextBusy ? <ArrowRight className="h-4 w-4" /> : null}
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 export function FirstMapsSetup({
@@ -223,6 +301,7 @@ export function FirstMapsSetup({
   const stepIndex = STEPS.findIndex((s) => s.id === step);
 
   const activeKeywordLabel = selected[0] ?? "";
+  const mapReady = hasValidCenter(centerLat, centerLng);
 
   function toggleKeyword(term: string) {
     const t = term.trim();
@@ -588,16 +667,55 @@ export function FirstMapsSetup({
     };
   }, [step, scanId, activeKeywordLabel, loadSummary, meta.cellCount]);
 
+  function renderRightPanel() {
+    if (step === "business") {
+      return mapReady ? (
+        <SetupMap
+          center={[centerLat, centerLng]}
+          onCenterChange={(lat, lng) => {
+            setCenterLat(lat);
+            setCenterLng(lng);
+          }}
+          height="360px"
+        />
+      ) : (
+        <MapPlaceholder message="Enter an address to preview your scan center on the map." />
+      );
+    }
+
+    if (step === "keyword" || step === "area") {
+      return mapReady ? (
+        <GridPreviewCanvas
+          centerLat={centerLat}
+          centerLng={centerLng}
+          gridSize={gridSize}
+          radiusMeters={radiusMeters}
+          excludedLabels={EMPTY_EXCLUDED}
+          onToggleLabel={() => undefined}
+          locationLabel={address.trim() || name || "Scan center"}
+          centerDetail={address.trim() || null}
+          spacingMiles={metersToMiles(
+            gridSize > 1 ? (2 * radiusMeters) / (gridSize - 1) : 0
+          )}
+          className="border-0 shadow-none"
+        />
+      ) : (
+        <MapPlaceholder message="Confirm a business location to preview the scan grid." />
+      );
+    }
+
+    return null;
+  }
+
   return (
-    <ModulePage>
-      <ModuleHeader
-        icon={MapPin}
-        title="First Maps Scan"
-        subtitle="Confirm your business, pick a keyword, and run a local visibility grid."
+    <div className={mock.page}>
+      <MockPageHeader
+        title="Local SEO Wizard"
+        subtitle="First Maps setup — confirm your business, pick a keyword, and run a local visibility grid."
         actions={
           <Link
             href={`/businesses/${businessId}/local-visibility`}
-            className={btnSecondary}
+            className={mock.btnSecondary}
           >
             <ArrowLeft className="h-4 w-4" />
             Back
@@ -605,25 +723,49 @@ export function FirstMapsSetup({
         }
       />
 
-      <nav className="flex flex-wrap gap-2" aria-label="Setup steps">
-        {STEPS.map((s, i) => {
-          const done = i < stepIndex;
-          const active = s.id === step;
-          return (
-            <div
-              key={s.id}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold",
-                active && "bg-[#137752] text-white",
-                done && !active && "bg-[#ECFDF3] text-[#137752]",
-                !active && !done && "bg-zinc-100 text-zinc-500"
-              )}
-            >
-              {done ? <Check className="h-3.5 w-3.5" /> : <span>{i + 1}</span>}
-              {s.label}
-            </div>
-          );
-        })}
+      <nav
+        className={cn(mock.card, "overflow-hidden px-4 py-4 sm:px-5")}
+        aria-label="Setup steps"
+      >
+        <ol className="flex flex-wrap items-center gap-2 sm:gap-0">
+          {STEPS.map((s, i) => {
+            const done = i < stepIndex;
+            const active = s.id === step;
+            return (
+              <li key={s.id} className="flex min-w-0 items-center sm:flex-1">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span
+                    className={cn(
+                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold",
+                      active && "bg-[#137752] text-white",
+                      done && !active && "bg-[#D1FADF] text-[#137752]",
+                      !active && !done && "bg-[#F2F4F7] text-[#667085]"
+                    )}
+                  >
+                    {done && !active ? <Check className="h-4 w-4" /> : i + 1}
+                  </span>
+                  <span
+                    className={cn(
+                      "truncate text-[13px] font-semibold",
+                      active ? "text-[#101828]" : done ? "text-[#137752]" : "text-[#667085]"
+                    )}
+                  >
+                    {s.label}
+                  </span>
+                </div>
+                {i < STEPS.length - 1 ? (
+                  <span
+                    className={cn(
+                      "mx-2 hidden h-px flex-1 sm:block",
+                      i < stepIndex ? "bg-[#A6F4C5]" : "bg-[#E6EAF0]"
+                    )}
+                    aria-hidden
+                  />
+                ) : null}
+              </li>
+            );
+          })}
+        </ol>
       </nav>
 
       {error ? (
@@ -632,305 +774,38 @@ export function FirstMapsSetup({
         </div>
       ) : null}
 
-      {step === "business" ? (
-        <section className={cn(cardClass, cardPadding, "space-y-4")}>
-          <h2 className="text-[14px] font-semibold text-zinc-900">Confirm business</h2>
-          <p className="text-[13px] text-zinc-500">
-            We&apos;ll use this as the center of your visibility scan. Edits stay local unless we
-            can save your scan center.
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block sm:col-span-2">
-              <span className={fieldLabelClass}>Business name</span>
-              <input className={cn(inputClass, "mt-1.5")} value={name} onChange={(e) => setName(e.target.value)} />
-            </label>
-            <label className="block sm:col-span-2">
-              <span className={fieldLabelClass}>GBP / Place ID</span>
-              <input
-                className={cn(inputClass, "mt-1.5")}
-                value={placeId}
-                onChange={(e) => setPlaceId(e.target.value)}
-                placeholder="Optional Google Place ID"
-              />
-            </label>
-            <label className="block sm:col-span-2">
-              <span className={fieldLabelClass}>Address / service area</span>
-              <input
-                className={cn(inputClass, "mt-1.5")}
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Street, city, or service area center"
-              />
-            </label>
-            <label className="block">
-              <span className={fieldLabelClass}>Primary category</span>
-              <input
-                className={cn(inputClass, "mt-1.5")}
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              />
-            </label>
-            <label className="block">
-              <span className={fieldLabelClass}>Phone</span>
-              <input
-                className={cn(inputClass, "mt-1.5")}
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
-            </label>
-            <label className="block sm:col-span-2">
-              <span className={fieldLabelClass}>Website</span>
-              <input
-                className={cn(inputClass, "mt-1.5")}
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-              />
-            </label>
-          </div>
-          <div className="flex flex-wrap gap-2 pt-2">
-            <button
-              type="button"
-              className={btnPrimary}
-              disabled={busy}
-              onClick={() => void goNextFromBusiness()}
-            >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Confirm & continue
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
-        </section>
-      ) : null}
-
-      {step === "keyword" ? (
-        <section className={cn(cardClass, cardPadding, "space-y-4")}>
-          <h2 className="text-[14px] font-semibold text-zinc-900">Choose search keyword</h2>
-          <p className="text-[13px] text-zinc-500">
-            Pick what customers type into Google Maps. Suggestions are based on your category,
-            name, and city.
-          </p>
-
-          {keywords.length > 0 ? (
-            <div>
-              <p className={fieldLabelClass}>Existing keywords</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {keywords.map((k) => {
-                  const on = selected.includes(k.keyword);
-                  return (
-                    <button
-                      key={k.id}
-                      type="button"
-                      onClick={() => toggleKeyword(k.keyword)}
-                      className={cn(
-                        "rounded-full border px-3 py-1.5 text-[13px] font-medium transition",
-                        on
-                          ? "border-[#137752] bg-[#ECFDF3] text-[#137752]"
-                          : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
-                      )}
-                    >
-                      {k.keyword}
-                      {k.isPrimary ? " · primary" : ""}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
-
-          <div>
-            <p className={fieldLabelClass}>Suggestions</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {suggestions.map((term) => {
-                const on = selected.includes(term);
-                return (
-                  <button
-                    key={term}
-                    type="button"
-                    onClick={() => toggleKeyword(term)}
-                    className={cn(
-                      "rounded-full border px-3 py-1.5 text-[13px] font-medium transition",
-                      on
-                        ? "border-[#137752] bg-[#ECFDF3] text-[#137752]"
-                        : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
-                    )}
-                  >
-                    {term}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="min-w-[220px] flex-1">
-              <span className={fieldLabelClass}>Custom keyword</span>
-              <input
-                className={cn(inputClass, "mt-1.5")}
-                value={customKeyword}
-                onChange={(e) => setCustomKeyword(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addCustomKeyword();
-                  }
-                }}
-                placeholder="e.g. junk removal austin"
-              />
-            </label>
-            <button type="button" className={btnSecondary} onClick={addCustomKeyword}>
-              <Plus className="h-4 w-4" />
-              Add
-            </button>
-          </div>
-
-          {selected.length > 0 ? (
-            <p className="text-[12px] text-zinc-500">
-              Selected: <span className="font-medium text-zinc-800">{selected.join(", ")}</span>
-              {selected.length > 1 ? " — first keyword will be scanned now" : ""}
-            </p>
-          ) : null}
-
-          <div className="flex flex-wrap gap-2 pt-2">
-            <button type="button" className={btnSecondary} onClick={() => setStep("business")}>
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </button>
-            <button type="button" className={btnPrimary} onClick={goNextFromKeyword}>
-              Continue
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
-        </section>
-      ) : null}
-
-      {step === "area" ? (
-        <section className={cn(cardClass, cardPadding, "space-y-4")}>
-          <h2 className="text-[14px] font-semibold text-zinc-900">Choose scan area</h2>
-          <p className="text-[13px] text-zinc-500">
-            Recommended: a {DEFAULT_GRID_SIZE}×{DEFAULT_GRID_SIZE} grid covering about{" "}
-            {formatRadiusMiles(metersToMiles(DEFAULT_RADIUS_METERS))}.
-          </p>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
-                Center
-              </p>
-              <p className="mt-1 text-[13px] font-medium text-zinc-900">
-                {address.trim() || "Account location"}
-              </p>
-              <p className="mt-1 text-[11px] tabular-nums text-zinc-500">
-                {centerLat.toFixed(5)}, {centerLng.toFixed(5)}
-              </p>
-            </div>
-            <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
-                Grid size
-              </p>
-              <p className="mt-1 flex items-center gap-1.5 text-[13px] font-medium text-zinc-900">
-                <Grid3X3 className="h-4 w-4 text-[#137752]" />
-                {meta.gridSize}×{meta.gridSize} ({meta.cellCount} points)
-              </p>
-            </div>
-            <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
-                Approx radius
-              </p>
-              <p className="mt-1 text-[13px] font-medium text-zinc-900">
-                {formatRadiusMiles(meta.radiusMiles)}
-              </p>
-              <p className="mt-1 text-[11px] text-zinc-500">
-                ~{meta.coverageSqMi} sq mi coverage
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#137752]"
-            onClick={() => setShowAdvanced((v) => !v)}
-          >
-            Advanced
-            <ChevronDown
-              className={cn("h-4 w-4 transition", showAdvanced && "rotate-180")}
-            />
-          </button>
-
-          {showAdvanced ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className={fieldLabelClass}>Grid size</span>
-                <select
-                  className={cn(inputClass, "mt-1.5")}
-                  value={gridSize}
-                  onChange={(e) => setGridSize(Number(e.target.value))}
-                >
-                  {GRID_SIZE_OPTIONS.map((n) => (
-                    <option key={n} value={n}>
-                      {n}×{n} ({n * n} points)
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className={fieldLabelClass}>Radius</span>
-                <select
-                  className={cn(inputClass, "mt-1.5")}
-                  value={nearestRadiusMileOption(radiusMeters)}
-                  onChange={(e) => setRadiusMeters(milesToMeters(Number(e.target.value)))}
-                >
-                  {RADIUS_MILE_PRESETS.map((p) => (
-                    <option key={p.miles} value={p.miles}>
-                      {p.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          ) : null}
-
-          <div className="flex flex-wrap gap-2 pt-2">
-            <button type="button" className={btnSecondary} onClick={() => setStep("keyword")}>
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </button>
-            <button type="button" className={btnPrimary} onClick={goNextFromArea}>
-              Run scan
-              <Search className="h-4 w-4" />
-            </button>
-          </div>
-        </section>
-      ) : null}
-
       {step === "run" ? (
-        <section className={cn(cardClass, cardPadding, "space-y-4")}>
-          <h2 className="text-[14px] font-semibold text-zinc-900">Running your first Maps scan</h2>
-          <p className="text-[13px] text-zinc-500">
+        <section
+          className={cn(
+            mock.card,
+            "flex min-h-[360px] flex-col items-center justify-center px-6 py-12 text-center"
+          )}
+        >
+          <Loader2 className="h-8 w-8 animate-spin text-[#137752]" />
+          <h2 className="mt-5 text-[18px] font-bold text-[#101828]">
+            Running your first Maps scan
+          </h2>
+          <p className="mt-1 max-w-md text-sm text-[#667085]">
             Checking {meta.cellCount} locations for &ldquo;{activeKeywordLabel}&rdquo;.
           </p>
-          <div className="flex items-center gap-3 rounded-xl border border-[#D1FADF] bg-[#ECFDF3] px-4 py-4">
-            <Loader2 className="h-5 w-5 shrink-0 animate-spin text-[#137752]" />
-            <div>
-              <p className="text-[13px] font-semibold text-[#137752]">
-                {PROGRESS_MESSAGES[progressIndex]}
-              </p>
-              <p className="mt-0.5 text-[12px] text-zinc-600">
-                Finding your Google Maps position · Comparing nearby competitors · Building your
-                visibility map
-              </p>
-            </div>
-          </div>
+          <p className="mt-6 text-[15px] font-semibold text-[#137752]">
+            {PROGRESS_MESSAGES[progressIndex]}
+          </p>
+          <p className="mt-2 max-w-sm text-[12px] leading-relaxed text-[#98A2B3]">
+            Finding your Google Maps position · Comparing nearby competitors · Building your
+            visibility map
+          </p>
           {scanId ? (
-            <p className="text-[11px] text-zinc-400">Scan id: {scanId}</p>
+            <p className="mt-6 text-[11px] text-[#98A2B3]">Scan id: {scanId}</p>
           ) : null}
         </section>
       ) : null}
 
       {step === "results" && summary ? (
-        <section className={cn(cardClass, cardPadding, "space-y-5")}>
+        <section className={cn(mock.card, "space-y-5 p-5 sm:p-6")}>
           <div>
-            <h2 className="text-[14px] font-semibold text-zinc-900">Where do I rank?</h2>
-            <p className="mt-1 text-[13px] text-zinc-500">
+            <h2 className="text-[18px] font-bold text-[#101828]">Where do I rank?</h2>
+            <p className="mt-1 text-sm text-[#667085]">
               Results for &ldquo;{summary.keyword}&rdquo; across your visibility grid.
             </p>
           </div>
@@ -962,19 +837,15 @@ export function FirstMapsSetup({
           {(summary.bestArea || summary.weakestArea) && (
             <div className="grid gap-3 sm:grid-cols-2">
               {summary.bestArea ? (
-                <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
-                    Best area
-                  </p>
-                  <p className="mt-1 text-[13px] font-medium text-zinc-900">{summary.bestArea}</p>
+                <div className={cn(mock.card, "bg-[#F9FAFB] p-4 shadow-none")}>
+                  <p className={mock.label}>Best area</p>
+                  <p className="mt-1 text-[13px] font-medium text-[#101828]">{summary.bestArea}</p>
                 </div>
               ) : null}
               {summary.weakestArea ? (
-                <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
-                    Weakest area
-                  </p>
-                  <p className="mt-1 text-[13px] font-medium text-zinc-900">
+                <div className={cn(mock.card, "bg-[#F9FAFB] p-4 shadow-none")}>
+                  <p className={mock.label}>Weakest area</p>
+                  <p className="mt-1 text-[13px] font-medium text-[#101828]">
                     {summary.weakestArea}
                   </p>
                 </div>
@@ -984,16 +855,16 @@ export function FirstMapsSetup({
 
           {summary.topCompetitors.length > 0 ? (
             <div>
-              <p className="text-[13px] font-semibold text-zinc-900">Top competing businesses</p>
+              <p className="text-[13px] font-semibold text-[#101828]">Top competing businesses</p>
               <ul className="mt-2 space-y-1.5">
                 {summary.topCompetitors.map((c) => (
                   <li
                     key={c.name}
-                    className="flex items-center justify-between rounded-lg border border-zinc-100 px-3 py-2 text-[13px]"
+                    className="flex items-center justify-between rounded-lg border border-[#E6EAF0] px-3 py-2 text-[13px]"
                   >
-                    <span className="font-medium text-zinc-800">{c.name}</span>
+                    <span className="font-medium text-[#101828]">{c.name}</span>
                     {c.avgRank != null ? (
-                      <span className="tabular-nums text-zinc-500">avg {fmtRank(c.avgRank)}</span>
+                      <span className="tabular-nums text-[#667085]">avg {fmtRank(c.avgRank)}</span>
                     ) : null}
                   </li>
                 ))}
@@ -1002,7 +873,7 @@ export function FirstMapsSetup({
           ) : null}
 
           {reviewsLookStrong ? (
-            <p className="rounded-xl border border-[#D1FADF] bg-[#ECFDF3] px-4 py-3 text-[13px] leading-snug text-[#085D3A]">
+            <p className="rounded-xl border border-[#A6F4C5] bg-[#ECFDF3] px-4 py-3 text-[13px] leading-snug text-[#085D3A]">
               <Star className="mr-1 inline h-3.5 w-3.5 fill-[#137752] text-[#137752]" />
               Your review performance is stronger than businesses currently outranking you in
               parts of this grid. Maps visibility — not just reviews — is shaping who shows up
@@ -1010,20 +881,278 @@ export function FirstMapsSetup({
             </p>
           ) : null}
 
-          <div className="flex flex-wrap gap-2">
-            <Link href={`/businesses/${businessId}/maps`} className={btnPrimary}>
+          <div className="flex flex-wrap gap-2 border-t border-[#F2F4F7] pt-4">
+            <Link href={`/businesses/${businessId}/maps`} className={mock.btnPrimary}>
               Open Maps Overview
             </Link>
             <Link
               href={`/businesses/${businessId}/grid/${summary.scanId}`}
-              className={btnSecondary}
+              className={mock.btnSecondary}
             >
               View full grid
             </Link>
           </div>
         </section>
       ) : null}
-    </ModulePage>
+
+      {step === "business" || step === "keyword" || step === "area" ? (
+        <div className="grid gap-5 lg:grid-cols-2">
+          <section className={cn(mock.card, "flex flex-col space-y-4 p-5")}>
+            {step === "business" ? (
+              <>
+                <div>
+                  <h2 className="text-[18px] font-bold text-[#101828]">Confirm business</h2>
+                  <p className="mt-1 text-sm text-[#667085]">
+                    We&apos;ll use this as the center of your visibility scan. Edits stay local
+                    unless we can save your scan center.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block sm:col-span-2">
+                    <span className={mock.label}>Business name</span>
+                    <input
+                      className={fieldControl}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                  </label>
+                  <label className="block sm:col-span-2">
+                    <span className={mock.label}>GBP / Place ID</span>
+                    <input
+                      className={fieldControl}
+                      value={placeId}
+                      onChange={(e) => setPlaceId(e.target.value)}
+                      placeholder="Optional Google Place ID"
+                    />
+                  </label>
+                  <label className="block sm:col-span-2">
+                    <span className={mock.label}>Address / service area</span>
+                    <input
+                      className={fieldControl}
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="Street, city, or service area center"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className={mock.label}>Primary category</span>
+                    <input
+                      className={fieldControl}
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className={mock.label}>Phone</span>
+                    <input
+                      className={fieldControl}
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                    />
+                  </label>
+                  <label className="block sm:col-span-2">
+                    <span className={mock.label}>Website</span>
+                    <input
+                      className={fieldControl}
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
+                    />
+                  </label>
+                </div>
+                <WizardFooter
+                  hideBack
+                  onNext={() => void goNextFromBusiness()}
+                  nextBusy={busy}
+                />
+              </>
+            ) : null}
+
+            {step === "keyword" ? (
+              <>
+                <div>
+                  <h2 className="text-[18px] font-bold text-[#101828]">Choose search keyword</h2>
+                  <p className="mt-1 text-sm text-[#667085]">
+                    Pick what customers type into Google Maps. Suggestions are based on your
+                    category, name, and city.
+                  </p>
+                </div>
+
+                {keywords.length > 0 ? (
+                  <div>
+                    <p className={mock.label}>Existing keywords</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {keywords.map((k) => (
+                        <KeywordChip
+                          key={k.id}
+                          label={k.isPrimary ? `${k.keyword} · primary` : k.keyword}
+                          selected={selected.includes(k.keyword)}
+                          onClick={() => toggleKeyword(k.keyword)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                <div>
+                  <p className={mock.label}>Suggestions</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {suggestions.map((term) => (
+                      <KeywordChip
+                        key={term}
+                        label={term}
+                        selected={selected.includes(term)}
+                        onClick={() => toggleKeyword(term)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="min-w-[220px] flex-1">
+                    <span className={mock.label}>Custom keyword</span>
+                    <input
+                      className={fieldControl}
+                      value={customKeyword}
+                      onChange={(e) => setCustomKeyword(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addCustomKeyword();
+                        }
+                      }}
+                      placeholder="e.g. junk removal austin"
+                    />
+                  </label>
+                  <button type="button" className={mock.btnSecondary} onClick={addCustomKeyword}>
+                    <Plus className="h-4 w-4" />
+                    Add
+                  </button>
+                </div>
+
+                {selected.length > 0 ? (
+                  <p className="text-[12px] text-[#667085]">
+                    Selected:{" "}
+                    <span className="font-medium text-[#101828]">{selected.join(", ")}</span>
+                    {selected.length > 1 ? " — first keyword will be scanned now" : ""}
+                  </p>
+                ) : null}
+
+                <WizardFooter
+                  onBack={() => setStep("business")}
+                  onNext={goNextFromKeyword}
+                />
+              </>
+            ) : null}
+
+            {step === "area" ? (
+              <>
+                <div>
+                  <h2 className="text-[18px] font-bold text-[#101828]">Choose scan area</h2>
+                  <p className="mt-1 text-sm text-[#667085]">
+                    Recommended: a {DEFAULT_GRID_SIZE}×{DEFAULT_GRID_SIZE} grid covering about{" "}
+                    {formatRadiusMiles(metersToMiles(DEFAULT_RADIUS_METERS))}.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className={cn(mock.card, "bg-[#F9FAFB] p-4 shadow-none")}>
+                    <p className={mock.label}>Center</p>
+                    <p className="mt-1 text-[13px] font-medium text-[#101828]">
+                      {address.trim() || "Account location"}
+                    </p>
+                    <p className="mt-1 text-[11px] tabular-nums text-[#667085]">
+                      {centerLat.toFixed(5)}, {centerLng.toFixed(5)}
+                    </p>
+                  </div>
+                  <div className={cn(mock.card, "bg-[#F9FAFB] p-4 shadow-none")}>
+                    <p className={mock.label}>Grid size</p>
+                    <p className="mt-1 flex items-center gap-1.5 text-[13px] font-medium text-[#101828]">
+                      <Grid3X3 className="h-4 w-4 text-[#137752]" />
+                      {meta.gridSize}×{meta.gridSize} ({meta.cellCount} points)
+                    </p>
+                  </div>
+                  <div className={cn(mock.card, "bg-[#F9FAFB] p-4 shadow-none")}>
+                    <p className={mock.label}>Approx radius</p>
+                    <p className="mt-1 text-[13px] font-medium text-[#101828]">
+                      {formatRadiusMiles(meta.radiusMiles)}
+                    </p>
+                    <p className="mt-1 text-[11px] text-[#667085]">
+                      ~{meta.coverageSqMi} sq mi coverage
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#137752]"
+                  onClick={() => setShowAdvanced((v) => !v)}
+                >
+                  Advanced
+                  <ChevronDown
+                    className={cn("h-4 w-4 transition", showAdvanced && "rotate-180")}
+                  />
+                </button>
+
+                {showAdvanced ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className={mock.label}>Grid size</span>
+                      <select
+                        className={fieldControl}
+                        value={gridSize}
+                        onChange={(e) => setGridSize(Number(e.target.value))}
+                      >
+                        {GRID_SIZE_OPTIONS.map((n) => (
+                          <option key={n} value={n}>
+                            {n}×{n} ({n * n} points)
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className={mock.label}>Radius</span>
+                      <select
+                        className={fieldControl}
+                        value={nearestRadiusMileOption(radiusMeters)}
+                        onChange={(e) => setRadiusMeters(milesToMeters(Number(e.target.value)))}
+                      >
+                        {RADIUS_MILE_PRESETS.map((p) => (
+                          <option key={p.miles} value={p.miles}>
+                            {p.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                ) : null}
+
+                <WizardFooter
+                  onBack={() => setStep("keyword")}
+                  onNext={goNextFromArea}
+                  nextLabel="Next Step"
+                />
+              </>
+            ) : null}
+          </section>
+
+          <aside className={cn(mock.card, "overflow-hidden")}>
+            <div className="border-b border-[#F2F4F7] px-4 py-3">
+              <p className={mock.label}>
+                {step === "business" ? "Map preview" : "Grid preview"}
+              </p>
+              <p className="mt-0.5 text-sm font-semibold text-[#101828]">
+                {step === "business"
+                  ? "Google Maps pin"
+                  : activeKeywordLabel
+                    ? `“${activeKeywordLabel}”`
+                    : "Scan area"}
+              </p>
+            </div>
+            <div className="bg-[#F9FAFB]">{renderRightPanel()}</div>
+          </aside>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -1037,11 +1166,9 @@ function Metric({
   icon?: ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
-        {label}
-      </p>
-      <p className="mt-1 flex items-center gap-1.5 text-xl font-bold tabular-nums text-zinc-900">
+    <div className={cn(mock.card, "bg-[#F9FAFB] p-4 shadow-none")}>
+      <p className={mock.label}>{label}</p>
+      <p className="mt-1 flex items-center gap-1.5 text-xl font-bold tabular-nums text-[#101828]">
         {icon}
         {value}
       </p>
