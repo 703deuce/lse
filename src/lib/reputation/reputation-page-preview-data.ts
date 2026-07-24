@@ -701,6 +701,9 @@ export const reputationAuditPreviewData: ReputationModulesAuditData = {
         rating: 5,
         text: "Quick, professional junk removal and the crew left everything clean.",
         date: "2025-06-07T16:00:00.000Z",
+        businessName: REPUTATION_PREVIEW_BUSINESS_NAME,
+        competitorId: null,
+        isYou: true,
       },
       {
         id: "audit-review-2",
@@ -708,6 +711,9 @@ export const reputationAuditPreviewData: ReputationModulesAuditData = {
         rating: 5,
         text: "Scheduling was easy and pickup was exactly on time.",
         date: "2025-06-05T13:30:00.000Z",
+        businessName: REPUTATION_PREVIEW_BUSINESS_NAME,
+        competitorId: null,
+        isYou: true,
       },
       {
         id: "audit-review-3",
@@ -715,6 +721,9 @@ export const reputationAuditPreviewData: ReputationModulesAuditData = {
         rating: 4,
         text: "Very helpful team and fair pricing for a garage cleanout.",
         date: "2025-06-03T10:45:00.000Z",
+        businessName: REPUTATION_PREVIEW_BUSINESS_NAME,
+        competitorId: null,
+        isYou: true,
       },
     ],
     tasks: [
@@ -800,6 +809,7 @@ export const reputationAuditPreviewData: ReputationModulesAuditData = {
   competitors: {
     businessId: REPUTATION_PREVIEW_BUSINESS_ID,
     businessName: REPUTATION_PREVIEW_BUSINESS_NAME,
+    reviewsFeed: [],
     leaderboardRows: [
       {
         id: "comp-1",

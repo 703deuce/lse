@@ -18,7 +18,6 @@ import {
   Share2,
   Star,
   TrendingUp,
-  Users,
 } from "lucide-react";
 import { RepCumulativeLineChart, RepHorizontalGapChart } from "@/components/reputation/rep-charts";
 import { REP_GREEN, RepBadge, RepMetricCard, rep } from "@/components/reputation/rep-ui";
@@ -393,7 +392,15 @@ function competitorToRow(competitor: ReviewAnalyticsCompetitor): VelocityRow {
   };
 }
 
-function VelocityBreakdownTable({ rows }: { rows: VelocityRow[] }) {
+function VelocityBreakdownTable({
+  rows,
+  selectedId,
+  onSelect,
+}: {
+  rows: VelocityRow[];
+  selectedId: string | null;
+  onSelect: (row: VelocityRow) => void;
+}) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[760px] text-left text-sm">
@@ -414,8 +421,16 @@ function VelocityBreakdownTable({ rows }: { rows: VelocityRow[] }) {
             const delta = row.last30d - row.prior30d;
             const meta = trendMeta(delta);
             const TrendIcon = meta.icon;
+            const selected = selectedId === row.id;
             return (
-              <tr key={row.id} className="border-b border-[#F2F4F7] last:border-0">
+              <tr
+                key={row.id}
+                className={cn(
+                  "cursor-pointer border-b border-[#F2F4F7] last:border-0 transition",
+                  selected ? "bg-[#ECFDF3]" : "hover:bg-[#F9FAFB]"
+                )}
+                onClick={() => onSelect(row)}
+              >
                 <td className="px-3 py-3">
                   <div className="flex items-center gap-2">
                     <span
@@ -502,7 +517,10 @@ function ReviewCalendar({ points }: { points: ReviewAnalyticsTimelinePoint[] }) 
 export function ReviewVelocityDashboard({ businessId, data }: ReviewVelocityDashboardProps) {
   const [range, setRange] = useState<RangeId>("6M");
   const [shareCopied, setShareCopied] = useState(false);
+  const [focusRowId, setFocusRowId] = useState<string | null>(null);
+  const [focusDate, setFocusDate] = useState<string | null>(null);
   const chartRef = useRef<HTMLDivElement | null>(null);
+  const recentRef = useRef<HTMLDivElement | null>(null);
   const basePath = `/businesses/${businessId}/reputation`;
 
   const sentiment = useMemo(
@@ -562,13 +580,74 @@ export function ReviewVelocityDashboard({ businessId, data }: ReviewVelocityDash
         : [];
     return [...sourceRows, ...data.competitors.map(competitorToRow)];
   }, [data]);
-  const activeListings = data.sources.length || (data.totalReviews > 0 ? 1 : 0);
+
+  const focusCompetitorId = useMemo(() => {
+    if (!focusRowId?.startsWith("competitor-")) return null;
+    return focusRowId.replace(/^competitor-/, "");
+  }, [focusRowId]);
+
+  const highlightedSeriesKey = useMemo(() => {
+    if (!focusRowId) return null;
+    if (focusRowId.startsWith("competitor-")) return `c_${focusRowId.replace(/^competitor-/, "")}`;
+    return "you";
+  }, [focusRowId]);
+
+  const yourWeeklyPace = Math.round((data.rolling30d / (30 / 7)) * 100) / 100;
+  const marketWeeklyPace =
+    data.competitors.length > 0
+      ? Math.round(
+          (data.competitors.reduce((sum, competitor) => sum + competitor.rolling30d, 0) /
+            data.competitors.length /
+            (30 / 7)) *
+            100
+        ) / 100
+      : 0;
+  const leaderCompetitor = [...data.competitors].sort((a, b) => b.rolling30d - a.rolling30d)[0] ?? null;
+  const leaderWeeklyPace = leaderCompetitor
+    ? Math.round((leaderCompetitor.rolling30d / (30 / 7)) * 100) / 100
+    : yourWeeklyPace;
+  const paceGap = Math.max(0, Math.round((leaderWeeklyPace - yourWeeklyPace) * 100) / 100);
+
+  const velocityTarget = useMemo(() => {
+    if (!leaderCompetitor) return null;
+    const totalGap = Math.max(0, leaderCompetitor.totalReviews - data.totalReviews);
+    const neededWeekly = Math.max(leaderWeeklyPace + 0.2, yourWeeklyPace + 0.1);
+    const weeklyGain = neededWeekly - leaderWeeklyPace;
+    const months =
+      totalGap <= 0
+        ? 0
+        : weeklyGain > 0
+          ? Math.round(((totalGap / weeklyGain) / (52 / 12)) * 10) / 10
+          : null;
+    return {
+      name: leaderCompetitor.name,
+      current: yourWeeklyPace,
+      needed: Math.round(neededWeekly * 100) / 100,
+      difference: Math.round((neededWeekly - yourWeeklyPace) * 100) / 100,
+      months,
+    };
+  }, [data.totalReviews, leaderCompetitor, leaderWeeklyPace, yourWeeklyPace]);
+
+  const filteredRecentReviews = useMemo(() => {
+    let reviews = data.recentReviews;
+    if (focusCompetitorId) {
+      reviews = reviews.filter((review) => review.competitorId === focusCompetitorId);
+    } else if (focusRowId && !focusRowId.startsWith("competitor-")) {
+      reviews = reviews.filter((review) => review.isYou);
+    }
+    if (focusDate) {
+      reviews = reviews.filter((review) => (review.date ?? "").slice(0, 10) === focusDate);
+    }
+    return reviews.slice(0, 6);
+  }, [data.recentReviews, focusCompetitorId, focusDate, focusRowId]);
+
   const sourceBars = velocityRows.map((row) => ({
     name: row.kind === "source" ? row.name : row.name,
     value: row.total,
     isYou: row.kind === "source",
   }));
   const ratingSpark = data.recentReviews
+    .filter((review) => review.isYou)
     .slice()
     .reverse()
     .map((review) => review.rating ?? 0);
@@ -581,6 +660,12 @@ export function ReviewVelocityDashboard({ businessId, data }: ReviewVelocityDash
     } catch {
       setShareCopied(false);
     }
+  };
+
+  const handleSelectRow = (row: VelocityRow) => {
+    setFocusRowId((current) => (current === row.id ? null : row.id));
+    setFocusDate(null);
+    window.setTimeout(() => recentRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
   };
 
   return (
@@ -645,10 +730,16 @@ export function ReviewVelocityDashboard({ businessId, data }: ReviewVelocityDash
           icon={MessageSquareReply}
         />
         <RepMetricCard
-          label="Active Listings"
-          value={fmt(activeListings)}
-          hint={activeListings > 0 ? "Connected review sources" : "No source connected"}
-          icon={Users}
+          label="Review Pace"
+          value={`${fmt(yourWeeklyPace)}/wk`}
+          hint={
+            leaderCompetitor
+              ? `Market ${fmt(marketWeeklyPace)} · Leader ${fmt(leaderWeeklyPace)}`
+              : "reviews per week (30d)"
+          }
+          trend={paceGap > 0 ? `Need +${fmt(paceGap)}/wk` : "At or above leader"}
+          trendPositive={paceGap <= 0}
+          icon={Gauge}
         />
         <RepMetricCard
           label="Trust Score"
@@ -659,6 +750,38 @@ export function ReviewVelocityDashboard({ businessId, data }: ReviewVelocityDash
           icon={CheckCircle2}
         />
       </div>
+
+      {velocityTarget ? (
+        <SectionCard
+          title={`Velocity Target · Pass ${velocityTarget.name}`}
+          subtitle="Actionable catch-up pace based on current weekly review velocity."
+        >
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
+              <p className={rep.label}>Current</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-[#101828]">{fmt(velocityTarget.current)}/wk</p>
+            </div>
+            <div className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
+              <p className={rep.label}>Needed</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-[#101828]">{fmt(velocityTarget.needed)}/wk</p>
+            </div>
+            <div className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
+              <p className={rep.label}>Difference</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-[#B42318]">+{fmt(velocityTarget.difference)}/wk</p>
+            </div>
+            <div className="rounded-xl border border-[#B7E4D0] bg-[#ECFDF3] p-4">
+              <p className={rep.label}>Estimated Catch-up</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-[#027A48]">
+                {velocityTarget.months == null
+                  ? "Not at this pace"
+                  : velocityTarget.months <= 0
+                    ? "Caught up"
+                    : `${fmt(velocityTarget.months)} mo`}
+              </p>
+            </div>
+          </div>
+        </SectionCard>
+      ) : null}
 
       <SectionCard
         title="Review Velocity Over Time"
@@ -683,16 +806,51 @@ export function ReviewVelocityDashboard({ businessId, data }: ReviewVelocityDash
       >
         <div ref={chartRef}>
           {chartData.length ? (
-            <RepCumulativeLineChart
-              data={chartData}
-              height={420}
-              markers={events.map((point) => ({
-                x: point.date,
-                label: point.events[0]?.label ?? "",
-                color: point.events.some((event) => event.type === "campaign_start") ? AMBER : BLUE,
-              }))}
-              series={chartSeries}
-            />
+            <>
+              <RepCumulativeLineChart
+                data={chartData}
+                height={420}
+                highlightedKey={highlightedSeriesKey}
+                onPointClick={({ date }) => {
+                  setFocusDate(date);
+                  window.setTimeout(
+                    () => recentRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }),
+                    50
+                  );
+                }}
+                markers={events.map((point) => ({
+                  x: point.date,
+                  label: point.events[0]?.label ?? "",
+                  color: point.events.some((event) => event.type === "campaign_start") ? AMBER : BLUE,
+                }))}
+                series={chartSeries}
+              />
+              {focusDate || focusRowId ? (
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[#667085]">
+                  <span>
+                    Focus:{" "}
+                    {focusRowId
+                      ? velocityRows.find((row) => row.id === focusRowId)?.name ?? "Selected business"
+                      : "All businesses"}
+                    {focusDate ? ` · ${dateLabel(focusDate)}` : ""}
+                  </span>
+                  <button
+                    type="button"
+                    className="font-semibold text-[#137752] hover:underline"
+                    onClick={() => {
+                      setFocusRowId(null);
+                      setFocusDate(null);
+                    }}
+                  >
+                    Clear focus
+                  </button>
+                </div>
+              ) : (
+                <p className="mt-3 text-xs text-[#98A2B3]">
+                  Click a table row to highlight a line, or click the chart to filter reviews for that day.
+                </p>
+              )}
+            </>
           ) : (
             <div className="flex flex-col items-center gap-3 py-16 text-center">
               <p className="text-sm text-[#667085]">No review timeline yet. Refresh reputation data to populate velocity trends.</p>
@@ -702,8 +860,8 @@ export function ReviewVelocityDashboard({ businessId, data }: ReviewVelocityDash
         </div>
       </SectionCard>
 
-      <SectionCard title="Velocity Breakdown" subtitle="Review source and competitor velocity by rolling windows.">
-        <VelocityBreakdownTable rows={velocityRows} />
+      <SectionCard title="Velocity Breakdown" subtitle="Click a row to highlight their line and filter recent reviews.">
+        <VelocityBreakdownTable rows={velocityRows} selectedId={focusRowId} onSelect={handleSelectRow} />
       </SectionCard>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -842,23 +1000,31 @@ export function ReviewVelocityDashboard({ businessId, data }: ReviewVelocityDash
           </div>
         </SectionCard>
 
+        <div ref={recentRef}>
         <SectionCard
-          title="Top Reviews"
-          subtitle="Latest reviews from the synced review store."
+          title="Recent Reviews"
+          subtitle={
+            focusCompetitorId || (focusRowId && !focusCompetitorId) || focusDate
+              ? "Filtered by your current chart/table focus."
+              : "Latest reviews from the synced review store."
+          }
           action={
             <Link href={`${basePath}/reviews`} className={rep.link}>
               View all reviews
             </Link>
           }
         >
-          {data.recentReviews.length ? (
+          {filteredRecentReviews.length ? (
             <div className="space-y-3">
-              {data.recentReviews.slice(0, 3).map((review) => (
+              {filteredRecentReviews.map((review) => (
                 <div key={review.id} className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold text-[#101828]">{review.reviewerName}</p>
-                      <p className="text-xs text-[#98A2B3]">{dateLabel(review.date)}</p>
+                      <p className="text-xs text-[#98A2B3]">
+                        {review.businessName}
+                        {review.date ? ` · ${dateLabel(review.date)}` : ""}
+                      </p>
                     </div>
                     <StarRating rating={review.rating} />
                   </div>
@@ -871,13 +1037,18 @@ export function ReviewVelocityDashboard({ businessId, data }: ReviewVelocityDash
           ) : (
             <div className="rounded-xl border border-dashed border-[#D0D5DD] p-6 text-center">
               <ListChecks className="mx-auto h-6 w-6 text-[#137752]" />
-              <p className="mt-2 text-sm text-[#667085]">Latest reviews appear here after a reputation sync.</p>
+              <p className="mt-2 text-sm text-[#667085]">
+                {focusRowId || focusDate
+                  ? "No reviews match the current focus. Clear focus to see the full feed."
+                  : "Latest reviews appear here after a reputation sync."}
+              </p>
               <Link href={`${basePath}/reviews`} className={cn(rep.link, "mt-3 justify-center")}>
                 View all reviews
               </Link>
             </div>
           )}
         </SectionCard>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 rounded-xl border border-[#B7E4D0] bg-[#ECFDF3] p-4 sm:flex-row sm:items-center sm:justify-between">

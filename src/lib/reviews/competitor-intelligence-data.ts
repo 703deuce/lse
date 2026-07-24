@@ -1,6 +1,8 @@
-import { addMonths, differenceInCalendarDays, subDays } from "date-fns";
+import { addMonths, differenceInCalendarDays, formatDistanceToNow, subDays } from "date-fns";
 import { createServiceClient } from "@/lib/db/client";
 import { loadLatestMomentumRun } from "@/lib/reviews/momentum-engine";
+import { hasOwnerResponse } from "@/lib/reviews/normalize";
+import type { ReviewListItem } from "@/lib/reviews/reviews-page-data";
 import {
   calcAvgRating,
   calcResponseRate,
@@ -85,6 +87,8 @@ export type CompetitorIntelligenceData = {
   requiredPaceOverride?: number;
   leaderboardRows: CompetitorLeaderboardRow[];
   gapRows: CompetitorGapRow[];
+  /** You + competitor reviews for the Reviews research workspace (newest first). */
+  reviewsFeed: ReviewListItem[];
   complaintPatterns: Array<{
     theme: string;
     competitorMentions: number;
@@ -110,6 +114,53 @@ export type CompetitorIntelligenceData = {
     competitors: CompetitorContentComparison;
   };
 };
+
+function toFeedItem(
+  row: StoredReviewRow,
+  params: { isTarget: boolean; businessName: string; competitorId: string | null; now: Date }
+): ReviewListItem {
+  const publishedAt = row.published_at ?? (row.review_date ? `${row.review_date}T00:00:00Z` : null);
+  const reviewDate = row.review_date ?? (publishedAt ? publishedAt.slice(0, 10) : null);
+  const firstObservedAt = row.first_observed_at ?? row.created_at ?? null;
+  const replied = hasOwnerResponse(row.owner_response_text);
+  const daysWaiting =
+    publishedAt && !replied ? differenceInCalendarDays(params.now, new Date(publishedAt)) : null;
+  const isNew =
+    firstObservedAt != null && differenceInCalendarDays(params.now, new Date(firstObservedAt)) <= 7;
+  const provider = (row.source_provider ?? "").toLowerCase();
+  const source: ReviewListItem["source"] = provider.includes("facebook")
+    ? "facebook"
+    : provider.includes("yelp")
+      ? "yelp"
+      : "google";
+
+  return {
+    id: row.id,
+    reviewerName: row.reviewer_name ?? "Anonymous",
+    rating: row.rating != null ? Number(row.rating) : null,
+    reviewText: row.review_text,
+    reviewDate,
+    publishedAt,
+    firstObservedAt,
+    relativeDate: publishedAt
+      ? formatDistanceToNow(new Date(publishedAt), { addSuffix: true })
+      : reviewDate
+        ? formatDistanceToNow(new Date(`${reviewDate}T12:00:00Z`), { addSuffix: true })
+        : null,
+    source,
+    tags: extractThemeTagsFromText(row.review_text ?? "", 5),
+    replied,
+    ownerResponseText: row.owner_response_text,
+    isTarget: params.isTarget,
+    businessName: params.businessName,
+    competitorId: params.competitorId,
+    daysWaiting,
+    urgency: daysWaiting != null ? (daysWaiting >= 14 ? "urgent" : daysWaiting >= 7 ? "high" : daysWaiting >= 3 ? "medium" : "low") : null,
+    isNew,
+    resolved: Boolean(row.resolved_at),
+    resolvedAt: row.resolved_at ?? null,
+  };
+}
 
 function round1(value: number): number {
   return Math.round(value * 10) / 10;
@@ -520,11 +571,33 @@ export async function loadCompetitorIntelligenceData(
     sourceTheme: pattern.theme,
   }));
 
+  const now = new Date();
+  const reviewsFeed: ReviewListItem[] = [
+    ...targetRows180.map((row) =>
+      toFeedItem(row, { isTarget: true, businessName, competitorId: null, now })
+    ),
+    ...allCompetitorRows180.map((row) =>
+      toFeedItem(row, {
+        isTarget: false,
+        businessName: competitorNameById.get(row.competitor_id ?? "") ?? "Competitor",
+        competitorId: row.competitor_id,
+        now,
+      })
+    ),
+  ]
+    .sort((a, b) => {
+      const aDate = a.publishedAt ?? (a.reviewDate ? `${a.reviewDate}T00:00:00Z` : "");
+      const bDate = b.publishedAt ?? (b.reviewDate ? `${b.reviewDate}T00:00:00Z` : "");
+      return new Date(bDate).getTime() - new Date(aDate).getTime();
+    })
+    .slice(0, 400);
+
   return {
     businessId,
     businessName,
     leaderboardRows,
     gapRows,
+    reviewsFeed,
     complaintPatterns,
     positioningOpportunities,
     strengths: {

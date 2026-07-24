@@ -20,15 +20,17 @@ import {
 } from "@/components/reputation/rep-ui";
 import { RepHorizontalGapChart } from "@/components/reputation/rep-charts";
 import { ReputationSyncButton } from "@/components/reputation/reputation-sync-button";
+import { CompetitorReviewsWorkspace } from "@/components/reviews/competitor-reviews-workspace";
 import type {
   CompetitorIntelligenceData,
   CompetitorLeaderboardRow,
 } from "@/lib/reviews/competitor-intelligence-data";
+import type { ReviewListItem } from "@/lib/reviews/reviews-page-data";
 import { cn } from "@/lib/utils";
 
 const GREEN = "#137752";
 
-type TabId = "leaderboard" | "gap" | "strengths" | "content" | "platforms";
+type TabId = "overview" | "reviews" | "gaps" | "content" | "opportunities";
 
 export type OpportunityItem = {
   icon: "check" | "star" | "chat";
@@ -62,6 +64,7 @@ export type CompetitorIntelligenceDashboardData = Omit<CompetitorIntelligenceDat
       };
     }
   >;
+  reviewsFeed: ReviewListItem[];
   opportunities?: string[];
   opportunityItems?: OpportunityItem[];
   platformPresence?: PlatformPresenceItem[];
@@ -69,11 +72,11 @@ export type CompetitorIntelligenceDashboardData = Omit<CompetitorIntelligenceDat
 };
 
 const tabs: Array<{ id: TabId; label: string }> = [
-  { id: "leaderboard", label: "Leaderboard" },
-  { id: "gap", label: "Review Gap" },
-  { id: "strengths", label: "Strengths & Weaknesses" },
-  { id: "content", label: "Content Comparison" },
-  { id: "platforms", label: "Platform Presence" },
+  { id: "overview", label: "Overview" },
+  { id: "reviews", label: "Reviews" },
+  { id: "gaps", label: "Gaps" },
+  { id: "content", label: "Content" },
+  { id: "opportunities", label: "Opportunities" },
 ];
 
 function fmt(value: number | null | undefined, digits = 0): string {
@@ -644,7 +647,7 @@ export function CompetitorIntelligenceDashboard({
   businessId: string;
   data: CompetitorIntelligenceDashboardData;
 }) {
-  const [activeTab, setActiveTab] = useState<TabId>("leaderboard");
+  const [activeTab, setActiveTab] = useState<TabId>("overview");
 
   const sortedRows = useMemo(
     () => [...data.leaderboardRows].sort((a, b) => b.totalReviews - a.totalReviews),
@@ -668,7 +671,7 @@ export function CompetitorIntelligenceDashboard({
       <RepPageHeader
         title="Competitor Intelligence"
         subtitle={`Review position, gap, and content quality compared with nearby competitors for ${data.businessName}.`}
-        dateRangeLabel={data.dateRangeLabel ?? "May 10 – Jun 8, 2025"}
+        dateRangeLabel={data.dateRangeLabel ?? "Last 90 days"}
         showCompare
         filterLabel="Filters"
         primaryAction={
@@ -681,7 +684,7 @@ export function CompetitorIntelligenceDashboard({
 
       <RepTabs tabs={tabs} active={activeTab} onChange={(tab) => setActiveTab(tab as TabId)} />
 
-      {activeTab === "leaderboard" ? (
+      {activeTab === "overview" ? (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <RepMetricCard
@@ -726,7 +729,16 @@ export function CompetitorIntelligenceDashboard({
         </>
       ) : null}
 
-      {activeTab === "gap" ? (
+      {activeTab === "reviews" ? (
+        <CompetitorReviewsWorkspace
+          businessId={businessId}
+          businessName={data.businessName}
+          leaderboardRows={sortedRows}
+          reviewsFeed={data.reviewsFeed ?? []}
+        />
+      ) : null}
+
+      {activeTab === "gaps" ? (
         <div className="space-y-4">
           <GapWidgets data={{ ...data, leaderboardRows: sortedRows }} />
           <Card title="Review Gap Details">
@@ -766,9 +778,32 @@ export function CompetitorIntelligenceDashboard({
         </div>
       ) : null}
 
-      {activeTab === "strengths" ? <StrengthsTab data={data} /> : null}
       {activeTab === "content" ? <ContentTab data={data} /> : null}
-      {activeTab === "platforms" ? <PlatformsTab data={data} /> : null}
+
+      {activeTab === "opportunities" ? (
+        <div className="space-y-4">
+          <StrengthsTab data={data} />
+          <Card title="Positioning Opportunities" subtitle="Themes competitors lose on that you can own.">
+            <div className="space-y-3">
+              {(data.positioningOpportunities.length
+                ? data.positioningOpportunities
+                : [{ title: "No opportunities yet", description: "Refresh reputation data after competitors are tracked.", sourceTheme: "—" }]
+              ).map((item) => (
+                <div key={item.title} className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-[#101828]">{item.title}</p>
+                      <p className="mt-1 text-sm leading-5 text-[#667085]">{item.description}</p>
+                    </div>
+                    <RepBadge tone="green">{item.sourceTheme}</RepBadge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <PlatformsTab data={data} />
+        </div>
+      ) : null}
     </div>
   );
 }

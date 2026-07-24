@@ -61,6 +61,9 @@ export type ReviewAnalyticsRecentReview = {
   rating: number | null;
   text: string | null;
   date: string | null;
+  businessName: string;
+  competitorId: string | null;
+  isYou: boolean;
 };
 
 export type ReviewAnalyticsTask = {
@@ -621,24 +624,36 @@ export async function loadReviewAnalyticsData(businessId: string): Promise<Revie
         ? `You matched or beat the competitor average over 30 days (${rolling30.current} vs ${competitor30dAvg}).`
         : `Competitors averaged ${competitor30dAvg} reviews in 30 days vs your ${rolling30.current}.`;
 
+  const competitorNameById = new Map(competitorRefs.map((competitor) => [competitor.id, competitor.name]));
+
   const responseAudit = target30.length > 0
     ? responseAudit30
     : auditOwnerResponsesFromStored(toResponseAuditRows(target90));
-  const recentReviews = targetRows
-    .filter((row) => !row.is_deleted)
-    .sort((a, b) => {
-      const aDate = a.published_at ?? (a.review_date ? `${a.review_date}T00:00:00Z` : a.created_at);
-      const bDate = b.published_at ?? (b.review_date ? `${b.review_date}T00:00:00Z` : b.created_at);
-      return new Date(bDate).getTime() - new Date(aDate).getTime();
-    })
-    .slice(0, 3)
-    .map((row) => ({
+  const recentReviews = [
+    ...targetRows.map((row) => ({
       id: row.id,
       reviewerName: row.reviewer_name ?? "Anonymous",
       rating: row.rating != null ? Number(row.rating) : null,
       text: row.review_text,
       date: row.published_at ?? (row.review_date ? `${row.review_date}T00:00:00Z` : null),
-    }));
+      businessName,
+      competitorId: null as string | null,
+      isYou: true,
+    })),
+    ...competitorRows.map((row) => ({
+      id: row.id,
+      reviewerName: row.reviewer_name ?? "Anonymous",
+      rating: row.rating != null ? Number(row.rating) : null,
+      text: row.review_text,
+      date: row.published_at ?? (row.review_date ? `${row.review_date}T00:00:00Z` : null),
+      businessName: competitorNameById.get(row.competitor_id ?? "") ?? "Competitor",
+      competitorId: row.competitor_id,
+      isYou: false,
+    })),
+  ]
+    .filter((row) => Boolean(row.date))
+    .sort((a, b) => new Date(b.date!).getTime() - new Date(a.date!).getTime())
+    .slice(0, 40);
   const tasks = (momentum?.tasks ?? []).slice(0, 5).map((task) => ({
     id: String(task.id),
     title: String(task.title ?? "Review task"),

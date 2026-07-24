@@ -158,6 +158,8 @@ export function RepCumulativeLineChart({
   height = 420,
   markers = [],
   showBrush = true,
+  highlightedKey = null,
+  onPointClick,
 }: {
   data: Array<Record<string, unknown>>;
   series: Series[];
@@ -165,13 +167,28 @@ export function RepCumulativeLineChart({
   height?: number;
   markers?: Marker[];
   showBrush?: boolean;
+  highlightedKey?: string | null;
+  onPointClick?: (payload: { date: string; values: Record<string, number> }) => void;
 }) {
   const useBrush = showBrush && data.length > 14;
 
   return (
     <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 16, right: 18, left: 4, bottom: useBrush ? 8 : 4 }}>
+        <LineChart
+          data={data}
+          margin={{ top: 16, right: 18, left: 4, bottom: useBrush ? 8 : 4 }}
+          onClick={(state) => {
+            if (!onPointClick || !state?.activeLabel) return;
+            const point = data.find((row) => String(row[xKey]) === String(state.activeLabel));
+            if (!point) return;
+            const values: Record<string, number> = {};
+            for (const s of series) {
+              values[s.dataKey] = Number(point[s.dataKey] ?? 0);
+            }
+            onPointClick({ date: String(state.activeLabel), values });
+          }}
+        >
           <CartesianGrid stroke={GRID} strokeDasharray="4 6" vertical={false} />
           <XAxis
             dataKey={xKey}
@@ -217,22 +234,32 @@ export function RepCumulativeLineChart({
               }}
             />
           ))}
-          {series.map((s, index) => (
-            <Line
-              key={s.dataKey}
-              type="monotone"
-              dataKey={s.dataKey}
-              name={s.name}
-              stroke={s.color}
-              strokeWidth={s.strokeWidth ?? (index === 0 ? 3 : 2)}
-              strokeDasharray={s.dashed ? "6 4" : undefined}
-              dot={false}
-              activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }}
-              isAnimationActive
-              animationDuration={650}
-              connectNulls
-            />
-          ))}
+          {series.map((s, index) => {
+            const dimmed = highlightedKey != null && highlightedKey !== s.dataKey;
+            return (
+              <Line
+                key={s.dataKey}
+                type="monotone"
+                dataKey={s.dataKey}
+                name={s.name}
+                stroke={s.color}
+                strokeWidth={
+                  highlightedKey === s.dataKey
+                    ? Math.max(s.strokeWidth ?? 3, 3.5)
+                    : dimmed
+                      ? 1.5
+                      : s.strokeWidth ?? (index === 0 ? 3 : 2)
+                }
+                strokeOpacity={dimmed ? 0.25 : 1}
+                strokeDasharray={s.dashed ? "6 4" : undefined}
+                dot={false}
+                activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff", cursor: "pointer" }}
+                isAnimationActive
+                animationDuration={650}
+                connectNulls
+              />
+            );
+          })}
           {useBrush ? (
             <Brush
               dataKey={xKey}
