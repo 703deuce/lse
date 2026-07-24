@@ -99,19 +99,60 @@ function mapSettings(row: BusinessSettingsRow, link: ReviewLinkRow | null) {
   };
 }
 
+const FULL_SETTINGS_SELECT =
+  "id, name, place_id, timezone, quiet_hours_start, quiet_hours_end, default_sender_name, default_sender_email, default_sender_phone, sms_compliance_status, email_sender_name, email_from_address, review_detection_match_days, review_detection_name_fuzzy, data_retention_days";
+
+const LEAN_SETTINGS_SELECT = "id, name, place_id";
+
+function isMissingColumnError(message: string): boolean {
+  return /column .* does not exist|Could not find the '.+' column/i.test(message);
+}
+
 async function loadSettings(businessId: string, organizationId: string) {
   const supabase = createServiceClient();
-  const { data: business, error } = await supabase
+  let business: BusinessSettingsRow | null = null;
+
+  const full = await supabase
     .from("businesses")
-    .select(
-      "id, name, place_id, timezone, quiet_hours_start, quiet_hours_end, default_sender_name, default_sender_email, default_sender_phone, sms_compliance_status, email_sender_name, email_from_address, review_detection_match_days, review_detection_name_fuzzy, data_retention_days"
-    )
+    .select(FULL_SETTINGS_SELECT)
     .eq("id", businessId)
     .eq("organization_id", organizationId)
     .maybeSingle();
 
-  if (error) throw new Error(error.message);
-  if (!business) throw new Error("Business not found");
+  if (full.error && isMissingColumnError(full.error.message)) {
+    // Migration 078 not applied yet — still serve core settings with defaults.
+    const lean = await supabase
+      .from("businesses")
+      .select(LEAN_SETTINGS_SELECT)
+      .eq("id", businessId)
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+    if (lean.error) throw new Error(lean.error.message);
+    if (!lean.data) throw new Error("Business not found");
+    business = {
+      id: lean.data.id,
+      name: lean.data.name,
+      place_id: lean.data.place_id,
+      timezone: DEFAULT_TIMEZONE,
+      quiet_hours_start: null,
+      quiet_hours_end: null,
+      default_sender_name: null,
+      default_sender_email: null,
+      default_sender_phone: null,
+      sms_compliance_status: "unknown",
+      email_sender_name: null,
+      email_from_address: null,
+      review_detection_match_days: 14,
+      review_detection_name_fuzzy: true,
+      data_retention_days: 730,
+    };
+  } else if (full.error) {
+    throw new Error(full.error.message);
+  } else if (!full.data) {
+    throw new Error("Business not found");
+  } else {
+    business = full.data as BusinessSettingsRow;
+  }
 
   const { data: link, error: linkError } = await supabase
     .from("review_request_links")
@@ -122,7 +163,7 @@ async function loadSettings(businessId: string, organizationId: string) {
 
   if (linkError) throw new Error(linkError.message);
 
-  return mapSettings(business as BusinessSettingsRow, (link as ReviewLinkRow | null) ?? null);
+  return mapSettings(business, (link as ReviewLinkRow | null) ?? null);
 }
 
 export async function GET(request: Request) {
@@ -178,7 +219,23 @@ export async function PUT(request: Request) {
       .eq("id", p.businessId)
       .eq("organization_id", auth.organizationId);
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (isMissingColumnError(error.message)) {
+        // Persist only fields that exist pre-migration 078.
+        const leanUpdate = {
+          place_id: nullIfBlank(p.placeId),
+          updated_at: new Date().toISOString(),
+        };
+        const lean = await supabase
+          .from("businesses")
+          .update(leanUpdate)
+          .eq("id", p.businessId)
+          .eq("organization_id", auth.organizationId);
+        if (lean.error) throw new Error(lean.error.message);
+      } else {
+        throw new Error(error.message);
+      }
+    }
 
     const settings = await loadSettings(p.businessId, auth.organizationId);
     return NextResponse.json({ settings });
