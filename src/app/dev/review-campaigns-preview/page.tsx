@@ -6,6 +6,8 @@ import { ReviewCampaignsHub } from "@/components/reputation/review-campaigns-hub
 import {
   REVIEW_CAMPAIGNS_PREVIEW_BUSINESS_ID,
   reviewCampaignsPreviewResponse,
+  reviewCampaignsPreviewStats,
+  reviewCampaignsPreviewActivity,
 } from "@/lib/reputation/review-campaigns-preview-data";
 
 let fetchPatched = false;
@@ -57,7 +59,11 @@ export default function ReviewCampaignsPreviewPage() {
         showFooter={false}
       />
       <main className="min-w-0 flex-1 overflow-y-auto px-5 py-6 lg:px-8">
-        <ReviewCampaignsHub businessId={REVIEW_CAMPAIGNS_PREVIEW_BUSINESS_ID} />
+        <ReviewCampaignsHub
+          businessId={REVIEW_CAMPAIGNS_PREVIEW_BUSINESS_ID}
+          overrideStats={reviewCampaignsPreviewStats}
+          previewActivity={reviewCampaignsPreviewActivity}
+        />
       </main>
     </div>
   );

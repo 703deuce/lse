@@ -6,17 +6,22 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   BarChart3,
+  CheckCircle2,
   Copy,
   DollarSign,
   ExternalLink,
   FileText,
   Loader2,
+  Mail,
+  MessageSquare,
   MoreHorizontal,
   Pause,
   Play,
   Plus,
   Send,
   Star,
+  TrendingDown,
+  TrendingUp,
   Users,
   X,
 } from "lucide-react";
@@ -25,12 +30,33 @@ import type { CampaignRow } from "@/components/reputation/review-requests-campai
 import { CampaignCreateWizard } from "@/components/reputation/campaign-create-wizard";
 import {
   RepBadge,
-  RepMetricCard,
   RepPageHeader,
   RepSearch,
   rep,
 } from "@/components/reputation/rep-ui";
 import { cn } from "@/lib/utils";
+
+type OverrideStats = {
+  activeCampaigns: number;
+  pausedCampaigns?: number;
+  totalCampaigns?: number;
+  messagesSent30d: number;
+  messagesSentTrend?: number;
+  reviewsGenerated30d: number;
+  reviewsTrend?: number;
+  conversion: number;
+  conversionTrend?: number;
+  costPerReview: number;
+  costTrend?: number;
+};
+
+type ActivityItem = {
+  id: string;
+  type: "reviews_detected" | "sms_sent" | "review_received" | "campaign_paused";
+  label: string;
+  detail: string;
+  relativeTime: string;
+};
 
 function pct(numerator: number, denominator: number) {
   return denominator > 0 ? `${Math.round((numerator / denominator) * 100)}%` : "—";
@@ -44,9 +70,15 @@ function fmt(value: number | null | undefined): string {
 function statusTone(status: string): "green" | "blue" | "amber" | "red" | "gray" {
   if (status === "active") return "green";
   if (status === "scheduled") return "blue";
-  if (status === "paused" || status === "draft" || status === "incomplete") return "amber";
+  if (status === "paused") return "amber";
+  if (status === "draft" || status === "incomplete") return "gray";
   if (status === "failed" || status === "cancelled") return "red";
   return "gray";
+}
+
+function statusLabel(status: string): string {
+  if (!status) return "—";
+  return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 function formatDate(iso: string | null | undefined): string {
@@ -56,7 +88,8 @@ function formatDate(iso: string | null | undefined): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function nextStep(campaign: CampaignRow): string {
+function nextStepLabel(campaign: CampaignRow): string {
+  if (campaign.next_step_label) return campaign.next_step_label;
   if (campaign.status === "draft" || campaign.status === "incomplete") return "Finish setup";
   if (campaign.status === "paused") return "Resume enrollment";
   if (campaign.status === "scheduled") return "Starts soon";
@@ -66,18 +99,119 @@ function nextStep(campaign: CampaignRow): string {
   return "No action";
 }
 
+function TrendBadge({
+  value,
+  inverseBetter = false,
+}: {
+  value: number | undefined;
+  inverseBetter?: boolean;
+}) {
+  if (value == null) return null;
+  const isPositive = inverseBetter ? value <= 0 : value >= 0;
+  return (
+    <span className={cn("flex items-center gap-0.5 text-xs font-semibold", isPositive ? "text-[#027A48]" : "text-[#B42318]")}>
+      {inverseBetter ? (
+        value <= 0 ? <TrendingDown className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />
+      ) : (
+        value >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />
+      )}
+      {value >= 0 ? "+" : "−"}{Math.abs(value)}%
+    </span>
+  );
+}
+
+function KpiCard({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  iconBg,
+  iconColor,
+  trend,
+  inverseBetter = false,
+}: {
+  label: string;
+  value: React.ReactNode;
+  hint?: string;
+  icon: React.ElementType;
+  iconBg: string;
+  iconColor: string;
+  trend?: number;
+  inverseBetter?: boolean;
+}) {
+  return (
+    <div className={cn(rep.card, "p-4")}>
+      <div className="flex items-start justify-between gap-2">
+        <p className={rep.label}>{label}</p>
+        <span
+          className="flex h-8 w-8 items-center justify-center rounded-lg"
+          style={{ backgroundColor: iconBg, color: iconColor }}
+        >
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      <p className="mt-2 text-[26px] font-bold leading-none tracking-tight text-[#101828]">{value}</p>
+      <div className="mt-2 flex items-center gap-1.5">
+        <TrendBadge value={trend} inverseBetter={inverseBetter} />
+        {hint ? <p className="text-xs text-[#667085]">{hint}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+function ChannelIcon({ channel }: { channel: string }) {
+  if (channel === "email") return <Mail className="h-3.5 w-3.5 text-[#175CD3]" />;
+  return <MessageSquare className="h-3.5 w-3.5 text-[#027A48]" />;
+}
+
+function ActivityIcon({ type }: { type: ActivityItem["type"] }) {
+  if (type === "reviews_detected") {
+    return (
+      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#ECFDF3]">
+        <Star className="h-3.5 w-3.5 text-[#137752]" />
+      </span>
+    );
+  }
+  if (type === "sms_sent") {
+    return (
+      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#EFF8FF]">
+        <Send className="h-3.5 w-3.5 text-[#175CD3]" />
+      </span>
+    );
+  }
+  if (type === "review_received") {
+    return (
+      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#FFFAEB]">
+        <CheckCircle2 className="h-3.5 w-3.5 text-[#B54708]" />
+      </span>
+    );
+  }
+  if (type === "campaign_paused") {
+    return (
+      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#F2F4F7]">
+        <Pause className="h-3.5 w-3.5 text-[#667085]" />
+      </span>
+    );
+  }
+  return (
+    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#F2F4F7]">
+      <Activity className="h-3.5 w-3.5 text-[#667085]" />
+    </span>
+  );
+}
+
 function CampaignPerformance({ campaigns }: { campaigns: CampaignRow[] }) {
-  const sent = campaigns.reduce((sum, campaign) => sum + (campaign.sent ?? 0), 0);
-  const delivered = campaigns.reduce((sum, campaign) => sum + (campaign.delivered ?? campaign.sent ?? 0), 0);
-  const clicked = campaigns.reduce((sum, campaign) => sum + (campaign.clicked ?? 0), 0);
-  const reviews = campaigns.reduce((sum, campaign) => sum + (campaign.reviews_detected ?? 0), 0);
-  const maxSent = Math.max(...campaigns.map((campaign) => campaign.sent ?? 0), 1);
+  const sent = campaigns.reduce((sum, c) => sum + (c.sent ?? 0), 0);
+  const delivered = campaigns.reduce((sum, c) => sum + (c.delivered ?? c.sent ?? 0), 0);
+  const clicked = campaigns.reduce((sum, c) => sum + (c.clicked ?? 0), 0);
+  const reviews = campaigns.reduce((sum, c) => sum + (c.reviews_detected ?? 0), 0);
+  const maxSent = Math.max(...campaigns.map((c) => c.sent ?? 0), 1);
 
   return (
     <section className={cn(rep.card, "p-4")}>
       <div className="mb-4 flex items-center gap-2">
         <BarChart3 className="h-4 w-4 text-[#137752]" />
-        <h2 className="text-[15px] font-semibold text-[#101828]">Campaign Performance</h2>
+        <h2 className="text-[15px] font-semibold text-[#101828]">Campaign Performance (30 Days)</h2>
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <div>
@@ -98,45 +232,54 @@ function CampaignPerformance({ campaigns }: { campaigns: CampaignRow[] }) {
         </div>
       </div>
       <div className="mt-5 space-y-3">
-        {campaigns.slice(0, 5).map((campaign) => (
-          <div key={campaign.id}>
-            <div className="mb-1.5 flex items-center justify-between gap-3">
-              <span className="truncate text-sm font-semibold text-[#344054]">{campaign.name}</span>
-              <span className="text-xs font-bold tabular-nums text-[#101828]">{fmt(campaign.sent)}</span>
+        {campaigns
+          .filter((c) => (c.sent ?? 0) > 0)
+          .slice(0, 5)
+          .map((c) => (
+            <div key={c.id}>
+              <div className="mb-1.5 flex items-center justify-between gap-3">
+                <span className="truncate text-sm font-semibold text-[#344054]">{c.name}</span>
+                <span className="text-xs font-bold tabular-nums text-[#101828]">{fmt(c.sent)}</span>
+              </div>
+              <div className="h-2.5 overflow-hidden rounded-full bg-[#F2F4F7]">
+                <div
+                  className="h-full rounded-full bg-[#137752]"
+                  style={{ width: `${Math.max(4, ((c.sent ?? 0) / maxSent) * 100)}%` }}
+                />
+              </div>
             </div>
-            <div className="h-2.5 overflow-hidden rounded-full bg-[#F2F4F7]">
-              <div
-                className="h-full rounded-full bg-[#137752]"
-                style={{ width: `${Math.max(8, ((campaign.sent ?? 0) / maxSent) * 100)}%` }}
-              />
-            </div>
-          </div>
-        ))}
+          ))}
+      </div>
+      <div className="mt-4 text-right">
+        <button type="button" className={rep.link}>
+          View all campaigns →
+        </button>
       </div>
     </section>
   );
 }
 
-function RecentActivity({ campaigns }: { campaigns: CampaignRow[] }) {
-  const activity = campaigns
-    .flatMap((campaign) => [
+function RecentActivity({ previewActivity, campaigns }: { previewActivity?: ActivityItem[]; campaigns: CampaignRow[] }) {
+  const activity = previewActivity ?? campaigns
+    .flatMap((c) => [
       {
-        id: `${campaign.id}-created`,
-        at: campaign.created_at,
-        label: `${campaign.name} created`,
-        detail: `${fmt(campaign.recipients_ready)} eligible recipients`,
+        id: `${c.id}-created`,
+        type: "sms_sent" as ActivityItem["type"],
+        label: `${c.name} created`,
+        detail: `${fmt(c.recipients_ready)} eligible recipients`,
+        relativeTime: formatDate(c.created_at),
       },
-      campaign.sent > 0
+      (c.sent ?? 0) > 0
         ? {
-            id: `${campaign.id}-sent`,
-            at: campaign.created_at,
-            label: `${campaign.name} sent ${fmt(campaign.sent)} messages`,
-            detail: `${fmt(campaign.clicked)} clicks, ${fmt(campaign.reviews_detected)} reviews`,
+            id: `${c.id}-sent`,
+            type: "sms_sent" as ActivityItem["type"],
+            label: `${c.name} — ${fmt(c.sent)} messages sent`,
+            detail: `${fmt(c.clicked)} clicks · ${fmt(c.reviews_detected)} reviews`,
+            relativeTime: formatDate(c.created_at),
           }
         : null,
     ])
-    .filter((item): item is { id: string; at: string; label: string; detail: string } => Boolean(item))
-    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+    .filter((item): item is ActivityItem => Boolean(item))
     .slice(0, 6);
 
   return (
@@ -151,11 +294,11 @@ function RecentActivity({ campaigns }: { campaigns: CampaignRow[] }) {
         <ol className="space-y-4">
           {activity.map((item) => (
             <li key={item.id} className="flex gap-3">
-              <span className="mt-1 h-2 w-2 rounded-full bg-[#137752]" />
-              <span className="min-w-0">
+              <ActivityIcon type={item.type} />
+              <span className="min-w-0 pt-0.5">
                 <span className="block text-sm font-semibold text-[#101828]">{item.label}</span>
                 <span className="mt-0.5 block text-xs text-[#667085]">
-                  {formatDate(item.at)} · {item.detail}
+                  {item.detail} · {item.relativeTime}
                 </span>
               </span>
             </li>
@@ -166,7 +309,15 @@ function RecentActivity({ campaigns }: { campaigns: CampaignRow[] }) {
   );
 }
 
-export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
+export function ReviewCampaignsHub({
+  businessId,
+  overrideStats,
+  previewActivity,
+}: {
+  businessId: string;
+  overrideStats?: OverrideStats;
+  previewActivity?: ActivityItem[];
+}) {
   const router = useRouter();
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -192,28 +343,36 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
     void load();
   }, [load]);
 
-  const stats = useMemo(() => {
+  const computedStats = useMemo(() => {
     const active = campaigns.filter((c) => c.status === "active" || c.status === "scheduled").length;
+    const paused = campaigns.filter((c) => c.status === "paused").length;
     const sent = campaigns.reduce((n, c) => n + (c.sent ?? 0), 0);
     const reviews = campaigns.reduce((n, c) => n + (c.reviews_detected ?? 0), 0);
     return {
-      active,
-      sent,
-      reviews,
-      conversion: pct(reviews, sent),
+      activeCampaigns: active,
+      pausedCampaigns: paused,
+      totalCampaigns: campaigns.length,
+      messagesSent30d: sent,
+      messagesSentTrend: undefined as number | undefined,
+      reviewsGenerated30d: reviews,
+      reviewsTrend: undefined as number | undefined,
+      conversion: sent > 0 ? Math.round((reviews / sent) * 1000) / 10 : 0,
+      conversionTrend: undefined as number | undefined,
+      costPerReview: 0,
+      costTrend: undefined as number | undefined,
     };
   }, [campaigns]);
 
+  const stats = overrideStats ?? computedStats;
+
   const filteredCampaigns = useMemo(
     () =>
-      campaigns.filter((campaign) => {
-        if (statusFilter !== "all" && campaign.status !== statusFilter) return false;
-        if (channelFilter !== "all" && campaign.channel !== channelFilter) return false;
+      campaigns.filter((c) => {
+        if (statusFilter !== "all" && c.status !== statusFilter) return false;
+        if (channelFilter !== "all" && c.channel !== channelFilter) return false;
         if (search.trim()) {
           const q = search.toLowerCase();
-          if (!campaign.name.toLowerCase().includes(q) && !campaign.status.toLowerCase().includes(q)) {
-            return false;
-          }
+          if (!c.name.toLowerCase().includes(q) && !c.status.toLowerCase().includes(q)) return false;
         }
         return true;
       }),
@@ -257,7 +416,6 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
       <RepPageHeader
         title="Campaigns"
         subtitle="Build automated sequences to get more reviews."
-        dateRangeLabel="Last 30 days"
         showFilters={false}
         actions={
           <Link href={`/businesses/${businessId}/reputation/templates`} className={rep.btnSecondary}>
@@ -266,19 +424,60 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
           </Link>
         }
         primaryAction={
-          <button type="button" onClick={() => setShowWizard((show) => !show)} className={rep.btnPrimary}>
+          <button type="button" onClick={() => setShowWizard((s) => !s)} className={rep.btnPrimary}>
             <Plus className="h-4 w-4" />
             New Campaign
           </button>
         }
       />
 
+      {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <RepMetricCard label="Active Campaigns" value={loading ? "—" : fmt(stats.active)} hint="Active or scheduled" icon={Users} />
-        <RepMetricCard label="Messages Sent 30d" value={loading ? "—" : fmt(stats.sent)} hint="Loaded campaign totals" icon={Send} />
-        <RepMetricCard label="Reviews Generated 30d" value={loading ? "—" : fmt(stats.reviews)} hint="Likely or confirmed" icon={Star} />
-        <RepMetricCard label="Est Conversion" value={loading ? "—" : stats.conversion} hint="Reviews / messages" icon={BarChart3} />
-        <RepMetricCard label="Cost per Review" value="—" hint="Cost data unavailable" icon={DollarSign} />
+        <KpiCard
+          label="Active Campaigns"
+          value={loading ? "—" : fmt(stats.activeCampaigns)}
+          hint={stats.pausedCampaigns ? `${stats.pausedCampaigns} paused` : "Active or scheduled"}
+          icon={Users}
+          iconBg="#ECFDF3"
+          iconColor="#137752"
+        />
+        <KpiCard
+          label="Messages Sent (30d)"
+          value={loading ? "—" : fmt(stats.messagesSent30d)}
+          hint="vs prior 30 days"
+          trend={stats.messagesSentTrend}
+          icon={Send}
+          iconBg="#EFF8FF"
+          iconColor="#175CD3"
+        />
+        <KpiCard
+          label="Reviews Generated (30d)"
+          value={loading ? "—" : fmt(stats.reviewsGenerated30d)}
+          hint="Likely or confirmed"
+          trend={stats.reviewsTrend}
+          icon={Star}
+          iconBg="#FFFAEB"
+          iconColor="#B54708"
+        />
+        <KpiCard
+          label="Conversion Rate"
+          value={loading ? "—" : `${stats.conversion}%`}
+          hint="Reviews / messages"
+          trend={stats.conversionTrend}
+          icon={BarChart3}
+          iconBg="#F4F3FF"
+          iconColor="#5925DC"
+        />
+        <KpiCard
+          label="Cost Per Review"
+          value={loading ? "—" : stats.costPerReview > 0 ? `$${stats.costPerReview}` : "—"}
+          hint={stats.costPerReview > 0 ? "Improving" : "Cost data unavailable"}
+          trend={stats.costTrend}
+          inverseBetter
+          icon={DollarSign}
+          iconBg="#ECFDF3"
+          iconColor="#137752"
+        />
       </div>
 
       {showWizard ? (
@@ -297,27 +496,30 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
         </div>
       ) : null}
 
+      {/* Campaigns table */}
       <section className={cn(rep.card, "overflow-hidden")}>
         <div className="border-b border-[#E6EAF0] px-4 py-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-[15px] font-semibold text-[#101828]">Your Campaigns</h2>
-              <p className="mt-0.5 text-xs text-[#667085]">Mixed statuses with channel, enrollment, send, and review performance.</p>
+              <p className="mt-0.5 text-xs text-[#667085]">
+                {loading ? "Loading..." : `${campaigns.length} campaigns · ${stats.activeCampaigns} active`}
+              </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={rep.select}>
                 <option value="all">All Statuses</option>
-                {Array.from(new Set(campaigns.map((campaign) => campaign.status))).map((status) => (
-                  <option key={status} value={status}>{status}</option>
+                {Array.from(new Set(campaigns.map((c) => c.status))).map((s) => (
+                  <option key={s} value={s}>{statusLabel(s)}</option>
                 ))}
               </select>
               <select value={channelFilter} onChange={(e) => setChannelFilter(e.target.value)} className={rep.select}>
                 <option value="all">All Channels</option>
-                {Array.from(new Set(campaigns.map((campaign) => campaign.channel))).map((channel) => (
-                  <option key={channel} value={channel}>{channel}</option>
+                {Array.from(new Set(campaigns.map((c) => c.channel))).map((ch) => (
+                  <option key={ch} value={ch} className="capitalize">{ch}</option>
                 ))}
               </select>
-              <RepSearch value={search} onChange={setSearch} placeholder="Search campaigns..." className="min-w-[240px]" />
+              <RepSearch value={search} onChange={setSearch} placeholder="Search campaigns..." className="min-w-[200px]" />
             </div>
           </div>
         </div>
@@ -356,81 +558,114 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
                   </td>
                 </tr>
               ) : (
-                filteredCampaigns.map((campaign) => {
-                  const progress = campaign.recipients_ready > 0
-                    ? Math.min(100, Math.round(((campaign.sent ?? 0) / campaign.recipients_ready) * 100))
+                filteredCampaigns.map((c) => {
+                  const sentProgress = c.recipients_ready > 0
+                    ? Math.min(100, Math.round(((c.sent ?? 0) / c.recipients_ready) * 100))
                     : 0;
+                  const convRate = c.conversion_rate != null
+                    ? `${c.conversion_rate}%`
+                    : c.sent
+                    ? pct(c.reviews_detected ?? 0, c.sent)
+                    : "—";
+                  const isDraft = c.status === "draft" || c.status === "incomplete";
+
                   return (
-                    <tr key={campaign.id} className="border-b border-[#F2F4F7] last:border-0 hover:bg-[#F9FAFB]">
+                    <tr key={c.id} className="border-b border-[#F2F4F7] last:border-0 hover:bg-[#F9FAFB]">
                       <td className="px-4 py-3">
                         <Link
-                          href={`/businesses/${businessId}/reputation/campaigns/${campaign.id}`}
+                          href={`/businesses/${businessId}/reputation/campaigns/${c.id}`}
                           className="font-semibold text-[#101828] hover:text-[#137752] hover:underline"
                         >
-                          {campaign.name}
+                          {c.name}
                         </Link>
-                        <p className="mt-0.5 text-xs text-[#667085]">Created {formatDate(campaign.created_at)}</p>
+                        <p className="mt-0.5 text-xs text-[#667085]">Created {formatDate(c.created_at)}</p>
                       </td>
                       <td className="px-4 py-3">
-                        <RepBadge tone={statusTone(campaign.status)}>{campaign.status}</RepBadge>
+                        <RepBadge tone={statusTone(c.status)}>{statusLabel(c.status)}</RepBadge>
                       </td>
-                      <td className="px-4 py-3 capitalize text-[#344054]">{campaign.channel}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-[#344054]">{fmt(campaign.recipients_ready)}</td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold tabular-nums text-[#101828]">{fmt(campaign.sent)}</span>
-                          <span className="text-xs text-[#667085]">{progress}%</span>
-                        </div>
-                        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[#F2F4F7]">
-                          <div className="h-full rounded-full bg-[#137752]" style={{ width: `${progress}%` }} />
-                        </div>
+                        <span className="flex items-center gap-1.5 capitalize text-[#344054]">
+                          <ChannelIcon channel={c.channel} />
+                          {c.channel}
+                        </span>
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-[#344054]">{fmt(campaign.reviews_detected)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-[#344054]">
+                        {isDraft ? "—" : fmt(c.recipients_ready)}
+                      </td>
+                      <td className="px-4 py-3">
+                        {isDraft ? (
+                          <span className="text-[#98A2B3]">—</span>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-semibold tabular-nums text-[#101828]">{fmt(c.sent)}</span>
+                              <span className="text-xs text-[#667085]">{sentProgress}%</span>
+                            </div>
+                            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[#F2F4F7]">
+                              <div
+                                className="h-full rounded-full bg-[#137752]"
+                                style={{ width: `${Math.max(2, sentProgress)}%` }}
+                              />
+                            </div>
+                          </>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums text-[#344054]">
+                        {isDraft ? "—" : fmt(c.reviews_detected)}
+                      </td>
                       <td className="px-4 py-3 text-right tabular-nums font-semibold text-[#101828]">
-                        {pct(campaign.reviews_detected ?? 0, campaign.sent ?? 0)}
+                        {isDraft ? "—" : convRate}
                       </td>
-                      <td className="px-4 py-3 text-[#344054]">{nextStep(campaign)}</td>
+                      <td className="px-4 py-3">
+                        <span className={cn(
+                          "text-sm",
+                          c.status === "active" ? "text-[#027A48]" : "text-[#667085]"
+                        )}>
+                          {nextStepLabel(c)}
+                        </span>
+                      </td>
                       <td className="relative px-4 py-3">
                         <button
                           type="button"
                           className={rep.btnSecondary}
-                          onClick={() => setMenuId(menuId === campaign.id ? null : campaign.id)}
+                          style={{ padding: "0.375rem 0.5rem", height: "auto" }}
+                          onClick={() => setMenuId(menuId === c.id ? null : c.id)}
                         >
                           <MoreHorizontal className="h-4 w-4" />
                         </button>
-                        {menuId === campaign.id ? (
+                        {menuId === c.id ? (
                           <div className="absolute right-4 z-10 mt-1 w-40 rounded-lg border border-[#E6EAF0] bg-white py-1 shadow-lg">
                             <Link
-                              href={`/businesses/${businessId}/reputation/campaigns/${campaign.id}`}
+                              href={`/businesses/${businessId}/reputation/campaigns/${c.id}`}
                               className="flex items-center gap-2 px-3 py-2 text-xs text-[#344054] hover:bg-[#F9FAFB]"
                             >
                               <ExternalLink className="h-3.5 w-3.5" />
                               Open
                             </Link>
-                            {campaign.status === "active" ? (
-                              <button type="button" onClick={() => void campaignAction(campaign.id, "pause")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#344054] hover:bg-[#F9FAFB]">
+                            {c.status === "active" ? (
+                              <button type="button" onClick={() => void campaignAction(c.id, "pause")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#344054] hover:bg-[#F9FAFB]">
                                 <Pause className="h-3.5 w-3.5" />
                                 Pause
                               </button>
                             ) : null}
-                            {campaign.status === "paused" ? (
-                              <button type="button" onClick={() => void campaignAction(campaign.id, "resume")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#344054] hover:bg-[#F9FAFB]">
+                            {c.status === "paused" ? (
+                              <button type="button" onClick={() => void campaignAction(c.id, "resume")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#344054] hover:bg-[#F9FAFB]">
                                 <Play className="h-3.5 w-3.5" />
                                 Resume
                               </button>
                             ) : null}
-                            {campaign.status === "draft" ? (
-                              <button type="button" onClick={() => void campaignAction(campaign.id, "start")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#344054] hover:bg-[#F9FAFB]">
+                            {c.status === "draft" ? (
+                              <button type="button" onClick={() => void campaignAction(c.id, "start")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#344054] hover:bg-[#F9FAFB]">
                                 <Play className="h-3.5 w-3.5" />
                                 Start
                               </button>
                             ) : null}
-                            <button type="button" onClick={() => void duplicateCampaign(campaign.id)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#344054] hover:bg-[#F9FAFB]">
+                            <button type="button" onClick={() => void duplicateCampaign(c.id)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#344054] hover:bg-[#F9FAFB]">
                               <Copy className="h-3.5 w-3.5" />
                               Duplicate
                             </button>
-                            {!["completed", "cancelled", "archived"].includes(campaign.status) ? (
-                              <button type="button" onClick={() => void campaignAction(campaign.id, "cancel")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#B42318] hover:bg-[#FEF3F2]">
+                            {!["completed", "cancelled", "archived"].includes(c.status) ? (
+                              <button type="button" onClick={() => void campaignAction(c.id, "cancel")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#B42318] hover:bg-[#FEF3F2]">
                                 <X className="h-3.5 w-3.5" />
                                 Cancel
                               </button>
@@ -449,7 +684,7 @@ export function ReviewCampaignsHub({ businessId }: { businessId: string }) {
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <CampaignPerformance campaigns={campaigns} />
-        <RecentActivity campaigns={campaigns} />
+        <RecentActivity previewActivity={previewActivity} campaigns={campaigns} />
       </div>
     </ModulePage>
   );

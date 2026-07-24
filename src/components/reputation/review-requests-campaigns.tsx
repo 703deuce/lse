@@ -38,6 +38,8 @@ export type CampaignRow = {
   trigger_type?: string;
   trigger_config?: { eventType?: string } | null;
   enrollments_paused?: boolean;
+  next_step_label?: string;
+  conversion_rate?: number;
 };
 
 function triggerBadge(c: CampaignRow) {

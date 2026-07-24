@@ -37,15 +37,39 @@ export type ReviewInsightCompetitorTheme = {
   gap: number;
 };
 
+export type ReviewInsightThemeTrendPoint = {
+  date: string;
+  positive: number;
+  negative: number;
+  neutral: number;
+};
+
+export type ReviewInsightCompetitorComparison = {
+  theme: string;
+  you: number;
+  topCompetitor: number;
+  secondCompetitor: number;
+  industryAvg: number;
+};
+
+export type ReviewInsightServiceRow = {
+  label: string;
+  count: number;
+  pct: number;
+};
+
 export type ReviewInsightsData = {
   businessId: string;
   businessName: string;
+  dataUpdatedAt?: string;
   metrics: {
     positiveThemeMentions: number;
     negativeThemeMentions: number;
     totalReviewText: number;
+    pctWithText?: number;
     avgReviewLength: number | null;
     reviewsWithPhotos: number | null;
+    photosPct?: number;
     employeeMentions: number;
   };
   themes: {
@@ -53,7 +77,11 @@ export type ReviewInsightsData = {
     negative: ReviewInsightTheme[];
     emerging: Array<ReviewInsightTheme & { delta: number }>;
     themeFrequencyOverTime: ReviewInsightThemeFrequency[];
+    themeTrend30d?: ReviewInsightThemeTrendPoint[];
     competitorThemes: ReviewInsightCompetitorTheme[];
+    competitorComparison?: ReviewInsightCompetitorComparison[];
+    services?: ReviewInsightServiceRow[];
+    locations?: ReviewInsightServiceRow[];
   };
   servicesAndKeywords: Array<{ keyword: string; count: number }>;
   categorizedKeywords: Record<

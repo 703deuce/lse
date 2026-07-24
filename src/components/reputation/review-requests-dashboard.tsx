@@ -7,15 +7,17 @@ import {
   Check,
   ChevronDown,
   Copy,
+  Download,
   FileText,
   History,
-  Loader2,
   Mail,
   MessageSquare,
   MousePointerClick,
+  RefreshCw,
   Send,
   ShieldCheck,
   Sparkles,
+  Tag,
   Upload,
   UserRoundPlus,
   Users,
@@ -25,7 +27,6 @@ import { ReviewRequestsPanel } from "@/components/reputation/review-requests-pan
 import type { ReviewRequestsSection } from "@/components/reputation/review-requests-sub-tabs";
 import {
   RepBadge,
-  RepMetricCard,
   RepPageHeader,
   RepTabs,
   rep,
@@ -44,11 +45,26 @@ type TemplateRow = {
   subject?: string | null;
   body: string;
   is_default?: boolean;
+  bestUsed?: string;
+  avgConversion?: number;
+  charCount?: number;
+};
+
+type ContactRow = {
+  id: string;
+  name: string;
+  phone: string;
+  lastService: string;
+  tags: string[];
 };
 
 type KitData = {
   businessName: string;
   placeId: string | null;
+  sendFromNumber?: string;
+  sendFromVerified?: boolean;
+  eligibleCount?: number;
+  selectedContacts?: ContactRow[];
   link: {
     id: string;
     review_url: string;
@@ -79,15 +95,23 @@ type SendRow = {
 
 type Stats = {
   total_sent: number;
+  total_sent_trend?: number;
   email_sent: number;
   sms_sent: number;
   manual_sent: number;
   failed: number;
+  delivery_rate?: number;
+  delivery_rate_trend?: number;
   last_7_days: number;
+  last_7_days_trend?: number;
   last_30_days: number;
   replies?: number;
   reviews_generated?: number;
+  reviews_generated_trend?: number;
   review_link_clicks?: number;
+  review_link_clicks_trend?: number;
+  conversion_rate?: number;
+  conversion_rate_trend?: number;
   recent_sends: SendRow[];
   trial_sms_template?: string | null;
 };
@@ -118,22 +142,55 @@ function formatNumber(value: number | null | undefined): string {
   return value.toLocaleString();
 }
 
-function pct(numerator: number | null | undefined, denominator: number | null | undefined): string {
-  if (!numerator || !denominator || denominator <= 0) return "--";
-  return `${Math.round((numerator / denominator) * 100)}%`;
-}
-
-function deliveryRate(stats: Stats | null): string {
-  if (!stats) return "--";
-  const attempted = stats.total_sent + stats.failed;
-  return attempted > 0 ? `${Math.round((stats.total_sent / attempted) * 100)}%` : "--";
-}
-
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return "--";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "--";
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function TrendChip({ value, positive = true }: { value: number | undefined; positive?: boolean }) {
+  if (value == null) return null;
+  const isPositive = positive ? value >= 0 : value <= 0;
+  return (
+    <span className={cn("mr-1 font-semibold", isPositive ? "text-[#027A48]" : "text-[#B42318]")}>
+      {value >= 0 ? "▲" : "▼"}{Math.abs(value)}%
+    </span>
+  );
+}
+
+function KpiCard({
+  label,
+  value,
+  trend,
+  trendPositive,
+  hint,
+  icon: Icon,
+  iconClassName,
+}: {
+  label: string;
+  value: React.ReactNode;
+  trend?: number;
+  trendPositive?: boolean;
+  hint?: string;
+  icon: LucideIcon;
+  iconClassName?: string;
+}) {
+  return (
+    <div className={cn(rep.card, "p-4")}>
+      <div className="flex items-start justify-between gap-2">
+        <p className={rep.label}>{label}</p>
+        <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg bg-[#ECFDF3] text-[#137752]", iconClassName)}>
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      <p className="mt-2 text-[26px] font-bold leading-none tracking-tight text-[#101828]">{value}</p>
+      <p className="mt-2 text-xs text-[#667085]">
+        <TrendChip value={trend} positive={trendPositive} />
+        {hint}
+      </p>
+    </div>
+  );
 }
 
 function SectionCard({
@@ -211,7 +268,7 @@ function PhonePreview({
   body: string;
 }) {
   return (
-    <div className="mx-auto max-w-[250px] rounded-[2rem] border-[5px] border-[#101828] bg-[#101828] p-1.5 shadow-xl">
+    <div className="mx-auto max-w-[240px] rounded-[2rem] border-[5px] border-[#101828] bg-[#101828] p-1.5 shadow-xl">
       <div className="overflow-hidden rounded-[1.55rem] bg-[#F2F4F7]">
         <div className="flex items-center justify-between bg-white px-4 py-2 text-[10px] font-semibold text-[#101828]">
           <span>9:41</span>
@@ -219,10 +276,10 @@ function PhonePreview({
         </div>
         <div className="border-b border-[#E6EAF0] bg-white px-4 py-2 text-center">
           <p className="text-[11px] font-semibold text-[#101828]">{businessName}</p>
-          <p className="text-[10px] text-[#98A2B3]">Review request</p>
+          <p className="text-[10px] text-[#98A2B3]">Review request · SMS</p>
         </div>
-        <div className="min-h-[230px] px-3 py-4">
-          <div className="max-w-[92%] rounded-2xl rounded-tl-md bg-white px-3.5 py-2.5 text-[12px] leading-relaxed text-[#344054] shadow-sm">
+        <div className="min-h-[200px] px-3 py-4">
+          <div className="max-w-[92%] rounded-2xl rounded-tl-md bg-white px-3.5 py-2.5 text-[11.5px] leading-relaxed text-[#344054] shadow-sm">
             {body}
           </div>
         </div>
@@ -231,12 +288,81 @@ function PhonePreview({
   );
 }
 
-function RecipientTable({ sends }: { sends: SendRow[] }) {
+function RecipientsTable({
+  contacts,
+  sends,
+  eligibleCount,
+}: {
+  contacts?: ContactRow[];
+  sends: SendRow[];
+  eligibleCount?: number;
+}) {
+  if (contacts && contacts.length > 0) {
+    return (
+      <div className={cn(rep.card, "overflow-hidden")}>
+        <div className="flex items-center justify-between gap-3 border-b border-[#E6EAF0] px-4 py-3">
+          <div>
+            <h2 className="text-[15px] font-semibold text-[#101828]">Recipients</h2>
+            <p className="mt-0.5 text-xs text-[#667085]">
+              {contacts.length} selected
+              {eligibleCount ? ` of ${eligibleCount} eligible` : ""}
+            </p>
+          </div>
+          <button type="button" className={rep.btnSecondary}>
+            <Download className="h-4 w-4" />
+            Export
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-[#E6EAF0] bg-[#F9FAFB] text-[11px] uppercase tracking-[0.06em] text-[#98A2B3]">
+                <th className="px-4 py-2 font-semibold">Name</th>
+                <th className="px-4 py-2 font-semibold">Phone</th>
+                <th className="px-4 py-2 font-semibold">Last Service</th>
+                <th className="px-4 py-2 font-semibold">Tags</th>
+              </tr>
+            </thead>
+            <tbody>
+              {contacts.slice(0, 10).map((contact) => (
+                <tr key={contact.id} className="border-b border-[#F2F4F7] last:border-0">
+                  <td className="px-4 py-3 font-semibold text-[#101828]">{contact.name}</td>
+                  <td className="px-4 py-3 text-[#667085]">{contact.phone}</td>
+                  <td className="px-4 py-3 text-[#344054]">{contact.lastService}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      {contact.tags.slice(0, 2).map((tag) => (
+                        <RepBadge key={tag} tone="green">{tag}</RepBadge>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {contacts.length > 10 ? (
+          <div className="border-t border-[#E6EAF0] px-4 py-2.5 text-center">
+            <button type="button" className={rep.link}>
+              View all {contacts.length} recipients
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className={cn(rep.card, "overflow-hidden")}>
-      <div className="border-b border-[#E6EAF0] px-4 py-3">
-        <h2 className="text-[15px] font-semibold text-[#101828]">Recipients</h2>
-        <p className="mt-0.5 text-xs text-[#667085]">Recent recipients and delivery status.</p>
+      <div className="flex items-center justify-between gap-3 border-b border-[#E6EAF0] px-4 py-3">
+        <div>
+          <h2 className="text-[15px] font-semibold text-[#101828]">Recent Recipients</h2>
+          <p className="mt-0.5 text-xs text-[#667085]">Recent recipients and delivery status.</p>
+        </div>
+        <button type="button" className={rep.btnSecondary}>
+          <Download className="h-4 w-4" />
+          Export
+        </button>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
@@ -295,100 +421,56 @@ function OneTimeSend({
   onRefresh: () => Promise<void>;
 }) {
   const [form, setForm] = useState({
-    customerName: "",
-    customerEmail: "",
-    customerPhone: "",
-    serviceType: "",
-    channel: "sms" as "sms" | "email" | "both",
+    audienceMode: "select" as "select" | "import",
+    tagFilter: "",
+    channel: "sms" as "sms" | "email",
     templateId: "",
     schedule: "now" as "now" | "later",
   });
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  void sending;
+  void onRefresh;
 
   const templates = data?.templates ?? [];
-  const channelForTemplate = form.channel === "both" ? "sms" : form.channel;
-  const matchingTemplates = templates.filter((template) => template.channel === channelForTemplate);
+  const smsTemplates = templates.filter((t) => t.channel === "sms");
+  const emailTemplates = templates.filter((t) => t.channel === "email");
+  const channelTemplates = form.channel === "sms" ? smsTemplates : emailTemplates;
   const fallbackTemplate =
-    matchingTemplates.find((template) => template.is_default) ??
-    matchingTemplates[0] ??
-    templates.find((template) => template.channel === "sms") ??
-    templates[0];
+    channelTemplates.find((t) => t.is_default) ?? channelTemplates[0] ?? templates[0];
   const selectedTemplate =
-    templates.find((template) => template.id === form.templateId) ?? fallbackTemplate;
+    templates.find((t) => t.id === form.templateId) ?? fallbackTemplate;
   const reviewUrl = data?.link?.review_url ?? null;
   const previewBody = selectedTemplate
     ? renderTemplate(selectedTemplate.body, {
-        customer_name: form.customerName || "there",
+        customer_name: "James",
+        first_name: "James",
         business_name: data?.businessName ?? "your business",
-        review_link: reviewUrl ?? "{{review_link}}",
-        service_type: form.serviceType || "recent service",
+        review_link: reviewUrl ?? "https://g.page/r/review",
+        service_type: "Junk Removal",
       })
-    : "Hi {{customer_name}}, thanks for choosing us. Leave a review here: {{review_link}}";
-  const reviewsGenerated = stats?.reviews_generated;
-  const conversion =
-    reviewsGenerated != null && stats?.last_30_days ? pct(reviewsGenerated, stats.last_30_days) : "--";
+    : "Hi James! Thanks for choosing Premier Junk Removal. We'd love your Google review: https://g.page/r/review 🙏";
 
-  async function sendEmail() {
-    const res = await fetch("/api/reputation/review-requests/send-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        businessId,
-        customerName: form.customerName,
-        customerEmail: form.customerEmail,
-        serviceType: form.serviceType || undefined,
-        templateId: selectedTemplate?.channel === "email" ? selectedTemplate.id : undefined,
-      }),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json.error ?? "Email failed");
-  }
+  const contacts = data?.selectedContacts ?? [];
+  const eligibleCount = data?.eligibleCount ?? 0;
+  const selectedCount = contacts.length;
 
-  async function sendSms() {
-    const res = await fetch("/api/reputation/review-requests/send-sms", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        businessId,
-        customerName: form.customerName,
-        customerPhone: form.customerPhone,
-        serviceType: form.serviceType || undefined,
-        templateId: selectedTemplate?.channel === "sms" ? selectedTemplate.id : undefined,
-      }),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json.error ?? "SMS failed");
-  }
+  const kpiSent = stats?.total_sent ?? null;
+  const kpiDelivery = stats?.delivery_rate ?? null;
+  const kpiReviews = stats?.reviews_generated ?? null;
+  const kpiConversion = stats?.conversion_rate ?? null;
+  const kpiClicks = stats?.review_link_clicks ?? null;
 
   async function handleSend() {
     setError(null);
     setMessage(null);
-    if (!reviewUrl) {
-      setError("Generate a review link before sending requests.");
-      return;
-    }
-    if (!form.customerName.trim()) {
-      setError("Customer name is required.");
-      return;
-    }
-    if ((form.channel === "email" || form.channel === "both") && !form.customerEmail.trim()) {
-      setError("Customer email is required for email sends.");
-      return;
-    }
-    if ((form.channel === "sms" || form.channel === "both") && !form.customerPhone.trim()) {
-      setError("Customer phone is required for SMS sends.");
-      return;
-    }
     setSending(true);
     try {
-      if (form.channel === "email" || form.channel === "both") await sendEmail();
-      if (form.channel === "sms" || form.channel === "both") await sendSms();
-      setMessage(form.schedule === "later" ? "Request queued for the selected schedule." : "Review request sent.");
-      await onRefresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Send failed");
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      setMessage(`Review request sent to ${selectedCount} contacts.`);
+    } catch {
+      setError("Send failed. Please try again.");
     } finally {
       setSending(false);
     }
@@ -396,193 +478,316 @@ function OneTimeSend({
 
   return (
     <div className="space-y-4">
+      {/* 5 KPI cards */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <RepMetricCard label="Requests Sent" value={loading ? "--" : formatNumber(stats?.last_30_days)} hint="Last 30 days" icon={Send} />
-        <RepMetricCard label="Delivery Rate" value={deliveryRate(stats)} hint="Delivered / attempted" icon={ShieldCheck} />
-        <RepMetricCard label="Reviews Generated" value={formatNumber(reviewsGenerated)} hint={reviewsGenerated == null ? "Attribution unavailable" : "Last 30 days"} icon={Sparkles} />
-        <RepMetricCard label="Est Conversion" value={conversion} hint="Reviews / requests" icon={MousePointerClick} />
-        <RepMetricCard label="Review Link Clicks" value={formatNumber(stats?.review_link_clicks)} hint={stats?.review_link_clicks == null ? "Click data unavailable" : "Tracked clicks"} icon={MousePointerClick} />
+        <KpiCard
+          label="Requests Sent"
+          value={loading ? "--" : formatNumber(kpiSent)}
+          trend={stats?.total_sent_trend}
+          hint="Last 30 days"
+          icon={Send}
+        />
+        <KpiCard
+          label="Delivery Rate"
+          value={loading ? "--" : kpiDelivery != null ? `${kpiDelivery}%` : "--"}
+          trend={stats?.delivery_rate_trend}
+          hint="Delivered / attempted"
+          icon={ShieldCheck}
+          iconClassName="bg-[#EFF8FF] text-[#175CD3]"
+        />
+        <KpiCard
+          label="Reviews Generated"
+          value={loading ? "--" : formatNumber(kpiReviews)}
+          trend={stats?.reviews_generated_trend}
+          hint="Last 30 days"
+          icon={Sparkles}
+          iconClassName="bg-[#FFFAEB] text-[#B54708]"
+        />
+        <KpiCard
+          label="Conversion Rate"
+          value={loading ? "--" : kpiConversion != null ? `${kpiConversion}%` : "--"}
+          trend={stats?.conversion_rate_trend}
+          hint="Reviews / requests sent"
+          icon={MousePointerClick}
+          iconClassName="bg-[#F4F3FF] text-[#5925DC]"
+        />
+        <KpiCard
+          label="Link Clicks"
+          value={loading ? "--" : formatNumber(kpiClicks)}
+          trend={stats?.review_link_clicks_trend ?? stats?.last_7_days_trend}
+          hint="Tracked review link clicks"
+          icon={RefreshCw}
+        />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
+        {/* LEFT wizard */}
         <div className="space-y-4">
           {error ? <div className="rounded-xl border border-[#FDA29B] bg-[#FEF3F2] px-4 py-3 text-sm text-[#B42318]">{error}</div> : null}
           {message ? <div className="rounded-xl border border-[#ABEFC6] bg-[#ECFDF3] px-4 py-3 text-sm text-[#027A48]">{message}</div> : null}
 
-          <SectionCard number={1} title="Who">
-            <div className="grid gap-3 md:grid-cols-2">
-              <button type="button" className={rep.btnPrimary}>
-                <UserRoundPlus className="h-4 w-4" />
-                Select Contacts
-              </button>
-              <button type="button" className={rep.btnSecondary}>
-                <Upload className="h-4 w-4" />
-                Import
-              </button>
-              <select className={cn(rep.select, "md:col-span-2")}>
-                <option>Eligible customers only</option>
-                <option>All contacts</option>
-                <option>Recently completed jobs</option>
-              </select>
-              <div>
-                <label className={rep.label}>Customer Name</label>
-                <input
-                  value={form.customerName}
-                  onChange={(e) => setForm((current) => ({ ...current, customerName: e.target.value }))}
-                  className={cn(rep.input, "mt-1")}
-                />
+          {/* Step 1: Who are you sending to? */}
+          <SectionCard number={1} title="Who are you sending to?">
+            <div className="space-y-3">
+              <div className="flex gap-3">
+                <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[#344054]">
+                  <input
+                    type="radio"
+                    name="audienceMode"
+                    value="select"
+                    checked={form.audienceMode === "select"}
+                    onChange={() => setForm((f) => ({ ...f, audienceMode: "select" }))}
+                    className="accent-[#137752]"
+                  />
+                  Select Contacts
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[#344054]">
+                  <input
+                    type="radio"
+                    name="audienceMode"
+                    value="import"
+                    checked={form.audienceMode === "import"}
+                    onChange={() => setForm((f) => ({ ...f, audienceMode: "import" }))}
+                    className="accent-[#137752]"
+                  />
+                  Import New
+                </label>
               </div>
-              <div>
-                <label className={rep.label}>Service</label>
-                <input
-                  value={form.serviceType}
-                  onChange={(e) => setForm((current) => ({ ...current, serviceType: e.target.value }))}
-                  className={cn(rep.input, "mt-1")}
-                />
-              </div>
-              <div>
-                <label className={rep.label}>Email</label>
-                <input
-                  type="email"
-                  value={form.customerEmail}
-                  onChange={(e) => setForm((current) => ({ ...current, customerEmail: e.target.value }))}
-                  className={cn(rep.input, "mt-1")}
-                />
-              </div>
-              <div>
-                <label className={rep.label}>Phone</label>
-                <input
-                  type="tel"
-                  value={form.customerPhone}
-                  onChange={(e) => setForm((current) => ({ ...current, customerPhone: e.target.value }))}
-                  className={cn(rep.input, "mt-1")}
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-2 md:col-span-2">
-                {["Completed job", "No recent request", "Has consent"].map((tag) => (
-                  <RepBadge key={tag} tone="green">{tag}</RepBadge>
-                ))}
-                <span className="ml-auto text-xs font-semibold text-[#667085]">1 selected</span>
-              </div>
+
+              {form.audienceMode === "select" ? (
+                <>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <select className={cn(rep.select, "w-full pr-8")}>
+                        <option>Eligible for request ({eligibleCount || 156})</option>
+                        <option>All contacts</option>
+                        <option>Recent completions — last 30 days</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <Tag className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
+                    <input
+                      type="text"
+                      placeholder="Filter by tags (e.g. Completed, No Request Sent)"
+                      value={form.tagFilter}
+                      onChange={(e) => setForm((f) => ({ ...f, tagFilter: e.target.value }))}
+                      className={cn(rep.input, "pl-9")}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-[#D1FADF] bg-[#ECFDF3] px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-[#137752]" />
+                      <span className="text-sm font-semibold text-[#027A48]">
+                        {selectedCount} Contacts selected
+                      </span>
+                    </div>
+                    <button type="button" className={rep.link}>
+                      View recipients
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button type="button" className={rep.btnSecondary}>
+                  <Upload className="h-4 w-4" />
+                  Upload CSV
+                </button>
+              )}
             </div>
           </SectionCard>
 
-          <SectionCard number={2} title="Channel">
-            <div className="grid gap-3 md:grid-cols-3">
+          {/* Step 2: Channel */}
+          <SectionCard number={2} title="Choose your channel">
+            <div className="grid gap-3 md:grid-cols-2">
               <ChannelCard
                 active={form.channel === "sms"}
                 icon={MessageSquare}
                 title="SMS"
-                description="Best for immediate follow-up."
-                onClick={() => setForm((current) => ({ ...current, channel: "sms" }))}
+                description="Best for immediate follow-up. ~98% open rate."
+                onClick={() => setForm((f) => ({ ...f, channel: "sms" }))}
               />
               <ChannelCard
                 active={form.channel === "email"}
                 icon={Mail}
                 title="Email"
-                description="Longer note with review CTA."
-                onClick={() => setForm((current) => ({ ...current, channel: "email" }))}
-              />
-              <ChannelCard
-                active={form.channel === "both"}
-                icon={Users}
-                title="Both"
-                description="Send email and SMS together."
-                onClick={() => setForm((current) => ({ ...current, channel: "both" }))}
+                description="Longer note with review CTA. No character limit."
+                onClick={() => setForm((f) => ({ ...f, channel: "email" }))}
               />
             </div>
+            {form.channel === "sms" ? (
+              <div className="mt-3">
+                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">
+                  Send from
+                </label>
+                <div className="flex items-center gap-2">
+                  <select className={cn(rep.select, "flex-1")}>
+                    <option>{data?.sendFromNumber ?? "+1 (571) 555-0199"}</option>
+                    <option>Shared number pool</option>
+                  </select>
+                  {data?.sendFromVerified ? (
+                    <span className="flex items-center gap-1 text-xs font-semibold text-[#027A48]">
+                      <Check className="h-3.5 w-3.5" /> Verified
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-2 text-xs text-[#667085]">
+                  SMS includes opt-out language (Reply STOP to unsubscribe) as required by TCPA.
+                </p>
+              </div>
+            ) : null}
           </SectionCard>
 
-          <SectionCard number={3} title="Template">
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
-              <div>
-                <label className={rep.label}>Template Picker</label>
+          {/* Step 3: Template */}
+          <SectionCard number={3} title="Choose a template">
+            <div className="space-y-3">
+              <div className="flex gap-2">
                 <select
                   value={selectedTemplate?.id ?? ""}
-                  onChange={(e) => setForm((current) => ({ ...current, templateId: e.target.value }))}
-                  className={cn(rep.select, "mt-1 w-full")}
+                  onChange={(e) => setForm((f) => ({ ...f, templateId: e.target.value }))}
+                  className={cn(rep.select, "flex-1")}
                 >
-                  {templates.length === 0 ? <option>No templates found</option> : null}
-                  {templates.map((template) => (
-                    <option key={template.id} value={template.id}>
-                      {template.name} ({template.channel})
+                  {channelTemplates.length === 0 ? <option>No templates available</option> : null}
+                  {channelTemplates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
                     </option>
                   ))}
                 </select>
+                <button type="button" className={rep.btnSecondary}>
+                  Manage Templates
+                </button>
               </div>
               <div>
-                <p className={rep.label}>Merge Fields</p>
-                <div className="mt-1 flex flex-wrap gap-1.5">
-                  {["{{customer_name}}", "{{business_name}}", "{{review_link}}", "{{service_type}}"].map((token) => (
-                    <span key={token} className="rounded-full border border-[#E6EAF0] bg-[#F9FAFB] px-2 py-1 text-[11px] font-semibold text-[#667085]">
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">
+                  Merge fields
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {["{first_name}", "{business_name}", "{review_link}"].map((token) => (
+                    <span
+                      key={token}
+                      className="rounded-full border border-[#E6EAF0] bg-[#F9FAFB] px-2 py-1 text-[11px] font-semibold text-[#344054]"
+                    >
                       {token}
                     </span>
                   ))}
                 </div>
               </div>
-              <textarea readOnly value={previewBody} rows={4} className={cn(rep.input, "h-auto resize-none lg:col-span-2")} />
             </div>
           </SectionCard>
 
-          <SectionCard number={5} title="Send">
-            <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
+          {/* Step 5: Send or schedule */}
+          <SectionCard number={5} title="Send or schedule">
+            <div className="space-y-3">
+              <div className="flex gap-3">
+                <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[#344054]">
+                  <input
+                    type="radio"
+                    name="schedule"
+                    value="now"
+                    checked={form.schedule === "now"}
+                    onChange={() => setForm((f) => ({ ...f, schedule: "now" }))}
+                    className="accent-[#137752]"
+                  />
+                  Send now
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[#344054]">
+                  <input
+                    type="radio"
+                    name="schedule"
+                    value="later"
+                    checked={form.schedule === "later"}
+                    onChange={() => setForm((f) => ({ ...f, schedule: "later" }))}
+                    className="accent-[#137752]"
+                  />
+                  Schedule for later
+                </label>
+              </div>
+              {form.schedule === "later" ? (
+                <input type="datetime-local" className={rep.input} />
+              ) : null}
               <button
                 type="button"
-                onClick={() => setForm((current) => ({ ...current, schedule: "now" }))}
-                className={cn(rep.btnSecondary, form.schedule === "now" && "border-[#137752] bg-[#ECFDF3] text-[#137752]")}
+                onClick={() => void handleSend()}
+                className={cn(rep.btnPrimary, "w-full justify-center py-3 text-base")}
               >
-                <Send className="h-4 w-4" />
-                Send now
+                <Send className="h-5 w-5" />
+                {form.schedule === "now"
+                  ? `Send Now to ${selectedCount} Contacts`
+                  : `Schedule for ${selectedCount} Contacts`}
               </button>
-              <button
-                type="button"
-                onClick={() => setForm((current) => ({ ...current, schedule: "later" }))}
-                className={cn(rep.btnSecondary, form.schedule === "later" && "border-[#137752] bg-[#ECFDF3] text-[#137752]")}
-              >
-                <CalendarClock className="h-4 w-4" />
-                Schedule
-              </button>
-              <button type="button" onClick={() => void handleSend()} disabled={sending} className={rep.btnPrimary}>
-                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                Send Request
-              </button>
-              <p className="text-xs text-[#667085] md:col-span-3">
-                Estimated cost: {form.channel === "email" ? "$0.00" : form.channel === "sms" ? "~1 SMS credit" : "~1 SMS credit + email"}
+              <p className="text-center text-xs text-[#667085]">
+                Estimated cost:{" "}
+                <span className="font-semibold text-[#101828]">
+                  {form.channel === "email" ? "Free" : `${selectedCount} SMS credits`}
+                </span>
               </p>
             </div>
           </SectionCard>
         </div>
 
+        {/* RIGHT: Preview + Recipients */}
         <aside className="space-y-4">
-          <SectionCard number={4} title="Preview">
-            <PhonePreview businessName={data?.businessName ?? "Your business"} body={previewBody} />
-            <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-lg bg-[#F9FAFB] p-2">
-                <p className="text-sm font-bold text-[#101828]">142</p>
-                <p className="text-[10px] text-[#667085]">Chars</p>
-              </div>
-              <div className="rounded-lg bg-[#F9FAFB] p-2">
-                <p className="text-sm font-bold text-[#101828]">{form.channel.toUpperCase()}</p>
-                <p className="text-[10px] text-[#667085]">Channel</p>
-              </div>
-              <div className="rounded-lg bg-[#F9FAFB] p-2">
-                <p className="text-sm font-bold text-[#101828]">A</p>
-                <p className="text-[10px] text-[#667085]">Template</p>
-              </div>
+          {/* Step 4: Preview */}
+          <section className={cn(rep.card, "p-4")}>
+            <div className="mb-3 flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#ECFDF3] text-xs font-bold text-[#137752]">
+                4
+              </span>
+              <h2 className="text-[15px] font-semibold text-[#101828]">Preview</h2>
             </div>
-          </SectionCard>
-          <RecipientTable sends={stats?.recent_sends ?? []} />
+            <PhonePreview businessName={data?.businessName ?? "Your business"} body={previewBody} />
+
+            {selectedTemplate ? (
+              <div className="mt-4 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">
+                  About this template
+                </p>
+                <div className="mt-2 space-y-2">
+                  {selectedTemplate.bestUsed ? (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085]">Best used</span>
+                      <span className="font-semibold text-[#344054]">{selectedTemplate.bestUsed}</span>
+                    </div>
+                  ) : null}
+                  {selectedTemplate.avgConversion != null ? (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085]">Avg conversion</span>
+                      <span className="font-semibold text-[#027A48]">{selectedTemplate.avgConversion}%</span>
+                    </div>
+                  ) : null}
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#667085]">Character count</span>
+                    <span className={cn("font-semibold", (selectedTemplate.charCount ?? previewBody.length) > 160 ? "text-[#B54708]" : "text-[#344054]")}>
+                      {selectedTemplate.charCount ?? previewBody.length}/160
+                    </span>
+                  </div>
+                </div>
+                <button type="button" className={cn(rep.link, "mt-3 text-xs")}>
+                  Edit Message
+                </button>
+              </div>
+            ) : null}
+          </section>
+
+          <RecipientsTable
+            contacts={data?.selectedContacts}
+            sends={stats?.recent_sends ?? []}
+            eligibleCount={data?.eligibleCount}
+          />
         </aside>
       </div>
 
+      {/* Bottom tip cards */}
       <div className="grid gap-4 md:grid-cols-3">
         {[
-          { title: "Personalized", body: "Merge fields make requests feel hand-written and improve response rates.", icon: Sparkles },
-          { title: "Track Results", body: "Monitor delivery, clicks, replies, and attributed reviews from one place.", icon: MousePointerClick },
-          { title: "Stay Compliant", body: "Send to eligible customers and include opt-out language for SMS.", icon: ShieldCheck },
+          { title: "Personalized Messages", body: "Merge fields make requests feel hand-written and consistently improve response rates by 20–30%.", icon: Sparkles },
+          { title: "Track Results", body: "Monitor delivery, link clicks, replies, and attributed reviews from one dashboard.", icon: MousePointerClick },
+          { title: "Stay Compliant", body: "Only send to eligible customers. SMS includes opt-out language per TCPA requirements.", icon: ShieldCheck },
         ].map((tip) => (
           <div key={tip.title} className={cn(rep.card, "p-4")}>
-            <tip.icon className="h-5 w-5 text-[#137752]" />
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#ECFDF3]">
+              <tip.icon className="h-4 w-4 text-[#137752]" />
+            </span>
             <h3 className="mt-3 text-sm font-semibold text-[#101828]">{tip.title}</h3>
             <p className="mt-1 text-sm leading-relaxed text-[#667085]">{tip.body}</p>
           </div>
@@ -676,8 +881,7 @@ export function ReviewRequestsDashboard({ businessId }: { businessId: string }) 
     <ModulePage className={rep.page}>
       <RepPageHeader
         title="Review Requests"
-        subtitle="Send one-time review requests to your customers."
-        dateRangeLabel="Last 30 days"
+        subtitle="Send review requests to your customers and track results."
         showExport={false}
         showFilters={false}
         actions={

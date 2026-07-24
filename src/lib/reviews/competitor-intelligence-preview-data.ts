@@ -5,23 +5,26 @@ export const COMPETITOR_INTELLIGENCE_PREVIEW_BUSINESS_ID = "preview-competitor-i
 export const competitorIntelligencePreviewData: CompetitorIntelligenceDashboardData = {
   businessId: COMPETITOR_INTELLIGENCE_PREVIEW_BUSINESS_ID,
   businessName: "A-Team Junk Removal",
-  dateRangeLabel: "May 27 - Jun 25, 2024",
+  dateRangeLabel: "May 10 – Jun 8, 2025",
+  requiredPaceOverride: 36,
   leaderboardRows: [
+    // #1 Drain Masters — top competitor, 375 total, 33 in 30d
     {
       id: "drain-masters",
       name: "Drain Masters",
       isYou: false,
-      totalReviews: 542,
-      rating: 4.8,
-      reviews30: 31,
-      reviews60: 58,
-      reviews90: 88,
-      reviewsPerMonth: 29.3,
+      totalReviews: 375,
+      rating: 4.7,
+      reviews30: 33,
+      reviews60: 63,
+      reviews90: 96,
+      reviewsPerMonth: 32.0,
       momentumLabel: "Accelerating",
       responseRate: 76,
       responseSpeedDaysAvg: 2.4,
-      deltas: { reviews30: 7, reviews60: 12, reviews90: 18 },
+      deltas: { reviews30: 8, reviews60: 15, reviews90: 22 },
     },
+    // #2 You — A-Team Junk Removal — green row
     {
       id: COMPETITOR_INTELLIGENCE_PREVIEW_BUSINESS_ID,
       name: "A-Team Junk Removal",
@@ -35,8 +38,9 @@ export const competitorIntelligencePreviewData: CompetitorIntelligenceDashboardD
       momentumLabel: "Accelerating",
       responseRate: 82,
       responseSpeedDaysAvg: 1.8,
-      deltas: { reviews30: 5, reviews60: 9, reviews90: 14 },
+      deltas: { reviews30: 9, reviews60: 18, reviews90: 34 },
     },
+    // #3
     {
       id: "clearflow-pros",
       name: "ClearFlow Pros",
@@ -52,6 +56,7 @@ export const competitorIntelligencePreviewData: CompetitorIntelligenceDashboardD
       responseSpeedDaysAvg: 3.2,
       deltas: { reviews30: 2, reviews60: 4, reviews90: 6 },
     },
+    // #4
     {
       id: "rapid-rooter",
       name: "Rapid Rooter",
@@ -61,12 +66,13 @@ export const competitorIntelligencePreviewData: CompetitorIntelligenceDashboardD
       reviews30: 13,
       reviews60: 31,
       reviews90: 45,
-      reviewsPerMonth: 15,
+      reviewsPerMonth: 15.0,
       momentumLabel: "Slowing",
       responseRate: 51,
       responseSpeedDaysAvg: 5.6,
       deltas: { reviews30: -3, reviews60: 2, reviews90: 5 },
     },
+    // #5
     {
       id: "pipe-rescue",
       name: "Pipe Rescue",
@@ -76,7 +82,7 @@ export const competitorIntelligencePreviewData: CompetitorIntelligenceDashboardD
       reviews30: 15,
       reviews60: 26,
       reviews90: 39,
-      reviewsPerMonth: 13,
+      reviewsPerMonth: 13.0,
       momentumLabel: "Recovering",
       responseRate: 63,
       responseSpeedDaysAvg: 4.1,
@@ -87,17 +93,20 @@ export const competitorIntelligencePreviewData: CompetitorIntelligenceDashboardD
     {
       competitorId: "drain-masters",
       competitorName: "Drain Masters",
-      totalGap: 215,
-      monthlyVelocityGap: 7,
-      neededToCatch: 216,
-      pace3Months: 236,
-      pace6Months: 257,
-      pace12Months: 299,
-      estimatedCatchUp: "Not at current pace",
-      estimatedCatchUpDate: null,
-      estimatedCatchUpMonths: null,
-      warning: "Drain Masters is adding 7 more reviews per month, so the gap is widening.",
-      gapExpanding: true,
+      // reviewGap 48 (375 - 327)
+      totalGap: 48,
+      // velocityGap -9 (you 24 - them 33 = -9)
+      monthlyVelocityGap: -9,
+      neededToCatch: 49,
+      pace3Months: 75,
+      pace6Months: 102,
+      pace12Months: 156,
+      // estMonths 4.2 — at required pace (+12) you'd gain 3/mo net
+      estimatedCatchUp: "4.2 mo",
+      estimatedCatchUpDate: "2025-10-12",
+      estimatedCatchUpMonths: 4.2,
+      warning: null,
+      gapExpanding: false,
     },
     {
       competitorId: "clearflow-pros",
@@ -109,7 +118,7 @@ export const competitorIntelligencePreviewData: CompetitorIntelligenceDashboardD
       pace6Months: -59,
       pace12Months: -89,
       estimatedCatchUp: "Caught up",
-      estimatedCatchUpDate: "2024-06-25",
+      estimatedCatchUpDate: "2025-06-08",
       estimatedCatchUpMonths: 0,
       warning: null,
       gapExpanding: false,
@@ -124,11 +133,15 @@ export const competitorIntelligencePreviewData: CompetitorIntelligenceDashboardD
       pace6Months: -149,
       pace12Months: -215,
       estimatedCatchUp: "Caught up",
-      estimatedCatchUpDate: "2024-06-25",
+      estimatedCatchUpDate: "2025-06-08",
       estimatedCatchUpMonths: 0,
       warning: null,
       gapExpanding: false,
     },
+  ],
+  catchUpForecast: [
+    { competitor: "Drain Masters", monthsToCatchUp: 4.2, reviewsNeededPerMonth: 36 },
+    { competitor: "ClearFlow Pros", monthsToCatchUp: 0, reviewsNeededPerMonth: 24 },
   ],
   complaintPatterns: [
     { theme: "Late Arrival", competitorMentions: 18, yourMentions: 4, gap: 14 },
@@ -150,7 +163,47 @@ export const competitorIntelligencePreviewData: CompetitorIntelligenceDashboardD
   opportunities: [
     "Ask every same-day pickup customer for a Google review within 2 hours.",
     "Promote cleanup and sweep-through language in response templates.",
-    "Target 40 reviews/month to stop Drain Masters from widening the gap.",
+    "Target 36 reviews/month to catch Drain Masters in ~4 months.",
+  ],
+  opportunityItems: [
+    {
+      icon: "check",
+      label: "Ask every same-day pickup customer for a Google review within 2 hours.",
+    },
+    {
+      icon: "star",
+      label: "Promote cleanup and sweep-through language in review response templates.",
+    },
+    {
+      icon: "chat",
+      label: "Target 36 reviews/month to catch Drain Masters in approximately 4 months.",
+    },
+  ],
+  platformPresence: [
+    {
+      platform: "Google",
+      reviews: 327,
+      rating: 4.6,
+      status: "Connected",
+      verified: true,
+      note: "Primary review source via Google Business Profile.",
+    },
+    {
+      platform: "Facebook",
+      reviews: 89,
+      rating: 4.5,
+      status: "Estimated",
+      verified: false,
+      note: "Estimated from public signals. Connect Facebook to verify.",
+    },
+    {
+      platform: "Yelp",
+      reviews: 43,
+      rating: 4.3,
+      status: "Estimated",
+      verified: false,
+      note: "Estimated from public signals. Connect Yelp to verify.",
+    },
   ],
   strengths: {
     positive: [

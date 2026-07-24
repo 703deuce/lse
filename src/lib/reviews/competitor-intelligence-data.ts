@@ -82,6 +82,7 @@ export type CompetitorContentComparison = {
 export type CompetitorIntelligenceData = {
   businessId: string;
   businessName: string;
+  requiredPaceOverride?: number;
   leaderboardRows: CompetitorLeaderboardRow[];
   gapRows: CompetitorGapRow[];
   complaintPatterns: Array<{
