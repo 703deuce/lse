@@ -21,6 +21,7 @@ import {
   RepSearch,
   rep,
 } from "@/components/reputation/rep-ui";
+import { ReputationEmptySyncState } from "@/components/reputation/reputation-sync-button";
 import {
   ReviewerAvatar,
   SourceIcon,
@@ -431,27 +432,29 @@ export function ReviewsDashboard({
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to load reviews");
       const next = json as ReviewFeedDashboardData;
-      if (!next.hasData || next.stream.length === 0) {
-        setData(reviewFeedPreviewData);
-        setError("No live review feed found. Showing preview data.");
-      } else {
-        setData(next);
-      }
+      setData(next);
     } catch (e) {
-      setData(reviewFeedPreviewData);
-      setError(e instanceof Error ? `${e.message}. Showing preview data.` : "Showing preview data.");
+      setData(null);
+      setError(e instanceof Error ? e.message : "Failed to load reviews");
     } finally {
       setLoading(false);
     }
   }, [businessId, forcePreview, initialData]);
 
   useEffect(() => {
-    if (initialData || forcePreview) {
-      setData(initialData ?? reviewFeedPreviewData);
-      setLoading(false);
-      return;
-    }
-    void load();
+    queueMicrotask(() => {
+      if (forcePreview) {
+        setData(initialData ?? reviewFeedPreviewData);
+        setLoading(false);
+        return;
+      }
+      if (initialData) {
+        setData(initialData);
+        setLoading(false);
+        return;
+      }
+      void load();
+    });
   }, [forcePreview, initialData, load]);
 
   const rows = useMemo(() => {
@@ -491,11 +494,13 @@ export function ReviewsDashboard({
   }, [rating, response, sorted, search, sentiment, source]);
 
   useEffect(() => {
-    if (!filtered.length) {
-      setSelectedId(null);
-      return;
-    }
-    setSelectedId((current) => (current && filtered.some((row) => row.id === current) ? current : filtered[0]!.id));
+    queueMicrotask(() => {
+      if (!filtered.length) {
+        setSelectedId(null);
+        return;
+      }
+      setSelectedId((current) => (current && filtered.some((row) => row.id === current) ? current : filtered[0]!.id));
+    });
   }, [filtered]);
 
   const selected = filtered.find((row) => row.id === selectedId) ?? null;
@@ -521,7 +526,35 @@ export function ReviewsDashboard({
     );
   }
 
-  if (!data) return null;
+  if (!forcePreview && error) {
+    return (
+      <ReputationEmptySyncState
+        businessId={businessId}
+        title="Couldn’t load live reviews"
+        description={`${error}. Refresh reputation data to import your latest Google reviews and try again.`}
+      />
+    );
+  }
+
+  if (!data) {
+    return (
+      <ReputationEmptySyncState
+        businessId={businessId}
+        title="No live review feed yet"
+        description="Refresh reputation data to import your Google reviews into the new feed."
+      />
+    );
+  }
+
+  if (!forcePreview && (!data.hasData || rows.length === 0)) {
+    return (
+      <ReputationEmptySyncState
+        businessId={businessId}
+        title="No reviews found yet"
+        description="Refresh reputation data to pull in live Google Business Profile reviews before using the feed."
+      />
+    );
+  }
 
   return (
     <div className={rep.page}>

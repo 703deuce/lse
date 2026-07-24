@@ -8,12 +8,12 @@ import {
   Flag,
   MapPinned,
   MessageSquareText,
-  RefreshCw,
   Star,
   Target,
   TrendingUp,
 } from "lucide-react";
 import { RepBadge, RepMetricCard, RepPageHeader, RepTabs, rep } from "@/components/reputation/rep-ui";
+import { ReputationSyncButton } from "@/components/reputation/reputation-sync-button";
 import type { ReputationModulesAuditData } from "@/lib/reputation/reputation-modules-audit";
 import { cn } from "@/lib/utils";
 
@@ -163,7 +163,7 @@ function SectionCard({
 }
 
 export function ReputationStrategyReport({
-  businessId: _businessId,
+  businessId,
   data,
 }: {
   businessId: string;
@@ -226,7 +226,7 @@ export function ReputationStrategyReport({
   const industryAvgResponseRate = 63;
 
   return (
-    <div className={rep.page} data-business-id={_businessId}>
+    <div className={rep.page} data-business-id={businessId}>
       <RepPageHeader
         title="Reputation Audit"
         subtitle="Comprehensive review, competitor, response, and visibility strategy report."
@@ -235,16 +235,16 @@ export function ReputationStrategyReport({
         showExport={false}
         showFilters={false}
         actions={
-          <>
-            <button type="button" className={rep.btnSecondary}>
-              <RefreshCw className="h-4 w-4" />
-              Regenerate Audit
-            </button>
-            <button type="button" className={rep.btnPrimary}>
-              <Download className="h-4 w-4" />
-              Export Report
-            </button>
-          </>
+          <button type="button" className={rep.btnSecondary}>
+            <Download className="h-4 w-4" />
+            Export Report
+          </button>
+        }
+        primaryAction={
+          <ReputationSyncButton
+            businessId={businessId}
+            label="Run Reputation Sync"
+          />
         }
       />
 

@@ -7,22 +7,15 @@ import {
   Calendar,
   ChevronRight,
   MessageSquare,
-  Plus,
   Shield,
   Star,
   Trophy,
   Zap,
 } from "lucide-react";
 import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+  RepAreaTrendChart,
+} from "@/components/reputation/rep-charts";
+import { ReputationSyncButton } from "@/components/reputation/reputation-sync-button";
 import { Sparkline } from "@/components/overview/overview-charts";
 import {
   ModulePage,
@@ -207,13 +200,10 @@ export function ReviewOverviewDashboard({
           >
             Show Report
           </Link>
-          <Link
-            href={`/businesses/${businessId}/reputation/requests`}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#137752] px-3.5 text-[13px] font-semibold text-white shadow-[0_4px_14px_rgba(19,119,82,0.28)] hover:bg-[#0f6244]"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Quick Action
-          </Link>
+          <ReputationSyncButton
+            businessId={businessId}
+            label="Refresh Reputation Data"
+          />
         </div>
       </div>
 
@@ -408,63 +398,26 @@ export function ReviewOverviewDashboard({
             <ViewLink href={analyticsHref}>View Full Analytics</ViewLink>
           </div>
           {data.trendSeries.length > 0 ? (
-            <div className="h-[200px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data.trendSeries} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F4F4F5" vertical={false} />
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fontSize: 10, fill: "#A1A1AA" }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis tick={{ fontSize: 10, fill: "#A1A1AA" }} axisLine={false} tickLine={false} />
-                  <Tooltip
-                    contentStyle={{
-                      borderRadius: 10,
-                      border: "1px solid #E4E4E7",
-                      fontSize: 12,
-                    }}
-                  />
-                  <Legend
-                    verticalAlign="bottom"
-                    height={28}
-                    iconType="circle"
-                    wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="you"
-                    name="You"
-                    stroke={GREEN}
-                    strokeWidth={2.5}
-                    dot={false}
-                    activeDot={{ r: 4 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="benchmark"
-                    name="Benchmark"
-                    stroke={BLUE}
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="competitor"
-                    name="Competitor"
-                    stroke={GREY_LINE}
-                    strokeWidth={2}
-                    strokeDasharray="4 4"
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            <RepAreaTrendChart
+              data={data.trendSeries}
+              xKey="label"
+              height={200}
+              series={[
+                { dataKey: "you", name: "You", color: GREEN },
+                { dataKey: "benchmark", name: "Benchmark", color: BLUE, fillOpacity: 0.12 },
+                { dataKey: "competitor", name: "Competitor", color: GREY_LINE, dashed: true, fillOpacity: 0.04 },
+              ]}
+            />
           ) : (
-            <p className="py-10 text-center text-[13px] text-zinc-500">
-              Run Review Momentum to plot your 90-day trend.
-            </p>
+            <div className="flex flex-col items-center gap-3 py-10 text-center">
+              <p className="text-[13px] text-zinc-500">
+                Run Review Momentum to plot your 90-day trend.
+              </p>
+              <ReputationSyncButton
+                businessId={businessId}
+                label="Run Review Momentum"
+              />
+            </div>
           )}
         </SoftCard>
 

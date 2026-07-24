@@ -2,16 +2,6 @@
 
 import { useMemo, useState } from "react";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import {
   ArrowDownRight,
   ArrowUpRight,
   CheckCircle2,
@@ -28,6 +18,8 @@ import {
   RepTabs,
   rep,
 } from "@/components/reputation/rep-ui";
+import { RepHorizontalGapChart } from "@/components/reputation/rep-charts";
+import { ReputationSyncButton } from "@/components/reputation/reputation-sync-button";
 import type {
   CompetitorIntelligenceData,
   CompetitorLeaderboardRow,
@@ -35,8 +27,6 @@ import type {
 import { cn } from "@/lib/utils";
 
 const GREEN = "#137752";
-const BLUE = "#3B82F6";
-const GRID = "#EEF2F6";
 
 type TabId = "leaderboard" | "gap" | "strengths" | "content" | "platforms";
 
@@ -315,36 +305,11 @@ function GapAnalysisChart({
   const chartRows = rows.slice(0, 6).map((row) => ({
     name: row.isYou ? "You" : row.name.split(" ")[0] ?? row.name,
     value: mode === "total" ? row.totalReviews : row.reviews30,
-    fill: row.isYou ? GREEN : BLUE,
+    isYou: row.isYou,
   }));
 
   return (
-    <div className="h-[200px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={chartRows}
-          layout="vertical"
-          margin={{ top: 4, right: 24, left: 8, bottom: 0 }}
-        >
-          <CartesianGrid stroke={GRID} strokeDasharray="3 3" horizontal={false} />
-          <XAxis type="number" tick={{ fontSize: 11, fill: "#667085" }} tickLine={false} axisLine={false} />
-          <YAxis
-            type="category"
-            dataKey="name"
-            tick={{ fontSize: 11, fill: "#667085" }}
-            tickLine={false}
-            axisLine={false}
-            width={72}
-          />
-          <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #E6EAF0", fontSize: 12 }} />
-          <Bar dataKey="value" radius={[0, 8, 8, 0]} name={mode === "total" ? "Total Reviews" : "30d Reviews"}>
-            {chartRows.map((row) => (
-              <Cell key={row.name} fill={row.fill} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+    <RepHorizontalGapChart rows={chartRows} height={200} />
   );
 }
 
@@ -706,6 +671,12 @@ export function CompetitorIntelligenceDashboard({
         dateRangeLabel={data.dateRangeLabel ?? "May 10 – Jun 8, 2025"}
         showCompare
         filterLabel="Filters"
+        primaryAction={
+          <ReputationSyncButton
+            businessId={businessId}
+            label="Refresh Reputation Data"
+          />
+        }
       />
 
       <RepTabs tabs={tabs} active={activeTab} onChange={(tab) => setActiveTab(tab as TabId)} />

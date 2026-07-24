@@ -38,6 +38,14 @@ type Metrics = {
   failed?: number;
 };
 
+type AutomationMetrics = Partial<ReputationAutomationPreviewData["metrics"]> & {
+  active: number;
+  fired30d?: number;
+  enrolled?: number;
+  reviewsGenerated?: number;
+  successPct?: number;
+};
+
 type TriggerRow = ReputationAutomationPreviewData["triggers"][number];
 type ActivityRow = ReputationAutomationPreviewData["activities"][number];
 type IntegrationRow = ReputationAutomationPreviewData["integrations"][number];
@@ -94,23 +102,29 @@ function ActivityFeed({ rows }: { rows: ActivityRow[] }) {
         <h2 className="text-sm font-semibold text-[#101828]">Recent Activity</h2>
         <Activity className="h-4 w-4 text-[#98A2B3]" />
       </div>
-      <ul className="mt-4 space-y-3">
-        {rows.map((row) => (
-          <li key={row.id} className="flex gap-3">
-            <span
-              className={cn(
-                "mt-1 h-2.5 w-2.5 shrink-0 rounded-full",
-                row.tone === "red" ? "bg-[#D92D20]" : row.tone === "amber" ? "bg-[#F79009]" : "bg-[#137752]"
-              )}
-            />
-            <div>
-              <p className="text-sm font-medium text-[#101828]">{row.title}</p>
-              <p className="text-xs text-[#667085]">{row.detail}</p>
-              <p className="mt-1 text-xs text-[#98A2B3]">{row.at}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {rows.length === 0 ? (
+        <p className="mt-4 rounded-lg border border-dashed border-[#D0D5DD] px-3 py-6 text-center text-sm text-[#667085]">
+          No webhook activity has been received yet.
+        </p>
+      ) : (
+        <ul className="mt-4 space-y-3">
+          {rows.map((row) => (
+            <li key={row.id} className="flex gap-3">
+              <span
+                className={cn(
+                  "mt-1 h-2.5 w-2.5 shrink-0 rounded-full",
+                  row.tone === "red" ? "bg-[#D92D20]" : row.tone === "amber" ? "bg-[#F79009]" : "bg-[#137752]"
+                )}
+              />
+              <div>
+                <p className="text-sm font-medium text-[#101828]">{row.title}</p>
+                <p className="text-xs text-[#667085]">{row.detail}</p>
+                <p className="mt-1 text-xs text-[#98A2B3]">{row.at}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -180,7 +194,7 @@ export function AutomationsHub({
 }) {
   const [activeTab, setActiveTab] = useState<AutomationTab>("triggers");
   const [triggers, setTriggers] = useState<TriggerRow[]>(previewData?.triggers ?? []);
-  const [metrics, setMetrics] = useState(previewData?.metrics ?? null);
+  const [metrics, setMetrics] = useState<AutomationMetrics | null>(previewData?.metrics ?? null);
   const [loading, setLoading] = useState(!previewData);
   const [error, setError] = useState<string | null>(null);
   const [triggerSearch, setTriggerSearch] = useState("");
@@ -194,7 +208,7 @@ export function AutomationsHub({
       const res = await fetch(`/api/integrations/webhooks?businessId=${businessId}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to load automations");
-      const endpointRows = (json.endpoints ?? []) as EndpointRow[];
+      const endpointRows = (json.endpoints ?? json.items ?? []) as EndpointRow[];
       const apiMetrics = (json.metrics ?? {}) as Metrics;
       setTriggers(
         endpointRows.map((endpoint) => ({
@@ -207,15 +221,13 @@ export function AutomationsHub({
           enrolled: 0,
         }))
       );
-      const successful = Number(apiMetrics.successful ?? 0);
-      const failed = Number(apiMetrics.failed ?? 0);
-      const total = successful + failed;
+      const successful = typeof apiMetrics.successful === "number" ? apiMetrics.successful : undefined;
+      const failed = typeof apiMetrics.failed === "number" ? apiMetrics.failed : undefined;
+      const total = successful != null && failed != null ? successful + failed : null;
       setMetrics({
         active: Number(apiMetrics.active ?? endpointRows.filter((endpoint) => endpoint.isActive).length),
-        fired30d: Number(apiMetrics.eventsThisMonth ?? 0),
-        enrolled: successful,
-        reviewsGenerated: Math.round(successful * 0.12),
-        successPct: total > 0 ? Math.round((successful / total) * 1000) / 10 : 0,
+        fired30d: typeof apiMetrics.eventsThisMonth === "number" ? apiMetrics.eventsThisMonth : undefined,
+        successPct: total && total > 0 && successful != null ? Math.round((successful / total) * 1000) / 10 : undefined,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load automations");
@@ -229,18 +241,7 @@ export function AutomationsHub({
     queueMicrotask(() => void load());
   }, [load]);
 
-  const fallbackActivities = useMemo<ActivityRow[]>(
-    () =>
-      triggers.slice(0, 3).map((trigger, index) => ({
-        id: `activity-${trigger.id}`,
-        title: trigger.lastFired ? `${trigger.name} fired` : `${trigger.name} ready`,
-        detail: trigger.campaign,
-        at: trigger.lastFired ? fmtDateTime(trigger.lastFired) : index === 0 ? "No events yet" : "Waiting for webhook",
-        tone: trigger.status === "Active" ? "green" : "amber",
-      })),
-    [triggers]
-  );
-  const activities = previewData?.activities ?? fallbackActivities;
+  const activities = previewData?.activities ?? [];
   const integrations: IntegrationRow[] =
     previewData?.integrations ??
     [
@@ -248,14 +249,10 @@ export function AutomationsHub({
       { id: "generic", name: "Generic webhook", status: triggers.length ? "Connected" : "Available", detail: "Connect Make, n8n, CRMs, schedulers, and field-service tools." },
       { id: "api", name: "API", status: "Available", detail: "Send automation events from your backend." },
     ];
-  const safeMetrics =
+  const safeMetrics: AutomationMetrics =
     metrics ??
     {
       active: triggers.filter((trigger) => trigger.status === "Active").length,
-      fired30d: 0,
-      enrolled: 0,
-      reviewsGenerated: 0,
-      successPct: 0,
     };
 
   const filteredTriggers = useMemo(() => {
@@ -273,6 +270,10 @@ export function AutomationsHub({
     return `${sign}${Math.abs(pct)}%`;
   }
 
+  function metricValue(value: number | undefined) {
+    return value == null ? "—" : value.toLocaleString();
+  }
+
   return (
     <div className={rep.page}>
       <RepPageHeader
@@ -283,11 +284,11 @@ export function AutomationsHub({
         showFilters={false}
         actions={
           <>
-            <button type="button" className={rep.btnPrimary}>
+            <button type="button" onClick={() => setActiveTab("triggers")} className={rep.btnPrimary}>
               <Plus className="h-4 w-4" />
-              New Automation
+              Create Trigger
             </button>
-            <button type="button" className={rep.btnSecondary}>
+            <button type="button" onClick={() => setActiveTab("integrations")} className={rep.btnSecondary}>
               <PlugZap className="h-4 w-4" />
               Integrations
             </button>
@@ -308,7 +309,7 @@ export function AutomationsHub({
         />
         <RepMetricCard
           label="Triggers Fired 30d"
-          value={safeMetrics.fired30d.toLocaleString()}
+          value={metricValue(safeMetrics.fired30d)}
           icon={Activity}
           trend={trendLabel(safeMetrics.fired30dTrend) ?? undefined}
           trendPositive={safeMetrics.fired30dTrend != null && safeMetrics.fired30dTrend >= 0}
@@ -316,7 +317,7 @@ export function AutomationsHub({
         />
         <RepMetricCard
           label="Contacts Enrolled"
-          value={safeMetrics.enrolled.toLocaleString()}
+          value={metricValue(safeMetrics.enrolled)}
           icon={Users}
           trend={trendLabel(safeMetrics.enrolledTrend) ?? undefined}
           trendPositive={safeMetrics.enrolledTrend != null && safeMetrics.enrolledTrend >= 0}
@@ -324,7 +325,7 @@ export function AutomationsHub({
         />
         <RepMetricCard
           label="Reviews Generated"
-          value={safeMetrics.reviewsGenerated.toLocaleString()}
+          value={metricValue(safeMetrics.reviewsGenerated)}
           icon={CheckCircle2}
           trend={trendLabel(safeMetrics.reviewsGeneratedTrend) ?? undefined}
           trendPositive={safeMetrics.reviewsGeneratedTrend != null && safeMetrics.reviewsGeneratedTrend >= 0}
@@ -332,7 +333,7 @@ export function AutomationsHub({
         />
         <RepMetricCard
           label="Automation Success"
-          value={`${safeMetrics.successPct}%`}
+          value={safeMetrics.successPct == null ? "—" : `${safeMetrics.successPct}%`}
           icon={Webhook}
           trend={safeMetrics.successPctDelta != null ? `${safeMetrics.successPctDelta > 0 ? "▲" : "▼"}${Math.abs(safeMetrics.successPctDelta)}%` : undefined}
           trendPositive={safeMetrics.successPctDelta == null || safeMetrics.successPctDelta >= 0}
@@ -466,21 +467,27 @@ export function AutomationsHub({
               <Activity className="h-4 w-4 text-[#98A2B3]" />
             </div>
             <ul className="space-y-3">
-              {activities.map((row) => (
-                <li key={row.id} className="flex gap-3 rounded-xl bg-[#F9FAFB] p-3">
-                  <span
-                    className={cn(
-                      "mt-1 h-2.5 w-2.5 shrink-0 rounded-full",
-                      row.tone === "red" ? "bg-[#D92D20]" : row.tone === "amber" ? "bg-[#F79009]" : "bg-[#137752]"
-                    )}
-                  />
-                  <div>
-                    <p className="text-sm font-medium text-[#101828]">{row.title}</p>
-                    <p className="text-xs text-[#667085]">{row.detail}</p>
-                    <p className="mt-1 text-xs text-[#98A2B3]">{row.at}</p>
-                  </div>
+              {activities.length === 0 ? (
+                <li className="rounded-xl border border-dashed border-[#D0D5DD] px-3 py-8 text-center text-sm text-[#667085]">
+                  No webhook activity has been received yet.
                 </li>
-              ))}
+              ) : (
+                activities.map((row) => (
+                  <li key={row.id} className="flex gap-3 rounded-xl bg-[#F9FAFB] p-3">
+                    <span
+                      className={cn(
+                        "mt-1 h-2.5 w-2.5 shrink-0 rounded-full",
+                        row.tone === "red" ? "bg-[#D92D20]" : row.tone === "amber" ? "bg-[#F79009]" : "bg-[#137752]"
+                      )}
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-[#101828]">{row.title}</p>
+                      <p className="text-xs text-[#667085]">{row.detail}</p>
+                      <p className="mt-1 text-xs text-[#98A2B3]">{row.at}</p>
+                    </div>
+                  </li>
+                ))
+              )}
             </ul>
           </div>
           <ConnectedIntegrations rows={integrations} />
@@ -492,9 +499,9 @@ export function AutomationsHub({
           <WorkflowHistoryTable triggers={triggers} />
           <div className="grid gap-3 md:grid-cols-3">
             {[
-              { label: "Total Runs (30d)", value: safeMetrics.fired30d.toLocaleString() },
-              { label: "Contacts Enrolled (30d)", value: safeMetrics.enrolled.toLocaleString() },
-              { label: "Success Rate", value: `${safeMetrics.successPct}%` },
+              { label: "Total Runs (30d)", value: metricValue(safeMetrics.fired30d) },
+              { label: "Contacts Enrolled (30d)", value: metricValue(safeMetrics.enrolled) },
+              { label: "Success Rate", value: safeMetrics.successPct == null ? "—" : `${safeMetrics.successPct}%` },
             ].map((stat) => (
               <div key={stat.label} className={cn(rep.card, "p-4 text-center")}>
                 <p className={rep.label}>{stat.label}</p>

@@ -3,15 +3,12 @@
 import { useState } from "react";
 import {
   CartesianGrid,
-  Line,
-  LineChart,
   Bar,
   BarChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
-  Legend,
 } from "recharts";
 import {
   AlertTriangle,
@@ -36,6 +33,11 @@ import {
   RepTabs,
   rep,
 } from "@/components/reputation/rep-ui";
+import { RepAreaTrendChart } from "@/components/reputation/rep-charts";
+import {
+  ReputationEmptySyncState,
+  ReputationSyncButton,
+} from "@/components/reputation/reputation-sync-button";
 import { cn } from "@/lib/utils";
 import type { ReviewInsightsData, ReviewInsightTheme } from "@/lib/reviews/review-insights-data";
 
@@ -239,7 +241,12 @@ export function ReviewInsightsDashboard({
   data: ReviewInsightsData;
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("themes");
-  void businessId;
+  const hasInsightData =
+    data.metrics.totalReviewText > 0 ||
+    data.themes.positive.length > 0 ||
+    data.themes.negative.length > 0 ||
+    data.servicesAndKeywords.length > 0 ||
+    data.responseQuality.rows.length > 0;
 
   const responseBars = [
     { label: "Answered", count: data.responsePerformance.answered },
@@ -254,8 +261,24 @@ export function ReviewInsightsDashboard({
         title="Review Insights"
         subtitle="Discover what customers are saying and how you're responding."
         showCompare
+        primaryAction={
+          <ReputationSyncButton
+            businessId={businessId}
+            label="Refresh Reputation Data"
+          />
+        }
       />
 
+      {!hasInsightData ? (
+        <ReputationEmptySyncState
+          businessId={businessId}
+          title="No review insights yet"
+          description="Refresh reputation data to import written reviews and generate themes, keywords, and response insights."
+        />
+      ) : null}
+
+      {hasInsightData ? (
+      <>
       <RepTabs tabs={TABS} active={activeTab} onChange={(id) => setActiveTab(id as TabId)} />
 
       {activeTab === "themes" ? (
@@ -378,66 +401,25 @@ export function ReviewInsightsDashboard({
             {/* Theme Trend 30 Days line chart */}
             <Card title="Theme Trend 30 Days" description="Daily theme sentiment across May 10 – Jun 8, 2025.">
               {data.themes.themeTrend30d && data.themes.themeTrend30d.length > 0 ? (
-                <div className="h-[248px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={data.themes.themeTrend30d}
-                      margin={{ top: 8, right: 12, left: -18, bottom: 0 }}
-                    >
-                      <CartesianGrid stroke="#F2F4F7" strokeDasharray="3 3" vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fontSize: 10, fill: "#98A2B3" }}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <YAxis
-                        allowDecimals={false}
-                        tick={{ fontSize: 10, fill: "#98A2B3" }}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <Tooltip
-                        contentStyle={{ borderRadius: 12, border: "1px solid #E6EAF0", fontSize: 12 }}
-                      />
-                      <Legend
-                        iconType="circle"
-                        iconSize={8}
-                        wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="positive"
-                        name="Positive"
-                        stroke={REP_GREEN}
-                        strokeWidth={2.5}
-                        dot={false}
-                        activeDot={{ r: 4 }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="negative"
-                        name="Negative"
-                        stroke="#D92D20"
-                        strokeWidth={2}
-                        dot={false}
-                        activeDot={{ r: 4 }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="neutral"
-                        name="Neutral"
-                        stroke="#98A2B3"
-                        strokeWidth={2}
-                        strokeDasharray="4 4"
-                        dot={false}
-                        activeDot={{ r: 4 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
+                <RepAreaTrendChart
+                  data={data.themes.themeTrend30d}
+                  xKey="date"
+                  height={248}
+                  series={[
+                    { dataKey: "positive", name: "Positive", color: REP_GREEN },
+                    { dataKey: "negative", name: "Negative", color: "#D92D20", fillOpacity: 0.12 },
+                    { dataKey: "neutral", name: "Neutral", color: "#98A2B3", dashed: true, fillOpacity: 0.04 },
+                  ]}
+                />
               ) : (
-                <p className="py-24 text-center text-sm text-[#667085]">No theme trend data yet.</p>
+                <div className="flex flex-col items-center gap-3 py-16 text-center">
+                  <p className="text-sm text-[#667085]">No theme trend data yet.</p>
+                  <ReputationSyncButton
+                    businessId={businessId}
+                    label="Run Theme Sync"
+                    variant="secondary"
+                  />
+                </div>
               )}
             </Card>
           </div>
@@ -753,6 +735,8 @@ export function ReviewInsightsDashboard({
             </div>
           </Card>
         </div>
+      ) : null}
+      </>
       ) : null}
     </ModulePage>
   );

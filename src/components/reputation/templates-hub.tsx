@@ -348,6 +348,10 @@ export function TemplatesHub({
   }, [load]);
 
   const selected = templates.find((template) => template.id === selectedId) ?? templates[0] ?? null;
+  const messageTemplates = useMemo(
+    () => templates.filter((template) => (template.channel === "sms" || template.channel === "email") && template.source !== "industry"),
+    [templates]
+  );
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return templates.filter((template) => {
@@ -433,6 +437,36 @@ export function TemplatesHub({
       </div>
 
       <RepTabs tabs={TABS} active={activeTab} onChange={(id) => setActiveTab(id as TemplateTab)} />
+
+      {!loading && !error && messageTemplates.length === 0 ? (
+        <div className={cn(rep.card, "flex flex-col gap-3 border-dashed border-[#B7E4CC] bg-[#ECFDF3]/60 p-4 md:flex-row md:items-center md:justify-between")}>
+          <div>
+            <h2 className="text-sm font-semibold text-[#101828]">No SMS or email message templates yet</h2>
+            <p className="mt-1 text-sm text-[#667085]">
+              Create your first reusable message, or browse campaign sequence templates that can be used from the campaign wizard.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className={rep.btnPrimary} onClick={() => selectDraft("sms")}>
+              <Plus className="h-4 w-4" />
+              Create SMS Template
+            </button>
+            <button
+              type="button"
+              className={rep.btnSecondary}
+              onClick={() => {
+                setActiveTab("sequences");
+                setChannelFilter("all");
+                setTypeFilter("all");
+                setQuery("");
+              }}
+            >
+              <Sparkles className="h-4 w-4 text-[#137752]" />
+              Use Campaign Template
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="flex flex-col gap-3 lg:flex-row">
         <div className="min-w-0 flex-1 space-y-3">

@@ -12,7 +12,9 @@ type EndpointRow = {
   id: string;
   name: string;
   default_event_type?: string;
+  eventType?: string;
   is_active?: boolean;
+  isActive?: boolean;
 };
 
 /**
@@ -38,6 +40,7 @@ export function CampaignCreateWizard({
 
   const loadEndpoints = useCallback(async () => {
     setLoadingEndpoints(true);
+    setError(null);
     try {
       const res = await fetch(`/api/integrations/webhooks?businessId=${businessId}`);
       const json = await res.json();
@@ -45,15 +48,18 @@ export function CampaignCreateWizard({
         const list = (json.endpoints ?? json.items ?? []) as EndpointRow[];
         setEndpoints(list);
         if (list[0]?.id) setEndpointId(list[0].id);
-        if (list[0]?.default_event_type) setEventType(String(list[0].default_event_type));
+        const firstEventType = list[0]?.eventType ?? list[0]?.default_event_type;
+        if (firstEventType) setEventType(String(firstEventType));
       }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load webhook endpoints");
     } finally {
       setLoadingEndpoints(false);
     }
   }, [businessId]);
 
   useEffect(() => {
-    if (step === "webhook") void loadEndpoints();
+    if (step === "webhook") queueMicrotask(() => void loadEndpoints());
   }, [step, loadEndpoints]);
 
   const chooseManual = () => {
@@ -120,7 +126,7 @@ export function CampaignCreateWizard({
           </button>
 
           <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50/80 px-3 py-2">
-            <p className="text-[11px] font-medium text-zinc-600">Coming soon via webhook</p>
+            <p className="text-[11px] font-medium text-zinc-600">Available via webhook triggers</p>
             <div className="mt-1.5 flex flex-wrap gap-1">
               {["Zapier", "Make", "n8n", "API"].map((label) => (
                 <span
@@ -133,7 +139,7 @@ export function CampaignCreateWizard({
               ))}
             </div>
             <p className="mt-1 text-[10px] text-zinc-500">
-              These connectors use the same webhook enrollment engine when available.
+              These connectors can send events to the webhook enrollment engine.
             </p>
           </div>
         </div>
@@ -164,7 +170,7 @@ export function CampaignCreateWizard({
                 {endpoints.map((ep) => (
                   <option key={ep.id} value={ep.id}>
                     {ep.name}
-                    {ep.is_active ? "" : " (inactive)"}
+                    {(ep.isActive ?? ep.is_active) ? "" : " (inactive)"}
                   </option>
                 ))}
               </select>
