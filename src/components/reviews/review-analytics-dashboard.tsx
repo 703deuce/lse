@@ -2,20 +2,6 @@
 
 import { useMemo, useState } from "react";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import {
   ArrowUpRight,
   ChevronDown,
   Clock,
@@ -31,6 +17,8 @@ import {
   RepTabs,
   rep,
 } from "@/components/reputation/rep-ui";
+import { RepAreaTrendChart, RepVolumeBarChart } from "@/components/reputation/rep-charts";
+import { ReputationSyncButton } from "@/components/reputation/reputation-sync-button";
 import {
   aggregateReviewAnalyticsTimeline,
   type GroupMode,
@@ -42,7 +30,6 @@ import { cn } from "@/lib/utils";
 const GREEN = "#137752";
 const BLUE = "#3B82F6";
 const PURPLE = "#8B5CF6";
-const GRID = "#EEF2F6";
 
 type TabId = "timeline" | "velocity" | "momentum";
 
@@ -328,6 +315,7 @@ function GreenAlertBar({ rolling30d, rolling30dDelta, rolling30dDeltaPct }: {
 }
 
 export function ReviewAnalyticsDashboard({
+  businessId,
   data,
 }: {
   businessId: string;
@@ -378,18 +366,20 @@ export function ReviewAnalyticsDashboard({
   const events = chartData.filter((point) => point.events.length > 0);
   const topCompetitorName = data.competitors[0]?.name ?? "Top Competitor";
   const secondCompetitorName = data.competitors[1]?.name ?? "2nd Competitor";
+  const hasTimeline = chartData.some((point) => point.you > 0 || point.topCompetitor > 0 || point.secondCompetitor > 0);
 
   const rolling30dPeriod = data.rollingPeriods.find((p) => p.days === 30);
   const rolling30dDeltaPct = rolling30dPeriod?.deltaPct ?? null;
+  const totalDelta = data.priorPeriod.rolling30dDelta;
 
   const kpis = (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       <RepMetricCard
         label="Total Reviews"
         value={fmt(totalReviews)}
-        trend="+18"
-        hint="vs Apr 9 – May 9"
-        trendPositive
+        trend={totalDelta != null ? signed(totalDelta) : undefined}
+        hint="vs prior 30d"
+        trendPositive={(totalDelta ?? 0) >= 0}
       />
       <RepMetricCard
         label="Reviews 7d"
@@ -455,54 +445,33 @@ export function ReviewAnalyticsDashboard({
         </div>
       }
     >
-      <div className="h-[380px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 10, right: 18, left: -12, bottom: 0 }}>
-            <CartesianGrid stroke={GRID} strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#667085" }} tickLine={false} axisLine={false} minTickGap={24} />
-            <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#667085" }} tickLine={false} axisLine={false} />
-            <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #E6EAF0", fontSize: 12 }} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-            {events.map((point) => (
-              <ReferenceLine
-                key={`${point.date}-${point.events.map((event) => event.id).join("-")}`}
-                x={point.date}
-                stroke={point.events.some((event) => event.type === "campaign_start") ? "#F79009" : "#8B5CF6"}
-                strokeDasharray="3 3"
-                label={{
-                  value: point.events[0]?.label ?? "",
-                  fontSize: 9,
-                  fill: "#667085",
-                  position: "insideTopLeft",
-                }}
-              />
-            ))}
-            <Line type="monotone" dataKey="you" name="You" stroke={GREEN} strokeWidth={3} dot={false} activeDot={{ r: 5 }} />
-            <Line type="monotone" dataKey="topCompetitor" name={topCompetitorName} stroke={BLUE} strokeWidth={2.5} dot={false} />
-            <Line type="monotone" dataKey="secondCompetitor" name={secondCompetitorName} stroke={PURPLE} strokeWidth={2.5} dot={false} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      {hasTimeline ? (
+        <RepAreaTrendChart
+          data={chartData}
+          height={380}
+          markers={events.map((point) => ({
+            x: point.date,
+            label: point.events[0]?.label ?? "",
+            color: point.events.some((event) => event.type === "campaign_start") ? "#F79009" : "#8B5CF6",
+          }))}
+          series={[
+            { dataKey: "you", name: "You", color: GREEN, strokeWidth: 3, fillOpacity: 0.26 },
+            { dataKey: "topCompetitor", name: topCompetitorName, color: BLUE, strokeWidth: 2.4, fillOpacity: 0.12 },
+            { dataKey: "secondCompetitor", name: secondCompetitorName, color: PURPLE, strokeWidth: 2.2, fillOpacity: 0.1 },
+          ]}
+        />
+      ) : (
+        <div className="flex flex-col items-center gap-3 py-16 text-center">
+          <p className="text-sm text-[#667085]">No review timeline yet. Refresh reputation data to populate charts.</p>
+          <ReputationSyncButton businessId={businessId} />
+        </div>
+      )}
     </Card>
   );
 
   const volumeChart = (
     <Card title="Daily Review Volume" subtitle="Last 30 days">
-      <div className="h-[260px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={dailyVolume} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
-            <CartesianGrid stroke={GRID} strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#667085" }} tickLine={false} axisLine={false} minTickGap={12} />
-            <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#667085" }} tickLine={false} axisLine={false} />
-            <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #E6EAF0", fontSize: 12 }} />
-            <Bar dataKey="reviews" name="Reviews" radius={[6, 6, 0, 0]}>
-              {dailyVolume.map((point) => (
-                <Cell key={point.date} fill={point.reviews > 0 ? GREEN : "#D0D5DD"} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      <RepVolumeBarChart data={dailyVolume} height={260} />
     </Card>
   );
 
@@ -514,6 +483,7 @@ export function ReviewAnalyticsDashboard({
         dateRangeLabel={data.dateRangeLabel ?? "Last 90 days"}
         showCompare
         filterLabel="Filters"
+        primaryAction={<ReputationSyncButton businessId={businessId} variant="secondary" label="Refresh Data" />}
       />
 
       <RepTabs tabs={tabs} active={activeTab} onChange={(tab) => setActiveTab(tab as TabId)} />

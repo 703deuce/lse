@@ -1,18 +1,31 @@
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { CompetitorIntelligenceDashboard } from "@/components/reviews/competitor-intelligence-dashboard";
+import { ReputationEmptySyncState } from "@/components/reputation/reputation-sync-button";
 import { loadCompetitorIntelligenceData } from "@/lib/reviews/competitor-intelligence-data";
-import { competitorIntelligencePreviewData } from "@/lib/reviews/competitor-intelligence-preview-data";
 
 async function CompetitorIntelligenceLoaded({ businessId }: { businessId: string }) {
-  let data = competitorIntelligencePreviewData;
   try {
     const live = await loadCompetitorIntelligenceData(businessId);
-    if (live.leaderboardRows.length > 1) data = live;
-  } catch {
-    data = competitorIntelligencePreviewData;
+    if (live.leaderboardRows.length === 0) {
+      return (
+        <ReputationEmptySyncState
+          businessId={businessId}
+          title="No competitor review data yet"
+          description="Refresh reputation data once to pull your reviews and nearby competitor volumes into this leaderboard."
+        />
+      );
+    }
+    return <CompetitorIntelligenceDashboard businessId={businessId} data={live} />;
+  } catch (err) {
+    return (
+      <ReputationEmptySyncState
+        businessId={businessId}
+        title="Couldn’t load competitor intelligence"
+        description={err instanceof Error ? err.message : "Refresh reputation data and try again."}
+      />
+    );
   }
-  return <CompetitorIntelligenceDashboard businessId={businessId} data={data} />;
 }
 
 export default async function ReputationCompetitorsPage({
