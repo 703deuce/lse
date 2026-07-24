@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  ChevronDown,
   Grid3X3,
   Loader2,
   MapPin,
@@ -15,7 +14,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { mock, MockPageHeader } from "@/components/mockup/ui";
-import { SetupMap } from "@/components/maps/setup-map";
+import { MapPreviewPanel } from "@/components/maps/map-preview-panel";
 import { GridPreviewCanvas } from "@/components/scan/grid-preview-canvas";
 import {
   DEFAULT_GRID_SIZE,
@@ -70,14 +69,24 @@ export type FirstMapsSetupProps = {
   reviewsLookStrong?: boolean;
 };
 
-type StepId = "business" | "keyword" | "area" | "run" | "results";
+type StepId =
+  | "business"
+  | "location"
+  | "keywords"
+  | "competitors"
+  | "settings"
+  | "review"
+  | "run"
+  | "results";
 
-const STEPS: Array<{ id: StepId; label: string }> = [
-  { id: "business", label: "Business" },
-  { id: "keyword", label: "Keyword" },
-  { id: "area", label: "Scan area" },
-  { id: "run", label: "Run scan" },
-  { id: "results", label: "Results" },
+/** Visible wizard chrome (run/results are post-launch states). */
+const WIZARD_STEPS: Array<{ id: StepId; label: string }> = [
+  { id: "business", label: "Business Info" },
+  { id: "location", label: "Location" },
+  { id: "keywords", label: "Keywords" },
+  { id: "competitors", label: "Competitors" },
+  { id: "settings", label: "Scan Settings" },
+  { id: "review", label: "Review" },
 ];
 
 const PROGRESS_MESSAGES = [
@@ -185,15 +194,43 @@ function KeywordChip({
   );
 }
 
-function MapPlaceholder({ message }: { message: string }) {
-  return (
-    <div className="flex aspect-square min-h-[280px] w-full flex-col items-center justify-center gap-3 bg-[#F9FAFB] sm:min-h-[360px]">
-      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#98A2B3] shadow-sm ring-1 ring-[#E6EAF0]">
-        <MapPin className="h-5 w-5" />
-      </span>
-      <p className="max-w-[220px] text-center text-sm text-[#667085]">{message}</p>
-    </div>
-  );
+function parseAddressParts(raw: string | null | undefined): {
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+} {
+  const text = (raw ?? "").trim();
+  if (!text) return { street: "", city: "", state: "", zip: "" };
+  const parts = text.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length === 1) {
+    const m = parts[0]!.match(/^(.+?)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/i);
+    if (m) return { street: "", city: m[1]!, state: m[2]!.toUpperCase(), zip: m[3]! };
+    return { street: parts[0]!, city: "", state: "", zip: "" };
+  }
+  const street = parts[0] ?? "";
+  const city = parts.length >= 2 ? parts[1]! : "";
+  const tail = parts.length >= 3 ? parts[parts.length - 1]! : "";
+  const m = tail.match(/^([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/i);
+  if (m) {
+    return { street, city, state: m[1]!.toUpperCase(), zip: m[2]! };
+  }
+  if (parts.length >= 3) {
+    return { street, city, state: parts[2] ?? "", zip: parts[3] ?? "" };
+  }
+  return { street, city, state: "", zip: "" };
+}
+
+function composeAddress(parts: {
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+}): string {
+  const line2 = [parts.city, [parts.state, parts.zip].filter(Boolean).join(" ")]
+    .filter(Boolean)
+    .join(", ");
+  return [parts.street, line2].filter(Boolean).join(", ");
 }
 
 function WizardFooter({
@@ -212,7 +249,7 @@ function WizardFooter({
   hideBack?: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#F2F4F7] pt-4">
+    <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-[#F2F4F7] pt-4">
       {hideBack || !onBack ? (
         <span />
       ) : (
@@ -224,7 +261,7 @@ function WizardFooter({
       {onNext ? (
         <button
           type="button"
-          className={cn(mock.btnPrimary, "disabled:opacity-50")}
+          className={cn(mock.btnPrimary, "min-w-[140px] disabled:opacity-50")}
           disabled={nextDisabled || nextBusy}
           onClick={onNext}
         >
@@ -248,11 +285,16 @@ export function FirstMapsSetup({
   const [busy, setBusy] = useState(false);
 
   // Step 1 — business confirmation (local state)
-  const [name, setName] = useState(business.name);
-  const [placeId, setPlaceId] = useState(business.placeId ?? "");
-  const [address, setAddress] = useState(
-    business.scanCenterLabel || business.addressText || ""
+  const initialParts = parseAddressParts(
+    business.addressText || business.scanCenterLabel || ""
   );
+  const [name, setName] = useState(business.name);
+  const [street, setStreet] = useState(initialParts.street);
+  const [cityPart, setCityPart] = useState(
+    initialParts.city || cityFromAddress(business.addressText) || ""
+  );
+  const [statePart, setStatePart] = useState(initialParts.state);
+  const [zipPart, setZipPart] = useState(initialParts.zip);
   const [category, setCategory] = useState(business.primaryCategory ?? "");
   const [website, setWebsite] = useState(business.websiteUrl ?? "");
   const [phone, setPhone] = useState(business.phone ?? "");
@@ -262,19 +304,26 @@ export function FirstMapsSetup({
   const [centerLng, setCenterLng] = useState(
     business.scanCenterLng ?? business.lng ?? 0
   );
+  const address = composeAddress({
+    street,
+    city: cityPart,
+    state: statePart,
+    zip: zipPart,
+  });
 
-  // Step 2 — keywords
+  // Keywords
   const [keywords, setKeywords] = useState(initialKeywords);
   const [selected, setSelected] = useState<string[]>(() => {
     const primary = initialKeywords.find((k) => k.isPrimary) ?? initialKeywords[0];
     return primary ? [primary.keyword] : [];
   });
   const [customKeyword, setCustomKeyword] = useState("");
+  const [extraKeywords, setExtraKeywords] = useState("");
+  const [competitorNotes, setCompetitorNotes] = useState("");
 
-  // Step 3 — grid
+  // Grid / scan settings
   const [gridSize, setGridSize] = useState(DEFAULT_GRID_SIZE);
   const [radiusMeters, setRadiusMeters] = useState(DEFAULT_RADIUS_METERS);
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Step 4–5 — run + results
   const [progressIndex, setProgressIndex] = useState(0);
@@ -282,7 +331,7 @@ export function FirstMapsSetup({
   const [summary, setSummary] = useState<ScanSummary | null>(null);
   const scanStartedRef = useRef(false);
 
-  const city = cityFromAddress(address) ?? cityFromAddress(business.addressText);
+  const city = cityPart || cityFromAddress(address) || cityFromAddress(business.addressText);
   const suggestions = useMemo(
     () =>
       buildKeywordSuggestions({
@@ -293,12 +342,13 @@ export function FirstMapsSetup({
     [name, category, business.primaryCategory, city]
   );
 
+  const wizardStepIndex = WIZARD_STEPS.findIndex((s) => s.id === step);
+  const inWizardChrome = wizardStepIndex >= 0;
+
   const meta = useMemo(
     () => gridScanMeta(gridSize, radiusMeters),
     [gridSize, radiusMeters]
   );
-
-  const stepIndex = STEPS.findIndex((s) => s.id === step);
 
   const activeKeywordLabel = selected[0] ?? "";
   const mapReady = hasValidCenter(centerLat, centerLng);
@@ -333,10 +383,11 @@ export function FirstMapsSetup({
     });
   }
 
-  async function geocodeAddressIfNeeded() {
+  async function geocodeAddress(force = false) {
     const q = address.trim();
     if (!q) return;
     if (
+      !force &&
       Number.isFinite(centerLat) &&
       Number.isFinite(centerLng) &&
       !(centerLat === 0 && centerLng === 0)
@@ -361,28 +412,33 @@ export function FirstMapsSetup({
     }
     setCenterLat(json.lat);
     setCenterLng(json.lng);
-    if (json.displayName || json.label) {
-      setAddress(json.displayName ?? json.label ?? q);
-    }
   }
 
   async function goNextFromBusiness() {
     setError(null);
     setBusy(true);
     try {
-      await geocodeAddressIfNeeded();
-      // Optional persist of scan center / grid prefs
+      await geocodeAddress(true);
       try {
         await persistCenterIfNeeded();
       } catch {
         /* skip edits if save fails — scan can still use local state */
       }
-      setStep("keyword");
+      setStep("location");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not confirm business location");
     } finally {
       setBusy(false);
     }
+  }
+
+  function goNextFromLocation() {
+    setError(null);
+    if (!mapReady) {
+      setError("Set a valid business location before continuing.");
+      return;
+    }
+    setStep("keywords");
   }
 
   function goNextFromKeyword() {
@@ -391,18 +447,34 @@ export function FirstMapsSetup({
       setError("Choose at least one search keyword.");
       return;
     }
-    setStep("area");
+    setStep("competitors");
   }
 
-  function goNextFromArea() {
+  function goNextFromCompetitors() {
     setError(null);
-    if (
-      !Number.isFinite(centerLat) ||
-      !Number.isFinite(centerLng) ||
-      (centerLat === 0 && centerLng === 0)
-    ) {
+    setStep("settings");
+  }
+
+  function goNextFromSettings() {
+    setError(null);
+    if (!mapReady) {
       setError("Set a valid business location before scanning.");
-      setStep("business");
+      setStep("location");
+      return;
+    }
+    setStep("review");
+  }
+
+  function goNextFromReview() {
+    setError(null);
+    if (!selected.length) {
+      setError("Choose at least one search keyword.");
+      setStep("keywords");
+      return;
+    }
+    if (!mapReady) {
+      setError("Set a valid business location before scanning.");
+      setStep("location");
       return;
     }
     setStep("run");
@@ -667,106 +739,85 @@ export function FirstMapsSetup({
     };
   }, [step, scanId, activeKeywordLabel, loadSummary, meta.cellCount]);
 
-  function renderRightPanel() {
-    if (step === "business") {
-      return mapReady ? (
-        <SetupMap
-          center={[centerLat, centerLng]}
-          onCenterChange={(lat, lng) => {
-            setCenterLat(lat);
-            setCenterLng(lng);
-          }}
-          height="360px"
-        />
-      ) : (
-        <MapPlaceholder message="Enter an address to preview your scan center on the map." />
-      );
-    }
-
-    if (step === "keyword" || step === "area") {
-      return mapReady ? (
-        <GridPreviewCanvas
-          centerLat={centerLat}
-          centerLng={centerLng}
-          gridSize={gridSize}
-          radiusMeters={radiusMeters}
-          excludedLabels={EMPTY_EXCLUDED}
-          onToggleLabel={() => undefined}
-          locationLabel={address.trim() || name || "Scan center"}
-          centerDetail={address.trim() || null}
-          spacingMiles={metersToMiles(
-            gridSize > 1 ? (2 * radiusMeters) / (gridSize - 1) : 0
-          )}
-          className="border-0 shadow-none"
-        />
-      ) : (
-        <MapPlaceholder message="Confirm a business location to preview the scan grid." />
-      );
-    }
-
-    return null;
-  }
+  const showPinMap = step === "business" || step === "location" || step === "review";
+  const showGridAside = step === "settings";
+  const showMapAside = showPinMap || showGridAside;
 
   return (
     <div className={mock.page}>
       <MockPageHeader
         title="Local SEO Wizard"
-        subtitle="First Maps setup — confirm your business, pick a keyword, and run a local visibility grid."
+        subtitle="Confirm your listing details, place your pin, then run your first neighborhood scan."
         actions={
-          <Link
-            href={`/businesses/${businessId}/local-visibility`}
-            className={mock.btnSecondary}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {inWizardChrome ? (
+              <span className="rounded-full border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-1 text-xs font-semibold text-[#667085]">
+                Step {wizardStepIndex + 1} of {WIZARD_STEPS.length}
+              </span>
+            ) : null}
+            <Link
+              href={`/businesses/${businessId}/local-visibility`}
+              className={mock.btnSecondary}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Link>
+          </div>
         }
       />
 
-      <nav
-        className={cn(mock.card, "overflow-hidden px-4 py-4 sm:px-5")}
-        aria-label="Setup steps"
-      >
-        <ol className="flex flex-wrap items-center gap-2 sm:gap-0">
-          {STEPS.map((s, i) => {
-            const done = i < stepIndex;
-            const active = s.id === step;
-            return (
-              <li key={s.id} className="flex min-w-0 items-center sm:flex-1">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span
-                    className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold",
-                      active && "bg-[#137752] text-white",
-                      done && !active && "bg-[#D1FADF] text-[#137752]",
-                      !active && !done && "bg-[#F2F4F7] text-[#667085]"
-                    )}
+      {inWizardChrome ? (
+        <nav
+          className={cn(mock.card, "overflow-x-auto px-3 py-4 sm:px-5")}
+          aria-label="Setup steps"
+        >
+          <ol className="flex min-w-[640px] items-center justify-between gap-1">
+            {WIZARD_STEPS.map((s, i) => {
+              const done = i < wizardStepIndex;
+              const active = s.id === step;
+              return (
+                <li key={s.id} className="flex flex-1 items-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (done || active) setStep(s.id);
+                    }}
+                    className="flex flex-col items-center gap-1.5"
                   >
-                    {done && !active ? <Check className="h-4 w-4" /> : i + 1}
-                  </span>
-                  <span
-                    className={cn(
-                      "truncate text-[13px] font-semibold",
-                      active ? "text-[#101828]" : done ? "text-[#137752]" : "text-[#667085]"
-                    )}
-                  >
-                    {s.label}
-                  </span>
-                </div>
-                {i < STEPS.length - 1 ? (
-                  <span
-                    className={cn(
-                      "mx-2 hidden h-px flex-1 sm:block",
-                      i < stepIndex ? "bg-[#A6F4C5]" : "bg-[#E6EAF0]"
-                    )}
-                    aria-hidden
-                  />
-                ) : null}
-              </li>
-            );
-          })}
-        </ol>
-      </nav>
+                    <span
+                      className={cn(
+                        "flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold transition",
+                        active && "bg-[#137752] text-white shadow-[0_0_0_3px_#ECFDF3]",
+                        done && !active && "bg-[#D1FADF] text-[#137752]",
+                        !active && !done && "bg-[#F2F4F7] text-[#667085]"
+                      )}
+                    >
+                      {done && !active ? <Check className="h-4 w-4" /> : i + 1}
+                    </span>
+                    <span
+                      className={cn(
+                        "max-w-[5.5rem] text-center text-[10px] font-semibold leading-tight sm:text-[11px]",
+                        active ? "text-[#137752]" : done ? "text-[#027A48]" : "text-[#667085]"
+                      )}
+                    >
+                      {s.label}
+                    </span>
+                  </button>
+                  {i < WIZARD_STEPS.length - 1 ? (
+                    <div
+                      className={cn(
+                        "mx-1 mb-5 h-0.5 flex-1 rounded-full",
+                        i < wizardStepIndex ? "bg-[#137752]" : "bg-[#E6EAF0]"
+                      )}
+                      aria-hidden
+                    />
+                  ) : null}
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
+      ) : null}
 
       {error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-800">
@@ -895,20 +946,25 @@ export function FirstMapsSetup({
         </section>
       ) : null}
 
-      {step === "business" || step === "keyword" || step === "area" ? (
-        <div className="grid gap-5 lg:grid-cols-2">
-          <section className={cn(mock.card, "flex flex-col space-y-4 p-5")}>
+      {inWizardChrome ? (
+        <div
+          className={cn(
+            "grid gap-5",
+            showMapAside || showGridAside ? "lg:grid-cols-[1fr_1.05fr]" : ""
+          )}
+        >
+          <section className={cn(mock.card, "flex min-h-[420px] flex-col space-y-4 p-5 sm:p-6")}>
             {step === "business" ? (
               <>
                 <div>
-                  <h2 className="text-[18px] font-bold text-[#101828]">Confirm business</h2>
+                  <h2 className="text-[18px] font-bold text-[#101828]">Business Info</h2>
                   <p className="mt-1 text-sm text-[#667085]">
-                    We&apos;ll use this as the center of your visibility scan. Edits stay local
-                    unless we can save your scan center.
+                    Prefilled from your listing — edit anything that looks wrong before we place
+                    the pin.
                   </p>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="block sm:col-span-2">
+                <div className="grid gap-3">
+                  <label className="block">
                     <span className={mock.label}>Business name</span>
                     <input
                       className={fieldControl}
@@ -916,64 +972,161 @@ export function FirstMapsSetup({
                       onChange={(e) => setName(e.target.value)}
                     />
                   </label>
-                  <label className="block sm:col-span-2">
-                    <span className={mock.label}>GBP / Place ID</span>
-                    <input
-                      className={fieldControl}
-                      value={placeId}
-                      onChange={(e) => setPlaceId(e.target.value)}
-                      placeholder="Optional Google Place ID"
-                    />
-                  </label>
-                  <label className="block sm:col-span-2">
-                    <span className={mock.label}>Address / service area</span>
-                    <input
-                      className={fieldControl}
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder="Street, city, or service area center"
-                    />
-                  </label>
                   <label className="block">
-                    <span className={mock.label}>Primary category</span>
+                    <span className={mock.label}>Street address</span>
+                    <input
+                      className={fieldControl}
+                      value={street}
+                      onChange={(e) => setStreet(e.target.value)}
+                      placeholder="123 Main St"
+                    />
+                  </label>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <label className="block">
+                      <span className={mock.label}>City</span>
+                      <input
+                        className={fieldControl}
+                        value={cityPart}
+                        onChange={(e) => setCityPart(e.target.value)}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className={mock.label}>State</span>
+                      <input
+                        className={fieldControl}
+                        value={statePart}
+                        onChange={(e) => setStatePart(e.target.value)}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className={mock.label}>Zip</span>
+                      <input
+                        className={fieldControl}
+                        value={zipPart}
+                        onChange={(e) => setZipPart(e.target.value)}
+                      />
+                    </label>
+                  </div>
+                  <label className="block">
+                    <span className={mock.label}>Category</span>
                     <input
                       className={fieldControl}
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
+                      placeholder="e.g. Junk removal service"
                     />
                   </label>
-                  <label className="block">
-                    <span className={mock.label}>Phone</span>
-                    <input
-                      className={fieldControl}
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                    />
-                  </label>
-                  <label className="block sm:col-span-2">
-                    <span className={mock.label}>Website</span>
-                    <input
-                      className={fieldControl}
-                      value={website}
-                      onChange={(e) => setWebsite(e.target.value)}
-                    />
-                  </label>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className={mock.label}>Phone</span>
+                      <input
+                        className={fieldControl}
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className={mock.label}>Website</span>
+                      <input
+                        className={fieldControl}
+                        value={website}
+                        onChange={(e) => setWebsite(e.target.value)}
+                      />
+                    </label>
+                  </div>
                 </div>
                 <WizardFooter
                   hideBack
                   onNext={() => void goNextFromBusiness()}
                   nextBusy={busy}
+                  nextDisabled={!name.trim()}
                 />
               </>
             ) : null}
 
-            {step === "keyword" ? (
+            {step === "location" ? (
               <>
                 <div>
-                  <h2 className="text-[18px] font-bold text-[#101828]">Choose search keyword</h2>
+                  <h2 className="text-[18px] font-bold text-[#101828]">Location & coverage</h2>
                   <p className="mt-1 text-sm text-[#667085]">
-                    Pick what customers type into Google Maps. Suggestions are based on your
-                    category, name, and city.
+                    Confirm the red pin matches your storefront. Then set how far to scan.
+                  </p>
+                </div>
+                <div className="flex items-start gap-3 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-4 py-3">
+                  <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#137752]" />
+                  <div>
+                    <p className="text-sm font-semibold text-[#101828]">
+                      {address || "Add an address on the previous step"}
+                    </p>
+                    <p className="mt-0.5 text-xs tabular-nums text-[#667085]">
+                      {mapReady
+                        ? `${centerLat.toFixed(5)}, ${centerLng.toFixed(5)}`
+                        : "Waiting for pin…"}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className={mock.label}>Search radius</span>
+                    <span className="text-sm font-bold text-[#137752]">
+                      {formatRadiusMiles(meta.radiusMiles)}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={RADIUS_MILE_PRESETS.length - 1}
+                    value={Math.max(
+                      0,
+                      RADIUS_MILE_PRESETS.findIndex(
+                        (p) => p.miles === nearestRadiusMileOption(radiusMeters)
+                      )
+                    )}
+                    onChange={(e) => {
+                      const preset = RADIUS_MILE_PRESETS[Number(e.target.value)];
+                      if (preset) setRadiusMeters(milesToMeters(preset.miles));
+                    }}
+                    className="mt-2 w-full accent-[#137752]"
+                  />
+                  <div className="mt-1 flex justify-between text-[10px] text-[#98A2B3]">
+                    <span>{RADIUS_MILE_PRESETS[0]?.label}</span>
+                    <span>{RADIUS_MILE_PRESETS[RADIUS_MILE_PRESETS.length - 1]?.label}</span>
+                  </div>
+                </div>
+                <div>
+                  <p className={mock.label}>Grid density</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {GRID_SIZE_OPTIONS.map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setGridSize(n)}
+                        className={cn(
+                          "rounded-lg border px-4 py-2 text-sm font-semibold transition",
+                          gridSize === n
+                            ? "border-[#137752] bg-[#ECFDF3] text-[#137752]"
+                            : "border-[#E6EAF0] bg-white text-[#101828]"
+                        )}
+                      >
+                        {n}×{n} ({n * n} points)
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <WizardFooter
+                  onBack={() => setStep("business")}
+                  onNext={goNextFromLocation}
+                  nextDisabled={!mapReady}
+                />
+              </>
+            ) : null}
+
+            {step === "keywords" ? (
+              <>
+                <div>
+                  <h2 className="text-[18px] font-bold text-[#101828]">Keywords</h2>
+                  <p className="mt-1 text-sm text-[#667085]">
+                    What do customers type into Google Maps when they need you?
                   </p>
                 </div>
 
@@ -1009,7 +1162,7 @@ export function FirstMapsSetup({
 
                 <div className="flex flex-wrap items-end gap-2">
                   <label className="min-w-[220px] flex-1">
-                    <span className={mock.label}>Custom keyword</span>
+                    <span className={mock.label}>Primary / custom keyword</span>
                     <input
                       className={fieldControl}
                       value={customKeyword}
@@ -1020,7 +1173,7 @@ export function FirstMapsSetup({
                           addCustomKeyword();
                         }
                       }}
-                      placeholder="e.g. junk removal austin"
+                      placeholder="e.g. junk removal near me"
                     />
                   </label>
                   <button type="button" className={mock.btnSecondary} onClick={addCustomKeyword}>
@@ -1028,6 +1181,17 @@ export function FirstMapsSetup({
                     Add
                   </button>
                 </div>
+
+                <label className="block">
+                  <span className={mock.label}>Additional keywords (optional)</span>
+                  <textarea
+                    rows={3}
+                    className="mt-1.5 w-full rounded-lg border border-[#E6EAF0] bg-white px-3 py-2.5 text-sm text-[#101828] shadow-sm outline-none focus:border-[#137752] focus:ring-1 focus:ring-[#137752]/25"
+                    value={extraKeywords}
+                    onChange={(e) => setExtraKeywords(e.target.value)}
+                    placeholder="One per line — tracked after your first scan"
+                  />
+                </label>
 
                 {selected.length > 0 ? (
                   <p className="text-[12px] text-[#667085]">
@@ -1038,118 +1202,220 @@ export function FirstMapsSetup({
                 ) : null}
 
                 <WizardFooter
-                  onBack={() => setStep("business")}
+                  onBack={() => setStep("location")}
                   onNext={goNextFromKeyword}
+                  nextDisabled={!selected.length}
                 />
               </>
             ) : null}
 
-            {step === "area" ? (
+            {step === "competitors" ? (
               <>
                 <div>
-                  <h2 className="text-[18px] font-bold text-[#101828]">Choose scan area</h2>
+                  <h2 className="text-[18px] font-bold text-[#101828]">Competitors</h2>
                   <p className="mt-1 text-sm text-[#667085]">
-                    Recommended: a {DEFAULT_GRID_SIZE}×{DEFAULT_GRID_SIZE} grid covering about{" "}
-                    {formatRadiusMiles(metersToMiles(DEFAULT_RADIUS_METERS))}.
+                    Optional — name the businesses you usually lose work to. We&apos;ll surface
+                    them in your report when they appear in the pack.
                   </p>
                 </div>
+                <label className="block">
+                  <span className={mock.label}>Competitor names</span>
+                  <textarea
+                    rows={6}
+                    className="mt-1.5 w-full rounded-lg border border-[#E6EAF0] bg-white px-3 py-2.5 text-sm text-[#101828] shadow-sm outline-none focus:border-[#137752] focus:ring-1 focus:ring-[#137752]/25"
+                    value={competitorNotes}
+                    onChange={(e) => setCompetitorNotes(e.target.value)}
+                    placeholder={"e.g.\nCollege Hunks Hauling Junk\n1-800-GOT-JUNK?\nJunk King"}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={goNextFromCompetitors}
+                  className="text-sm font-semibold text-[#137752] underline-offset-2 hover:underline"
+                >
+                  Skip for now — we&apos;ll detect competitors from the scan
+                </button>
+                <WizardFooter
+                  onBack={() => setStep("keywords")}
+                  onNext={goNextFromCompetitors}
+                />
+              </>
+            ) : null}
 
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className={cn(mock.card, "bg-[#F9FAFB] p-4 shadow-none")}>
-                    <p className={mock.label}>Center</p>
-                    <p className="mt-1 text-[13px] font-medium text-[#101828]">
-                      {address.trim() || "Account location"}
-                    </p>
-                    <p className="mt-1 text-[11px] tabular-nums text-[#667085]">
-                      {centerLat.toFixed(5)}, {centerLng.toFixed(5)}
-                    </p>
-                  </div>
-                  <div className={cn(mock.card, "bg-[#F9FAFB] p-4 shadow-none")}>
-                    <p className={mock.label}>Grid size</p>
-                    <p className="mt-1 flex items-center gap-1.5 text-[13px] font-medium text-[#101828]">
-                      <Grid3X3 className="h-4 w-4 text-[#137752]" />
-                      {meta.gridSize}×{meta.gridSize} ({meta.cellCount} points)
-                    </p>
-                  </div>
-                  <div className={cn(mock.card, "bg-[#F9FAFB] p-4 shadow-none")}>
-                    <p className={mock.label}>Approx radius</p>
-                    <p className="mt-1 text-[13px] font-medium text-[#101828]">
+            {step === "settings" ? (
+              <>
+                <div>
+                  <h2 className="text-[18px] font-bold text-[#101828]">Scan Settings</h2>
+                  <p className="mt-1 text-sm text-[#667085]">
+                    Final knobs before we queue the neighborhood grid.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-4 py-3">
+                    <p className={mock.label}>Radius</p>
+                    <p className="mt-1 text-sm font-semibold text-[#101828]">
                       {formatRadiusMiles(meta.radiusMiles)}
                     </p>
-                    <p className="mt-1 text-[11px] text-[#667085]">
-                      ~{meta.coverageSqMi} sq mi coverage
+                  </div>
+                  <div className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-4 py-3">
+                    <p className={mock.label}>Grid</p>
+                    <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-[#101828]">
+                      <Grid3X3 className="h-4 w-4 text-[#137752]" />
+                      {meta.gridSize}×{meta.gridSize} ({meta.cellCount} pts)
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-4 py-3">
+                    <p className={mock.label}>Keyword</p>
+                    <p className="mt-1 truncate text-sm font-semibold text-[#101828]">
+                      {activeKeywordLabel || "—"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-4 py-3">
+                    <p className={mock.label}>Coverage</p>
+                    <p className="mt-1 text-sm font-semibold text-[#101828]">
+                      ~{meta.coverageSqMi} sq mi
                     </p>
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#137752]"
-                  onClick={() => setShowAdvanced((v) => !v)}
-                >
-                  Advanced
-                  <ChevronDown
-                    className={cn("h-4 w-4 transition", showAdvanced && "rotate-180")}
-                  />
-                </button>
-
-                {showAdvanced ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="block">
-                      <span className={mock.label}>Grid size</span>
-                      <select
-                        className={fieldControl}
-                        value={gridSize}
-                        onChange={(e) => setGridSize(Number(e.target.value))}
-                      >
-                        {GRID_SIZE_OPTIONS.map((n) => (
-                          <option key={n} value={n}>
-                            {n}×{n} ({n * n} points)
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="block">
-                      <span className={mock.label}>Radius</span>
-                      <select
-                        className={fieldControl}
-                        value={nearestRadiusMileOption(radiusMeters)}
-                        onChange={(e) => setRadiusMeters(milesToMeters(Number(e.target.value)))}
-                      >
-                        {RADIUS_MILE_PRESETS.map((p) => (
-                          <option key={p.miles} value={p.miles}>
-                            {p.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                ) : null}
-
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className={mock.label}>Grid size</span>
+                    <select
+                      className={fieldControl}
+                      value={gridSize}
+                      onChange={(e) => setGridSize(Number(e.target.value))}
+                    >
+                      {GRID_SIZE_OPTIONS.map((n) => (
+                        <option key={n} value={n}>
+                          {n}×{n} ({n * n} points)
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className={mock.label}>Radius</span>
+                    <select
+                      className={fieldControl}
+                      value={nearestRadiusMileOption(radiusMeters)}
+                      onChange={(e) => setRadiusMeters(milesToMeters(Number(e.target.value)))}
+                    >
+                      {RADIUS_MILE_PRESETS.map((p) => (
+                        <option key={p.miles} value={p.miles}>
+                          {p.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className="rounded-xl border border-[#A6F4C5] bg-[#ECFDF3] px-4 py-3 text-sm text-[#085D3A]">
+                  A {meta.gridSize}×{meta.gridSize} grid usually finishes in a few minutes. You can
+                  leave this page — we&apos;ll keep working.
+                </div>
                 <WizardFooter
-                  onBack={() => setStep("keyword")}
-                  onNext={goNextFromArea}
-                  nextLabel="Next Step"
+                  onBack={() => setStep("competitors")}
+                  onNext={goNextFromSettings}
+                />
+              </>
+            ) : null}
+
+            {step === "review" ? (
+              <>
+                <div>
+                  <h2 className="text-[18px] font-bold text-[#101828]">Review & launch</h2>
+                  <p className="mt-1 text-sm text-[#667085]">
+                    Double-check the pin and keyword, then generate your Local Visibility Report.
+                  </p>
+                </div>
+                <dl className="space-y-3 text-sm">
+                  {[
+                    ["Business", name],
+                    ["Address", address || "—"],
+                    ["Category", category || "—"],
+                    ["Primary keyword", activeKeywordLabel || "—"],
+                    [
+                      "Coverage",
+                      `${formatRadiusMiles(meta.radiusMiles)} · ${meta.gridSize}×${meta.gridSize} grid`,
+                    ],
+                    competitorNotes.trim()
+                      ? [
+                          "Competitors noted",
+                          `${competitorNotes.trim().split("\n").filter(Boolean).length} listed`,
+                        ]
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .map((row) => {
+                      const [k, v] = row as [string, string];
+                      return (
+                        <div
+                          key={k}
+                          className="flex items-start justify-between gap-4 border-b border-[#F2F4F7] pb-2"
+                        >
+                          <dt className="text-xs font-semibold text-[#667085]">{k}</dt>
+                          <dd className="text-right text-sm font-semibold text-[#101828]">{v}</dd>
+                        </div>
+                      );
+                    })}
+                </dl>
+                <WizardFooter
+                  onBack={() => setStep("settings")}
+                  onNext={goNextFromReview}
+                  nextLabel="Generate My Report"
                 />
               </>
             ) : null}
           </section>
 
-          <aside className={cn(mock.card, "overflow-hidden")}>
-            <div className="border-b border-[#F2F4F7] px-4 py-3">
-              <p className={mock.label}>
-                {step === "business" ? "Map preview" : "Grid preview"}
-              </p>
-              <p className="mt-0.5 text-sm font-semibold text-[#101828]">
-                {step === "business"
-                  ? "Google Maps pin"
-                  : activeKeywordLabel
-                    ? `“${activeKeywordLabel}”`
-                    : "Scan area"}
-              </p>
+          {showMapAside ? (
+            <div className="space-y-4">
+              {showPinMap ? (
+                <MapPreviewPanel
+                  lat={mapReady ? centerLat : null}
+                  lng={mapReady ? centerLng : null}
+                  businessName={name}
+                  address={address || null}
+                  onCenterChange={(lat, lng) => {
+                    setCenterLat(lat);
+                    setCenterLng(lng);
+                  }}
+                  height={480}
+                  heightClass="h-[420px] lg:min-h-[480px]"
+                />
+              ) : null}
+              {showGridAside && mapReady ? (
+                <aside className={cn(mock.card, "overflow-hidden")}>
+                  <div className="border-b border-[#F2F4F7] px-4 py-3">
+                    <p className={mock.label}>Grid preview</p>
+                    <p className="mt-0.5 text-sm font-semibold text-[#101828]">
+                      {activeKeywordLabel ? `“${activeKeywordLabel}”` : "Scan area"}
+                    </p>
+                  </div>
+                  <GridPreviewCanvas
+                    centerLat={centerLat}
+                    centerLng={centerLng}
+                    gridSize={gridSize}
+                    radiusMeters={radiusMeters}
+                    excludedLabels={EMPTY_EXCLUDED}
+                    onToggleLabel={() => undefined}
+                    locationLabel={address.trim() || name || "Scan center"}
+                    centerDetail={address.trim() || null}
+                    spacingMiles={metersToMiles(
+                      gridSize > 1 ? (2 * radiusMeters) / (gridSize - 1) : 0
+                    )}
+                    className="border-0 shadow-none"
+                  />
+                </aside>
+              ) : showGridAside ? (
+                <MapPreviewPanel
+                  lat={null}
+                  lng={null}
+                  businessName={name}
+                  address={address || null}
+                  height={420}
+                />
+              ) : null}
             </div>
-            <div className="bg-[#F9FAFB]">{renderRightPanel()}</div>
-          </aside>
+          ) : null}
         </div>
       ) : null}
     </div>
