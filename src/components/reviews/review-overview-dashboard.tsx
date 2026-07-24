@@ -1,29 +1,42 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
+  AlertTriangle,
+  ArrowUpRight,
   Calendar,
-  Check,
+  ChevronRight,
   Copy,
   ExternalLink,
+  MapPin,
   MessageSquare,
+  Shield,
   Star,
+  Trophy,
+  Zap,
 } from "lucide-react";
-import { RepAreaTrendChart } from "@/components/reputation/rep-charts";
+import {
+  RepAreaTrendChart,
+} from "@/components/reputation/rep-charts";
 import { ReputationSyncButton } from "@/components/reputation/reputation-sync-button";
-import { MockMetricCard, MockPageHeader, mock } from "@/components/mockup/ui";
+import { Sparkline } from "@/components/overview/overview-charts";
+import {
+  ModulePage,
+  cardClass,
+  moduleStack,
+} from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
 import type { ReviewOverviewData } from "@/lib/reviews/review-overview-preview-data";
 
 const GREEN = "#137752";
+const GREEN_SOFT = "#ECFDF3";
 const BLUE = "#3B82F6";
 const GREY_LINE = "#A1A1AA";
 
-function YellowStars({ rating, size = "sm" }: { rating: number; size?: "sm" | "md" }) {
+function YellowStars({ rating }: { rating: number }) {
   const full = Math.floor(rating);
   const half = rating - full >= 0.25 && rating - full < 0.75;
-  const cls = size === "md" ? "h-4 w-4" : "h-3.5 w-3.5";
   return (
     <span className="inline-flex items-center gap-0.5" aria-label={`${rating} stars`}>
       {Array.from({ length: 5 }).map((_, i) => {
@@ -32,7 +45,7 @@ function YellowStars({ rating, size = "sm" }: { rating: number; size?: "sm" | "m
           <Star
             key={i}
             className={cn(
-              cls,
+              "h-3.5 w-3.5",
               filled ? "fill-[#FDB022] text-[#FDB022]" : "fill-zinc-200 text-zinc-200"
             )}
           />
@@ -42,9 +55,101 @@ function YellowStars({ rating, size = "sm" }: { rating: number; size?: "sm" | "m
   );
 }
 
+function DeltaPct({ value, suffix }: { value: number; suffix: string }) {
+  const positive = value >= 0;
+  return (
+    <p className={cn("mt-1 text-[11px] font-medium leading-snug", positive ? "text-emerald-600" : "text-red-600")}>
+      {positive ? "+" : ""}
+      {value}% {suffix}
+    </p>
+  );
+}
+
+function SoftCard({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={cn(cardClass, "p-4", className)}>{children}</div>;
+}
+
+function CardLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-400">{children}</p>
+  );
+}
+
+function ViewLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex items-center gap-0.5 text-[12px] font-semibold text-[#137752] hover:underline"
+    >
+      {children}
+      <ChevronRight className="h-3.5 w-3.5" />
+    </Link>
+  );
+}
+
+function ResponseRing({ pct, showLabel = false }: { pct: number; showLabel?: boolean }) {
+  const size = 52;
+  const strokeWidth = 5;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const clamped = Math.max(0, Math.min(100, pct));
+  const offset = circumference - (clamped / 100) * circumference;
+
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#E4E4E7"
+          strokeWidth={strokeWidth}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={GREEN}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+        />
+      </svg>
+      {showLabel ? (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-xs font-bold tabular-nums text-zinc-900">{Math.round(clamped)}%</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ClickIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path
+        d="M9 9l5.5 12 1.7-5.3L21.5 14.5 9 9z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+      <path d="M4 4l5 5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function fmtNum(n: number | null | undefined, digits = 0): string {
   if (n == null || Number.isNaN(n)) return "—";
   return digits > 0 ? n.toFixed(digits) : String(n);
+}
+
+function signedDelta(n: number | null | undefined, digits = 0, suffix = ""): string | null {
+  if (n == null || Number.isNaN(n)) return null;
+  const abs = digits > 0 ? Math.abs(n).toFixed(digits) : String(Math.abs(n));
+  return `${n >= 0 ? "+" : "-"}${abs}${suffix}`;
 }
 
 function nextActionHref(businessId: string, ctaLabel: string): string {
@@ -55,134 +160,10 @@ function nextActionHref(businessId: string, ctaLabel: string): string {
   if (label.includes("request")) {
     return `/businesses/${businessId}/reputation/requests`;
   }
-  if (
-    label.includes("momentum") ||
-    label.includes("action plan") ||
-    label.includes("sync") ||
-    label.includes("analytics")
-  ) {
+  if (label.includes("momentum") || label.includes("action plan") || label.includes("sync") || label.includes("analytics")) {
     return `/businesses/${businessId}/reputation/analytics`;
   }
-  if (label.includes("maps") || label.includes("visibility") || label.includes("rank")) {
-    return `/businesses/${businessId}/maps`;
-  }
   return `/businesses/${businessId}/reputation/reviews`;
-}
-
-function deriveSentiment(data: ReviewOverviewData): {
-  positive: number;
-  neutral: number;
-  negative: number;
-} {
-  const rated = data.recentReviews.filter((r) => r.rating != null);
-  if (rated.length > 0) {
-    let positive = 0;
-    let neutral = 0;
-    let negative = 0;
-    for (const r of rated) {
-      const rating = r.rating as number;
-      if (rating >= 4) positive += 1;
-      else if (rating >= 3) neutral += 1;
-      else negative += 1;
-    }
-    const total = positive + neutral + negative;
-    return {
-      positive: Math.round((positive / total) * 100),
-      neutral: Math.round((neutral / total) * 100),
-      negative: Math.round((negative / total) * 100),
-    };
-  }
-
-  const of = Math.max(data.answeredOf, 1);
-  const negativePct = Math.min(100, Math.round((data.unansweredNegative / of) * 100));
-  const positivePct = Math.max(0, 100 - negativePct - 10);
-  return {
-    positive: positivePct,
-    neutral: Math.max(0, 100 - positivePct - negativePct),
-    negative: negativePct,
-  };
-}
-
-function SentimentBars({
-  positive,
-  neutral,
-  negative,
-  compact = false,
-}: {
-  positive: number;
-  neutral: number;
-  negative: number;
-  compact?: boolean;
-}) {
-  const rows = [
-    { label: "Positive", pct: positive, color: GREEN },
-    { label: "Neutral", pct: neutral, color: "#FDB022" },
-    { label: "Negative", pct: negative, color: "#F04438" },
-  ];
-  return (
-    <div className={cn("space-y-2.5", compact && "space-y-2")}>
-      {rows.map((row) => (
-        <div key={row.label}>
-          <div className="mb-1 flex items-center justify-between gap-2 text-[12px]">
-            <span className="font-medium text-[#475467]">{row.label}</span>
-            <span className="tabular-nums font-semibold text-[#101828]">{row.pct}%</span>
-          </div>
-          <div className={cn("overflow-hidden rounded-full bg-[#F2F4F7]", compact ? "h-1.5" : "h-2")}>
-            <div
-              className="h-full rounded-full transition-all"
-              style={{ width: `${Math.max(0, Math.min(100, row.pct))}%`, backgroundColor: row.color }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function TaskCheckRow({
-  done,
-  title,
-  body,
-  href,
-  cta,
-}: {
-  done?: boolean;
-  title: string;
-  body?: string;
-  href: string;
-  cta?: string;
-}) {
-  return (
-    <li className="flex items-start gap-3 border-b border-[#F2F4F7] py-3 last:border-b-0 last:pb-0 first:pt-0">
-      <span
-        className={cn(
-          "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border",
-          done
-            ? "border-[#137752] bg-[#137752] text-white"
-            : "border-[#D0D5DD] bg-white text-transparent"
-        )}
-        aria-hidden
-      >
-        <Check className="h-3 w-3" strokeWidth={3} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className={cn("text-[13px] font-semibold text-[#101828]", done && "line-through text-[#98A2B3]")}>
-          {title}
-        </p>
-        {body ? <p className="mt-0.5 text-[12px] leading-snug text-[#667085]">{body}</p> : null}
-        {cta ? (
-          <Link href={href} className={cn(mock.link, "mt-1.5 inline-flex text-[12px]")}>
-            {cta} →
-          </Link>
-        ) : null}
-      </div>
-    </li>
-  );
-}
-
-function avatarInitial(name: string): string {
-  const part = name.trim().charAt(0);
-  return part ? part.toUpperCase() : "?";
 }
 
 export function ReviewOverviewDashboard({
@@ -194,13 +175,22 @@ export function ReviewOverviewDashboard({
 }) {
   const [draftStatus, setDraftStatus] = useState<string | null>(null);
   const [draftByReviewId, setDraftByReviewId] = useState<Record<string, string>>({});
-
+  const analyticsHref = `/businesses/${businessId}/reputation/analytics`;
+  const competitorsHref = `/businesses/${businessId}/reputation/competitors`;
+  const mapsHref = data.hasMapsData
+    ? `/businesses/${businessId}/maps`
+    : `/businesses/${businessId}/local-visibility`;
+  const campaignsHref = `/businesses/${businessId}/reputation/campaigns`;
   const reviewsHref = `/businesses/${businessId}/reputation/reviews`;
   const unansweredHref = `/businesses/${businessId}/reputation/reviews?tab=unanswered`;
   const requestsHref = `/businesses/${businessId}/reputation/requests`;
-  const mapsHref = `/businesses/${businessId}/maps`;
+  const contactsHref = `/businesses/${businessId}/reputation/contacts`;
   const actionHref = nextActionHref(businessId, data.nextAction.ctaLabel);
-  const sentiment = useMemo(() => deriveSentiment(data), [data]);
+  const showMomentumArrow =
+    data.momentumLabel === "Accelerating" ||
+    data.momentumLabel === "Exploding" ||
+    data.momentumLabel === "Healthy" ||
+    data.momentumLabel === "Recovering";
 
   async function generateResponse(reviewId: string, reviewerName: string) {
     setDraftStatus(null);
@@ -242,399 +232,639 @@ export function ReviewOverviewDashboard({
     await generateResponse(reviewId, reviewerName);
   }
 
-  const headerActions = (
-    <>
-      <span className={cn(mock.btnSecondary, "pointer-events-none h-9 cursor-default gap-2 px-3 text-[13px]")}>
-        <Calendar className="h-3.5 w-3.5 text-[#667085]" />
-        {data.dateRangeLabel}
-      </span>
-      <ReputationSyncButton businessId={businessId} label="Refresh" variant="secondary" />
-    </>
-  );
-
-  if (data.hasMapsData) {
-    return (
-      <div className={mock.page}>
-        <MockPageHeader title="Overview" actions={headerActions} />
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <section className={cn(mock.card, "p-5")}>
-            <div className="mb-4 flex items-start justify-between gap-2">
-              <h2 className="text-[16px] font-semibold text-[#101828]">Reputation Summary</h2>
-              <Link href={reviewsHref} className={mock.link}>
-                View reviews →
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className={mock.label}>Total Reviews</p>
-                <p className="mt-1 text-[28px] font-bold tabular-nums leading-none text-[#101828]">
-                  {data.totalReviews}
-                </p>
-                <p className="mt-1.5 text-[12px] font-medium text-[#027A48]">
-                  +{data.gained30d} last 30 days
-                </p>
-              </div>
-              <div>
-                <p className={mock.label}>Avg Rating</p>
-                <div className="mt-1 flex items-end gap-2">
-                  <p className="text-[28px] font-bold tabular-nums leading-none text-[#101828]">
-                    {fmtNum(data.googleRating, 1)}
-                  </p>
-                  {data.googleRating != null ? <YellowStars rating={data.googleRating} size="md" /> : null}
-                </div>
-              </div>
-            </div>
-            <div className="mt-5 border-t border-[#F2F4F7] pt-4">
-              <p className={cn(mock.label, "mb-2.5")}>Sentiment</p>
-              <SentimentBars {...sentiment} compact />
-            </div>
-          </section>
-
-          <section className={cn(mock.card, "p-5")}>
-            <div className="mb-4 flex items-start justify-between gap-2">
-              <h2 className="text-[16px] font-semibold text-[#101828]">Local Visibility Summary</h2>
-              <Link href={mapsHref} className={mock.link}>
-                Open Maps →
-              </Link>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <p className={mock.label}>Avg Rank</p>
-                <p className="mt-1 text-[26px] font-bold tabular-nums leading-none text-[#101828]">
-                  {fmtNum(data.mapsAvgRank, 1)}
-                </p>
-              </div>
-              <div>
-                <p className={mock.label}>Top 3 %</p>
-                <p className="mt-1 text-[26px] font-bold tabular-nums leading-none text-[#101828]">
-                  {fmtNum(data.top3VisibilityPct)}%
-                </p>
-              </div>
-              <div>
-                <p className={mock.label}>Top 10 %</p>
-                <p className="mt-1 text-[26px] font-bold tabular-nums leading-none text-[#101828]">
-                  {fmtNum(data.top10VisibilityPct)}%
-                </p>
-              </div>
-            </div>
-            {(data.strongestKeyword || data.weakestKeyword) && (
-              <div className="mt-5 space-y-2 border-t border-[#F2F4F7] pt-4 text-[13px]">
-                {data.strongestKeyword ? (
-                  <p className="text-[#475467]">
-                    Strongest:{" "}
-                    <span className="font-semibold text-[#101828]">{data.strongestKeyword}</span>
-                  </p>
-                ) : null}
-                {data.weakestKeyword ? (
-                  <p className="text-[#475467]">
-                    Weakest:{" "}
-                    <span className="font-semibold text-[#101828]">{data.weakestKeyword}</span>
-                  </p>
-                ) : null}
-              </div>
-            )}
-          </section>
-        </div>
-
-        {data.combinedInsight ? (
-          <div className={mock.banner}>
-            <p className="text-sm font-medium leading-relaxed text-[#027A48]">{data.combinedInsight}</p>
-          </div>
-        ) : null}
-
-        <div className="grid gap-4 xl:grid-cols-5">
-          <section className={cn(mock.card, "p-5 xl:col-span-3")}>
-            <h2 className="mb-3 text-[16px] font-semibold text-[#101828]">Performance Over Time</h2>
-            {data.trendSeries.length > 0 ? (
-              <RepAreaTrendChart
-                data={data.trendSeries}
-                xKey="label"
-                height={220}
-                series={[
-                  { dataKey: "you", name: "You", color: GREEN },
-                  { dataKey: "benchmark", name: "Benchmark", color: BLUE, fillOpacity: 0.12 },
-                  {
-                    dataKey: "competitor",
-                    name: "Competitor",
-                    color: GREY_LINE,
-                    dashed: true,
-                    fillOpacity: 0.04,
-                  },
-                ]}
-              />
-            ) : (
-              <p className="py-12 text-center text-sm text-[#667085]">
-                Sync reputation data to plot performance over time.
-              </p>
-            )}
-          </section>
-
-          <section className={cn(mock.card, "p-5 xl:col-span-2")}>
-            <h2 className="mb-1 text-[16px] font-semibold text-[#101828]">Priority Tasks</h2>
-            <p className="mb-3 text-[12px] text-[#667085]">What to do next across reputation and maps</p>
-            <ul>
-              <TaskCheckRow
-                title={data.nextAction.title}
-                body={data.nextAction.body}
-                href={actionHref}
-                cta={data.nextAction.ctaLabel}
-              />
-              {data.unansweredTotal > 0 ? (
-                <TaskCheckRow
-                  title={`Respond to ${data.unansweredTotal} unanswered review${data.unansweredTotal === 1 ? "" : "s"}`}
-                  body={
-                    data.unansweredNegative > 0
-                      ? `${data.unansweredNegative} negative need attention first`
-                      : "Keep your reply rate healthy"
-                  }
-                  href={unansweredHref}
-                  cta="Open unanswered"
-                />
-              ) : null}
-              {data.weakestKeyword ? (
-                <TaskCheckRow
-                  title={`Improve visibility for “${data.weakestKeyword}”`}
-                  body={
-                    data.mapsBridgeMessage ??
-                    "Reviews help, but local map rank still needs work on this keyword."
-                  }
-                  href={mapsHref}
-                  cta="Check Maps"
-                />
-              ) : (
-                <TaskCheckRow
-                  title="Review local visibility"
-                  body={
-                    data.mapsBridgeMessage ??
-                    "See where you appear across your service area on Google Maps."
-                  }
-                  href={mapsHref}
-                  cta="Open Maps"
-                />
-              )}
-              <TaskCheckRow
-                title="Send review requests"
-                body="Keep review momentum with a fresh request batch."
-                href={requestsHref}
-                cta="Send requests"
-              />
-            </ul>
-          </section>
-        </div>
-      </div>
-    );
-  }
-
-  // Layout A — Reputation only
   return (
-    <div className={mock.page}>
-      <MockPageHeader title="Overview" actions={headerActions} />
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <MockMetricCard label="Total Reviews" value={data.totalReviews} />
-        <MockMetricCard
-          label="Average Rating"
-          value={
-            <span className="inline-flex items-end gap-2">
-              <span>{fmtNum(data.googleRating, 1)}</span>
-              {data.googleRating != null ? <YellowStars rating={data.googleRating} /> : null}
-            </span>
-          }
-        />
-        <MockMetricCard
-          label="New Reviews"
-          value={data.gained30d}
-          hint={`${data.reviews30d} in last 30 days`}
-        />
-        <MockMetricCard
-          label="Reply Rate"
-          value={data.answeredOf > 0 ? `${data.responseRatePct}%` : "—"}
-          hint={
-            data.answeredOf > 0
-              ? `${data.answeredCount} of ${data.answeredOf} answered`
-              : undefined
-          }
-        />
-        <MockMetricCard
-          label="Competitor Gap"
-          value={
-            data.competitorReviewGap != null
-              ? data.competitorReviewGap > 0
-                ? `+${data.competitorReviewGap}`
-                : String(data.competitorReviewGap)
-              : "—"
-          }
-          hint={
-            data.competitorAvgReviews != null
-              ? `vs ${data.competitorAvgReviews} competitor avg`
-              : undefined
-          }
-        />
+    <ModulePage className={moduleStack}>
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Overview</h1>
+          <p className="mt-1 text-[13px] text-zinc-500">What has happened since you were last here</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="inline-flex h-9 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-[13px] font-medium text-zinc-700 shadow-sm"
+          >
+            <Calendar className="h-3.5 w-3.5 text-zinc-400" />
+            {data.dateRangeLabel}
+          </button>
+          <Link
+            href={`/businesses/${businessId}/reports`}
+            className="inline-flex h-9 items-center rounded-lg border border-zinc-200 bg-white px-3.5 text-[13px] font-semibold text-zinc-700 shadow-sm hover:bg-zinc-50"
+          >
+            Show Report
+          </Link>
+          <ReputationSyncButton
+            businessId={businessId}
+            label="Refresh Reputation Data"
+          />
+        </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-5">
-        <div className="space-y-4 xl:col-span-3">
-          <section className={cn(mock.card, "p-5")}>
-            <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-              <h2 className="text-[16px] font-semibold text-[#101828]">Recent Reviews</h2>
-              <Link href={reviewsHref} className={mock.link}>
-                View All Reviews →
-              </Link>
+      {data.combinedInsight ? (
+        <SoftCard className="border-[#D1FAE5] bg-gradient-to-br from-[#ECFDF3]/70 to-white">
+          <CardLabel>Combined insight</CardLabel>
+          <p className="mt-1.5 text-[14px] font-medium leading-snug text-zinc-800">
+            {data.combinedInsight}
+          </p>
+        </SoftCard>
+      ) : null}
+
+      {data.movement.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {data.movement.map((item) => (
+            <span
+              key={item.label}
+              className={cn(
+                "inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-medium",
+                item.tone === "positive" && "bg-[#ECFDF3] text-[#137752]",
+                item.tone === "warning" && "bg-amber-50 text-amber-800",
+                item.tone === "neutral" && "bg-zinc-100 text-zinc-600"
+              )}
+            >
+              {item.label}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {/* Current reputation — six KPIs */}
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
+        <SoftCard>
+          <CardLabel>Google Rating</CardLabel>
+          <div className="mt-1.5 flex items-end gap-2">
+            <span className="text-2xl font-bold tabular-nums leading-none text-zinc-900">
+              {fmtNum(data.googleRating, 1)}
+            </span>
+            {data.googleRating != null ? <YellowStars rating={data.googleRating} /> : null}
+          </div>
+          <p className="mt-1.5 text-[11px] leading-snug text-zinc-500">
+            {data.competitorAvgRatingNearby != null
+              ? `vs ${data.competitorAvgRatingNearby.toFixed(1)} avg in ${data.nearbyMiles} mi`
+              : data.hasReviewsData
+                ? "No nearby competitor rating yet"
+                : "Sync reviews to unlock"}
+          </p>
+        </SoftCard>
+
+        <SoftCard>
+          <CardLabel>Total Reviews</CardLabel>
+          <p className="mt-1.5 text-2xl font-bold tabular-nums leading-none text-zinc-900">
+            {data.totalReviews}
+          </p>
+          <p className="mt-1.5 text-[11px] font-medium leading-snug text-emerald-600">
+            + {data.gained30d} in last 30 days
+          </p>
+        </SoftCard>
+
+        <SoftCard>
+          <CardLabel>Reviews (7 Days)</CardLabel>
+          <p className="mt-1.5 text-2xl font-bold tabular-nums leading-none text-zinc-900">
+            {data.reviews7d}
+          </p>
+          <DeltaPct value={data.reviews7dDeltaPct} suffix="vs previous 7 days" />
+        </SoftCard>
+
+        <SoftCard>
+          <CardLabel>Reviews (30 Days)</CardLabel>
+          <p className="mt-1.5 text-2xl font-bold tabular-nums leading-none text-zinc-900">
+            {data.reviews30d}
+          </p>
+          <DeltaPct value={data.reviews30dDeltaPct} suffix="vs previous 30 days" />
+        </SoftCard>
+
+        <SoftCard>
+          <CardLabel>Reviews (60 Days)</CardLabel>
+          <p className="mt-1.5 text-2xl font-bold tabular-nums leading-none text-zinc-900">
+            {data.reviews60d}
+          </p>
+          <DeltaPct value={data.reviews60dDeltaPct} suffix="vs previous 60 days" />
+        </SoftCard>
+
+        <SoftCard>
+          <CardLabel>Reviews (90 Days)</CardLabel>
+          <p className="mt-1.5 text-2xl font-bold tabular-nums leading-none text-zinc-900">
+            {data.reviews90d}
+          </p>
+          <DeltaPct value={data.reviews90dDeltaPct} suffix="vs previous 90 days" />
+        </SoftCard>
+      </div>
+
+      {/* Row 2 — insight cards */}
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+        <SoftCard>
+          <CardLabel>Review Velocity</CardLabel>
+          <div className="mt-2 flex items-start justify-between gap-2">
+            <div>
+              <p className="text-[15px] font-bold tabular-nums leading-tight text-zinc-900">
+                {data.reviewsPerWeek} reviews / week
+              </p>
+              <p className="mt-0.5 text-[13px] font-semibold tabular-nums text-zinc-700">
+                {data.reviewsPerMonth} reviews / month
+              </p>
             </div>
-            {draftStatus ? (
-              <p className="mb-3 text-[12px] font-medium text-[#137752]">{draftStatus}</p>
+            {data.velocitySparkline.length > 1 ? (
+              <Sparkline data={data.velocitySparkline} color={GREEN} width={64} height={28} />
             ) : null}
-            {data.recentReviews.length > 0 ? (
-              <ul className="divide-y divide-[#F2F4F7]">
-                {data.recentReviews.map((review) => (
-                  <li
-                    key={review.id}
-                    className="flex flex-col gap-3 py-3.5 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between"
-                  >
-                    <div className="flex min-w-0 flex-1 gap-3">
+          </div>
+          <p className="mt-2 text-[11px] leading-snug text-zinc-500">
+            vs {data.reviewsPerWeekBaseline90d} avg last 90 days
+          </p>
+        </SoftCard>
+
+        <SoftCard>
+          <CardLabel>Momentum</CardLabel>
+          <div
+            className={cn(
+              "mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-semibold",
+              data.momentumLabel === "Slowing" || data.momentumLabel === "Stalled"
+                ? "bg-amber-50 text-amber-800"
+                : "bg-[#ECFDF3] text-[#137752]"
+            )}
+          >
+            {showMomentumArrow ? <ArrowUpRight className="h-3.5 w-3.5" /> : null}
+            {data.momentumLabel}
+          </div>
+          <p className="mt-2 text-[12px] font-medium text-zinc-700">{data.momentumSubtitle}</p>
+          <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">{data.momentumDetail}</p>
+        </SoftCard>
+
+        <SoftCard>
+          <CardLabel>Competitor Position</CardLabel>
+          <p className="mt-2 text-2xl font-bold tabular-nums leading-none text-zinc-900">
+            {data.competitorRank != null ? (
+              <>
+                #{data.competitorRank}{" "}
+                <span className="text-base font-semibold text-zinc-500">
+                  of {data.competitorPoolSize ?? "—"}
+                </span>
+              </>
+            ) : (
+              "—"
+            )}
+          </p>
+          {data.competitorRankDelta != null ? (
+            <p
+              className={cn(
+                "mt-1.5 text-[11px] font-medium",
+                data.competitorRankDelta >= 0 ? "text-emerald-600" : "text-red-600"
+              )}
+            >
+              {data.competitorRankDelta >= 0 ? "+" : ""}
+              {data.competitorRankDelta} vs last run
+            </p>
+          ) : (
+            <p className="mt-1.5 text-[11px] text-zinc-500">Ranked by 90-day reviews</p>
+          )}
+          <div className="mt-2">
+            <ViewLink href={competitorsHref}>View Rankings</ViewLink>
+          </div>
+        </SoftCard>
+
+        <SoftCard>
+          <CardLabel>Response Rate</CardLabel>
+          <div className="mt-2 flex items-center gap-3">
+            <span className="text-2xl font-bold tabular-nums leading-none text-zinc-900">
+              {data.answeredOf > 0 ? `${data.responseRatePct}%` : "—"}
+            </span>
+            {data.answeredOf > 0 ? <ResponseRing pct={data.responseRatePct} /> : null}
+          </div>
+          <p className="mt-2 text-[11px] leading-snug text-zinc-500">
+            {data.answeredOf > 0
+              ? `${data.answeredCount} of ${data.answeredOf} reviews answered`
+              : "No written reviews in the last 90 days"}
+          </p>
+        </SoftCard>
+
+        <SoftCard
+          className={cn(
+            data.unansweredNegative > 0 && "border-red-100 bg-gradient-to-br from-white to-red-50/40"
+          )}
+        >
+          <CardLabel>Unanswered Negative</CardLabel>
+          <div className="mt-2 flex items-center gap-2">
+            <span
+              className={cn(
+                "text-3xl font-bold tabular-nums leading-none",
+                data.unansweredNegative > 0 ? "text-red-600" : "text-zinc-900"
+              )}
+            >
+              {data.unansweredNegative}
+            </span>
+            {data.unansweredNegative > 0 ? (
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+            ) : null}
+          </div>
+          <p
+            className={cn(
+              "mt-1.5 text-[11px] font-medium",
+              data.unansweredNegative > 0 ? "text-red-600" : "text-zinc-500"
+            )}
+          >
+            {data.unansweredNegative > 0 ? "Needs immediate response" : "All negatives answered"}
+          </p>
+          <div className="mt-2">
+            <ViewLink href={unansweredHref}>View Reviews</ViewLink>
+          </div>
+        </SoftCard>
+      </div>
+
+      {/* Row 3 — charts + lists */}
+      <div className="grid grid-cols-1 gap-2 xl:grid-cols-3">
+        <SoftCard className="xl:col-span-1">
+          <div className="mb-3 flex items-start justify-between gap-2">
+            <div>
+              <h2 className="text-[14px] font-semibold text-zinc-900">Review Trend (90 days)</h2>
+            </div>
+            <ViewLink href={analyticsHref}>View Review Velocity</ViewLink>
+          </div>
+          {data.trendSeries.length > 0 ? (
+            <RepAreaTrendChart
+              data={data.trendSeries}
+              xKey="label"
+              height={200}
+              series={[
+                { dataKey: "you", name: "You", color: GREEN },
+                { dataKey: "benchmark", name: "Benchmark", color: BLUE, fillOpacity: 0.12 },
+                { dataKey: "competitor", name: "Competitor", color: GREY_LINE, dashed: true, fillOpacity: 0.04 },
+              ]}
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-3 py-10 text-center">
+              <p className="text-[13px] text-zinc-500">
+                Run Review Momentum to plot your 90-day trend.
+              </p>
+              <ReputationSyncButton
+                businessId={businessId}
+                label="Run Review Momentum"
+              />
+            </div>
+          )}
+        </SoftCard>
+
+        <SoftCard>
+          <div className="mb-3 flex items-start justify-between gap-2">
+            <div>
+              <h2 className="text-[14px] font-semibold text-zinc-900">Competitive movement</h2>
+              <p className="mt-0.5 text-[12px] text-zinc-500">Review impact vs competitors (90 days)</p>
+            </div>
+            <ViewLink href={competitorsHref}>See All Competitors</ViewLink>
+          </div>
+          {data.impactRows.length > 0 ? (
+            <ul className="space-y-3.5">
+              {data.impactRows.map((row) => (
+                <li key={row.name}>
+                  <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                    <div className="min-w-0 truncate">
                       <span
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#ECFDF3] text-[13px] font-bold text-[#137752]"
-                        aria-hidden
+                        className={cn(
+                          "text-[13px] font-semibold",
+                          row.isYou ? "text-zinc-900" : "text-zinc-700"
+                        )}
                       >
-                        {avatarInitial(review.reviewerName)}
+                        {row.name}
                       </span>
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[13px] font-semibold text-[#101828]">
-                            {review.reviewerName}
-                          </span>
-                          {review.rating != null ? <YellowStars rating={review.rating} /> : null}
-                          <span className="text-[11px] text-[#98A2B3]">{review.dateLabel}</span>
-                        </div>
-                        <p className="mt-1 text-[13px] leading-snug text-[#475467]">{review.excerpt}</p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 sm:shrink-0 sm:pl-2">
-                      <button
-                        type="button"
-                        onClick={() => void generateResponse(review.id, review.reviewerName)}
-                        className={cn(mock.btnPrimary, "h-8 px-3 text-[12px]")}
-                      >
-                        Reply
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void generateResponse(review.id, review.reviewerName)}
-                        className={cn(mock.btnSecondary, "h-8 px-2.5 text-[12px]")}
-                        title="Generate response"
-                      >
-                        <MessageSquare className="h-3.5 w-3.5" />
-                        Generate
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void copyResponse(review.id, review.reviewerName)}
-                        className={cn(mock.btnSecondary, "h-8 px-2.5 text-[12px]")}
-                        title="Copy response"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                        Copy
-                      </button>
-                      {review.reviewUrl ? (
-                        <a
-                          href={review.reviewUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={cn(mock.btnSecondary, "h-8 px-2.5 text-[12px]")}
+                      <span className="ml-1.5 text-[12px] font-bold tabular-nums text-zinc-900">
+                        +{row.reviewsGained} reviews
+                      </span>
+                      {row.status ? (
+                        <span
+                          className={cn(
+                            "ml-1.5 text-[11px] font-medium",
+                            row.isYou ? "text-emerald-600" : "text-zinc-500"
+                          )}
                         >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                          Google
-                        </a>
+                          ({row.status})
+                        </span>
                       ) : null}
                     </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="py-8 text-center text-sm text-[#667085]">
-                Sync reviews to see recent activity here.
-              </p>
-            )}
-          </section>
-
-          <section className={cn(mock.card, "p-5")}>
-            <h2 className="mb-3 text-[16px] font-semibold text-[#101828]">Review Trends</h2>
-            {data.trendSeries.length > 0 ? (
-              <RepAreaTrendChart
-                data={data.trendSeries}
-                xKey="label"
-                height={200}
-                series={[
-                  { dataKey: "you", name: "You", color: GREEN },
-                  { dataKey: "benchmark", name: "Benchmark", color: BLUE, fillOpacity: 0.12 },
-                  {
-                    dataKey: "competitor",
-                    name: "Competitor",
-                    color: GREY_LINE,
-                    dashed: true,
-                    fillOpacity: 0.04,
-                  },
-                ]}
-              />
-            ) : (
-              <div className="flex flex-col items-center gap-3 py-10 text-center">
-                <p className="text-sm text-[#667085]">Run Review Momentum to plot your trend.</p>
-                <ReputationSyncButton businessId={businessId} label="Refresh" variant="secondary" />
-              </div>
-            )}
-          </section>
-        </div>
-
-        <div className="space-y-4 xl:col-span-2">
-          <section className={cn(mock.card, "p-5")}>
-            <h2 className="mb-1 text-[16px] font-semibold text-[#101828]">Reputation Tasks</h2>
-            <p className="mb-3 text-[12px] text-[#667085]">Checklist for your next replies and requests</p>
-            <ul>
-              <TaskCheckRow
-                title={data.nextAction.title}
-                body={data.nextAction.body}
-                href={actionHref}
-                cta={data.nextAction.ctaLabel}
-              />
-              {data.unansweredTotal > 0 ? (
-                <TaskCheckRow
-                  title={`Respond to ${data.unansweredTotal} unanswered review${data.unansweredTotal === 1 ? "" : "s"}`}
-                  body={
-                    data.unansweredNegative > 0
-                      ? `${data.unansweredNegative} negative still waiting`
-                      : undefined
-                  }
-                  href={unansweredHref}
-                  cta="Respond now"
-                />
-              ) : (
-                <TaskCheckRow
-                  done
-                  title="All reviews answered"
-                  href={reviewsHref}
-                />
-              )}
-              <TaskCheckRow
-                title="Send review requests"
-                body="Invite recent customers to leave a Google review."
-                href={requestsHref}
-                cta="Send requests"
-              />
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-zinc-100">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        row.isYou ? "bg-[#137752]" : "bg-zinc-300"
+                      )}
+                      style={{ width: `${row.barPct}%` }}
+                    />
+                  </div>
+                </li>
+              ))}
             </ul>
-          </section>
-
-          <section className={cn(mock.card, "p-5")}>
-            <h2 className="mb-3 text-[16px] font-semibold text-[#101828]">Review Sentiment</h2>
-            <SentimentBars {...sentiment} />
-            <p className="mt-3 text-[11px] text-[#98A2B3]">
-              Based on recent review ratings
-              {data.unansweredNegative > 0
-                ? ` · ${data.unansweredNegative} unanswered negative`
-                : ""}
+          ) : (
+            <p className="py-10 text-center text-[13px] text-zinc-500">
+              Competitor impact appears after a momentum run.
             </p>
-          </section>
+          )}
+        </SoftCard>
+
+        <SoftCard>
+          <div className="mb-3 flex items-start justify-between gap-2">
+            <h2 className="text-[14px] font-semibold text-zinc-900">Maps Visibility (30 days)</h2>
+            <ViewLink href={mapsHref}>View Full Maps Profile</ViewLink>
+          </div>
+          {data.hasMapsData ? (
+            <>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-medium text-zinc-500">Avg Ranking</p>
+                  <p className="mt-0.5 text-2xl font-bold tabular-nums text-zinc-900">
+                    {fmtNum(data.mapsAvgRank, 1)}
+                  </p>
+                  {signedDelta(data.mapsAvgRankDelta, 1, " in last 30 days") ? (
+                    <p
+                      className={cn(
+                        "mt-1 text-[11px] font-medium",
+                        (data.mapsAvgRankDelta ?? 0) >= 0 ? "text-emerald-600" : "text-red-600"
+                      )}
+                    >
+                      {signedDelta(data.mapsAvgRankDelta, 1, " in last 30 days")}
+                    </p>
+                  ) : null}
+                </div>
+                {data.mapsRankSparkline.length > 1 ? (
+                  <Sparkline data={data.mapsRankSparkline} color={GREEN} width={88} height={36} />
+                ) : null}
+              </div>
+              <div className="mt-4 space-y-2 border-t border-zinc-100 pt-3">
+                <div className="flex items-center justify-between gap-2 text-[13px]">
+                  <span className="text-zinc-600">Top 3 Visibility</span>
+                  <span className="font-semibold tabular-nums text-zinc-900">
+                    {fmtNum(data.top3VisibilityPct)}%{" "}
+                    {data.top3VisibilityDelta != null ? (
+                      <span
+                        className={cn(
+                          "text-[11px] font-medium",
+                          data.top3VisibilityDelta >= 0 ? "text-emerald-600" : "text-red-600"
+                        )}
+                      >
+                        {data.top3VisibilityDelta >= 0 ? "+" : ""}
+                        {data.top3VisibilityDelta}%
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 text-[13px]">
+                  <span className="text-zinc-600">Top 10 Visibility</span>
+                  <span className="font-semibold tabular-nums text-zinc-900">
+                    {fmtNum(data.top10VisibilityPct)}%{" "}
+                    {data.top10VisibilityDelta != null ? (
+                      <span
+                        className={cn(
+                          "text-[11px] font-medium",
+                          data.top10VisibilityDelta >= 0 ? "text-emerald-600" : "text-red-600"
+                        )}
+                      >
+                        {data.top10VisibilityDelta >= 0 ? "+" : ""}
+                        {data.top10VisibilityDelta}%
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+                {data.strongestKeyword ? (
+                  <div className="flex items-center justify-between gap-2 text-[13px]">
+                    <span className="text-zinc-600">Strongest keyword</span>
+                    <span className="truncate font-semibold text-zinc-900">{data.strongestKeyword}</span>
+                  </div>
+                ) : null}
+                {data.weakestKeyword ? (
+                  <div className="flex items-center justify-between gap-2 text-[13px]">
+                    <span className="text-zinc-600">Weakest keyword</span>
+                    <span className="truncate font-semibold text-zinc-900">{data.weakestKeyword}</span>
+                  </div>
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3 py-4 text-center">
+              <MapPin className="mx-auto h-8 w-8 text-[#137752]" />
+              <p className="text-[13px] leading-snug text-zinc-600">
+                {data.mapsBridgeMessage ??
+                  "Reviews are only one part of Google Maps visibility. See where you actually appear."}
+              </p>
+              <Link
+                href={mapsHref}
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-[#137752] px-4 text-[13px] font-semibold text-white hover:bg-[#0f6244]"
+              >
+                Check Local Visibility
+              </Link>
+            </div>
+          )}
+        </SoftCard>
+      </div>
+
+      {/* Recent activity — handle newest reviews without leaving Overview */}
+      <SoftCard>
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="text-[14px] font-semibold text-zinc-900">Recent activity</h2>
+            <p className="mt-0.5 text-[12px] text-zinc-500">Latest Google reviews</p>
+          </div>
+          <ViewLink href={reviewsHref}>View All Reviews</ViewLink>
         </div>
+        {draftStatus ? (
+          <p className="mb-3 text-[12px] font-medium text-[#137752]">{draftStatus}</p>
+        ) : null}
+        {data.recentReviews.length > 0 ? (
+          <ul className="divide-y divide-zinc-100">
+            {data.recentReviews.map((review) => (
+              <li key={review.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {review.rating != null ? <YellowStars rating={review.rating} /> : null}
+                    <span className="text-[13px] font-semibold text-zinc-900">{review.reviewerName}</span>
+                    <span className="text-[11px] text-zinc-400">{review.dateLabel}</span>
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                        review.responded
+                          ? "bg-[#ECFDF3] text-[#137752]"
+                          : "bg-amber-50 text-amber-800"
+                      )}
+                    >
+                      {review.responded ? "Responded" : "Needs response"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[13px] leading-snug text-zinc-600">{review.excerpt}</p>
+                </div>
+                <div className="flex flex-wrap gap-1.5 sm:shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => void generateResponse(review.id, review.reviewerName)}
+                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2.5 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    Generate
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void copyResponse(review.id, review.reviewerName)}
+                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2.5 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    Copy
+                  </button>
+                  {review.reviewUrl ? (
+                    <a
+                      href={review.reviewUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex h-8 items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2.5 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Google
+                    </a>
+                  ) : (
+                    <Link
+                      href={reviewsHref}
+                      className="inline-flex h-8 items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2.5 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50"
+                    >
+                      Open
+                    </Link>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="py-6 text-center text-[13px] text-zinc-500">
+            Sync reviews to see recent activity here.
+          </p>
+        )}
+      </SoftCard>
+
+      {/* Bottom row */}
+      <div className="grid grid-cols-1 gap-2 xl:grid-cols-5">
+        <SoftCard className="xl:col-span-3">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 className="text-[14px] font-semibold text-zinc-900">
+                Review collection performance
+              </h2>
+              <p className="mt-0.5 text-[12px] text-zinc-500">Last 30 days</p>
+            </div>
+            <ViewLink href={campaignsHref}>Open Campaigns</ViewLink>
+          </div>
+          {data.hasCampaignData || data.campaign.sent > 0 ? (
+            <>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <CampaignStat
+                  icon={<MessageSquare className="h-4 w-4" />}
+                  value={String(data.campaign.sent)}
+                  label="Requests sent"
+                />
+                <CampaignStat
+                  icon={<Shield className="h-4 w-4" />}
+                  value={String(data.campaign.delivered)}
+                  label="Delivered"
+                />
+                <CampaignStat
+                  icon={<ClickIcon className="h-4 w-4" />}
+                  value={`${data.campaign.clickedPct}%`}
+                  label={`(${data.campaign.clickedCount}) Link clicks`}
+                />
+                <CampaignStat
+                  icon={<Star className="h-4 w-4" />}
+                  value={String(data.campaign.reviews)}
+                  label="Reviews received"
+                />
+                <CampaignStat
+                  icon={<Trophy className="h-4 w-4" />}
+                  value={`${data.campaign.convRatePct}%`}
+                  label="Conversion"
+                />
+                <CampaignStat
+                  icon={<Zap className="h-4 w-4" />}
+                  value={data.bestCampaignName ?? "—"}
+                  label="Best campaign"
+                />
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2 border-t border-zinc-100 pt-3">
+                <Link
+                  href={requestsHref}
+                  className="inline-flex h-9 items-center rounded-lg bg-[#137752] px-3 text-[12px] font-semibold text-white hover:bg-[#0f6244]"
+                >
+                  Send another request
+                </Link>
+                <Link
+                  href={contactsHref}
+                  className="inline-flex h-9 items-center rounded-lg border border-zinc-200 bg-white px-3 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50"
+                >
+                  Add contacts
+                </Link>
+                <Link
+                  href={`/businesses/${businessId}/reputation/templates`}
+                  className="inline-flex h-9 items-center rounded-lg border border-zinc-200 bg-white px-3 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50"
+                >
+                  Adjust a template
+                </Link>
+              </div>
+            </>
+          ) : (
+            <p className="py-6 text-center text-[13px] text-zinc-500">
+              No campaign sends in the last 30 days.{" "}
+              <Link href={requestsHref} className="font-semibold text-[#137752] hover:underline">
+                Send a review request
+              </Link>
+            </p>
+          )}
+        </SoftCard>
+
+        <SoftCard className="border-[#D1FAE5] bg-gradient-to-br from-[#ECFDF3]/80 to-white xl:col-span-2">
+          <div className="flex gap-3">
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+              style={{ backgroundColor: GREEN_SOFT, color: GREEN }}
+            >
+              <Zap className="h-5 w-5 fill-current" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-400">
+                Recommended Next Action
+              </p>
+              <h3 className="mt-1 text-[15px] font-bold text-zinc-900">{data.nextAction.title}</h3>
+              <p className="mt-1 text-[13px] leading-snug text-zinc-600">{data.nextAction.body}</p>
+              <Link
+                href={actionHref}
+                className="mt-3 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-[#137752] px-4 text-[13px] font-semibold text-white shadow-[0_4px_14px_rgba(19,119,82,0.28)] hover:bg-[#0f6244] sm:w-auto"
+              >
+                {data.nextAction.ctaLabel}
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+              <button
+                type="button"
+                className="mt-2 block text-[12px] font-medium text-zinc-500 hover:text-zinc-700"
+              >
+                Dismiss Suggestion
+              </button>
+            </div>
+          </div>
+        </SoftCard>
+      </div>
+    </ModulePage>
+  );
+}
+
+function CampaignStat({
+  icon,
+  value,
+  label,
+}: {
+  icon: React.ReactNode;
+  value: string;
+  label: string;
+}) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <div
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+        style={{ backgroundColor: GREEN_SOFT, color: GREEN }}
+      >
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-[15px] font-bold tabular-nums leading-none text-zinc-900">{value}</p>
+        <p className="mt-1 text-[11px] leading-snug text-zinc-500">{label}</p>
       </div>
     </div>
   );

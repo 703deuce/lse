@@ -29,7 +29,7 @@ const SCREENS = [
   {
     slug: "05-maps-overview",
     url: "/dev/workflow-maps-overview",
-    wait: "Local Ranking Heatmap",
+    wait: "Maps Overview",
   },
   {
     slug: "06-reputation-setup-wizard",

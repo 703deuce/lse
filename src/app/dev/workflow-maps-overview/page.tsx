@@ -4,11 +4,6 @@ import { DashboardSidebarPanel } from "@/components/dashboard/sidebar";
 import { MapsOverviewDashboard } from "@/components/maps/maps-overview-dashboard";
 import { REVIEW_OVERVIEW_PREVIEW_BUSINESS_ID } from "@/lib/reviews/review-overview-preview-data";
 
-const HEATMAP = Array.from({ length: 49 }, (_, i) => {
-  const ranks = [1, 2, 3, 4, 5, 7, 9, 12, 15, null, 2, 3, 6, 8, 11, 18, null, 1, 2, 4, 5, 8, 10, 14, null, 3, 4, 6, 9, 12, null, 2, 5, 7, 11, 16, null, 1, 3, 8, 13, null, 4, 6, 10, 15, null, 2, 9];
-  return { rank: ranks[i] ?? null, label: `C${i + 1}` };
-});
-
 export default function WorkflowMapsOverviewPreview() {
   const biz = REVIEW_OVERVIEW_PREVIEW_BUSINESS_ID;
   const path = `/businesses/${biz}/maps`;
@@ -89,8 +84,6 @@ export default function WorkflowMapsOverviewPreview() {
           ]}
           nextScheduledAt={null}
           topCompetitorLabels={["Standout Trash", "All Star Junk", "Haul Away Pros"]}
-          heatmapCells={HEATMAP}
-          keywordsTracked={3}
         />
       </main>
     </div>
