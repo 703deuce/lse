@@ -52,10 +52,10 @@ function companyKey(review: ReviewListItem, youId: string): string {
   return review.competitorId ?? review.businessName;
 }
 
-function sentimentOf(review: ReviewListItem): "positive" | "neutral" | "negative" {
-  const rating = review.rating ?? 0;
-  if (rating >= 4) return "positive";
-  if (rating === 3) return "neutral";
+function sentimentOf(review: ReviewListItem): "positive" | "neutral" | "negative" | null {
+  if (review.rating == null) return null;
+  if (review.rating >= 4) return "positive";
+  if (review.rating === 3) return "neutral";
   return "negative";
 }
 
@@ -155,7 +155,7 @@ export function CompetitorReviewsWorkspace({
     return reviewsFeed.filter((review) => {
       const key = companyKey(review, youId);
       if (activeIds && activeIds.size > 0 && !activeIds.has(key)) return false;
-      if (ratingFilter !== "all" && review.rating !== Number(ratingFilter)) return false;
+      if (ratingFilter !== "all" && Math.round(review.rating ?? 0) !== Number(ratingFilter)) return false;
       if (themeFilter && !review.tags.some((tag) => tag.toLowerCase() === themeFilter.toLowerCase())) return false;
       if (sentimentFilter !== "all" && sentimentOf(review) !== sentimentFilter) return false;
       if (sourceFilter !== "all" && review.source !== sourceFilter) return false;
@@ -175,6 +175,10 @@ export function CompetitorReviewsWorkspace({
     setPage(1);
   }, [selectedIds, compareMode, ratingFilter, themeFilter, sentimentFilter, sourceFilter, query]);
 
+  useEffect(() => {
+    if (page !== safePage) setPage(safePage);
+  }, [page, safePage]);
+
   const snapshotCompany = useMemo(() => {
     if (!activeIds || activeIds.size !== 1) return null;
     const id = Array.from(activeIds)[0]!;
@@ -192,7 +196,8 @@ export function CompetitorReviewsWorkspace({
   const ratingCounts = useMemo(() => {
     const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
     for (const review of reviewsFeed) {
-      const rating = Math.round(review.rating ?? 0);
+      if (review.rating == null) continue;
+      const rating = Math.round(review.rating);
       if (rating >= 1 && rating <= 5) counts[rating as 1 | 2 | 3 | 4 | 5] += 1;
     }
     return counts;
@@ -232,7 +237,11 @@ export function CompetitorReviewsWorkspace({
       const withoutAll = prev.filter((value) => value !== "all");
       if (withoutAll.includes(id)) {
         const next = withoutAll.filter((value) => value !== id);
-        return next.length ? next : ["all"];
+        if (!next.length) {
+          setCompareMode(false);
+          return ["all"];
+        }
+        return next;
       }
       return [...withoutAll, id];
     });

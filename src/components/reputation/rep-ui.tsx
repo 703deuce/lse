@@ -4,7 +4,6 @@ import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
   Calendar,
-  ChevronDown,
   Download,
   Filter,
   Info,
@@ -38,12 +37,12 @@ export const rep = {
 export function RepPageHeader({
   title,
   subtitle,
-  dateRangeLabel = "May 10 – Jun 8, 2025",
+  dateRangeLabel = "Last 90 days",
   actions,
   primaryAction,
-  showCompare,
-  showExport = true,
-  showFilters = true,
+  showCompare = false,
+  showExport = false,
+  showFilters = false,
   filterLabel = "Filters",
 }: {
   title: string;
@@ -67,24 +66,23 @@ export function RepPageHeader({
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {actions}
-        <button type="button" className={rep.btnSecondary}>
+        <div className={cn(rep.btnSecondary, "pointer-events-none cursor-default")}>
           <Calendar className="h-4 w-4 text-[#667085]" />
           {dateRangeLabel}
-          <ChevronDown className="h-3.5 w-3.5 text-[#98A2B3]" />
-        </button>
+        </div>
         {showCompare ? (
-          <button type="button" className={rep.btnSecondary}>
+          <button type="button" className={rep.btnSecondary} disabled title="Coming soon">
             Compare
           </button>
         ) : null}
         {showExport ? (
-          <button type="button" className={rep.btnSecondary}>
+          <button type="button" className={rep.btnSecondary} disabled title="Coming soon">
             <Download className="h-4 w-4" />
             Export
           </button>
         ) : null}
         {showFilters ? (
-          <button type="button" className={rep.btnPrimary}>
+          <button type="button" className={rep.btnPrimary} disabled title="Use filters below">
             <Filter className="h-4 w-4" />
             {filterLabel}
           </button>

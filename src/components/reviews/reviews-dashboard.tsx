@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Check,
@@ -10,9 +12,7 @@ import {
   PencilLine,
   Settings2,
   ShieldCheck,
-  SlidersHorizontal,
   Sparkles,
-  Tag,
 } from "lucide-react";
 import {
   RepBadge,
@@ -50,10 +50,16 @@ function pct(value: number, total: number): number {
 }
 
 function sentimentFor(review: ReviewListItem): ReviewFeedDetails["sentiment"] {
-  const rating = review.rating ?? 0;
-  if (rating >= 4) return { label: "Positive", confidence: 0.92 };
-  if (rating <= 2) return { label: "Negative", confidence: 0.86 };
+  if (review.rating == null) return { label: "Neutral", confidence: 0.5 };
+  if (review.rating >= 4) return { label: "Positive", confidence: 0.92 };
+  if (review.rating <= 2) return { label: "Negative", confidence: 0.86 };
   return { label: "Neutral", confidence: 0.78 };
+}
+
+function sourceLabel(source: ReviewListItem["source"]): string {
+  if (source === "facebook") return "Facebook";
+  if (source === "yelp") return "Yelp";
+  return "Google Business Profile";
 }
 
 function compactDate(value: string | null | undefined): string {
@@ -155,10 +161,28 @@ function DetailField({
 function ReviewDetailPanel({
   review,
   details,
+  businessId,
+  onUpdated,
 }: {
   review: ReviewListItem | null;
   details: ReviewFeedDetails | null;
+  businessId: string;
+  onUpdated?: (review: ReviewListItem) => void;
 }) {
+  const [draft, setDraft] = useState("");
+  const [writing, setWriting] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [resolving, setResolving] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDraft("");
+    setWriting(false);
+    setStatusMsg(null);
+    setActionError(null);
+  }, [review?.id]);
+
   if (!review) {
     return (
       <aside className={cn(rep.card, "flex min-h-[620px] items-center justify-center p-6 text-center")}>
@@ -175,52 +199,120 @@ function ReviewDetailPanel({
     );
   }
 
-  const sentiment = details?.sentiment ?? sentimentFor(review);
-  const reviewId = details?.reviewId ?? review.id;
-  const location = details?.location ?? review.businessName;
+  const currentReview = review;
+  const sentiment = details?.sentiment ?? sentimentFor(currentReview);
+  const reviewId = details?.reviewId ?? currentReview.id;
+  const location = details?.location ?? currentReview.businessName;
   const lastEditedAt = details?.lastEditedAt;
-  // Confidence: stored as 0–1 decimal
   const confidenceDecimal =
     typeof sentiment.confidence === "number" && sentiment.confidence > 1
       ? sentiment.confidence / 100
       : sentiment.confidence;
 
+  async function copyId() {
+    try {
+      await navigator.clipboard.writeText(reviewId);
+      setStatusMsg("Review ID copied");
+    } catch {
+      setActionError("Could not copy review ID");
+    }
+  }
+
+  async function generateResponse() {
+    setGenerating(true);
+    setActionError(null);
+    setStatusMsg(null);
+    try {
+      const res = await fetch("/api/reputation/responses/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId, reviewIds: [currentReview.id] }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        drafts?: Array<{ draftText?: string; reply?: string }>;
+        reply?: string;
+        error?: string;
+      };
+      const reply = json.drafts?.[0]?.draftText || json.drafts?.[0]?.reply || json.reply;
+      if (!res.ok || !reply) {
+        const firstName = currentReview.reviewerName.split(" ")[0] || "there";
+        setDraft(
+          `Hi ${firstName},\n\nThank you for sharing your feedback. We appreciate you taking the time to review us.\n\nBest regards`
+        );
+        setWriting(true);
+        setStatusMsg("Suggested reply ready (fallback)");
+        return;
+      }
+      setDraft(reply);
+      setWriting(true);
+      setStatusMsg("Suggested reply ready — copy into Google Business Profile to publish");
+    } catch {
+      setActionError("Could not generate a reply");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function toggleResolved() {
+    setResolving(true);
+    setActionError(null);
+    try {
+      const nextResolved = !currentReview.resolved;
+      const res = await fetch(`/api/reviews/${businessId}/resolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewId: currentReview.id, resolved: nextResolved }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to update");
+      onUpdated?.({
+        ...currentReview,
+        resolved: nextResolved,
+        resolvedAt: nextResolved ? json.review?.resolved_at ?? new Date().toISOString() : null,
+      });
+      setStatusMsg(nextResolved ? "Marked resolved" : "Reopened");
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Failed to update");
+    } finally {
+      setResolving(false);
+    }
+  }
+
   return (
     <aside className={cn(rep.card, "min-h-[620px] overflow-hidden")}>
-      {/* Review header */}
       <div className="border-b border-[#E6EAF0] p-5">
         <div className="flex items-start gap-3">
-          <SourceIcon source={review.source} />
+          <SourceIcon source={currentReview.source} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-lg font-semibold text-[#101828]">
-                {review.reviewerName}
+                {currentReview.reviewerName}
               </h2>
-              {review.isNew ? <RepBadge tone="green">New</RepBadge> : null}
+              {currentReview.isNew ? <RepBadge tone="green">New</RepBadge> : null}
               {details?.edited ? <RepBadge tone="blue">Edited</RepBadge> : null}
+              {currentReview.resolved ? <RepBadge tone="gray">Resolved</RepBadge> : null}
             </div>
             <div className="mt-1 flex items-center gap-2">
-              <StarRating rating={review.rating} />
+              <StarRating rating={currentReview.rating} />
               <span className="text-xs text-[#667085]">
-                {review.relativeDate ?? compactDate(review.publishedAt ?? review.reviewDate)}
+                {currentReview.relativeDate ?? compactDate(currentReview.publishedAt ?? currentReview.reviewDate)}
               </span>
             </div>
           </div>
         </div>
         <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-[#344054]">
-          {review.reviewText?.trim() || "No review text provided."}
+          {currentReview.reviewText?.trim() || "No review text provided."}
         </p>
       </div>
 
       <div className="space-y-5 overflow-y-auto p-5" style={{ maxHeight: "calc(100vh - 260px)" }}>
-        {/* Details section */}
         <DetailSection heading="Details">
           <div className="grid grid-cols-2 gap-4">
             <DetailField label="Published">
-              {fullDate(details?.publishedDateTime ?? review.publishedAt ?? review.reviewDate)}
+              {fullDate(details?.publishedDateTime ?? currentReview.publishedAt ?? currentReview.reviewDate)}
             </DetailField>
             <DetailField label="Location">{location}</DetailField>
-            <DetailField label="Source">Google Business Profile</DetailField>
+            <DetailField label="Source">{sourceLabel(currentReview.source)}</DetailField>
             <DetailField label="Last Edited">
               {lastEditedAt ? fullDate(lastEditedAt) : "No edits"}
             </DetailField>
@@ -228,14 +320,18 @@ function ReviewDetailPanel({
           <DetailField label="Review ID">
             <div className="flex items-center gap-2 rounded-lg border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2">
               <code className="min-w-0 flex-1 truncate text-xs text-[#475467]">{reviewId}</code>
-              <button type="button" className="text-[#98A2B3] hover:text-[#475467]" aria-label="Copy review ID">
+              <button
+                type="button"
+                onClick={() => void copyId()}
+                className="text-[#98A2B3] hover:text-[#475467]"
+                aria-label="Copy review ID"
+              >
                 <Clipboard className="h-4 w-4" />
               </button>
             </div>
           </DetailField>
         </DetailSection>
 
-        {/* Sentiment & Themes section */}
         <DetailSection heading="Sentiment & Themes">
           <div className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
             <div className="flex items-center justify-between gap-3">
@@ -261,15 +357,9 @@ function ReviewDetailPanel({
             </div>
           </div>
           <div>
-            <div className="flex items-center justify-between">
-              <p className={rep.label}>Themes</p>
-              <button type="button" className={rep.link}>
-                <Tag className="h-3.5 w-3.5" />
-                Add tag
-              </button>
-            </div>
+            <p className={rep.label}>Themes</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {(review.tags.length ? review.tags : ["Customer experience"]).map((tag) => (
+              {(currentReview.tags.length ? currentReview.tags : ["Customer experience"]).map((tag) => (
                 <span
                   key={tag}
                   className="rounded-full border border-[#E6EAF0] bg-white px-2.5 py-1 text-xs font-medium text-[#475467]"
@@ -281,13 +371,12 @@ function ReviewDetailPanel({
           </div>
         </DetailSection>
 
-        {/* Response section */}
         <DetailSection heading="Response">
-          {review.ownerResponseText ? (
+          {currentReview.ownerResponseText ? (
             <div className="rounded-xl border border-[#A6F4C5] bg-[#ECFDF3] p-4">
               <p className={cn(rep.label, "text-[#027A48]")}>Owner Response</p>
               <p className="mt-2 text-sm leading-6 text-[#344054]">
-                {review.ownerResponseText}
+                {currentReview.ownerResponseText}
               </p>
             </div>
           ) : (
@@ -295,28 +384,67 @@ function ReviewDetailPanel({
               No response yet
             </p>
           )}
-          <button type="button" className={cn(rep.btnPrimary, "w-full justify-center")}>
-            <Sparkles className="h-4 w-4" />
+          {writing ? (
+            <div className="space-y-2">
+              <textarea
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                rows={6}
+                className="w-full rounded-lg border border-[#E6EAF0] px-3 py-2 text-sm text-[#101828] outline-none focus:border-[#137752]"
+              />
+              <button
+                type="button"
+                className={cn(rep.btnSecondary, "w-full justify-center")}
+                onClick={() => {
+                  void navigator.clipboard.writeText(draft);
+                  setStatusMsg("Reply copied");
+                }}
+              >
+                Copy reply
+              </button>
+            </div>
+          ) : null}
+          <button
+            type="button"
+            disabled={generating}
+            onClick={() => void generateResponse()}
+            className={cn(rep.btnPrimary, "w-full justify-center")}
+          >
+            {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             Generate Response
           </button>
-          <button type="button" className={cn(rep.btnSecondary, "w-full justify-center")}>
+          <button
+            type="button"
+            onClick={() => {
+              setWriting(true);
+              if (!draft) {
+                const firstName = currentReview.reviewerName.split(" ")[0] || "there";
+                setDraft(`Hi ${firstName},\n\n`);
+              }
+            }}
+            className={cn(rep.btnSecondary, "w-full justify-center")}
+          >
             <PencilLine className="h-4 w-4" />
             Write Your Own
           </button>
         </DetailSection>
 
-        {/* More Actions section */}
         <DetailSection heading="More Actions">
           <div className="flex flex-col gap-2">
-            <button type="button" className={cn(rep.btnSecondary, "justify-center")}>
-              <ShieldCheck className="h-4 w-4" />
-              Mark as Resolved
-            </button>
-            <button type="button" className={cn(rep.btnSecondary, "justify-center")}>
-              Report Review
+            <button
+              type="button"
+              disabled={resolving}
+              onClick={() => void toggleResolved()}
+              className={cn(rep.btnSecondary, "justify-center")}
+            >
+              {resolving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              {currentReview.resolved ? "Reopen Review" : "Mark as Resolved"}
             </button>
           </div>
         </DetailSection>
+
+        {statusMsg ? <p className="text-xs font-medium text-[#027A48]">{statusMsg}</p> : null}
+        {actionError ? <p className="text-xs font-medium text-[#B42318]">{actionError}</p> : null}
       </div>
     </aside>
   );
@@ -408,6 +536,11 @@ export function ReviewsDashboard({
   initialData?: ReviewFeedDashboardData;
   forcePreview?: boolean;
 }) {
+  const searchParams = useSearchParams();
+  const initialResponse =
+    searchParams.get("tab") === "unanswered" || searchParams.get("response") === "no-response"
+      ? "no-response"
+      : "all";
   const [data, setData] = useState<ReviewFeedDashboardData | null>(initialData ?? null);
   const [loading, setLoading] = useState(!initialData && !forcePreview);
   const [error, setError] = useState<string | null>(null);
@@ -415,8 +548,14 @@ export function ReviewsDashboard({
   const [source, setSource] = useState<SourceFilter>("all");
   const [rating, setRating] = useState<RatingFilter>("all");
   const [sentiment, setSentiment] = useState<SentimentFilter>("all");
-  const [response, setResponse] = useState<ResponseFilter>("all");
+  const [response, setResponse] = useState<ResponseFilter>(initialResponse);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "unanswered" || searchParams.get("response") === "no-response") {
+      setResponse("no-response");
+    }
+  }, [searchParams]);
 
   const load = useCallback(async () => {
     if (forcePreview) {
@@ -480,7 +619,7 @@ export function ReviewsDashboard({
     const q = search.trim().toLowerCase();
     return sorted.filter((row) => {
       if (source !== "all" && row.source !== source) return false;
-      if (rating !== "all" && row.rating !== Number(rating)) return false;
+      if (rating !== "all" && Math.round(row.rating ?? 0) !== Number(rating)) return false;
       const label = sentimentFor(row).label.toLowerCase();
       if (sentiment !== "all" && label !== sentiment) return false;
       if (response === "responded" && !row.replied) return false;
@@ -509,11 +648,11 @@ export function ReviewsDashboard({
   const totalReviews = data?.feedSummary?.totalReviews ?? data?.kpis.totalReviews ?? rows.length;
   const newReviews = data?.feedSummary?.newReviews ?? data?.kpis.newReviews90d ?? rows.filter((row) => row.isNew).length;
   const starCounts = data?.feedSummary?.starCounts ?? {
-    5: rows.filter((row) => row.rating === 5).length,
-    4: rows.filter((row) => row.rating === 4).length,
-    3: rows.filter((row) => row.rating === 3).length,
-    2: rows.filter((row) => row.rating === 2).length,
-    1: rows.filter((row) => row.rating === 1).length,
+    5: rows.filter((row) => Math.round(row.rating ?? 0) === 5).length,
+    4: rows.filter((row) => Math.round(row.rating ?? 0) === 4).length,
+    3: rows.filter((row) => Math.round(row.rating ?? 0) === 3).length,
+    2: rows.filter((row) => Math.round(row.rating ?? 0) === 2).length,
+    1: rows.filter((row) => Math.round(row.rating ?? 0) === 1).length,
   };
   const responded = data?.feedSummary?.withResponse ?? rows.filter((row) => row.replied).length;
   const noResponse = data?.feedSummary?.noResponse ?? Math.max(0, totalReviews - responded);
@@ -561,14 +700,15 @@ export function ReviewsDashboard({
       <RepPageHeader
         title="Review Feed"
         subtitle="Monitor, respond to, and manage your Google Business Profile reviews."
-        dateRangeLabel="May 10 – Jun 8, 2025"
+        dateRangeLabel="Last 90 days"
+        showExport={false}
+        showFilters={false}
         actions={
-          <button type="button" className={rep.btnSecondary}>
+          <Link href={`/businesses/${businessId}/reputation/settings`} className={rep.btnSecondary}>
             <Settings2 className="h-4 w-4" />
             Feed Settings
-          </button>
+          </Link>
         }
-        filterLabel="Filters"
       />
 
       {error ? (
@@ -647,10 +787,6 @@ export function ReviewsDashboard({
             <option value="responded">Responded</option>
             <option value="no-response">No Response</option>
           </select>
-          <button type="button" className={rep.btnSecondary}>
-            <SlidersHorizontal className="h-4 w-4" />
-            More Filters
-          </button>
         </div>
       </div>
 
@@ -661,6 +797,7 @@ export function ReviewsDashboard({
               <h2 className="text-base font-semibold text-[#101828]">Newest First</h2>
               <p className="text-xs text-[#667085]">
                 Showing {filtered.length} of {sorted.length} loaded reviews
+                {response === "no-response" ? " · unanswered only" : ""}
               </p>
             </div>
           </div>
@@ -683,7 +820,24 @@ export function ReviewsDashboard({
           </div>
         </section>
 
-        <ReviewDetailPanel review={selected} details={selectedDetails} />
+        <ReviewDetailPanel
+          review={selected}
+          details={selectedDetails}
+          businessId={businessId}
+          onUpdated={(next) => {
+            setData((current) => {
+              if (!current) return current;
+              const patch = (list: ReviewListItem[]) =>
+                list.map((row) => (row.id === next.id ? { ...row, ...next } : row));
+              return {
+                ...current,
+                stream: patch(current.stream),
+                yourReviews: patch(current.yourReviews),
+                unanswered: patch(current.unanswered ?? []),
+              };
+            });
+          }}
+        />
       </div>
 
       <p className="text-xs text-[#98A2B3]">

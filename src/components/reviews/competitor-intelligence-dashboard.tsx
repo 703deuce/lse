@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   ArrowDownRight,
@@ -48,7 +49,7 @@ export type PlatformPresenceItem = {
 
 export type CatchUpForecastRow = {
   competitor: string;
-  monthsToCatchUp: number;
+  monthsToCatchUp: number | null;
   reviewsNeededPerMonth: number;
 };
 
@@ -122,6 +123,9 @@ function Card({
 }
 
 function Rating({ value }: { value: number | null }) {
+  if (value == null) {
+    return <span className="font-semibold tabular-nums text-[#98A2B3]">—</span>;
+  }
   return (
     <span className="inline-flex items-center gap-1 font-semibold text-[#101828]">
       {fmt(value, 1)}
@@ -240,7 +244,7 @@ function LeaderboardTable({
                 <td className="px-3 py-3">
                   <div className="flex items-center gap-1.5">
                     <span className="font-bold tabular-nums text-[#101828]">#{index + 1}</span>
-                    {index === 0 ? (
+                    {!row.isYou && index === 0 ? (
                       <RepBadge tone="amber">Top Competitor</RepBadge>
                     ) : row.isYou && index <= 2 ? (
                       <RepBadge tone="green">Top 3</RepBadge>
@@ -306,7 +310,8 @@ function GapAnalysisChart({
   mode: GapMode;
 }) {
   const chartRows = rows.slice(0, 6).map((row) => ({
-    name: row.isYou ? "You" : row.name.split(" ")[0] ?? row.name,
+    id: row.id,
+    name: row.isYou ? "You" : row.name,
     value: mode === "total" ? row.totalReviews : row.reviews30,
     isYou: row.isYou,
   }));
@@ -322,8 +327,11 @@ function GapWidgets({ data }: { data: CompetitorIntelligenceDashboardData }) {
 
   const forecastRows = data.catchUpForecast ?? data.gapRows.slice(0, 4).map((row) => ({
     competitor: row.competitorName,
-    monthsToCatchUp: row.estimatedCatchUpMonths ?? 0,
-    reviewsNeededPerMonth: Math.max(you?.reviews30 ?? 24, (you?.reviews30 ?? 24) + (row.monthlyVelocityGap > 0 ? row.monthlyVelocityGap + 1 : 0)),
+    monthsToCatchUp: row.estimatedCatchUpMonths,
+    reviewsNeededPerMonth: Math.max(
+      you?.reviews30 ?? 0,
+      (you?.reviews30 ?? 0) + (row.monthlyVelocityGap > 0 ? row.monthlyVelocityGap + 1 : 1)
+    ),
   }));
 
   const oppItems = data.opportunityItems ?? (data.opportunities ?? data.positioningOpportunities.map((item) => item.title)).slice(0, 5).map((label) => ({
@@ -378,7 +386,9 @@ function GapWidgets({ data }: { data: CompetitorIntelligenceDashboardData }) {
                 <tr key={row.competitor} className="border-t border-[#F2F4F7]">
                   <td className="py-3 font-medium text-[#101828]">{row.competitor}</td>
                   <td className="py-3 tabular-nums text-[#344054]">
-                    {row.monthsToCatchUp === 0 ? (
+                    {row.monthsToCatchUp == null ? (
+                      <span className="text-[#667085]">Not at this pace</span>
+                    ) : row.monthsToCatchUp === 0 ? (
                       <RepBadge tone="green">Caught up</RepBadge>
                     ) : (
                       `${fmt(row.monthsToCatchUp, 1)} mo`
@@ -577,11 +587,39 @@ function ContentTab({ data }: { data: CompetitorIntelligenceDashboardData }) {
   );
 }
 
-function PlatformsTab({ data }: { data: CompetitorIntelligenceDashboardData }) {
+function PlatformsTab({
+  data,
+  businessId,
+}: {
+  data: CompetitorIntelligenceDashboardData;
+  businessId: string;
+}) {
+  const you = data.leaderboardRows.find((r) => r.isYou);
   const platforms = data.platformPresence ?? [
-    { platform: "Google", reviews: data.leaderboardRows.find((r) => r.isYou)?.totalReviews ?? 0, rating: data.leaderboardRows.find((r) => r.isYou)?.rating ?? 4.5, status: "Connected" as const, verified: true, note: "Primary review source via Google Business Profile." },
-    { platform: "Facebook", reviews: 89, rating: 4.5, status: "Estimated" as const, verified: false, note: "Estimated from public signals. Connect Facebook to verify." },
-    { platform: "Yelp", reviews: 43, rating: 4.3, status: "Estimated" as const, verified: false, note: "Estimated from public signals. Connect Yelp to verify." },
+    {
+      platform: "Google",
+      reviews: you?.totalReviews ?? 0,
+      rating: you?.rating ?? 0,
+      status: "Connected" as const,
+      verified: true,
+      note: "Primary review source via Google Business Profile.",
+    },
+    {
+      platform: "Facebook",
+      reviews: 0,
+      rating: 0,
+      status: "Not Connected" as const,
+      verified: false,
+      note: "Not connected. Link Facebook in reputation settings when available.",
+    },
+    {
+      platform: "Yelp",
+      reviews: 0,
+      rating: 0,
+      status: "Not Connected" as const,
+      verified: false,
+      note: "Not connected. Link Yelp in reputation settings when available.",
+    },
   ];
 
   const PLATFORM_COLORS: Record<string, string> = {
@@ -615,13 +653,19 @@ function PlatformsTab({ data }: { data: CompetitorIntelligenceDashboardData }) {
             <div className="mt-4 grid grid-cols-2 gap-3">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">Reviews</p>
-                <p className="mt-0.5 text-xl font-bold text-[#101828]">{platform.reviews}</p>
+                <p className="mt-0.5 text-xl font-bold text-[#101828]">
+                  {platform.verified ? platform.reviews : "—"}
+                </p>
               </div>
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">Rating</p>
                 <div className="mt-0.5 flex items-baseline gap-1">
-                  <p className="text-xl font-bold text-[#101828]">{platform.rating.toFixed(1)}</p>
-                  <Star className="h-4 w-4 fill-[#FDB022] text-[#FDB022]" />
+                  <p className="text-xl font-bold text-[#101828]">
+                    {platform.verified && platform.rating > 0 ? platform.rating.toFixed(1) : "—"}
+                  </p>
+                  {platform.verified && platform.rating > 0 ? (
+                    <Star className="h-4 w-4 fill-[#FDB022] text-[#FDB022]" />
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -629,9 +673,12 @@ function PlatformsTab({ data }: { data: CompetitorIntelligenceDashboardData }) {
               <p className="mt-3 text-xs text-[#667085]">{platform.note}</p>
             ) : null}
             {!platform.verified ? (
-              <button type="button" className={cn(rep.btnSecondary, "mt-3 w-full justify-center text-xs")}>
-                Connect {platform.platform}
-              </button>
+              <Link
+                href={`/businesses/${businessId}/reputation/settings`}
+                className={cn(rep.btnSecondary, "mt-3 w-full justify-center text-xs")}
+              >
+                Open settings
+              </Link>
             ) : null}
           </div>
         ))}
@@ -672,8 +719,6 @@ export function CompetitorIntelligenceDashboard({
         title="Competitor Intelligence"
         subtitle={`Review position, gap, and content quality compared with nearby competitors for ${data.businessName}.`}
         dateRangeLabel={data.dateRangeLabel ?? "Last 90 days"}
-        showCompare
-        filterLabel="Filters"
         primaryAction={
           <ReputationSyncButton
             businessId={businessId}
@@ -801,7 +846,7 @@ export function CompetitorIntelligenceDashboard({
               ))}
             </div>
           </Card>
-          <PlatformsTab data={data} />
+          <PlatformsTab data={data} businessId={businessId} />
         </div>
       ) : null}
     </div>

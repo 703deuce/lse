@@ -13,7 +13,6 @@ import {
 import {
   AlertTriangle,
   Camera,
-  ChevronRight,
   FileText,
   MessageSquareText,
   RefreshCw,
@@ -96,14 +95,7 @@ function ThemePanel({
   const text = tone === "positive" ? "text-[#027A48]" : "text-[#B42318]";
 
   return (
-    <Card
-      title={title}
-      action={
-        <button type="button" className={cn(rep.link, "text-xs")}>
-          View details <ChevronRight className="h-3 w-3" />
-        </button>
-      }
-    >
+    <Card title={title}>
       <ul className="space-y-3">
         {items.length === 0 ? (
           <li className="py-8 text-center text-sm text-[#667085]">No matching themes yet.</li>
@@ -260,7 +252,7 @@ export function ReviewInsightsDashboard({
       <RepPageHeader
         title="Review Insights"
         subtitle="Discover what customers are saying and how you're responding."
-        showCompare
+        dateRangeLabel="Last 90 days"
         primaryAction={
           <ReputationSyncButton
             businessId={businessId}
@@ -296,9 +288,6 @@ export function ReviewInsightsDashboard({
                 {formatNum(data.metrics.positiveThemeMentions)}
               </p>
               <p className="mt-2 text-xs text-[#667085]">Detected categories</p>
-              <button type="button" className={cn(rep.link, "mt-2 text-xs")}>
-                View details <ChevronRight className="h-3 w-3" />
-              </button>
             </div>
 
             <div className={cn(rep.card, "p-4")}>
@@ -312,9 +301,6 @@ export function ReviewInsightsDashboard({
                 {formatNum(data.metrics.negativeThemeMentions)}
               </p>
               <p className="mt-2 text-xs text-[#667085]">Detected categories</p>
-              <button type="button" className={cn(rep.link, "mt-2 text-xs")}>
-                View details <ChevronRight className="h-3 w-3" />
-              </button>
             </div>
 
             <div className={cn(rep.card, "p-4")}>
@@ -333,9 +319,6 @@ export function ReviewInsightsDashboard({
                 ) : null}
                 {data.metrics.pctWithText != null ? " have text" : "Written reviews analyzed"}
               </p>
-              <button type="button" className={cn(rep.link, "mt-2 text-xs")}>
-                View details <ChevronRight className="h-3 w-3" />
-              </button>
             </div>
 
             <div className={cn(rep.card, "p-4")}>
@@ -349,9 +332,6 @@ export function ReviewInsightsDashboard({
                 {data.metrics.avgReviewLength == null ? "--" : `${data.metrics.avgReviewLength}`}
               </p>
               <p className="mt-2 text-xs text-[#667085]">Characters per review</p>
-              <button type="button" className={cn(rep.link, "mt-2 text-xs")}>
-                View details <ChevronRight className="h-3 w-3" />
-              </button>
             </div>
 
             <div className={cn(rep.card, "p-4")}>
@@ -371,9 +351,6 @@ export function ReviewInsightsDashboard({
                   "Photo data unavailable"
                 )}
               </p>
-              <button type="button" className={cn(rep.link, "mt-2 text-xs")}>
-                View details <ChevronRight className="h-3 w-3" />
-              </button>
             </div>
 
             <div className={cn(rep.card, "p-4")}>
@@ -387,9 +364,6 @@ export function ReviewInsightsDashboard({
                 {formatNum(data.metrics.employeeMentions)}
               </p>
               <p className="mt-2 text-xs text-[#667085]">Names or crew mentions</p>
-              <button type="button" className={cn(rep.link, "mt-2 text-xs")}>
-                View details <ChevronRight className="h-3 w-3" />
-              </button>
             </div>
           </div>
 
@@ -399,7 +373,7 @@ export function ReviewInsightsDashboard({
             <ThemePanel title="Top Negative Themes" items={data.themes.negative} tone="negative" />
 
             {/* Theme Trend 30 Days line chart */}
-            <Card title="Theme Trend 30 Days" description="Daily theme sentiment across May 10 – Jun 8, 2025.">
+            <Card title="Theme Trend 30 Days" description="Daily theme sentiment for the last 30 days when available.">
               {data.themes.themeTrend30d && data.themes.themeTrend30d.length > 0 ? (
                 <RepAreaTrendChart
                   data={data.themes.themeTrend30d}
@@ -489,28 +463,14 @@ export function ReviewInsightsDashboard({
             </Card>
 
             <div className="space-y-4">
-              <Card
-                title="Most Mentioned Services"
-                action={
-                  <button type="button" className={cn(rep.link, "text-xs")}>
-                    View details <ChevronRight className="h-3 w-3" />
-                  </button>
-                }
-              >
+              <Card title="Most Mentioned Services">
                 {data.themes.services && data.themes.services.length > 0 ? (
                   <ServiceMentionList items={data.themes.services} empty="No service mentions found yet." />
                 ) : (
                   <MentionList items={data.categorizedKeywords.services} empty="No service mentions found yet." />
                 )}
               </Card>
-              <Card
-                title="Location Mentions"
-                action={
-                  <button type="button" className={cn(rep.link, "text-xs")}>
-                    View details <ChevronRight className="h-3 w-3" />
-                  </button>
-                }
-              >
+              <Card title="Location Mentions">
                 {data.themes.locations && data.themes.locations.length > 0 ? (
                   <ServiceMentionList
                     items={data.themes.locations}

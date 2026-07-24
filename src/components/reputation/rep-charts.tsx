@@ -331,7 +331,7 @@ export function RepHorizontalGapChart({
   youColor = REP_GREEN,
   otherColor = "#B2DDFF",
 }: {
-  rows: Array<{ name: string; value: number; isYou?: boolean }>;
+  rows: Array<{ id?: string; name: string; value: number; isYou?: boolean }>;
   height?: number;
   youColor?: string;
   otherColor?: string;
@@ -340,7 +340,7 @@ export function RepHorizontalGapChart({
   return (
     <div className="space-y-3" style={{ minHeight: height }}>
       {rows.map((row) => (
-        <div key={row.name}>
+        <div key={row.id ?? row.name}>
           <div className="mb-1 flex items-baseline justify-between gap-2">
             <span className={`truncate text-sm ${row.isYou ? "font-semibold text-[#101828]" : "text-[#344054]"}`}>
               {row.name}
