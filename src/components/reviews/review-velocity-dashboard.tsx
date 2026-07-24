@@ -445,7 +445,14 @@ function VelocityBreakdownTable({
                     </div>
                   </div>
                 </td>
-                <td className="px-3 py-3 tabular-nums text-[#344054]">{row.rating != null ? fmt(row.rating) : "-"}</td>
+                <td className="px-3 py-3">
+                  <div className="flex items-center gap-1.5">
+                    <StarRating rating={row.rating} />
+                    <span className="text-xs tabular-nums text-[#667085]">
+                      {row.rating != null ? fmt(row.rating) : "-"}
+                    </span>
+                  </div>
+                </td>
                 <td className="px-3 py-3 tabular-nums text-[#344054]">{fmt(row.reviews)}</td>
                 <td className="px-3 py-3 tabular-nums font-semibold text-[#101828]">{fmt(row.last30d)}</td>
                 <td className="px-3 py-3 tabular-nums text-[#344054]">{fmt(row.last60d)}</td>
