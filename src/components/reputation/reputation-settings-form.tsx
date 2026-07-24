@@ -351,11 +351,19 @@ export function ReputationSettingsForm({ businessId }: { businessId: string }) {
         <Section
           icon={QrCode}
           title="Review link and QR code"
-          description="QR colors, poster copy, short link, and downloads are managed in the poster panel below."
+          description="QR colors, poster copy, short link, and downloads live on the dedicated QR Poster page."
         >
           <div className="rounded-lg border border-dashed border-emerald-200 bg-emerald-50/60 p-3 text-[12px] text-emerald-800">
-            Use the Review poster and QR settings section on this page to generate or update the active
-            review link, QR code, and printable poster.
+            <p>
+              Open QR Poster to generate or update the active review link, QR code, brand colors, and
+              printable poster.
+            </p>
+            <a
+              href={`/businesses/${businessId}/reputation/qr`}
+              className="mt-2 inline-flex font-semibold text-[#137752] hover:underline"
+            >
+              Open QR Poster →
+            </a>
           </div>
         </Section>
 

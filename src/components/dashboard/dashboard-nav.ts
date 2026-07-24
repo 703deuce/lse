@@ -17,6 +17,7 @@ import {
   MapPin,
   MessageSquareText,
   Palette,
+  QrCode,
   Settings,
   Settings2,
   Sparkles,
@@ -178,6 +179,7 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
               label: "Review Requests",
               icon: MessageSquareText,
             },
+            { href: loc("review-qr", businessId), label: "QR Poster", icon: QrCode },
             { href: loc("review-campaigns", businessId), label: "Campaigns", icon: FolderKanban },
             { href: loc("review-templates", businessId), label: "Templates", icon: FileText },
             { href: loc("contacts", businessId), label: "Contacts", icon: Users },
@@ -332,7 +334,9 @@ export function isSidebarHrefActive(
     flags?.exact ||
     href.endsWith("/review-requests") ||
     href.endsWith("/reputation/requests") ||
-    href.endsWith("/tools/go/review-requests")
+    href.endsWith("/tools/go/review-requests") ||
+    href.endsWith("/reputation/qr") ||
+    href.endsWith("/tools/go/review-qr")
   ) {
     return pathname === href || pathname.startsWith(`${href}?`);
   }

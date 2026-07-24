@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -919,7 +920,21 @@ export function ReviewRequestsDashboard({ businessId }: { businessId: string }) 
       ) : null}
 
       {tab === "qr" ? (
-        <ReviewRequestsPanel businessId={businessId} section={panelSectionForTab(tab)} hideSubTabs />
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#A6F4C5] bg-[#ECFDF3] px-4 py-3">
+            <p className="text-sm text-[#027A48]">
+              The printable QR poster lives on its own page so you can customize colors, headline, and
+              downloads without mixing it into one-time sends.
+            </p>
+            <Link
+              href={`/businesses/${businessId}/reputation/qr`}
+              className={rep.btnPrimary}
+            >
+              Open QR Poster
+            </Link>
+          </div>
+          <ReviewRequestsPanel businessId={businessId} section="poster" hideSubTabs />
+        </div>
       ) : null}
 
       {tab === "link" ? <LinkSharePanel businessId={businessId} data={data} /> : null}

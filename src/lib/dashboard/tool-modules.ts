@@ -79,6 +79,11 @@ export const LOCATION_TOOL_MODULES = {
     path: "reputation/requests",
     description: "Send SMS and email one-off review requests.",
   },
+  "review-qr": {
+    title: "QR Poster",
+    path: "reputation/qr",
+    description: "Printable review QR poster with brand colors and downloads.",
+  },
   "review-campaigns": {
     title: "Campaigns",
     path: "reputation/campaigns",
