@@ -9,6 +9,9 @@ type Supabase = ReturnType<typeof createServiceClient>;
 export const REVIEW_LIST_COLUMNS =
   "id, organization_id, business_id, competitor_id, source_provider, source_review_id, reviewer_name, rating, review_text, review_date, published_at, last_edited_at, first_observed_at, last_observed_at, owner_responded_at, date_precision, is_deleted, absent_pull_count, relative_date_text, owner_response_text, review_url, resolved_at, created_at, updated_at";
 
+const LEGACY_REVIEW_LIST_COLUMNS =
+  "id, organization_id, business_id, competitor_id, source_provider, source_review_id, reviewer_name, rating, review_text, review_date, relative_date_text, owner_response_text, review_url, created_at, updated_at";
+
 export type StoredReviewRow = {
   id: string;
   organization_id: string;
@@ -172,7 +175,24 @@ export async function upsertReviews(
   if (params.businessId) existingQuery = existingQuery.eq("business_id", params.businessId);
   else existingQuery = existingQuery.eq("competitor_id", params.competitorId!);
 
-  const { data: existingRows } = await existingQuery;
+  let { data: existingRows, error: existingError } = await existingQuery;
+  let useLegacyColumns = false;
+  // Pre-077 DBs lack published_at / first_observed_at / date_precision.
+  if (existingError && isMissingReviewSchemaColumnError(existingError.message)) {
+    useLegacyColumns = true;
+    let legacyExisting = supabase
+      .from("business_reviews")
+      .select("id, source_review_id, rating, review_text, owner_response_text")
+      .eq("source_provider", params.provider)
+      .in("source_review_id", sourceIds);
+    if (params.businessId) legacyExisting = legacyExisting.eq("business_id", params.businessId);
+    else legacyExisting = legacyExisting.eq("competitor_id", params.competitorId!);
+    const legacyResult = await legacyExisting;
+    existingRows = legacyResult.data;
+    existingError = legacyResult.error;
+  }
+  if (existingError) throw new Error(existingError.message);
+
   const existingBySource = new Map(
     (existingRows ?? [])
       .filter((r) => r.source_review_id)
@@ -199,14 +219,27 @@ export async function upsertReviews(
   // Requires non-partial unique indexes (migration 064). Partial indexes from
   // 027 are invisible to PostgREST ON CONFLICT and fail with:
   // "there is no unique or exclusion constraint matching the ON CONFLICT specification".
+  // If migration 077 is not applied yet, retry without intelligence columns so the
+  // review feed still gets populated (production was skipping all upserts).
   const chunkSize = 200;
   for (let i = 0; i < rows.length; i += chunkSize) {
-    const chunk = rows.slice(i, i + chunkSize);
+    const fullChunk = rows.slice(i, i + chunkSize);
+    const chunk = useLegacyColumns
+      ? fullChunk.map(toLegacyReviewUpsertRow)
+      : fullChunk;
     const { error } = await supabase.from("business_reviews").upsert(chunk, {
       onConflict,
       ignoreDuplicates: false,
     });
     if (error) {
+      if (
+        !useLegacyColumns &&
+        isMissingReviewSchemaColumnError(error.message)
+      ) {
+        useLegacyColumns = true;
+        i -= chunkSize;
+        continue;
+      }
       if (/no unique or exclusion constraint matching the ON CONFLICT/i.test(error.message)) {
         await upsertReviewsRowByRow(supabase, chunk, {
           businessId: params.businessId,
@@ -295,7 +328,8 @@ export async function upsertReviews(
     lastReviewDateSeen: params.reviews.find((r) => r.reviewDate)?.reviewDate?.toISOString().slice(0, 10) ?? null,
   });
 
-  if (params.reconcileAbsent) {
+  // Soft-delete / absent tracking needs migration 077 columns.
+  if (params.reconcileAbsent && !useLegacyColumns) {
     await reconcileAbsentReviews(supabase, {
       businessId: params.businessId,
       competitorId: params.competitorId,
@@ -325,84 +359,114 @@ export async function reconcileAbsentReviews(
   const now = new Date().toISOString();
   const observedIds = Array.from(new Set(params.observedSourceIds.filter(Boolean)));
 
-  const chunkSize = 200;
-  for (let i = 0; i < observedIds.length; i += chunkSize) {
-    const chunk = observedIds.slice(i, i + chunkSize);
-    let updateObserved = supabase
+  try {
+    const chunkSize = 200;
+    for (let i = 0; i < observedIds.length; i += chunkSize) {
+      const chunk = observedIds.slice(i, i + chunkSize);
+      let updateObserved = supabase
+        .from("business_reviews")
+        .update({
+          absent_pull_count: 0,
+          is_deleted: false,
+          last_observed_at: now,
+          updated_at: now,
+        })
+        .eq("source_provider", params.provider)
+        .in("source_review_id", chunk);
+      if (params.businessId) updateObserved = updateObserved.eq("business_id", params.businessId);
+      else updateObserved = updateObserved.eq("competitor_id", params.competitorId!);
+      const { error } = await updateObserved;
+      if (error) {
+        if (isMissingReviewSchemaColumnError(error.message)) {
+          return { observed: observedIds.length, absent: 0, softDeleted: 0 };
+        }
+        throw new Error(error.message);
+      }
+    }
+
+    let candidateQuery = supabase
       .from("business_reviews")
-      .update({
-        absent_pull_count: 0,
-        is_deleted: false,
-        last_observed_at: now,
-        updated_at: now,
-      })
+      .select("id, source_review_id, absent_pull_count")
       .eq("source_provider", params.provider)
-      .in("source_review_id", chunk);
-    if (params.businessId) updateObserved = updateObserved.eq("business_id", params.businessId);
-    else updateObserved = updateObserved.eq("competitor_id", params.competitorId!);
-    const { error } = await updateObserved;
-    if (error) throw new Error(error.message);
-  }
+      .not("source_review_id", "is", null)
+      .limit(10000);
+    if (params.businessId) candidateQuery = candidateQuery.eq("business_id", params.businessId);
+    else candidateQuery = candidateQuery.eq("competitor_id", params.competitorId!);
 
-  let candidateQuery = supabase
-    .from("business_reviews")
-    .select("id, source_review_id, absent_pull_count")
-    .eq("source_provider", params.provider)
-    .not("source_review_id", "is", null)
-    .limit(10000);
-  if (params.businessId) candidateQuery = candidateQuery.eq("business_id", params.businessId);
-  else candidateQuery = candidateQuery.eq("competitor_id", params.competitorId!);
-
-  const { data: candidates, error: candidateError } = await candidateQuery;
-  if (candidateError) throw new Error(candidateError.message);
-
-  const observedSet = new Set(observedIds);
-  const absentRows = (candidates ?? []).filter((row) => !observedSet.has(String(row.source_review_id ?? "")));
-  const softDeleteIds: string[] = [];
-  const keepIds: string[] = [];
-
-  for (const row of absentRows) {
-    const nextAbsentCount = Number(row.absent_pull_count ?? 0) + 1;
-    if (nextAbsentCount >= threshold) softDeleteIds.push(row.id);
-    else keepIds.push(row.id);
-  }
-
-  for (let i = 0; i < keepIds.length; i += chunkSize) {
-    const chunk = keepIds.slice(i, i + chunkSize);
-    const rows = absentRows.filter((row) => chunk.includes(row.id));
-    for (const row of rows) {
-      const { error } = await supabase
-        .from("business_reviews")
-        .update({
-          absent_pull_count: Number(row.absent_pull_count ?? 0) + 1,
-          updated_at: now,
-        })
-        .eq("id", row.id);
-      if (error) throw new Error(error.message);
+    const { data: candidates, error: candidateError } = await candidateQuery;
+    if (candidateError) {
+      if (isMissingReviewSchemaColumnError(candidateError.message)) {
+        return { observed: observedIds.length, absent: 0, softDeleted: 0 };
+      }
+      throw new Error(candidateError.message);
     }
-  }
 
-  for (let i = 0; i < softDeleteIds.length; i += chunkSize) {
-    const chunk = softDeleteIds.slice(i, i + chunkSize);
-    const rows = absentRows.filter((row) => chunk.includes(row.id));
-    for (const row of rows) {
-      const { error } = await supabase
-        .from("business_reviews")
-        .update({
-          absent_pull_count: Number(row.absent_pull_count ?? 0) + 1,
-          is_deleted: true,
-          updated_at: now,
-        })
-        .eq("id", row.id);
-      if (error) throw new Error(error.message);
+    const observedSet = new Set(observedIds);
+    const absentRows = (candidates ?? []).filter(
+      (row) => !observedSet.has(String(row.source_review_id ?? ""))
+    );
+    const softDeleteIds: string[] = [];
+    const keepIds: string[] = [];
+
+    for (const row of absentRows) {
+      const nextAbsentCount = Number(row.absent_pull_count ?? 0) + 1;
+      if (nextAbsentCount >= threshold) softDeleteIds.push(row.id);
+      else keepIds.push(row.id);
     }
-  }
 
-  return {
-    observed: observedIds.length,
-    absent: absentRows.length,
-    softDeleted: softDeleteIds.length,
-  };
+    for (let i = 0; i < keepIds.length; i += chunkSize) {
+      const chunk = keepIds.slice(i, i + chunkSize);
+      const rows = absentRows.filter((row) => chunk.includes(row.id));
+      for (const row of rows) {
+        const { error } = await supabase
+          .from("business_reviews")
+          .update({
+            absent_pull_count: Number(row.absent_pull_count ?? 0) + 1,
+            updated_at: now,
+          })
+          .eq("id", row.id);
+        if (error) {
+          if (isMissingReviewSchemaColumnError(error.message)) {
+            return { observed: observedIds.length, absent: 0, softDeleted: 0 };
+          }
+          throw new Error(error.message);
+        }
+      }
+    }
+
+    for (let i = 0; i < softDeleteIds.length; i += chunkSize) {
+      const chunk = softDeleteIds.slice(i, i + chunkSize);
+      const rows = absentRows.filter((row) => chunk.includes(row.id));
+      for (const row of rows) {
+        const { error } = await supabase
+          .from("business_reviews")
+          .update({
+            absent_pull_count: Number(row.absent_pull_count ?? 0) + 1,
+            is_deleted: true,
+            updated_at: now,
+          })
+          .eq("id", row.id);
+        if (error) {
+          if (isMissingReviewSchemaColumnError(error.message)) {
+            return { observed: observedIds.length, absent: 0, softDeleted: 0 };
+          }
+          throw new Error(error.message);
+        }
+      }
+    }
+
+    return {
+      observed: observedIds.length,
+      absent: absentRows.length,
+      softDeleted: softDeleteIds.length,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (isMissingReviewSchemaColumnError(message)) {
+      return { observed: observedIds.length, absent: 0, softDeleted: 0 };
+    }
+    throw err;
+  }
 }
 
 type ReviewUpsertRow = {
@@ -429,6 +493,33 @@ type ReviewUpsertRow = {
   is_deleted?: boolean;
   absent_pull_count?: number;
 };
+
+/** True when PostgREST/DB is missing migration 077+ review intelligence columns. */
+export function isMissingReviewSchemaColumnError(message: string): boolean {
+  return /column .* does not exist|schema cache|could not find the ['"].+['"] column/i.test(
+    message
+  );
+}
+
+/** Strip Phase-1 intelligence columns so upserts work before migration 077 is applied. */
+export function toLegacyReviewUpsertRow(row: ReviewUpsertRow): ReviewUpsertRow {
+  return {
+    organization_id: row.organization_id,
+    business_id: row.business_id,
+    competitor_id: row.competitor_id,
+    source_provider: row.source_provider,
+    source_review_id: row.source_review_id,
+    reviewer_name: row.reviewer_name,
+    rating: row.rating,
+    review_text: row.review_text,
+    review_date: row.review_date,
+    relative_date_text: row.relative_date_text,
+    owner_response_text: row.owner_response_text,
+    review_url: row.review_url,
+    raw_json: row.raw_json,
+    updated_at: row.updated_at,
+  };
+}
 
 /**
  * Fallback when the DB still has partial unique indexes (pre-064) that PostgREST
@@ -581,13 +672,13 @@ export async function loadStoredReviews(
   const { data, error } = await query;
   if (error) {
     // Fallback for DBs without published_at / is_deleted columns yet.
-    if (/column .* does not exist|schema cache/i.test(error.message)) {
+    if (isMissingReviewSchemaColumnError(error.message)) {
       let legacy = supabase
         .from("business_reviews")
         .select(
           params.includeRaw
-            ? "id, organization_id, business_id, competitor_id, source_provider, source_review_id, reviewer_name, rating, review_text, review_date, relative_date_text, owner_response_text, review_url, created_at, updated_at, raw_json"
-            : "id, organization_id, business_id, competitor_id, source_provider, source_review_id, reviewer_name, rating, review_text, review_date, relative_date_text, owner_response_text, review_url, created_at, updated_at"
+            ? `${LEGACY_REVIEW_LIST_COLUMNS}, raw_json`
+            : LEGACY_REVIEW_LIST_COLUMNS
         )
         .gte("review_date", cutoffDate)
         .order("review_date", { ascending: false });
