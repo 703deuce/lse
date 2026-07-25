@@ -28,6 +28,12 @@ import type {
   ReviewAnalyticsSource,
   ReviewAnalyticsTimelinePoint,
 } from "@/lib/reviews/review-analytics-data";
+import {
+  buildCumulativeVelocitySeries,
+  filterTimeline,
+  velocityRangeOptions,
+  type VelocityRangeId,
+} from "@/lib/reviews/review-velocity-series";
 import { cn } from "@/lib/utils";
 
 const BLUE = "#2563EB";
@@ -40,17 +46,8 @@ type ReviewVelocityDashboardProps = {
   data: ReviewAnalyticsData;
 };
 
-type RangeId = "1M" | "3M" | "6M" | "1Y" | "2Y" | "YTD" | "ALL";
-
-const rangeOptions: Array<{ id: RangeId; label: string; days?: number }> = [
-  { id: "1M", label: "1M", days: 30 },
-  { id: "3M", label: "3M", days: 90 },
-  { id: "6M", label: "6M", days: 180 },
-  { id: "1Y", label: "1Y", days: 365 },
-  { id: "2Y", label: "2Y", days: 730 },
-  { id: "YTD", label: "YTD" },
-  { id: "ALL", label: "ALL" },
-];
+type RangeId = VelocityRangeId;
+const rangeOptions = velocityRangeOptions;
 
 function fmt(value: number | null | undefined, suffix = ""): string {
   if (value == null || Number.isNaN(value)) return "-";
@@ -74,21 +71,6 @@ function dateLabel(value: string | null | undefined): string {
 
 function getRolling(data: ReviewAnalyticsData, days: 7 | 30 | 60 | 90) {
   return data.rollingPeriods.find((period) => period.days === days);
-}
-
-function filterTimeline(points: ReviewAnalyticsTimelinePoint[], range: RangeId): ReviewAnalyticsTimelinePoint[] {
-  if (!points.length || range === "ALL") return points;
-  const latest = new Date(`${points[points.length - 1]!.date}T12:00:00Z`);
-  if (range === "YTD") {
-    const start = `${latest.getUTCFullYear()}-01-01`;
-    return points.filter((point) => point.date >= start);
-  }
-  const days = rangeOptions.find((option) => option.id === range)?.days;
-  if (!days) return points;
-  const cutoff = new Date(latest);
-  cutoff.setUTCDate(cutoff.getUTCDate() - days + 1);
-  const cutoffKey = cutoff.toISOString().slice(0, 10);
-  return points.filter((point) => point.date >= cutoffKey);
 }
 
 function sentimentFromDistribution(distribution: ReviewAnalyticsData["ratingDistribution"], avgRating: number | null) {
@@ -197,59 +179,6 @@ function MiniSparkline({
   );
 }
 
-/** Build lifetime-style cumulative totals, then filter to the selected range. */
-function buildCumulativeVelocitySeries(
-  points: ReviewAnalyticsTimelinePoint[],
-  competitors: ReviewAnalyticsCompetitor[],
-  totalReviews: number,
-  range: RangeId
-) {
-  const competitorIds = competitors.map((competitor) => competitor.id);
-  const youWindowSum = points.reduce((sum, point) => sum + point.you, 0);
-  let you = Math.max(0, totalReviews - youWindowSum);
-  const competitorTotals = Object.fromEntries(
-    competitors.map((competitor) => {
-      const windowSum = points.reduce((sum, point) => sum + (point.competitorSeries?.[competitor.id] ?? 0), 0);
-      return [competitor.id, Math.max(0, competitor.totalReviews - windowSum)];
-    })
-  );
-  let competitorAvg = 0;
-  if (competitorIds.length) {
-    const avgWindowSum = points.reduce((sum, point) => sum + point.competitorAvg, 0);
-    const avgLifetime =
-      competitors.reduce((sum, competitor) => sum + competitor.totalReviews, 0) / competitorIds.length;
-    competitorAvg = Math.max(0, avgLifetime - avgWindowSum);
-  }
-
-  const cumulative = points.map((point) => {
-    you += point.you;
-    competitorAvg += point.competitorAvg;
-    const row: Record<string, string | number> = {
-      date: point.date,
-      you: Math.round(you * 10) / 10,
-      competitorAvg: Math.round(competitorAvg * 10) / 10,
-    };
-    for (const competitorId of competitorIds) {
-      competitorTotals[competitorId] = (competitorTotals[competitorId] ?? 0) + (point.competitorSeries?.[competitorId] ?? 0);
-      row[`c_${competitorId}`] = competitorTotals[competitorId] ?? 0;
-    }
-    return row;
-  });
-
-  if (!cumulative.length || range === "ALL") return cumulative;
-  const latest = new Date(`${cumulative[cumulative.length - 1]!.date}T12:00:00Z`);
-  if (range === "YTD") {
-    const start = `${latest.getUTCFullYear()}-01-01`;
-    return cumulative.filter((row) => String(row.date) >= start);
-  }
-  const days = rangeOptions.find((option) => option.id === range)?.days;
-  if (!days) return cumulative;
-  const cutoff = new Date(latest);
-  cutoff.setUTCDate(cutoff.getUTCDate() - days + 1);
-  const cutoffKey = cutoff.toISOString().slice(0, 10);
-  return cumulative.filter((row) => String(row.date) >= cutoffKey);
-}
-
 function StarRating({ rating }: { rating: number | null }) {
   const rounded = Math.round(rating ?? 0);
   return (
@@ -355,6 +284,7 @@ type VelocityRow = {
   kind: "source" | "competitor";
   rating: number | null;
   reviews: number;
+  last7d: number;
   last30d: number;
   last60d: number;
   last90d: number;
@@ -369,6 +299,7 @@ function sourceToRow(source: ReviewAnalyticsSource): VelocityRow {
     kind: "source",
     rating: source.rating,
     reviews: source.reviews,
+    last7d: source.last7d,
     last30d: source.last30d,
     last60d: source.last60d,
     last90d: source.last90d,
@@ -384,6 +315,7 @@ function competitorToRow(competitor: ReviewAnalyticsCompetitor): VelocityRow {
     kind: "competitor",
     rating: competitor.rating,
     reviews: competitor.totalReviews,
+    last7d: competitor.rolling7d,
     last30d: competitor.rolling30d,
     last60d: competitor.rolling60d,
     last90d: competitor.rolling90d,
@@ -403,12 +335,13 @@ function VelocityBreakdownTable({
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[760px] text-left text-sm">
+      <table className="w-full min-w-[820px] text-left text-sm">
         <thead className="bg-[#F9FAFB] text-[11px] uppercase tracking-[0.06em] text-[#98A2B3]">
           <tr>
             <th className="px-3 py-2 font-semibold">Source</th>
             <th className="px-3 py-2 font-semibold">Rating</th>
             <th className="px-3 py-2 font-semibold">Reviews</th>
+            <th className="px-3 py-2 font-semibold">Last 7d</th>
             <th className="px-3 py-2 font-semibold">Last 30d</th>
             <th className="px-3 py-2 font-semibold">Last 60d</th>
             <th className="px-3 py-2 font-semibold">Last 90d</th>
@@ -454,7 +387,8 @@ function VelocityBreakdownTable({
                   </div>
                 </td>
                 <td className="px-3 py-3 tabular-nums text-[#344054]">{fmt(row.reviews)}</td>
-                <td className="px-3 py-3 tabular-nums font-semibold text-[#101828]">{fmt(row.last30d)}</td>
+                <td className="px-3 py-3 tabular-nums font-semibold text-[#101828]">{fmt(row.last7d)}</td>
+                <td className="px-3 py-3 tabular-nums text-[#344054]">{fmt(row.last30d)}</td>
                 <td className="px-3 py-3 tabular-nums text-[#344054]">{fmt(row.last60d)}</td>
                 <td className="px-3 py-3 tabular-nums text-[#344054]">{fmt(row.last90d)}</td>
                 <td className="px-3 py-3 tabular-nums text-[#344054]">{fmt(row.total)}</td>
@@ -538,8 +472,8 @@ export function ReviewVelocityDashboard({ businessId, data }: ReviewVelocityDash
   const scorePct = Math.round(trustScore * 10);
   const filteredTimeline = useMemo(() => filterTimeline(data.timelinePoints, range), [data.timelinePoints, range]);
   const chartData = useMemo(
-    () => buildCumulativeVelocitySeries(data.timelinePoints, data.competitors, data.totalReviews, range),
-    [data.competitors, data.timelinePoints, data.totalReviews, range]
+    () => buildCumulativeVelocitySeries(data.timelinePoints, data.competitors, range),
+    [data.competitors, data.timelinePoints, range]
   );
   const chartSeries = useMemo(() => {
     const series: Array<{ dataKey: string; name: string; color: string; strokeWidth?: number; dashed?: boolean }> = [
@@ -577,6 +511,7 @@ export function ReviewVelocityDashboard({ businessId, data }: ReviewVelocityDash
               provider: "google",
               rating: data.avgRating,
               reviews: data.totalReviews,
+              last7d: data.rolling7d,
               last30d: data.rolling30d,
               last60d: data.rolling60d,
               last90d: data.rolling90d,
@@ -793,7 +728,7 @@ export function ReviewVelocityDashboard({ businessId, data }: ReviewVelocityDash
 
       <SectionCard
         title="Review Velocity Over Time"
-        subtitle="Cumulative review totals for you and tracked competitors. Use the range chips or brush to zoom."
+        subtitle="New reviews accumulated within the selected range for you and tracked competitors. Use the range chips or brush to zoom."
         action={
           <div className="flex flex-wrap rounded-lg bg-[#F2F4F7] p-1">
             {rangeOptions.map((option) => (

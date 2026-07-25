@@ -48,6 +48,7 @@ export type ReviewAnalyticsSource = {
   provider: string;
   rating: number | null;
   reviews: number;
+  last7d: number;
   last30d: number;
   last60d: number;
   last90d: number;
@@ -559,6 +560,7 @@ export async function loadReviewAnalyticsData(businessId: string): Promise<Revie
     provider,
     rating: avgRating(rowsFromLastDays(rows, 90, timezone)) ?? avgRating(rows),
     reviews: rows.length,
+    last7d: countWindow(rows, 6, 0, timezone),
     last30d: countWindow(rows, 29, 0, timezone),
     last60d: countWindow(rows, 59, 0, timezone),
     last90d: countWindow(rows, 89, 0, timezone),
@@ -572,6 +574,7 @@ export async function loadReviewAnalyticsData(businessId: string): Promise<Revie
       provider: "google",
       rating: currentRating,
       reviews: totalReviews,
+      last7d: rolling7.current,
       last30d: rolling30.current,
       last60d: rolling60.current,
       last90d: rolling90.current,

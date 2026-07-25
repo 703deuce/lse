@@ -687,6 +687,7 @@ export const reputationAuditPreviewData: ReputationModulesAuditData = {
         provider: "google",
         rating: 4.6,
         reviews: 248,
+        last7d: 8,
         last30d: 32,
         last60d: 58,
         last90d: 82,
