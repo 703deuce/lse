@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     await requireEntitlement(auth.organizationId, "review_campaigns");
     const cursor = url.searchParams.get("cursor");
     const q = url.searchParams.get("q") ?? undefined;
-    const limit = Number(url.searchParams.get("limit") ?? 50);
+    const limit = Number(url.searchParams.get("limit") ?? 10);
     const result = await listBusinessContacts(businessId, { cursor, q, limit });
     return NextResponse.json(result);
   } catch (err) {

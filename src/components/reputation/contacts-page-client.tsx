@@ -38,6 +38,8 @@ const CONTACT_TABS: Array<{ id: ContactTab; label: string }> = [
   { id: "import_history", label: "Import History" },
 ];
 
+const PAGE_SIZE = 10;
+
 type ContactRow = {
   id: string;
   customer_name: string | null;
@@ -167,8 +169,12 @@ export function ContactsPageClient({
   previewTotalCount?: number;
 }) {
   const [items, setItems] = useState<ContactRow[]>(initialContacts ?? []);
-  const [cursor, setCursor] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [cursorStack, setCursorStack] = useState<Array<string | null>>([null]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(
+    previewTotalCount ?? initialContacts?.length ?? 0
+  );
   const [q, setQ] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [campaignFilter, setCampaignFilter] = useState("all");
@@ -184,44 +190,62 @@ export function ContactsPageClient({
   const [activeTab, setActiveTab] = useState<ContactTab>("all");
 
   const load = useCallback(
-    async (opts?: { reset?: boolean; cursor?: string | null }) => {
+    async (opts?: { page?: number; cursor?: string | null; reset?: boolean }) => {
       if (!allowed) return;
       if (initialContacts) return;
       setLoading(true);
       setError(null);
       try {
-        const params = new URLSearchParams({ businessId, limit: "50" });
+        const params = new URLSearchParams({
+          businessId,
+          limit: String(PAGE_SIZE),
+        });
         if (q.trim()) params.set("q", q.trim());
-        const pageCursor = opts?.reset ? null : (opts?.cursor ?? cursor);
+        const pageCursor = opts?.reset ? null : (opts?.cursor ?? null);
         if (pageCursor) params.set("cursor", pageCursor);
         const res = await fetch(`/api/reputation/contacts?${params}`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "Failed to load");
-        setItems((prev) =>
-          opts?.reset || !pageCursor ? json.items ?? [] : [...prev, ...(json.items ?? [])]
-        );
+        const nextPage = opts?.reset ? 1 : (opts?.page ?? 1);
+        setItems(json.items ?? []);
         setNextCursor(json.nextCursor ?? null);
-        if (pageCursor) setCursor(pageCursor);
+        setTotalCount(
+          typeof json.total === "number" ? json.total : (json.items?.length ?? 0)
+        );
+        setPage(nextPage);
+        if (opts?.reset) {
+          setCursorStack([null]);
+        } else if (pageCursor != null && nextPage > cursorStack.length) {
+          setCursorStack((prev) => [...prev, pageCursor]);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load");
       } finally {
         setLoading(false);
       }
     },
-    [allowed, businessId, cursor, initialContacts, q]
+    [allowed, businessId, cursorStack.length, initialContacts, q]
   );
 
   useEffect(() => {
-    if (initialContacts) return;
+    if (initialContacts) {
+      setItems(initialContacts);
+      setTotalCount(previewTotalCount ?? initialContacts.length);
+      setPage(1);
+      return;
+    }
     queueMicrotask(() => void load({ reset: true }));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- search on mount / allowed
-  }, [allowed, businessId, initialContacts]);
-
+  }, [allowed, businessId, initialContacts, previewTotalCount]);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("import") === "1") queueMicrotask(() => setShowImport(true));
   }, []);
+
+  useEffect(() => {
+    if (initialContacts) setPage(1);
+  }, [activeTab, sourceFilter, campaignFilter, q, initialContacts]);
 
   const visibleItems = useMemo(() => {
     const tabItems = (() => {
@@ -276,15 +300,30 @@ export function ContactsPageClient({
   const contactStats = useMemo(() => {
     if (previewStats) return previewStats;
     return {
-      all: items.length,
+      all: totalCount,
       eligible: items.filter(isEligibleForRequest).length,
       requested: items.filter(hasReviewRequestSignal).length,
       received: items.filter(hasReviewDetectedSignal).length,
       optedOut: items.filter((contact) => contact.sms_opt_out || contact.email_unsubscribed).length,
     };
-  }, [items, previewStats]);
+  }, [items, previewStats, totalCount]);
 
-  const totalCount = previewTotalCount ?? items.length;
+  const pageItems = useMemo(() => {
+    if (!initialContacts) return visibleItems;
+    const start = (page - 1) * PAGE_SIZE;
+    return visibleItems.slice(start, start + PAGE_SIZE);
+  }, [initialContacts, page, visibleItems]);
+
+  const previewTotalPages = Math.max(1, Math.ceil(visibleItems.length / PAGE_SIZE));
+  const rangeStart = pageItems.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = (page - 1) * PAGE_SIZE + pageItems.length;
+  const displayTotal = initialContacts
+    ? visibleItems.length
+    : totalCount;
+  const canGoPrev = page > 1;
+  const canGoNext = initialContacts
+    ? page < previewTotalPages
+    : Boolean(nextCursor);
 
   if (!allowed) {
     return <ReviewCampaignsUpgrade businessId={businessId} />;
@@ -314,7 +353,6 @@ export function ContactsPageClient({
       setLastName("");
       setPhone("");
       setEmail("");
-      setCursor(null);
       await load({ reset: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
@@ -323,10 +361,31 @@ export function ContactsPageClient({
     }
   }
 
-  const eligiblePct = totalCount > 0 ? Math.round((contactStats.eligible / totalCount) * 100) : 0;
-  const requestedPct = totalCount > 0 ? Math.round((contactStats.requested / totalCount) * 100) : 0;
-  const receivedPct = totalCount > 0 ? Math.round((contactStats.received / totalCount) * 100) : 0;
-  const optedOutPct = totalCount > 0 ? Math.round((contactStats.optedOut / totalCount) * 100) : 0;
+  function goPrevPage() {
+    if (!canGoPrev) return;
+    if (initialContacts) {
+      setPage((current) => Math.max(1, current - 1));
+      return;
+    }
+    const prevPage = page - 1;
+    const prevCursor = cursorStack[prevPage - 1] ?? null;
+    void load({ page: prevPage, cursor: prevCursor });
+  }
+
+  function goNextPage() {
+    if (!canGoNext) return;
+    if (initialContacts) {
+      setPage((current) => Math.min(previewTotalPages, current + 1));
+      return;
+    }
+    if (!nextCursor) return;
+    void load({ page: page + 1, cursor: nextCursor });
+  }
+
+  const eligiblePct = displayTotal > 0 ? Math.round((contactStats.eligible / displayTotal) * 100) : 0;
+  const requestedPct = displayTotal > 0 ? Math.round((contactStats.requested / displayTotal) * 100) : 0;
+  const receivedPct = displayTotal > 0 ? Math.round((contactStats.received / displayTotal) * 100) : 0;
+  const optedOutPct = displayTotal > 0 ? Math.round((contactStats.optedOut / displayTotal) * 100) : 0;
 
   return (
     <div className={rep.page}>
@@ -359,7 +418,7 @@ export function ContactsPageClient({
       />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <RepMetricCard label="All Contacts" value={totalCount.toLocaleString()} icon={Users}>
+        <RepMetricCard label="All Contacts" value={displayTotal.toLocaleString()} icon={Users}>
           <RepViewLink href={`/businesses/${businessId}/reputation/contacts`}>View →</RepViewLink>
         </RepMetricCard>
         <RepMetricCard label="Eligible" value={contactStats.eligible.toLocaleString()} icon={CheckCircle2} hint={`${eligiblePct}% of total`}>
@@ -381,7 +440,6 @@ export function ContactsPageClient({
           <ContactsImportWizard
             businessId={businessId}
             onDone={() => {
-              setCursor(null);
               void load({ reset: true });
             }}
           />
@@ -422,7 +480,7 @@ export function ContactsPageClient({
           <button
             type="button"
             onClick={() => {
-              setCursor(null);
+              setPage(1);
               void load({ reset: true });
             }}
             className={rep.btnSecondary}
@@ -450,7 +508,7 @@ export function ContactsPageClient({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#EEF2F6]">
-              {visibleItems.map((contact) => {
+              {pageItems.map((contact) => {
                 const name = contactName(contact);
                 const suppressed = contact.sms_opt_out || contact.email_unsubscribed;
                 const status = contactStatus(contact);
@@ -511,7 +569,6 @@ export function ContactsPageClient({
                                 }),
                               });
                               if (res.ok) {
-                                setCursor(null);
                                 await load({ reset: true });
                               }
                             })();
@@ -527,7 +584,7 @@ export function ContactsPageClient({
                   </tr>
                 );
               })}
-              {!loading && visibleItems.length === 0 ? (
+              {!loading && pageItems.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-10 text-center text-sm text-[#667085]">
                     {emptyMessage}
@@ -544,15 +601,29 @@ export function ContactsPageClient({
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-between border-t border-[#E6EAF0] px-4 py-3 text-sm text-[#667085]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#E6EAF0] px-4 py-3 text-sm text-[#667085]">
           <span>
-            Showing {visibleItems.length > 0 ? 1 : 0} to {visibleItems.length} of {totalCount.toLocaleString()} contacts
+            Showing {rangeStart} to {rangeEnd} of {displayTotal.toLocaleString()} contacts
           </span>
-          {nextCursor ? (
-            <button type="button" className={rep.link} onClick={() => void load({ cursor: nextCursor })}>
-              Load more →
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-[#98A2B3]">Page {page}</span>
+            <button
+              type="button"
+              disabled={!canGoPrev || loading}
+              onClick={goPrevPage}
+              className={cn(rep.link, "disabled:cursor-not-allowed disabled:opacity-40")}
+            >
+              ← Previous
             </button>
-          ) : null}
+            <button
+              type="button"
+              disabled={!canGoNext || loading}
+              onClick={goNextPage}
+              className={cn(rep.link, "disabled:cursor-not-allowed disabled:opacity-40")}
+            >
+              Next →
+            </button>
+          </div>
         </div>
       </div>
 

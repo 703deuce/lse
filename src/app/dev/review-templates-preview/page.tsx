@@ -22,7 +22,12 @@ export default function ReviewTemplatesPreviewPage() {
         showFooter={false}
       />
       <main className="min-w-0 flex-1 overflow-y-auto px-5 py-6 lg:px-8">
-        <TemplatesHub businessId={REPUTATION_PREVIEW_BUSINESS_ID} initialTemplates={reputationTemplatesPreviewData} previewKpis={reputationTemplatesPreviewKpis} />
+        <TemplatesHub
+          businessId={REPUTATION_PREVIEW_BUSINESS_ID}
+          businessName={REPUTATION_PREVIEW_BUSINESS_NAME}
+          initialTemplates={reputationTemplatesPreviewData}
+          previewKpis={reputationTemplatesPreviewKpis}
+        />
       </main>
     </div>
   );

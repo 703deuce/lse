@@ -147,28 +147,23 @@ function emptyTemplate(channel: "sms" | "email"): ReputationTemplateRow {
 
 function TemplatePreview({
   selected,
-  businessId,
+  businessName,
   onSelectDraft,
 }: {
   selected: ReputationTemplateRow | null;
-  businessId: string;
+  businessName: string;
   onSelectDraft: (channel: "sms" | "email") => void;
 }) {
-  const renderedBody = selected
-    ? renderTemplate(selected.body, {
-        first_name: "Sam",
-        business_name: "A-Team Junk Removal",
-        review_link: "https://example.com/r/demo",
-        location_name: "Main Location",
-      })
-    : "";
+  const previewVars = {
+    first_name: "Sam",
+    customer_name: "Sam",
+    business_name: businessName,
+    review_link: "https://example.com/r/demo",
+    location_name: "Main Location",
+  };
+  const renderedBody = selected ? renderTemplate(selected.body, previewVars) : "";
   const renderedSubject =
-    selected?.subject &&
-    renderTemplate(selected.subject, {
-      first_name: "Sam",
-      business_name: "A-Team Junk Removal",
-      review_link: "https://example.com/r/demo",
-    });
+    selected?.subject && renderTemplate(selected.subject, previewVars);
 
   return (
     <aside className={cn(rep.card, "h-fit p-4")}>
@@ -290,7 +285,7 @@ function TemplatePreview({
               Email draft
             </button>
           </div>
-          <p className="mt-3 text-xs text-[#98A2B3]">Business: {businessId}</p>
+          <p className="mt-3 text-xs text-[#98A2B3]">Business: {businessName}</p>
         </div>
       )}
     </aside>
@@ -299,10 +294,12 @@ function TemplatePreview({
 
 export function TemplatesHub({
   businessId,
+  businessName,
   initialTemplates,
   previewKpis,
 }: {
   businessId: string;
+  businessName: string;
   initialTemplates?: ReputationTemplateRow[];
   previewKpis?: ReputationTemplatePreviewKpis;
 }) {
@@ -579,7 +576,7 @@ export function TemplatesHub({
         </div>
 
         <div className="w-full lg:w-[360px]">
-          <TemplatePreview selected={selected} businessId={businessId} onSelectDraft={selectDraft} />
+          <TemplatePreview selected={selected} businessName={businessName} onSelectDraft={selectDraft} />
         </div>
       </div>
 

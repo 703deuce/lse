@@ -197,7 +197,21 @@ export async function listBusinessContacts(
   options?: { cursor?: string | null; limit?: number; q?: string }
 ) {
   const supabase = createServiceClient();
-  const limit = Math.min(Math.max(options?.limit ?? 50, 1), 100);
+  const limit = Math.min(Math.max(options?.limit ?? 10, 1), 100);
+
+  let countQuery = supabase
+    .from("review_request_contacts")
+    .select("id", { count: "exact", head: true })
+    .eq("business_id", businessId);
+  if (options?.q?.trim()) {
+    const q = options.q.trim();
+    countQuery = countQuery.or(
+      `customer_name.ilike.%${q}%,email_normalized.ilike.%${q}%,phone_e164.ilike.%${q}%`
+    );
+  }
+  const { count, error: countError } = await countQuery;
+  if (countError) throw new Error(countError.message);
+
   let query = supabase
     .from("review_request_contacts")
     .select(
@@ -223,7 +237,7 @@ export async function listBusinessContacts(
   const hasMore = rows.length > limit;
   const items = hasMore ? rows.slice(0, limit) : rows;
   const nextCursor = hasMore ? String(items[items.length - 1]?.updated_at ?? "") : null;
-  return { items, nextCursor };
+  return { items, nextCursor, total: count ?? items.length, pageSize: limit };
 }
 
 export async function setContactSuppression(params: {
