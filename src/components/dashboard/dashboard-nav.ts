@@ -17,6 +17,7 @@ import {
   MapPin,
   MessageSquareText,
   Palette,
+  Phone,
   QrCode,
   Settings,
   Settings2,
@@ -195,6 +196,11 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
         {
           title: "Configuration",
           items: [
+            {
+              href: loc("messaging", businessId),
+              label: "Text Messaging",
+              icon: Phone,
+            },
             {
               href: loc("review-settings", businessId),
               label: "Reputation Settings",

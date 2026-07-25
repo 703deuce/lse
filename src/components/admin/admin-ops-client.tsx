@@ -171,6 +171,9 @@ export function AdminOpsClient() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-zinc-500">
           Internal queue / provider health.{" "}
+          <Link href="/admin/messaging" className="text-emerald-700 underline">
+            Messaging
+          </Link>
           <Link href="/admin/accounts" className="text-emerald-700 underline">
             Accounts
           </Link>

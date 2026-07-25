@@ -1,0 +1,193 @@
+import { defaultUseCaseForm } from "./defaults";
+import type { MessagingRegistration } from "./types";
+
+export const MESSAGING_PREVIEW_BUSINESS_ID = "messaging-preview";
+export const MESSAGING_PREVIEW_ORG_ID = "messaging-preview-org";
+export const MESSAGING_PREVIEW_BUSINESS_NAME = "Long Home";
+
+export function messagingPreviewRegistration(
+  variant: "empty" | "in_review" | "ready" = "empty"
+): MessagingRegistration {
+  const now = new Date().toISOString();
+  const base: MessagingRegistration = {
+    id: "preview-reg-1",
+    organizationId: MESSAGING_PREVIEW_ORG_ID,
+    businessId: MESSAGING_PREVIEW_BUSINESS_ID,
+    businessName: MESSAGING_PREVIEW_BUSINESS_NAME,
+    setupStep: "overview",
+    overallStatus: "not_started",
+    businessDetailsStatus: "not_started",
+    useCaseStatus: "not_started",
+    brandVerificationStatus: "not_started",
+    campaignReviewStatus: "not_started",
+    numberStatus: "not_started",
+    messagingStatus: "not_started",
+    business: {
+      legalBusinessName: "Long Home Remodeling LLC",
+      dbaName: "Long Home",
+      businessType: "LLC",
+      ein: "12-3456789",
+      registrationCountry: "US",
+      businessIndustry: "Home Services",
+      websiteUrl: "https://longhome.example",
+      addressLine1: "1200 Main Street",
+      addressLine2: "Suite 200",
+      city: "Woodbridge",
+      region: "VA",
+      postalCode: "22191",
+      regionsOfOperation: ["VA", "MD", "DC"],
+      businessIdentity: "private",
+      authRepFullName: "Alex Morgan",
+      authRepJobTitle: "Owner",
+      authRepEmail: "alex@longhome.example",
+      authRepPhone: "+15715550100",
+      authRepRole: "Authorized representative",
+      brandContactEmail: "alex@longhome.example",
+      certAuthorized: true,
+      certAccurate: true,
+      certUnderstandsDelays: true,
+    },
+    useCase: {
+      ...defaultUseCaseForm("Long Home"),
+      privacyPolicyUrl: "https://longhome.example/privacy",
+      termsUrl: "https://longhome.example/terms",
+      consentPageUrl: "https://longhome.example/consent",
+    },
+    brandType: "LOW_VOLUME",
+    brandEmailVerificationStatus: "not_started",
+    phoneNumberE164: null,
+    phoneNumberFriendly: null,
+    phoneNumberLocality: null,
+    phoneNumberRegion: null,
+    phoneNumberMonthlyCost: null,
+    phoneNumberCapabilities: {},
+    phoneNumberReserved: false,
+    messagingEnabled: false,
+    messagingPaused: false,
+    monthlySmsAllowance: 300,
+    monthlySmsUsed: 0,
+    adapterMode: "mock",
+    submittedAt: null,
+    lastStatusCheckedAt: null,
+    lastError: null,
+    adminNotes: null,
+    twilio: {
+      subaccountSid: null,
+      customerProfileSid: null,
+      customerProfileStatus: null,
+      businessEndUserSid: null,
+      authorizedRepEndUserSid: null,
+      addressSid: null,
+      supportingDocumentSid: null,
+      profileEvaluationStatus: null,
+      profileFailureReasons: [],
+      profileSubmittedAt: null,
+      profileApprovedAt: null,
+      brandSid: null,
+      brandStatus: null,
+      brandFailureReason: null,
+      brandIdentityStatus: null,
+      campaignSid: null,
+      campaignStatus: null,
+      campaignFailureReason: null,
+      campaignUseCase: null,
+      campaignSubmittedAt: null,
+      campaignApprovedAt: null,
+      messagingServiceSid: null,
+      phoneNumberSid: null,
+    },
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  if (variant === "in_review") {
+    return {
+      ...base,
+      setupStep: "status",
+      overallStatus: "in_review",
+      businessDetailsStatus: "approved",
+      useCaseStatus: "submitted",
+      brandVerificationStatus: "in_review",
+      campaignReviewStatus: "not_started",
+      submittedAt: now,
+      lastStatusCheckedAt: now,
+      brandEmailVerificationStatus: "pending",
+      twilio: {
+        ...base.twilio,
+        subaccountSid: "ACmockpreview001",
+        customerProfileSid: "BUmockpreview001",
+        customerProfileStatus: "twilio-approved",
+        brandSid: "BNmockpreview001",
+        brandStatus: "PENDING",
+        profileSubmittedAt: now,
+        profileApprovedAt: now,
+      },
+    };
+  }
+
+  if (variant === "ready") {
+    return {
+      ...base,
+      setupStep: "ready",
+      overallStatus: "ready",
+      businessDetailsStatus: "approved",
+      useCaseStatus: "approved",
+      brandVerificationStatus: "approved",
+      campaignReviewStatus: "approved",
+      numberStatus: "approved",
+      messagingStatus: "ready",
+      submittedAt: now,
+      messagingEnabled: true,
+      monthlySmsUsed: 84,
+      phoneNumberE164: "+15715550184",
+      phoneNumberFriendly: "(571) 555-0184",
+      phoneNumberLocality: "Woodbridge",
+      phoneNumberRegion: "VA",
+      phoneNumberMonthlyCost: 1.15,
+      phoneNumberCapabilities: { sms: true, mms: true, voice: true },
+      phoneNumberReserved: true,
+      brandEmailVerificationStatus: "verified",
+      twilio: {
+        ...base.twilio,
+        subaccountSid: "ACmockpreview001",
+        customerProfileSid: "BUmockpreview001",
+        customerProfileStatus: "twilio-approved",
+        brandSid: "BNmockpreview001",
+        brandStatus: "APPROVED",
+        campaignSid: "QEmockpreview001",
+        campaignStatus: "VERIFIED",
+        messagingServiceSid: "MGmockpreview001",
+        phoneNumberSid: "PNmockpreview001",
+        profileApprovedAt: now,
+        campaignApprovedAt: now,
+      },
+    };
+  }
+
+  return {
+    ...base,
+    business: {
+      ...base.business,
+      legalBusinessName: "",
+      ein: "",
+      authRepFullName: "",
+      authRepEmail: "",
+      certAuthorized: false,
+      certAccurate: false,
+      certUnderstandsDelays: false,
+    },
+  };
+}
+
+export const MESSAGING_ADMIN_PREVIEW_ROWS: MessagingRegistration[] = [
+  messagingPreviewRegistration("in_review"),
+  {
+    ...messagingPreviewRegistration("empty"),
+    id: "preview-reg-2",
+    businessId: "smith-plumbing",
+    businessName: "Smith Plumbing",
+    overallStatus: "action_required",
+    businessDetailsStatus: "action_required",
+  },
+  messagingPreviewRegistration("ready"),
+];

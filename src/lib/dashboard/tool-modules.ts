@@ -119,6 +119,11 @@ export const LOCATION_TOOL_MODULES = {
     path: "reputation/settings",
     description: "Reputation module configuration for this location.",
   },
+  messaging: {
+    title: "Text Messaging",
+    path: "reputation/messaging",
+    description: "A2P registration, dedicated number, and review-request SMS setup.",
+  },
   reports: {
     title: "Reports",
     path: "reports",
