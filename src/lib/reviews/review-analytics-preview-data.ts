@@ -82,6 +82,7 @@ export const reviewAnalyticsPreviewData: ReviewAnalyticsData & Record<string, un
       provider: "google",
       rating: 4.6,
       reviews: 327,
+      last7d: 6,
       last30d: 24,
       last60d: 42,
       last90d: 71,
