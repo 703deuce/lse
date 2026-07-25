@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Copy, Loader2, Plus, Webhook } from "lucide-react";
 import { ModuleHeader, ModulePage } from "@/components/ui/design-system";
 import { cn } from "@/lib/utils";
@@ -9,6 +17,10 @@ import {
   detectFieldMapping,
   type FieldMapping,
 } from "@/lib/integrations/webhook-mapping";
+
+export type WebhooksClientHandle = {
+  openWizard: () => void;
+};
 
 type EndpointRow = {
   id: string;
@@ -64,13 +76,13 @@ function MicroStat({ label, value }: { label: string; value: string }) {
 
 const STEPS = ["Name", "Trigger", "Mapping", "Security", "Activate"] as const;
 
-export function WebhooksClient({
-  businessId,
-  embedded = false,
-}: {
-  businessId: string;
-  embedded?: boolean;
-}) {
+export const WebhooksClient = forwardRef<
+  WebhooksClientHandle,
+  {
+    businessId: string;
+    embedded?: boolean;
+  }
+>(function WebhooksClient({ businessId, embedded = false }, ref) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [endpoints, setEndpoints] = useState<EndpointRow[]>([]);
@@ -168,6 +180,8 @@ export function WebhooksClient({
     resetWizard();
     setShowCreate(true);
   }
+
+  useImperativeHandle(ref, () => ({ openWizard }), []);
 
   function detectFromSample() {
     setSampleError(null);
@@ -938,4 +952,4 @@ export function WebhooksClient({
   );
 
   return embedded ? <div className="space-y-3">{content}</div> : <ModulePage>{content}</ModulePage>;
-}
+});

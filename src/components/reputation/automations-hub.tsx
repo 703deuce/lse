@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   CheckCircle2,
@@ -14,7 +14,10 @@ import {
   Webhook,
   Zap,
 } from "lucide-react";
-import { WebhooksClient } from "@/components/integrations/webhooks-client";
+import {
+  WebhooksClient,
+  type WebhooksClientHandle,
+} from "@/components/integrations/webhooks-client";
 import { RepBadge, RepMetricCard, RepPageHeader, RepTabs, rep } from "@/components/reputation/rep-ui";
 import type { ReputationAutomationPreviewData } from "@/lib/reputation/reputation-page-preview-data";
 import { cn } from "@/lib/utils";
@@ -69,7 +72,13 @@ function statusTone(status: TriggerRow["status"]): "green" | "amber" | "gray" {
   return "gray";
 }
 
-function IntegrationCard({ item }: { item: IntegrationRow }) {
+function IntegrationCard({
+  item,
+  onConfigure,
+}: {
+  item: IntegrationRow;
+  onConfigure: () => void;
+}) {
   const n = item.name.toLowerCase();
   return (
     <div className={cn(rep.card, "p-4")}>
@@ -86,7 +95,7 @@ function IntegrationCard({ item }: { item: IntegrationRow }) {
             <RepBadge tone={item.status === "Connected" ? "green" : "gray"}>{item.status}</RepBadge>
           </div>
           <p className="mt-1 text-sm leading-relaxed text-[#667085]">{item.detail}</p>
-          <button type="button" className={cn(rep.btnSecondary, "mt-4")}>
+          <button type="button" onClick={onConfigure} className={cn(rep.btnSecondary, "mt-4")}>
             Configure
           </button>
         </div>
@@ -199,6 +208,26 @@ export function AutomationsHub({
   const [error, setError] = useState<string | null>(null);
   const [triggerSearch, setTriggerSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [pendingOpenWizard, setPendingOpenWizard] = useState(false);
+  const webhooksRef = useRef<WebhooksClientHandle | null>(null);
+
+  function openCreateTrigger() {
+    setActiveTab("triggers");
+    setPendingOpenWizard(true);
+  }
+
+  useEffect(() => {
+    if (!pendingOpenWizard || activeTab !== "triggers") return;
+    if (previewData) {
+      setPendingOpenWizard(false);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      webhooksRef.current?.openWizard();
+      setPendingOpenWizard(false);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [activeTab, pendingOpenWizard, previewData]);
 
   const load = useCallback(async () => {
     if (previewData) return;
@@ -284,7 +313,7 @@ export function AutomationsHub({
         showFilters={false}
         actions={
           <>
-            <button type="button" onClick={() => setActiveTab("triggers")} className={rep.btnPrimary}>
+            <button type="button" onClick={openCreateTrigger} className={rep.btnPrimary}>
               <Plus className="h-4 w-4" />
               Create Trigger
             </button>
@@ -292,7 +321,11 @@ export function AutomationsHub({
               <PlugZap className="h-4 w-4" />
               Integrations
             </button>
-            <button type="button" className={rep.btnSecondary}>
+            <button
+              type="button"
+              onClick={() => setActiveTab("integrations")}
+              className={rep.btnSecondary}
+            >
               <Settings className="h-4 w-4" />
               Settings
             </button>
@@ -346,102 +379,105 @@ export function AutomationsHub({
       {activeTab === "triggers" ? (
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-3">
-            <div className={cn(rep.card, "overflow-hidden")}>
-              <div className="border-b border-[#E6EAF0] px-4 py-3">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <h2 className="text-sm font-semibold text-[#101828]">Automation Triggers</h2>
-                    <p className="text-xs text-[#667085]">Webhook and integration events mapped into review campaigns.</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      className={cn(rep.select, "h-9 text-xs")}
-                    >
-                      <option value="all">All Statuses</option>
-                      <option value="active">Active</option>
-                      <option value="paused">Paused</option>
-                      <option value="draft">Draft</option>
-                      <option value="test">Test</option>
-                    </select>
-                    <div className="relative">
-                      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#98A2B3]" />
-                      <input
-                        type="search"
-                        value={triggerSearch}
-                        onChange={(e) => setTriggerSearch(e.target.value)}
-                        placeholder="Search triggers..."
-                        className={cn(rep.input, "h-9 pl-8 text-xs")}
-                        style={{ minWidth: 160 }}
-                      />
+            {previewData ? (
+              <div className={cn(rep.card, "overflow-hidden")}>
+                <div className="border-b border-[#E6EAF0] px-4 py-3">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h2 className="text-sm font-semibold text-[#101828]">Automation Triggers</h2>
+                      <p className="text-xs text-[#667085]">Webhook and integration events mapped into review campaigns.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className={cn(rep.select, "h-9 text-xs")}
+                      >
+                        <option value="all">All Statuses</option>
+                        <option value="active">Active</option>
+                        <option value="paused">Paused</option>
+                        <option value="draft">Draft</option>
+                        <option value="test">Test</option>
+                      </select>
+                      <div className="relative">
+                        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#98A2B3]" />
+                        <input
+                          type="search"
+                          value={triggerSearch}
+                          onChange={(e) => setTriggerSearch(e.target.value)}
+                          placeholder="Search triggers..."
+                          className={cn(rep.input, "h-9 pl-8 text-xs")}
+                          style={{ minWidth: 160 }}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-[#F9FAFB] text-[11px] uppercase tracking-[0.06em] text-[#667085]">
-                    <tr>
-                      <th className="w-10 px-4 py-3">
-                        <input type="checkbox" className="h-4 w-4 rounded border-[#D0D5DD]" aria-label="Select all triggers" />
-                      </th>
-                      <th className="min-w-[200px] px-4 py-3 font-semibold">Trigger</th>
-                      <th className="px-4 py-3 font-semibold">Source</th>
-                      <th className="min-w-[200px] px-4 py-3 font-semibold">Campaign</th>
-                      <th className="px-4 py-3 font-semibold">Status</th>
-                      <th className="px-4 py-3 font-semibold">Last Fired</th>
-                      <th className="px-4 py-3 text-right font-semibold">Enrolled</th>
-                      <th className="w-12 px-4 py-3" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#EEF2F6]">
-                    {filteredTriggers.map((trigger) => (
-                      <tr key={trigger.id} className="bg-white hover:bg-[#F9FAFB]">
-                        <td className="px-4 py-3">
-                          <input type="checkbox" className="h-4 w-4 rounded border-[#D0D5DD]" aria-label={`Select ${trigger.name}`} />
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="font-semibold text-[#101828]">{trigger.name}</p>
-                        </td>
-                        <td className="px-4 py-3 text-[#344054]">{trigger.source}</td>
-                        <td className="px-4 py-3 text-[#344054]">{trigger.campaign}</td>
-                        <td className="px-4 py-3">
-                          <RepBadge tone={statusTone(trigger.status)}>{trigger.status}</RepBadge>
-                        </td>
-                        <td className="px-4 py-3 text-[#667085]">{fmtDateTime(trigger.lastFired)}</td>
-                        <td className="px-4 py-3 text-right tabular-nums text-[#344054]">{trigger.enrolled.toLocaleString()}</td>
-                        <td className="px-4 py-3">
-                          <button type="button" className="rounded-lg p-1.5 text-[#98A2B3] hover:bg-[#F2F4F7]">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {!loading && filteredTriggers.length === 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="bg-[#F9FAFB] text-[11px] uppercase tracking-[0.06em] text-[#667085]">
                       <tr>
-                        <td colSpan={8} className="px-4 py-10 text-center text-sm text-[#667085]">
-                          No triggers match the current filters.
-                        </td>
+                        <th className="w-10 px-4 py-3">
+                          <input type="checkbox" className="h-4 w-4 rounded border-[#D0D5DD]" aria-label="Select all triggers" />
+                        </th>
+                        <th className="min-w-[200px] px-4 py-3 font-semibold">Trigger</th>
+                        <th className="px-4 py-3 font-semibold">Source</th>
+                        <th className="min-w-[200px] px-4 py-3 font-semibold">Campaign</th>
+                        <th className="px-4 py-3 font-semibold">Status</th>
+                        <th className="px-4 py-3 font-semibold">Last Fired</th>
+                        <th className="px-4 py-3 text-right font-semibold">Enrolled</th>
+                        <th className="w-12 px-4 py-3" />
                       </tr>
-                    ) : null}
-                    {loading ? (
-                      <tr>
-                        <td colSpan={8} className="px-4 py-10 text-center text-sm text-[#667085]">
-                          Loading automations...
-                        </td>
-                      </tr>
-                    ) : null}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-[#EEF2F6]">
+                      {filteredTriggers.map((trigger) => (
+                        <tr key={trigger.id} className="bg-white hover:bg-[#F9FAFB]">
+                          <td className="px-4 py-3">
+                            <input type="checkbox" className="h-4 w-4 rounded border-[#D0D5DD]" aria-label={`Select ${trigger.name}`} />
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-semibold text-[#101828]">{trigger.name}</p>
+                          </td>
+                          <td className="px-4 py-3 text-[#344054]">{trigger.source}</td>
+                          <td className="px-4 py-3 text-[#344054]">{trigger.campaign}</td>
+                          <td className="px-4 py-3">
+                            <RepBadge tone={statusTone(trigger.status)}>{trigger.status}</RepBadge>
+                          </td>
+                          <td className="px-4 py-3 text-[#667085]">{fmtDateTime(trigger.lastFired)}</td>
+                          <td className="px-4 py-3 text-right tabular-nums text-[#344054]">{trigger.enrolled.toLocaleString()}</td>
+                          <td className="px-4 py-3">
+                            <button type="button" className="rounded-lg p-1.5 text-[#98A2B3] hover:bg-[#F2F4F7]">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredTriggers.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="px-4 py-10 text-center text-sm text-[#667085]">
+                            No triggers match the current filters.
+                          </td>
+                        </tr>
+                      ) : null}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-            {error ? <p className="text-sm text-[#B42318]">{error}</p> : null}
-            {!previewData ? (
+            ) : (
               <div className={cn(rep.card, "p-4")}>
-                <WebhooksClient businessId={businessId} embedded />
+                <p className="mb-3 text-sm text-[#667085]">
+                  Create a webhook trigger that enrolls customers into an active review campaign when a job completes in Zapier, Make, n8n, or your CRM.
+                  {triggers.length === 0 && !loading
+                    ? " You need at least one active or scheduled campaign before a trigger can be activated."
+                    : null}
+                </p>
+                {error ? <p className="mb-3 text-sm text-[#B42318]">{error}</p> : null}
+                {loading ? (
+                  <p className="mb-3 text-sm text-[#667085]">Loading automations...</p>
+                ) : null}
+                <WebhooksClient ref={webhooksRef} businessId={businessId} embedded />
               </div>
-            ) : null}
+            )}
           </div>
 
           <aside className="space-y-3">
@@ -454,7 +490,7 @@ export function AutomationsHub({
       {activeTab === "integrations" ? (
         <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
           {integrations.map((item) => (
-            <IntegrationCard key={item.id} item={item} />
+            <IntegrationCard key={item.id} item={item} onConfigure={openCreateTrigger} />
           ))}
         </div>
       ) : null}
