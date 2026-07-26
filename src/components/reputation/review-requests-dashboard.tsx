@@ -22,6 +22,7 @@ import {
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { MessagingSetupCallout } from "@/components/messaging/messaging-setup-callout";
 import { ReviewRequestsPanel } from "@/components/reputation/review-requests-panel";
 import type { ReviewRequestsSection } from "@/components/reputation/review-requests-sub-tabs";
 import type { CampaignRow } from "@/components/reputation/review-requests-campaigns";
@@ -923,6 +924,8 @@ export function ReviewRequestsDashboard({
           </button>
         }
       />
+
+      <MessagingSetupCallout businessId={businessId} />
 
       <RepTabs tabs={TABS} active={tab} onChange={handleTabChange} />
 

@@ -180,6 +180,11 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
               label: "Review Requests",
               icon: MessageSquareText,
             },
+            {
+              href: loc("messaging", businessId),
+              label: "Text Messaging",
+              icon: Phone,
+            },
             { href: loc("review-qr", businessId), label: "QR Poster", icon: QrCode },
             { href: loc("review-campaigns", businessId), label: "Campaigns", icon: FolderKanban },
             { href: loc("review-templates", businessId), label: "Templates", icon: FileText },
@@ -196,11 +201,6 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
         {
           title: "Configuration",
           items: [
-            {
-              href: loc("messaging", businessId),
-              label: "Text Messaging",
-              icon: Phone,
-            },
             {
               href: loc("review-settings", businessId),
               label: "Reputation Settings",

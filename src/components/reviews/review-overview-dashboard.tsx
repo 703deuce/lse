@@ -12,6 +12,7 @@ import {
   Trophy,
   Zap,
 } from "lucide-react";
+import { MessagingSetupCallout } from "@/components/messaging/messaging-setup-callout";
 import {
   RepAreaTrendChart,
 } from "@/components/reputation/rep-charts";
@@ -206,6 +207,8 @@ export function ReviewOverviewDashboard({
           />
         </div>
       </div>
+
+      <MessagingSetupCallout businessId={businessId} />
 
       {/* Row 1 — six KPIs */}
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
