@@ -30,36 +30,34 @@ const iconBubbleSm =
 
 function useEmbedFrameSizing(embed: boolean) {
   useEffect(() => {
-    if (!embed) return;
+    if (!embed || typeof window === "undefined") return;
 
-    const html = document.documentElement;
-    const body = document.body;
-    const prevHtmlBg = html.style.background;
-    const prevBodyBg = body.style.background;
-    html.style.background = "#ffffff";
-    body.style.background = "#ffffff";
+    const root = document.getElementById("lse-qr-embed-root") ?? document.body;
 
     const publishHeight = () => {
+      // Prefer the embed root height so we don't report the stretched min-h body.
       const height = Math.ceil(
-        Math.max(body.scrollHeight, html.scrollHeight, body.offsetHeight)
+        Math.max(root.scrollHeight, root.getBoundingClientRect().height)
       );
-      window.parent?.postMessage({ type: "lse-qr-embed-height", height }, "*");
+      if (height > 0) {
+        window.parent?.postMessage({ type: "lse-qr-embed-height", height }, "*");
+      }
     };
 
     publishHeight();
     const ro = new ResizeObserver(() => publishHeight());
-    ro.observe(body);
+    ro.observe(root);
     window.addEventListener("load", publishHeight);
-    const t1 = window.setTimeout(publishHeight, 250);
-    const t2 = window.setTimeout(publishHeight, 1000);
+    const t1 = window.setTimeout(publishHeight, 100);
+    const t2 = window.setTimeout(publishHeight, 500);
+    const t3 = window.setTimeout(publishHeight, 1500);
 
     return () => {
       ro.disconnect();
       window.removeEventListener("load", publishHeight);
       window.clearTimeout(t1);
       window.clearTimeout(t2);
-      html.style.background = prevHtmlBg;
-      body.style.background = prevBodyBg;
+      window.clearTimeout(t3);
     };
   }, [embed]);
 }
@@ -96,9 +94,13 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
 
   if (embed) {
     return (
-      <div className="bg-white px-2 py-2 sm:px-3 sm:py-2">
-        <PublicQrGenerator embedded seoLayout />
-      </div>
+      <>
+        {/* Force white canvas in iframe — root layout uses gray --background */}
+        <style>{`html, body { background: #ffffff !important; }`}</style>
+        <div id="lse-qr-embed-root" className="bg-white px-2 py-2 sm:px-3 sm:py-2">
+          <PublicQrGenerator embedded seoLayout />
+        </div>
+      </>
     );
   }
 
