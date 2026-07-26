@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { appUrl } from "@/lib/app-url";
 import { createServiceClient } from "@/lib/db/client";
 import { hashShareToken } from "@/lib/reporting/share-token";
 import {
@@ -15,7 +16,7 @@ export async function POST(
 ) {
   const { token } = await context.params;
   if (!token || token.length < 16 || token.length > 128) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(appUrl("/"));
   }
 
   const ip =
@@ -28,13 +29,13 @@ export async function POST(
     windowMs: 60_000,
   });
   if (!rate.ok) {
-    return NextResponse.redirect(new URL(`/reports/share/${token}?error=1`, request.url));
+    return NextResponse.redirect(appUrl(`/reports/share/${token}?error=1`));
   }
 
   const form = await request.formData();
   const password = String(form.get("password") ?? "");
   if (!password) {
-    return NextResponse.redirect(new URL(`/reports/share/${token}?error=1`, request.url));
+    return NextResponse.redirect(appUrl(`/reports/share/${token}?error=1`));
   }
 
   const supabase = createServiceClient();
@@ -61,23 +62,23 @@ export async function POST(
   }
 
   if (!report?.share_password_hash) {
-    return NextResponse.redirect(new URL(`/reports/share/${token}`, request.url));
+    return NextResponse.redirect(appUrl(`/reports/share/${token}`));
   }
 
   const publishStatus = String(report.publish_status ?? "published");
   if (publishStatus === "draft" || publishStatus === "archived") {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(appUrl("/"));
   }
   if (report.share_expires_at) {
     const expires = new Date(report.share_expires_at as string).getTime();
     if (Number.isFinite(expires) && expires <= Date.now()) {
-      return NextResponse.redirect(new URL("/", request.url));
+      return NextResponse.redirect(appUrl("/"));
     }
   }
 
   const ok = await verifySharePassword(password, String(report.share_password_hash));
   if (!ok) {
-    return NextResponse.redirect(new URL(`/reports/share/${token}?error=1`, request.url));
+    return NextResponse.redirect(appUrl(`/reports/share/${token}?error=1`));
   }
 
   const hashForCookie = String(report.share_token_hash ?? tokenHash);
@@ -85,7 +86,7 @@ export async function POST(
     hashForCookie,
     String(report.share_password_hash)
   );
-  const response = NextResponse.redirect(new URL(`/reports/share/${token}`, request.url));
+  const response = NextResponse.redirect(appUrl(`/reports/share/${token}`));
   response.cookies.set(
     cookieName,
     "1",

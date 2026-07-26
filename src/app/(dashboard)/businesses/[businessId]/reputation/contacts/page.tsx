@@ -1,4 +1,4 @@
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessPage } from "@/lib/auth/require-business-page";
 import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { hasEntitlement } from "@/lib/auth/entitlements";
 import { ContactsPageClient } from "@/components/reputation/contacts-page-client";
@@ -15,7 +15,7 @@ export default async function ReputationContactsPage({
 }) {
   const { businessId } = await params;
   const isPreview = isDevPreviewBusiness(businessId);
-  const auth = await requireBusinessAccess(businessId);
+  const auth = await requireBusinessPage(businessId);
   const allowed = isPreview || (await hasEntitlement(auth.organizationId, "review_campaigns"));
   return (
     <ContactsPageClient

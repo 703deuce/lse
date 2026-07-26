@@ -1,4 +1,4 @@
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessPage } from "@/lib/auth/require-business-page";
 import { MessagingPageClient } from "@/components/messaging/messaging-page-client";
 
 export default async function MessagingStatusPage({
@@ -7,6 +7,6 @@ export default async function MessagingStatusPage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
-  await requireBusinessAccess(businessId);
+  await requireBusinessPage(businessId);
   return <MessagingPageClient businessId={businessId} screen="status" />;
 }

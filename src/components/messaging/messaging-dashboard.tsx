@@ -100,7 +100,7 @@ function UsageBar({ used, allowance }: { used: number; allowance: number }) {
 
 export function MessagingDashboard({
   businessId,
-  registration,
+  registration: initialRegistration,
   progress,
   events,
 }: {
@@ -110,9 +110,34 @@ export function MessagingDashboard({
   events: MessagingRegistrationEvent[];
 }) {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("overview");
+  const [registration, setRegistration] = useState(initialRegistration);
+  const [pauseBusy, setPauseBusy] = useState(false);
+  const [pauseError, setPauseError] = useState<string | null>(null);
   const remaining = Math.max(0, registration.monthlySmsAllowance - registration.monthlySmsUsed);
   const testDisabled = !registration.messagingEnabled || registration.messagingPaused;
   const timeline = buildRegistrationTimeline(registration);
+
+  async function togglePause() {
+    setPauseBusy(true);
+    setPauseError(null);
+    const action = registration.messagingPaused ? "resume" : "pause";
+    try {
+      const res = await fetch("/api/messaging/registration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId, action }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || `Could not ${action} messaging`);
+      }
+      if (json.registration) setRegistration(json.registration as MessagingRegistration);
+    } catch (err) {
+      setPauseError(err instanceof Error ? err.message : `Could not ${action} messaging`);
+    } finally {
+      setPauseBusy(false);
+    }
+  }
 
   return (
     <MessagingPageShell
@@ -196,10 +221,24 @@ export function MessagingDashboard({
                   <Phone className="h-4 w-4" />
                   Current number
                 </button>
-                <button type="button" className={cn(rep.btnSecondary, "w-full")}>
+                <button
+                  type="button"
+                  className={cn(rep.btnSecondary, "w-full")}
+                  onClick={() => void togglePause()}
+                  disabled={pauseBusy}
+                >
                   {registration.messagingPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                  {registration.messagingPaused ? "Resume texting" : "Pause texting"}
+                  {pauseBusy
+                    ? "Updating…"
+                    : registration.messagingPaused
+                      ? "Resume texting"
+                      : "Pause texting"}
                 </button>
+                {pauseError ? (
+                  <p className="text-xs font-medium text-[#B42318]" role="alert">
+                    {pauseError}
+                  </p>
+                ) : null}
                 <Link href={`/businesses/${businessId}/reputation/contacts`} className={cn(rep.btnSecondary, "w-full")}>
                   <Ban className="h-4 w-4" />
                   View opt-outs
@@ -416,9 +455,18 @@ export function MessagingDashboard({
             </div>
           </dl>
           <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" className={rep.btnSecondary}>
+            <button
+              type="button"
+              className={rep.btnSecondary}
+              onClick={() => void togglePause()}
+              disabled={pauseBusy}
+            >
               {registration.messagingPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-              {registration.messagingPaused ? "Resume texting" : "Pause texting"}
+              {pauseBusy
+                ? "Updating…"
+                : registration.messagingPaused
+                  ? "Resume texting"
+                  : "Pause texting"}
             </button>
             <Link href={`/businesses/${businessId}/reputation/messaging/number`} className={rep.btnSecondary}>
               Manage number
@@ -427,6 +475,11 @@ export function MessagingDashboard({
               Compliance registration
             </Link>
           </div>
+          {pauseError ? (
+            <p className="mt-2 text-xs font-medium text-[#B42318]" role="alert">
+              {pauseError}
+            </p>
+          ) : null}
         </SectionCard>
       ) : null}
     </MessagingPageShell>

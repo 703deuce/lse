@@ -538,7 +538,7 @@ export function PublicQrGenerator({
           onClick={() => void downloadPoster()}
         >
           <Download className="h-3.5 w-3.5" />
-          Download Poster (PDF)
+          Download Poster (PNG)
         </button>
         <button
           type="button"

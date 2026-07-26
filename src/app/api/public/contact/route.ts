@@ -15,6 +15,15 @@ const MARKETING_ORIGINS = new Set([
 const INQUIRY_TO =
   process.env.CONTACT_INQUIRY_TO_EMAIL?.trim() || "info@localseoexpress.com";
 
+/** Prefer a dedicated contact sender; fall back to review-request From. */
+function contactFromName(): string | undefined {
+  return (
+    process.env.CONTACT_FROM_NAME?.trim() ||
+    process.env.REVIEW_REQUEST_FROM_NAME?.trim() ||
+    "Local SEO Express Website"
+  );
+}
+
 function corsHeaders(origin: string | null): HeadersInit {
   const allowed =
     origin && MARKETING_ORIGINS.has(origin) ? origin : "https://localseoexpress.com";
@@ -114,7 +123,7 @@ export async function POST(request: Request) {
     const sent = await sendBrevoEmail({
       toEmail: INQUIRY_TO,
       toName: "Local SEO Express",
-      fromName: "Local SEO Express Website",
+      fromName: contactFromName(),
       replyToEmail: email,
       subject: `Free SEO audit request — ${businessName}`,
       textBody,

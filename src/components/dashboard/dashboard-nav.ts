@@ -163,12 +163,19 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
           icon: Phone,
         },
         {
-          href: `${loc("messaging", businessId)}/status`,
+          // With a location: deep-link. Without: dedicated picker routes
+          // (/tools/go/messaging/status|number) — never append /status onto the
+          // catch-all picker URL incorrectly.
+          href: businessId
+            ? `${loc("messaging", businessId)}/status`
+            : "/tools/go/messaging/status",
           label: "Registration",
           icon: ShieldCheck,
         },
         {
-          href: `${loc("messaging", businessId)}/number`,
+          href: businessId
+            ? `${loc("messaging", businessId)}/number`
+            : "/tools/go/messaging/number",
           label: "Phone Number",
           icon: MessageSquareText,
         },

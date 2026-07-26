@@ -59,5 +59,6 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/sign-in?error=auth_callback_failed`);
+  const base = trustedRedirectBase(request, origin);
+  return NextResponse.redirect(`${base}/sign-in?error=auth_callback_failed`);
 }

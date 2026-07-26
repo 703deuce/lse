@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessPage } from "@/lib/auth/require-business-page";
 import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { hasEntitlement } from "@/lib/auth/entitlements";
 import { ReviewCampaignsUpgrade } from "@/components/reputation/review-campaigns-upgrade";
@@ -15,7 +15,7 @@ export default async function ReputationSettingsPage({
 }) {
   const { businessId } = await params;
   const isPreview = isDevPreviewBusiness(businessId);
-  const auth = await requireBusinessAccess(businessId);
+  const auth = await requireBusinessPage(businessId);
   const allowed = isPreview || (await hasEntitlement(auth.organizationId, "review_campaigns"));
   if (!allowed) return <ReviewCampaignsUpgrade businessId={businessId} />;
 

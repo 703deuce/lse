@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
-import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { requireBusinessPage } from "@/lib/auth/require-business-page";
 import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { hasEntitlement } from "@/lib/auth/entitlements";
 import { QrPlans } from "@/components/reputation/qr-campaigns/qr-plans";
@@ -14,7 +14,7 @@ export default async function QrCampaignPlansPage({
 }) {
   const { businessId } = await params;
   const isPreview = isDevPreviewBusiness(businessId);
-  const auth = await requireBusinessAccess(businessId);
+  const auth = await requireBusinessPage(businessId);
   const allowed =
     isPreview ||
     (await hasEntitlement(auth.organizationId, "review_requests")) ||

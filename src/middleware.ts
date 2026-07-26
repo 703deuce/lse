@@ -1,11 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { getDevDefaultAppPath, isDevBypassEnabled } from "@/lib/auth/dev";
+import { getAppBaseUrl, isNonPublicAppBase } from "@/lib/app-url";
 import { REQUEST_ID_HEADER, resolveRequestId } from "@/lib/observability/request-id";
 import { evaluateSameOriginMutation, isCsrfExemptPath } from "@/lib/security/csrf";
 import { assertRateLimit } from "@/lib/security/rate-limit";
 import { logger } from "@/lib/observability/logger";
 import { mergeCookieOptions } from "@/lib/supabase/cookie-options";
+
+/** Prefer the public APP_URL when request.url is an internal listen address. */
+function publicRedirectUrl(pathWithQuery: string, request: NextRequest): URL {
+  const path = pathWithQuery.startsWith("/") ? pathWithQuery : `/${pathWithQuery}`;
+  if (isNonPublicAppBase(request.url)) {
+    return new URL(path, `${getAppBaseUrl()}/`);
+  }
+  return new URL(path, request.url);
+}
 
 const PUBLIC_PREFIXES = [
   "/sign-in",
@@ -159,7 +169,7 @@ export async function middleware(request: NextRequest) {
 
   if (devBypass) {
     if (pathname === "/" || pathname === "/sign-in" || pathname === "/sign-up") {
-      const target = new URL(getDevDefaultAppPath(), request.url);
+      const target = publicRedirectUrl(getDevDefaultAppPath(), request);
       const redirect = NextResponse.redirect(target);
       redirect.headers.set(REQUEST_ID_HEADER, requestId);
       return redirect;
@@ -201,7 +211,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user && isProtectedPath(pathname)) {
-    const signInUrl = new URL("/sign-in", request.url);
+    const signInUrl = publicRedirectUrl("/sign-in", request);
     signInUrl.searchParams.set("next", pathname);
     const redirect = NextResponse.redirect(signInUrl);
     redirect.headers.set(REQUEST_ID_HEADER, requestId);
@@ -210,7 +220,7 @@ export async function middleware(request: NextRequest) {
 
   if (user && (pathname === "/sign-in" || pathname === "/sign-up")) {
     // Home page decides Workspace vs Get started (first login).
-    const redirect = NextResponse.redirect(new URL("/", request.url));
+    const redirect = NextResponse.redirect(publicRedirectUrl("/", request));
     redirect.headers.set(REQUEST_ID_HEADER, requestId);
     return redirect;
   }

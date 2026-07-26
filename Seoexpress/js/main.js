@@ -198,6 +198,28 @@
         submitBtn.textContent = 'Sending…';
       }
 
+      function openMailtoFallback() {
+        var subject = encodeURIComponent(
+          'Free SEO audit request — ' + (payload.business_name || 'Website inquiry')
+        );
+        var lines = [
+          'Name: ' + (payload.first_name || '') + ' ' + (payload.last_name || ''),
+          'Business: ' + (payload.business_name || ''),
+          'Email: ' + (payload.email || ''),
+          'Phone: ' + (payload.phone || '—'),
+          'Website: ' + (payload.website || '—'),
+          'Primary service: ' + (payload.primary_service || '—'),
+          'Service area: ' + (payload.location || '—'),
+          'Locations: ' + (payload.locations || '—'),
+          'Wants to improve: ' + (payload.improve || '—'),
+          '',
+          'Additional information:',
+          payload.message || '—'
+        ];
+        var body = encodeURIComponent(lines.join('\n'));
+        window.location.href = 'mailto:info@localseoexpress.com?subject=' + subject + '&body=' + body;
+      }
+
       fetch(contactEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -210,10 +232,13 @@
         })
         .then(function (result) {
           if (!result.ok) {
-            throw new Error(
-              (result.data && result.data.error) ||
-                'We could not send your request. Please email info@localseoexpress.com.'
+            // API not deployed / Brevo down — still let the visitor reach us.
+            openMailtoFallback();
+            setContactStatus(
+              'Opening your email app so we still get your request…',
+              'success'
             );
+            return;
           }
           contactForm.reset();
           setContactStatus(
@@ -221,12 +246,11 @@
             'success'
           );
         })
-        .catch(function (err) {
+        .catch(function () {
+          openMailtoFallback();
           setContactStatus(
-            err && err.message
-              ? err.message
-              : 'We could not send your request. Please email info@localseoexpress.com.',
-            'error'
+            'Opening your email app so we still get your request…',
+            'success'
           );
         })
         .finally(function () {

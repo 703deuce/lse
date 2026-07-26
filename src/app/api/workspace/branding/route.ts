@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireOrganizationPermission } from "@/lib/auth/permissions";
-import { requireRecentAuth } from "@/lib/auth/reauth";
 import { requireAuth } from "@/lib/auth/context";
 import {
   loadOrganizationReportBranding,
@@ -21,7 +20,8 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
-    await requireRecentAuth();
+    // Permission check only — Supabase JWTs often lack usable auth_time, and there
+    // is no reauth UI on Branding / Get started, so requireRecentAuth blocked saves.
     const auth = await requireOrganizationPermission("business.update");
     const body = await request.json();
     const parsed = reportBrandingSchema.safeParse(body);
