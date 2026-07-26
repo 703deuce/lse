@@ -23,7 +23,7 @@
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.110.0",
-    "bullmq": "^5.80.3",
+    "bullmq": "^5.80.5",
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
