@@ -2,18 +2,37 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Ban, History, Pause, Play, Send } from "lucide-react";
+import {
+  Ban,
+  History,
+  Pause,
+  Phone,
+  Play,
+  Send,
+  Settings2,
+  ShieldCheck,
+} from "lucide-react";
 import { RepMetricCard, rep } from "@/components/reputation/rep-ui";
-import { STATUS_LABELS } from "@/lib/messaging/status";
+import { STATUS_LABELS, buildRegistrationTimeline } from "@/lib/messaging/status";
 import type { MessagingProgressStep, MessagingRegistration, MessagingRegistrationEvent } from "@/lib/messaging/types";
 import { cn } from "@/lib/utils";
-import { MessagingPageShell, MessagingSuccessBanner, SectionCard } from "./messaging-ui";
+import {
+  MessagingPageShell,
+  MessagingSuccessBanner,
+  MessagingStatusBadge,
+  RegistrationTimeline,
+  SectionCard,
+} from "./messaging-ui";
 
 const TABS = [
   { id: "overview", label: "Overview" },
+  { id: "registration", label: "Registration Status" },
+  { id: "number", label: "Current Number" },
+  { id: "usage", label: "SMS Usage" },
   { id: "templates", label: "Review Request Templates" },
-  { id: "settings", label: "Settings" },
   { id: "history", label: "Message History" },
+  { id: "compliance", label: "Compliance" },
+  { id: "settings", label: "Settings" },
 ] as const;
 
 const SAMPLE_MESSAGES = [
@@ -93,6 +112,7 @@ export function MessagingDashboard({
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("overview");
   const remaining = Math.max(0, registration.monthlySmsAllowance - registration.monthlySmsUsed);
   const testDisabled = !registration.messagingEnabled || registration.messagingPaused;
+  const timeline = buildRegistrationTimeline(registration);
 
   return (
     <MessagingPageShell
@@ -108,8 +128,8 @@ export function MessagingDashboard({
             <Send className="h-4 w-4" />
             Send test message
           </button>
-          <Link href={`/businesses/${businessId}/reputation/templates`} className={rep.btnSecondary}>
-            Review-request templates
+          <Link href={`/businesses/${businessId}/reputation/requests`} className={rep.btnSecondary}>
+            Send review requests
           </Link>
         </>
       }
@@ -154,19 +174,28 @@ export function MessagingDashboard({
           </div>
 
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
-            <SectionCard title="Usage" subtitle="Plan allowance and recent outbound volume.">
+            <SectionCard title="SMS usage" subtitle="Plan allowance and recent outbound volume.">
               <UsageBar used={registration.monthlySmsUsed} allowance={registration.monthlySmsAllowance} />
             </SectionCard>
 
-            <SectionCard title="Manage" subtitle="Compliance and number controls.">
+            <SectionCard title="Quick actions" subtitle="Everyday messaging controls.">
               <div className="space-y-2">
-                <Link href={`/businesses/${businessId}/reputation/messaging/status`} className={cn(rep.btnSecondary, "w-full")}>
+                <button
+                  type="button"
+                  className={cn(rep.btnSecondary, "w-full")}
+                  onClick={() => setTab("registration")}
+                >
                   <History className="h-4 w-4" />
-                  View compliance registration
-                </Link>
-                <Link href={`/businesses/${businessId}/reputation/messaging/number`} className={cn(rep.btnSecondary, "w-full")}>
-                  Replace or release number
-                </Link>
+                  Registration status
+                </button>
+                <button
+                  type="button"
+                  className={cn(rep.btnSecondary, "w-full")}
+                  onClick={() => setTab("number")}
+                >
+                  <Phone className="h-4 w-4" />
+                  Current number
+                </button>
                 <button type="button" className={cn(rep.btnSecondary, "w-full")}>
                   {registration.messagingPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
                   {registration.messagingPaused ? "Resume texting" : "Pause texting"}
@@ -178,24 +207,93 @@ export function MessagingDashboard({
               </div>
             </SectionCard>
           </div>
-
-          <SectionCard title="Recent registration activity" subtitle="Delivery, opt-outs, and registration events.">
-            {events.length === 0 ? (
-              <p className="text-sm text-[#667085]">No activity yet.</p>
-            ) : (
-              <ul className="space-y-3">
-                {events.slice(0, 6).map((event) => (
-                  <li key={event.id} className="rounded-lg bg-[#F9FAFB] px-3 py-2">
-                    <p className="text-sm font-medium text-[#101828]">{event.message ?? event.eventType}</p>
-                    <p className="mt-1 text-xs text-[#98A2B3]">
-                      {new Date(event.createdAt).toLocaleString()} · {event.source}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </SectionCard>
         </>
+      ) : null}
+
+      {tab === "registration" ? (
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <SectionCard title="Registration status" subtitle="Where this account sits in carrier review." icon={ShieldCheck}>
+            <RegistrationTimeline items={timeline} />
+            <Link
+              href={`/businesses/${businessId}/reputation/messaging/status`}
+              className={cn(rep.btnSecondary, "mt-4")}
+            >
+              Open full status page
+            </Link>
+          </SectionCard>
+          <SectionCard title="Component statuses">
+            <ul className="space-y-3">
+              {(
+                [
+                  ["Business profile", registration.businessDetailsStatus],
+                  ["Brand", registration.brandVerificationStatus],
+                  ["Campaign", registration.campaignReviewStatus],
+                  ["Number", registration.numberStatus],
+                  ["Messaging", registration.messagingStatus],
+                ] as const
+              ).map(([label, status]) => (
+                <li key={label} className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-[#344054]">{label}</span>
+                  <MessagingStatusBadge status={status} />
+                </li>
+              ))}
+            </ul>
+          </SectionCard>
+        </div>
+      ) : null}
+
+      {tab === "number" ? (
+        <SectionCard title="Current number" subtitle="Dedicated local number for outbound review requests." icon={Phone}>
+          <dl className="space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-3 border-b border-[#F2F4F7] pb-3">
+              <dt className="text-[#667085]">Phone number</dt>
+              <dd className="text-lg font-bold text-[#101828]">
+                {registration.phoneNumberFriendly ?? "—"}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 border-b border-[#F2F4F7] pb-3">
+              <dt className="text-[#667085]">Locality</dt>
+              <dd className="font-semibold text-[#101828]">
+                {[registration.phoneNumberLocality, registration.phoneNumberRegion]
+                  .filter(Boolean)
+                  .join(", ") || "—"}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 border-b border-[#F2F4F7] pb-3">
+              <dt className="text-[#667085]">Monthly cost</dt>
+              <dd className="font-semibold text-[#101828]">
+                {registration.phoneNumberMonthlyCost != null
+                  ? `$${registration.phoneNumberMonthlyCost.toFixed(2)}`
+                  : "$1.15"}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-[#667085]">Capabilities</dt>
+              <dd className="font-semibold text-[#101828]">
+                {[
+                  registration.phoneNumberCapabilities?.sms && "SMS",
+                  registration.phoneNumberCapabilities?.mms && "MMS",
+                  registration.phoneNumberCapabilities?.voice && "Voice",
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || "SMS"}
+              </dd>
+            </div>
+          </dl>
+          <Link
+            href={`/businesses/${businessId}/reputation/messaging/number`}
+            className={cn(rep.btnSecondary, "mt-4")}
+          >
+            Replace or release number
+          </Link>
+        </SectionCard>
+      ) : null}
+
+      {tab === "usage" ? (
+        <SectionCard title="SMS usage" subtitle="Track allowance against outbound volume.">
+          <UsageBar used={registration.monthlySmsUsed} allowance={registration.monthlySmsAllowance} />
+          <p className="mt-4 text-sm text-[#667085]">{remaining} messages remaining this month.</p>
+        </SectionCard>
       ) : null}
 
       {tab === "templates" ? (
@@ -204,40 +302,11 @@ export function MessagingDashboard({
           subtitle="Manage SMS templates used for post-job follow-ups."
         >
           <p className="text-sm text-[#667085]">
-            Open the Templates area to edit merge fields, sample copy, and review-request sequences.
+            Edit merge fields, sample copy, and review-request sequences in Templates.
           </p>
           <Link href={`/businesses/${businessId}/reputation/templates`} className={cn(rep.btnPrimary, "mt-4")}>
             Open templates
           </Link>
-        </SectionCard>
-      ) : null}
-
-      {tab === "settings" ? (
-        <SectionCard title="Messaging settings" subtitle="Number, pause controls, and compliance links.">
-          <dl className="space-y-3 text-sm">
-            <div className="flex items-center justify-between gap-3 border-b border-[#F2F4F7] pb-3">
-              <dt className="text-[#667085]">Dedicated number</dt>
-              <dd className="font-semibold text-[#101828]">{registration.phoneNumberFriendly ?? "—"}</dd>
-            </div>
-            <div className="flex items-center justify-between gap-3 border-b border-[#F2F4F7] pb-3">
-              <dt className="text-[#667085]">Messaging status</dt>
-              <dd className="font-semibold text-[#101828]">
-                {registration.messagingPaused ? "Paused" : "Active"}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <dt className="text-[#667085]">Monthly allowance</dt>
-              <dd className="font-semibold text-[#101828]">{registration.monthlySmsAllowance} SMS</dd>
-            </div>
-          </dl>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Link href={`/businesses/${businessId}/reputation/messaging/status`} className={rep.btnSecondary}>
-              Compliance registration
-            </Link>
-            <Link href={`/businesses/${businessId}/reputation/messaging/number`} className={rep.btnSecondary}>
-              Manage number
-            </Link>
-          </div>
         </SectionCard>
       ) : null}
 
@@ -277,6 +346,86 @@ export function MessagingDashboard({
                 ))}
               </tbody>
             </table>
+          </div>
+        </SectionCard>
+      ) : null}
+
+      {tab === "compliance" ? (
+        <div className="grid gap-3 lg:grid-cols-2">
+          <SectionCard title="Compliance" subtitle="Consent, STOP, and HELP language on file." icon={ShieldCheck}>
+            <dl className="space-y-3 text-sm">
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">Opt-in method</dt>
+                <dd className="mt-1 text-[#101828]">{registration.useCase.optInMethod || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">STOP wording</dt>
+                <dd className="mt-1 text-[#101828]">{registration.useCase.optOutWording || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">HELP wording</dt>
+                <dd className="mt-1 text-[#101828]">{registration.useCase.helpWording || "—"}</dd>
+              </div>
+            </dl>
+          </SectionCard>
+          <SectionCard title="Opt-outs" subtitle="Contacts who replied STOP.">
+            <p className="text-sm text-[#667085]">
+              Manage SMS opt-outs from your contacts list. Opted-out numbers are blocked from future
+              review-request texts.
+            </p>
+            <Link href={`/businesses/${businessId}/reputation/contacts`} className={cn(rep.btnSecondary, "mt-4")}>
+              <Ban className="h-4 w-4" />
+              View opt-outs
+            </Link>
+          </SectionCard>
+          <SectionCard title="Recent registration activity" className="lg:col-span-2">
+            {events.length === 0 ? (
+              <p className="text-sm text-[#667085]">No activity yet.</p>
+            ) : (
+              <ul className="space-y-3">
+                {events.slice(0, 8).map((event) => (
+                  <li key={event.id} className="rounded-lg bg-[#F9FAFB] px-3 py-2">
+                    <p className="text-sm font-medium text-[#101828]">{event.message ?? event.eventType}</p>
+                    <p className="mt-1 text-xs text-[#98A2B3]">
+                      {new Date(event.createdAt).toLocaleString()} · {event.source}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SectionCard>
+        </div>
+      ) : null}
+
+      {tab === "settings" ? (
+        <SectionCard title="Messaging settings" subtitle="Number, pause controls, and compliance links." icon={Settings2}>
+          <dl className="space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-3 border-b border-[#F2F4F7] pb-3">
+              <dt className="text-[#667085]">Dedicated number</dt>
+              <dd className="font-semibold text-[#101828]">{registration.phoneNumberFriendly ?? "—"}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 border-b border-[#F2F4F7] pb-3">
+              <dt className="text-[#667085]">Messaging status</dt>
+              <dd className="font-semibold text-[#101828]">
+                {registration.messagingPaused ? "Paused" : "Active"}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-[#667085]">Monthly allowance</dt>
+              <dd className="font-semibold text-[#101828]">{registration.monthlySmsAllowance} SMS</dd>
+            </div>
+          </dl>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" className={rep.btnSecondary}>
+              {registration.messagingPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+              {registration.messagingPaused ? "Resume texting" : "Pause texting"}
+            </button>
+            <Link href={`/businesses/${businessId}/reputation/messaging/number`} className={rep.btnSecondary}>
+              Manage number
+            </Link>
+            <Link href={`/businesses/${businessId}/reputation/messaging/status`} className={rep.btnSecondary}>
+              Compliance registration
+            </Link>
           </div>
         </SectionCard>
       ) : null}

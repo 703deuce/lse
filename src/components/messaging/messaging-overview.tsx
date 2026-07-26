@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, MessageSquareText, Phone, ShieldCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Mail,
+  MessageSquareText,
+  Phone,
+  ShieldCheck,
+} from "lucide-react";
 import { RepMetricCard, rep } from "@/components/reputation/rep-ui";
 import { isMessagingReady, STATUS_LABELS } from "@/lib/messaging/status";
 import type { MessagingProgressStep, MessagingRegistration, MessagingRegistrationEvent } from "@/lib/messaging/types";
@@ -38,6 +45,7 @@ export function MessagingOverview({
     );
   }
 
+  const notStarted = registration.overallStatus === "not_started";
   const actionRequired = progress.some(
     (step) =>
       step.status === "action_required" ||
@@ -45,16 +53,110 @@ export function MessagingOverview({
       step.status === "suspended"
   );
 
+  // Product landing — do not drop inactive customers straight into the wizard.
+  if (notStarted) {
+    return (
+      <div className={cn(rep.page, "messaging-enter")}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h1 className={rep.title}>Text Messaging</h1>
+            <p className={rep.subtitle}>
+              Dedicated business SMS for review requests — activate when you are ready.
+            </p>
+          </div>
+          <Link href={nextHref} className={rep.btnPrimary}>
+            Start Registration
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+
+        <section className="overflow-hidden rounded-2xl border border-[#B7E4CC] bg-[linear-gradient(145deg,#ECFDF3_0%,#ffffff_55%)] p-6 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#137752] ring-1 ring-[#B7E4CC]">
+            <Phone className="h-3.5 w-3.5" />
+            SMS not active yet
+          </div>
+          <h2 className="mt-4 max-w-2xl text-2xl font-semibold tracking-tight text-[#101828]">
+            Text messaging is not active yet.
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#486581]">
+            You are currently sending review requests by email only. Activate SMS to improve
+            response rates and automate review follow-ups from a dedicated local number.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link href={nextHref} className={rep.btnPrimary}>
+              Start Registration
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href={`/businesses/${businessId}/reputation/requests`}
+              className={rep.btnSecondary}
+            >
+              <Mail className="h-4 w-4" />
+              Keep using email requests
+            </Link>
+          </div>
+        </section>
+
+        <div className="grid gap-3 lg:grid-cols-3">
+          <SectionCard title="What you get" icon={MessageSquareText}>
+            <ul className="space-y-2 text-sm text-[#344054]">
+              <li>• Dedicated local business number</li>
+              <li>• Carrier-compliant A2P registration</li>
+              <li>• Review-request SMS with STOP / HELP</li>
+            </ul>
+          </SectionCard>
+          <SectionCard title="How activation works" icon={ShieldCheck}>
+            <ul className="space-y-2 text-sm text-[#344054]">
+              <li>• Business profile and use case</li>
+              <li>• Brand and campaign approval</li>
+              <li>• Choose number, then go live</li>
+            </ul>
+          </SectionCard>
+          <SectionCard title="Stay on email" icon={Mail}>
+            <p className="text-sm leading-6 text-[#344054]">
+              SMS is optional. Customers who only need Maps or email review requests can leave this
+              inactive indefinitely and activate later.
+            </p>
+          </SectionCard>
+        </div>
+
+        <SectionCard title="Module areas" subtitle="Available after you activate SMS.">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              "Overview",
+              "Registration status",
+              "Current number",
+              "SMS usage",
+              "Review request templates",
+              "Message history",
+              "Compliance",
+              "Settings",
+            ].map((label) => (
+              <div
+                key={label}
+                className="rounded-lg border border-dashed border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2.5 text-sm font-medium text-[#667085]"
+              >
+                {label}
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      </div>
+    );
+  }
+
+  // In-progress registration — product shell with progress + continue.
   return (
     <MessagingPageShell
-      title="Text Messaging Setup"
-      subtitle="Register your business for compliant review-request texting. One Twilio subaccount per customer."
+      title="Text Messaging"
+      subtitle="Finish registration to activate your dedicated SMS number."
       currentId="business_details"
       steps={progress}
       registration={registration}
       actions={
         <Link href={nextHref} className={rep.btnPrimary}>
-          {registration.overallStatus === "not_started" ? "Start Registration" : "Continue Setup"}
+          {actionRequired ? "Fix and continue" : "Continue Setup"}
+          <ArrowRight className="h-4 w-4" />
         </Link>
       }
     >
@@ -129,30 +231,6 @@ export function MessagingOverview({
               <dd className="font-semibold text-[#101828]">Carrier fees may apply</dd>
             </div>
           </dl>
-        </SectionCard>
-      </div>
-
-      <div className="grid gap-3 lg:grid-cols-3">
-        <SectionCard title="Why register?" subtitle="Carrier-compliant A2P messaging for review requests.">
-          <ul className="space-y-2 text-sm text-[#344054]">
-            <li>• Higher delivery rates and fewer spam filters</li>
-            <li>• Separate Twilio subaccount per customer</li>
-            <li>• Clear consent, STOP, and HELP language</li>
-          </ul>
-        </SectionCard>
-        <SectionCard title="Estimated timelines" subtitle="Approvals vary with registry volume.">
-          <ul className="space-y-2 text-sm text-[#344054]">
-            <li>• Business profile: often minutes to hours</li>
-            <li>• Brand registration: minutes to 1 day</li>
-            <li>• Campaign review: commonly 1–2 weeks</li>
-          </ul>
-        </SectionCard>
-        <SectionCard title="Fees and pricing" subtitle="Carrier and number fees apply after go-live.">
-          <ul className="space-y-2 text-sm text-[#344054]">
-            <li>• Dedicated local number: ~$1.15/mo</li>
-            <li>• Campaign / brand registry fees may apply</li>
-            <li>• Plan SMS allowance tracked after activation</li>
-          </ul>
         </SectionCard>
       </div>
 

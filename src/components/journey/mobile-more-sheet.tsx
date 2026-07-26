@@ -34,7 +34,7 @@ export function MobileMoreSheet() {
   const close = () => setMobileNavOpen(false);
 
   const sections = [
-    { title: null as string | null, items: [nav.getStarted, nav.textMessaging] },
+    { title: null as string | null, items: [nav.getStarted] },
     { title: nav.work.title, items: nav.work.items },
     ...(nav.thisLocation
       ? [
@@ -49,6 +49,7 @@ export function MobileMoreSheet() {
       title: "Reputation",
       items: [nav.reputation.overview, ...nav.reputation.groups.flatMap((g) => g.items)],
     },
+    { title: nav.textMessaging.title, items: nav.textMessaging.items },
     { title: nav.deliverables.title, items: nav.deliverables.items },
     { title: nav.account.title, items: nav.account.items },
   ];

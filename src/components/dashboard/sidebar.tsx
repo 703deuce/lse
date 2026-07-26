@@ -297,20 +297,12 @@ export function DashboardSidebarPanel({
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto overscroll-contain p-2.5" suppressHydrationWarning>
-        <div className="mb-2 space-y-0.5">
+        <div className="mb-2">
           <SidebarNavItemRow
             href={nav.getStarted.href}
             label={nav.getStarted.label}
             icon={nav.getStarted.icon}
             active={isSidebarHrefActive(pathname, nav.getStarted.href, businessId)}
-            staticLinks={staticLinks}
-            onNavigate={onNavigate}
-          />
-          <SidebarNavItemRow
-            href={nav.textMessaging.href}
-            label={nav.textMessaging.label}
-            icon={nav.textMessaging.icon}
-            active={isSidebarHrefActive(pathname, nav.textMessaging.href, businessId)}
             staticLinks={staticLinks}
             onNavigate={onNavigate}
           />
@@ -337,6 +329,14 @@ export function DashboardSidebarPanel({
           title={nav.reputation.title}
           overview={nav.reputation.overview}
           groups={nav.reputation.groups}
+          businessId={businessId}
+          pathname={pathname}
+          staticLinks={staticLinks}
+          onNavigate={onNavigate}
+        />
+        <NavSection
+          title={nav.textMessaging.title}
+          items={nav.textMessaging.items}
           businessId={businessId}
           pathname={pathname}
           staticLinks={staticLinks}

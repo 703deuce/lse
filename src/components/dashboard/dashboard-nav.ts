@@ -21,6 +21,7 @@ import {
   QrCode,
   Settings,
   Settings2,
+  ShieldCheck,
   Sparkles,
   Star,
   Swords,
@@ -80,13 +81,13 @@ function loc(slug: LocationToolSlug, businessId?: string | null): string {
  */
 export function buildUnifiedSidebarNav(businessId?: string | null): {
   getStarted: SidebarNavItem;
-  /** Top-level SMS / A2P entry — not nested under Reputation. */
-  textMessaging: SidebarNavItem;
   work: SidebarNavSection;
   /** @deprecated Kept for callers that still destructure; menu structure is stable. */
   thisLocation: SidebarNavSection | null;
   growthTools: SidebarNavSection;
   reputation: SidebarReputationNav;
+  /** Product module — same sidebar weight as Reputation / Growth Tools. */
+  textMessaging: SidebarNavSection;
   deliverables: SidebarNavSection;
   account: SidebarNavSection;
 } {
@@ -139,11 +140,6 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
       label: "Get started",
       icon: MapPin,
     },
-    textMessaging: {
-      href: loc("messaging", businessId),
-      label: "Text Messaging",
-      icon: Phone,
-    },
     work: {
       title: "Work",
       items: workItems,
@@ -156,6 +152,26 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
         { href: loc("backlink-gap", businessId), label: "Backlink Gap", icon: Link2 },
         { href: loc("trust", businessId), label: "Local Trust", icon: Award },
         { href: loc("ai-visibility", businessId), label: "AI Visibility", icon: Bot },
+      ],
+    },
+    textMessaging: {
+      title: "Text Messaging",
+      items: [
+        {
+          href: loc("messaging", businessId),
+          label: "Overview",
+          icon: Phone,
+        },
+        {
+          href: `${loc("messaging", businessId)}/status`,
+          label: "Registration",
+          icon: ShieldCheck,
+        },
+        {
+          href: `${loc("messaging", businessId)}/number`,
+          label: "Phone Number",
+          icon: MessageSquareText,
+        },
       ],
     },
     reputation: (() => {
@@ -326,6 +342,17 @@ export function isSidebarHrefActive(
 
   // Review Overview intelligence page (exact; not other /reputation/*)
   if (businessId && href === `/businesses/${businessId}/reputation/overview`) {
+    return pathname === href || pathname.startsWith(`${href}?`);
+  }
+
+  // Text Messaging product overview (exact; not /messaging/status|/number|…)
+  if (
+    businessId &&
+    href === `/businesses/${businessId}/reputation/messaging`
+  ) {
+    return pathname === href || pathname.startsWith(`${href}?`);
+  }
+  if (href === "/tools/go/messaging") {
     return pathname === href || pathname.startsWith(`${href}?`);
   }
 
