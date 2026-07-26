@@ -7,11 +7,14 @@ import QRCode from "qrcode";
 import {
   ArrowLeft,
   ArrowRight,
+  Building2,
   Check,
   Loader2,
+  Link2,
 } from "lucide-react";
 import { ModulePage } from "@/components/ui/design-system";
 import { ReviewPosterPreview } from "@/components/reputation/review-poster-preview";
+import { PlacementPicker } from "@/components/reputation/qr-campaigns/placement-picker";
 import {
   QR_MOCK_COLORS,
   qrUi,
@@ -22,17 +25,17 @@ import {
 } from "@/lib/reputation/poster-config";
 import {
   QR_PLACEMENT_LABELS,
-  QR_PLACEMENT_TYPES,
   type QrPlacementType,
   type ReviewQrCampaign,
 } from "@/lib/reputation/qr-campaigns/types";
 import { cn } from "@/lib/utils";
 
 const STEPS = [
-  { id: 1, label: "Destination" },
-  { id: 2, label: "Name & placement" },
-  { id: 3, label: "Design" },
-  { id: 4, label: "Preview & save" },
+  { id: 1, label: "Business" },
+  { id: 2, label: "Review link" },
+  { id: 3, label: "Name & placement" },
+  { id: 4, label: "Design" },
+  { id: 5, label: "Preview & save" },
 ] as const;
 
 export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
@@ -44,12 +47,13 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [planLimit, setPlanLimit] = useState(false);
   const [businessName, setBusinessName] = useState("Your business");
+  const [businessCity, setBusinessCity] = useState<string | null>(null);
   const [defaultDestination, setDefaultDestination] = useState("");
   const [loadingBiz, setLoadingBiz] = useState(true);
 
   const [destinationUrl, setDestinationUrl] = useState("");
   const [name, setName] = useState("Front desk poster");
-  const [placementType, setPlacementType] = useState<QrPlacementType>("standard_poster");
+  const [placementType, setPlacementType] = useState<QrPlacementType>("front_desk");
   const [customPlacementLabel, setCustomPlacementLabel] = useState("");
   const [headline, setHeadline] = useState(DEFAULT_POSTER_CONFIG.title);
   const [description, setDescription] = useState(DEFAULT_POSTER_CONFIG.description);
@@ -68,8 +72,19 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
         ]);
         if (cancelled) return;
         if (accountRes.ok) {
-          const json = (await accountRes.json()) as { account?: { name?: string } };
+          const json = (await accountRes.json()) as {
+            account?: { name?: string; address_text?: string | null };
+          };
           if (json.account?.name) setBusinessName(json.account.name);
+          if (json.account?.address_text) {
+            const parts = json.account.address_text.split(",").map((p) => p.trim());
+            // Prefer "City, ST …" fragment when present
+            if (parts.length >= 2) {
+              setBusinessCity(parts.slice(-2).join(", "));
+            } else if (parts[0]) {
+              setBusinessCity(parts[0]);
+            }
+          }
         }
         if (kitRes?.ok) {
           const kit = (await kitRes.json()) as {
@@ -162,8 +177,9 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
   }
 
   function canContinue(): boolean {
-    if (step === 1) return destinationUrl.trim().length > 8;
-    if (step === 2) {
+    if (step === 1) return Boolean(businessName.trim()) && !loadingBiz;
+    if (step === 2) return destinationUrl.trim().length > 8;
+    if (step === 3) {
       if (!name.trim()) return false;
       if (placementType === "custom" && !customPlacementLabel.trim()) return false;
       return true;
@@ -184,12 +200,11 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
           </Link>
           <h1 className={qrUi.title}>Create QR Campaign</h1>
           <p className={qrUi.subtitle}>
-            Set up a tracked Google review QR code in a few steps.
+            Start with your business, then design a tracked Google review QR.
           </p>
         </div>
       </div>
 
-      {/* Step indicator */}
       <div className="flex flex-wrap gap-2">
         {STEPS.map((s) => (
           <button
@@ -197,7 +212,7 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
             type="button"
             onClick={() => s.id < step && setStep(s.id)}
             className={cn(
-              "rounded-xl border px-4 py-2 text-xs font-semibold transition",
+              "rounded-xl border px-3.5 py-2 text-xs font-semibold transition",
               step === s.id
                 ? "border-[#16A34A] bg-[#ECFDF3] text-[#027A48] shadow-sm"
                 : step > s.id
@@ -235,8 +250,8 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
       ) : null}
 
       <div className={cn(qrUi.cardPad)}>
-        {loadingBiz && step === 1 ? (
-          <div className="flex items-center gap-2 text-sm text-[#667085]">
+        {loadingBiz && step <= 2 ? (
+          <div className="mb-4 flex items-center gap-2 text-sm text-[#667085]">
             <Loader2 className="h-4 w-4 animate-spin text-[#16A34A]" /> Loading business details…
           </div>
         ) : null}
@@ -244,11 +259,50 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
         {step === 1 ? (
           <div className="space-y-4">
             <div>
-              <h2 className="text-lg font-bold text-[#0B1B32]">1. Confirm Google destination</h2>
+              <h2 className="text-lg font-bold text-[#0B1B32]">1. Select business</h2>
               <p className="mt-1 text-sm text-[#667085]">
-                After someone scans your tracked QR, they&apos;ll be sent to this Google review URL.
+                This campaign will track Google review scans for the business below.
               </p>
             </div>
+            <div className="flex items-start gap-4 rounded-2xl border border-[#A6F4C5] bg-[linear-gradient(135deg,#ECFDF3_0%,#ffffff_70%)] p-5">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#16A34A] text-white">
+                <Building2 className="h-6 w-6" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#027A48]">
+                  Connected location
+                </p>
+                <p className="mt-1 text-xl font-extrabold text-[#0B1B32]">{businessName}</p>
+                {businessCity ? (
+                  <p className="mt-1 text-sm text-[#486581]">{businessCity}</p>
+                ) : null}
+                <p className="mt-3 text-xs text-[#667085]">
+                  Need a different location? Switch it in the sidebar business selector first.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {step === 2 ? (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-bold text-[#0B1B32]">2. Verify Google review link</h2>
+              <p className="mt-1 text-sm text-[#667085]">
+                After someone scans your tracked QR, they&apos;ll land on this Google review URL. We
+                prefilled it from {businessName} when available.
+              </p>
+            </div>
+            {defaultDestination ? (
+              <div className="flex items-start gap-2 rounded-xl border border-[#A6F4C5] bg-[#ECFDF3] px-4 py-3 text-sm text-[#027A48]">
+                <Link2 className="mt-0.5 h-4 w-4 shrink-0" />
+                Auto-filled from your connected Google business profile.
+              </div>
+            ) : (
+              <div className="rounded-xl border border-[#FEDF89] bg-[#FFFAEB] px-4 py-3 text-sm text-[#B54708]">
+                No review link on file yet. Paste your Google review URL or Place ID link below.
+              </div>
+            )}
             <input
               value={destinationUrl}
               onChange={(e) => setDestinationUrl(e.target.value)}
@@ -267,12 +321,12 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
           </div>
         ) : null}
 
-        {step === 2 ? (
-          <div className="space-y-4">
+        {step === 3 ? (
+          <div className="space-y-5">
             <div>
-              <h2 className="text-lg font-bold text-[#0B1B32]">2. Name & placement</h2>
+              <h2 className="text-lg font-bold text-[#0B1B32]">3. Name & placement</h2>
               <p className="mt-1 text-sm text-[#667085]">
-                Give your campaign a name and tell us where the QR will be displayed.
+                Name the campaign and choose where the QR will live — pick a visual placement.
               </p>
             </div>
             <div>
@@ -285,18 +339,16 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
               />
             </div>
             <div>
-              <label className={qrUi.label}>Where will this QR live?</label>
-              <select
+              <label className={cn(qrUi.label, "mb-2.5 block")}>Where will this QR live?</label>
+              <PlacementPicker
                 value={placementType}
-                onChange={(e) => setPlacementType(e.target.value as QrPlacementType)}
-                className={cn(qrUi.input, "mt-1.5")}
-              >
-                {QR_PLACEMENT_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {QR_PLACEMENT_LABELS[t]}
-                  </option>
-                ))}
-              </select>
+                onChange={(t) => {
+                  setPlacementType(t);
+                  if (t !== "custom" && name === "Front desk poster") {
+                    setName(QR_PLACEMENT_LABELS[t]);
+                  }
+                }}
+              />
             </div>
             {placementType === "custom" ? (
               <div>
@@ -305,16 +357,17 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
                   value={customPlacementLabel}
                   onChange={(e) => setCustomPlacementLabel(e.target.value)}
                   className={cn(qrUi.input, "mt-1.5")}
+                  placeholder="e.g. Waiting room TV"
                 />
               </div>
             ) : null}
           </div>
         ) : null}
 
-        {step === 3 ? (
+        {step === 4 ? (
           <div className="space-y-5">
             <div>
-              <h2 className="text-lg font-bold text-[#0B1B32]">3. Customize design</h2>
+              <h2 className="text-lg font-bold text-[#0B1B32]">4. Customize design</h2>
               <p className="mt-1 text-sm text-[#667085]">
                 Choose colors and copy for your print-ready poster.
               </p>
@@ -410,16 +463,19 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
           </div>
         ) : null}
 
-        {step === 4 ? (
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        {step === 5 ? (
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
             <div className="space-y-4">
               <div>
-                <h2 className="text-lg font-bold text-[#0B1B32]">4. Preview & save</h2>
+                <h2 className="text-lg font-bold text-[#0B1B32]">5. Preview & save</h2>
                 <p className="mt-1 text-sm text-[#667085]">
                   Review your campaign details before creating.
                 </p>
               </div>
               <ul className="space-y-2 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4 text-sm text-[#475467]">
+                <li>
+                  <span className="font-semibold text-[#0B1B32]">Business:</span> {businessName}
+                </li>
                 <li>
                   <span className="font-semibold text-[#0B1B32]">Name:</span> {name}
                 </li>
@@ -459,12 +515,12 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
             <ArrowLeft className="h-4 w-4" />
             Back
           </button>
-          {step < 4 ? (
+          {step < 5 ? (
             <button
               type="button"
               className={qrUi.btnPrimary}
               disabled={!canContinue()}
-              onClick={() => setStep((s) => Math.min(4, s + 1))}
+              onClick={() => setStep((s) => Math.min(5, s + 1))}
             >
               Continue
               <ArrowRight className="h-4 w-4" />

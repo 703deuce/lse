@@ -49,6 +49,15 @@ export function QrPerformanceCard({ businessId }: { businessId: string }) {
     return { active, totalScans, unique, scannedThisMonth, count: campaigns.length };
   }, [campaigns]);
 
+  const top = useMemo(() => {
+    let best: ReviewQrCampaign | null = null;
+    for (const c of campaigns) {
+      if ((c.totalScans || 0) <= 0) continue;
+      if (!best || c.totalScans > best.totalScans) best = c;
+    }
+    return best;
+  }, [campaigns]);
+
   return (
     <div
       className={cn(
@@ -59,11 +68,11 @@ export function QrPerformanceCard({ businessId }: { businessId: string }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#027A48]">
-            QR Campaigns
+            Review acquisition · QR
           </p>
-          <h3 className="mt-1 text-lg font-bold text-[#0B1B32]">Scan performance</h3>
+          <h3 className="mt-1 text-lg font-bold text-[#0B1B32]">QR campaign performance</h3>
           <p className="mt-0.5 text-xs text-[#667085]">
-            Track poster scans and review momentum
+            One of the tools that grow Google reviews — measured scans, correlated reviews
           </p>
         </div>
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#ECFDF3] text-[#16A34A]">
@@ -80,29 +89,51 @@ export function QrPerformanceCard({ businessId }: { businessId: string }) {
       ) : summary.count === 0 ? (
         <div className="mt-5 rounded-xl border border-dashed border-[#A6F4C5] bg-[#ECFDF3]/40 p-4">
           <p className="text-sm text-[#486581]">
-            No tracked QR campaigns yet. Create one to measure poster scans.
+            No tracked QR campaigns yet. Create a front-desk poster to start measuring scans.
           </p>
         </div>
       ) : (
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <QrKpiCard label="Total scans" value={summary.totalScans.toLocaleString()} />
-          <QrKpiCard label="Est. unique" value={summary.unique.toLocaleString()} />
-          <QrKpiCard
-            label="Active / scanned"
-            value={`${summary.active} / ${summary.scannedThisMonth}`}
-            hint="Active campaigns / scanned this month"
-          />
-        </div>
+        <>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <QrKpiCard label="Total scans" value={summary.totalScans.toLocaleString()} />
+            <QrKpiCard label="Est. unique" value={summary.unique.toLocaleString()} />
+            <QrKpiCard
+              label="Active / scanned"
+              value={`${summary.active} / ${summary.scannedThisMonth}`}
+              hint="Active campaigns / scanned this month"
+            />
+          </div>
+          {top ? (
+            <p className="mt-3 text-sm text-[#486581]">
+              Top placement:{" "}
+              <Link
+                href={`/businesses/${businessId}/reputation/qr-campaigns/${top.id}`}
+                className="font-semibold text-[#027A48] hover:underline"
+              >
+                {top.name}
+              </Link>{" "}
+              · {top.totalScans.toLocaleString()} scans
+            </p>
+          ) : null}
+        </>
       )}
 
-      <Link
-        href={`/businesses/${businessId}/reputation/qr-campaigns`}
-        className={cn(qrUi.btnPrimary, "mt-5 w-full sm:w-auto")}
-      >
-        <TrendingUp className="h-4 w-4" />
-        View QR Campaigns
-        <ArrowRight className="h-4 w-4" />
-      </Link>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <Link
+          href={`/businesses/${businessId}/reputation/qr-campaigns`}
+          className={cn(qrUi.btnPrimary)}
+        >
+          <TrendingUp className="h-4 w-4" />
+          View QR Campaigns
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+        <Link
+          href={`/businesses/${businessId}/reputation/qr-campaigns/new`}
+          className={qrUi.btnSecondary}
+        >
+          New placement
+        </Link>
+      </div>
     </div>
   );
 }

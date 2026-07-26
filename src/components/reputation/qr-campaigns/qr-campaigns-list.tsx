@@ -49,6 +49,25 @@ function placementLabel(c: ReviewQrCampaign): string {
   return QR_PLACEMENT_LABELS[c.placementType] ?? c.placementType;
 }
 
+/** Tiny visual trend cue when we only have aggregate scan totals. */
+function MiniSpark({ scans, max }: { scans: number; max: number }) {
+  const level = max <= 0 ? 0 : scans / max;
+  const bars = [0.35, 0.55, 0.45, 0.75, 0.6, 1].map((f, i) =>
+    Math.max(0.12, f * (0.35 + level * 0.65) * (i === 5 ? 1 : 0.85 + level * 0.15))
+  );
+  return (
+    <span className="inline-flex h-5 items-end gap-0.5" aria-hidden>
+      {bars.map((h, i) => (
+        <span
+          key={i}
+          className="w-1 rounded-sm bg-[#16A34A]/80"
+          style={{ height: `${Math.round(h * 100)}%` }}
+        />
+      ))}
+    </span>
+  );
+}
+
 export function QrCampaignsList({ businessId }: { businessId: string }) {
   const router = useRouter();
   const plansHref = `/businesses/${businessId}/reputation/qr-campaigns/plans`;
@@ -100,6 +119,20 @@ export function QrCampaignsList({ businessId }: { businessId: string }) {
     const totalUnique = campaigns.reduce((n, c) => n + (c.estimatedUniqueScans || 0), 0);
     const activeCampaigns = campaigns.filter((c) => c.status === "active").length;
     return { totalScans, totalUnique, activeCampaigns };
+  }, [campaigns]);
+
+  const maxScans = useMemo(
+    () => Math.max(1, ...campaigns.map((c) => c.totalScans || 0)),
+    [campaigns]
+  );
+
+  const topPerformerId = useMemo(() => {
+    let best: ReviewQrCampaign | null = null;
+    for (const c of campaigns) {
+      if ((c.totalScans || 0) <= 0) continue;
+      if (!best || c.totalScans > best.totalScans) best = c;
+    }
+    return best?.id ?? null;
   }, [campaigns]);
 
   async function duplicate(id: string) {
@@ -298,11 +331,31 @@ export function QrCampaignsList({ businessId }: { businessId: string }) {
                           {c.name}
                         </Link>
                         <QrStatusBadge status={c.status} />
+                        {topPerformerId === c.id ? (
+                          <span className="rounded-full bg-[#ECFDF3] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#027A48] ring-1 ring-[#A6F4C5]">
+                            Top performer
+                          </span>
+                        ) : null}
                       </div>
                     </td>
                     <td className="px-5 py-4 text-[#475467]">{placementLabel(c)}</td>
-                    <td className="px-5 py-4 font-medium text-[#0B1B32]">
-                      {c.totalScans.toLocaleString()}
+                    <td className="px-5 py-4">
+                      <div className="min-w-[110px]">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-[#0B1B32]">
+                            {c.totalScans.toLocaleString()}
+                          </span>
+                          <MiniSpark scans={c.totalScans} max={maxScans} />
+                        </div>
+                        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#E6EAF0]">
+                          <div
+                            className="h-full rounded-full bg-[#16A34A] transition-all"
+                            style={{
+                              width: `${Math.max(4, Math.round((c.totalScans / maxScans) * 100))}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
                     </td>
                     <td className="px-5 py-4 text-[#475467]">
                       {c.estimatedUniqueScans.toLocaleString()}

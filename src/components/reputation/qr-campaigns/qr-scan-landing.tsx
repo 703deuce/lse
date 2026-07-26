@@ -1,21 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { Star } from "lucide-react";
+import { MapPin, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { qrUi } from "./qr-ui";
 
 /**
- * Mobile-first public funnel after a QR scan (mockup: experience → Google review).
+ * Mobile-first public funnel after a QR scan.
  */
 export function QrScanLanding({
   businessName,
+  locationLabel,
   brandColor,
   headline,
   description,
   destinationUrl,
 }: {
   businessName: string;
+  locationLabel?: string | null;
   brandColor: string;
   headline: string;
   description: string;
@@ -45,7 +47,21 @@ export function QrScanLanding({
         </div>
 
         <div className="space-y-5 px-6 py-7 text-center">
-          <p className="text-sm font-semibold text-[#0B1B32]">{businessName}</p>
+          <div className="rounded-2xl border border-[#E6EAF0] bg-[#F9FAFB] px-4 py-4">
+            <div className="flex items-center justify-center gap-1">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <Star key={n} className="h-5 w-5 fill-[#F5C518] text-[#F5C518]" />
+              ))}
+            </div>
+            <p className="mt-2 text-lg font-extrabold text-[#0B1B32]">{businessName}</p>
+            {locationLabel ? (
+              <p className="mt-1 inline-flex items-center justify-center gap-1 text-sm text-[#667085]">
+                <MapPin className="h-3.5 w-3.5" />
+                {locationLabel}
+              </p>
+            ) : null}
+          </div>
+
           <div className="flex items-center justify-center gap-1.5">
             {[1, 2, 3, 4, 5].map((n) => (
               <button
@@ -72,10 +88,10 @@ export function QrScanLanding({
             className={cn(qrUi.btnPrimary, "w-full text-base")}
             style={{ background: brandColor }}
           >
-            Leave a Review on Google
+            Leave Review
           </a>
           <p className="text-[11px] text-[#98A2B3]">
-            You’ll open Google’s review form for {businessName}.
+            You&apos;ll open Google&apos;s review form for {businessName}.
           </p>
         </div>
       </div>

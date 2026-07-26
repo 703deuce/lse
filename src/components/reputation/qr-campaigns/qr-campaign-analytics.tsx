@@ -147,16 +147,45 @@ export function QrCampaignAnalyticsView({
         </div>
       ) : data ? (
         <>
-          <div className="overflow-hidden rounded-2xl border border-[#B2DDFF] bg-[#EFF8FF] px-5 py-4 text-sm text-[#175CD3]">
-            <div className="flex gap-2">
+          {/* Story hero — what the owner actually cares about */}
+          <div className="overflow-hidden rounded-[1.5rem] border border-[#A6F4C5] bg-[linear-gradient(135deg,#ECFDF3_0%,#ffffff_55%,#F0FDF4_100%)] p-6 sm:p-8">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#027A48]">
+              Review growth story · last {days} days
+            </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <StoryStat
+                value={data.totalScans.toLocaleString()}
+                label="people scanned"
+              />
+              <StoryStat
+                value={data.estimatedUniqueScans.toLocaleString()}
+                label="unique visitors"
+              />
+              <StoryStat
+                value={
+                  data.newReviewsInPeriod == null
+                    ? "—"
+                    : data.newReviewsInPeriod.toLocaleString()
+                }
+                label="reviews added in that period"
+              />
+              <StoryStat
+                value={ratioLabel}
+                label="visitor → review correlation"
+                emphasize
+              />
+            </div>
+            <div className="mt-5 flex gap-2 rounded-xl border border-[#B2DDFF] bg-[#EFF8FF] px-4 py-3 text-sm text-[#175CD3]">
               <Info className="mt-0.5 h-4 w-4 shrink-0" />
-              <p>{data.correlationNote}</p>
+              <p>
+                {data.correlationNote ||
+                  "Review counts are correlation in the same window — not verified attribution from each scan."}
+              </p>
             </div>
           </div>
 
-          {/* Funnel row */}
           <div className={cn(qrUi.cardPad)}>
-            <p className={qrUi.label}>Funnel (correlated, not attributed)</p>
+            <p className={qrUi.label}>Funnel detail</p>
             <div className="mt-4 flex flex-col items-stretch gap-3 lg:flex-row lg:items-center">
               <div className="flex-1">
                 <QrKpiCard label="Total scans" value={data.totalScans.toLocaleString()} />
@@ -327,5 +356,27 @@ export function QrCampaignAnalyticsView({
         </>
       ) : null}
     </ModulePage>
+  );
+}
+
+function StoryStat({
+  value,
+  label,
+  emphasize = false,
+}: {
+  value: string;
+  label: string;
+  emphasize?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border bg-white/80 px-4 py-4",
+        emphasize ? "border-[#16A34A] shadow-[0_0_0_1px_rgba(22,163,74,0.15)]" : "border-[#E6EAF0]"
+      )}
+    >
+      <p className="text-3xl font-extrabold tracking-tight text-[#0B1B32]">{value}</p>
+      <p className="mt-1 text-sm font-medium text-[#486581]">{label}</p>
+    </div>
   );
 }

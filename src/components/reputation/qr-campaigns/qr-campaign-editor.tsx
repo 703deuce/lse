@@ -24,13 +24,13 @@ import {
   QrStatusBadge,
   qrUi,
 } from "@/components/reputation/qr-campaigns/qr-ui";
+import { PlacementPicker } from "@/components/reputation/qr-campaigns/placement-picker";
 import {
   DEFAULT_POSTER_CONFIG,
   type PosterConfig,
 } from "@/lib/reputation/poster-config";
 import {
-  QR_PLACEMENT_LABELS,
-  QR_PLACEMENT_TYPES,
+  type QrCampaignAnalytics,
   type QrCampaignStatus,
   type QrPlacementType,
   type QrPrintFormat,
@@ -94,6 +94,7 @@ export function QrCampaignEditor({
   const [showFooter, setShowFooter] = useState(true);
   const [printFormat, setPrintFormat] = useState<QrPrintFormat>("a4");
   const [status, setStatus] = useState<QrCampaignStatus>("active");
+  const [newReviews30d, setNewReviews30d] = useState<number | null>(null);
 
   const applyCampaign = useCallback((c: ReviewQrCampaign, url?: string) => {
     setCampaign(c);
@@ -141,6 +142,17 @@ export function QrCampaignEditor({
       applyCampaign(c, json.trackedUrl);
       if (!campaignId && c.id) {
         router.replace(`/businesses/${businessId}/reputation/qr-campaigns/${c.id}`);
+      }
+      try {
+        const aRes = await fetch(
+          `/api/reputation/qr-campaigns/${c.id}/analytics?businessId=${encodeURIComponent(businessId)}&days=30`
+        );
+        if (aRes.ok) {
+          const aJson = (await aRes.json()) as QrCampaignAnalytics;
+          setNewReviews30d(aJson.newReviewsInPeriod ?? null);
+        }
+      } catch {
+        setNewReviews30d(null);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
@@ -398,12 +410,17 @@ export function QrCampaignEditor({
         </div>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <QrKpiCard label="Total scans" value={campaign.totalScans.toLocaleString()} />
         <QrKpiCard
           label="Est. unique scans"
           value={campaign.estimatedUniqueScans.toLocaleString()}
           hint="Approximate unique visitors (24h window)"
+        />
+        <QrKpiCard
+          label="New reviews (30d)"
+          value={newReviews30d == null ? "—" : newReviews30d.toLocaleString()}
+          hint="Correlated in the same window — not proven from QR"
         />
         <QrKpiCard label="Last scanned" value={formatDate(campaign.lastScannedAt)} />
       </div>
@@ -468,18 +485,8 @@ export function QrCampaignEditor({
             </div>
 
             <div>
-              <label className={qrUi.label}>Placement</label>
-              <select
-                value={placementType}
-                onChange={(e) => setPlacementType(e.target.value as QrPlacementType)}
-                className={cn(qrUi.input, "mt-1.5")}
-              >
-                {QR_PLACEMENT_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {QR_PLACEMENT_LABELS[t]}
-                  </option>
-                ))}
-              </select>
+              <label className={cn(qrUi.label, "mb-2.5 block")}>Placement</label>
+              <PlacementPicker value={placementType} onChange={setPlacementType} />
             </div>
 
             {placementType === "custom" ? (
