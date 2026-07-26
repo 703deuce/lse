@@ -1,6 +1,6 @@
 /**
  * State machine for Twilio ISV A2P onboarding.
- * Matches Twilio’s ISV guide: profile + trust product can proceed without
+ * Matches Twilio's ISV guide: profile + trust product can proceed without
  * waiting for approval; Brand and Campaign require APPROVED / VERIFIED.
  */
 import { JobDeferredError } from "@/lib/queue/errors";
@@ -9,12 +9,15 @@ import {
   createCustomerSubaccount,
 } from "./twilio-adapter";
 import {
+  attachPurchasedNumberToMessagingService,
   createA2PCampaign,
   createAndSubmitA2PTrustProduct,
   createBrandRegistration,
   createMessagingService,
   isLiveMessagingReady,
   refreshAllTwilioStatuses,
+  releasePhoneNumber,
+  shouldAutoReleaseUnusedNumber,
 } from "./twilio-onboarding";
 import { isLiveTwilioMessaging } from "./twilio-config";
 import { mockReconcileStatus } from "./mock-adapter";
@@ -76,8 +79,39 @@ export async function advanceMessagingRegistration(params: {
     return { registration: reg, done: true };
   }
 
-  // CREATE_SUBACCOUNT
+  // CREATE_SUBACCOUNT (also created by buy-number / start-registration)
   reg = await persist(await createCustomerSubaccount(reg));
+
+  // Abandoned buy-number: release after grace if they never started A2P.
+  if (shouldAutoReleaseUnusedNumber(reg)) {
+    reg = await persist(await releasePhoneNumber(reg));
+    await appendEvents(reg, [
+      {
+        eventType: "number_auto_released",
+        message:
+          "Unused purchased number was released after the grace period because A2P registration was not completed.",
+      },
+    ]);
+    return { registration: reg, done: true, waitingOn: "number_auto_released" };
+  }
+
+  // Number-only path: do not invent a Secondary Customer Profile until business details exist.
+  const businessReadyForProfile =
+    reg.businessDetailsStatus === "submitted" ||
+    reg.businessDetailsStatus === "approved" ||
+    reg.businessDetailsStatus === "in_review" ||
+    Boolean(reg.submittedAt);
+
+  if (!businessReadyForProfile && !reg.twilio.profileSubmittedAt) {
+    if (reg.twilio.phoneNumberSid) {
+      // Keep polling so abandoned number purchases can hit the grace-period release.
+      throw new JobDeferredError(
+        "Waiting for customer to complete A2P registration (number purchased)",
+        POLL_DELAY_MS
+      );
+    }
+    return { registration: reg, done: true, waitingOn: "customer_profile_form" };
+  }
 
   // CREATE + SUBMIT SECONDARY PROFILE
   if (!reg.twilio.profileSubmittedAt || !reg.twilio.customerProfileSid) {
@@ -86,7 +120,7 @@ export async function advanceMessagingRegistration(params: {
       reg.businessDetailsStatus === "action_required" &&
       !reg.twilio.profileSubmittedAt
     ) {
-      return { registration: reg, done: true, waitingOn: "customer_profile_fix" };
+      return { registration: reg, done: true, waitingOn: "customer_profile_form" };
     }
   }
 
@@ -102,13 +136,13 @@ export async function advanceMessagingRegistration(params: {
       reg.twilio.a2pFailureReasons.length &&
       !String(reg.twilio.a2pTrustProductStatus ?? "").includes("pending")
     ) {
-      return { registration: reg, done: true, waitingOn: "trust_product_fix" };
+      return { registration: reg, done: true, waitingOn: "trust_product_form" };
     }
   } else if (
     reg.twilio.a2pTrustProductStatus === "draft" &&
     reg.twilio.a2pFailureReasons.length
   ) {
-    return { registration: reg, done: true, waitingOn: "trust_product_fix" };
+    return { registration: reg, done: true, waitingOn: "trust_product_form" };
   }
 
   // CREATE BRAND (Twilio: no need to wait for trust product approval)
@@ -161,6 +195,15 @@ export async function advanceMessagingRegistration(params: {
     reg = await persist(await createMessagingService(reg));
   }
 
+  // Attach a number purchased earlier (buy anytime → attach when MG… exists)
+  if (
+    reg.twilio.messagingServiceSid &&
+    reg.twilio.phoneNumberSid &&
+    !reg.twilio.phoneNumberAttached
+  ) {
+    reg = await persist(await attachPurchasedNumberToMessagingService(reg));
+  }
+
   // CREATE_CAMPAIGN
   if (!reg.twilio.campaignSid) {
     await sleep(RATE_LIMIT_MS);
@@ -192,7 +235,9 @@ export async function advanceMessagingRegistration(params: {
 
   if (
     isLiveMessagingReady(reg) ||
-    (campaignOk(reg.twilio.campaignStatus) && reg.twilio.phoneNumberSid)
+    (campaignOk(reg.twilio.campaignStatus) &&
+      reg.twilio.phoneNumberSid &&
+      reg.twilio.phoneNumberAttached)
   ) {
     if (!reg.messagingEnabled || reg.overallStatus !== "ready") {
       reg = await saveRegistration({
@@ -213,5 +258,9 @@ export async function advanceMessagingRegistration(params: {
     return { registration: reg, done: true };
   }
 
-  return { registration: reg, done: true, waitingOn: "choose_number" };
+  if (!reg.twilio.phoneNumberSid) {
+    return { registration: reg, done: true, waitingOn: "choose_number" };
+  }
+
+  throw new JobDeferredError("Waiting for A2P approval before enabling SMS", POLL_DELAY_MS);
 }

@@ -122,6 +122,8 @@ export type MessagingRegistration = {
   phoneNumberMonthlyCost: number | null;
   phoneNumberCapabilities: Record<string, boolean>;
   phoneNumberReserved: boolean;
+  /** When the customer purchased the Twilio number (monthly billing starts). */
+  phoneNumberPurchasedAt: string | null;
   messagingEnabled: boolean;
   messagingPaused: boolean;
   monthlySmsAllowance: number;
@@ -166,6 +168,8 @@ export type MessagingRegistration = {
     campaignApprovedAt: string | null;
     messagingServiceSid: string | null;
     phoneNumberSid: string | null;
+    phoneNumberAttached: boolean;
+    phoneNumberAttachedAt: string | null;
   };
   createdAt: string;
   updatedAt: string;

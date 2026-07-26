@@ -213,6 +213,7 @@ export function mockPurchaseNumber(
 ): MockSubmitResult {
   const now = new Date().toISOString();
   const campaignApproved = reg.campaignReviewStatus === "approved";
+  const hasService = Boolean(reg.twilio.messagingServiceSid);
   const next: MessagingRegistration = {
     ...reg,
     phoneNumberE164: number.phoneNumber,
@@ -222,16 +223,19 @@ export function mockPurchaseNumber(
     phoneNumberMonthlyCost: number.monthlyCost,
     phoneNumberCapabilities: number.capabilities,
     phoneNumberReserved: true,
+    phoneNumberPurchasedAt: now,
     numberStatus: campaignApproved ? "approved" : "submitted",
     twilio: {
       ...reg.twilio,
       phoneNumberSid: sid("PNmock"),
-      messagingServiceSid: reg.twilio.messagingServiceSid ?? sid("MGmock"),
+      messagingServiceSid: reg.twilio.messagingServiceSid,
+      phoneNumberAttached: hasService,
+      phoneNumberAttachedAt: hasService ? now : null,
     },
-    messagingEnabled: campaignApproved,
-    messagingStatus: campaignApproved ? "ready" : "not_started",
-    overallStatus: campaignApproved ? "ready" : reg.overallStatus,
-    setupStep: campaignApproved ? "ready" : "number",
+    messagingEnabled: campaignApproved && hasService,
+    messagingStatus: campaignApproved && hasService ? "ready" : "not_started",
+    overallStatus: campaignApproved && hasService ? "ready" : reg.overallStatus,
+    setupStep: campaignApproved && hasService ? "ready" : "number",
     updatedAt: now,
     lastStatusCheckedAt: now,
   };
@@ -240,11 +244,11 @@ export function mockPurchaseNumber(
     registration: next,
     events: [
       {
-        eventType: campaignApproved ? "number_purchased" : "number_reserved",
+        eventType: "number_purchased",
         message: campaignApproved
-          ? `Phone number ${number.friendlyName} purchased and attached to messaging service.`
-          : `Phone number ${number.friendlyName} reserved. Outbound texting stays disabled until campaign approval.`,
-        payload: { phoneNumber: number.phoneNumber },
+          ? `Phone number ${number.friendlyName} purchased. Texting is ready.`
+          : `Phone number ${number.friendlyName} purchased. It will become available for texting after A2P registration is approved.`,
+        payload: { phoneNumber: number.phoneNumber, monthlyCost: number.monthlyCost },
       },
     ],
   };

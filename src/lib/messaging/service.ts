@@ -38,6 +38,31 @@ function useLiveAdapter(reg: MessagingRegistration): boolean {
   return isLiveTwilioMessaging() || reg.adapterMode === "twilio";
 }
 
+/**
+ * Buy-number and Start Registration both create the Twilio subaccount (idempotent).
+ * Search/purchase call this so live AvailablePhoneNumbers works without the wizard.
+ */
+async function ensureLiveSubaccount(params: {
+  organizationId: string;
+  businessId: string;
+  businessName: string;
+}): Promise<MessagingRegistration> {
+  let current = await getRegistration(params);
+  if (!isLiveTwilioMessaging() && current.adapterMode !== "twilio") {
+    return current;
+  }
+  if (current.twilio.subaccountSid) {
+    return {
+      ...current,
+      adapterMode: "twilio",
+    };
+  }
+  const result = await createCustomerSubaccount(current);
+  const saved = await saveRegistration(result.registration);
+  await appendEvents(saved, result.events);
+  return saved;
+}
+
 async function enqueueAdvance(reg: MessagingRegistration): Promise<void> {
   try {
     await enqueueMessagingRegistrationAdvance({
@@ -266,11 +291,16 @@ export const messagingOnboarding = {
     postalCode?: string;
     contains?: string;
   }): Promise<AvailablePhoneNumber[]> {
-    const current = await getRegistration(params);
-    if (!useLiveAdapter(current) || !current.twilio.subaccountSid) {
-      return mockSearchNumbers(params);
+    // Live Coolify: always hit Twilio. Never silently fall back to the tiny mock catalog.
+    if (isLiveTwilioMessaging()) {
+      const current = await ensureLiveSubaccount(params);
+      return searchAvailableNumbers(current, params);
     }
-    return searchAvailableNumbers(current, params);
+    const current = await getRegistration(params);
+    if (current.adapterMode === "twilio" && current.twilio.subaccountSid) {
+      return searchAvailableNumbers(current, params);
+    }
+    return mockSearchNumbers(params);
   },
 
   async purchaseNumber(params: {
@@ -279,10 +309,21 @@ export const messagingOnboarding = {
     businessName: string;
     phoneNumber: string;
   }): Promise<MessagingRegistration> {
-    const current = await getRegistration(params);
-    if (!useLiveAdapter(current)) {
-      const matches = mockSearchNumbers({});
-      const selected = matches.find((row) => row.phoneNumber === params.phoneNumber);
+    if (!isLiveTwilioMessaging()) {
+      const current = await getRegistration(params);
+      if (current.adapterMode === "twilio") {
+        // Partial live registration in a non-live env — still try Twilio path.
+        const result = await purchaseAndAttachNumber(current, params.phoneNumber);
+        const saved = await saveRegistration(result.registration);
+        await appendEvents(saved, result.events);
+        await enqueueAdvance(saved);
+        return saved;
+      }
+      const matches = mockSearchNumbers({
+        areaCode: params.phoneNumber.replace(/\D/g, "").slice(1, 4) || undefined,
+      });
+      const all = matches.length ? matches : mockSearchNumbers({});
+      const selected = all.find((row) => row.phoneNumber === params.phoneNumber);
       if (!selected) throw new Error("Selected number is no longer available.");
       const result = mockPurchaseNumber(current, selected);
       const saved = await saveRegistration(result.registration);
@@ -290,25 +331,17 @@ export const messagingOnboarding = {
       return saved;
     }
 
+    // Live: purchasing a number creates the subaccount if Start Registration was skipped.
+    const current = await ensureLiveSubaccount(params);
     if (!canPurchaseNumber(current)) {
-      throw new Error(
-        "Purchase this number after Brand approval or Campaign submission — numbers are billed monthly and are not a free hold."
-      );
-    }
-    // Ensure messaging service exists (brand must be approved).
-    if (!current.twilio.messagingServiceSid) {
-      await enqueueAdvance(current);
-      throw new Error(
-        "Messaging Service is still being created. Check for updates, then purchase again."
-      );
+      throw new Error("Could not create a Twilio subaccount to purchase this number.");
     }
 
     const result = await purchaseAndAttachNumber(current, params.phoneNumber);
     const saved = await saveRegistration(result.registration);
     await appendEvents(saved, result.events);
-    if (isLiveMessagingReady(saved) || saved.campaignReviewStatus === "approved") {
-      await enqueueAdvance(saved);
-    }
+    // Advance so Messaging Service can attach this number once Brand is approved.
+    await enqueueAdvance(saved);
     return saved;
   },
 
@@ -324,10 +357,16 @@ export const messagingOnboarding = {
         phoneNumberE164: null,
         phoneNumberFriendly: null,
         phoneNumberReserved: false,
+        phoneNumberPurchasedAt: null,
         numberStatus: "not_started",
         messagingEnabled: false,
         messagingStatus: "not_started",
-        twilio: { ...current.twilio, phoneNumberSid: null },
+        twilio: {
+          ...current.twilio,
+          phoneNumberSid: null,
+          phoneNumberAttached: false,
+          phoneNumberAttachedAt: null,
+        },
       });
       await appendEvents(saved, [
         { eventType: "number_released", message: "Mock phone number released." },

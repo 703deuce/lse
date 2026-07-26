@@ -69,6 +69,8 @@ function emptyTwilioState(): MessagingRegistration["twilio"] {
     campaignApprovedAt: null,
     messagingServiceSid: null,
     phoneNumberSid: null,
+    phoneNumberAttached: false,
+    phoneNumberAttachedAt: null,
   };
 }
 
@@ -154,6 +156,9 @@ function rowToRegistration(
     phoneNumberCapabilities:
       (row.phone_number_capabilities as Record<string, boolean>) ?? {},
     phoneNumberReserved: Boolean(row.phone_number_reserved),
+    phoneNumberPurchasedAt: row.phone_number_purchased_at
+      ? String(row.phone_number_purchased_at)
+      : null,
     messagingEnabled: Boolean(row.messaging_enabled),
     messagingPaused: Boolean(row.messaging_paused),
     monthlySmsAllowance: Number(row.monthly_sms_allowance ?? 300),
@@ -246,6 +251,10 @@ function rowToRegistration(
         ? String(row.twilio_messaging_service_sid)
         : null,
       phoneNumberSid: row.twilio_phone_number_sid ? String(row.twilio_phone_number_sid) : null,
+      phoneNumberAttached: Boolean(row.twilio_phone_number_attached),
+      phoneNumberAttachedAt: row.twilio_phone_number_attached_at
+        ? String(row.twilio_phone_number_attached_at)
+        : null,
     },
     createdAt: String(row.created_at ?? new Date().toISOString()),
     updatedAt: String(row.updated_at ?? new Date().toISOString()),
@@ -310,6 +319,7 @@ function registrationToPatch(reg: MessagingRegistration): Record<string, unknown
     phone_number_monthly_cost: reg.phoneNumberMonthlyCost,
     phone_number_capabilities: reg.phoneNumberCapabilities,
     phone_number_reserved: reg.phoneNumberReserved,
+    phone_number_purchased_at: reg.phoneNumberPurchasedAt,
     messaging_enabled: reg.messagingEnabled,
     messaging_paused: reg.messagingPaused,
     monthly_sms_allowance: reg.monthlySmsAllowance,
@@ -353,6 +363,8 @@ function registrationToPatch(reg: MessagingRegistration): Record<string, unknown
     twilio_campaign_approved_at: reg.twilio.campaignApprovedAt,
     twilio_messaging_service_sid: reg.twilio.messagingServiceSid,
     twilio_phone_number_sid: reg.twilio.phoneNumberSid,
+    twilio_phone_number_attached: reg.twilio.phoneNumberAttached,
+    twilio_phone_number_attached_at: reg.twilio.phoneNumberAttachedAt,
     updated_at: new Date().toISOString(),
   };
 }
@@ -392,6 +404,7 @@ export function createEmptyRegistration(params: {
     phoneNumberMonthlyCost: null,
     phoneNumberCapabilities: {},
     phoneNumberReserved: false,
+    phoneNumberPurchasedAt: null,
     messagingEnabled: false,
     messagingPaused: false,
     monthlySmsAllowance: 300,

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Phone, Search } from "lucide-react";
 import { rep } from "@/components/reputation/rep-ui";
-import { MOCK_PHONE_NUMBERS, mockSearchNumbers } from "@/lib/messaging/mock-adapter";
 import { canPurchaseMessagingNumber } from "@/lib/messaging/status";
 import type { AvailablePhoneNumber, MessagingProgressStep, MessagingRegistration } from "@/lib/messaging/types";
 import {
@@ -52,19 +51,9 @@ export function MessagingNumberPicker({
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Search failed");
       setNumbers(json.numbers ?? []);
-    } catch {
-      // Preview / offline fallback uses the mock catalog so the UI stays usable.
-      setNumbers(
-        mockSearchNumbers({
-          areaCode: areaCode.trim() || undefined,
-          city: city.trim() || undefined,
-          postalCode: postalCode.trim() || undefined,
-          contains: contains.trim() || undefined,
-        })
-      );
-      if (!MOCK_PHONE_NUMBERS.length) {
-        setSearchError("No mock numbers available");
-      }
+    } catch (err) {
+      setNumbers([]);
+      setSearchError(err instanceof Error ? err.message : "Could not search Twilio numbers.");
     } finally {
       setLoading(false);
     }
@@ -76,29 +65,33 @@ export function MessagingNumberPicker({
   }, [businessId]);
 
   const selectedRow = numbers.find((row) => row.phoneNumber === selected) ?? null;
-  const campaignApproved = registration.campaignReviewStatus === "approved";
-  const canPurchase = canPurchaseMessagingNumber(registration);
+  const canPurchase = canPurchaseMessagingNumber(registration) && !registration.phoneNumberE164;
+  const alreadyPurchased = Boolean(registration.phoneNumberE164);
   const monthly = selectedRow?.monthlyCost ?? 1.15;
 
   return (
     <MessagingPageShell
       title="Choose phone number"
-      subtitle="Search anytime. Purchasing attaches a dedicated number to your Messaging Service and starts monthly billing."
+      subtitle="Buy a local number anytime. Texting unlocks after A2P registration is approved."
       steps={progress}
       currentId="choose_number"
       registration={registration}
     >
-      {!canPurchase ? (
-        <MessagingAlertBanner tone="info" title="Purchase unlocks after Brand approval">
-          You can search numbers now. Purchase becomes available once your Brand is approved or your
-          Campaign has been submitted — Twilio numbers are billed monthly, not held for free.
+      {alreadyPurchased ? (
+        <MessagingAlertBanner tone="success" title="Your phone number has been purchased">
+          {registration.phoneNumberFriendly ?? registration.phoneNumberE164} is yours
+          {registration.phoneNumberMonthlyCost
+            ? ` ($${registration.phoneNumberMonthlyCost.toFixed(2)}/month)`
+            : ""}
+          . It will automatically become available for texting after your A2P registration is
+          approved.
         </MessagingAlertBanner>
-      ) : !campaignApproved ? (
-        <MessagingAlertBanner tone="info" title="Outbound SMS still waits on campaign approval">
-          You can purchase a number now, but outbound texting stays disabled until the A2P campaign is
-          verified.
+      ) : (
+        <MessagingAlertBanner tone="info" title="Purchase anytime">
+          You can buy a number before Brand or Campaign approval. Monthly rental starts when you
+          purchase. Outbound SMS stays off until the campaign is verified.
         </MessagingAlertBanner>
-      ) : null}
+      )}
 
       <SectionCard title="Search numbers" icon={Search}>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
@@ -192,6 +185,7 @@ export function MessagingNumberPicker({
                         <td className="px-3 py-3 text-right">
                           <button
                             type="button"
+                            disabled={alreadyPurchased}
                             className={isSelected ? rep.btnPrimary : rep.btnSecondary}
                             onClick={() => setSelected(row.phoneNumber)}
                           >
@@ -215,7 +209,15 @@ export function MessagingNumberPicker({
         </SectionCard>
 
         <SectionCard title="Selection" icon={Phone}>
-          {selectedRow ? (
+          {alreadyPurchased ? (
+            <div className="space-y-2 text-sm text-[#344054]">
+              <p className="text-lg font-bold text-[#101828]">
+                {registration.phoneNumberFriendly ?? registration.phoneNumberE164}
+              </p>
+              <p>Purchased — monthly rental is active.</p>
+              <p>Texting unlocks after A2P approval.</p>
+            </div>
+          ) : selectedRow ? (
             <div className="space-y-2 text-sm text-[#344054]">
               <p className="text-lg font-bold text-[#101828]">{selectedRow.friendlyName}</p>
               <p>
@@ -233,7 +235,7 @@ export function MessagingNumberPicker({
           )}
           <button
             type="button"
-            disabled={!selected || saving || !canPurchase}
+            disabled={!selected || saving || !canPurchase || alreadyPurchased}
             className={rep.btnPrimary + " mt-4 w-full disabled:opacity-50"}
             onClick={() =>
               void onPurchase(selected!).then(() =>
@@ -243,9 +245,9 @@ export function MessagingNumberPicker({
           >
             {saving
               ? "Purchasing..."
-              : canPurchase
-                ? `Purchase this number — $${monthly.toFixed(2)}/month`
-                : "Purchase unlocks after Brand approval"}
+              : alreadyPurchased
+                ? "Number purchased"
+                : `Purchase Number — $${monthly.toFixed(2)}/month`}
           </button>
         </SectionCard>
       </div>

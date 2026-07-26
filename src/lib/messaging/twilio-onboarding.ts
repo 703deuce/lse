@@ -64,16 +64,18 @@ export function isLiveMessagingReady(reg: MessagingRegistration): boolean {
     campaignVerified(reg.twilio.campaignStatus) &&
     Boolean(reg.twilio.messagingServiceSid) &&
     Boolean(reg.twilio.phoneNumberSid) &&
+    Boolean(reg.twilio.phoneNumberAttached) &&
     !reg.messagingPaused
   );
 }
 
+/**
+ * Customers may buy a number once a Twilio subaccount exists (or in mock mode).
+ * The service layer creates the subaccount on purchase/search if needed.
+ * A2P send stays blocked until campaign VERIFIED + number attached to MS.
+ */
 export function canPurchaseNumber(reg: MessagingRegistration): boolean {
-  return (
-    brandApproved(reg.twilio.brandStatus) ||
-    Boolean(reg.twilio.campaignSid) ||
-    campaignVerified(reg.twilio.campaignStatus)
-  );
+  return Boolean(reg.twilio.subaccountSid) || reg.adapterMode === "mock";
 }
 
 export async function createAndSubmitA2PTrustProduct(
@@ -608,19 +610,80 @@ export async function searchAvailableNumbers(
   });
 }
 
+/** Attach an already-purchased PN… to the Messaging Service when both exist. */
+export async function attachPurchasedNumberToMessagingService(
+  reg: MessagingRegistration
+): Promise<TwilioAdapterResult> {
+  if (!reg.twilio.phoneNumberSid || !reg.twilio.messagingServiceSid) {
+    return { registration: reg, events: [] };
+  }
+  if (reg.twilio.phoneNumberAttached) {
+    return { registration: reg, events: [] };
+  }
+
+  const client = await resolveSubClient(reg);
+  try {
+    await client.messaging.v1
+      .services(reg.twilio.messagingServiceSid)
+      .phoneNumbers.create({ phoneNumberSid: reg.twilio.phoneNumberSid });
+  } catch (err) {
+    const msg = twilioErrorMessage(err).toLowerCase();
+    // Already in the sender pool is fine.
+    if (!/already|duplicate|20404|same/.test(msg)) throw err;
+  }
+
+  const now = new Date().toISOString();
+  const campaignOk = campaignVerified(reg.twilio.campaignStatus);
+  const next: MessagingRegistration = {
+    ...reg,
+    numberStatus: campaignOk ? "approved" : reg.numberStatus,
+    twilio: {
+      ...reg.twilio,
+      phoneNumberAttached: true,
+      phoneNumberAttachedAt: now,
+    },
+    updatedAt: now,
+  };
+  const ready = isLiveMessagingReady(next);
+  return {
+    registration: {
+      ...next,
+      messagingEnabled: ready ? !reg.messagingPaused : false,
+      messagingStatus: ready ? "ready" : reg.messagingStatus,
+      overallStatus: ready ? "ready" : reg.overallStatus,
+      setupStep: ready ? "ready" : reg.setupStep,
+      numberStatus: ready || campaignOk ? "approved" : next.numberStatus,
+    },
+    events: [
+      {
+        eventType: "number_attached_to_messaging_service",
+        message: `Phone number attached to Messaging Service${
+          campaignOk ? "" : " — outbound SMS waits until the campaign is VERIFIED"
+        }.`,
+        payload: {
+          phoneNumberSid: reg.twilio.phoneNumberSid,
+          messagingServiceSid: reg.twilio.messagingServiceSid,
+        },
+      },
+    ],
+  };
+}
+
+/**
+ * Purchase a US local number on the customer subaccount.
+ * Messaging Service attach happens now if MG… exists, otherwise later in the worker.
+ */
 export async function purchaseAndAttachNumber(
   reg: MessagingRegistration,
   phoneNumber: string
 ): Promise<TwilioAdapterResult> {
-  if (!canPurchaseNumber(reg)) {
-    throw new Error(
-      "Purchase is available after Brand approval or Campaign submission to avoid unused number fees."
-    );
-  }
-  if (!reg.twilio.messagingServiceSid) {
-    throw new Error("Create a Messaging Service before purchasing a number.");
+  if (!canPurchaseNumber(reg) || !reg.twilio.subaccountSid) {
+    throw new Error("Twilio subaccount is required before purchasing a number.");
   }
   if (reg.twilio.phoneNumberSid && reg.phoneNumberE164 === phoneNumber) {
+    if (reg.twilio.messagingServiceSid && !reg.twilio.phoneNumberAttached) {
+      return attachPurchasedNumberToMessagingService(reg);
+    }
     return { registration: reg, events: [] };
   }
 
@@ -632,9 +695,6 @@ export async function purchaseAndAttachNumber(
     smsUrl: hooks.inboundRequestUrl,
     statusCallback: hooks.statusCallback,
   });
-  await client.messaging.v1
-    .services(reg.twilio.messagingServiceSid)
-    .phoneNumbers.create({ phoneNumberSid: purchased.sid });
 
   const now = new Date().toISOString();
   const digits = e164.replace(/\D/g, "");
@@ -642,50 +702,78 @@ export async function purchaseAndAttachNumber(
     digits.length === 11 && digits.startsWith("1")
       ? `(${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`
       : e164;
-  const campaignOk = campaignVerified(reg.twilio.campaignStatus);
-  const ready = isLiveMessagingReady({
+
+  let next: MessagingRegistration = {
     ...reg,
+    phoneNumberE164: e164,
+    phoneNumberFriendly: friendly,
+    phoneNumberLocality: reg.phoneNumberLocality,
+    phoneNumberMonthlyCost: 1.15,
+    phoneNumberCapabilities: {
+      sms: true,
+      mms: Boolean(purchased.capabilities?.mms),
+      voice: Boolean(purchased.capabilities?.voice),
+    },
+    phoneNumberReserved: true,
+    phoneNumberPurchasedAt: now,
+    numberStatus: "submitted",
+    // Never enable outbound until campaign VERIFIED + attached.
+    messagingEnabled: false,
+    messagingStatus: "not_started",
+    setupStep: reg.setupStep === "ready" ? "number" : reg.setupStep,
     twilio: {
       ...reg.twilio,
       phoneNumberSid: purchased.sid,
+      phoneNumberAttached: false,
+      phoneNumberAttachedAt: null,
     },
-  });
-
-  return {
-    registration: {
-      ...reg,
-      phoneNumberE164: e164,
-      phoneNumberFriendly: friendly,
-      phoneNumberLocality: purchased.identitySid ? null : reg.phoneNumberLocality,
-      phoneNumberMonthlyCost: 1.15,
-      phoneNumberCapabilities: {
-        sms: true,
-        mms: Boolean(purchased.capabilities?.mms),
-        voice: Boolean(purchased.capabilities?.voice),
-      },
-      phoneNumberReserved: true,
-      numberStatus: campaignOk ? "approved" : "submitted",
-      messagingEnabled: ready || (campaignOk && Boolean(purchased.sid)),
-      messagingStatus: ready || campaignOk ? "ready" : "not_started",
-      overallStatus: ready || campaignOk ? "ready" : reg.overallStatus,
-      setupStep: ready || campaignOk ? "ready" : "number",
-      twilio: {
-        ...reg.twilio,
-        phoneNumberSid: purchased.sid,
-      },
-      updatedAt: now,
-      lastStatusCheckedAt: now,
-    },
-    events: [
-      {
-        eventType: campaignOk ? "number_purchased" : "number_purchased_pending_campaign",
-        message: campaignOk
-          ? `Phone number ${friendly} purchased and attached to the Messaging Service.`
-          : `Phone number ${friendly} purchased. Outbound SMS stays blocked until the campaign is VERIFIED.`,
-        payload: { phoneNumber: e164, sid: purchased.sid },
-      },
-    ],
+    updatedAt: now,
+    lastStatusCheckedAt: now,
   };
+
+  const events: TwilioAdapterResult["events"] = [
+    {
+      eventType: "number_purchased",
+      message: `Phone number ${friendly} purchased. It becomes available for texting after A2P registration is approved.`,
+      payload: { phoneNumber: e164, sid: purchased.sid, monthlyCost: 1.15 },
+    },
+  ];
+
+  if (next.twilio.messagingServiceSid) {
+    const attached = await attachPurchasedNumberToMessagingService(next);
+    next = attached.registration;
+    events.push(...attached.events);
+  }
+
+  return { registration: next, events };
+}
+
+/** Days to keep an unused purchased number before auto-release (abandoned registration). */
+export function numberPurchaseGraceDays(): number {
+  const raw = Number(process.env.MESSAGING_NUMBER_GRACE_DAYS ?? "14");
+  return Number.isFinite(raw) && raw > 0 ? raw : 14;
+}
+
+/**
+ * Release numbers bought then abandoned (never started/submitted A2P).
+ * Keep numbers while Brand/Campaign review is in progress — TCR can take weeks.
+ */
+export function shouldAutoReleaseUnusedNumber(reg: MessagingRegistration, now = Date.now()): boolean {
+  if (!reg.twilio.phoneNumberSid || !reg.phoneNumberPurchasedAt) return false;
+  if (isLiveMessagingReady(reg) || campaignVerified(reg.twilio.campaignStatus)) return false;
+  // Actively registering — do not release while waiting on Twilio/TCR.
+  if (
+    reg.submittedAt ||
+    reg.twilio.profileSubmittedAt ||
+    reg.twilio.brandSid ||
+    reg.twilio.campaignSid
+  ) {
+    return false;
+  }
+  const purchased = Date.parse(reg.phoneNumberPurchasedAt);
+  if (!Number.isFinite(purchased)) return false;
+  const graceMs = numberPurchaseGraceDays() * 24 * 60 * 60 * 1000;
+  return now - purchased >= graceMs;
 }
 
 export async function releasePhoneNumber(
@@ -714,6 +802,7 @@ export async function releasePhoneNumber(
       phoneNumberMonthlyCost: null,
       phoneNumberCapabilities: {},
       phoneNumberReserved: false,
+      phoneNumberPurchasedAt: null,
       numberStatus: "not_started",
       messagingEnabled: false,
       messagingStatus: "not_started",
@@ -723,6 +812,8 @@ export async function releasePhoneNumber(
       twilio: {
         ...reg.twilio,
         phoneNumberSid: null,
+        phoneNumberAttached: false,
+        phoneNumberAttachedAt: null,
       },
       updatedAt: now,
     },

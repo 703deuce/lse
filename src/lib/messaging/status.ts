@@ -38,7 +38,8 @@ export function isStepAvailable(
     case "campaign_review":
       return Boolean(registration.submittedAt) || isStarted(registration.useCaseStatus);
     case "choose_number":
-      return Boolean(registration.submittedAt) || registration.campaignReviewStatus === "approved";
+      // Buy anytime — searching/purchasing creates the Twilio subaccount if needed.
+      return true;
     case "ready_to_text":
       return (
         Boolean(registration.phoneNumberE164) ||
@@ -253,23 +254,27 @@ export function buildRegistrationTimeline(
     },
     {
       id: "phone_reserved",
-      label: registration.messagingEnabled ? "Phone assigned" : "Phone reserved",
-      detail: registration.phoneNumberFriendly ?? "Choose a local number when ready",
+      label: registration.messagingEnabled ? "Phone assigned" : "Phone purchased",
+      detail: registration.phoneNumberFriendly
+        ? registration.messagingEnabled
+          ? "Dedicated business number"
+          : "Purchased — texting unlocks after A2P approval"
+        : "Buy a local number anytime during setup",
       state: numberDone
         ? "complete"
         : registration.numberStatus === "failed"
           ? "failed"
-          : campaignDone
-            ? "current"
-            : "pending",
-      at: numberDone ? registration.updatedAt : null,
+          : "current",
+      at: numberDone
+        ? registration.phoneNumberPurchasedAt ?? registration.updatedAt
+        : null,
     },
     {
       id: "ready",
       label: "Ready to text",
       detail: ready
         ? "Outbound review-request messaging is active"
-        : "Enabled after campaign approval and number assignment",
+        : "Enabled after campaign approval and number purchase",
       state: ready ? "complete" : "pending",
       at: ready ? registration.updatedAt : null,
     },
@@ -285,15 +290,13 @@ export function isMessagingReady(registration: MessagingRegistration): boolean {
   );
 }
 
-/** Whether the customer may purchase (not freely hold) a Twilio number. */
+/**
+ * Purchase is always allowed in the UI. Live purchase creates a Twilio subaccount
+ * if one does not exist yet (same as Start Registration).
+ */
 export function canPurchaseMessagingNumber(registration: MessagingRegistration): boolean {
-  const brand = (registration.twilio.brandStatus ?? "").toUpperCase();
-  return (
-    brand === "APPROVED" ||
-    Boolean(registration.twilio.campaignSid) ||
-    registration.campaignReviewStatus === "approved" ||
-    registration.campaignReviewStatus === "in_review"
-  );
+  void registration;
+  return true;
 }
 
 export function nextSetupHref(registration: MessagingRegistration, businessId: string): string {

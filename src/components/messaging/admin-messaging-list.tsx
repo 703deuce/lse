@@ -128,7 +128,7 @@ export function AdminMessagingList({
                     </RepBadge>
                   </td>
                   <td className="px-3 py-3 text-[#667085]">
-                    {row.phoneNumberFriendly ?? (row.phoneNumberReserved ? "Reserved" : "None")}
+                    {row.phoneNumberFriendly ?? (row.phoneNumberReserved ? "Purchased" : "None")}
                   </td>
                   <td className="px-3 py-3">
                     <RepBadge tone={row.messagingEnabled ? "green" : "gray"}>

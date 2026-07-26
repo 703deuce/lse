@@ -131,6 +131,13 @@ export function MessagingOverview({
               <ArrowRight className="h-4 w-4" />
             </button>
             <Link
+              href={`/businesses/${businessId}/reputation/messaging/number`}
+              className={rep.btnSecondary}
+            >
+              <Phone className="h-4 w-4" />
+              Buy a phone number
+            </Link>
+            <Link
               href={`/businesses/${businessId}/reputation/requests`}
               className={rep.btnSecondary}
             >
@@ -152,7 +159,7 @@ export function MessagingOverview({
             <ul className="space-y-2 text-sm text-[#344054]">
               <li>• Business profile and use case</li>
               <li>• Brand and campaign approval</li>
-              <li>• Choose number, then go live</li>
+              <li>• Buy a number anytime — texting unlocks after approval</li>
             </ul>
           </SectionCard>
           <SectionCard title="Stay on email" icon={Mail}>
@@ -233,8 +240,8 @@ export function MessagingOverview({
             value={registration.phoneNumberFriendly ?? "None"}
             icon={Phone}
             hint={
-              registration.phoneNumberReserved && !registration.messagingEnabled
-                ? "Reserved — texting disabled until approval"
+              registration.phoneNumberE164 && !registration.messagingEnabled
+                ? "Purchased — texting unlocks after A2P approval"
                 : "Dedicated business number"
             }
           />

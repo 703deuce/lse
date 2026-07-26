@@ -35,7 +35,17 @@ describe("messaging onboarding", () => {
     });
     reg.businessDetailsStatus = "submitted";
     assert.equal(isStepAvailable(reg, "messaging_use_case"), true);
-    assert.equal(isStepAvailable(reg, "choose_number"), false);
+    // Choose number is available anytime (buy before Brand/Campaign approval).
+    assert.equal(isStepAvailable(reg, "choose_number"), true);
+  });
+
+  it("allows choose_number before registration starts", () => {
+    const reg = createEmptyRegistration({
+      organizationId: "org",
+      businessId: "biz",
+      businessName: "Long Home",
+    });
+    assert.equal(isStepAvailable(reg, "choose_number"), true);
   });
 
   it("mock submit moves registration into review", () => {
