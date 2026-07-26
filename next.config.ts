@@ -1,8 +1,7 @@
 import type { NextConfig } from "next";
 
-const securityHeaders = [
+const baseSecurityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
@@ -10,25 +9,6 @@ const securityHeaders = [
   },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
   { key: "Cross-Origin-Resource-Policy", value: "same-site" },
-  {
-    key: "Content-Security-Policy",
-    value: [
-      "default-src 'self'",
-      "base-uri 'self'",
-      "frame-ancestors 'none'",
-      "form-action 'self'",
-      "object-src 'none'",
-      // Next.js + inline styles used across the app; tighten later with nonces.
-      // unsafe-eval removed — re-add only if a runtime dependency requires eval().
-      "script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://maps.gstatic.com",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "img-src 'self' data: blob: https:",
-      "font-src 'self' data: https://fonts.gstatic.com",
-      "connect-src 'self' https: wss:",
-      "frame-src 'self' https://maps.googleapis.com https://www.google.com",
-      "worker-src 'self' blob:",
-    ].join("; "),
-  },
   ...(process.env.NODE_ENV === "production"
     ? [
         {
@@ -39,6 +19,49 @@ const securityHeaders = [
     : []),
 ];
 
+const defaultCsp = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "object-src 'none'",
+  // Next.js + inline styles used across the app; tighten later with nonces.
+  // unsafe-eval removed — re-add only if a runtime dependency requires eval().
+  "script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://maps.gstatic.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "connect-src 'self' https: wss:",
+  "frame-src 'self' https://maps.googleapis.com https://www.google.com",
+  "worker-src 'self' blob:",
+].join("; ");
+
+/** Public SEO tool may be embedded on the marketing site. */
+const embedFrameAncestors = [
+  "'self'",
+  "https://localseoexpress.com",
+  "https://www.localseoexpress.com",
+  "http://127.0.0.1:4173",
+  "http://localhost:4173",
+  "http://127.0.0.1:3000",
+  "http://localhost:3000",
+].join(" ");
+
+const embedCsp = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  `frame-ancestors ${embedFrameAncestors}`,
+  "form-action 'self'",
+  "object-src 'none'",
+  "script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://maps.gstatic.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "connect-src 'self' https: wss:",
+  "frame-src 'self' https://maps.googleapis.com https://www.google.com",
+  "worker-src 'self' blob:",
+].join("; ");
+
 const nextConfig: NextConfig = {
   output: "standalone",
   async headers() {
@@ -47,9 +70,28 @@ const nextConfig: NextConfig = {
         source: "/reports/share/:path*",
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
       },
+      // Catch-all first. Rely on CSP frame-ancestors (not X-Frame-Options) so
+      // the public QR generator can override framing for the marketing site.
       {
         source: "/:path*",
-        headers: securityHeaders,
+        headers: [
+          ...baseSecurityHeaders,
+          { key: "Content-Security-Policy", value: defaultCsp },
+        ],
+      },
+      {
+        source: "/google-review-qr-code-generator",
+        headers: [
+          { key: "Content-Security-Policy", value: embedCsp },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
+      },
+      {
+        source: "/google-review-qr-code-generator/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: embedCsp },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
       },
     ];
   },
