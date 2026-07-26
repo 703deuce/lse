@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import { requireOrganizationPermission } from "@/lib/auth/permissions";
-import { requireRecentAuth } from "@/lib/auth/reauth";
 import type { CsvMapTarget } from "@/lib/reputation/bulk-csv";
 import { MAX_CSV_BYTES } from "@/lib/reputation/bulk-csv";
 import {
@@ -130,7 +129,6 @@ export async function POST(request: Request) {
     const access = await requireBusinessAccess(businessId);
     await requireEntitlement(access.organizationId, "review_campaigns");
     const permAuth = await requireOrganizationPermission("contacts.import", access.organizationId);
-    await requireRecentAuth();
 
     let rows: ContactImportRow[] = Array.isArray(body.rows) ? (body.rows as ContactImportRow[]) : [];
     if ((!rows.length || action === "preview") && Array.isArray(body.csvRows) && Array.isArray(body.headers)) {

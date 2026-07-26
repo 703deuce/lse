@@ -8,7 +8,6 @@ import {
   Bell,
   CheckCircle2,
   Mail,
-  MoreHorizontal,
   Plus,
   Settings,
   ShieldCheck,
@@ -331,9 +330,6 @@ export function ReputationAlertsDashboard({
                           ) : (
                             <span className="text-xs text-[#98A2B3]">Closed</span>
                           )}
-                          <button type="button" className="rounded-lg p-1.5 text-[#98A2B3] hover:bg-[#F2F4F7]">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </button>
                         </div>
                       </td>
                     </tr>

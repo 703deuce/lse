@@ -152,7 +152,7 @@ export function GrowthAuditGbpTab({
                 {showAllChecks ? "Show fewer checks" : `Show ${gbp.checks.length - 3} more checks`}
               </button>
             ) : (
-              <GaLink>View full GBP profile details</GaLink>
+              <GaLink onClick={onGoToActionPlan}>View full GBP profile details</GaLink>
             )}
           </div>
         </GaCard>
@@ -166,7 +166,6 @@ export function GrowthAuditGbpTab({
                 label="Reviews"
                 value={String(gbp.reviews.reviewCount ?? 0)}
                 sub={`${gbp.reviews.rating ?? "—"} rating`}
-                trend={gbp.reviews.reviewCount >= 10 ? "+6 vs. last 30 days" : undefined}
                 positive
               />
               <SnapshotMini
@@ -174,7 +173,6 @@ export function GrowthAuditGbpTab({
                 label="Photos"
                 value={String(gbp.photos.photoCount ?? 0)}
                 sub="Total photos"
-                trend={gbp.photos.photoCount >= 5 ? "+5 vs. last 30 days" : undefined}
                 positive
               />
               <SnapshotMini
@@ -182,8 +180,7 @@ export function GrowthAuditGbpTab({
                 label="Posts"
                 value={String(gbp.posts.postCount ?? 0)}
                 sub="Last 30 days"
-                trend={gbp.posts.postCount > 0 ? undefined : "No change"}
-                positive={false}
+                positive={gbp.posts.postCount > 0}
               />
               <SnapshotMini
                 icon={Clock}

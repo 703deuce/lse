@@ -6,7 +6,6 @@ import {
   Activity,
   CheckCircle2,
   Code2,
-  MoreHorizontal,
   PlugZap,
   Plus,
   Search,
@@ -225,7 +224,8 @@ export function AutomationsHub({
           campaign: endpoint.campaignId ? `Campaign ${endpoint.campaignId.slice(0, 8)}` : "Mapped campaign",
           status: endpoint.isTest ? "Test" : endpoint.isActive ? "Active" : "Paused",
           lastFired: endpoint.lastReceivedAt,
-          enrolled: 0,
+          // Per-trigger enrollment isn't returned by the webhooks API yet.
+          enrolled: -1,
         }))
       );
       const successful = typeof apiMetrics.successful === "number" ? apiMetrics.successful : undefined;
@@ -291,7 +291,19 @@ export function AutomationsHub({
         showFilters={false}
         actions={
           <>
-            <button type="button" onClick={() => setActiveTab("triggers")} className={rep.btnPrimary}>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("triggers");
+                queueMicrotask(() => {
+                  document.getElementById("automation-webhooks")?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
+                });
+              }}
+              className={rep.btnPrimary}
+            >
               <Plus className="h-4 w-4" />
               Create Trigger
             </button>
@@ -419,12 +431,10 @@ export function AutomationsHub({
                           <RepBadge tone={statusTone(trigger.status)}>{trigger.status}</RepBadge>
                         </td>
                         <td className="px-4 py-3 text-[#667085]">{fmtDateTime(trigger.lastFired)}</td>
-                        <td className="px-4 py-3 text-right tabular-nums text-[#344054]">{trigger.enrolled.toLocaleString()}</td>
-                        <td className="px-4 py-3">
-                          <button type="button" className="rounded-lg p-1.5 text-[#98A2B3] hover:bg-[#F2F4F7]">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </button>
+                        <td className="px-4 py-3 text-right tabular-nums text-[#344054]">
+                          {trigger.enrolled < 0 ? "—" : trigger.enrolled.toLocaleString()}
                         </td>
+                        <td className="px-4 py-3" />
                       </tr>
                     ))}
                     {!loading && filteredTriggers.length === 0 ? (
@@ -447,7 +457,7 @@ export function AutomationsHub({
             </div>
             {error ? <p className="text-sm text-[#B42318]">{error}</p> : null}
             {!previewData ? (
-              <div className={cn(rep.card, "p-4")}>
+              <div id="automation-webhooks" className={cn(rep.card, "p-4")}>
                 <WebhooksClient businessId={businessId} embedded />
               </div>
             ) : null}
@@ -466,7 +476,15 @@ export function AutomationsHub({
             <IntegrationCard
               key={item.id}
               item={item}
-              onConfigure={() => setActiveTab("integrations")}
+              onConfigure={() => {
+                setActiveTab("triggers");
+                queueMicrotask(() => {
+                  document.getElementById("automation-webhooks")?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
+                });
+              }}
             />
           ))}
         </div>

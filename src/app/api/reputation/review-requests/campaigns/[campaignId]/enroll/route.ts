@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireOrganizationPermission } from "@/lib/auth/permissions";
-import { requireRecentAuth } from "@/lib/auth/reauth";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { requireCampaignSendAccess } from "@/lib/auth/entitlements";
 import { enrollContactInCampaign } from "@/lib/automations/enroll-campaign";
@@ -27,7 +26,6 @@ export async function POST(
 
     const auth = await requireBusinessAccess(businessId);
     const permAuth = await requireOrganizationPermission("campaign.send", auth.organizationId);
-    await requireRecentAuth();
     await requireCampaignSendAccess(auth.organizationId);
 
     const supabase = createServiceClient();

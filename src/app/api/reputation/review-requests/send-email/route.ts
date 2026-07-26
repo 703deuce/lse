@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { EntitlementError, requireCampaignSendAccess } from "@/lib/auth/entitlements";
 import { requireOrganizationPermission } from "@/lib/auth/permissions";
-import { requireRecentAuth } from "@/lib/auth/reauth";
 import { sendReviewRequestEmail } from "@/lib/reputation/review-sends";
 import { PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
 import { sendReviewEmailSchema } from "@/lib/validation/schemas";
@@ -42,7 +41,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
 
-    await requireRecentAuth();
     const access = await requireBusinessAccess(parsed.data.businessId);
     await requireCampaignSendAccess(access.organizationId);
     const permAuth = await requireOrganizationPermission("campaign.send", access.organizationId);

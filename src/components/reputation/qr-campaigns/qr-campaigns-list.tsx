@@ -205,10 +205,10 @@ export function QrCampaignsList({ businessId }: { businessId: string }) {
               Create New Campaign
             </Link>
           ) : (
-            <button type="button" className={cn(qrUi.btnPrimary, "cursor-not-allowed opacity-60")} disabled>
+            <Link href={plansHref} className={qrUi.btnPrimary}>
               <Plus className="h-4 w-4" />
-              Create New Campaign
-            </button>
+              Upgrade to create more
+            </Link>
           )}
         </div>
       </div>

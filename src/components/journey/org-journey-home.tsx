@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Building2,
-  Calendar,
   Eye,
   FileText,
   Grid3X3,
@@ -170,16 +169,10 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
             : "A complete overview of your SEO performance and growth opportunities."
         }
         actions={
-          <>
-            <Link href="/businesses/new?as=client" className={mock.btnPrimary}>
-              <Plus className="h-4 w-4" />
-              Create New
-            </Link>
-            <button type="button" className={mock.btnSecondary}>
-              <Calendar className="h-4 w-4" />
-              Filter Dates
-            </button>
-          </>
+          <Link href="/businesses/new?as=client" className={mock.btnPrimary}>
+            <Plus className="h-4 w-4" />
+            Create New
+          </Link>
         }
       />
 
@@ -192,10 +185,10 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MockMetricCard
-              label="Local SEO Score"
+              label="Workspace readiness"
               value={healthScore}
               icon={Target}
-              hint="Composite health"
+              hint="Setup + activity checklist"
             />
             <MockMetricCard
               label="Active Maps Scans"

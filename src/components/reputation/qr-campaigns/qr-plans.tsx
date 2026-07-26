@@ -118,9 +118,12 @@ function PlanCard({
           Current plan
         </button>
       ) : plan.id === "free" ? (
-        <button type="button" disabled className={cn(qrUi.btnSecondary, "mt-5 w-full")}>
+        <Link
+          href={`/businesses/${businessId}/reputation/qr-campaigns`}
+          className={cn(qrUi.btnSecondary, "mt-5 w-full")}
+        >
           {plan.cta}
-        </button>
+        </Link>
       ) : (
         <Link
           href={href}

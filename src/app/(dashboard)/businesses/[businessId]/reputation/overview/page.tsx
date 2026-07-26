@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import { ReviewOverviewDashboard } from "@/components/reviews/review-overview-dashboard";
 import { QrPerformanceCard } from "@/components/reputation/qr-campaigns/qr-performance-card";
 import { ReviewGrowthCoach } from "@/components/reputation/qr-campaigns/review-growth-coach";
+import { requireBusinessPage } from "@/lib/auth/require-business-page";
 import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { loadReviewOverviewData } from "@/lib/reviews/review-overview-data";
 import { reviewOverviewPreviewData } from "@/lib/reviews/review-overview-preview-data";
@@ -26,6 +27,7 @@ export default async function ReviewOverviewPage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
+  await requireBusinessPage(businessId);
 
   return (
     <Suspense

@@ -58,30 +58,34 @@ export function GrowthAuditCompetitorTab({
     {
       label: "Profile Completeness",
       you: gbp.score,
-      top: Math.min(95, gbp.score + 15),
-      market: Math.round((gbp.score + Math.min(95, gbp.score + 15)) / 2),
+      top: gbp.score,
+      market: gbp.score,
       format: (n: number) => `${n}%`,
+      youOnly: true,
     },
     {
       label: "Website Alignment",
       you: website.score,
-      top: Math.min(95, website.score + 20),
-      market: Math.round((website.score + Math.min(95, website.score + 20)) / 2),
+      top: website.score,
+      market: website.score,
       format: (n: number) => `${n}%`,
+      youOnly: true,
     },
     {
       label: "Service Coverage",
       you: serviceCoverage.score,
-      top: Math.min(95, serviceCoverage.score + 25),
-      market: Math.round((serviceCoverage.score + Math.min(95, serviceCoverage.score + 25)) / 2),
+      top: serviceCoverage.score,
+      market: serviceCoverage.score,
       format: (n: number) => `${n}%`,
+      youOnly: true,
     },
     {
       label: "Local Coverage",
       you: localCoverage.score,
-      top: Math.min(95, localCoverage.score + 20),
-      market: Math.round((localCoverage.score + Math.min(95, localCoverage.score + 20)) / 2),
+      top: localCoverage.score,
+      market: localCoverage.score,
       format: (n: number) => `${n}%`,
+      youOnly: true,
     },
     ...(refDomains
       ? [
@@ -201,6 +205,14 @@ export function GrowthAuditCompetitorTab({
                   <tr key={row.label} className="border-b border-zinc-50">
                     <td className="px-3.5 py-2 font-medium text-zinc-900">{row.label}</td>
                     {stackRows.map((metric) => {
+                      const youOnly = "youOnly" in metric && metric.youOnly;
+                      if (youOnly && row.key !== "you") {
+                        return (
+                          <td key={metric.label} className="px-3.5 py-2">
+                            <span className="text-[11px] text-zinc-400">—</span>
+                          </td>
+                        );
+                      }
                       const val = metric[row.key];
                       const pct = metric.label.includes("Volume")
                         ? Math.min(100, (val / Math.max(metric.top, 1)) * 100)

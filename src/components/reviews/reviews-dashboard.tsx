@@ -50,10 +50,10 @@ function pct(value: number, total: number): number {
 }
 
 function sentimentFor(review: ReviewListItem): ReviewFeedDetails["sentiment"] {
-  if (review.rating == null) return { label: "Neutral", confidence: 0.5 };
-  if (review.rating >= 4) return { label: "Positive", confidence: 0.92 };
-  if (review.rating <= 2) return { label: "Negative", confidence: 0.86 };
-  return { label: "Neutral", confidence: 0.78 };
+  if (review.rating == null) return { label: "Neutral", confidence: null };
+  if (review.rating >= 4) return { label: "Positive", confidence: null };
+  if (review.rating <= 2) return { label: "Negative", confidence: null };
+  return { label: "Neutral", confidence: null };
 }
 
 function sourceLabel(source: ReviewListItem["source"]): string {
@@ -235,12 +235,7 @@ function ReviewDetailPanel({
       };
       const reply = json.drafts?.[0]?.draftText || json.drafts?.[0]?.reply || json.reply;
       if (!res.ok || !reply) {
-        const firstName = currentReview.reviewerName.split(" ")[0] || "there";
-        setDraft(
-          `Hi ${firstName},\n\nThank you for sharing your feedback. We appreciate you taking the time to review us.\n\nBest regards`
-        );
-        setWriting(true);
-        setStatusMsg("Suggested reply ready (fallback)");
+        setActionError(json.error || "Could not generate a reply");
         return;
       }
       setDraft(reply);
@@ -340,7 +335,9 @@ function ReviewDetailPanel({
                   {sentiment.label}
                 </p>
                 <p className="mt-0.5 text-xs text-[#667085]">
-                  Confidence: {confidenceDecimal.toFixed(2)}
+                  {typeof confidenceDecimal === "number"
+                    ? `Confidence: ${confidenceDecimal.toFixed(2)}`
+                    : "Estimated from star rating"}
                 </p>
               </div>
               <RepBadge
@@ -359,14 +356,18 @@ function ReviewDetailPanel({
           <div>
             <p className={rep.label}>Themes</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {(currentReview.tags.length ? currentReview.tags : ["Customer experience"]).map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full border border-[#E6EAF0] bg-white px-2.5 py-1 text-xs font-medium text-[#475467]"
-                >
-                  {tag}
-                </span>
-              ))}
+              {currentReview.tags.length ? (
+                currentReview.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full border border-[#E6EAF0] bg-white px-2.5 py-1 text-xs font-medium text-[#475467]"
+                  >
+                    {tag}
+                  </span>
+                ))
+              ) : (
+                <p className="mt-2 text-xs text-[#667085]">No themes detected yet.</p>
+              )}
             </div>
           </div>
         </DetailSection>
@@ -507,7 +508,7 @@ function ReviewCard({
             {review.reviewText?.trim() || "No review text provided."}
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {(review.tags.length ? review.tags : ["Customer experience"]).slice(0, 4).map((tag, i) => (
+            {(review.tags.length ? review.tags : []).slice(0, 4).map((tag, i) => (
               <span
                 key={`${tag}-${i}`}
                 className={cn(

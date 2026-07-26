@@ -208,7 +208,7 @@ export function MiniScoreCard({
   sparkData?: number[];
 }) {
   const status = scoreStatus(score);
-  const data = sparkData ?? [score - 8, score - 4, score - 2, score];
+  const data = sparkData;
   return (
     <GaCard className="!p-3.5">
       <div className="flex items-center justify-between gap-2">
@@ -220,9 +220,11 @@ export function MiniScoreCard({
         <span className="text-[11px] font-medium text-zinc-400">/100</span>
       </p>
       <p className={cn("mt-0.5 text-[11px] font-semibold", status.className)}>{status.label}</p>
-      <div className="mt-1.5">
-        <Sparkline data={data} color="#059669" width={88} height={22} />
-      </div>
+      {data?.length ? (
+        <div className="mt-1.5">
+          <Sparkline data={data} color="#059669" width={88} height={22} />
+        </div>
+      ) : null}
     </GaCard>
   );
 }

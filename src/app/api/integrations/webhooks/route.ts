@@ -3,7 +3,6 @@ import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireAuth } from "@/lib/auth/context";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { requireOrganizationPermission } from "@/lib/auth/permissions";
-import { requireRecentAuth } from "@/lib/auth/reauth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import {
   buildIncomingWebhookUrl,
@@ -111,7 +110,6 @@ export async function POST(request: Request) {
     const access = await requireBusinessAccess(body.businessId);
     await requireEntitlement(access.organizationId, "review_campaigns");
     await assertWithinLimit(access.organizationId, "webhook_endpoints", 1);
-    await requireRecentAuth();
     const permAuth = await requireOrganizationPermission(
       "integration.manage",
       access.organizationId

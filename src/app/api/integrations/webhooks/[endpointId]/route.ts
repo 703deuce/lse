@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { httpErrorFromException, httpEntitlementError } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { requireOrganizationPermission } from "@/lib/auth/permissions";
-import { requireRecentAuth } from "@/lib/auth/reauth";
 import { requireEntitlement } from "@/lib/auth/entitlements";
 import { createServiceClient } from "@/lib/db/client";
 import {
@@ -120,7 +119,6 @@ export async function PATCH(
   try {
     const { endpointId } = await params;
     const { access, endpoint } = await authEndpoint(request, endpointId);
-    await requireRecentAuth();
     const permAuth = await requireOrganizationPermission(
       "integration.manage",
       access.organizationId
@@ -250,7 +248,6 @@ export async function DELETE(
   try {
     const { endpointId } = await params;
     const { access } = await authEndpoint(request, endpointId);
-    await requireRecentAuth();
     const permAuth = await requireOrganizationPermission(
       "integration.manage",
       access.organizationId

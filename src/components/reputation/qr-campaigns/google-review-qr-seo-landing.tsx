@@ -81,7 +81,7 @@ const FAQS = [
   },
   {
     q: "What file formats can I download?",
-    a: "You can download a printable poster PDF and a QR-only PNG for stickers, cards, and digital use.",
+    a: "You can download a printable poster PNG and a QR-only PNG for stickers, cards, and digital use.",
   },
   {
     q: "Can I customize colors and text?",

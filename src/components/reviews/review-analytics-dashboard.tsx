@@ -234,7 +234,7 @@ function VelocitySnapshot({ data }: { data: ReviewAnalyticsDashboardData }) {
 }
 
 function MomentumCard({ data }: { data: ReviewAnalyticsDashboardData }) {
-  const score = data.momentumScore ?? Math.max(0, Math.min(100, Math.round((data.accelerationPct ?? 0) + 65)));
+  const score = data.momentumScore;
   const factors = data.momentumFactors;
 
   return (
@@ -244,7 +244,11 @@ function MomentumCard({ data }: { data: ReviewAnalyticsDashboardData }) {
           <RepBadge tone={data.momentumStatus === "Accelerating" ? "green" : data.momentumStatus === "Slowing" ? "amber" : "gray"}>
             {data.momentumStatus}
           </RepBadge>
-          <p className="mt-3 text-4xl font-bold tracking-tight text-[#101828]">{score}/100</p>
+          {score != null ? (
+            <p className="mt-3 text-4xl font-bold tracking-tight text-[#101828]">{score}/100</p>
+          ) : (
+            <p className="mt-3 text-lg font-semibold text-[#667085]">Score unavailable</p>
+          )}
           <p className="mt-1 text-sm text-[#667085]">{data.explanation}</p>
         </div>
         <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#ECFDF3] text-[#137752]">
@@ -320,11 +324,10 @@ export function ReviewAnalyticsDashboard({
       ...point,
       topCompetitor:
         (firstCompetitor ? point.competitorSeries?.[firstCompetitor] : undefined) ??
-        point.competitorAvg ??
-        0,
-      secondCompetitor:
-        (secondCompetitor ? point.competitorSeries?.[secondCompetitor] : undefined) ??
-        Math.max(0, Math.round((point.competitorAvg ?? 0) * 0.75)),
+        (data.competitors.length ? point.competitorAvg ?? 0 : 0),
+      secondCompetitor: secondCompetitor
+        ? point.competitorSeries?.[secondCompetitor] ?? 0
+        : undefined,
     }));
   }, [data.competitors, data.timelinePoints, groupMode]);
 
@@ -339,9 +342,12 @@ export function ReviewAnalyticsDashboard({
 
   const totalReviews = data.totalReviews ?? data.timelinePoints.reduce((sum, point) => sum + point.you, 0);
   const events = chartData.filter((point) => point.events.length > 0);
-  const topCompetitorName = data.competitors[0]?.name ?? "Top Competitor";
-  const secondCompetitorName = data.competitors[1]?.name ?? "2nd Competitor";
-  const hasTimeline = chartData.some((point) => point.you > 0 || point.topCompetitor > 0 || point.secondCompetitor > 0);
+  const topCompetitorName =
+    data.competitors[0]?.name ?? (data.competitors.length ? "Competitor avg" : "Competitors");
+  const secondCompetitorName = data.competitors[1]?.name;
+  const hasTimeline = chartData.some(
+    (point) => point.you > 0 || point.topCompetitor > 0 || (point.secondCompetitor ?? 0) > 0
+  );
 
   const rolling30dPeriod = data.rollingPeriods.find((p) => p.days === 30);
   const rolling30dDeltaPct = rolling30dPeriod?.deltaPct ?? null;
@@ -431,8 +437,28 @@ export function ReviewAnalyticsDashboard({
           }))}
           series={[
             { dataKey: "you", name: "You", color: GREEN, strokeWidth: 3, fillOpacity: 0.26 },
-            { dataKey: "topCompetitor", name: topCompetitorName, color: BLUE, strokeWidth: 2.4, fillOpacity: 0.12 },
-            { dataKey: "secondCompetitor", name: secondCompetitorName, color: PURPLE, strokeWidth: 2.2, fillOpacity: 0.1 },
+            ...(data.competitors.length
+              ? [
+                  {
+                    dataKey: "topCompetitor",
+                    name: topCompetitorName,
+                    color: BLUE,
+                    strokeWidth: 2.4,
+                    fillOpacity: 0.12,
+                  },
+                ]
+              : []),
+            ...(secondCompetitorName
+              ? [
+                  {
+                    dataKey: "secondCompetitor",
+                    name: secondCompetitorName,
+                    color: PURPLE,
+                    strokeWidth: 2.2,
+                    fillOpacity: 0.1,
+                  },
+                ]
+              : []),
           ]}
         />
       ) : (

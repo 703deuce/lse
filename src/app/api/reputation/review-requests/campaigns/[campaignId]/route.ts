@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import { requireOrganizationPermission } from "@/lib/auth/permissions";
-import { requireRecentAuth } from "@/lib/auth/reauth";
 import {
   getCampaignDetail,
   getRecipientEventHistory,
@@ -172,7 +171,6 @@ export async function PATCH(
     let permAuth: Awaited<ReturnType<typeof requireOrganizationPermission>> | null = null;
     let reservedReady = 0;
     if (isLaunchToActive) {
-      await requireRecentAuth();
       permAuth = await requireOrganizationPermission("campaign.send", auth.organizationId);
     }
 

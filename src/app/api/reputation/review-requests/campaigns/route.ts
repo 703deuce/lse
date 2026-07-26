@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { EntitlementError, requireEntitlement } from "@/lib/auth/entitlements";
 import { requireOrganizationPermission } from "@/lib/auth/permissions";
-import { requireRecentAuth } from "@/lib/auth/reauth";
 import { createServiceClient } from "@/lib/db/client";
 import {
   createReviewCampaign,
@@ -132,7 +131,6 @@ export async function POST(request: Request) {
     const readyCount = recipients.filter((r) => r.status === "ready").length;
     let permAuth: Awaited<ReturnType<typeof requireOrganizationPermission>> | null = null;
     if (launchStatus === "active" || launchStatus === "scheduled") {
-      await requireRecentAuth();
       permAuth = await requireOrganizationPermission("campaign.send", auth.organizationId);
     }
     // Reserve bulk quota only when launching (not draft saves).
