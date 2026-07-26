@@ -18,6 +18,47 @@
   color: var(--qr-muted);
 }
 
+/* Header chrome — pin must stay small; mobile CTAs stay in the drawer only */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  line-height: 1.1;
+}
+
+.logo-pin {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.header-signin {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.header-signin:hover {
+  color: var(--qr-green-dark);
+}
+
+.nav-item--mobile-only {
+  display: none;
+}
+
+.site-footer .logo-pin {
+  width: 24px;
+  height: 24px;
+}
+
 /* —— Hero frame (do not restyle the embedded tool) —— */
 .qr-hero {
   padding: 0.75rem 0 0;
@@ -679,4 +720,12 @@
   .qr-section { padding: 3rem 0; }
   .qr-section--benefits { padding: 1.75rem 0 2.5rem; }
   .qr-tool-frame { height: 980px; min-height: 980px; }
+
+  .qr-page .nav-item--mobile-only {
+    display: list-item;
+  }
+
+  .qr-page .header-actions {
+    display: none;
+  }
 }
