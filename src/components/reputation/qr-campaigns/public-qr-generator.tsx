@@ -333,13 +333,15 @@ export function PublicQrGenerator({
               </p>
             </div>
           ) : (
-            <ReviewPosterPreview
-              ref={posterRef}
-              businessName={businessName || "Your Business"}
-              poster={poster}
-              qrDataUrl={qrDataUrl}
-              size="hero"
-            />
+            <div className="absolute left-1/2 top-1/2 aspect-[3/4] h-[90%] max-h-full -translate-x-1/2 -translate-y-1/2">
+              <ReviewPosterPreview
+                ref={posterRef}
+                businessName={businessName || "Your Business"}
+                poster={poster}
+                qrDataUrl={qrDataUrl}
+                size="hero"
+              />
+            </div>
           )}
         </div>
       </div>
