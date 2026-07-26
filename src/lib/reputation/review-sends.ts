@@ -448,7 +448,9 @@ export async function sendReviewRequestSms(input: SendReviewSmsInput) {
     trackingToken,
   });
 
-  let result: { ok: true; messageSid: string } | { ok: false; error: string };
+  let result:
+    | { ok: true; messageSid: string; usedTrialTemplate?: boolean }
+    | { ok: false; error: string };
   {
     const { getRegistration } = await import("@/lib/messaging/store");
     const { isLiveMessagingReady, sendSmsViaMessagingService } = await import(
