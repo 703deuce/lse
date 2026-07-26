@@ -721,11 +721,11 @@
   .qr-section--benefits { padding: 1.75rem 0 2.5rem; }
   .qr-tool-frame { height: 980px; min-height: 980px; }
 
-  .qr-page .nav-item--mobile-only {
+  .nav-item--mobile-only {
     display: list-item;
   }
 
-  .qr-page .header-actions {
+  .header-actions {
     display: none;
   }
 }
