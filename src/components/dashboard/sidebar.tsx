@@ -297,12 +297,20 @@ export function DashboardSidebarPanel({
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto overscroll-contain p-2.5" suppressHydrationWarning>
-        <div className="mb-2">
+        <div className="mb-2 space-y-0.5">
           <SidebarNavItemRow
             href={nav.getStarted.href}
             label={nav.getStarted.label}
             icon={nav.getStarted.icon}
             active={isSidebarHrefActive(pathname, nav.getStarted.href, businessId)}
+            staticLinks={staticLinks}
+            onNavigate={onNavigate}
+          />
+          <SidebarNavItemRow
+            href={nav.textMessaging.href}
+            label={nav.textMessaging.label}
+            icon={nav.textMessaging.icon}
+            active={isSidebarHrefActive(pathname, nav.textMessaging.href, businessId)}
             staticLinks={staticLinks}
             onNavigate={onNavigate}
           />

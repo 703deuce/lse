@@ -80,6 +80,8 @@ function loc(slug: LocationToolSlug, businessId?: string | null): string {
  */
 export function buildUnifiedSidebarNav(businessId?: string | null): {
   getStarted: SidebarNavItem;
+  /** Top-level SMS / A2P entry — not nested under Reputation. */
+  textMessaging: SidebarNavItem;
   work: SidebarNavSection;
   /** @deprecated Kept for callers that still destructure; menu structure is stable. */
   thisLocation: SidebarNavSection | null;
@@ -137,6 +139,11 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
       label: "Get started",
       icon: MapPin,
     },
+    textMessaging: {
+      href: loc("messaging", businessId),
+      label: "Text Messaging",
+      icon: Phone,
+    },
     work: {
       title: "Work",
       items: workItems,
@@ -179,11 +186,6 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
               href: loc("review-requests", businessId),
               label: "Review Requests",
               icon: MessageSquareText,
-            },
-            {
-              href: loc("messaging", businessId),
-              label: "Text Messaging",
-              icon: Phone,
             },
             { href: loc("review-qr", businessId), label: "QR Poster", icon: QrCode },
             { href: loc("review-campaigns", businessId), label: "Campaigns", icon: FolderKanban },

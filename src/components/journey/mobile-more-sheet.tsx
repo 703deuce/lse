@@ -34,7 +34,7 @@ export function MobileMoreSheet() {
   const close = () => setMobileNavOpen(false);
 
   const sections = [
-    { title: null as string | null, items: [nav.getStarted] },
+    { title: null as string | null, items: [nav.getStarted, nav.textMessaging] },
     { title: nav.work.title, items: nav.work.items },
     ...(nav.thisLocation
       ? [
