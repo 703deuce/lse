@@ -106,7 +106,7 @@ export const ReviewPosterPreview = forwardRef<
     <div
       className={cn(
         "mx-auto w-full",
-        isHero ? "max-w-[320px]" : FORMAT_SCALE[poster.format]
+        isHero ? "max-w-[340px]" : FORMAT_SCALE[poster.format]
       )}
     >
       <div
