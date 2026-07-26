@@ -107,8 +107,8 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
       </header>
 
       <main>
-        <section className="border-b border-[#E2E8F0] bg-[radial-gradient(ellipse_at_top_left,_#ECFDF5_0%,_#ffffff_42%,_#F8FAFC_100%)]">
-          <div id="generator" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-10 sm:px-6 lg:px-8 lg:py-12">
+        <section className="border-b border-[#E2E8F0] bg-[radial-gradient(ellipse_at_top,_#ECFDF5_0%,_#ffffff_48%,_#F8FAFC_100%)]">
+          <div id="generator" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
             <PublicQrGenerator seoLayout />
           </div>
         </section>
@@ -129,15 +129,15 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
         </section>
 
         <section id="benefits" className="scroll-mt-24 border-b border-[#E2E8F0] bg-white">
-          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:py-14">
+          <div className="mx-auto grid max-w-6xl gap-6 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:gap-8 lg:py-14">
             {[
               { icon: BarChart3, title: "Get More Google Reviews", body: "Make it easier for happy customers to leave a review before they forget." },
               { icon: Printer, title: "Ready to Print", body: "Download a professional poster, table sign, or QR image in seconds." },
               { icon: Gift, title: "No Account Required", body: "Generate and download your first Google Review QR Code for free." },
               { icon: BarChart3, title: "Track Performance Later", body: "Create a free account anytime to see scans, compare placements, and measure engagement." },
             ].map((item) => (
-              <div key={item.title} className="text-center">
-                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ECFDF3] text-[#16A34A]">
+              <div key={item.title} className="rounded-2xl border border-[#E2E8F0] bg-white p-6 text-center shadow-[0_8px_24px_rgba(11,27,50,0.04)]">
+                <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#ECFDF3] text-[#16A34A]">
                   <item.icon className="h-6 w-6" strokeWidth={1.75} />
                 </span>
                 <h3 className="mt-4 text-base font-bold text-[#0B1220]">{item.title}</h3>
@@ -195,25 +195,26 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
             <h2 className="text-center text-3xl font-extrabold tracking-tight text-[#0B1220]">
               How to Create a Google Review QR Code
             </h2>
-            <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <ol className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
               {[
-                { icon: Search, title: "Find your business" },
-                { icon: Palette, title: "Customize your poster" },
-                { icon: QrCode, title: "Generate your QR code" },
-                { icon: Download, title: "Download and print" },
-                { icon: MapPin, title: "Display and get reviews" },
+                { icon: Search, title: "Find your business", body: "Search or paste your Google review link." },
+                { icon: Palette, title: "Customize your poster", body: "Set headline, copy, and brand color." },
+                { icon: QrCode, title: "Generate your QR code", body: "Create a print-ready review QR instantly." },
+                { icon: Download, title: "Download and print", body: "Export poster PDF or QR PNG." },
+                { icon: MapPin, title: "Display and get reviews", body: "Put it where happy customers will scan." },
               ].map((step, i, arr) => (
                 <li key={step.title} className="relative text-center">
-                  <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white text-[#16A34A] shadow-sm ring-1 ring-[#E2E8F0]">
-                    <step.icon className="h-6 w-6" strokeWidth={1.75} />
+                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#16A34A] text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(22,163,74,0.28)]">
+                    {i + 1}
+                  </span>
+                  <span className="mx-auto mt-3 flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#16A34A] shadow-sm ring-1 ring-[#E2E8F0]">
+                    <step.icon className="h-5 w-5" strokeWidth={1.75} />
                   </span>
                   {i < arr.length - 1 ? (
-                    <ArrowRight className="absolute right-[-0.75rem] top-5 hidden h-4 w-4 text-[#CBD5E1] lg:block" />
+                    <ArrowRight className="absolute right-[-0.85rem] top-4 hidden h-4 w-4 text-[#CBD5E1] lg:block" />
                   ) : null}
-                  <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[#16A34A]">
-                    Step {i + 1}
-                  </p>
-                  <h3 className="mt-1 text-sm font-bold text-[#0B1220]">{step.title}</h3>
+                  <h3 className="mt-3 text-sm font-bold text-[#0B1220]">{step.title}</h3>
+                  <p className="mt-1 text-xs leading-5 text-[#64748B]">{step.body}</p>
                 </li>
               ))}
             </ol>
@@ -228,22 +229,28 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
             <h2 className="text-3xl font-extrabold tracking-tight text-[#0B1220]">
               Where Should You Display Your Google Review QR Code?
             </h2>
-            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {[
                 { icon: Store, title: "Front Desk", body: "Perfect for offices, clinics, and retail stores." },
-                { icon: Receipt, title: "Invoices", body: "Ask for reviews after every completed job." },
+                { icon: Receipt, title: "Invoices & Receipts", body: "Ask for reviews after every completed job." },
                 { icon: CreditCard, title: "Business Cards", body: "Continue collecting reviews after networking events." },
                 { icon: Truck, title: "Company Vehicles", body: "Turn every service call into a review opportunity." },
                 { icon: Building2, title: "Window Signs", body: "Encourage walk-in customers to share their experience." },
                 { icon: Users, title: "Waiting Areas", body: "Capture reviews while customers are already on-site." },
                 { icon: FileText, title: "Table Tents", body: "Keep a review prompt on every table or counter." },
+                { icon: MapPin, title: "Leave-behinds", body: "Add QR stickers to thank-you cards and packets." },
               ].map((item) => (
-                <div key={item.title} className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-5">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#ECFDF3] text-[#16A34A]">
+                <div
+                  key={item.title}
+                  className="flex items-start gap-4 rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-[0_6px_18px_rgba(11,27,50,0.03)]"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#ECFDF3] text-[#16A34A]">
                     <item.icon className="h-5 w-5" strokeWidth={1.75} />
                   </span>
-                  <h3 className="mt-3 font-bold text-[#0B1220]">{item.title}</h3>
-                  <p className="mt-1 text-sm text-[#64748B]">{item.body}</p>
+                  <div>
+                    <h3 className="font-bold text-[#0B1220]">{item.title}</h3>
+                    <p className="mt-1 text-sm leading-6 text-[#64748B]">{item.body}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -393,11 +400,14 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
           </div>
         </section>
 
-        <section className="bg-[#0B1220] text-white">
+        <section className="bg-[#14532D] text-white">
           <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-8 px-4 py-14 sm:flex-row sm:items-center sm:px-6">
             <div className="max-w-xl">
-              <h2 className="text-3xl font-extrabold tracking-tight">
-                Ready to Get More Google Reviews?
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#86EFAC]">
+                localseoexpress.com
+              </p>
+              <h2 className="mt-2 text-3xl font-extrabold tracking-tight">
+                Get More Google Reviews Today!
               </h2>
               <p className="mt-3 text-sm leading-6 text-white/75">
                 Generate your first Google Review QR Code in seconds. Download your poster
@@ -406,9 +416,9 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <a
                   href="#generator"
-                  className="inline-flex h-12 items-center justify-center rounded-xl bg-[#16A34A] px-6 text-sm font-bold text-white"
+                  className="inline-flex h-12 items-center justify-center rounded-xl bg-[#16A34A] px-6 text-sm font-bold text-white shadow-[0_12px_28px_rgba(22,163,74,0.35)]"
                 >
-                  Generate Free QR Code
+                  Download Now
                 </a>
                 <Link
                   href="/sign-up"
