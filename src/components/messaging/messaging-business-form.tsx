@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Fingerprint, ShieldCheck, UserRound } from "lucide-react";
 import { rep } from "@/components/reputation/rep-ui";
+import { TWILIO_INDUSTRY_OPTIONS } from "@/lib/messaging/twilio-mappings";
 import type { MessagingBusinessForm, MessagingProgressStep, MessagingRegistration } from "@/lib/messaging/types";
 import { Field, MessagingPageShell, SectionCard } from "./messaging-ui";
 
@@ -60,6 +61,9 @@ export function MessagingBusinessFormScreen({
               <option value="Corporation">Corporation</option>
               <option value="Partnership">Partnership</option>
               <option value="Sole Proprietorship">Sole Proprietorship</option>
+              <option value="Co-operative">Co-operative</option>
+              <option value="Non-profit">Non-profit</option>
+              <option value="Limited Partnership">Limited Partnership</option>
             </select>
           </Field>
           <Field label="EIN">
@@ -68,8 +72,24 @@ export function MessagingBusinessFormScreen({
           <Field label="Registration country">
             <input className={rep.input} value={form.registrationCountry} onChange={(e) => update("registrationCountry", e.target.value)} />
           </Field>
-          <Field label="Business industry">
-            <input className={rep.input} value={form.businessIndustry} onChange={(e) => update("businessIndustry", e.target.value)} />
+          <Field label="Business industry" hint="Mapped to Twilio’s industry codes on submit">
+            <select
+              className={rep.select + " w-full"}
+              value={form.businessIndustry}
+              onChange={(e) => update("businessIndustry", e.target.value)}
+            >
+              <option value="">Select industry</option>
+              {TWILIO_INDUSTRY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+              {/* Keep legacy free-text values selectable until edited */}
+              {form.businessIndustry &&
+              !TWILIO_INDUSTRY_OPTIONS.some((option) => option.value === form.businessIndustry) ? (
+                <option value={form.businessIndustry}>{form.businessIndustry}</option>
+              ) : null}
+            </select>
           </Field>
           <Field label="Website">
             <input className={rep.input} value={form.websiteUrl} onChange={(e) => update("websiteUrl", e.target.value)} placeholder="https://" />

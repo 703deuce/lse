@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { History, RefreshCw, ShieldCheck } from "lucide-react";
 import { rep } from "@/components/reputation/rep-ui";
-import { buildRegistrationTimeline } from "@/lib/messaging/status";
+import {
+  buildRegistrationTimeline,
+  profileStatusLabel,
+} from "@/lib/messaging/status";
 import type { MessagingProgressStep, MessagingRegistration, MessagingRegistrationEvent } from "@/lib/messaging/types";
 import {
   MessagingAlertBanner,
@@ -41,7 +44,15 @@ export function MessagingStatusScreen({
     {
       label: "Business Profile",
       status: registration.businessDetailsStatus,
-      detail: registration.twilio.profileFailureReasons.join("; ") || "Secondary customer profile",
+      detail:
+        registration.twilio.profileFailureReasons.join("; ") ||
+        [
+          profileStatusLabel(registration.twilio.customerProfileStatus),
+          registration.twilio.customerProfileSid,
+        ]
+          .filter(Boolean)
+          .join(" · ") ||
+        "Secondary customer profile",
     },
     {
       label: "Brand Registration",
@@ -146,7 +157,25 @@ export function MessagingStatusScreen({
               ? new Date(registration.lastStatusCheckedAt).toLocaleString()
               : "—"}
           </p>
-          <p>Brand email verification: {registration.brandEmailVerificationStatus}</p>
+          <p>
+            Profile SID:{" "}
+            <span className="font-mono text-[#344054]">
+              {registration.twilio.customerProfileSid ?? "—"}
+            </span>
+          </p>
+          <p>
+            Profile status:{" "}
+            {profileStatusLabel(registration.twilio.customerProfileStatus)}
+            {registration.twilio.customerProfileStatus
+              ? ` (${registration.twilio.customerProfileStatus})`
+              : ""}
+          </p>
+          <p>
+            Subaccount:{" "}
+            <span className="font-mono text-[#344054]">
+              {registration.twilio.subaccountSid ?? "—"}
+            </span>
+          </p>
           <p>Estimated campaign review: commonly 10–15 days during high volume</p>
         </div>
       </SectionCard>

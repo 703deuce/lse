@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/db/client";
 import { defaultUseCaseForm } from "./defaults";
+import { isLiveTwilioMessaging } from "./twilio-config";
 import {
   EMPTY_BUSINESS_FORM,
   EMPTY_USE_CASE_FORM,
@@ -14,6 +15,8 @@ import {
 type MemoryBag = {
   registrations: Map<string, MessagingRegistration>;
   events: Map<string, MessagingRegistrationEvent[]>;
+  /** Encrypted subaccount auth tokens — never returned to the browser. */
+  subaccountAuthTokens: Map<string, string>;
 };
 
 function memory(): MemoryBag {
@@ -22,9 +25,51 @@ function memory(): MemoryBag {
     g.__lseMessagingStore = {
       registrations: new Map(),
       events: new Map(),
+      subaccountAuthTokens: new Map(),
     };
+  } else if (!g.__lseMessagingStore.subaccountAuthTokens) {
+    g.__lseMessagingStore.subaccountAuthTokens = new Map();
   }
   return g.__lseMessagingStore;
+}
+
+function emptyTwilioState(): MessagingRegistration["twilio"] {
+  return {
+    subaccountSid: null,
+    subaccountStatus: null,
+    subaccountCreatedAt: null,
+    customerProfileSid: null,
+    customerProfileStatus: null,
+    businessEndUserSid: null,
+    authorizedRepEndUserSid: null,
+    authorizedRep2EndUserSid: null,
+    addressSid: null,
+    supportingDocumentSid: null,
+    profileEvaluationSid: null,
+    profileEvaluationStatus: null,
+    profileFailureReasons: [],
+    profileSubmittedAt: null,
+    profileApprovedAt: null,
+    a2pTrustProductSid: null,
+    a2pEndUserSid: null,
+    a2pEvaluationSid: null,
+    a2pTrustProductStatus: null,
+    a2pFailureReasons: [],
+    brandSid: null,
+    brandStatus: null,
+    brandFailureReason: null,
+    brandIdentityStatus: null,
+    brandSubmittedAt: null,
+    brandApprovedAt: null,
+    campaignSid: null,
+    campaignStatus: null,
+    campaignFailureReason: null,
+    campaignUseCase: null,
+    campaignSubmittedAt: null,
+    campaignApprovedAt: null,
+    messagingServiceSid: null,
+    phoneNumberSid: null,
+  };
 }
 
 function isMissingRelation(message: string): boolean {
@@ -120,6 +165,10 @@ function rowToRegistration(
     adminNotes: row.admin_notes ? String(row.admin_notes) : null,
     twilio: {
       subaccountSid: row.twilio_subaccount_sid ? String(row.twilio_subaccount_sid) : null,
+      subaccountStatus: row.twilio_subaccount_status ? String(row.twilio_subaccount_status) : null,
+      subaccountCreatedAt: row.twilio_subaccount_created_at
+        ? String(row.twilio_subaccount_created_at)
+        : null,
       customerProfileSid: row.twilio_customer_profile_sid
         ? String(row.twilio_customer_profile_sid)
         : null,
@@ -132,9 +181,15 @@ function rowToRegistration(
       authorizedRepEndUserSid: row.twilio_authorized_rep_end_user_sid
         ? String(row.twilio_authorized_rep_end_user_sid)
         : null,
+      authorizedRep2EndUserSid: row.twilio_rep_2_end_user_sid
+        ? String(row.twilio_rep_2_end_user_sid)
+        : null,
       addressSid: row.twilio_address_sid ? String(row.twilio_address_sid) : null,
       supportingDocumentSid: row.twilio_supporting_document_sid
         ? String(row.twilio_supporting_document_sid)
+        : null,
+      profileEvaluationSid: row.twilio_profile_evaluation_sid
+        ? String(row.twilio_profile_evaluation_sid)
         : null,
       profileEvaluationStatus: row.twilio_profile_evaluation_status
         ? String(row.twilio_profile_evaluation_status)
@@ -148,6 +203,19 @@ function rowToRegistration(
       profileApprovedAt: row.twilio_profile_approved_at
         ? String(row.twilio_profile_approved_at)
         : null,
+      a2pTrustProductSid: row.twilio_a2p_trust_product_sid
+        ? String(row.twilio_a2p_trust_product_sid)
+        : null,
+      a2pEndUserSid: row.twilio_a2p_end_user_sid ? String(row.twilio_a2p_end_user_sid) : null,
+      a2pEvaluationSid: row.twilio_a2p_evaluation_sid
+        ? String(row.twilio_a2p_evaluation_sid)
+        : null,
+      a2pTrustProductStatus: row.twilio_a2p_trust_product_status
+        ? String(row.twilio_a2p_trust_product_status)
+        : null,
+      a2pFailureReasons: Array.isArray(row.twilio_a2p_failure_reasons)
+        ? (row.twilio_a2p_failure_reasons as string[])
+        : [],
       brandSid: row.twilio_brand_sid ? String(row.twilio_brand_sid) : null,
       brandStatus: row.twilio_brand_status ? String(row.twilio_brand_status) : null,
       brandFailureReason: row.twilio_brand_failure_reason
@@ -155,6 +223,12 @@ function rowToRegistration(
         : null,
       brandIdentityStatus: row.twilio_brand_identity_status
         ? String(row.twilio_brand_identity_status)
+        : null,
+      brandSubmittedAt: row.twilio_brand_submitted_at
+        ? String(row.twilio_brand_submitted_at)
+        : null,
+      brandApprovedAt: row.twilio_brand_approved_at
+        ? String(row.twilio_brand_approved_at)
         : null,
       campaignSid: row.twilio_campaign_sid ? String(row.twilio_campaign_sid) : null,
       campaignStatus: row.twilio_campaign_status ? String(row.twilio_campaign_status) : null,
@@ -246,20 +320,31 @@ function registrationToPatch(reg: MessagingRegistration): Record<string, unknown
     last_error: reg.lastError,
     admin_notes: reg.adminNotes,
     twilio_subaccount_sid: reg.twilio.subaccountSid,
+    twilio_subaccount_status: reg.twilio.subaccountStatus,
+    twilio_subaccount_created_at: reg.twilio.subaccountCreatedAt,
     twilio_customer_profile_sid: reg.twilio.customerProfileSid,
     twilio_customer_profile_status: reg.twilio.customerProfileStatus,
     twilio_business_end_user_sid: reg.twilio.businessEndUserSid,
     twilio_authorized_rep_end_user_sid: reg.twilio.authorizedRepEndUserSid,
+    twilio_rep_2_end_user_sid: reg.twilio.authorizedRep2EndUserSid,
     twilio_address_sid: reg.twilio.addressSid,
     twilio_supporting_document_sid: reg.twilio.supportingDocumentSid,
+    twilio_profile_evaluation_sid: reg.twilio.profileEvaluationSid,
     twilio_profile_evaluation_status: reg.twilio.profileEvaluationStatus,
     twilio_profile_failure_reasons: reg.twilio.profileFailureReasons,
     twilio_profile_submitted_at: reg.twilio.profileSubmittedAt,
     twilio_profile_approved_at: reg.twilio.profileApprovedAt,
+    twilio_a2p_trust_product_sid: reg.twilio.a2pTrustProductSid,
+    twilio_a2p_end_user_sid: reg.twilio.a2pEndUserSid,
+    twilio_a2p_evaluation_sid: reg.twilio.a2pEvaluationSid,
+    twilio_a2p_trust_product_status: reg.twilio.a2pTrustProductStatus,
+    twilio_a2p_failure_reasons: reg.twilio.a2pFailureReasons,
     twilio_brand_sid: reg.twilio.brandSid,
     twilio_brand_status: reg.twilio.brandStatus,
     twilio_brand_failure_reason: reg.twilio.brandFailureReason,
     twilio_brand_identity_status: reg.twilio.brandIdentityStatus,
+    twilio_brand_submitted_at: reg.twilio.brandSubmittedAt,
+    twilio_brand_approved_at: reg.twilio.brandApprovedAt,
     twilio_campaign_sid: reg.twilio.campaignSid,
     twilio_campaign_status: reg.twilio.campaignStatus,
     twilio_campaign_failure_reason: reg.twilio.campaignFailureReason,
@@ -311,39 +396,72 @@ export function createEmptyRegistration(params: {
     messagingPaused: false,
     monthlySmsAllowance: 300,
     monthlySmsUsed: 0,
-    adapterMode: process.env.MESSAGING_ADAPTER === "twilio" ? "twilio" : "mock",
+    adapterMode: isLiveTwilioMessaging() ? "twilio" : "mock",
     submittedAt: null,
     lastStatusCheckedAt: null,
     lastError: null,
     adminNotes: null,
-    twilio: {
-      subaccountSid: null,
-      customerProfileSid: null,
-      customerProfileStatus: null,
-      businessEndUserSid: null,
-      authorizedRepEndUserSid: null,
-      addressSid: null,
-      supportingDocumentSid: null,
-      profileEvaluationStatus: null,
-      profileFailureReasons: [],
-      profileSubmittedAt: null,
-      profileApprovedAt: null,
-      brandSid: null,
-      brandStatus: null,
-      brandFailureReason: null,
-      brandIdentityStatus: null,
-      campaignSid: null,
-      campaignStatus: null,
-      campaignFailureReason: null,
-      campaignUseCase: null,
-      campaignSubmittedAt: null,
-      campaignApprovedAt: null,
-      messagingServiceSid: null,
-      phoneNumberSid: null,
-    },
+    twilio: emptyTwilioState(),
     createdAt: now,
     updatedAt: now,
   };
+}
+
+/** Read encrypted subaccount auth token (never send to clients). */
+export async function getSubaccountAuthTokenEncrypted(
+  businessId: string
+): Promise<string | null> {
+  const mem = memory().subaccountAuthTokens.get(businessId);
+  if (mem) return mem;
+  try {
+    const supabase = createServiceClient();
+    const { data, error } = await supabase
+      .from("messaging_registrations")
+      .select("twilio_subaccount_auth_token_encrypted")
+      .eq("business_id", businessId)
+      .maybeSingle();
+    if (error) {
+      if (isMissingRelation(error.message)) return null;
+      throw new Error(error.message);
+    }
+    const value = data?.twilio_subaccount_auth_token_encrypted
+      ? String(data.twilio_subaccount_auth_token_encrypted)
+      : null;
+    if (value) memory().subaccountAuthTokens.set(businessId, value);
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+export async function setSubaccountAuthTokenEncrypted(
+  businessId: string,
+  encrypted: string,
+  opts?: { organizationId?: string; registrationId?: string | null }
+): Promise<void> {
+  memory().subaccountAuthTokens.set(businessId, encrypted);
+  if (opts?.registrationId?.startsWith("mem_")) return;
+  try {
+    const supabase = createServiceClient();
+    const { data: existing } = await supabase
+      .from("messaging_registrations")
+      .select("id")
+      .eq("business_id", businessId)
+      .maybeSingle();
+    if (!existing?.id) return;
+    const { error } = await supabase
+      .from("messaging_registrations")
+      .update({
+        twilio_subaccount_auth_token_encrypted: encrypted,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id);
+    if (error && !isMissingRelation(error.message)) {
+      console.warn("[messaging] failed to persist encrypted subaccount token:", error.message);
+    }
+  } catch {
+    /* memory-only */
+  }
 }
 
 export async function getRegistration(params: {
@@ -393,6 +511,10 @@ export async function saveRegistration(reg: MessagingRegistration): Promise<Mess
   try {
     const supabase = createServiceClient();
     const patch = registrationToPatch(next);
+    const encrypted = memory().subaccountAuthTokens.get(reg.businessId);
+    if (encrypted) {
+      patch.twilio_subaccount_auth_token_encrypted = encrypted;
+    }
     const { data: existing } = await supabase
       .from("messaging_registrations")
       .select("id")

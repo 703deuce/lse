@@ -80,18 +80,43 @@ export function statusTone(
 }
 
 export function mapTwilioStatus(raw: string | null | undefined): CustomerFacingStatus {
-  const value = (raw ?? "").toUpperCase();
+  const value = (raw ?? "").toUpperCase().replace(/_/g, "-");
   if (!value || value === "DRAFT") return "not_started";
-  if (value.includes("PENDING") || value === "IN_REVIEW" || value === "PENDING_REVIEW") {
+  if (
+    value.includes("PENDING") ||
+    value === "IN-REVIEW" ||
+    value === "IN_REVIEW" ||
+    value.includes("IN-PROGRESS")
+  ) {
     return "in_review";
   }
-  if (value === "APPROVED" || value === "TWILIO_APPROVED" || value === "VERIFIED") {
+  if (
+    value === "APPROVED" ||
+    value === "TWILIO-APPROVED" ||
+    value.includes("APPROVED") ||
+    value === "VERIFIED" ||
+    value === "COMPLIANT"
+  ) {
     return "approved";
   }
-  if (value === "FAILED" || value === "REJECTED") return "failed";
+  if (value === "FAILED" || value.includes("REJECTED") || value === "NONCOMPLIANT") {
+    return value.includes("TWILIO-REJECTED") || value === "NONCOMPLIANT"
+      ? "action_required"
+      : "failed";
+  }
   if (value === "SUSPENDED") return "suspended";
-  if (value === "ACTION_REQUIRED" || value === "TWILIO_REJECTED") return "action_required";
+  if (value === "ACTION-REQUIRED" || value === "ACTION_REQUIRED") return "action_required";
   return "submitted";
+}
+
+/** Customer-facing label for raw TrustHub profile statuses. */
+export function profileStatusLabel(raw: string | null | undefined): string {
+  const value = (raw ?? "").toLowerCase();
+  if (!value || value === "draft") return "Not submitted";
+  if (value === "pending-review" || value === "in-review") return "In review";
+  if (value === "twilio-approved" || value === "approved") return "Approved";
+  if (value === "twilio-rejected" || value === "rejected") return "Action required";
+  return raw ?? "Unknown";
 }
 
 export function buildProgressSteps(

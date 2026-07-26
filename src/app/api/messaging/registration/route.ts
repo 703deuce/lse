@@ -47,6 +47,9 @@ export async function POST(request: Request) {
 
     let registration;
     switch (action) {
+      case "start":
+        registration = await messagingOnboarding.startRegistration(ctx);
+        break;
       case "save_business":
         registration = await messagingOnboarding.saveBusinessProfile({
           ...ctx,

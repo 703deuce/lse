@@ -1,4 +1,10 @@
 import {
+  createAndSubmitSecondaryCustomerProfile,
+  createCustomerSubaccount,
+  refreshLiveRegistrationStatus,
+} from "./twilio-adapter";
+import { isLiveTwilioMessaging } from "./twilio-config";
+import {
   mockPurchaseNumber,
   mockReconcileStatus,
   mockSearchNumbers,
@@ -19,6 +25,10 @@ import type {
   MessagingUseCaseForm,
 } from "./types";
 
+function useLiveAdapter(reg: MessagingRegistration): boolean {
+  return isLiveTwilioMessaging() || reg.adapterMode === "twilio";
+}
+
 export const messagingOnboarding = {
   async getCustomerAccount(params: {
     organizationId: string;
@@ -28,6 +38,61 @@ export const messagingOnboarding = {
     const registration = await getRegistration(params);
     const events = await listEvents(params.businessId);
     return { registration, events };
+  },
+
+  /** Start Registration: ensure draft exists; in live mode create subaccount (idempotent). */
+  async startRegistration(params: {
+    organizationId: string;
+    businessId: string;
+    businessName: string;
+  }): Promise<MessagingRegistration> {
+    let current = await getRegistration(params);
+    if (current.setupStep === "overview") {
+      current = await saveRegistration({
+        ...current,
+        setupStep: "business",
+        overallStatus:
+          current.overallStatus === "not_started" ? "action_required" : current.overallStatus,
+        adapterMode: isLiveTwilioMessaging() ? "twilio" : current.adapterMode,
+      });
+    }
+
+    if (!useLiveAdapter(current)) {
+      await appendEvents(current, [
+        {
+          eventType: "registration_started",
+          message: "Text messaging registration started (mock mode).",
+        },
+      ]);
+      return current;
+    }
+
+    try {
+      const result = await createCustomerSubaccount(current);
+      const saved = await saveRegistration(result.registration);
+      await appendEvents(saved, [
+        {
+          eventType: "registration_started",
+          message: "Text messaging registration started.",
+        },
+        ...result.events,
+      ]);
+      return saved;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const failed = await saveRegistration({
+        ...current,
+        lastError: message,
+        adapterMode: "twilio",
+      });
+      await appendEvents(failed, [
+        {
+          eventType: "subaccount_create_failed",
+          message: `Failed to create Twilio subaccount: ${message}`,
+        },
+      ]);
+      throw new Error(message);
+    }
   },
 
   async saveBusinessProfile(params: {
@@ -51,7 +116,12 @@ export const messagingOnboarding = {
       overallStatus:
         current.overallStatus === "not_started" ? "action_required" : current.overallStatus,
       brandType:
-        params.business.businessIdentity === "sole_proprietor" ? "SOLE_PROPRIETOR" : "LOW_VOLUME",
+        params.business.businessIdentity === "sole_proprietor"
+          ? "SOLE_PROPRIETOR"
+          : useLiveAdapter(current)
+            ? "STANDARD"
+            : "LOW_VOLUME",
+      adapterMode: isLiveTwilioMessaging() ? "twilio" : current.adapterMode,
     };
     const saved = await saveRegistration(next);
     await appendEvents(saved, [
@@ -102,24 +172,53 @@ export const messagingOnboarding = {
     businessName: string;
   }): Promise<MessagingRegistration> {
     const current = await getRegistration(params);
-    if (!current.business.certAuthorized || !current.business.certAccurate || !current.business.certUnderstandsDelays) {
+    if (
+      !current.business.certAuthorized ||
+      !current.business.certAccurate ||
+      !current.business.certUnderstandsDelays
+    ) {
       throw new Error("All certifications are required before submission.");
     }
-    if (current.businessDetailsStatus === "not_started" || current.businessDetailsStatus === "action_required") {
+    if (
+      current.businessDetailsStatus === "not_started" ||
+      current.businessDetailsStatus === "action_required"
+    ) {
       throw new Error("Complete business details before submitting.");
     }
-    if (current.useCaseStatus === "not_started" || current.useCaseStatus === "action_required") {
+    if (
+      current.useCaseStatus === "not_started" ||
+      current.useCaseStatus === "action_required"
+    ) {
       throw new Error("Complete messaging use case before submitting.");
     }
 
-    if (current.adapterMode === "twilio") {
-      // Live Twilio adapter will replace this path after ISV approval.
-      throw new Error("Live Twilio adapter is not enabled yet. Running in mock mode.");
+    if (!useLiveAdapter(current)) {
+      const result = mockSubmitRegistration(current);
+      const saved = await saveRegistration(result.registration);
+      await appendEvents(saved, result.events);
+      return saved;
     }
 
-    const result = mockSubmitRegistration(current);
-    const saved = await saveRegistration(result.registration);
-    await appendEvents(saved, result.events);
+    // Ensure subaccount exists, then create/submit Secondary Customer Profile.
+    let working = current;
+    const sub = await createCustomerSubaccount(working);
+    working = await saveRegistration(sub.registration);
+    await appendEvents(working, sub.events);
+
+    const profile = await createAndSubmitSecondaryCustomerProfile(working);
+    const saved = await saveRegistration(profile.registration);
+    await appendEvents(saved, profile.events);
+
+    if (
+      saved.businessDetailsStatus === "action_required" &&
+      saved.twilio.profileFailureReasons.length
+    ) {
+      throw new Error(
+        saved.lastError ||
+          saved.twilio.profileFailureReasons[0] ||
+          "Secondary Customer Profile submission failed."
+      );
+    }
     return saved;
   },
 
@@ -195,8 +294,28 @@ export const messagingOnboarding = {
     businessName: string;
   }): Promise<MessagingRegistration> {
     const current = await getRegistration(params);
-    if (current.adapterMode === "twilio") {
-      throw new Error("Live Twilio status polling is not enabled yet.");
+    if (useLiveAdapter(current)) {
+      if (!current.twilio.customerProfileSid) return current;
+      try {
+        const result = await refreshLiveRegistrationStatus(current);
+        const saved = await saveRegistration(result.registration);
+        await appendEvents(saved, result.events);
+        return saved;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const failed = await saveRegistration({
+          ...current,
+          lastError: message,
+          lastStatusCheckedAt: new Date().toISOString(),
+        });
+        await appendEvents(failed, [
+          {
+            eventType: "status_refresh_failed",
+            message: `Failed to refresh Twilio status: ${message}`,
+          },
+        ]);
+        throw new Error(message);
+      }
     }
     if (!current.submittedAt) return current;
     const result = mockReconcileStatus(current);

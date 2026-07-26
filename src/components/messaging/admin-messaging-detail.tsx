@@ -160,12 +160,16 @@ export function AdminMessagingDetail({
         <SectionCard title="Twilio integration details">
           <div className="grid gap-2">
             <Sid label="Subaccount SID" value={registration.twilio.subaccountSid} />
+            <Sid label="Subaccount status" value={registration.twilio.subaccountStatus} />
             <Sid label="Customer Profile SID" value={registration.twilio.customerProfileSid} />
+            <Sid label="Profile evaluation SID" value={registration.twilio.profileEvaluationSid} />
+            <Sid label="A2P Trust Product SID" value={registration.twilio.a2pTrustProductSid} />
             <Sid label="Brand SID" value={registration.twilio.brandSid} />
             <Sid label="Campaign SID" value={registration.twilio.campaignSid} />
             <Sid label="Messaging Service SID" value={registration.twilio.messagingServiceSid} />
             <Sid label="Phone Number SID" value={registration.twilio.phoneNumberSid} />
             <Sid label="Profile status (raw)" value={registration.twilio.customerProfileStatus} />
+            <Sid label="Trust product status (raw)" value={registration.twilio.a2pTrustProductStatus} />
             <Sid label="Brand status (raw)" value={registration.twilio.brandStatus} />
             <Sid label="Campaign status (raw)" value={registration.twilio.campaignStatus} />
             <Sid

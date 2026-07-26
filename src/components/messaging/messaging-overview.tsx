@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -34,6 +36,34 @@ export function MessagingOverview({
   events: MessagingRegistrationEvent[];
   nextHref: string;
 }) {
+  const router = useRouter();
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
+
+  async function handleStartRegistration() {
+    setStarting(true);
+    setStartError(null);
+    try {
+      const res = await fetch("/api/messaging/registration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId, action: "start" }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        nextHref?: string;
+      };
+      if (!res.ok) {
+        throw new Error(data.error || "Could not start registration.");
+      }
+      router.push(data.nextHref || `/businesses/${businessId}/reputation/messaging/business`);
+      router.refresh();
+    } catch (err) {
+      setStartError(err instanceof Error ? err.message : "Could not start registration.");
+      setStarting(false);
+    }
+  }
+
   if (isMessagingReady(registration)) {
     return (
       <MessagingDashboard
@@ -64,10 +94,15 @@ export function MessagingOverview({
               Dedicated business SMS for review requests — activate when you are ready.
             </p>
           </div>
-          <Link href={nextHref} className={rep.btnPrimary}>
-            Start Registration
+          <button
+            type="button"
+            disabled={starting}
+            className={rep.btnPrimary}
+            onClick={() => void handleStartRegistration()}
+          >
+            {starting ? "Starting..." : "Start Registration"}
             <ArrowRight className="h-4 w-4" />
-          </Link>
+          </button>
         </div>
 
         <section className="overflow-hidden rounded-2xl border border-[#B7E4CC] bg-[linear-gradient(145deg,#ECFDF3_0%,#ffffff_55%)] p-6 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
@@ -82,11 +117,19 @@ export function MessagingOverview({
             You are currently sending review requests by email only. Activate SMS to improve
             response rates and automate review follow-ups from a dedicated local number.
           </p>
+          {startError ? (
+            <p className="mt-3 text-sm text-[#B42318]">{startError}</p>
+          ) : null}
           <div className="mt-5 flex flex-wrap gap-3">
-            <Link href={nextHref} className={rep.btnPrimary}>
-              Start Registration
+            <button
+              type="button"
+              disabled={starting}
+              className={rep.btnPrimary}
+              onClick={() => void handleStartRegistration()}
+            >
+              {starting ? "Starting..." : "Start Registration"}
               <ArrowRight className="h-4 w-4" />
-            </Link>
+            </button>
             <Link
               href={`/businesses/${businessId}/reputation/requests`}
               className={rep.btnSecondary}
