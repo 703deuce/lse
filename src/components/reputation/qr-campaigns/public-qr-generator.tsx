@@ -270,18 +270,21 @@ export function PublicQrGenerator({
   const signUpHref = `/sign-up?next=${encodeURIComponent(claimNext)}&claim=${encodeURIComponent(result?.claimToken ?? "")}`;
   const signInHref = `/sign-in?next=${encodeURIComponent(claimNext)}`;
 
+  const stepBoxClass =
+    "rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-[0_1px_2px_rgba(11,27,50,0.04)]";
+
   const leftColumn = (
     <div className="flex flex-col">
       {!hideIntro ? (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <p className="inline-flex rounded-full bg-[#ECFDF3] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#15803D]">
             100% free · No credit card required
           </p>
-          <h1 className="text-[1.7rem] font-extrabold tracking-tight leading-[1.12] sm:text-[1.95rem]">
+          <h1 className="text-[1.55rem] font-extrabold tracking-tight leading-[1.1] sm:text-[1.8rem]">
             <span className="text-[#0B1B32]">Free Google Review </span>
             <span className="text-[#16A34A]">QR Code Generator</span>
           </h1>
-          <p className="max-w-[28rem] text-[13px] leading-5 text-[#475569]">
+          <p className="max-w-[34rem] text-[13px] leading-5 text-[#475569]">
             Create a printable Google Review QR poster, customize your design, and download it
             instantly.
           </p>
@@ -296,18 +299,23 @@ export function PublicQrGenerator({
         </div>
       ) : null}
 
-      {/* Steps stacked vertically — no gray card wrapper */}
-      <div className={cn("space-y-3", !hideIntro && "mt-4")}>
-        <div>
-          <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#0B1B32]">
+      {/* Mock layout: 3 step boxes side-by-side so CTAs stay above the fold */}
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3",
+          !hideIntro && "mt-3"
+        )}
+      >
+        <div className={stepBoxClass}>
+          <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#0B1B32]">
             <span className="text-[#16A34A]">1.</span> Find your business
           </p>
           {!manualMode ? (
             <div ref={searchWrapRef} className="mt-1.5 space-y-1.5">
               <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#94A3B8]" />
                 <input
-                  className={cn(qrUi.input, "h-9 pl-10 pr-10 text-sm")}
+                  className={cn(qrUi.input, "h-8 pl-8 pr-8 text-[13px]")}
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
@@ -315,20 +323,20 @@ export function PublicQrGenerator({
                     setSearchOpen(true);
                   }}
                   onFocus={() => (candidates.length > 0 || searching) && setSearchOpen(true)}
-                  placeholder="Search your business name…"
+                  placeholder="Business name…"
                   autoComplete="off"
                 />
                 {searching ? (
-                  <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[#16A34A]" />
+                  <Loader2 className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-[#16A34A]" />
                 ) : placeId ? (
-                  <Check className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#16A34A]" />
+                  <Check className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#16A34A]" />
                 ) : null}
                 {searchOpen && searchQuery.trim().length >= 2 ? (
-                  <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 max-h-48 overflow-auto rounded-xl border border-[#E2E8F0] bg-white py-1 shadow-[0_16px_40px_rgba(11,27,50,0.12)]">
+                  <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 max-h-44 overflow-auto rounded-xl border border-[#E2E8F0] bg-white py-1 shadow-[0_16px_40px_rgba(11,27,50,0.12)]">
                     {searching ? (
-                      <p className="flex items-center gap-2 px-3 py-2.5 text-xs text-[#64748B]">
+                      <p className="flex items-center gap-2 px-3 py-2 text-xs text-[#64748B]">
                         <Loader2 className="h-3.5 w-3.5 animate-spin text-[#16A34A]" />
-                        Searching… usually a few seconds
+                        Searching…
                       </p>
                     ) : null}
                     {candidates.map((c) => (
@@ -336,18 +344,18 @@ export function PublicQrGenerator({
                         key={c.place_id}
                         type="button"
                         onClick={() => pickPlace(c)}
-                        className="flex w-full flex-col gap-0.5 px-3 py-2.5 text-left hover:bg-[#F0FDF4]"
+                        className="flex w-full flex-col gap-0.5 px-3 py-2 text-left hover:bg-[#F0FDF4]"
                       >
-                        <span className="text-sm font-semibold text-[#0B1B32]">{c.name}</span>
-                        <span className="truncate text-xs text-[#64748B]">
+                        <span className="text-[13px] font-semibold text-[#0B1B32]">{c.name}</span>
+                        <span className="truncate text-[11px] text-[#64748B]">
                           {c.address || "Google Business Profile"}
                           {c.rating != null ? ` · ★ ${c.rating}` : ""}
                         </span>
                       </button>
                     ))}
                     {!searching && candidates.length === 0 ? (
-                      <div className="px-3 py-2.5 text-xs leading-5 text-[#64748B]">
-                        {searchError ?? "No matches — try city/state below, or "}
+                      <div className="px-3 py-2 text-xs leading-5 text-[#64748B]">
+                        {searchError ?? "No matches — try city/state, or "}
                         <button
                           type="button"
                           className="font-semibold text-[#16A34A] hover:underline"
@@ -364,16 +372,16 @@ export function PublicQrGenerator({
                   </div>
                 ) : null}
               </div>
-              <div className="grid grid-cols-[1fr_72px] gap-1.5">
+              <div className="grid grid-cols-[1fr_52px] gap-1">
                 <input
-                  className={cn(qrUi.input, "h-8 text-sm")}
+                  className={cn(qrUi.input, "h-7 text-[12px]")}
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="City"
                   autoComplete="address-level2"
                 />
                 <input
-                  className={cn(qrUi.input, "h-8 text-sm uppercase")}
+                  className={cn(qrUi.input, "h-7 text-[12px] uppercase")}
                   value={stateCode}
                   onChange={(e) => setStateCode(e.target.value.slice(0, 2))}
                   placeholder="ST"
@@ -383,7 +391,7 @@ export function PublicQrGenerator({
               </div>
               <button
                 type="button"
-                className="text-xs font-semibold text-[#16A34A] hover:underline"
+                className="text-[11px] font-semibold text-[#16A34A] hover:underline"
                 onClick={() => {
                   setManualMode(true);
                   setSearchOpen(false);
@@ -395,45 +403,45 @@ export function PublicQrGenerator({
           ) : (
             <div className="mt-1.5">
               <input
-                className={cn(qrUi.input, "h-9 text-sm")}
+                className={cn(qrUi.input, "h-8 text-[13px]")}
                 value={manualValue}
                 onChange={(e) => {
                   setManualValue(e.target.value);
                   if (looksLikePlaceId(e.target.value)) setPlaceId(e.target.value.trim());
                 }}
-                placeholder="Paste Google Place ID or review URL"
+                placeholder="Place ID or review URL"
               />
               <button
                 type="button"
-                className="mt-1 text-xs font-semibold text-[#16A34A] hover:underline"
+                className="mt-1 text-[11px] font-semibold text-[#16A34A] hover:underline"
                 onClick={() => setManualMode(false)}
               >
-                or search Google Places
+                or search Places
               </button>
             </div>
           )}
         </div>
 
-        <div>
-          <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#0B1B32]">
-            <span className="text-[#16A34A]">2.</span> Customize your design
+        <div className={stepBoxClass}>
+          <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#0B1B32]">
+            <span className="text-[#16A34A]">2.</span> Customize
           </p>
           <div className="mt-1.5 space-y-1.5">
             <input
-              className={cn(qrUi.input, "h-9 text-sm")}
+              className={cn(qrUi.input, "h-8 text-[13px]")}
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
               placeholder="Business name"
             />
             <input
-              className={cn(qrUi.input, "h-9 text-sm")}
+              className={cn(qrUi.input, "h-8 text-[13px]")}
               value={headline}
               onChange={(e) => setHeadline(e.target.value)}
               maxLength={50}
               placeholder="Headline"
             />
             <input
-              className={cn(qrUi.input, "h-9 text-sm")}
+              className={cn(qrUi.input, "h-8 text-[13px]")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               maxLength={60}
@@ -442,11 +450,11 @@ export function PublicQrGenerator({
           </div>
         </div>
 
-        <div>
-          <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#0B1B32]">
+        <div className={stepBoxClass}>
+          <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#0B1B32]">
             <span className="text-[#16A34A]">3.</span> Choose color
           </p>
-          <div className="mt-1.5 flex flex-wrap gap-2">
+          <div className="mt-2 flex flex-wrap gap-1.5">
             {QR_MOCK_COLORS.map((color) => (
               <button
                 key={color}
@@ -454,43 +462,43 @@ export function PublicQrGenerator({
                 aria-label={`Choose ${color}`}
                 onClick={() => setBrandColor(color)}
                 className={cn(
-                  "h-7 w-7 rounded-full transition",
+                  "h-6 w-6 rounded-full transition",
                   brandColor === color
-                    ? "ring-2 ring-[#0B1B32] ring-offset-2"
+                    ? "ring-2 ring-[#0B1B32] ring-offset-1"
                     : "ring-1 ring-black/10 hover:ring-black/20"
                 )}
                 style={{ background: color }}
               />
             ))}
           </div>
-          <label className="mt-2.5 flex cursor-pointer items-center gap-2 text-[13px] text-[#334155]">
+          <label className="mt-2.5 flex cursor-pointer items-center gap-2 text-[11px] leading-snug text-[#334155]">
             <button
               type="button"
               role="switch"
               aria-checked={showBranding}
               onClick={() => setShowBranding((v) => !v)}
               className={cn(
-                "relative h-5 w-9 shrink-0 rounded-full transition",
+                "relative h-4 w-7 shrink-0 rounded-full transition",
                 showBranding ? "bg-[#16A34A]" : "bg-[#CBD5E1]"
               )}
             >
               <span
                 className={cn(
-                  "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition",
-                  showBranding ? "left-4" : "left-0.5"
+                  "absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition",
+                  showBranding ? "left-3.5" : "left-0.5"
                 )}
               />
             </button>
-            Show Local SEO Branding
+            Show branding
           </label>
         </div>
       </div>
 
-      <div className="mt-3 space-y-2">
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[1.35fr_1fr]">
         <button
           type="button"
           disabled={generating || !destinationReady}
-          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#16A34A] text-[14px] font-bold text-white shadow-[0_10px_24px_rgba(22,163,74,0.28)] transition hover:bg-[#15803D] disabled:opacity-50"
+          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#16A34A] text-[13px] font-bold text-white shadow-[0_10px_24px_rgba(22,163,74,0.28)] transition hover:bg-[#15803D] disabled:opacity-50"
           onClick={() => void downloadQrOnly()}
         >
           {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
@@ -584,8 +592,8 @@ export function PublicQrGenerator({
           </div>
         ) : null}
 
-        {/* Open hero — no gray card around the form; poster stays as-is */}
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-8">
+        {/* ~2/3 controls + 1/3 poster — matches mock above-the-fold layout */}
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-6">
           <div>{leftColumn}</div>
           <div>{rightColumn}</div>
         </div>
@@ -614,7 +622,7 @@ export function PublicQrGenerator({
             {error}
           </div>
         ) : null}
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-8">
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-6">
           <div>{leftColumn}</div>
           <div>{rightColumn}</div>
         </div>

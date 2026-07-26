@@ -106,7 +106,8 @@ export const ReviewPosterPreview = forwardRef<
     <div
       className={cn(
         "mx-auto w-full",
-        isHero ? "max-w-[340px]" : FORMAT_SCALE[poster.format]
+        // Hero sits in ~1/3 column — cap width so it never forces a 50/50 split
+        isHero ? "max-w-[min(100%,300px)]" : FORMAT_SCALE[poster.format]
       )}
     >
       <div
