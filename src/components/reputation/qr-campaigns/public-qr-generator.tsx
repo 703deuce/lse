@@ -60,12 +60,15 @@ export function PublicQrGenerator({
   const searchWrapRef = useRef<HTMLDivElement>(null);
   const [businessName, setBusinessName] = useState("Premier Junk Removal");
   const [searchQuery, setSearchQuery] = useState("");
+  const [city, setCity] = useState("");
+  const [stateCode, setStateCode] = useState("");
   const [placeId, setPlaceId] = useState("");
   const [manualMode, setManualMode] = useState(false);
   const [manualValue, setManualValue] = useState("");
   const [candidates, setCandidates] = useState<PlaceCandidate[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [headline, setHeadline] = useState("Love our service?");
   const [description, setDescription] = useState("Scan to leave a quick Google review");
   const [brandColor, setBrandColor] = useState("#16A34A");
@@ -120,38 +123,50 @@ export function PublicQrGenerator({
     if (q.length < 2) {
       setCandidates([]);
       setSearching(false);
+      setSearchError(null);
       return;
     }
-    let cancelled = false;
+    const controller = new AbortController();
     setSearching(true);
+    setSearchError(null);
     const t = window.setTimeout(() => {
       void (async () => {
         try {
           const res = await fetch("/api/public/qr/places-search", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query: q }),
+            body: JSON.stringify({
+              query: q,
+              city: city.trim() || undefined,
+              state: stateCode.trim() || undefined,
+            }),
+            signal: controller.signal,
           });
           const json = await res.json();
-          if (cancelled) return;
+          if (controller.signal.aborted) return;
           if (!res.ok) {
             setCandidates([]);
+            setSearchError(json.error || "Search failed — try adding city/state or Place ID.");
+            setSearchOpen(true);
             return;
           }
           setCandidates((json.candidates as PlaceCandidate[]) ?? []);
           setSearchOpen(true);
-        } catch {
-          if (!cancelled) setCandidates([]);
+        } catch (err) {
+          if (controller.signal.aborted) return;
+          setCandidates([]);
+          setSearchError("Search timed out — add city/state or enter a Place ID.");
+          setSearchOpen(true);
         } finally {
-          if (!cancelled) setSearching(false);
+          if (!controller.signal.aborted) setSearching(false);
         }
       })();
-    }, 320);
+    }, 280);
     return () => {
-      cancelled = true;
+      controller.abort();
       window.clearTimeout(t);
     };
-  }, [manualMode, searchQuery]);
+  }, [manualMode, searchQuery, city, stateCode]);
 
   function pickPlace(c: PlaceCandidate) {
     setPlaceId(c.place_id);
@@ -294,68 +309,87 @@ export function PublicQrGenerator({
             <span className="text-[#16A34A]">1.</span> Find your business
           </p>
           {!manualMode ? (
-            <div ref={searchWrapRef} className="relative mt-2">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
-              <input
-                className={cn(qrUi.input, "h-10 pl-10 pr-10 text-sm")}
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setPlaceId("");
-                  setSearchOpen(true);
-                }}
-                onFocus={() => candidates.length > 0 && setSearchOpen(true)}
-                placeholder="Search your business name…"
-                autoComplete="off"
-              />
-              {searching ? (
-                <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[#16A34A]" />
-              ) : placeId ? (
-                <Check className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#16A34A]" />
-              ) : null}
-              {searchOpen && searchQuery.trim().length >= 2 ? (
-                <div className="absolute z-30 mt-1.5 max-h-56 w-full overflow-auto rounded-xl border border-[#E2E8F0] bg-white py-1 shadow-[0_16px_40px_rgba(11,27,50,0.12)]">
-                  {searching ? (
-                    <p className="flex items-center gap-2 px-3 py-2.5 text-xs text-[#64748B]">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-[#16A34A]" />
-                      Searching Google Places…
-                    </p>
-                  ) : null}
-                  {candidates.map((c) => (
-                    <button
-                      key={c.place_id}
-                      type="button"
-                      onClick={() => pickPlace(c)}
-                      className="flex w-full flex-col gap-0.5 px-3 py-2.5 text-left hover:bg-[#F0FDF4]"
-                    >
-                      <span className="text-sm font-semibold text-[#0B1B32]">{c.name}</span>
-                      <span className="truncate text-xs text-[#64748B]">
-                        {c.address || "Google Business Profile"}
-                        {c.rating != null ? ` · ★ ${c.rating}` : ""}
-                      </span>
-                    </button>
-                  ))}
-                  {!searching && candidates.length === 0 ? (
-                    <div className="px-3 py-2.5 text-xs leading-5 text-[#64748B]">
-                      No Google Places matches found.{" "}
+            <div ref={searchWrapRef} className="mt-2 space-y-2">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
+                <input
+                  className={cn(qrUi.input, "h-10 pl-10 pr-10 text-sm")}
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setPlaceId("");
+                    setSearchOpen(true);
+                  }}
+                  onFocus={() => (candidates.length > 0 || searching) && setSearchOpen(true)}
+                  placeholder="Search your business name…"
+                  autoComplete="off"
+                />
+                {searching ? (
+                  <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[#16A34A]" />
+                ) : placeId ? (
+                  <Check className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#16A34A]" />
+                ) : null}
+                {searchOpen && searchQuery.trim().length >= 2 ? (
+                  <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 max-h-52 overflow-auto rounded-xl border border-[#E2E8F0] bg-white py-1 shadow-[0_16px_40px_rgba(11,27,50,0.12)]">
+                    {searching ? (
+                      <p className="flex items-center gap-2 px-3 py-2.5 text-xs text-[#64748B]">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-[#16A34A]" />
+                        Searching… usually a few seconds
+                      </p>
+                    ) : null}
+                    {candidates.map((c) => (
                       <button
+                        key={c.place_id}
                         type="button"
-                        className="font-semibold text-[#16A34A] hover:underline"
-                        onClick={() => {
-                          setManualMode(true);
-                          setManualValue(searchQuery);
-                          setSearchOpen(false);
-                        }}
+                        onClick={() => pickPlace(c)}
+                        className="flex w-full flex-col gap-0.5 px-3 py-2.5 text-left hover:bg-[#F0FDF4]"
                       >
-                        Enter Place ID instead
+                        <span className="text-sm font-semibold text-[#0B1B32]">{c.name}</span>
+                        <span className="truncate text-xs text-[#64748B]">
+                          {c.address || "Google Business Profile"}
+                          {c.rating != null ? ` · ★ ${c.rating}` : ""}
+                        </span>
                       </button>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
+                    ))}
+                    {!searching && candidates.length === 0 ? (
+                      <div className="px-3 py-2.5 text-xs leading-5 text-[#64748B]">
+                        {searchError ?? "No matches — try city/state below, or "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[#16A34A] hover:underline"
+                          onClick={() => {
+                            setManualMode(true);
+                            setManualValue(searchQuery);
+                            setSearchOpen(false);
+                          }}
+                        >
+                          enter Place ID
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+              <div className="grid grid-cols-[1fr_88px] gap-2">
+                <input
+                  className={cn(qrUi.input, "h-9 text-sm")}
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="City (helps accuracy)"
+                  autoComplete="address-level2"
+                />
+                <input
+                  className={cn(qrUi.input, "h-9 text-sm uppercase")}
+                  value={stateCode}
+                  onChange={(e) => setStateCode(e.target.value.slice(0, 2))}
+                  placeholder="ST"
+                  autoComplete="address-level1"
+                  maxLength={2}
+                />
+              </div>
               <button
                 type="button"
-                className="mt-1.5 text-xs font-semibold text-[#16A34A] hover:underline"
+                className="text-xs font-semibold text-[#16A34A] hover:underline"
                 onClick={() => {
                   setManualMode(true);
                   setSearchOpen(false);
@@ -496,19 +530,15 @@ export function PublicQrGenerator({
 
   const rightColumn = (
     <div className="flex h-full flex-col">
-      <div className="relative h-[400px] shrink-0 overflow-hidden rounded-2xl bg-[#F3F6FA] sm:h-[440px]">
-        <div className="absolute inset-0 flex items-center justify-center p-3 sm:p-4">
-          {/* ~75% of stage — bigger than the old tiny poster, not jammed edge-to-edge */}
-          <div className="aspect-[3/4] h-[78%] max-h-[78%] w-auto max-w-[82%]">
-            <ReviewPosterPreview
-              ref={posterRef}
-              businessName={businessName || "Your Business"}
-              poster={poster}
-              qrDataUrl={qrDataUrl}
-              size="hero"
-            />
-          </div>
-        </div>
+      {/* Same poster component/layout as the app Review Poster page — natural aspect, no squash */}
+      <div className="flex min-h-[430px] flex-1 items-center justify-center rounded-2xl bg-[#F3F6FA] px-3 py-4 sm:min-h-[460px]">
+        <ReviewPosterPreview
+          ref={posterRef}
+          businessName={businessName || "Your Business"}
+          poster={poster}
+          qrDataUrl={qrDataUrl}
+          size="hero"
+        />
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[12px] font-semibold text-[#0B1B32]">

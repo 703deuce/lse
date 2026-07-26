@@ -12,6 +12,22 @@ export type PublicPlaceCandidate = {
   review_count?: number;
 };
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
 export async function POST(request: Request) {
   try {
     const ip =
@@ -20,7 +36,7 @@ export async function POST(request: Request) {
       "unknown";
     const rate = await assertRateLimit({
       key: `public-qr-places:${ip}`,
-      maxPerWindow: 30,
+      maxPerWindow: 40,
       windowMs: 60 * 60 * 1000,
     });
     if (!rate.ok) {
@@ -30,8 +46,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = (await request.json()) as { query?: string };
+    const body = (await request.json()) as {
+      query?: string;
+      city?: string;
+      state?: string;
+    };
     const query = (body.query ?? "").trim();
+    const city = (body.city ?? "").trim();
+    const state = (body.state ?? "").trim();
     if (query.length < 2) {
       return NextResponse.json({ error: "Enter at least 2 characters to search." }, { status: 400 });
     }
@@ -39,43 +61,66 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Search query is too long." }, { status: 400 });
     }
 
+    const locationBits = [city, state].filter(Boolean).join(", ");
+    const mapsQuery = locationBits ? `${query} ${locationBits}` : query;
+
     const candidates: PublicPlaceCandidate[] = [];
     const seen = new Set<string>();
 
-    try {
-      const dfsResults = await myBusinessInfo({
-        keyword: query,
-        country: "United States",
+    const push = (item: {
+      place_id?: string | null;
+      name: string;
+      address?: string;
+      rating?: number;
+      review_count?: number;
+    }) => {
+      const placeId = (item.place_id ?? "").trim();
+      if (!placeId || seen.has(placeId)) return;
+      seen.add(placeId);
+      candidates.push({
+        place_id: placeId,
+        name: item.name,
+        address: item.address ?? "",
+        rating: item.rating,
+        review_count: item.review_count,
       });
-      for (const item of dfsResults.slice(0, 8)) {
-        const placeId = (item.place_id ?? "").trim();
-        if (!placeId || seen.has(placeId)) continue;
-        seen.add(placeId);
-        candidates.push({
-          place_id: placeId,
+    };
+
+    // ScrapingDog first — much faster than DataForSEO live for typeahead.
+    try {
+      const sdResults = await withTimeout(mapsSearch({ query: mapsQuery }), 8000);
+      for (const item of sdResults.slice(0, 8)) {
+        push({
+          place_id: item.place_id,
           name: item.title ?? query,
-          address: item.address ?? "",
-          rating: item.rating?.value,
-          review_count: item.rating?.votes_count,
+          address: item.address,
+          rating: item.rating,
+          review_count: item.reviews,
         });
       }
     } catch {
-      /* fallback */
+      /* try DFS */
     }
 
+    // Short DFS fallback only if ScrapingDog returned nothing.
     if (candidates.length === 0) {
       try {
-        const sdResults = await mapsSearch({ query });
-        for (const item of sdResults.slice(0, 8)) {
-          const placeId = (item.place_id ?? "").trim();
-          if (!placeId || seen.has(placeId)) continue;
-          seen.add(placeId);
-          candidates.push({
-            place_id: placeId,
+        const dfsResults = await withTimeout(
+          myBusinessInfo({
+            keyword: query,
+            city: city || null,
+            state: state || null,
+            country: "United States",
+          }),
+          6000
+        );
+        for (const item of dfsResults.slice(0, 8)) {
+          push({
+            place_id: item.place_id,
             name: item.title ?? query,
-            address: item.address ?? "",
-            rating: item.rating,
-            review_count: item.reviews,
+            address: item.address,
+            rating: item.rating?.value,
+            review_count: item.rating?.votes_count,
           });
         }
       } catch {
