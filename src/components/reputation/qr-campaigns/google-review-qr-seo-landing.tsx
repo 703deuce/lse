@@ -1,40 +1,41 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
 import {
+  ArrowRight,
   BarChart3,
   Building2,
-  Car,
   Check,
   ChevronDown,
   Clock,
   CreditCard,
+  Download,
   Eye,
   FileText,
+  Gift,
   Heart,
-  LayoutDashboard,
+  MapPin,
   MessageCircle,
+  Palette,
   Printer,
   QrCode,
   Receipt,
+  Search,
   Shield,
   Star,
   Store,
   Truck,
   Users,
   X,
-  Zap,
 } from "lucide-react";
 import { PublicQrGenerator } from "./public-qr-generator";
-import { cn } from "@/lib/utils";
 
 const MARKETING = "https://localseoexpress.com";
 const APP = "https://app.localseoexpress.com";
 
 const FAQS = [
   {
-    q: "Is this Google Review QR Code Generator free?",
+    q: "Is this Google Review QR Code Generator really free?",
     a: "Yes. You can create and download your first QR code for free.",
   },
   {
@@ -61,10 +62,10 @@ const FAQS = [
 
 export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean }) {
   if (embed) {
-    // Marketing site owns the H1/intro; embed is form + live preview only.
     return (
-      <div className="min-h-screen bg-[#F8FAFC] px-3 py-4 sm:px-5 sm:py-6">
-        <PublicQrGenerator embedded />
+      <div className="min-h-screen bg-[#F8FAFC] px-3 py-4 sm:px-5 sm:py-5">
+        {/* Full mockup hero inside iframe so left/right heights stay balanced */}
+        <PublicQrGenerator embedded seoLayout />
       </div>
     );
   }
@@ -80,108 +81,93 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
             <a href="#benefits" className="hover:text-[#16A34A]">
               Features
             </a>
-            <a href="#faq" className="hover:text-[#16A34A]">
-              FAQ
+            <a href={`${MARKETING}/free-tools/`} className="hover:text-[#16A34A]">
+              Tools
             </a>
             <a href={`${MARKETING}/local-seo-packages/`} className="hover:text-[#16A34A]">
               Pricing
             </a>
-            <a href={`${MARKETING}/about/`} className="hover:text-[#16A34A]">
-              About Us
+            <a href="#faq" className="hover:text-[#16A34A]">
+              Resources
             </a>
             <Link href="/sign-in" className="hover:text-[#16A34A]">
-              Log In
+              Sign in
             </Link>
             <Link
               href="/sign-up"
               className="inline-flex h-10 items-center rounded-lg bg-[#16A34A] px-4 text-white shadow-[0_8px_20px_rgba(22,163,74,0.25)]"
             >
-              Start for Free
+              Create Free Account
             </Link>
           </nav>
           <Link href="/sign-up" className="text-sm font-bold text-[#16A34A] md:hidden">
-            Start free
+            Join Free
           </Link>
         </div>
       </header>
 
       <main>
-        {/* Hero = tool (mockup #2) */}
-        <section className="border-b border-[#E2E8F0] bg-[radial-gradient(ellipse_at_top_left,_#ECFDF5_0%,_#ffffff_45%,_#F8FAFC_100%)]">
-          <div id="generator" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-10 sm:px-6 lg:py-14">
+        <section className="border-b border-[#E2E8F0] bg-[radial-gradient(ellipse_at_top_left,_#ECFDF5_0%,_#ffffff_42%,_#F8FAFC_100%)]">
+          <div id="generator" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-10 sm:px-6 lg:py-12">
             <PublicQrGenerator seoLayout />
           </div>
         </section>
 
-        {/* SEO support copy under the tool */}
         <section className="border-b border-[#E2E8F0] bg-white">
-          <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+          <div className="mx-auto max-w-3xl px-4 py-12 text-center sm:px-6">
             <p className="text-base leading-7 text-[#475569]">
               A Google Review QR Code — sometimes called a Google My Business QR Code or Google
               Business Profile QR Code — sends customers straight to your Google review page. No
-              searching. No friction. Just scan, rate, and review. Whether you need a Google review
-              poster for your front desk or a printable QR code for Google reviews on invoices and
-              trucks, this free Google Review QR Code Generator gets you there fast.
+              searching. No friction. Just scan, rate, and review.
             </p>
             <p className="mt-4 text-base leading-7 text-[#475569]">
-              Use it to create a Google Review QR Code free, download a high-quality image, and print
-              it anywhere. When you&apos;re ready, create a free Local SEO Express account to track
-              Google Review QR Code scans, compare placements, and manage review campaigns alongside
-              SMS and email requests.
+              Whether you need a Google review poster for your front desk or a printable QR code for
+              Google reviews on invoices and trucks, this free Google Review QR Code Generator gets
+              you there fast. Create a free account later to track scans and compare placements.
             </p>
           </div>
         </section>
 
-        {/* Benefits row */}
         <section id="benefits" className="scroll-mt-24 border-b border-[#E2E8F0] bg-white">
-          <div className="mx-auto grid max-w-6xl gap-6 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
+          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-14 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
             {[
-              {
-                icon: Star,
-                title: "Get More Google Reviews",
-                body: "Make it easier for happy customers to leave a review before they forget.",
-              },
-              {
-                icon: Printer,
-                title: "Ready to Print",
-                body: "Download a professional poster, table sign, or QR image in seconds.",
-              },
-              {
-                icon: Users,
-                title: "No Account Required",
-                body: "Generate and download your first Google Review QR Code for free.",
-              },
-              {
-                icon: BarChart3,
-                title: "Track Performance Later",
-                body: "Create a free account anytime to see scans, compare placements, and measure engagement.",
-              },
+              { icon: BarChart3, title: "Get More Google Reviews", body: "Make it easier for happy customers to leave a review before they forget." },
+              { icon: Printer, title: "Ready to Print", body: "Download a professional poster, table sign, or QR image in seconds." },
+              { icon: Gift, title: "No Account Required", body: "Generate and download your first Google Review QR Code for free." },
+              { icon: BarChart3, title: "Track Performance Later", body: "Create a free account anytime to see scans, compare placements, and measure engagement." },
             ].map((item) => (
-              <div key={item.title} className="text-center sm:text-left">
-                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ECFDF3] text-[#16A34A] sm:mx-0">
-                  <item.icon className="h-6 w-6" />
+              <div key={item.title} className="text-center">
+                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ECFDF3] text-[#16A34A]">
+                  <item.icon className="h-6 w-6" strokeWidth={1.75} />
                 </span>
-                <h3 className="mt-3 text-base font-bold text-[#0B1220]">{item.title}</h3>
+                <h3 className="mt-4 text-base font-bold text-[#0B1220]">{item.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-[#64748B]">{item.body}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <ContentSection title="Why Use a Google Review QR Code?">
-          <p>
-            People are much more likely to leave a review when the process is simple. Instead of
-            asking customers to search for your business, a Google Review QR Code takes them
-            directly to your review page with a single scan.
-          </p>
-          <p>
-            That means fewer steps, less frustration, and more completed reviews. Whether you own a
-            local service business, restaurant, dental office, law firm, or retail store, a QR code
-            helps you collect reviews at the moment your customer is happiest.
-          </p>
-        </ContentSection>
-
         <section className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
+          <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+            <h2 className="text-3xl font-extrabold tracking-tight text-[#0B1220]">
+              Why Use a Google Review QR Code?
+            </h2>
+            <div className="mt-5 space-y-4 text-base leading-7 text-[#475569]">
+              <p>
+                People are much more likely to leave a review when the process is simple. Instead of
+                asking customers to search for your business, a Google Review QR Code takes them
+                directly to your review page with a single scan.
+              </p>
+              <p>
+                That means fewer steps, less frustration, and more completed reviews. Whether you own
+                a local service business, restaurant, dental office, law firm, or retail store, a QR
+                code helps you collect reviews at the moment your customer is happiest.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-b border-[#E2E8F0] bg-white">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
             <h2 className="text-3xl font-extrabold tracking-tight text-[#0B1220]">
               Benefits of Using a Google Review QR Code Generator
@@ -193,9 +179,9 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
                 ["Build Trust", "Recent reviews help future customers feel confident choosing your business."],
                 ["Improve Local Visibility", "More high-quality Google reviews can strengthen your local presence over time."],
                 ["Print Anywhere", "Use your QR code on counters, invoices, business cards, trucks, windows, or leave-behind materials."],
-                ["Grow Into Tracking", "Save your campaign later to compare placements and understand engagement."],
+                ["Track and Measure", "Save your campaign later to compare placements and understand engagement."],
               ].map(([title, body]) => (
-                <div key={title} className="rounded-2xl border border-[#E2E8F0] bg-white p-5">
+                <div key={title} className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-5">
                   <h3 className="text-base font-bold text-[#0B1220]">{title}</h3>
                   <p className="mt-2 text-sm leading-6 text-[#64748B]">{body}</p>
                 </div>
@@ -204,29 +190,30 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
           </div>
         </section>
 
-        {/* How to — horizontal 5 steps */}
-        <section className="border-b border-[#E2E8F0] bg-white">
+        <section className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
             <h2 className="text-center text-3xl font-extrabold tracking-tight text-[#0B1220]">
               How to Create a Google Review QR Code
             </h2>
-            <ol className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+            <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
               {[
-                { icon: Store, title: "Find your Business", body: "Enter name or Google review link." },
-                { icon: FileText, title: "Customize your poster", body: "Pick a theme and write your ask." },
-                { icon: QrCode, title: "Generate QR Code", body: "Click to create your tracked code." },
-                { icon: Printer, title: "Download and Print", body: "Get poster or QR-only files." },
-                { icon: Building2, title: "Display in your shop", body: "Put it where customers will see it." },
-              ].map((step, i) => (
+                { icon: Search, title: "Find your business" },
+                { icon: Palette, title: "Customize your poster" },
+                { icon: QrCode, title: "Generate your QR code" },
+                { icon: Download, title: "Download and print" },
+                { icon: MapPin, title: "Display and get reviews" },
+              ].map((step, i, arr) => (
                 <li key={step.title} className="relative text-center">
-                  <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#ECFDF3] text-[#16A34A] ring-4 ring-white">
-                    <step.icon className="h-6 w-6" />
+                  <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white text-[#16A34A] shadow-sm ring-1 ring-[#E2E8F0]">
+                    <step.icon className="h-6 w-6" strokeWidth={1.75} />
                   </span>
+                  {i < arr.length - 1 ? (
+                    <ArrowRight className="absolute right-[-0.75rem] top-5 hidden h-4 w-4 text-[#CBD5E1] lg:block" />
+                  ) : null}
                   <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[#16A34A]">
                     Step {i + 1}
                   </p>
                   <h3 className="mt-1 text-sm font-bold text-[#0B1220]">{step.title}</h3>
-                  <p className="mt-1 text-sm text-[#64748B]">{step.body}</p>
                 </li>
               ))}
             </ol>
@@ -236,8 +223,7 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
           </div>
         </section>
 
-        {/* Placements — 8 icons */}
-        <section className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
+        <section className="border-b border-[#E2E8F0] bg-white">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
             <h2 className="text-3xl font-extrabold tracking-tight text-[#0B1220]">
               Where Should You Display Your Google Review QR Code?
@@ -249,13 +235,12 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
                 { icon: CreditCard, title: "Business Cards", body: "Continue collecting reviews after networking events." },
                 { icon: Truck, title: "Company Vehicles", body: "Turn every service call into a review opportunity." },
                 { icon: Building2, title: "Window Signs", body: "Encourage walk-in customers to share their experience." },
-                { icon: Users, title: "Waiting Rooms", body: "Capture reviews while customers are already on-site." },
+                { icon: Users, title: "Waiting Areas", body: "Capture reviews while customers are already on-site." },
                 { icon: FileText, title: "Table Tents", body: "Keep a review prompt on every table or counter." },
-                { icon: Car, title: "Flyers", body: "Hand out a printable QR card after service." },
               ].map((item) => (
-                <div key={item.title} className="rounded-2xl border border-[#E2E8F0] bg-white p-5 text-center">
-                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ECFDF3] text-[#16A34A]">
-                    <item.icon className="h-5 w-5" />
+                <div key={item.title} className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-5">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#ECFDF3] text-[#16A34A]">
+                    <item.icon className="h-5 w-5" strokeWidth={1.75} />
                   </span>
                   <h3 className="mt-3 font-bold text-[#0B1220]">{item.title}</h3>
                   <p className="mt-1 text-sm text-[#64748B]">{item.body}</p>
@@ -265,27 +250,19 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
           </div>
         </section>
 
-        {/* Comparison — strong table from mock #1 + checklist */}
-        <section className="border-b border-[#E2E8F0] bg-white">
-          <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 lg:grid-cols-[1.1fr_0.9fr] sm:px-6">
+        <section className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
+          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-14 lg:grid-cols-2 sm:px-6">
             <div>
-              <h2 className="text-3xl font-extrabold tracking-tight text-[#0B1220]">
+              <h2 className="text-2xl font-extrabold tracking-tight text-[#0B1220] sm:text-3xl">
                 Google Review QR Code vs Google My Business QR Code Generator
               </h2>
-              <p className="mt-4 text-base leading-7 text-[#475569]">
-                These terms are often used interchangeably. A Google Review QR Code sends customers
-                directly to your Google review page. Our Google Review QR Code Generator lets you
-                create a printable, branded version that looks professional and is ready for
-                real-world use. After creating a free account, you can also track scans, compare
-                placements, and manage multiple review campaigns.
-              </p>
-              <div className="mt-6 overflow-x-auto rounded-2xl border border-[#E2E8F0]">
-                <table className="w-full min-w-[480px] text-left text-sm">
+              <div className="mt-6 overflow-hidden rounded-xl border border-[#E2E8F0] bg-white">
+                <table className="w-full text-left text-sm">
                   <thead className="bg-[#0B1220] text-white">
                     <tr>
-                      <th className="px-4 py-3.5 font-semibold">Feature</th>
-                      <th className="px-4 py-3.5 font-semibold">Google QR</th>
-                      <th className="px-4 py-3.5 font-semibold">Local SEO Express</th>
+                      <th className="px-4 py-3 font-semibold">Feature</th>
+                      <th className="px-4 py-3 font-semibold">Google&apos;s QR</th>
+                      <th className="px-4 py-3 font-semibold">Local SEO Express</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -293,27 +270,18 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
                       ["Direct review page link", true, true],
                       ["Branded printable poster", false, true],
                       ["Custom colors & headline", false, true],
-                      ["Instant PNG / QR download", false, true],
+                      ["Instant download", false, true],
                       ["Scan tracking after signup", false, true],
                       ["Placement comparisons", false, true],
                       ["Multiple campaigns", false, true],
-                      ["Review growth tools", false, true],
                     ].map(([label, basic, lse]) => (
                       <tr key={String(label)} className="border-t border-[#E2E8F0]">
                         <td className="px-4 py-3 font-medium text-[#0B1220]">{label}</td>
                         <td className="px-4 py-3">
-                          {basic ? (
-                            <Check className="h-5 w-5 text-[#16A34A]" />
-                          ) : (
-                            <X className="h-5 w-5 text-[#F43F5E]" />
-                          )}
+                          {basic ? <Check className="h-5 w-5 text-[#16A34A]" /> : <X className="h-5 w-5 text-[#94A3B8]" />}
                         </td>
                         <td className="px-4 py-3">
-                          {lse ? (
-                            <Check className="h-5 w-5 text-[#16A34A]" />
-                          ) : (
-                            <X className="h-5 w-5 text-[#F43F5E]" />
-                          )}
+                          {lse ? <Check className="h-5 w-5 text-[#16A34A]" /> : <X className="h-5 w-5 text-[#94A3B8]" />}
                         </td>
                       </tr>
                     ))}
@@ -321,84 +289,54 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
                 </table>
               </div>
             </div>
-            <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-6">
-              <h3 className="text-lg font-bold text-[#0B1220]">How the funnel works</h3>
-              <ul className="mt-5 space-y-3 text-sm text-[#475569]">
+
+            <div>
+              <h2 className="text-2xl font-extrabold tracking-tight text-[#0B1220] sm:text-3xl">
+                Can You Track Google Review QR Code Scans?
+              </h2>
+              <p className="mt-4 text-base leading-7 text-[#475569]">
+                Yes. Every QR campaign can use a tracked link before sending visitors to your Google
+                review page. After creating a free account, you can view:
+              </p>
+              <ul className="mt-4 space-y-2.5 text-sm text-[#475569]">
                 {[
-                  "Scan code",
-                  "Direct to review page",
-                  "Leave star rating / review",
-                  "View scan analytics later",
-                  "Compare placements",
-                  "See review growth",
-                  "Manage unlimited campaigns",
+                  "Total scans",
+                  "Estimated unique scans",
+                  "Scan history",
+                  "Device type",
+                  "Campaign comparisons",
+                  "Placement performance",
                 ].map((line) => (
-                  <li key={line} className="flex items-start gap-2">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#16A34A]" />
+                  <li key={line} className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-[#16A34A]" />
                     {line}
                   </li>
                 ))}
               </ul>
+              <div className="mt-5 rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] p-4 text-sm leading-6 text-[#1E3A8A]">
+                No platform can prove a scan became a Google review. Tracking scans still helps you
+                see which posters and locations generate the most engagement.
+              </div>
             </div>
           </div>
         </section>
 
-        <ContentSection title="Can You Track a Google Review QR Code?" muted>
-          <p>Yes. Every QR campaign can use a tracked link before sending visitors to your Google review page.</p>
-          <p>After creating a free account, you can view:</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>Total scans</li>
-            <li>Estimated unique scans</li>
-            <li>Scan history</li>
-            <li>Device type</li>
-            <li>Campaign comparisons</li>
-            <li>Placement performance</li>
-          </ul>
-          <p className="mt-4">
-            While no platform can prove that a scan became a Google review, tracking scans helps you
-            understand which posters and locations generate the most customer engagement.
-          </p>
-          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              { icon: QrCode, label: "QR Campaigns" },
-              { icon: BarChart3, label: "Scan Analytics" },
-              { icon: LayoutDashboard, label: "Review Overview" },
-              { icon: Zap, label: "Growth Funnel" },
-            ].map((card) => (
-              <div
-                key={card.label}
-                className="rounded-2xl border border-[#E2E8F0] bg-white p-4 text-center"
-              >
-                <card.icon className="mx-auto h-8 w-8 text-[#16A34A]" />
-                <p className="mt-2 text-sm font-bold text-[#0B1220]">{card.label}</p>
-                <p className="mt-1 text-xs text-[#64748B]">Unlocked after free signup</p>
-              </div>
-            ))}
-          </div>
-        </ContentSection>
-
         <section className="border-b border-[#E2E8F0] bg-white">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-            <h2 className="text-3xl font-extrabold tracking-tight text-[#0B1220]">
+            <h2 className="text-center text-3xl font-extrabold tracking-tight text-[#0B1220]">
               Best Practices for Getting More Google Reviews
             </h2>
-            <p className="mt-4 max-w-3xl text-base leading-7 text-[#475569]">
-              A QR code works best when paired with good timing. Ask customers shortly after
-              completing a job or service. Place your QR code somewhere highly visible. Keep your
-              request simple and friendly. Always follow Google&apos;s review policies and never
-              offer incentives in exchange for reviews.
-            </p>
             <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                { icon: Clock, title: "Ask at the right time", body: "Request a review right after a great experience." },
-                { icon: Eye, title: "Place it where it’s seen", body: "Front desk, counters, and waiting areas win." },
-                { icon: MessageCircle, title: "Keep it simple", body: "One scan. One Google review form. Done." },
-                { icon: Heart, title: "Personalize your request", body: "A friendly ask beats a generic poster alone." },
-                { icon: Shield, title: "Follow Google’s rules", body: "Never incentivize reviews or filter feedback." },
-                { icon: Star, title: "Respond to reviews", body: "Replies build trust and encourage more reviews." },
+                { icon: Clock, title: "Ask at the Right Time", body: "Request a review right after a great experience or completed job." },
+                { icon: Eye, title: "Place it Where It’s Seen", body: "Front desk, counters, and waiting areas convert best." },
+                { icon: MessageCircle, title: "Keep It Simple", body: "One scan. One Google review form. Done." },
+                { icon: Heart, title: "Personalize Your Request", body: "A friendly ask beats a generic poster alone." },
+                { icon: Shield, title: "Follow Google’s Rules", body: "Never incentivize reviews or filter feedback." },
+                { icon: Star, title: "Respond to Reviews", body: "Replies build trust and encourage more reviews." },
               ].map((item) => (
-                <div key={item.title} className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-5">
-                  <item.icon className="h-5 w-5 text-[#16A34A]" />
+                <div key={item.title} className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-5 text-center">
+                  <item.icon className="mx-auto h-6 w-6 text-[#16A34A]" strokeWidth={1.75} />
                   <h3 className="mt-3 font-bold text-[#0B1220]">{item.title}</h3>
                   <p className="mt-1 text-sm text-[#64748B]">{item.body}</p>
                 </div>
@@ -416,7 +354,7 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
               {FAQS.map((faq) => (
                 <details
                   key={faq.q}
-                  className="group rounded-2xl border border-[#E2E8F0] bg-white px-5 py-4"
+                  className="group rounded-xl border border-[#E2E8F0] bg-white px-5 py-4"
                 >
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-bold text-[#0B1220]">
                     {faq.q}
@@ -445,7 +383,7 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
                 <a
                   key={tool.title}
                   href={tool.href}
-                  className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-5 transition hover:border-[#16A34A]"
+                  className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-5 transition hover:border-[#16A34A]"
                 >
                   <h3 className="font-bold text-[#0B1220]">{tool.title}</h3>
                   <p className="mt-1 text-sm text-[#64748B]">{tool.body}</p>
@@ -456,26 +394,38 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
         </section>
 
         <section className="bg-[#0B1220] text-white">
-          <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-4 py-14 sm:flex-row sm:items-center sm:px-6">
+          <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-8 px-4 py-14 sm:flex-row sm:items-center sm:px-6">
             <div className="max-w-xl">
-              <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[#86EFAC]">
-                Ready to get more Google Reviews?
-              </p>
-              <h2 className="mt-2 text-3xl font-extrabold tracking-tight">
-                Create Your Free Google Review QR Code
+              <h2 className="text-3xl font-extrabold tracking-tight">
+                Ready to Get More Google Reviews?
               </h2>
               <p className="mt-3 text-sm leading-6 text-white/75">
                 Generate your first Google Review QR Code in seconds. Download your poster
-                immediately, or create a free account to unlock scan tracking, campaign management,
-                and review growth tools.
+                immediately, or create a free account to unlock scan tracking and campaign tools.
               </p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <a
+                  href="#generator"
+                  className="inline-flex h-12 items-center justify-center rounded-xl bg-[#16A34A] px-6 text-sm font-bold text-white"
+                >
+                  Generate Free QR Code
+                </a>
+                <Link
+                  href="/sign-up"
+                  className="inline-flex h-12 items-center justify-center rounded-xl border border-white/25 px-6 text-sm font-bold text-white"
+                >
+                  Create Free Account
+                </Link>
+              </div>
             </div>
-            <a
-              href="#generator"
-              className="inline-flex h-12 items-center justify-center rounded-xl bg-[#16A34A] px-6 text-sm font-bold text-white shadow-[0_12px_28px_rgba(22,163,74,0.35)]"
-            >
-              Generate Free QR Code
-            </a>
+            <div className="w-full max-w-[220px] rounded-xl bg-white p-2 shadow-xl">
+              <div className="rounded-lg bg-[#16A34A] px-3 py-4 text-center text-white">
+                <p className="text-xs">★★★★★</p>
+                <p className="mt-1 text-sm font-bold">Love our service?</p>
+                <div className="mx-auto mt-3 h-20 w-20 rounded bg-white" />
+                <p className="mt-2 text-[10px] opacity-90">Scan to leave a review</p>
+              </div>
+            </div>
           </div>
         </section>
       </main>
@@ -497,24 +447,5 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
         </div>
       </footer>
     </div>
-  );
-}
-
-function ContentSection({
-  title,
-  children,
-  muted = false,
-}: {
-  title: string;
-  children: ReactNode;
-  muted?: boolean;
-}) {
-  return (
-    <section className={cn("border-b border-[#E2E8F0]", muted ? "bg-[#F8FAFC]" : "bg-white")}>
-      <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
-        <h2 className="text-3xl font-extrabold tracking-tight text-[#0B1220]">{title}</h2>
-        <div className="mt-5 space-y-4 text-base leading-7 text-[#475569]">{children}</div>
-      </div>
-    </section>
   );
 }
