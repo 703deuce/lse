@@ -50,7 +50,7 @@ const PLANS: PlanTier[] = [
     ],
     highlighted: true,
     cta: "Select Plan",
-    href: "/settings",
+    href: "/settings/subscription",
     note: "Billing uses your existing plan settings.",
   },
   {
@@ -67,7 +67,7 @@ const PLANS: PlanTier[] = [
       "Dedicated account manager",
     ],
     cta: "Select Plan",
-    href: "/settings",
+    href: "/settings/subscription",
     note: "Billing uses your existing plan settings.",
   },
 ];
@@ -81,10 +81,8 @@ function PlanCard({
   businessId: string;
   isCurrent?: boolean;
 }) {
-  const href =
-    plan.href === "/settings"
-      ? `/businesses/${businessId}/settings`
-      : plan.href;
+  void businessId;
+  const href = plan.href;
 
   return (
     <div
@@ -198,7 +196,7 @@ export function QrUpgradeModal({
   if (!open) return null;
 
   const plansHref = `/businesses/${businessId}/reputation/qr-campaigns/plans`;
-  const settingsHref = `/businesses/${businessId}/settings`;
+  const settingsHref = "/settings/subscription";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

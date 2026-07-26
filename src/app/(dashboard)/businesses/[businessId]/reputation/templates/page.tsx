@@ -2,11 +2,8 @@ import { requireBusinessPage } from "@/lib/auth/require-business-page";
 import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { hasEntitlement } from "@/lib/auth/entitlements";
 import { ReviewCampaignsUpgrade } from "@/components/reputation/review-campaigns-upgrade";
-import { TemplatesHub } from "@/components/reputation/templates-hub";
-import {
-  reputationTemplatesPreviewData,
-  reputationTemplatesPreviewKpis,
-} from "@/lib/reputation/reputation-page-preview-data";
+import { TemplatesManager } from "@/components/reputation/templates-manager";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default async function ReputationTemplatesPage({
   params,
@@ -19,11 +16,15 @@ export default async function ReputationTemplatesPage({
   const allowed = isPreview || (await hasEntitlement(auth.organizationId, "review_campaigns"));
   if (!allowed) return <ReviewCampaignsUpgrade businessId={businessId} />;
 
+  // Use TemplatesManager (real create/edit/duplicate/archive/test-send APIs).
+  // TemplatesHub is a visual mock and left unused until it is wired to the same APIs.
   return (
-    <TemplatesHub
-      businessId={businessId}
-      initialTemplates={isPreview ? reputationTemplatesPreviewData : undefined}
-      previewKpis={isPreview ? reputationTemplatesPreviewKpis : undefined}
-    />
+    <div className="space-y-4">
+      <PageHeader
+        title="Templates"
+        subtitle="Create and manage SMS and email templates for review requests."
+      />
+      <TemplatesManager businessId={businessId} />
+    </div>
   );
 }

@@ -206,7 +206,13 @@ function ActivityIcon({ type }: { type: ActivityItem["type"] }) {
   );
 }
 
-function CampaignPerformance({ campaigns }: { campaigns: CampaignRow[] }) {
+function CampaignPerformance({
+  campaigns,
+  onViewAll,
+}: {
+  campaigns: CampaignRow[];
+  onViewAll: () => void;
+}) {
   const sent = campaigns.reduce((sum, c) => sum + (c.sent ?? 0), 0);
   const delivered = campaigns.reduce((sum, c) => sum + (c.delivered ?? c.sent ?? 0), 0);
   const clicked = campaigns.reduce((sum, c) => sum + (c.clicked ?? 0), 0);
@@ -257,7 +263,7 @@ function CampaignPerformance({ campaigns }: { campaigns: CampaignRow[] }) {
           ))}
       </div>
       <div className="mt-4 text-right">
-        <button type="button" className={rep.link}>
+        <button type="button" className={rep.link} onClick={onViewAll}>
           View all campaigns →
         </button>
       </div>
@@ -507,7 +513,7 @@ export function ReviewCampaignsHub({
       ) : null}
 
       {/* Campaigns table */}
-      <section className={cn(rep.card, "overflow-hidden")}>
+      <section id="campaigns-table" className={cn(rep.card, "overflow-hidden")}>
         <div className="border-b border-[#E6EAF0] px-4 py-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -693,7 +699,12 @@ export function ReviewCampaignsHub({
       </section>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <CampaignPerformance campaigns={campaigns} />
+        <CampaignPerformance
+          campaigns={campaigns}
+          onViewAll={() => {
+            document.getElementById("campaigns-table")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+        />
         <RecentActivity previewActivity={activity} campaigns={campaigns} />
       </div>
     </ModulePage>

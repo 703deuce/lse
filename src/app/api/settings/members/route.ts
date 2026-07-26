@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/db/client";
 import { requireOrganizationPermission } from "@/lib/auth/permissions";
-import { requireRecentAuth } from "@/lib/auth/reauth";
 import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requestAuditMeta, writeSecurityAuditEvent } from "@/lib/security/audit-log";
 
@@ -55,7 +54,7 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
-    await requireRecentAuth();
+    // Permission check only — no reauth UI on Team settings, and JWTs often lack auth_time.
     const auth = await requireOrganizationPermission("member.invite");
     const parsed = inviteSchema.safeParse(await request.json());
     if (!parsed.success) {
@@ -126,7 +125,6 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    await requireRecentAuth();
     const auth = await requireOrganizationPermission("member.manage");
     const parsed = roleSchema.safeParse(await request.json());
     if (!parsed.success) {

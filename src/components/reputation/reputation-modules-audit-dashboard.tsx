@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import {
   BarChart3,
   Calendar,
-  Download,
   Flag,
   MapPinned,
   MessageSquareText,
@@ -203,8 +202,7 @@ export function ReputationStrategyReport({
   const summary =
     `${data.businessName} maintains a strong and growing reputation with a ${fmt(you?.rating, 1)}-star Google rating across ${fmt(you?.totalReviews)} reviews. ` +
     `${data.analytics.rolling30d} new reviews in the last 30 days — a ${reviews30dDeltaPct}% increase over the prior period. ` +
-    `Momentum is ${data.analytics.momentumStatus.toLowerCase()} and ${data.insights.responsePerformance.responseRate}% of text reviews have owner responses, ` +
-    `well above the industry average of 63%.`;
+    `Momentum is ${data.analytics.momentumStatus.toLowerCase()} and ${data.insights.responsePerformance.responseRate}% of text reviews have owner responses.`;
 
   function handleTab(id: string) {
     const next = id as AuditTab;
@@ -223,23 +221,17 @@ export function ReputationStrategyReport({
 
   const sparklineValues = data.analytics.timelinePoints.map((p) => p.you);
 
-  const industryAvgResponseRate = 63;
+  const dateRangeLabel = "Last 90 days";
 
   return (
     <div className={rep.page} data-business-id={businessId}>
       <RepPageHeader
         title="Reputation Audit"
         subtitle="Comprehensive review, competitor, response, and visibility strategy report."
-        dateRangeLabel="May 10 – Jun 8, 2025"
+        dateRangeLabel={dateRangeLabel}
         showCompare={false}
         showExport={false}
         showFilters={false}
-        actions={
-          <button type="button" className={rep.btnSecondary}>
-            <Download className="h-4 w-4" />
-            Export Report
-          </button>
-        }
         primaryAction={
           <ReputationSyncButton
             businessId={businessId}
@@ -328,7 +320,7 @@ export function ReputationStrategyReport({
 
       {/* Middle row */}
       <div className="grid gap-3 xl:grid-cols-3">
-        <SectionCard id="velocity-momentum" title="Velocity & Momentum" icon={TrendingUp} viewLink="#">
+        <SectionCard id="velocity-momentum" title="Velocity & Momentum" icon={TrendingUp} viewLink={`/businesses/${businessId}/reputation/analytics`}>
           <MiniSparkline values={sparklineValues} />
           <MiniBarChart
             values={[
@@ -341,7 +333,7 @@ export function ReputationStrategyReport({
           <p className="mt-4 text-sm leading-6 text-[#667085]">{data.analytics.explanation}</p>
         </SectionCard>
 
-        <SectionCard id="competitor-gap" title="Competitor Gap" icon={Target} viewLink="#">
+        <SectionCard id="competitor-gap" title="Competitor Gap" icon={Target} viewLink={`/businesses/${businessId}/reputation/competitors`}>
           {topGap ? (
             <div className="mb-4 rounded-xl bg-[#FEF3F2] p-3">
               <p className="text-sm font-semibold text-[#B42318]">
@@ -363,7 +355,7 @@ export function ReputationStrategyReport({
           ))}
         </SectionCard>
 
-        <SectionCard id="review-insights" title="Review Insights" icon={MessageSquareText} viewLink="#">
+        <SectionCard id="review-insights" title="Review Insights" icon={MessageSquareText} viewLink={`/businesses/${businessId}/reputation/insights`}>
           <div className="space-y-2">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[#027A48]">Positive Themes</p>
             {data.insights.themes.positive.slice(0, 3).map((theme) => (
@@ -385,10 +377,10 @@ export function ReputationStrategyReport({
 
       {/* Bottom row */}
       <div className="grid gap-3 xl:grid-cols-3">
-        <SectionCard id="response-performance" title="Response Performance" icon={MessageSquareText} viewLink="#">
+        <SectionCard id="response-performance" title="Response Performance" icon={MessageSquareText} viewLink={`/businesses/${businessId}/reputation/reviews`}>
           <Donut pct={data.insights.responsePerformance.responseRate} label="Excellent" />
           <p className="mt-3 text-center text-xs text-[#667085]">
-            vs industry avg <span className="font-semibold text-[#344054]">{industryAvgResponseRate}%</span>
+            Owner response rate on text reviews
           </p>
           <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
             <div className="rounded-lg bg-[#F9FAFB] p-3">
@@ -410,7 +402,7 @@ export function ReputationStrategyReport({
           </div>
         </SectionCard>
 
-        <SectionCard id="maps-impact" title="Maps Visibility Impact" icon={MapPinned} viewLink="#">
+        <SectionCard id="maps-impact" title="Maps Visibility Impact" icon={MapPinned} viewLink={`/businesses/${businessId}/scans`}>
           <p className="text-sm leading-6 text-[#344054]">{data.mapsVisibility.summary}</p>
           <dl className="mt-4 space-y-2 text-sm">
             <div className="flex justify-between">
@@ -436,7 +428,7 @@ export function ReputationStrategyReport({
           </dl>
         </SectionCard>
 
-        <SectionCard id="opportunities" title="Recommended Next Actions" icon={Flag} viewLink="#">
+        <SectionCard id="opportunities" title="Recommended Next Actions" icon={Flag}>
           <div className="space-y-2">
             {data.recommendedActions.days30.slice(0, 4).map((action, i) => (
               <div key={action} className="flex gap-3 rounded-lg bg-[#F9FAFB] p-3">

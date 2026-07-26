@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CheckCircle2, Circle } from "lucide-react";
 import type { ReviewsPageData } from "@/lib/reviews/reviews-page-data";
@@ -18,9 +19,11 @@ function competitorBlurb(reviewCount: number): string {
 
 type Props = {
   data: ReviewsPageData;
+  businessId: string;
 };
 
-export function ReviewsCompetitorTab({ data }: Props) {
+export function ReviewsCompetitorTab({ data, businessId }: Props) {
+  const competitorsHref = `/businesses/${businessId}/reputation/competitors`;
   const competitors = data.competitors ?? [];
   const [filter, setFilter] = useState<"all" | string>("all");
 
@@ -105,12 +108,12 @@ export function ReviewsCompetitorTab({ data }: Props) {
                           <span className="text-[12px] text-[#64748B]">
                             {count} reviews (30 days)
                           </span>
-                          <button
-                            type="button"
+                          <Link
+                            href={competitorsHref}
                             className="text-[12px] font-semibold text-[#137752] hover:underline"
                           >
                             View Reviews
-                          </button>
+                          </Link>
                         </div>
                         <p className="mt-2 text-[13px] leading-relaxed text-[#64748B]">
                           {comp.name} is {competitorBlurb(count)}
@@ -123,12 +126,12 @@ export function ReviewsCompetitorTab({ data }: Props) {
             )}
           </div>
 
-          <button
-            type="button"
-            className="mt-2 text-[13px] font-semibold text-[#137752] hover:underline"
+          <Link
+            href={competitorsHref}
+            className="mt-2 inline-block text-[13px] font-semibold text-[#137752] hover:underline"
           >
             View all competitor reviews details →
-          </button>
+          </Link>
         </div>
 
         <aside className="space-y-4">
@@ -168,12 +171,12 @@ export function ReviewsCompetitorTab({ data }: Props) {
                 </li>
               ))}
             </ul>
-            <button
-              type="button"
-              className="mt-3 text-[13px] font-semibold text-[#137752] hover:underline"
+            <Link
+              href={competitorsHref}
+              className="mt-3 inline-block text-[13px] font-semibold text-[#137752] hover:underline"
             >
               View all competitor reports →
-            </button>
+            </Link>
           </div>
         </aside>
       </div>

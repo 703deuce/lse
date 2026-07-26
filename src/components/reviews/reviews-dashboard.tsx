@@ -757,8 +757,6 @@ export function ReviewsDashboard({
           <select value={source} onChange={(e) => setSource(e.target.value as SourceFilter)} className={rep.select}>
             <option value="all">All Sources</option>
             <option value="google">Google</option>
-            <option value="facebook">Facebook</option>
-            <option value="yelp">Yelp</option>
           </select>
           <select value={rating} onChange={(e) => setRating(e.target.value as RatingFilter)} className={rep.select}>
             <option value="all">All Ratings</option>

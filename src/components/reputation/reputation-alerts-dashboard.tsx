@@ -8,7 +8,6 @@ import {
   Bell,
   CheckCircle2,
   Mail,
-  MessageSquare,
   MoreHorizontal,
   Plus,
   Settings,
@@ -92,9 +91,11 @@ export function ReputationAlertsDashboard({
     return base.filter((alert) => {
       const tabMatch = activeTab === "all" || activeTab === "resolved" || severityGroup(alert.severity) === activeTab;
       const categoryMatch = categoryFilter === "all" || alert.category === categoryFilter;
-      return tabMatch && categoryMatch;
+      // Location filter is single-business today; keep the control honest.
+      const locationMatch = locationFilter === "all" || locationFilter === businessId;
+      return tabMatch && categoryMatch && locationMatch;
     });
-  }, [activeAlerts, activeTab, categoryFilter, resolvedAlerts]);
+  }, [activeAlerts, activeTab, businessId, categoryFilter, locationFilter, resolvedAlerts]);
 
   const categoryCounts = useMemo(() => {
     return categories.map((category) => ({
@@ -139,18 +140,33 @@ export function ReputationAlertsDashboard({
     }
   }
 
-  const commonTriggers = [
-    { label: "Negative review without response", count: 4, tone: "red" as const },
-    { label: "Review velocity drop", count: 3, tone: "amber" as const },
-    { label: "Competitor velocity spike", count: 2, tone: "amber" as const },
-    { label: "Campaign delivery issue", count: 2, tone: "amber" as const },
-    { label: "Maps rank change", count: 1, tone: "blue" as const },
-  ];
+  const triggerCounts = useMemo(() => {
+    const all = [...activeAlerts, ...resolvedAlerts];
+    const counts = new Map<string, number>();
+    for (const alert of all) {
+      const label = categoryLabel(alert.category);
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [activeAlerts, resolvedAlerts]);
 
+  const emailOn = Boolean(data.preferences.email_recipients?.length);
   const notifChannels = [
-    { label: "Email", pct: pm ? 78 : (data.preferences.email_recipients?.length ? 100 : 0), icon: Mail },
-    { label: "SMS", pct: pm ? 18 : 38, icon: MessageSquare },
-    { label: "In-App", pct: pm ? 4 : 72, icon: Smartphone },
+    {
+      label: "Email",
+      enabled: emailOn,
+      detail: emailOn ? `${data.preferences.email_recipients.length} recipient(s)` : "Off",
+      icon: Mail,
+    },
+    {
+      label: "In-App",
+      enabled: true,
+      detail: "Dashboard alerts",
+      icon: Smartphone,
+    },
   ];
 
   return (
@@ -378,55 +394,68 @@ export function ReputationAlertsDashboard({
         <div className={cn(rep.card, "p-4")}>
           <h2 className="text-sm font-semibold text-[#101828]">Common Triggers</h2>
           <div className="mt-3 space-y-2">
-            {commonTriggers.map((trigger) => (
-              <div key={trigger.label} className="flex items-center justify-between rounded-lg bg-[#F9FAFB] px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4 text-[#98A2B3]" />
-                  <span className="text-sm text-[#344054]">{trigger.label}</span>
+            {triggerCounts.length === 0 ? (
+              <p className="text-sm text-[#667085]">No alert history yet for this location.</p>
+            ) : (
+              triggerCounts.map((trigger) => (
+                <div key={trigger.label} className="flex items-center justify-between rounded-lg bg-[#F9FAFB] px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <SlidersHorizontal className="h-4 w-4 text-[#98A2B3]" />
+                    <span className="text-sm text-[#344054]">{trigger.label}</span>
+                  </div>
+                  <RepBadge tone="blue">{trigger.count}</RepBadge>
                 </div>
-                <RepBadge tone={trigger.tone}>{trigger.count}</RepBadge>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
         <div className={cn(rep.card, "p-4")}>
           <h2 className="text-sm font-semibold text-[#101828]">Notification Channels</h2>
           <div className="mt-4 space-y-3">
             {notifChannels.map((channel) => (
-              <div key={channel.label}>
-                <div className="mb-1 flex items-center justify-between text-sm">
-                  <span className="inline-flex items-center gap-2 text-[#344054]">
-                    <channel.icon className="h-4 w-4 text-[#98A2B3]" />
-                    {channel.label}
-                  </span>
-                  <span className="font-semibold text-[#101828]">{channel.pct}%</span>
-                </div>
-                <div className="h-2 rounded-full bg-[#F2F4F7]">
-                  <div className="h-2 rounded-full bg-[#137752]" style={{ width: `${channel.pct}%` }} />
-                </div>
+              <div key={channel.label} className="flex items-center justify-between rounded-lg bg-[#F9FAFB] px-3 py-2 text-sm">
+                <span className="inline-flex items-center gap-2 text-[#344054]">
+                  <channel.icon className="h-4 w-4 text-[#98A2B3]" />
+                  {channel.label}
+                </span>
+                <RepBadge tone={channel.enabled ? "green" : "gray"}>{channel.detail}</RepBadge>
               </div>
             ))}
           </div>
+          <Link
+            href={`/businesses/${businessId}/reputation/settings`}
+            className={cn(rep.btnSecondary, "mt-4 w-full")}
+          >
+            Manage notification settings
+          </Link>
         </div>
         <div className={cn(rep.card, "p-4")}>
           <h2 className="text-sm font-semibold text-[#101828]">Recommended Actions</h2>
           <div className="mt-3 space-y-2">
             {[
-              { label: "Respond Now", action: "reply_to_reviews", tone: "red" as const },
-              { label: "Send Requests", action: "send_requests", tone: "green" as const },
-              { label: "View Competitors", action: "view_competitors", tone: "blue" as const },
+              {
+                label: "Respond Now",
+                href: `/businesses/${businessId}/reputation/reviews`,
+                copy:
+                  activeAlerts.find((a) => a.category === "unanswered_negative")?.recommendedAction ??
+                  "Reply to unanswered negative reviews.",
+              },
+              {
+                label: "Send Requests",
+                href: `/businesses/${businessId}/reputation/requests`,
+                copy: "Launch a review request cohort for recent completed jobs.",
+              },
+              {
+                label: "View Competitors",
+                href: `/businesses/${businessId}/reputation/competitors`,
+                copy: "Check competitor velocity and review gaps.",
+              },
             ].map((item) => (
-              <div key={item.action} className="rounded-lg bg-[#F9FAFB] p-3">
-                <p className="text-sm font-medium text-[#101828]">
-                  {item.action === "reply_to_reviews"
-                    ? activeAlerts.find((a) => a.category === "unanswered_negative")?.recommendedAction ?? "Reply to unanswered negative reviews."
-                    : item.action === "send_requests"
-                      ? "Launch a review request cohort for recent completed jobs."
-                      : "Check competitor velocity in Reputation Audit."}
-                </p>
-                <button type="button" className={cn(rep.btnSecondary, "mt-2 h-8 px-3 text-xs font-semibold")}>
+              <div key={item.href} className="rounded-lg bg-[#F9FAFB] p-3">
+                <p className="text-sm font-medium text-[#101828]">{item.copy}</p>
+                <Link href={item.href} className={cn(rep.btnSecondary, "mt-2 h-8 px-3 text-xs font-semibold")}>
                   {item.label}
-                </button>
+                </Link>
               </div>
             ))}
           </div>

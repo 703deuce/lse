@@ -126,12 +126,36 @@ export function ReviewsYourTab({
             <button
               type="button"
               className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-[#D0D5DD] bg-white px-3 text-xs font-semibold text-[#344054] hover:bg-[#F9FAFB]"
+              onClick={() => {
+                const el = document.querySelector<HTMLInputElement>('input[type="search"][placeholder="Search reviews..."]');
+                el?.focus();
+              }}
             >
               Filter
             </button>
             <button
               type="button"
               className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-[#D0D5DD] bg-white px-3 text-xs font-semibold text-[#344054] hover:bg-[#F9FAFB]"
+              onClick={() => {
+                const rows = [
+                  ["Reviewer", "Rating", "Date", "Text"],
+                  ...filtered.map((r) => [
+                    r.reviewerName,
+                    String(r.rating ?? ""),
+                    r.reviewDate ?? "",
+                    (r.reviewText ?? "").replaceAll("\n", " "),
+                  ]),
+                ];
+                const escape = (value: string) => `"${value.replaceAll('"', '""')}"`;
+                const csv = rows.map((row) => row.map((cell) => escape(String(cell))).join(",")).join("\n");
+                const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "reviews.csv";
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
             >
               Export
             </button>

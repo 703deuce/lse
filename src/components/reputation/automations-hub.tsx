@@ -372,7 +372,6 @@ export function AutomationsHub({
                       <option value="all">All Statuses</option>
                       <option value="active">Active</option>
                       <option value="paused">Paused</option>
-                      <option value="draft">Draft</option>
                       <option value="test">Test</option>
                     </select>
                     <div className="relative">

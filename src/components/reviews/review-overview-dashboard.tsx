@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -170,6 +171,7 @@ export function ReviewOverviewDashboard({
   businessId: string;
   data: ReviewOverviewData;
 }) {
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false);
   const analyticsHref = `/businesses/${businessId}/reputation/analytics`;
   const competitorsHref = `/businesses/${businessId}/reputation/competitors`;
   const mapsHref = `/businesses/${businessId}/scans`;
@@ -599,36 +601,39 @@ export function ReviewOverviewDashboard({
           )}
         </SoftCard>
 
-        <SoftCard className="border-[#D1FAE5] bg-gradient-to-br from-[#ECFDF3]/80 to-white xl:col-span-2">
-          <div className="flex gap-3">
-            <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-              style={{ backgroundColor: GREEN_SOFT, color: GREEN }}
-            >
-              <Zap className="h-5 w-5 fill-current" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-400">
-                Recommended Next Action
-              </p>
-              <h3 className="mt-1 text-[15px] font-bold text-zinc-900">{data.nextAction.title}</h3>
-              <p className="mt-1 text-[13px] leading-snug text-zinc-600">{data.nextAction.body}</p>
-              <Link
-                href={actionHref}
-                className="mt-3 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-[#137752] px-4 text-[13px] font-semibold text-white shadow-[0_4px_14px_rgba(19,119,82,0.28)] hover:bg-[#0f6244] sm:w-auto"
+        {!suggestionDismissed ? (
+          <SoftCard className="border-[#D1FAE5] bg-gradient-to-br from-[#ECFDF3]/80 to-white xl:col-span-2">
+            <div className="flex gap-3">
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                style={{ backgroundColor: GREEN_SOFT, color: GREEN }}
               >
-                {data.nextAction.ctaLabel}
-                <ChevronRight className="h-4 w-4" />
-              </Link>
-              <button
-                type="button"
-                className="mt-2 block text-[12px] font-medium text-zinc-500 hover:text-zinc-700"
-              >
-                Dismiss Suggestion
-              </button>
+                <Zap className="h-5 w-5 fill-current" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-400">
+                  Recommended Next Action
+                </p>
+                <h3 className="mt-1 text-[15px] font-bold text-zinc-900">{data.nextAction.title}</h3>
+                <p className="mt-1 text-[13px] leading-snug text-zinc-600">{data.nextAction.body}</p>
+                <Link
+                  href={actionHref}
+                  className="mt-3 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-[#137752] px-4 text-[13px] font-semibold text-white shadow-[0_4px_14px_rgba(19,119,82,0.28)] hover:bg-[#0f6244] sm:w-auto"
+                >
+                  {data.nextAction.ctaLabel}
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+                <button
+                  type="button"
+                  className="mt-2 block text-[12px] font-medium text-zinc-500 hover:text-zinc-700"
+                  onClick={() => setSuggestionDismissed(true)}
+                >
+                  Dismiss Suggestion
+                </button>
+              </div>
             </div>
-          </div>
-        </SoftCard>
+          </SoftCard>
+        ) : null}
       </div>
     </ModulePage>
   );

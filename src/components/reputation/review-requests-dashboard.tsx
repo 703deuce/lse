@@ -295,6 +295,18 @@ function PhonePreview({
   );
 }
 
+function downloadCsv(filename: string, rows: string[][]) {
+  const escape = (value: string) => `"${value.replaceAll('"', '""')}"`;
+  const csv = rows.map((row) => row.map((cell) => escape(cell)).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 function RecipientsTable({
   contacts,
   sends,
@@ -304,7 +316,10 @@ function RecipientsTable({
   sends: SendRow[];
   eligibleCount?: number;
 }) {
+  const [showAll, setShowAll] = useState(false);
+
   if (contacts && contacts.length > 0) {
+    const visible = showAll ? contacts : contacts.slice(0, 10);
     return (
       <div className={cn(rep.card, "overflow-hidden")}>
         <div className="flex items-center justify-between gap-3 border-b border-[#E6EAF0] px-4 py-3">
@@ -315,7 +330,16 @@ function RecipientsTable({
               {eligibleCount ? ` of ${eligibleCount} eligible` : ""}
             </p>
           </div>
-          <button type="button" className={rep.btnSecondary}>
+          <button
+            type="button"
+            className={rep.btnSecondary}
+            onClick={() =>
+              downloadCsv("recipients.csv", [
+                ["Name", "Phone", "Last Service", "Tags"],
+                ...contacts.map((c) => [c.name, c.phone, c.lastService, c.tags.join("|")]),
+              ])
+            }
+          >
             <Download className="h-4 w-4" />
             Export
           </button>
@@ -331,7 +355,7 @@ function RecipientsTable({
               </tr>
             </thead>
             <tbody>
-              {contacts.slice(0, 10).map((contact) => (
+              {visible.map((contact) => (
                 <tr key={contact.id} className="border-b border-[#F2F4F7] last:border-0">
                   <td className="px-4 py-3 font-semibold text-[#101828]">{contact.name}</td>
                   <td className="px-4 py-3 text-[#667085]">{contact.phone}</td>
@@ -350,8 +374,8 @@ function RecipientsTable({
         </div>
         {contacts.length > 10 ? (
           <div className="border-t border-[#E6EAF0] px-4 py-2.5 text-center">
-            <button type="button" className={rep.link}>
-              View all {contacts.length} recipients
+            <button type="button" className={rep.link} onClick={() => setShowAll((v) => !v)}>
+              {showAll ? "Show fewer recipients" : `View all ${contacts.length} recipients`}
             </button>
           </div>
         ) : null}
@@ -366,7 +390,22 @@ function RecipientsTable({
           <h2 className="text-[15px] font-semibold text-[#101828]">Recent Recipients</h2>
           <p className="mt-0.5 text-xs text-[#667085]">Recent recipients and delivery status.</p>
         </div>
-        <button type="button" className={rep.btnSecondary}>
+        <button
+          type="button"
+          className={rep.btnSecondary}
+          disabled={sends.length === 0}
+          onClick={() =>
+            downloadCsv("recent-recipients.csv", [
+              ["Customer", "Channel", "Status", "Sent"],
+              ...sends.map((s) => [
+                s.review_request_contacts?.customer_name ?? "Unknown",
+                s.channel ?? "—",
+                s.status ?? "—",
+                s.sent_at ?? s.created_at ?? "—",
+              ]),
+            ])
+          }
+        >
           <Download className="h-4 w-4" />
           Export
         </button>
@@ -774,9 +813,12 @@ function OneTimeSend({
                     </span>
                   </div>
                 </div>
-                <button type="button" className={cn(rep.link, "mt-3 text-xs")}>
+                <Link
+                  href={`/businesses/${businessId}/reputation/templates`}
+                  className={cn(rep.link, "mt-3 text-xs")}
+                >
                   Edit Message
-                </button>
+                </Link>
               </div>
             ) : null}
           </section>

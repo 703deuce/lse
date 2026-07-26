@@ -35,30 +35,6 @@ const TABS = [
   { id: "settings", label: "Settings" },
 ] as const;
 
-const SAMPLE_MESSAGES = [
-  {
-    id: "msg-1",
-    to: "(703) 555-0142",
-    body: "Hi Jordan, thanks for choosing Long Home. We'd appreciate your feedback: https://reviews.example/lh. Reply STOP to opt out.",
-    status: "Delivered",
-    sentAt: "2026-07-24T15:12:00.000Z",
-  },
-  {
-    id: "msg-2",
-    to: "(571) 555-0198",
-    body: "Hi Sam, just checking in after your project. Leave a quick review: https://reviews.example/lh. Reply STOP to opt out.",
-    status: "Delivered",
-    sentAt: "2026-07-22T18:40:00.000Z",
-  },
-  {
-    id: "msg-3",
-    to: "(202) 555-0177",
-    body: "Hi Casey, thanks again for trusting Long Home. Share your experience: https://reviews.example/lh. Reply STOP to opt out.",
-    status: "Queued",
-    sentAt: "2026-07-21T12:05:00.000Z",
-  },
-] as const;
-
 function UsageBar({ used, allowance }: { used: number; allowance: number }) {
   const pct = allowance > 0 ? Math.min(100, Math.round((used / allowance) * 100)) : 0;
   return (
@@ -79,21 +55,9 @@ function UsageBar({ used, allowance }: { used: number; allowance: number }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <div className="mt-4 grid grid-cols-7 gap-1.5">
-        {Array.from({ length: 7 }).map((_, index) => {
-          const height = [42, 58, 35, 72, 64, 48, Math.max(20, pct)][index];
-          return (
-            <div key={index} className="flex h-20 items-end rounded-md bg-[#F9FAFB] px-1 pb-1">
-              <div
-                className="w-full rounded-sm bg-[#B7E4CC]"
-                style={{ height: `${height}%` }}
-                title={`Day ${index + 1}`}
-              />
-            </div>
-          );
-        })}
-      </div>
-      <p className="mt-2 text-xs text-[#98A2B3]">Last 7 days · outbound review-request volume</p>
+      <p className="mt-3 text-xs text-[#98A2B3]">
+        Counts outbound review-request SMS against this location&apos;s monthly allowance.
+      </p>
     </div>
   );
 }
@@ -113,9 +77,34 @@ export function MessagingDashboard({
   const [registration, setRegistration] = useState(initialRegistration);
   const [pauseBusy, setPauseBusy] = useState(false);
   const [pauseError, setPauseError] = useState<string | null>(null);
+  const [testBusy, setTestBusy] = useState(false);
+  const [testMsg, setTestMsg] = useState<string | null>(null);
   const remaining = Math.max(0, registration.monthlySmsAllowance - registration.monthlySmsUsed);
   const testDisabled = !registration.messagingEnabled || registration.messagingPaused;
   const timeline = buildRegistrationTimeline(registration);
+
+  async function sendTestMessage() {
+    if (testDisabled || testBusy) return;
+    const toPhone = window.prompt("Send a test SMS to which phone number? (E.164, e.g. +15551234567)");
+    if (!toPhone?.trim()) return;
+    setTestBusy(true);
+    setTestMsg(null);
+    try {
+      const res = await fetch("/api/messaging/registration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId, action: "send_test", toPhone: toPhone.trim() }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Test send failed");
+      if (json.registration) setRegistration(json.registration as MessagingRegistration);
+      setTestMsg(json.messageSid ? `Test sent (${json.messageSid}).` : "Test message sent.");
+    } catch (err) {
+      setTestMsg(err instanceof Error ? err.message : "Test send failed");
+    } finally {
+      setTestBusy(false);
+    }
+  }
 
   async function togglePause() {
     setPauseBusy(true);
@@ -149,9 +138,15 @@ export function MessagingDashboard({
       registration={registration}
       actions={
         <>
-          <button type="button" disabled={testDisabled} className={cn(rep.btnPrimary, "disabled:opacity-50")}>
+          <button
+            type="button"
+            disabled={testDisabled || testBusy}
+            onClick={() => void sendTestMessage()}
+            className={cn(rep.btnPrimary, "disabled:opacity-50")}
+            title={testDisabled ? "Activate messaging before sending a test" : undefined}
+          >
             <Send className="h-4 w-4" />
-            Send test message
+            {testBusy ? "Sending…" : "Send test message"}
           </button>
           <Link href={`/businesses/${businessId}/reputation/requests`} className={rep.btnSecondary}>
             Send review requests
@@ -160,6 +155,19 @@ export function MessagingDashboard({
       }
     >
       <MessagingSuccessBanner phoneNumber={registration.phoneNumberFriendly} />
+      {testMsg ? (
+        <p
+          className={cn(
+            "rounded-lg px-3 py-2 text-sm",
+            testMsg.toLowerCase().includes("fail") || testMsg.toLowerCase().includes("could not")
+              ? "bg-[#FEF3F2] text-[#B42318]"
+              : "bg-[#ECFDF3] text-[#027A48]"
+          )}
+          role="status"
+        >
+          {testMsg}
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap gap-1 border-b border-[#E6EAF0]">
         {TABS.map((item) => (
@@ -351,40 +359,25 @@ export function MessagingDashboard({
 
       {tab === "history" ? (
         <SectionCard title="Message history" subtitle="Recent outbound review-request messages.">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-[#F9FAFB] text-[11px] uppercase tracking-[0.06em] text-[#98A2B3]">
-                <tr>
-                  <th className="px-3 py-2 font-semibold">To</th>
-                  <th className="px-3 py-2 font-semibold">Message</th>
-                  <th className="px-3 py-2 font-semibold">Status</th>
-                  <th className="px-3 py-2 font-semibold">Sent</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#EEF2F6]">
-                {SAMPLE_MESSAGES.map((message) => (
-                  <tr key={message.id}>
-                    <td className="whitespace-nowrap px-3 py-3 font-medium text-[#101828]">{message.to}</td>
-                    <td className="max-w-xl px-3 py-3 text-[#667085]">{message.body}</td>
-                    <td className="px-3 py-3">
-                      <span
-                        className={cn(
-                          "inline-flex rounded-full px-2.5 py-1 text-xs font-semibold",
-                          message.status === "Delivered"
-                            ? "bg-[#ECFDF3] text-[#027A48]"
-                            : "bg-[#FFFAEB] text-[#B54708]"
-                        )}
-                      >
-                        {message.status}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-[#98A2B3]">
-                      {new Date(message.sentAt).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="rounded-xl border border-dashed border-[#D0D5DD] bg-[#F9FAFB] px-4 py-8 text-center">
+            <p className="text-sm font-semibold text-[#101828]">No messages to show yet</p>
+            <p className="mt-1 text-sm text-[#667085]">
+              Outbound review-request SMS will appear here after you send requests or a test message.
+            </p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                disabled={testDisabled || testBusy}
+                onClick={() => void sendTestMessage()}
+                className={cn(rep.btnSecondary, "disabled:opacity-50")}
+              >
+                <Send className="h-4 w-4" />
+                Send test message
+              </button>
+              <Link href={`/businesses/${businessId}/reputation/requests`} className={rep.btnPrimary}>
+                Send review requests
+              </Link>
+            </div>
           </div>
         </SectionCard>
       ) : null}

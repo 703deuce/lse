@@ -3,9 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   ArrowUpRight,
-  ChevronDown,
   Clock,
-  Download,
   Flame,
   Table2,
   TrendingUp,
@@ -231,14 +229,6 @@ function VelocitySnapshot({ data }: { data: ReviewAnalyticsDashboardData }) {
         </dl>
       </div>
 
-      <a
-        href="#"
-        className={cn(rep.link, "mt-4 inline-flex items-center gap-1")}
-        onClick={(e) => e.preventDefault()}
-      >
-        <Download className="h-3.5 w-3.5" />
-        Download Velocity Report
-      </a>
     </Card>
   );
 }
@@ -277,14 +267,6 @@ function MomentumCard({ data }: { data: ReviewAnalyticsDashboardData }) {
         )}
       </div>
 
-      <a
-        href="#"
-        className={cn(rep.link, "mt-4 inline-flex items-center gap-1")}
-        onClick={(e) => e.preventDefault()}
-      >
-        <TrendingUp className="h-3.5 w-3.5" />
-        View Momentum Details
-      </a>
     </Card>
   );
 }
@@ -303,13 +285,6 @@ function GreenAlertBar({ rolling30d, rolling30dDelta, rolling30dDeltaPct }: {
         <span className="font-bold">{Math.round(rolling30dDeltaPct)}% more</span> than the
         previous 30 days.
       </p>
-      <button
-        type="button"
-        className="flex shrink-0 items-center gap-1 rounded-lg border border-[#A6F4C5] bg-white px-3 py-1.5 text-xs font-semibold text-[#027A48] hover:bg-[#F0FDF4]"
-      >
-        View Annotations
-        <ChevronDown className="h-3.5 w-3.5" />
-      </button>
     </div>
   );
 }
@@ -481,8 +456,9 @@ export function ReviewAnalyticsDashboard({
         title="Review Analytics"
         subtitle="Track review growth, velocity, and momentum over time."
         dateRangeLabel={data.dateRangeLabel ?? "Last 90 days"}
-        showCompare
-        filterLabel="Filters"
+        showCompare={false}
+        showExport={false}
+        showFilters={false}
         primaryAction={<ReputationSyncButton businessId={businessId} variant="secondary" label="Refresh Data" />}
       />
 

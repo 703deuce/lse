@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   ClipboardList,
   Clock,
-  Download,
   Eye,
   Globe,
   ListPlus,
@@ -59,10 +58,10 @@ export function GapTopBar({ businessId }: { businessId: string }) {
       <Link href={`/businesses/${businessId}/scans`} className={mock.btnSecondary}>
         Maps Scans
       </Link>
-      <button type="button" className={mock.btnGhost}>
+      <Link href={`/businesses/${businessId}/reports`} className={mock.btnGhost}>
         <Share2 className="h-4 w-4" />
-        Share
-      </button>
+        Reports
+      </Link>
     </div>
   );
 }
@@ -111,10 +110,6 @@ export function GapActionBar({
       <button type="button" onClick={onRefresh} disabled={loading} className={mock.btnSecondary}>
         <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
         Refresh
-      </button>
-      <button type="button" className={mock.btnSecondary}>
-        <Download className="h-3.5 w-3.5" />
-        Export
       </button>
     </div>
   );
