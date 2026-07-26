@@ -30,9 +30,20 @@ async function main() {
   await page.waitForTimeout(1500);
 
   for (const screen of screens) {
+    await page.evaluate(() => {
+      document.querySelectorAll("[data-screenshot-nav]").forEach((el) => {
+        el.style.display = "";
+      });
+    });
     await page.locator(`[data-screen="${screen.id}"]`).click();
     await page.waitForSelector(`[data-messaging-screen="${screen.id}"]`, { timeout: 30000 });
     await page.waitForTimeout(1200);
+    // Hide preview chrome so screenshots match product UI.
+    await page.evaluate(() => {
+      document.querySelectorAll("[data-screenshot-nav]").forEach((el) => {
+        el.style.display = "none";
+      });
+    });
     await page.screenshot({
       path: path.join(outDir, screen.file),
       fullPage: true,

@@ -7,7 +7,15 @@ import { STATUS_LABELS, statusTone } from "@/lib/messaging/status";
 import type { MessagingRegistration } from "@/lib/messaging/types";
 import { cn } from "@/lib/utils";
 
-const FILTERS = ["all", "action_required", "in_review", "failed", "approved", "ready"] as const;
+const FILTERS = [
+  "all",
+  "action_required",
+  "in_review",
+  "failed",
+  "approved",
+  "ready",
+  "missing_number",
+] as const;
 
 export function AdminMessagingList({
   initialRegistrations,
@@ -41,7 +49,8 @@ export function AdminMessagingList({
     return rows.filter((row) => {
       const statusMatch =
         filter === "all" ||
-        row.overallStatus === filter ||
+        (filter === "missing_number" && !row.phoneNumberE164) ||
+        (filter !== "missing_number" && row.overallStatus === filter) ||
         (filter === "action_required" &&
           [row.businessDetailsStatus, row.brandVerificationStatus, row.campaignReviewStatus].includes(
             "action_required"

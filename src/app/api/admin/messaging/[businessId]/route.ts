@@ -49,6 +49,11 @@ export async function PATCH(
       return NextResponse.json({ registration });
     }
 
+    if (action === "resubmit") {
+      const registration = await messagingOnboarding.submitBusinessProfile(ctx);
+      return NextResponse.json({ registration });
+    }
+
     const registration = await messagingOnboarding.adminUpdate({
       ...ctx,
       patch: body.patch ?? {},

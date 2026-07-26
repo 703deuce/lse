@@ -70,34 +70,61 @@ export function MessagingOverview({
         </div>
       ) : null}
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <RepMetricCard
-          label="Current Setup Status"
-          value={STATUS_LABELS[registration.overallStatus]}
-          icon={ShieldCheck}
-          hint="Customer-facing status"
-        />
-        <RepMetricCard
-          label="Assigned Phone Number"
-          value={registration.phoneNumberFriendly ?? "None"}
-          icon={Phone}
-          hint={
-            registration.phoneNumberReserved && !registration.messagingEnabled
-              ? "Reserved — texting disabled until approval"
-              : "Dedicated business number"
-          }
-        />
-        <RepMetricCard
-          label="Compliance Status"
-          value={
-            registration.brandVerificationStatus === "approved" &&
-            registration.campaignReviewStatus === "approved"
-              ? "Verified"
-              : "Unverified"
-          }
-          icon={MessageSquareText}
-          hint="Profile · Brand · Campaign"
-        />
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.9fr)]">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <RepMetricCard
+            label="Current Setup Status"
+            value={STATUS_LABELS[registration.overallStatus]}
+            icon={ShieldCheck}
+            hint="Customer-facing status"
+          />
+          <RepMetricCard
+            label="Assigned Phone Number"
+            value={registration.phoneNumberFriendly ?? "None"}
+            icon={Phone}
+            hint={
+              registration.phoneNumberReserved && !registration.messagingEnabled
+                ? "Reserved — texting disabled until approval"
+                : "Dedicated business number"
+            }
+          />
+          <RepMetricCard
+            label="Compliance Status"
+            value={
+              registration.brandVerificationStatus === "approved" &&
+              registration.campaignReviewStatus === "approved"
+                ? "Verified"
+                : "Unverified"
+            }
+            icon={MessageSquareText}
+            hint="Profile · Brand · Campaign"
+          />
+        </div>
+
+        <SectionCard title="General information" subtitle="Account fees and limits after activation.">
+          <dl className="space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-[#667085]">Account status</dt>
+              <dd>
+                <MessagingStatusBadge status={registration.overallStatus} />
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-[#667085]">Monthly number fee</dt>
+              <dd className="font-semibold text-[#101828]">$1.15 / mo</dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-[#667085]">Messaging limit</dt>
+              <dd className="font-semibold text-[#101828]">
+                {registration.monthlySmsAllowance} SMS / month
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-[#667085]">Registration fee</dt>
+              <dd className="font-semibold text-[#101828]">Carrier fees may apply</dd>
+            </div>
+          </dl>
+        </SectionCard>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-3">

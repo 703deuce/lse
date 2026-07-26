@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Check, Circle, Clock3, AlertTriangle, XCircle } from "lucide-react";
+import { Check, Circle, XCircle } from "lucide-react";
 import { RepBadge, rep } from "@/components/reputation/rep-ui";
 import { STATUS_LABELS, statusTone } from "@/lib/messaging/status";
 import type { CustomerFacingStatus, MessagingProgressStep } from "@/lib/messaging/types";
@@ -11,6 +11,7 @@ export function MessagingStatusBadge({ status }: { status: CustomerFacingStatus 
   return <RepBadge tone={statusTone(status)}>{STATUS_LABELS[status]}</RepBadge>;
 }
 
+/** Horizontal numbered stepper matching the Text Messaging Setup mockups. */
 export function MessagingProgressTracker({
   steps,
   currentId,
@@ -19,32 +20,59 @@ export function MessagingProgressTracker({
   currentId?: string;
 }) {
   return (
-    <ol className="grid gap-2 md:grid-cols-6">
-      {steps.map((step, index) => {
-        const active = step.id === currentId;
-        const done = step.status === "approved" || step.status === "ready";
-        const failed =
-          step.status === "failed" ||
-          step.status === "action_required" ||
-          step.status === "suspended";
-        const inReview = step.status === "in_review" || step.status === "submitted";
-        return (
-          <li key={step.id}>
-            <Link
-              href={step.href}
-              className={cn(
-                "flex h-full flex-col gap-2 rounded-xl border px-3 py-3 transition",
-                active
-                  ? "border-[#137752] bg-[#ECFDF3]"
-                  : "border-[#E6EAF0] bg-white hover:border-[#B7E4CC]"
-              )}
-            >
-              <div className="flex items-center gap-2">
+    <div className={cn(rep.card, "px-4 py-5 sm:px-6")}>
+      <ol className="flex items-start justify-between gap-1">
+        {steps.map((step, index) => {
+          const active = step.id === currentId;
+          const done = step.status === "approved" || step.status === "ready";
+          const failed =
+            step.status === "failed" ||
+            step.status === "action_required" ||
+            step.status === "suspended";
+          const inReview = step.status === "in_review" || step.status === "submitted";
+          const isLast = index === steps.length - 1;
+
+          return (
+            <li key={step.id} className="relative flex min-w-0 flex-1 flex-col items-center text-center">
+              {!isLast ? (
+                <span
+                  aria-hidden
+                  className={cn(
+                    "absolute left-[calc(50%+18px)] right-[calc(-50%+18px)] top-4 h-0.5",
+                    done ? "bg-[#137752]" : "bg-[#E4E7EC]"
+                  )}
+                />
+              ) : null}
+              <Link href={step.href} className="relative z-[1] flex flex-col items-center gap-2">
                 <span
                   className={cn(
-                    "flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold",
+                    "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ring-4 ring-white",
                     done
                       ? "bg-[#137752] text-white"
+                      : active
+                        ? "bg-[#137752] text-white"
+                        : failed
+                          ? "bg-[#D92D20] text-white"
+                          : inReview
+                            ? "bg-[#F79009] text-white"
+                            : "bg-[#F2F4F7] text-[#667085]"
+                  )}
+                >
+                  {done ? <Check className="h-4 w-4" /> : index + 1}
+                </span>
+                <span
+                  className={cn(
+                    "max-w-[110px] text-xs font-semibold leading-snug",
+                    active || done ? "text-[#101828]" : "text-[#667085]"
+                  )}
+                >
+                  {step.label}
+                </span>
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                    done || step.status === "ready"
+                      ? "bg-[#ECFDF3] text-[#027A48]"
                       : failed
                         ? "bg-[#FEF3F2] text-[#B42318]"
                         : inReview
@@ -52,27 +80,14 @@ export function MessagingProgressTracker({
                           : "bg-[#F2F4F7] text-[#667085]"
                   )}
                 >
-                  {done ? (
-                    <Check className="h-3.5 w-3.5" />
-                  ) : failed ? (
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                  ) : inReview ? (
-                    <Clock3 className="h-3.5 w-3.5" />
-                  ) : (
-                    index + 1
-                  )}
+                  {STATUS_LABELS[step.status]}
                 </span>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">
-                  Step {index + 1}
-                </span>
-              </div>
-              <p className="text-sm font-semibold text-[#101828]">{step.label}</p>
-              <MessagingStatusBadge status={step.status} />
-            </Link>
-          </li>
-        );
-      })}
-    </ol>
+              </Link>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 
@@ -83,6 +98,7 @@ export function MessagingPageShell({
   steps,
   currentId,
   children,
+  hideProgress = false,
 }: {
   title: string;
   subtitle: string;
@@ -90,6 +106,7 @@ export function MessagingPageShell({
   steps: MessagingProgressStep[];
   currentId?: string;
   children: React.ReactNode;
+  hideProgress?: boolean;
 }) {
   return (
     <div className={rep.page}>
@@ -100,7 +117,7 @@ export function MessagingPageShell({
         </div>
         {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
       </div>
-      <MessagingProgressTracker steps={steps} currentId={currentId} />
+      {!hideProgress ? <MessagingProgressTracker steps={steps} currentId={currentId} /> : null}
       {children}
     </div>
   );
@@ -128,15 +145,17 @@ export function SectionCard({
   title,
   subtitle,
   children,
+  className,
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <section className={cn(rep.card, "p-4")}>
+    <section className={cn(rep.card, "p-5", className)}>
       <div className="mb-4">
-        <h2 className="text-sm font-semibold text-[#101828]">{title}</h2>
+        <h2 className="text-base font-semibold text-[#101828]">{title}</h2>
         {subtitle ? <p className="mt-1 text-sm text-[#667085]">{subtitle}</p> : null}
       </div>
       {children}

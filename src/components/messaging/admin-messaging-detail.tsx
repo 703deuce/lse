@@ -102,7 +102,10 @@ export function AdminMessagingDetail({
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" disabled={saving} className={rep.btnSecondary} onClick={() => void run("refresh")}>
-            Force refresh status
+            Force Refresh Status
+          </button>
+          <button type="button" disabled={saving} className={rep.btnSecondary} onClick={() => void run("resubmit")}>
+            Resubmit to Twilio
           </button>
           <button
             type="button"
@@ -125,7 +128,7 @@ export function AdminMessagingDetail({
               })
             }
           >
-            Manual override approve
+            Manual Override
           </button>
         </div>
       </div>

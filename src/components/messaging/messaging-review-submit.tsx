@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { rep } from "@/components/reputation/rep-ui";
 import type { MessagingProgressStep, MessagingRegistration } from "@/lib/messaging/types";
@@ -32,6 +33,14 @@ export function MessagingReviewSubmit({
   const router = useRouter();
   const b = registration.business;
   const u = registration.useCase;
+  const [certAuthorized, setCertAuthorized] = useState(Boolean(b.certAuthorized));
+  const [certAccurate, setCertAccurate] = useState(Boolean(b.certAccurate));
+  const [certUnderstandsDelays, setCertUnderstandsDelays] = useState(
+    Boolean(b.certUnderstandsDelays)
+  );
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const canSubmit = certAuthorized && certAccurate && certUnderstandsDelays;
 
   return (
     <MessagingPageShell
@@ -89,26 +98,75 @@ export function MessagingReviewSubmit({
         </div>
       </SectionCard>
 
-      <SectionCard title="Certifications on file">
-        <ul className="space-y-2 text-sm text-[#344054]">
-          <li>{b.certAuthorized ? "✓" : "○"} Authorized to register messaging</li>
-          <li>{b.certAccurate ? "✓" : "○"} Information matches official records</li>
-          <li>{b.certUnderstandsDelays ? "✓" : "○"} Understands inaccurate info can delay approval</li>
-        </ul>
+      <SectionCard
+        title="Fees and recurring costs"
+        subtitle="Estimated carrier and number costs after your campaign is approved."
+      >
+        <dl>
+          <Row label="Local phone number" value="~$1.15 / month" />
+          <Row label="Brand / campaign registry" value="Carrier fees may apply at submission" />
+          <Row
+            label="Plan SMS allowance"
+            value={`${registration.monthlySmsAllowance} messages / month included`}
+          />
+          <Row label="Overage" value="Billed per message after monthly allowance" />
+        </dl>
       </SectionCard>
 
-      {error ? <p className="text-sm text-[#B42318]">{error}</p> : null}
+      <SectionCard
+        title="Re-certification"
+        subtitle="Confirm these statements again before submitting to Twilio."
+      >
+        <div className="space-y-3 text-sm text-[#344054]">
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 rounded border-[#D0D5DD] text-[#137752] focus:ring-[#137752]"
+              checked={certAuthorized}
+              onChange={(e) => setCertAuthorized(e.target.checked)}
+            />
+            <span>I am authorized to register messaging for this business.</span>
+          </label>
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 rounded border-[#D0D5DD] text-[#137752] focus:ring-[#137752]"
+              checked={certAccurate}
+              onChange={(e) => setCertAccurate(e.target.checked)}
+            />
+            <span>All information matches official business records.</span>
+          </label>
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 rounded border-[#D0D5DD] text-[#137752] focus:ring-[#137752]"
+              checked={certUnderstandsDelays}
+              onChange={(e) => setCertUnderstandsDelays(e.target.checked)}
+            />
+            <span>I understand inaccurate information can delay or block approval.</span>
+          </label>
+        </div>
+      </SectionCard>
+
+      {error || localError ? (
+        <p className="text-sm text-[#B42318]">{error ?? localError}</p>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          disabled={saving}
+          disabled={saving || !canSubmit}
           className={rep.btnPrimary}
-          onClick={() =>
+          onClick={() => {
+            if (!canSubmit) {
+              setLocalError("Complete all re-certification checkboxes before submitting.");
+              return;
+            }
+            setLocalError(null);
             void onSubmit().then(() =>
               router.push(`/businesses/${businessId}/reputation/messaging/status`)
-            )
-          }
+            );
+          }}
         >
           {saving ? "Submitting..." : "Submit registration"}
         </button>
