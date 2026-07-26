@@ -43,6 +43,8 @@ const embedFrameAncestors = [
   "https://www.localseoexpress.com",
   "http://127.0.0.1:4173",
   "http://localhost:4173",
+  "http://127.0.0.1:8765",
+  "http://localhost:8765",
   "http://127.0.0.1:3000",
   "http://localhost:3000",
 ].join(" ");

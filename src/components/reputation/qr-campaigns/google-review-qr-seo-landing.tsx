@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import Script from "next/script";
 import {
   BarChart3,
   Check,
@@ -28,39 +28,25 @@ const iconBubble =
 const iconBubbleSm =
   "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#16A34A] text-white shadow-[0_8px_18px_rgba(22,163,74,0.22)]";
 
-function useEmbedFrameSizing(embed: boolean) {
-  useEffect(() => {
-    if (!embed || typeof window === "undefined") return;
-
-    const root = document.getElementById("lse-qr-embed-root") ?? document.body;
-
-    const publishHeight = () => {
-      // Prefer the embed root height so we don't report the stretched min-h body.
-      const height = Math.ceil(
-        Math.max(root.scrollHeight, root.getBoundingClientRect().height)
-      );
-      if (height > 0) {
-        window.parent?.postMessage({ type: "lse-qr-embed-height", height }, "*");
-      }
-    };
-
-    publishHeight();
-    const ro = new ResizeObserver(() => publishHeight());
-    ro.observe(root);
-    window.addEventListener("load", publishHeight);
-    const t1 = window.setTimeout(publishHeight, 100);
-    const t2 = window.setTimeout(publishHeight, 500);
-    const t3 = window.setTimeout(publishHeight, 1500);
-
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("load", publishHeight);
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearTimeout(t3);
-    };
-  }, [embed]);
-}
+const EMBED_HEIGHT_SCRIPT = `
+(function () {
+  function send() {
+    var root = document.getElementById("lse-qr-embed-root");
+    if (!root || !window.parent || window.parent === window) return;
+    var height = Math.ceil(Math.max(root.scrollHeight, root.getBoundingClientRect().height || 0));
+    if (height > 0) {
+      window.parent.postMessage({ type: "lse-qr-embed-height", height: height }, "*");
+    }
+  }
+  send();
+  window.addEventListener("load", send);
+  [50, 200, 600, 1200].forEach(function (ms) { setTimeout(send, ms); });
+  try {
+    var root = document.getElementById("lse-qr-embed-root");
+    if (root && "ResizeObserver" in window) new ResizeObserver(send).observe(root);
+  } catch (e) {}
+})();
+`;
 
 const FAQS = [
   {
@@ -90,8 +76,6 @@ const FAQS = [
 ] as const;
 
 export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean }) {
-  useEmbedFrameSizing(embed);
-
   if (embed) {
     return (
       <>
@@ -100,6 +84,9 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
         <div id="lse-qr-embed-root" className="bg-white px-2 py-2 sm:px-3 sm:py-2">
           <PublicQrGenerator embedded seoLayout />
         </div>
+        <Script id="lse-qr-embed-height" strategy="afterInteractive">
+          {EMBED_HEIGHT_SCRIPT}
+        </Script>
       </>
     );
   }
