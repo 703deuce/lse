@@ -15,6 +15,7 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
+import { MessagingSetupCallout } from "@/components/messaging/messaging-setup-callout";
 import { RepBadge, RepMetricCard, RepPageHeader, RepSearch, RepTabs, RepViewLink, rep } from "@/components/reputation/rep-ui";
 import { renderTemplate } from "@/lib/reputation/template-vars";
 import type { ReputationTemplatePreviewKpis, ReputationTemplateRow } from "@/lib/reputation/reputation-page-preview-data";
@@ -417,6 +418,8 @@ export function TemplatesHub({
           </>
         }
       />
+
+      <MessagingSetupCallout businessId={businessId} />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <RepMetricCard label="SMS Templates" value={stats.sms} icon={MessageSquare} trend="^2 this month" trendPositive>
