@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { ReviewOverviewDashboard } from "@/components/reviews/review-overview-dashboard";
+import { QrPerformanceCard } from "@/components/reputation/qr-campaigns/qr-performance-card";
 import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { loadReviewOverviewData } from "@/lib/reviews/review-overview-data";
 import { reviewOverviewPreviewData } from "@/lib/reviews/review-overview-preview-data";
@@ -9,7 +10,12 @@ async function ReviewOverviewLoaded({ businessId }: { businessId: string }) {
   const data = isDevPreviewBusiness(businessId)
     ? { ...reviewOverviewPreviewData, businessId }
     : await loadReviewOverviewData(businessId);
-  return <ReviewOverviewDashboard businessId={businessId} data={data} />;
+  return (
+    <div className="space-y-4">
+      <ReviewOverviewDashboard businessId={businessId} data={data} />
+      <QrPerformanceCard businessId={businessId} />
+    </div>
+  );
 }
 
 export default async function ReviewOverviewPage({

@@ -52,7 +52,8 @@ function isProtectedPath(pathname: string): boolean {
     pathname.startsWith("/agency") ||
     pathname.startsWith("/tools") ||
     pathname.startsWith("/admin") ||
-    pathname.startsWith("/settings")
+    pathname.startsWith("/settings") ||
+    pathname.startsWith("/reputation")
   );
 }
 

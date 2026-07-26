@@ -203,7 +203,7 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
               label: "Review Requests",
               icon: MessageSquareText,
             },
-            { href: loc("review-qr", businessId), label: "QR Poster", icon: QrCode },
+            { href: loc("review-qr", businessId), label: "QR Campaigns", icon: QrCode },
             { href: loc("review-campaigns", businessId), label: "Campaigns", icon: FolderKanban },
             { href: loc("review-templates", businessId), label: "Templates", icon: FileText },
             { href: loc("contacts", businessId), label: "Contacts", icon: Users },
@@ -371,9 +371,16 @@ export function isSidebarHrefActive(
     href.endsWith("/reputation/requests") ||
     href.endsWith("/tools/go/review-requests") ||
     href.endsWith("/reputation/qr") ||
+    href.endsWith("/reputation/qr-campaigns") ||
     href.endsWith("/tools/go/review-qr")
   ) {
-    return pathname === href || pathname.startsWith(`${href}?`);
+    return (
+      pathname === href ||
+      pathname.startsWith(`${href}?`) ||
+      pathname.startsWith(`${href}/`) ||
+      pathname.includes("/reputation/qr-campaigns") ||
+      pathname.endsWith("/reputation/qr")
+    );
   }
 
   if (href.includes("?tab=")) {

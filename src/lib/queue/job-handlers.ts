@@ -91,6 +91,8 @@ export function jobTypeToQueue(jobType: string): QueueName {
     case "growth_audit_extended":
     case "gbp_audit_module":
     case "data_retention":
+    case "qr_anonymous_cleanup":
+    case "qr_daily_stats_reconcile":
     default:
       return "maintenance";
   }
@@ -704,6 +706,18 @@ export async function executeJobType(
       }
       case "data_retention": {
         await maybeRunDataRetentionCleanup();
+        return { ok: true };
+      }
+      case "qr_anonymous_cleanup": {
+        const { cleanupAbandonedAnonymousQrProjects } = await import(
+          "@/lib/reputation/qr-campaigns"
+        );
+        await cleanupAbandonedAnonymousQrProjects();
+        return { ok: true };
+      }
+      case "qr_daily_stats_reconcile": {
+        // Counters are updated on each scan; this job is a no-op placeholder for
+        // future backfills. Keeps the job type registered for schedulers.
         return { ok: true };
       }
       default:

@@ -482,8 +482,13 @@ export async function resolveAndRecordQrScan(params: {
     return { destinationUrl: null, inactive: true, notFound: false };
   }
 
-  const destinationUrl = assertAllowedQrDestination(campaign.destinationUrl);
-  // Fire-and-continue: await insert so we don't lose scans, but keep work minimal.
+  let destinationUrl: string;
+  try {
+    destinationUrl = assertAllowedQrDestination(campaign.destinationUrl);
+  } catch {
+    return { destinationUrl: null, inactive: false, notFound: false };
+  }
+  // Await insert so we don't lose scans; keep work minimal for a fast redirect.
   await recordQrScanEvent({
     campaign,
     ip: params.ip,

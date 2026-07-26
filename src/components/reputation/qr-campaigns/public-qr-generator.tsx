@@ -188,8 +188,9 @@ export function PublicQrGenerator() {
   }
 
   const claimToken = result?.claimToken ?? "";
-  const signUpHref = `/sign-up?claim=${encodeURIComponent(claimToken)}`;
-  const signInHref = `/sign-in?claim=${encodeURIComponent(claimToken)}`;
+  const claimNext = `/reputation/qr-claim?claim=${encodeURIComponent(claimToken)}`;
+  const signUpHref = `/sign-up?next=${encodeURIComponent(claimNext)}&claim=${encodeURIComponent(claimToken)}`;
+  const signInHref = `/sign-in?next=${encodeURIComponent(claimNext)}`;
 
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#ECFDF3_0%,_#F8FAFC_45%,_#EEF2FF_100%)]">
