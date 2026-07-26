@@ -292,47 +292,47 @@ export function PublicQrGenerator({
         ))}
       </div>
 
-      {/* Stage fills leftover height; poster scales up inside with soft padding */}
-      <div className="mt-5 flex min-h-0 flex-1 items-center justify-center rounded-2xl bg-[#F3F6FA] p-4 sm:p-5">
-        {tab === "how" ? (
-          <div className="w-full max-w-md rounded-2xl border border-[#E6EAF0] bg-white p-7 shadow-sm">
-            <p className="text-base font-bold text-[#0B1B32]">From scan to Google review</p>
-            <ol className="mt-5 space-y-4 text-sm leading-6 text-[#475569]">
-              {[
-                "Customer scans your poster QR code",
-                "They land on your tracked Local SEO Express link",
-                "We send them straight to your Google review page",
-                "You unlock scan analytics after a free account",
-              ].map((line, i) => (
-                <li key={line} className="flex gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#16A34A] text-xs font-bold text-white">
-                    {i + 1}
-                  </span>
-                  {line}
-                </li>
-              ))}
-            </ol>
-          </div>
-        ) : tab === "qr" ? (
-          <div className="flex h-full w-full flex-col items-center justify-center">
-            {qrDataUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={qrDataUrl}
-                alt="Google Review QR Code"
-                className="h-auto max-h-[75%] w-auto max-w-[360px] rounded-2xl bg-white p-6 shadow-[0_16px_40px_rgba(11,27,50,0.1)]"
-              />
-            ) : (
-              <div className="flex h-72 w-72 items-center justify-center rounded-2xl border border-dashed border-[#CBD5E1] bg-white text-sm text-[#94A3B8]">
-                Generate to unlock QR
-              </div>
-            )}
-            <p className="mt-5 text-center text-sm font-semibold text-[#0B1B32]">
-              QR code only · print-ready PNG
-            </p>
-          </div>
-        ) : (
-          <div className="flex h-full max-h-full w-full items-center justify-center">
+      {/* Absolute stage so poster can reliably fill available height with padding */}
+      <div className="relative mt-5 min-h-[560px] flex-1 rounded-2xl bg-[#F3F6FA] sm:min-h-[640px]">
+        <div className="absolute inset-4 flex items-center justify-center sm:inset-5">
+          {tab === "how" ? (
+            <div className="w-full max-w-md rounded-2xl border border-[#E6EAF0] bg-white p-7 shadow-sm">
+              <p className="text-base font-bold text-[#0B1B32]">From scan to Google review</p>
+              <ol className="mt-5 space-y-4 text-sm leading-6 text-[#475569]">
+                {[
+                  "Customer scans your poster QR code",
+                  "They land on your tracked Local SEO Express link",
+                  "We send them straight to your Google review page",
+                  "You unlock scan analytics after a free account",
+                ].map((line, i) => (
+                  <li key={line} className="flex gap-3">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#16A34A] text-xs font-bold text-white">
+                      {i + 1}
+                    </span>
+                    {line}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : tab === "qr" ? (
+            <div className="flex h-full w-full flex-col items-center justify-center">
+              {qrDataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={qrDataUrl}
+                  alt="Google Review QR Code"
+                  className="h-auto max-h-[75%] w-auto max-w-[360px] rounded-2xl bg-white p-6 shadow-[0_16px_40px_rgba(11,27,50,0.1)]"
+                />
+              ) : (
+                <div className="flex h-72 w-72 items-center justify-center rounded-2xl border border-dashed border-[#CBD5E1] bg-white text-sm text-[#94A3B8]">
+                  Generate to unlock QR
+                </div>
+              )}
+              <p className="mt-5 text-center text-sm font-semibold text-[#0B1B32]">
+                QR code only · print-ready PNG
+              </p>
+            </div>
+          ) : (
             <ReviewPosterPreview
               ref={posterRef}
               businessName={businessName || "Your Business"}
@@ -340,8 +340,8 @@ export function PublicQrGenerator({
               qrDataUrl={qrDataUrl}
               size="hero"
             />
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="mt-5 grid shrink-0 gap-2.5 sm:grid-cols-3">

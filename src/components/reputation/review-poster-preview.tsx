@@ -58,9 +58,7 @@ export const ReviewPosterPreview = forwardRef<
     <div
       className={cn(
         "mx-auto",
-        isHero
-          ? "flex h-full max-h-full w-full items-center justify-center"
-          : cn("w-full", FORMAT_SCALE[poster.format])
+        isHero ? "h-full max-h-full w-auto max-w-full" : cn("w-full", FORMAT_SCALE[poster.format])
       )}
     >
       <div
@@ -68,8 +66,7 @@ export const ReviewPosterPreview = forwardRef<
         className={cn(
           "relative overflow-hidden bg-white ring-1 ring-black/5",
           isHero
-            ? // Fill stage height; width follows 3:4, capped so side padding remains
-              "aspect-[3/4] h-full max-h-full w-auto max-w-[92%] rounded-[1.75rem] shadow-[0_28px_70px_rgba(11,27,50,0.16)]"
+            ? "aspect-[3/4] h-full max-h-full w-auto rounded-[1.75rem] shadow-[0_28px_70px_rgba(11,27,50,0.16)]"
             : "aspect-[3/4] w-full rounded-[1.5rem] shadow-[0_24px_60px_rgba(11,27,50,0.18)]"
         )}
       >
