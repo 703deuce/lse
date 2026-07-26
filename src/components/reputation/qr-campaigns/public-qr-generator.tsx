@@ -35,7 +35,12 @@ function looksLikePlaceId(value: string): boolean {
   return /^ChI[\w-]+$/.test(v) || (v.length > 20 && !v.includes("://") && !v.includes(" "));
 }
 
-export function PublicQrGenerator() {
+export function PublicQrGenerator({
+  /** Hide outer marketing chrome when nested in the SEO landing page or iframe. */
+  embedded = false,
+}: {
+  embedded?: boolean;
+} = {}) {
   const posterRef = useRef<HTMLDivElement>(null);
   const [businessName, setBusinessName] = useState("");
   const [placeOrUrl, setPlaceOrUrl] = useState("");
@@ -153,36 +158,44 @@ export function PublicQrGenerator() {
   const signUpHref = `/sign-up?next=${encodeURIComponent(claimNext)}&claim=${encodeURIComponent(result?.claimToken ?? "")}`;
   const signInHref = `/sign-in?next=${encodeURIComponent(claimNext)}`;
 
-  return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#DCFCE7_0%,_#F8FAFC_50%,_#EEF2FF_100%)]">
-      <header className="border-b border-white/70 bg-white/70 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#16A34A] text-sm font-bold text-white">
-              LSE
-            </span>
-            <p className="text-sm font-bold text-[#0B1B32]">Local SEO Express</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link href="/sign-in" className="text-sm font-semibold text-[#475467] hover:text-[#0B1B32]">
-              Sign in
-            </Link>
-            <Link href="/sign-up" className={qrUi.btnPrimary}>
-              Create Free Account
-            </Link>
-          </div>
-        </div>
-      </header>
+  const shellClass = embedded
+    ? "bg-transparent"
+    : "min-h-screen bg-[radial-gradient(ellipse_at_top,_#DCFCE7_0%,_#F8FAFC_50%,_#EEF2FF_100%)]";
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-12">
-        <div className="mx-auto max-w-3xl text-center">
-          <h1 className="text-4xl font-extrabold tracking-tight text-[#0B1B32] sm:text-5xl lg:text-6xl">
-            Design your Google review poster
-          </h1>
-          <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-[#486581]">
-            Huge preview. Tiny customization. Download free — track scans when you save it.
-          </p>
-        </div>
+  return (
+    <div className={shellClass}>
+      {!embedded ? (
+        <header className="border-b border-white/70 bg-white/70 backdrop-blur">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#16A34A] text-sm font-bold text-white">
+                LSE
+              </span>
+              <p className="text-sm font-bold text-[#0B1B32]">Local SEO Express</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link href="/sign-in" className="text-sm font-semibold text-[#475467] hover:text-[#0B1B32]">
+                Sign in
+              </Link>
+              <Link href="/sign-up" className={qrUi.btnPrimary}>
+                Create Free Account
+              </Link>
+            </div>
+          </div>
+        </header>
+      ) : null}
+
+      <div className={cn(!embedded && "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-12")}>
+        {!embedded ? (
+          <div className="mx-auto max-w-3xl text-center">
+            <h1 className="text-4xl font-extrabold tracking-tight text-[#0B1B32] sm:text-5xl lg:text-6xl">
+              Design your Google review poster
+            </h1>
+            <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-[#486581]">
+              Huge preview. Tiny customization. Download free — track scans when you save it.
+            </p>
+          </div>
+        ) : null}
 
         {error ? (
           <div
@@ -198,7 +211,12 @@ export function PublicQrGenerator() {
         ) : null}
 
         {/* Canva-like: preview dominates */}
-        <div className="mt-10 grid items-start gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)]">
+        <div
+          className={cn(
+            "grid items-start gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)]",
+            embedded ? "mt-0" : "mt-10"
+          )}
+        >
           <section className="space-y-4 rounded-[1.75rem] border border-[#E6EAF0] bg-white/90 p-5 shadow-[0_16px_40px_rgba(11,27,50,0.06)] sm:p-6">
             <label className="block">
               <span className={qrUi.label}>Business name</span>
@@ -310,47 +328,61 @@ export function PublicQrGenerator() {
           </section>
         </div>
 
-        <section className="mt-14 overflow-hidden rounded-[1.75rem] border border-[#A6F4C5] bg-[linear-gradient(135deg,#0B1B32_0%,#152A45_48%,#166534_100%)] p-6 text-white sm:p-8">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#86EFAC]">
-              Want scan tracking?
-            </p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-tight">
-              Save it free — see who scanned
-            </h2>
-            <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-white/80">
-              Keep this design, compare placements, and see estimated unique scans after you create a
-              free account.
-            </p>
-            <ul className="mx-auto mt-5 flex max-w-lg flex-col gap-2 text-left text-sm text-white/90">
-              {[
-                "Save and edit this QR campaign",
-                "Track total and estimated unique scans",
-                "See review growth correlation (not exact attribution)",
-              ].map((line) => (
-                <li key={line} className="flex items-start gap-2">
-                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#86EFAC]" />
-                  {line}
-                </li>
-              ))}
-            </ul>
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Link
-                href={result ? signUpHref : "/sign-up"}
-                className="inline-flex h-12 items-center justify-center rounded-xl bg-[#16A34A] px-6 text-sm font-semibold text-white"
-              >
-                Create Free Account
-              </Link>
-              <Link
-                href={result ? signInHref : "/sign-in"}
-                className="inline-flex h-12 items-center justify-center rounded-xl border border-white/25 bg-white/5 px-6 text-sm font-semibold text-white"
-              >
-                Sign in to claim
-              </Link>
+        {!embedded ? (
+          <section className="mt-14 overflow-hidden rounded-[1.75rem] border border-[#A6F4C5] bg-[linear-gradient(135deg,#0B1B32_0%,#152A45_48%,#166534_100%)] p-6 text-white sm:p-8">
+            <div className="mx-auto max-w-3xl text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#86EFAC]">
+                Want scan tracking?
+              </p>
+              <h2 className="mt-2 text-3xl font-extrabold tracking-tight">
+                Save it free — see who scanned
+              </h2>
+              <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-white/80">
+                Keep this design, compare placements, and see estimated unique scans after you create
+                a free account.
+              </p>
+              <ul className="mx-auto mt-5 flex max-w-lg flex-col gap-2 text-left text-sm text-white/90">
+                {[
+                  "Save and edit this QR campaign",
+                  "Track total and estimated unique scans",
+                  "See review growth correlation (not exact attribution)",
+                ].map((line) => (
+                  <li key={line} className="flex items-start gap-2">
+                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#86EFAC]" />
+                    {line}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <Link
+                  href={result ? signUpHref : "/sign-up"}
+                  className="inline-flex h-12 items-center justify-center rounded-xl bg-[#16A34A] px-6 text-sm font-semibold text-white"
+                >
+                  Create Free Account
+                </Link>
+                <Link
+                  href={result ? signInHref : "/sign-in"}
+                  className="inline-flex h-12 items-center justify-center rounded-xl border border-white/25 bg-white/5 px-6 text-sm font-semibold text-white"
+                >
+                  Sign in to claim
+                </Link>
+              </div>
             </div>
+          </section>
+        ) : result ? (
+          <div className="mt-6 rounded-2xl border border-[#A6F4C5] bg-[#ECFDF3] p-4 text-center text-sm text-[#027A48]">
+            Ready to track scans?{" "}
+            <Link href={signUpHref} className="font-bold underline">
+              Create a free account
+            </Link>{" "}
+            or{" "}
+            <Link href={signInHref} className="font-bold underline">
+              sign in to claim
+            </Link>
+            .
           </div>
-        </section>
-      </main>
+        ) : null}
+      </div>
     </div>
   );
 }

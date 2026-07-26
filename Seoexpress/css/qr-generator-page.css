@@ -1,0 +1,313 @@
+/* Free Google Review QR Code Generator SEO landing */
+
+.qr-hero {
+  padding: 3.5rem 0 2.5rem;
+  background: radial-gradient(ellipse at top, #ecfdf5 0%, #ffffff 55%);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.qr-kicker {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.qr-hero h1 {
+  margin: 0.75rem auto 0;
+  max-width: 18ch;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 5vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.qr-hero-lead {
+  margin: 1.25rem auto 0;
+  max-width: 46rem;
+  text-align: center;
+  color: var(--gray-600);
+}
+
+.qr-hero-lead p + p {
+  margin-top: 1rem;
+}
+
+.qr-checks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem 1.5rem;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.qr-tool-frame-wrap {
+  margin: 2.25rem auto 0;
+  max-width: 1100px;
+  border: 1px solid var(--gray-200);
+  border-radius: 20px;
+  overflow: hidden;
+  background: #f8fafc;
+  box-shadow: var(--shadow-lg);
+}
+
+.qr-tool-frame {
+  display: block;
+  width: 100%;
+  min-height: 920px;
+  border: 0;
+  background: #f8fafc;
+}
+
+.qr-section {
+  padding: 3.5rem 0;
+  border-bottom: 1px solid var(--gray-200);
+  background: #fff;
+}
+
+.qr-section--muted {
+  background: #f8fafc;
+}
+
+.qr-section h2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3vw, 2rem);
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  margin-bottom: 1rem;
+}
+
+.qr-section .prose {
+  max-width: 42rem;
+  color: var(--gray-600);
+}
+
+.qr-section .prose p + p {
+  margin-top: 1rem;
+}
+
+.qr-grid-4,
+.qr-grid-3,
+.qr-grid-2 {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.qr-grid-4 { grid-template-columns: repeat(4, 1fr); }
+.qr-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.qr-grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+@media (max-width: 900px) {
+  .qr-grid-4, .qr-grid-3 { grid-template-columns: repeat(2, 1fr); }
+  .qr-tool-frame { min-height: 1100px; }
+}
+
+@media (max-width: 640px) {
+  .qr-grid-4, .qr-grid-3, .qr-grid-2 { grid-template-columns: 1fr; }
+}
+
+.qr-card {
+  border: 1px solid var(--gray-200);
+  border-radius: 16px;
+  background: #fff;
+  padding: 1.25rem;
+}
+
+.qr-section--muted .qr-card {
+  background: #fff;
+}
+
+.qr-card h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0.65rem 0 0.35rem;
+}
+
+.qr-card p {
+  font-size: 0.925rem;
+  color: var(--gray-500);
+  margin: 0;
+}
+
+.qr-card .icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--blue-50);
+  color: var(--accent);
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.qr-steps {
+  counter-reset: step;
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+}
+
+.qr-steps li {
+  position: relative;
+  padding-left: 2.75rem;
+  margin-top: 0.85rem;
+  color: var(--gray-700);
+}
+
+.qr-steps li::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-table-wrap {
+  margin-top: 1.5rem;
+  overflow-x: auto;
+  border: 1px solid var(--gray-200);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.qr-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.qr-table th {
+  background: var(--navy-900);
+  color: #fff;
+  text-align: left;
+  padding: 1rem 1.25rem;
+}
+
+.qr-table td {
+  padding: 0.9rem 1.25rem;
+  border-top: 1px solid var(--gray-200);
+  color: var(--gray-700);
+}
+
+.qr-table .yes { color: var(--accent); font-weight: 800; }
+.qr-table .no { color: #f43f5e; font-weight: 800; }
+
+.qr-faq details {
+  border: 1px solid var(--gray-200);
+  border-radius: 14px;
+  background: #f8fafc;
+  padding: 1rem 1.25rem;
+  margin-top: 0.75rem;
+}
+
+.qr-faq summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--ink);
+  list-style: none;
+}
+
+.qr-faq summary::-webkit-details-marker { display: none; }
+
+.qr-faq details p {
+  margin-top: 0.75rem;
+  color: var(--gray-600);
+  font-size: 0.95rem;
+}
+
+.qr-final-cta {
+  background: var(--navy-900);
+  color: #fff;
+  padding: 3.5rem 0;
+}
+
+.qr-final-cta h2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3vw, 2rem);
+  font-weight: 800;
+  margin: 0 0 0.75rem;
+}
+
+.qr-final-cta p {
+  color: rgba(255,255,255,0.75);
+  max-width: 36rem;
+}
+
+.qr-final-cta .cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.free-tools-hero {
+  padding: 4rem 0 2.5rem;
+  background: radial-gradient(ellipse at top, #ecfdf5 0%, #fff 60%);
+}
+
+.free-tools-hero h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.free-tools-list {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, 1fr);
+  padding: 2rem 0 4rem;
+}
+
+@media (max-width: 700px) {
+  .free-tools-list { grid-template-columns: 1fr; }
+}
+
+.free-tools-list a {
+  display: block;
+  border: 1px solid var(--gray-200);
+  border-radius: 16px;
+  padding: 1.35rem;
+  background: #fff;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.free-tools-list a:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+}
+
+.free-tools-list h2 {
+  font-size: 1.15rem;
+  color: var(--ink);
+  margin: 0 0 0.35rem;
+}

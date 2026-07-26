@@ -164,7 +164,9 @@ export function isCsrfExemptPath(pathname: string): boolean {
     pathname.startsWith("/api/integrations/webhooks/incoming/") ||
     pathname === "/api/jobs/process" ||
     pathname.startsWith("/api/automations/") ||
-    pathname.startsWith("/auth/")
+    pathname.startsWith("/auth/") ||
+    // Public free SEO tool (called from marketing site + app landing)
+    pathname.startsWith("/api/public/qr")
   );
 }
 

@@ -18,6 +18,7 @@ const PUBLIC_PREFIXES = [
   "/reports/share/",
   "/api/webhooks/",
   "/tools/google-review-qr-code",
+  "/google-review-qr-code-generator",
   "/api/public/qr",
 ];
 
@@ -32,6 +33,8 @@ function isProtectedPath(pathname: string): boolean {
   if (
     pathname === "/tools/google-review-qr-code" ||
     pathname.startsWith("/tools/google-review-qr-code/") ||
+    pathname === "/google-review-qr-code-generator" ||
+    pathname.startsWith("/google-review-qr-code-generator/") ||
     pathname.startsWith("/api/public/qr") ||
     pathname.startsWith("/go/")
   ) {
