@@ -2,12 +2,19 @@
 
 import { forwardRef } from "react";
 import type { PosterConfig } from "@/lib/reputation/review-requests";
+import { cn } from "@/lib/utils";
 
 const FORMAT_SCALE: Record<PosterConfig["format"], string> = {
   a4: "max-w-[360px]",
   a5: "max-w-[300px]",
   letter: "max-w-[340px]",
 };
+
+/** Hero/SEO preview — wide footprint; height follows 3:4 aspect. */
+const SIZE_SCALE = {
+  default: "",
+  hero: "w-full",
+} as const;
 
 function darkenHex(hex: string, amount: number): string {
   const normalized = hex.replace("#", "");
@@ -44,16 +51,29 @@ export const ReviewPosterPreview = forwardRef<
     businessName: string;
     poster: PosterConfig;
     qrDataUrl: string | null;
+    /** `hero` uses a larger footprint for the SEO landing preview column. */
+    size?: keyof typeof SIZE_SCALE;
   }
->(function ReviewPosterPreview({ businessName, poster, qrDataUrl }, ref) {
+>(function ReviewPosterPreview({ businessName, poster, qrDataUrl, size = "default" }, ref) {
   const brand = poster.brandColor || "#16A34A";
   const brandDark = darkenHex(brand, 32);
+  const isHero = size === "hero";
 
   return (
-    <div className={`mx-auto w-full ${FORMAT_SCALE[poster.format]}`}>
+    <div
+      className={cn(
+        "mx-auto w-full",
+        isHero ? SIZE_SCALE.hero : FORMAT_SCALE[poster.format]
+      )}
+    >
       <div
         ref={ref}
-        className="relative aspect-[3/4] overflow-hidden rounded-[1.5rem] bg-white shadow-[0_24px_60px_rgba(11,27,50,0.18)] ring-1 ring-black/5"
+        className={cn(
+          "relative aspect-[3/4] w-full overflow-hidden bg-white ring-1 ring-black/5",
+          isHero
+            ? "rounded-[1.75rem] shadow-[0_28px_70px_rgba(11,27,50,0.16)]"
+            : "rounded-[1.5rem] shadow-[0_24px_60px_rgba(11,27,50,0.18)]"
+        )}
       >
         {/* Top brand field */}
         <div
@@ -77,12 +97,27 @@ export const ReviewPosterPreview = forwardRef<
               d="M0 180 C80 140 160 210 240 170 C320 130 360 200 400 160 L400 280 L0 280 Z"
             />
           </svg>
-          <div className="relative px-6 pb-10 pt-7 text-center text-white">
-            <GoldStars />
-            <h2 className="mt-3 text-[1.35rem] font-extrabold uppercase leading-tight tracking-[0.02em] drop-shadow-sm">
+          <div
+            className={cn(
+              "relative text-center text-white",
+              isHero ? "px-8 pb-12 pt-9" : "px-6 pb-10 pt-7"
+            )}
+          >
+            <GoldStars size={isHero ? "md" : "md"} />
+            <h2
+              className={cn(
+                "font-extrabold uppercase leading-tight tracking-[0.02em] drop-shadow-sm",
+                isHero ? "mt-4 text-[1.65rem]" : "mt-3 text-[1.35rem]"
+              )}
+            >
               {poster.title || "Leave us a review!"}
             </h2>
-            <p className="mt-1.5 text-[12px] font-medium text-white/90">
+            <p
+              className={cn(
+                "font-medium text-white/90",
+                isHero ? "mt-2 text-[14px]" : "mt-1.5 text-[12px]"
+              )}
+            >
               {poster.description || "Scan with your phone camera"}
             </p>
           </div>
@@ -99,8 +134,18 @@ export const ReviewPosterPreview = forwardRef<
         </svg>
 
         {/* Center QR */}
-        <div className="absolute inset-x-0 top-[44%] z-20 flex justify-center px-8">
-          <div className="w-[54%] max-w-[168px] rounded-2xl bg-white p-3 shadow-[0_12px_28px_rgba(15,23,42,0.16)] ring-1 ring-black/5">
+        <div
+          className={cn(
+            "absolute inset-x-0 top-[44%] z-20 flex justify-center",
+            isHero ? "px-10" : "px-8"
+          )}
+        >
+          <div
+            className={cn(
+              "rounded-2xl bg-white shadow-[0_12px_28px_rgba(15,23,42,0.16)] ring-1 ring-black/5",
+              isHero ? "w-[56%] max-w-[220px] p-4" : "w-[54%] max-w-[168px] p-3"
+            )}
+          >
             {qrDataUrl ? (
               <img
                 src={qrDataUrl}
@@ -114,17 +159,37 @@ export const ReviewPosterPreview = forwardRef<
         </div>
 
         {/* Bottom copy */}
-        <div className="absolute inset-x-0 bottom-0 flex h-[34%] flex-col items-center justify-end px-6 pb-5 text-center">
-          <p className="text-[15px] font-extrabold uppercase tracking-[0.04em] text-[#0B1B32]">
+        <div
+          className={cn(
+            "absolute inset-x-0 bottom-0 flex h-[34%] flex-col items-center justify-end text-center",
+            isHero ? "px-8 pb-6" : "px-6 pb-5"
+          )}
+        >
+          <p
+            className={cn(
+              "font-extrabold uppercase tracking-[0.04em] text-[#0B1B32]",
+              isHero ? "text-[17px]" : "text-[15px]"
+            )}
+          >
             {businessName || "Your Business"}
           </p>
           {poster.showFooter ? (
-            <p className="mt-1 max-w-[220px] text-[10px] leading-snug text-[#667085]">
+            <p
+              className={cn(
+                "leading-snug text-[#667085]",
+                isHero ? "mt-1.5 max-w-[260px] text-[11px]" : "mt-1 max-w-[220px] text-[10px]"
+              )}
+            >
               Thank you for supporting our local business.
             </p>
           ) : null}
           <div
-            className="mt-3 w-full rounded-xl px-3 py-2 text-[9px] font-semibold uppercase tracking-[0.12em] text-white"
+            className={cn(
+              "w-full font-semibold uppercase tracking-[0.12em] text-white",
+              isHero
+                ? "mt-4 rounded-xl px-3 py-2.5 text-[10px]"
+                : "mt-3 rounded-xl px-3 py-2 text-[9px]"
+            )}
             style={{ background: brandDark }}
           >
             Powered by Local SEO Express
