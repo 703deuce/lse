@@ -90,14 +90,14 @@ export const ReviewPosterPreview = forwardRef<
           <div
             className={cn(
               "relative text-center text-white",
-              isHero ? "px-8 pb-12 pt-9" : "px-6 pb-10 pt-7"
+              isHero ? "px-9 pb-14 pt-10" : "px-6 pb-10 pt-7"
             )}
           >
             <GoldStars size={isHero ? "md" : "md"} />
             <h2
               className={cn(
                 "font-extrabold uppercase leading-tight tracking-[0.02em] drop-shadow-sm",
-                isHero ? "mt-4 text-[1.65rem]" : "mt-3 text-[1.35rem]"
+                isHero ? "mt-5 text-[1.85rem] sm:text-[2rem]" : "mt-3 text-[1.35rem]"
               )}
             >
               {poster.title || "Leave us a review!"}
@@ -105,7 +105,7 @@ export const ReviewPosterPreview = forwardRef<
             <p
               className={cn(
                 "font-medium text-white/90",
-                isHero ? "mt-2 text-[14px]" : "mt-1.5 text-[12px]"
+                isHero ? "mt-2.5 text-[15px] sm:text-[16px]" : "mt-1.5 text-[12px]"
               )}
             >
               {poster.description || "Scan with your phone camera"}
@@ -127,13 +127,13 @@ export const ReviewPosterPreview = forwardRef<
         <div
           className={cn(
             "absolute inset-x-0 top-[44%] z-20 flex justify-center",
-            isHero ? "px-10" : "px-8"
+            isHero ? "px-8" : "px-8"
           )}
         >
           <div
             className={cn(
               "rounded-2xl bg-white shadow-[0_12px_28px_rgba(15,23,42,0.16)] ring-1 ring-black/5",
-              isHero ? "w-[56%] max-w-[220px] p-4" : "w-[54%] max-w-[168px] p-3"
+              isHero ? "w-[58%] max-w-[280px] p-5" : "w-[54%] max-w-[168px] p-3"
             )}
           >
             {qrDataUrl ? (
@@ -152,13 +152,13 @@ export const ReviewPosterPreview = forwardRef<
         <div
           className={cn(
             "absolute inset-x-0 bottom-0 flex h-[34%] flex-col items-center justify-end text-center",
-            isHero ? "px-8 pb-6" : "px-6 pb-5"
+            isHero ? "px-9 pb-7" : "px-6 pb-5"
           )}
         >
           <p
             className={cn(
               "font-extrabold uppercase tracking-[0.04em] text-[#0B1B32]",
-              isHero ? "text-[17px]" : "text-[15px]"
+              isHero ? "text-[18px] sm:text-[19px]" : "text-[15px]"
             )}
           >
             {businessName || "Your Business"}
@@ -167,7 +167,7 @@ export const ReviewPosterPreview = forwardRef<
             <p
               className={cn(
                 "leading-snug text-[#667085]",
-                isHero ? "mt-1.5 max-w-[260px] text-[11px]" : "mt-1 max-w-[220px] text-[10px]"
+                isHero ? "mt-2 max-w-[280px] text-[12px]" : "mt-1 max-w-[220px] text-[10px]"
               )}
             >
               Thank you for supporting our local business.
@@ -177,7 +177,7 @@ export const ReviewPosterPreview = forwardRef<
             className={cn(
               "w-full font-semibold uppercase tracking-[0.12em] text-white",
               isHero
-                ? "mt-4 rounded-xl px-3 py-2.5 text-[10px]"
+                ? "mt-5 rounded-xl px-3 py-3 text-[11px]"
                 : "mt-3 rounded-xl px-3 py-2 text-[9px]"
             )}
             style={{ background: brandDark }}

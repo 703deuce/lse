@@ -167,16 +167,16 @@ export function PublicQrGenerator({
   const signInHref = `/sign-in?next=${encodeURIComponent(claimNext)}`;
 
   const formCard = (
-    <div className="rounded-[1.25rem] border border-[#E6EAF0] bg-white p-6 shadow-[0_12px_36px_rgba(11,27,50,0.06)] sm:p-7">
-      <div className="space-y-7">
-        <div className="space-y-3.5">
+    <div className="rounded-[1.25rem] border border-[#E6EAF0] bg-white p-5 shadow-[0_12px_36px_rgba(11,27,50,0.06)] sm:p-6">
+      <div className="space-y-5">
+        <div className="space-y-3">
           <p className="text-[15px] font-bold text-[#0B1B32]">
             <span className="text-[#16A34A]">1.</span> Find your business
           </p>
           <label className="block">
             <span className={qrUi.label}>Business name</span>
             <input
-              className={cn(qrUi.input, "mt-1.5 h-12")}
+              className={cn(qrUi.input, "mt-1.5 h-11")}
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
               placeholder="Premier Junk Removal"
@@ -185,13 +185,13 @@ export function PublicQrGenerator({
           <label className="block">
             <span className={qrUi.label}>Google review link</span>
             <input
-              className={cn(qrUi.input, "mt-1.5 h-12")}
+              className={cn(qrUi.input, "mt-1.5 h-11")}
               value={placeOrUrl}
               onChange={(e) => setPlaceOrUrl(e.target.value)}
               placeholder="Paste Maps / review URL or Place ID"
             />
           </label>
-          <div className="pt-0.5 text-right">
+          <div className="text-right">
             <a
               href="https://support.google.com/business/answer/7035772"
               target="_blank"
@@ -203,14 +203,14 @@ export function PublicQrGenerator({
           </div>
         </div>
 
-        <div className="space-y-3.5 border-t border-[#EEF2F6] pt-7">
+        <div className="space-y-3 border-t border-[#EEF2F6] pt-5">
           <p className="text-[15px] font-bold text-[#0B1B32]">
             <span className="text-[#16A34A]">2.</span> Customize your poster
           </p>
           <label className="block">
             <span className={qrUi.label}>Headline</span>
             <input
-              className={cn(qrUi.input, "mt-1.5 h-12")}
+              className={cn(qrUi.input, "mt-1.5 h-11")}
               value={headline}
               onChange={(e) => setHeadline(e.target.value)}
               maxLength={50}
@@ -219,7 +219,7 @@ export function PublicQrGenerator({
           <label className="block">
             <span className={qrUi.label}>Supporting text</span>
             <input
-              className={cn(qrUi.input, "mt-1.5 h-12")}
+              className={cn(qrUi.input, "mt-1.5 h-11")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               maxLength={60}
@@ -227,9 +227,9 @@ export function PublicQrGenerator({
           </label>
         </div>
 
-        <div className="border-t border-[#EEF2F6] pt-7">
+        <div className="border-t border-[#EEF2F6] pt-5">
           <p className={qrUi.label}>Poster color</p>
-          <div className="mt-3 flex flex-wrap gap-3">
+          <div className="mt-2.5 flex flex-wrap gap-2.5">
             {QR_MOCK_COLORS.map((color) => (
               <button
                 key={color}
@@ -237,7 +237,7 @@ export function PublicQrGenerator({
                 aria-label={`Choose ${color}`}
                 onClick={() => setBrandColor(color)}
                 className={cn(
-                  "h-10 w-10 rounded-full transition",
+                  "h-9 w-9 rounded-full transition",
                   brandColor === color
                     ? "ring-2 ring-[#0B1B32] ring-offset-2"
                     : "ring-1 ring-black/10 hover:ring-black/20"
@@ -248,11 +248,11 @@ export function PublicQrGenerator({
           </div>
         </div>
 
-        <div className="space-y-3 pt-1">
+        <div className="space-y-2.5 pt-0.5">
           <button
             type="button"
             disabled={generating || !placeOrUrl.trim()}
-            className="inline-flex h-14 w-full items-center justify-center gap-2.5 rounded-xl bg-[#16A34A] text-[15px] font-bold text-white shadow-[0_12px_28px_rgba(22,163,74,0.28)] transition hover:bg-[#15803D] disabled:opacity-50"
+            className="inline-flex h-12 w-full items-center justify-center gap-2.5 rounded-xl bg-[#16A34A] text-[15px] font-bold text-white shadow-[0_12px_28px_rgba(22,163,74,0.28)] transition hover:bg-[#15803D] disabled:opacity-50"
             onClick={() => void generate()}
           >
             {generating ? <Loader2 className="h-5 w-5 animate-spin" /> : <QrCode className="h-5 w-5" />}
@@ -267,8 +267,8 @@ export function PublicQrGenerator({
   );
 
   const previewCard = (
-    <div className="flex h-full min-h-full flex-col rounded-[1.25rem] border border-[#E6EAF0] bg-white p-5 shadow-[0_16px_44px_rgba(11,27,50,0.08)] sm:p-6">
-      <div className="flex shrink-0 gap-1 rounded-xl bg-[#F1F5F9] p-1.5">
+    <div className="flex h-full min-h-full flex-col rounded-[1.25rem] border border-[#E6EAF0] bg-white p-4 shadow-[0_16px_44px_rgba(11,27,50,0.08)] sm:p-5">
+      <div className="flex shrink-0 gap-1 rounded-xl bg-[#F1F5F9] p-1">
         {(
           [
             ["poster", "Poster Preview"],
@@ -281,7 +281,7 @@ export function PublicQrGenerator({
             type="button"
             onClick={() => setTab(id)}
             className={cn(
-              "flex-1 rounded-lg px-2 py-2.5 text-xs font-semibold transition sm:text-sm",
+              "flex-1 rounded-lg px-2 py-2 text-xs font-semibold transition sm:text-sm",
               tab === id
                 ? "bg-white text-[#0B1B32] shadow-sm"
                 : "text-[#64748B] hover:text-[#0B1B32]"
@@ -292,10 +292,10 @@ export function PublicQrGenerator({
         ))}
       </div>
 
-      {/* Absolute stage so poster can reliably fill available height with padding */}
-      <div className="relative mt-5 min-h-[560px] flex-1 rounded-2xl bg-[#F3F6FA] sm:min-h-[640px]">
-        <div className="absolute inset-4 flex items-center justify-center sm:inset-5">
-          {tab === "how" ? (
+      {/* Light stage pad (~12px): poster grows to fill leftover height/width without feeling jammed */}
+      <div className="relative mt-3 min-h-[600px] flex-1 overflow-hidden rounded-xl bg-[#EEF2F7] sm:min-h-[700px]">
+        {tab === "how" ? (
+          <div className="absolute inset-0 flex items-center justify-center p-5">
             <div className="w-full max-w-md rounded-2xl border border-[#E6EAF0] bg-white p-7 shadow-sm">
               <p className="text-base font-bold text-[#0B1B32]">From scan to Google review</p>
               <ol className="mt-5 space-y-4 text-sm leading-6 text-[#475569]">
@@ -314,26 +314,28 @@ export function PublicQrGenerator({
                 ))}
               </ol>
             </div>
-          ) : tab === "qr" ? (
-            <div className="flex h-full w-full flex-col items-center justify-center">
-              {qrDataUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={qrDataUrl}
-                  alt="Google Review QR Code"
-                  className="h-auto max-h-[75%] w-auto max-w-[360px] rounded-2xl bg-white p-6 shadow-[0_16px_40px_rgba(11,27,50,0.1)]"
-                />
-              ) : (
-                <div className="flex h-72 w-72 items-center justify-center rounded-2xl border border-dashed border-[#CBD5E1] bg-white text-sm text-[#94A3B8]">
-                  Generate to unlock QR
-                </div>
-              )}
-              <p className="mt-5 text-center text-sm font-semibold text-[#0B1B32]">
-                QR code only · print-ready PNG
-              </p>
-            </div>
-          ) : (
-            <div className="absolute left-1/2 top-1/2 aspect-[3/4] h-[92%] max-h-full max-w-full -translate-x-1/2 -translate-y-1/2">
+          </div>
+        ) : tab === "qr" ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
+            {qrDataUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={qrDataUrl}
+                alt="Google Review QR Code"
+                className="h-auto max-h-[80%] w-auto max-w-[400px] rounded-2xl bg-white p-6 shadow-[0_16px_40px_rgba(11,27,50,0.1)]"
+              />
+            ) : (
+              <div className="flex h-72 w-72 items-center justify-center rounded-2xl border border-dashed border-[#CBD5E1] bg-white text-sm text-[#94A3B8]">
+                Generate to unlock QR
+              </div>
+            )}
+            <p className="mt-5 text-center text-sm font-semibold text-[#0B1B32]">
+              QR code only · print-ready PNG
+            </p>
+          </div>
+        ) : (
+          <div className="absolute inset-2.5 flex items-center justify-center sm:inset-3">
+            <div className="aspect-[3/4] h-full max-h-full w-auto max-w-full">
               <ReviewPosterPreview
                 ref={posterRef}
                 businessName={businessName || "Your Business"}
@@ -342,15 +344,15 @@ export function PublicQrGenerator({
                 size="hero"
               />
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      <div className="mt-5 grid shrink-0 gap-2.5 sm:grid-cols-3">
+      <div className="mt-3 grid shrink-0 gap-2 sm:grid-cols-3">
         <button
           type="button"
           disabled={!result}
-          className={cn(qrUi.btnPrimary, "h-12 w-full text-[13px] disabled:opacity-40")}
+          className={cn(qrUi.btnPrimary, "h-11 w-full text-[13px] disabled:opacity-40")}
           onClick={() => void downloadPoster()}
         >
           <Download className="h-4 w-4 shrink-0" />
@@ -359,7 +361,7 @@ export function PublicQrGenerator({
         <button
           type="button"
           disabled={!result || !qrDataUrl}
-          className={cn(qrUi.btnSecondary, "h-12 w-full text-[13px] disabled:opacity-40")}
+          className={cn(qrUi.btnSecondary, "h-11 w-full text-[13px] disabled:opacity-40")}
           onClick={downloadQrOnly}
         >
           <Download className="h-4 w-4 shrink-0" />
@@ -368,7 +370,7 @@ export function PublicQrGenerator({
         <button
           type="button"
           disabled={!result}
-          className={cn(qrUi.btnSecondary, "h-12 w-full text-[13px] disabled:opacity-40")}
+          className={cn(qrUi.btnSecondary, "h-11 w-full text-[13px] disabled:opacity-40")}
           onClick={() => void copyLink()}
         >
           {copied ? <Check className="h-4 w-4 shrink-0" /> : <Copy className="h-4 w-4 shrink-0" />}
@@ -377,7 +379,7 @@ export function PublicQrGenerator({
       </div>
 
       {result && embedded ? (
-        <p className="mt-3 shrink-0 text-center text-xs leading-5 text-[#64748B]">
+        <p className="mt-2.5 shrink-0 text-center text-xs leading-5 text-[#64748B]">
           Want scan tracking?{" "}
           <Link href={signUpHref} className="font-bold text-[#16A34A] underline" target="_blank" rel="noopener noreferrer">
             Create a free account
@@ -393,21 +395,21 @@ export function PublicQrGenerator({
   );
 
   const intro = !hideIntro ? (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#16A34A]">
         Free Google Review QR Code Generator
       </p>
-      <h1 className="text-4xl font-extrabold tracking-tight text-[#0B1B32] sm:text-[2.75rem] sm:leading-[1.08] lg:text-[3.1rem] lg:leading-[1.05]">
+      <h1 className="text-[2.35rem] font-extrabold tracking-tight text-[#0B1B32] sm:text-[2.6rem] sm:leading-[1.08] lg:text-[2.85rem] lg:leading-[1.06]">
         Free Google Review QR Code Generator
       </h1>
-      <p className="max-w-[34rem] text-[15px] leading-7 text-[#475569]">
+      <p className="max-w-[32rem] text-[15px] leading-7 text-[#475569]">
         Create a Google Review QR Code in seconds. Design a printable QR poster, customize the
         colors, and download it instantly. Upgrade later to track scans, compare placements, and
         grow more Google reviews.
       </p>
-      <ul className="flex flex-wrap gap-x-6 gap-y-2.5 pt-1 text-sm font-semibold text-[#0B1B32]">
+      <ul className="flex flex-wrap gap-x-5 gap-y-2 pt-0.5 text-sm font-semibold text-[#0B1B32]">
         {["No account required", "Instant download", "Works on any device"].map((t) => (
-          <li key={t} className="inline-flex items-center gap-2">
+          <li key={t} className="inline-flex items-center gap-1.5">
             <Check className="h-4 w-4 text-[#16A34A]" strokeWidth={2.5} />
             {t}
           </li>
@@ -422,7 +424,7 @@ export function PublicQrGenerator({
         {error ? (
           <div
             className={cn(
-              "mb-5 rounded-2xl border px-4 py-3 text-sm",
+              "mb-4 rounded-2xl border px-4 py-3 text-sm",
               rateLimited
                 ? "border-[#FEDF89] bg-[#FFFAEB] text-[#B54708]"
                 : "border-red-200 bg-red-50 text-red-800"
@@ -432,8 +434,8 @@ export function PublicQrGenerator({
           </div>
         ) : null}
 
-        <div className="grid items-stretch gap-8 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.32fr)] lg:gap-10">
-          <div className="flex flex-col gap-7">
+        <div className="grid items-stretch gap-6 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.32fr)] lg:gap-7">
+          <div className="flex flex-col gap-5">
             {intro}
             <div className="flex flex-1 flex-col">{formCard}</div>
           </div>

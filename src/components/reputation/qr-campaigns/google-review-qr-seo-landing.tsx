@@ -108,19 +108,19 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
 
       <main>
         <section className="border-b border-[#E2E8F0] bg-[radial-gradient(ellipse_at_top_left,_#ECFDF5_0%,_#ffffff_42%,_#F8FAFC_100%)]">
-          <div id="generator" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+          <div id="generator" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-10 sm:px-6 lg:px-8 lg:py-12">
             <PublicQrGenerator seoLayout />
           </div>
         </section>
 
         <section className="border-b border-[#E2E8F0] bg-white">
-          <div className="mx-auto max-w-3xl px-4 py-12 text-center sm:px-6">
+          <div className="mx-auto max-w-3xl px-4 py-10 text-center sm:px-6 lg:py-12">
             <p className="text-base leading-7 text-[#475569]">
               A Google Review QR Code — sometimes called a Google My Business QR Code or Google
               Business Profile QR Code — sends customers straight to your Google review page. No
               searching. No friction. Just scan, rate, and review.
             </p>
-            <p className="mt-4 text-base leading-7 text-[#475569]">
+            <p className="mt-3 text-base leading-7 text-[#475569]">
               Whether you need a Google review poster for your front desk or a printable QR code for
               Google reviews on invoices and trucks, this free Google Review QR Code Generator gets
               you there fast. Create a free account later to track scans and compare placements.
@@ -129,7 +129,7 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
         </section>
 
         <section id="benefits" className="scroll-mt-24 border-b border-[#E2E8F0] bg-white">
-          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-14 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
+          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:py-14">
             {[
               { icon: BarChart3, title: "Get More Google Reviews", body: "Make it easier for happy customers to leave a review before they forget." },
               { icon: Printer, title: "Ready to Print", body: "Download a professional poster, table sign, or QR image in seconds." },

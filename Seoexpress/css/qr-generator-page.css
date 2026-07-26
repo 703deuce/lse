@@ -16,7 +16,7 @@
 }
 
 .qr-hero {
-  padding: 1.25rem 0 1.5rem;
+  padding: 1rem 0 1.25rem;
   background:
     radial-gradient(ellipse at top left, #ecfdf5 0%, transparent 45%),
     linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
@@ -65,7 +65,7 @@
 }
 
 .qr-tool-frame-wrap {
-  margin: 0.5rem 0 0;
+  margin: 0.35rem 0 0;
   border: 1px solid var(--qr-line);
   border-radius: 20px;
   overflow: hidden;
@@ -76,13 +76,13 @@
 .qr-tool-frame {
   display: block;
   width: 100%;
-  min-height: 1120px;
+  min-height: 1180px;
   border: 0;
   background: #f8fafc;
 }
 
 .qr-seo-copy {
-  padding: 2.75rem 0;
+  padding: 2.5rem 0;
   border-bottom: 1px solid var(--qr-line);
   background: #fff;
 }
@@ -99,7 +99,7 @@
 }
 
 .qr-section {
-  padding: 3.75rem 0;
+  padding: 3.25rem 0;
   border-bottom: 1px solid var(--qr-line);
   background: #fff;
 }
@@ -418,7 +418,7 @@
   .qr-compare { grid-template-columns: 1fr; }
   .qr-faq { grid-template-columns: 1fr; }
   .qr-grid-4 { grid-template-columns: repeat(2, 1fr); }
-  .qr-tool-frame { min-height: 1100px; }
+  .qr-tool-frame { min-height: 1160px; }
 }
 
 @media (max-width: 700px) {
@@ -428,5 +428,5 @@
   .qr-grid-3,
   .qr-grid-2,
   .free-tools-list { grid-template-columns: 1fr; }
-  .qr-tool-frame { min-height: 1280px; }
+  .qr-tool-frame { min-height: 1340px; }
 }
