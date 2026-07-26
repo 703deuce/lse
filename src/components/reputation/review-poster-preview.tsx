@@ -10,11 +10,6 @@ const FORMAT_SCALE: Record<PosterConfig["format"], string> = {
   letter: "max-w-[340px]",
 };
 
-/** Hero/SEO preview — wide footprint; height follows 3:4 aspect. */
-const SIZE_SCALE = {
-  default: "",
-  hero: "w-full",
-} as const;
 
 function darkenHex(hex: string, amount: number): string {
   const normalized = hex.replace("#", "");
@@ -52,7 +47,7 @@ export const ReviewPosterPreview = forwardRef<
     poster: PosterConfig;
     qrDataUrl: string | null;
     /** `hero` uses a larger footprint for the SEO landing preview column. */
-    size?: keyof typeof SIZE_SCALE;
+    size?: "default" | "hero";
   }
 >(function ReviewPosterPreview({ businessName, poster, qrDataUrl, size = "default" }, ref) {
   const brand = poster.brandColor || "#16A34A";
@@ -62,17 +57,20 @@ export const ReviewPosterPreview = forwardRef<
   return (
     <div
       className={cn(
-        "mx-auto w-full",
-        isHero ? SIZE_SCALE.hero : FORMAT_SCALE[poster.format]
+        "mx-auto",
+        isHero
+          ? "flex h-full max-h-full w-full items-center justify-center"
+          : cn("w-full", FORMAT_SCALE[poster.format])
       )}
     >
       <div
         ref={ref}
         className={cn(
-          "relative aspect-[3/4] w-full overflow-hidden bg-white ring-1 ring-black/5",
+          "relative overflow-hidden bg-white ring-1 ring-black/5",
           isHero
-            ? "rounded-[1.75rem] shadow-[0_28px_70px_rgba(11,27,50,0.16)]"
-            : "rounded-[1.5rem] shadow-[0_24px_60px_rgba(11,27,50,0.18)]"
+            ? // Fill stage height; width follows 3:4, capped so side padding remains
+              "aspect-[3/4] h-full max-h-full w-auto max-w-[92%] rounded-[1.75rem] shadow-[0_28px_70px_rgba(11,27,50,0.16)]"
+            : "aspect-[3/4] w-full rounded-[1.5rem] shadow-[0_24px_60px_rgba(11,27,50,0.18)]"
         )}
       >
         {/* Top brand field */}

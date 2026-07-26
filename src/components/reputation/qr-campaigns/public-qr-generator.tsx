@@ -292,103 +292,101 @@ export function PublicQrGenerator({
         ))}
       </div>
 
-      {/* Top-aligned: large poster first, then downloads — no dead vertical centering */}
-      <div className="mt-5 flex min-h-0 flex-1 flex-col">
-        <div className="rounded-2xl bg-[#F3F6FA] px-4 py-5 sm:px-6 sm:py-6">
-          {tab === "how" ? (
-            <div className="mx-auto w-full max-w-md rounded-2xl border border-[#E6EAF0] bg-white p-7 shadow-sm">
-              <p className="text-base font-bold text-[#0B1B32]">From scan to Google review</p>
-              <ol className="mt-5 space-y-4 text-sm leading-6 text-[#475569]">
-                {[
-                  "Customer scans your poster QR code",
-                  "They land on your tracked Local SEO Express link",
-                  "We send them straight to your Google review page",
-                  "You unlock scan analytics after a free account",
-                ].map((line, i) => (
-                  <li key={line} className="flex gap-3">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#16A34A] text-xs font-bold text-white">
-                      {i + 1}
-                    </span>
-                    {line}
-                  </li>
-                ))}
-              </ol>
-            </div>
-          ) : tab === "qr" ? (
-            <div className="flex w-full flex-col items-center justify-center py-2">
-              {qrDataUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={qrDataUrl}
-                  alt="Google Review QR Code"
-                  className="h-auto w-full max-w-[360px] rounded-2xl bg-white p-6 shadow-[0_16px_40px_rgba(11,27,50,0.1)]"
-                />
-              ) : (
-                <div className="flex h-72 w-72 items-center justify-center rounded-2xl border border-dashed border-[#CBD5E1] bg-white text-sm text-[#94A3B8]">
-                  Generate to unlock QR
-                </div>
-              )}
-              <p className="mt-5 text-center text-sm font-semibold text-[#0B1B32]">
-                QR code only · print-ready PNG
-              </p>
-            </div>
-          ) : (
-            <div className="mx-auto w-[92%] max-w-none">
-              <ReviewPosterPreview
-                ref={posterRef}
-                businessName={businessName || "Your Business"}
-                poster={poster}
-                qrDataUrl={qrDataUrl}
-                size="hero"
+      {/* Stage fills leftover height; poster scales up inside with soft padding */}
+      <div className="mt-5 flex min-h-0 flex-1 items-center justify-center rounded-2xl bg-[#F3F6FA] p-4 sm:p-5">
+        {tab === "how" ? (
+          <div className="w-full max-w-md rounded-2xl border border-[#E6EAF0] bg-white p-7 shadow-sm">
+            <p className="text-base font-bold text-[#0B1B32]">From scan to Google review</p>
+            <ol className="mt-5 space-y-4 text-sm leading-6 text-[#475569]">
+              {[
+                "Customer scans your poster QR code",
+                "They land on your tracked Local SEO Express link",
+                "We send them straight to your Google review page",
+                "You unlock scan analytics after a free account",
+              ].map((line, i) => (
+                <li key={line} className="flex gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#16A34A] text-xs font-bold text-white">
+                    {i + 1}
+                  </span>
+                  {line}
+                </li>
+              ))}
+            </ol>
+          </div>
+        ) : tab === "qr" ? (
+          <div className="flex h-full w-full flex-col items-center justify-center">
+            {qrDataUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={qrDataUrl}
+                alt="Google Review QR Code"
+                className="h-auto max-h-[75%] w-auto max-w-[360px] rounded-2xl bg-white p-6 shadow-[0_16px_40px_rgba(11,27,50,0.1)]"
               />
-            </div>
-          )}
-        </div>
-
-        <div className="mt-5 grid shrink-0 gap-2.5 sm:grid-cols-3">
-          <button
-            type="button"
-            disabled={!result}
-            className={cn(qrUi.btnPrimary, "h-12 w-full text-[13px] disabled:opacity-40")}
-            onClick={() => void downloadPoster()}
-          >
-            <Download className="h-4 w-4 shrink-0" />
-            <span className="truncate">Download Poster (PDF)</span>
-          </button>
-          <button
-            type="button"
-            disabled={!result || !qrDataUrl}
-            className={cn(qrUi.btnSecondary, "h-12 w-full text-[13px] disabled:opacity-40")}
-            onClick={downloadQrOnly}
-          >
-            <Download className="h-4 w-4 shrink-0" />
-            <span className="truncate">Download Image (PNG)</span>
-          </button>
-          <button
-            type="button"
-            disabled={!result}
-            className={cn(qrUi.btnSecondary, "h-12 w-full text-[13px] disabled:opacity-40")}
-            onClick={() => void copyLink()}
-          >
-            {copied ? <Check className="h-4 w-4 shrink-0" /> : <Copy className="h-4 w-4 shrink-0" />}
-            <span className="truncate">{copied ? "Copied" : "Copy Review Link"}</span>
-          </button>
-        </div>
-
-        {result && embedded ? (
-          <p className="mt-4 text-center text-xs leading-5 text-[#64748B]">
-            Want scan tracking?{" "}
-            <Link href={signUpHref} className="font-bold text-[#16A34A] underline" target="_blank" rel="noopener noreferrer">
-              Create a free account
-            </Link>{" "}
-            or{" "}
-            <Link href={signInHref} className="font-bold text-[#16A34A] underline" target="_blank" rel="noopener noreferrer">
-              sign in
-            </Link>
-            .
-          </p>
-        ) : null}
+            ) : (
+              <div className="flex h-72 w-72 items-center justify-center rounded-2xl border border-dashed border-[#CBD5E1] bg-white text-sm text-[#94A3B8]">
+                Generate to unlock QR
+              </div>
+            )}
+            <p className="mt-5 text-center text-sm font-semibold text-[#0B1B32]">
+              QR code only · print-ready PNG
+            </p>
+          </div>
+        ) : (
+          <div className="flex h-full max-h-full w-full items-center justify-center">
+            <ReviewPosterPreview
+              ref={posterRef}
+              businessName={businessName || "Your Business"}
+              poster={poster}
+              qrDataUrl={qrDataUrl}
+              size="hero"
+            />
+          </div>
+        )}
       </div>
+
+      <div className="mt-5 grid shrink-0 gap-2.5 sm:grid-cols-3">
+        <button
+          type="button"
+          disabled={!result}
+          className={cn(qrUi.btnPrimary, "h-12 w-full text-[13px] disabled:opacity-40")}
+          onClick={() => void downloadPoster()}
+        >
+          <Download className="h-4 w-4 shrink-0" />
+          <span className="truncate">Download Poster (PDF)</span>
+        </button>
+        <button
+          type="button"
+          disabled={!result || !qrDataUrl}
+          className={cn(qrUi.btnSecondary, "h-12 w-full text-[13px] disabled:opacity-40")}
+          onClick={downloadQrOnly}
+        >
+          <Download className="h-4 w-4 shrink-0" />
+          <span className="truncate">Download Image (PNG)</span>
+        </button>
+        <button
+          type="button"
+          disabled={!result}
+          className={cn(qrUi.btnSecondary, "h-12 w-full text-[13px] disabled:opacity-40")}
+          onClick={() => void copyLink()}
+        >
+          {copied ? <Check className="h-4 w-4 shrink-0" /> : <Copy className="h-4 w-4 shrink-0" />}
+          <span className="truncate">{copied ? "Copied" : "Copy Review Link"}</span>
+        </button>
+      </div>
+
+      {result && embedded ? (
+        <p className="mt-3 shrink-0 text-center text-xs leading-5 text-[#64748B]">
+          Want scan tracking?{" "}
+          <Link href={signUpHref} className="font-bold text-[#16A34A] underline" target="_blank" rel="noopener noreferrer">
+            Create a free account
+          </Link>{" "}
+          or{" "}
+          <Link href={signInHref} className="font-bold text-[#16A34A] underline" target="_blank" rel="noopener noreferrer">
+            sign in
+          </Link>
+          .
+        </p>
+      ) : null}
     </div>
   );
 
