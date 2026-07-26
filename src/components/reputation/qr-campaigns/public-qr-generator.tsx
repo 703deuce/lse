@@ -294,7 +294,7 @@ export function PublicQrGenerator({
 
       {/* Center the large poster block in the tall column — wide poster, soft padding */}
       <div className="flex min-h-0 flex-1 flex-col justify-center py-2">
-        <div className="rounded-2xl bg-[#F3F6FA] px-5 py-6 sm:px-8 sm:py-7">
+        <div className="rounded-2xl bg-[#F3F6FA] px-4 py-5 sm:px-6 sm:py-6">
           {tab === "how" ? (
             <div className="mx-auto w-full max-w-md rounded-2xl border border-[#E6EAF0] bg-white p-7 shadow-sm">
               <p className="text-base font-bold text-[#0B1B32]">From scan to Google review</p>
@@ -321,7 +321,7 @@ export function PublicQrGenerator({
                 <img
                   src={qrDataUrl}
                   alt="Google Review QR Code"
-                  className="h-auto w-full max-w-[340px] rounded-2xl bg-white p-6 shadow-[0_16px_40px_rgba(11,27,50,0.1)]"
+                  className="h-auto w-full max-w-[360px] rounded-2xl bg-white p-6 shadow-[0_16px_40px_rgba(11,27,50,0.1)]"
                 />
               ) : (
                 <div className="flex h-72 w-72 items-center justify-center rounded-2xl border border-dashed border-[#CBD5E1] bg-white text-sm text-[#94A3B8]">
@@ -333,7 +333,7 @@ export function PublicQrGenerator({
               </p>
             </div>
           ) : (
-            <div className="mx-auto w-full max-w-[500px]">
+            <div className="mx-auto w-[92%] max-w-none">
               <ReviewPosterPreview
                 ref={posterRef}
                 businessName={businessName || "Your Business"}
