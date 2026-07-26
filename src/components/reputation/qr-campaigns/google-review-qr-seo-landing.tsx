@@ -108,7 +108,7 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
 
       <main>
         <section className="border-b border-[#E2E8F0] bg-[radial-gradient(ellipse_at_top_left,_#ECFDF5_0%,_#ffffff_42%,_#F8FAFC_100%)]">
-          <div id="generator" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+          <div id="generator" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
             <PublicQrGenerator seoLayout />
           </div>
         </section>

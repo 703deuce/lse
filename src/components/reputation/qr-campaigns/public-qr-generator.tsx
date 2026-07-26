@@ -333,7 +333,7 @@ export function PublicQrGenerator({
               </p>
             </div>
           ) : (
-            <div className="absolute left-1/2 top-1/2 aspect-[3/4] h-[90%] max-h-full -translate-x-1/2 -translate-y-1/2">
+            <div className="absolute left-1/2 top-1/2 aspect-[3/4] h-[92%] max-h-full max-w-full -translate-x-1/2 -translate-y-1/2">
               <ReviewPosterPreview
                 ref={posterRef}
                 businessName={businessName || "Your Business"}
@@ -432,7 +432,7 @@ export function PublicQrGenerator({
           </div>
         ) : null}
 
-        <div className="grid items-stretch gap-8 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.22fr)] lg:gap-10">
+        <div className="grid items-stretch gap-8 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.32fr)] lg:gap-10">
           <div className="flex flex-col gap-7">
             {intro}
             <div className="flex flex-1 flex-col">{formCard}</div>
