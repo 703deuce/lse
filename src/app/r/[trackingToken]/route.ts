@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { appUrl } from "@/lib/app-url";
 import { recordTrackingClick } from "@/lib/reputation/campaigns";
 import { resolveAndRecordQrScan } from "@/lib/reputation/qr-campaigns";
 import { sanitizeReviewRedirectUrl } from "@/lib/security/safe-redirect";
@@ -50,11 +51,15 @@ export async function GET(
 
   if (qr.destinationUrl) {
     // QR campaigns open the mobile review funnel first (mockup flow), then Google.
-    const landing = new URL(`/go/${encodeURIComponent(trackingToken)}`, request.url);
-    return NextResponse.redirect(landing, 302);
+    // Use the public app origin — request.url can be the internal listen address
+    // (e.g. https://0.0.0.0:3000), which Safari blocks as a restricted port.
+    return NextResponse.redirect(
+      appUrl(`/go/${encodeURIComponent(trackingToken)}`),
+      302,
+    );
   }
 
-  const fallback = new URL("/r/unavailable", request.url);
+  const fallback = new URL(appUrl("/r/unavailable"));
   if (qr.inactive) fallback.searchParams.set("reason", "paused");
   else if (qr.notFound) fallback.searchParams.set("reason", "missing");
   else fallback.searchParams.set("reason", "invalid");
