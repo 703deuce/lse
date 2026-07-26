@@ -63,8 +63,7 @@ const FAQS = [
 export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean }) {
   if (embed) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] px-3 py-4 sm:px-5 sm:py-5">
-        {/* Full mockup hero inside iframe so left/right heights stay balanced */}
+      <div className="min-h-[100%] bg-[#F8FAFC] px-2 py-3 sm:px-4 sm:py-4">
         <PublicQrGenerator embedded seoLayout />
       </div>
     );
@@ -108,8 +107,29 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
 
       <main>
         <section className="border-b border-[#E2E8F0] bg-[radial-gradient(ellipse_at_top,_#ECFDF5_0%,_#ffffff_48%,_#F8FAFC_100%)]">
-          <div id="generator" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+          <div id="generator" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
             <PublicQrGenerator seoLayout />
+          </div>
+        </section>
+
+        <section id="benefits" className="scroll-mt-24 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+          <div className="mx-auto grid max-w-6xl gap-5 px-4 py-6 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:gap-6 lg:py-7">
+            {[
+              { icon: BarChart3, title: "Get More Google Reviews", body: "Boost visibility and attract more customers to your business." },
+              { icon: Printer, title: "Ready to Print", body: "Generate and print your QR code in just a few simple steps." },
+              { icon: Gift, title: "No Account Required", body: "Start generating QR codes for free without creating an account." },
+              { icon: BarChart3, title: "Track Performance", body: "Monitor how many people scan your QR code after free signup." },
+            ].map((item) => (
+              <div key={item.title} className="flex items-start gap-3 text-left">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#16A34A] shadow-sm ring-1 ring-[#E2E8F0]">
+                  <item.icon className="h-5 w-5" strokeWidth={1.75} />
+                </span>
+                <div>
+                  <h3 className="text-sm font-bold text-[#0B1220]">{item.title}</h3>
+                  <p className="mt-1 text-xs leading-5 text-[#64748B]">{item.body}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -125,25 +145,6 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
               Google reviews on invoices and trucks, this free Google Review QR Code Generator gets
               you there fast. Create a free account later to track scans and compare placements.
             </p>
-          </div>
-        </section>
-
-        <section id="benefits" className="scroll-mt-24 border-b border-[#E2E8F0] bg-white">
-          <div className="mx-auto grid max-w-6xl gap-6 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:gap-8 lg:py-14">
-            {[
-              { icon: BarChart3, title: "Get More Google Reviews", body: "Make it easier for happy customers to leave a review before they forget." },
-              { icon: Printer, title: "Ready to Print", body: "Download a professional poster, table sign, or QR image in seconds." },
-              { icon: Gift, title: "No Account Required", body: "Generate and download your first Google Review QR Code for free." },
-              { icon: BarChart3, title: "Track Performance Later", body: "Create a free account anytime to see scans, compare placements, and measure engagement." },
-            ].map((item) => (
-              <div key={item.title} className="rounded-2xl border border-[#E2E8F0] bg-white p-6 text-center shadow-[0_8px_24px_rgba(11,27,50,0.04)]">
-                <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#ECFDF3] text-[#16A34A]">
-                  <item.icon className="h-6 w-6" strokeWidth={1.75} />
-                </span>
-                <h3 className="mt-4 text-base font-bold text-[#0B1220]">{item.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-[#64748B]">{item.body}</p>
-              </div>
-            ))}
           </div>
         </section>
 
