@@ -20,7 +20,18 @@ export type ProductEventName =
   | "shared_report_viewed"
   | "ai_visibility_run_started"
   | "ai_visibility_added_to_report"
-  | "branding_completed";
+  | "branding_completed"
+  | "qr_public_opened"
+  | "qr_generated"
+  | "qr_poster_downloaded"
+  | "qr_only_downloaded"
+  | "qr_tracked_link_copied"
+  | "qr_signup_prompt_shown"
+  | "qr_anonymous_claimed"
+  | "qr_campaign_created"
+  | "qr_campaign_duplicated"
+  | "qr_analytics_viewed"
+  | "qr_upgrade_prompt_shown";
 
 export type ProductEventPayload = {
   organizationId?: string;

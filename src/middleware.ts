@@ -16,6 +16,8 @@ const PUBLIC_PREFIXES = [
   "/r/",
   "/reports/share/",
   "/api/webhooks/",
+  "/tools/google-review-qr-code",
+  "/api/public/qr",
 ];
 
 function isPublicPath(pathname: string): boolean {
@@ -25,6 +27,14 @@ function isPublicPath(pathname: string): boolean {
 function isProtectedPath(pathname: string): boolean {
   // Public share links must stay open (also listed in PUBLIC_PREFIXES).
   if (pathname.startsWith("/reports/share/")) return false;
+  // Public Google Review QR acquisition funnel (no login).
+  if (
+    pathname === "/tools/google-review-qr-code" ||
+    pathname.startsWith("/tools/google-review-qr-code/") ||
+    pathname.startsWith("/api/public/qr")
+  ) {
+    return false;
+  }
   return (
     pathname.startsWith("/businesses") ||
     pathname.startsWith("/dashboard") ||

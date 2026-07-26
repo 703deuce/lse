@@ -3,10 +3,10 @@ import { Loader2 } from "lucide-react";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { hasEntitlement } from "@/lib/auth/entitlements";
-import { QrPosterPage } from "@/components/reputation/qr-poster-page";
+import { QrCampaignCreateForm } from "@/components/reputation/qr-campaigns/qr-campaign-create-form";
 import { ReviewRequestsUpgrade } from "@/components/reputation/review-requests-upgrade";
 
-export default async function ReputationQrPosterRoute({
+export default async function QrCampaignNewPage({
   params,
 }: {
   params: Promise<{ businessId: string }>;
@@ -31,7 +31,7 @@ export default async function ReputationQrPosterRoute({
         </div>
       }
     >
-      <QrPosterPage businessId={businessId} />
+      <QrCampaignCreateForm businessId={businessId} />
     </Suspense>
   );
 }

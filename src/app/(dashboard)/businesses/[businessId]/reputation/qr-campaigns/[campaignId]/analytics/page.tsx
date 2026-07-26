@@ -3,15 +3,15 @@ import { Loader2 } from "lucide-react";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { hasEntitlement } from "@/lib/auth/entitlements";
-import { QrPosterPage } from "@/components/reputation/qr-poster-page";
+import { QrCampaignAnalyticsView } from "@/components/reputation/qr-campaigns/qr-campaign-analytics";
 import { ReviewRequestsUpgrade } from "@/components/reputation/review-requests-upgrade";
 
-export default async function ReputationQrPosterRoute({
+export default async function QrCampaignAnalyticsPage({
   params,
 }: {
-  params: Promise<{ businessId: string }>;
+  params: Promise<{ businessId: string; campaignId: string }>;
 }) {
-  const { businessId } = await params;
+  const { businessId, campaignId } = await params;
   const isPreview = isDevPreviewBusiness(businessId);
   const auth = await requireBusinessAccess(businessId);
   const allowed =
@@ -31,7 +31,7 @@ export default async function ReputationQrPosterRoute({
         </div>
       }
     >
-      <QrPosterPage businessId={businessId} />
+      <QrCampaignAnalyticsView businessId={businessId} campaignId={campaignId} />
     </Suspense>
   );
 }

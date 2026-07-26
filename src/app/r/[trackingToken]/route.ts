@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { recordTrackingClick } from "@/lib/reputation/campaigns";
+import { resolveAndRecordQrScan } from "@/lib/reputation/qr-campaigns";
 import { sanitizeReviewRedirectUrl } from "@/lib/security/safe-redirect";
 import { assertRateLimit } from "@/lib/security/rate-limit";
 
@@ -22,12 +23,39 @@ export async function GET(
   }
 
   const userAgent = request.headers.get("user-agent") ?? undefined;
-  const reviewUrl = await recordTrackingClick({ token: trackingToken, ip, userAgent });
-  const safe = sanitizeReviewRedirectUrl(reviewUrl);
+  const referrer = request.headers.get("referer") ?? undefined;
+  const visitorId =
+    request.headers.get("x-visitor-id") ??
+    request.headers.get("cookie")?.match(/qr_vid=([^;]+)/)?.[1];
 
-  if (!safe) {
-    return NextResponse.redirect(new URL("/", request.url), 302);
+  // 1) Existing SMS/email campaign message tokens
+  const messageReviewUrl = await recordTrackingClick({
+    token: trackingToken,
+    ip,
+    userAgent,
+  });
+  const messageSafe = sanitizeReviewRedirectUrl(messageReviewUrl);
+  if (messageSafe) {
+    return NextResponse.redirect(messageSafe, 302);
   }
 
-  return NextResponse.redirect(safe, 302);
+  // 2) QR campaign short codes (/r/{shortCode})
+  const qr = await resolveAndRecordQrScan({
+    shortCode: trackingToken,
+    ip,
+    userAgent,
+    referrer,
+    visitorId: visitorId ?? undefined,
+  });
+
+  if (qr.destinationUrl) {
+    const safe = sanitizeReviewRedirectUrl(qr.destinationUrl);
+    if (safe) return NextResponse.redirect(safe, 302);
+  }
+
+  const fallback = new URL("/r/unavailable", request.url);
+  if (qr.inactive) fallback.searchParams.set("reason", "paused");
+  else if (qr.notFound) fallback.searchParams.set("reason", "missing");
+  else fallback.searchParams.set("reason", "invalid");
+  return NextResponse.redirect(fallback, 302);
 }
