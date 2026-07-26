@@ -5,6 +5,7 @@ import { MessagingNumberPicker } from "./messaging-number-picker";
 import { MessagingOverview } from "./messaging-overview";
 import { MessagingReviewSubmit } from "./messaging-review-submit";
 import { MessagingStatusScreen } from "./messaging-status";
+import { MessagingLoadingSkeleton } from "./messaging-ui";
 import { MessagingUseCaseFormScreen } from "./messaging-use-case-form";
 import { useMessagingRegistration } from "./use-messaging-registration";
 import type { MessagingRegistration, MessagingRegistrationEvent } from "@/lib/messaging/types";
@@ -45,7 +46,10 @@ export function MessagingPageClient({
   );
 
   if (loading || !registration) {
-    return <p className="text-sm text-[#667085]">{error ?? "Loading text messaging setup..."}</p>;
+    if (error) {
+      return <p className="text-sm text-[#B42318]">{error}</p>;
+    }
+    return <MessagingLoadingSkeleton />;
   }
 
   if (screen === "business") {

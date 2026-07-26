@@ -142,6 +142,7 @@ export const messagingOnboarding = {
   async searchNumbers(params: {
     areaCode?: string;
     city?: string;
+    postalCode?: string;
     contains?: string;
   }): Promise<AvailablePhoneNumber[]> {
     return mockSearchNumbers(params);

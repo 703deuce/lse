@@ -7,7 +7,12 @@ import { isMessagingReady, STATUS_LABELS } from "@/lib/messaging/status";
 import type { MessagingProgressStep, MessagingRegistration, MessagingRegistrationEvent } from "@/lib/messaging/types";
 import { cn } from "@/lib/utils";
 import { MessagingDashboard } from "./messaging-dashboard";
-import { MessagingPageShell, MessagingStatusBadge, SectionCard } from "./messaging-ui";
+import {
+  MessagingAlertBanner,
+  MessagingPageShell,
+  MessagingStatusBadge,
+  SectionCard,
+} from "./messaging-ui";
 
 export function MessagingOverview({
   businessId,
@@ -46,6 +51,7 @@ export function MessagingOverview({
       subtitle="Register your business for compliant review-request texting. One Twilio subaccount per customer."
       currentId="business_details"
       steps={progress}
+      registration={registration}
       actions={
         <Link href={nextHref} className={rep.btnPrimary}>
           {registration.overallStatus === "not_started" ? "Start Registration" : "Continue Setup"}
@@ -53,12 +59,11 @@ export function MessagingOverview({
       }
     >
       {actionRequired ? (
-        <div className="rounded-xl border border-[#FECDCA] bg-[#FEF3F2] px-4 py-3 text-sm text-[#B42318]">
+        <MessagingAlertBanner tone="error" title="Action required">
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
-              <p className="font-semibold">Action required</p>
-              <p className="mt-1">
+              <p>
                 One or more registration steps need your attention. Open the status page to review
                 rejection reasons and resubmit.
               </p>
@@ -67,7 +72,7 @@ export function MessagingOverview({
               </Link>
             </div>
           </div>
-        </div>
+        </MessagingAlertBanner>
       ) : null}
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.9fr)]">

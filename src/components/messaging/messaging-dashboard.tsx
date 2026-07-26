@@ -7,7 +7,7 @@ import { RepMetricCard, rep } from "@/components/reputation/rep-ui";
 import { STATUS_LABELS } from "@/lib/messaging/status";
 import type { MessagingProgressStep, MessagingRegistration, MessagingRegistrationEvent } from "@/lib/messaging/types";
 import { cn } from "@/lib/utils";
-import { MessagingPageShell, SectionCard } from "./messaging-ui";
+import { MessagingPageShell, MessagingSuccessBanner, SectionCard } from "./messaging-ui";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -101,6 +101,7 @@ export function MessagingDashboard({
       currentId="ready_to_text"
       steps={progress}
       hideProgress
+      registration={registration}
       actions={
         <>
           <button type="button" disabled={testDisabled} className={cn(rep.btnPrimary, "disabled:opacity-50")}>
@@ -113,6 +114,8 @@ export function MessagingDashboard({
         </>
       }
     >
+      <MessagingSuccessBanner phoneNumber={registration.phoneNumberFriendly} />
+
       <div className="flex flex-wrap gap-1 border-b border-[#E6EAF0]">
         {TABS.map((item) => (
           <button

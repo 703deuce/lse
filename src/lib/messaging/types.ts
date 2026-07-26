@@ -165,6 +165,16 @@ export type MessagingProgressStep = {
   label: string;
   status: CustomerFacingStatus;
   href: string;
+  /** Whether the customer can navigate to this step yet. */
+  available: boolean;
+};
+
+export type MessagingTimelineItem = {
+  id: string;
+  label: string;
+  detail: string;
+  state: "complete" | "current" | "pending" | "failed";
+  at: string | null;
 };
 
 export const EMPTY_BUSINESS_FORM: MessagingBusinessForm = {

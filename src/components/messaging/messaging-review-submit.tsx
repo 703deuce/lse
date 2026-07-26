@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Building2, CircleDollarSign, MessageSquareText, ShieldCheck, UserRound } from "lucide-react";
 import { rep } from "@/components/reputation/rep-ui";
 import type { MessagingProgressStep, MessagingRegistration } from "@/lib/messaging/types";
-import { MessagingPageShell, SectionCard } from "./messaging-ui";
+import { MessagingAlertBanner, MessagingPageShell, SectionCard } from "./messaging-ui";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -48,12 +49,14 @@ export function MessagingReviewSubmit({
       subtitle="Confirm every detail before registration. Changes after submission require a manual review process."
       steps={progress}
       currentId="brand_verification"
+      registration={registration}
     >
-      <div className="rounded-xl border border-[#FEDF89] bg-[#FFFAEB] px-4 py-3 text-sm text-[#93370D]">
-        Once submitted, business and campaign details cannot be silently edited. Failed registrations will show exactly what must be corrected.
-      </div>
+      <MessagingAlertBanner tone="warning" title="Submission is final for carrier review">
+        Once submitted, business and campaign details cannot be silently edited. Failed registrations
+        will show exactly what must be corrected.
+      </MessagingAlertBanner>
 
-      <SectionCard title="Business information">
+      <SectionCard title="Business information" icon={Building2}>
         <dl>
           <Row label="Legal name" value={b.legalBusinessName} />
           <Row label="DBA" value={b.dbaName} />
@@ -67,7 +70,7 @@ export function MessagingReviewSubmit({
         </dl>
       </SectionCard>
 
-      <SectionCard title="Authorized representative">
+      <SectionCard title="Authorized representative" icon={UserRound}>
         <dl>
           <Row label="Name" value={b.authRepFullName} />
           <Row label="Title" value={b.authRepJobTitle} />
@@ -77,7 +80,7 @@ export function MessagingReviewSubmit({
         </dl>
       </SectionCard>
 
-      <SectionCard title="Messaging details">
+      <SectionCard title="Messaging details" icon={MessageSquareText}>
         <dl>
           <Row label="Use case" value={u.campaignUseCase} />
           <Row label="Description" value={u.campaignDescription} />
@@ -88,7 +91,7 @@ export function MessagingReviewSubmit({
         </dl>
       </SectionCard>
 
-      <SectionCard title="Sample messages">
+      <SectionCard title="Sample messages" icon={MessageSquareText}>
         <div className="space-y-3">
           {u.sampleMessages.filter(Boolean).map((message, index) => (
             <div key={index} className="rounded-lg bg-[#F9FAFB] px-3 py-2 text-sm text-[#344054]">
@@ -101,6 +104,7 @@ export function MessagingReviewSubmit({
       <SectionCard
         title="Fees and recurring costs"
         subtitle="Estimated carrier and number costs after your campaign is approved."
+        icon={CircleDollarSign}
       >
         <dl>
           <Row label="Local phone number" value="~$1.15 / month" />
@@ -116,6 +120,7 @@ export function MessagingReviewSubmit({
       <SectionCard
         title="Re-certification"
         subtitle="Confirm these statements again before submitting to Twilio."
+        icon={ShieldCheck}
       >
         <div className="space-y-3 text-sm text-[#344054]">
           <label className="flex items-start gap-3">

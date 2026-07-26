@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Building2, Fingerprint, ShieldCheck, UserRound } from "lucide-react";
 import { rep } from "@/components/reputation/rep-ui";
 import type { MessagingBusinessForm, MessagingProgressStep, MessagingRegistration } from "@/lib/messaging/types";
 import { Field, MessagingPageShell, SectionCard } from "./messaging-ui";
@@ -42,8 +43,9 @@ export function MessagingBusinessFormScreen({
       subtitle="This becomes your Secondary Customer Profile. Use the customer’s legal information, not Local SEO Express."
       steps={progress}
       currentId="business_details"
+      registration={registration}
     >
-      <SectionCard title="Company details">
+      <SectionCard title="Company details" icon={Building2}>
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Legal business name">
             <input className={rep.input} value={form.legalBusinessName} onChange={(e) => update("legalBusinessName", e.target.value)} />
@@ -105,7 +107,7 @@ export function MessagingBusinessFormScreen({
         </div>
       </SectionCard>
 
-      <SectionCard title="Authorized representative">
+      <SectionCard title="Authorized representative" icon={UserRound}>
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Full name">
             <input className={rep.input} value={form.authRepFullName} onChange={(e) => update("authRepFullName", e.target.value)} />
@@ -128,12 +130,12 @@ export function MessagingBusinessFormScreen({
         </div>
       </SectionCard>
 
-      <SectionCard title="Business identity">
+      <SectionCard title="Business identity" icon={Fingerprint}>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {IDENTITY_OPTIONS.map((option) => (
             <label
               key={option.id}
-              className="flex cursor-pointer items-center gap-2 rounded-lg border border-[#E6EAF0] px-3 py-2.5 text-sm text-[#344054]"
+              className="flex cursor-pointer items-center gap-2 rounded-lg border border-[#E6EAF0] px-3 py-2.5 text-sm text-[#344054] transition hover:border-[#B7E4CC] hover:bg-[#F9FFFB]"
             >
               <input
                 type="radio"
@@ -147,7 +149,7 @@ export function MessagingBusinessFormScreen({
         </div>
       </SectionCard>
 
-      <SectionCard title="Certifications">
+      <SectionCard title="Certifications" icon={ShieldCheck}>
         <div className="space-y-3 text-sm text-[#344054]">
           {(
             [

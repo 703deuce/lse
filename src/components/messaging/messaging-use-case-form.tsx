@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FileText, MessageSquareText, Shield } from "lucide-react";
 import { rep } from "@/components/reputation/rep-ui";
 import type { MessagingProgressStep, MessagingRegistration, MessagingUseCaseForm } from "@/lib/messaging/types";
 import { Field, MessagingPageShell, SectionCard } from "./messaging-ui";
@@ -40,8 +41,13 @@ export function MessagingUseCaseFormScreen({
       subtitle="Describe your Customer Care / Review Request campaign exactly as customers experience it."
       steps={progress}
       currentId="messaging_use_case"
+      registration={registration}
     >
-      <SectionCard title="Campaign description" subtitle="Prefills for review requests — review and certify before submit.">
+      <SectionCard
+        title="Campaign description"
+        subtitle="Prefills for review requests — review and certify before submit."
+        icon={FileText}
+      >
         <Field label="What kinds of messages will you send?">
           <textarea
             className={rep.input + " min-h-[140px] py-2"}
@@ -87,7 +93,11 @@ export function MessagingUseCaseFormScreen({
         </div>
       </SectionCard>
 
-      <SectionCard title="Consent & compliance" subtitle="Twilio and The Campaign Registry require clear opt-in documentation.">
+      <SectionCard
+        title="Consent & compliance"
+        subtitle="Twilio and The Campaign Registry require clear opt-in documentation."
+        icon={Shield}
+      >
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Opt-in method">
             <input className={rep.input} value={form.optInMethod} onChange={(e) => update("optInMethod", e.target.value)} />
@@ -119,7 +129,11 @@ export function MessagingUseCaseFormScreen({
         </div>
       </SectionCard>
 
-      <SectionCard title="Sample messages" subtitle="At least two realistic review-request examples with STOP/HELP language.">
+      <SectionCard
+        title="Sample messages"
+        subtitle="At least two realistic review-request examples with STOP/HELP language."
+        icon={MessageSquareText}
+      >
         <div className="space-y-3">
           {[0, 1, 2].map((index) => (
             <Field key={index} label={`Sample message ${index + 1}`}>

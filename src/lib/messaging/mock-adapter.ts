@@ -52,6 +52,14 @@ export const MOCK_PHONE_NUMBERS: AvailablePhoneNumber[] = [
   },
 ];
 
+/** ZIP → locality hints for mock number search. */
+const MOCK_ZIP_LOCALITIES: Record<string, string[]> = {
+  "22191": ["woodbridge"],
+  "22201": ["arlington"],
+  "20001": ["washington"],
+  "20110": ["manassas"],
+};
+
 export type MockSubmitResult = {
   registration: MessagingRegistration;
   events: Array<{ eventType: string; message: string; payload?: Record<string, unknown> }>;
@@ -177,14 +185,23 @@ export function mockReconcileStatus(reg: MessagingRegistration): MockSubmitResul
 export function mockSearchNumbers(params: {
   areaCode?: string;
   city?: string;
+  postalCode?: string;
   contains?: string;
 }): AvailablePhoneNumber[] {
   const area = (params.areaCode ?? "").replace(/\D/g, "");
   const city = (params.city ?? "").trim().toLowerCase();
+  const postal = (params.postalCode ?? "").replace(/\D/g, "").slice(0, 5);
   const contains = (params.contains ?? "").replace(/\D/g, "");
+  const zipLocalities = postal ? MOCK_ZIP_LOCALITIES[postal] ?? [] : [];
   return MOCK_PHONE_NUMBERS.filter((row) => {
     if (area && !row.phoneNumber.includes(area)) return false;
     if (city && !`${row.locality} ${row.region}`.toLowerCase().includes(city)) return false;
+    if (
+      zipLocalities.length > 0 &&
+      !zipLocalities.some((name) => row.locality.toLowerCase().includes(name))
+    ) {
+      return false;
+    }
     if (contains && !row.phoneNumber.replace(/\D/g, "").includes(contains)) return false;
     return true;
   });

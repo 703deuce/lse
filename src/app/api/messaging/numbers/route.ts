@@ -14,6 +14,7 @@ export async function GET(request: Request) {
     const numbers = await messagingOnboarding.searchNumbers({
       areaCode: url.searchParams.get("areaCode") ?? undefined,
       city: url.searchParams.get("city") ?? undefined,
+      postalCode: url.searchParams.get("postalCode") ?? undefined,
       contains: url.searchParams.get("contains") ?? undefined,
     });
     return NextResponse.json({ numbers });

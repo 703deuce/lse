@@ -87,23 +87,28 @@ export default function MessagingPreviewPage() {
         showFooter={false}
       />
       <main className="min-w-0 flex-1 overflow-y-auto px-5 py-6 lg:px-8">
-        <div className="mb-4 flex flex-wrap gap-2" data-screenshot-nav>
-          {SCREENS.map((screen) => (
-            <button
-              key={screen.id}
-              type="button"
-              data-screen={screen.id}
-              onClick={() => setScreenId(screen.id)}
-              className={cn(
-                "rounded-lg px-3 py-1.5 text-xs font-semibold",
-                screenId === screen.id
-                  ? "bg-[#137752] text-white"
-                  : "bg-white text-[#667085] ring-1 ring-[#E6EAF0]"
-              )}
-            >
-              {screen.label}
-            </button>
-          ))}
+        <div className="mb-4 space-y-2" data-screenshot-nav>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#98A2B3]">
+            Developer preview only — not shown in production. Customers use Back / Continue.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {SCREENS.map((screen) => (
+              <button
+                key={screen.id}
+                type="button"
+                data-screen={screen.id}
+                onClick={() => setScreenId(screen.id)}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-xs font-semibold transition hover:opacity-90",
+                  screenId === screen.id
+                    ? "bg-[#137752] text-white"
+                    : "bg-white text-[#667085] ring-1 ring-[#E6EAF0]"
+                )}
+              >
+                {screen.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div data-messaging-screen={screenId}>
