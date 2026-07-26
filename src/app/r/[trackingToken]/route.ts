@@ -49,8 +49,9 @@ export async function GET(
   });
 
   if (qr.destinationUrl) {
-    const safe = sanitizeReviewRedirectUrl(qr.destinationUrl);
-    if (safe) return NextResponse.redirect(safe, 302);
+    // QR campaigns open the mobile review funnel first (mockup flow), then Google.
+    const landing = new URL(`/go/${encodeURIComponent(trackingToken)}`, request.url);
+    return NextResponse.redirect(landing, 302);
   }
 
   const fallback = new URL("/r/unavailable", request.url);

@@ -2,13 +2,20 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Info, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Info, Loader2 } from "lucide-react";
 import { ModulePage } from "@/components/ui/design-system";
-import { RepMetricCard, rep } from "@/components/reputation/rep-ui";
+import { QrKpiCard, qrUi } from "@/components/reputation/qr-campaigns/qr-ui";
 import type { QrCampaignAnalytics } from "@/lib/reputation/qr-campaigns/types";
 import { cn } from "@/lib/utils";
 
 const DAY_OPTIONS = [7, 30, 90] as const;
+
+const DEVICE_COLORS = {
+  mobile: "#16A34A",
+  desktop: "#2563EB",
+  tablet: "#7C3AED",
+  other: "#98A2B3",
+} as const;
 
 export function QrCampaignAnalyticsView({
   businessId,
@@ -59,39 +66,64 @@ export function QrCampaignAnalyticsView({
     return Math.max(1, b.mobile + b.desktop + b.tablet + b.other);
   }, [data]);
 
+  const deviceSegments = useMemo(() => {
+    if (!data) return [];
+    const b = data.deviceBreakdown;
+    return (
+      [
+        ["Mobile", b.mobile, DEVICE_COLORS.mobile],
+        ["Desktop", b.desktop, DEVICE_COLORS.desktop],
+        ["Tablet", b.tablet, DEVICE_COLORS.tablet],
+        ["Other", b.other, DEVICE_COLORS.other],
+      ] as const
+    ).filter(([, count]) => count > 0);
+  }, [data]);
+
   const ratioLabel =
     data?.estimatedScanToReviewRatio != null
       ? `${(data.estimatedScanToReviewRatio * 100).toFixed(1)}%`
       : "—";
 
+  const linePoints = useMemo(() => {
+    if (!data?.daily?.length) return "";
+    const w = 100;
+    const h = 40;
+    const pts = data.daily.map((d, i) => {
+      const x = data.daily.length === 1 ? w / 2 : (i / (data.daily.length - 1)) * w;
+      const y = h - (d.totalScans / maxDaily) * (h - 4) - 2;
+      return `${x},${y}`;
+    });
+    return pts.join(" ");
+  }, [data, maxDaily]);
+
   return (
-    <ModulePage className={rep.page}>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <ModulePage className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <Link
             href={`/businesses/${businessId}/reputation/qr-campaigns/${campaignId}`}
-            className={cn(rep.link, "mb-2")}
+            className="mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[#16A34A] hover:underline"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to editor
           </Link>
-          <h1 className={rep.title}>QR Analytics</h1>
-          <p className={rep.subtitle}>
+          <h1 className={qrUi.title}>QR Analytics</h1>
+          <p className={qrUi.subtitle}>
             {data?.campaign?.name
               ? `Scan activity for “${data.campaign.name}”.`
               : "Scan activity for this tracked QR campaign."}
           </p>
         </div>
-        <div className="flex flex-wrap gap-1 rounded-lg border border-[#D0D5DD] bg-white p-1">
+        <div className="flex gap-1 rounded-xl border border-[#E6EAF0] bg-white p-1 shadow-sm">
           {DAY_OPTIONS.map((d) => (
             <button
               key={d}
               type="button"
               onClick={() => setDays(d)}
               className={cn(
-                "rounded-md px-3 py-1.5 text-sm font-semibold transition",
+                "rounded-lg px-4 py-2 text-sm font-semibold transition",
                 days === d
-                  ? "bg-[#137752] text-white"
+                  ? "bg-[#16A34A] text-white shadow-sm"
                   : "text-[#475467] hover:bg-[#F9FAFB]"
               )}
             >
@@ -102,142 +134,195 @@ export function QrCampaignAnalyticsView({
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-2 py-12 text-sm text-[#667085]">
-          <Loader2 className="h-5 w-5 animate-spin text-[#137752]" />
+        <div className="flex items-center justify-center gap-2 py-16 text-sm text-[#667085]">
+          <Loader2 className="h-5 w-5 animate-spin text-[#16A34A]" />
           Loading analytics…
         </div>
       ) : error ? (
-        <div className={cn(rep.card, "border-dashed p-8 text-center")}>
+        <div className={cn(qrUi.cardPad, "border-dashed text-center")}>
           <p className="text-sm text-red-700">{error}</p>
-          <button type="button" onClick={() => void load()} className={cn(rep.btnSecondary, "mt-4")}>
+          <button type="button" onClick={() => void load()} className={cn(qrUi.btnSecondary, "mt-4")}>
             Retry
           </button>
         </div>
       ) : data ? (
         <>
-          <div className="rounded-xl border border-[#B2DDFF] bg-[#EFF8FF] px-4 py-3 text-sm text-[#175CD3]">
+          <div className="overflow-hidden rounded-2xl border border-[#B2DDFF] bg-[#EFF8FF] px-5 py-4 text-sm text-[#175CD3]">
             <div className="flex gap-2">
               <Info className="mt-0.5 h-4 w-4 shrink-0" />
               <p>{data.correlationNote}</p>
             </div>
           </div>
 
-          <div>
-            <p className={rep.label}>Funnel (correlated, not attributed)</p>
-            <div className="mt-2 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <RepMetricCard label="Total scans" value={data.totalScans.toLocaleString()} />
-              <RepMetricCard
-                label="Est. unique"
-                value={data.estimatedUniqueScans.toLocaleString()}
-                hint="Approximate unique visitors"
-              />
-              <RepMetricCard
-                label="New reviews (period)"
-                value={
-                  data.newReviewsInPeriod == null
-                    ? "—"
-                    : data.newReviewsInPeriod.toLocaleString()
-                }
-                hint="Same window — not proven from QR"
-              />
-              <RepMetricCard
-                label="Est. scan→review ratio"
-                value={ratioLabel}
-                hint="Correlation only — not exact attribution"
-              />
+          {/* Funnel row */}
+          <div className={cn(qrUi.cardPad)}>
+            <p className={qrUi.label}>Funnel (correlated, not attributed)</p>
+            <div className="mt-4 flex flex-col items-stretch gap-3 lg:flex-row lg:items-center">
+              <div className="flex-1">
+                <QrKpiCard label="Total scans" value={data.totalScans.toLocaleString()} />
+              </div>
+              <ArrowRight className="mx-auto hidden h-5 w-5 shrink-0 text-[#98A2B3] lg:block" />
+              <div className="flex-1">
+                <QrKpiCard
+                  label="Estimated unique"
+                  value={data.estimatedUniqueScans.toLocaleString()}
+                  hint="Approximate unique visitors"
+                />
+              </div>
+              <ArrowRight className="mx-auto hidden h-5 w-5 shrink-0 text-[#98A2B3] lg:block" />
+              <div className="flex-1">
+                <QrKpiCard
+                  label="New reviews (correlated)"
+                  value={
+                    data.newReviewsInPeriod == null
+                      ? "—"
+                      : data.newReviewsInPeriod.toLocaleString()
+                  }
+                  hint="Same window — not proven from QR"
+                />
+              </div>
+              <ArrowRight className="mx-auto hidden h-5 w-5 shrink-0 text-[#98A2B3] lg:block" />
+              <div className="flex-1">
+                <QrKpiCard
+                  label="Scan → review ratio"
+                  value={ratioLabel}
+                  hint="Correlation only — not exact attribution"
+                />
+              </div>
             </div>
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-2">
-            <div className={cn(rep.card, "p-4")}>
-              <h2 className="text-sm font-semibold text-[#101828]">Device breakdown</h2>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Daily scans chart */}
+            <div className={cn(qrUi.cardPad)}>
+              <h2 className="text-base font-bold text-[#0B1B32]">Daily scans</h2>
+              <p className="mt-0.5 text-xs text-[#667085]">
+                Bars show total counted scans per day in the selected window.
+              </p>
+              {data.daily.length === 0 ? (
+                <p className="mt-8 text-center text-sm text-[#667085]">No daily stats yet.</p>
+              ) : (
+                <div className="relative mt-5">
+                  <svg
+                    viewBox="0 0 100 44"
+                    preserveAspectRatio="none"
+                    className="pointer-events-none absolute inset-x-0 top-0 h-44 w-full opacity-40"
+                    aria-hidden
+                  >
+                    <polyline
+                      fill="none"
+                      stroke="#16A34A"
+                      strokeWidth="0.8"
+                      points={linePoints}
+                    />
+                  </svg>
+                  <div className="relative flex h-44 items-end gap-1 overflow-x-auto pb-1">
+                    {data.daily.map((d) => (
+                      <div
+                        key={d.date}
+                        className="flex min-w-[20px] flex-1 flex-col items-center justify-end gap-1"
+                        title={`${d.date}: ${d.totalScans} scans, ~${d.estimatedUniqueScans} unique`}
+                      >
+                        <span className="text-[9px] font-semibold text-[#667085]">
+                          {d.totalScans || ""}
+                        </span>
+                        <div
+                          className="w-full max-w-[32px] rounded-t-md bg-gradient-to-t from-[#15803D] to-[#16A34A]"
+                          style={{
+                            height: `${Math.max(6, (d.totalScans / maxDaily) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex justify-between text-[10px] text-[#98A2B3]">
+                    <span>{data.daily[0]?.date}</span>
+                    <span>{data.daily[data.daily.length - 1]?.date}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Device breakdown */}
+            <div className={cn(qrUi.cardPad)}>
+              <h2 className="text-base font-bold text-[#0B1B32]">Device breakdown</h2>
               <p className="mt-0.5 text-xs text-[#667085]">Counted scans in the selected period</p>
-              <ul className="mt-4 space-y-3">
+
+              {/* Segmented bar */}
+              <div className="mt-5 flex h-4 overflow-hidden rounded-full">
+                {deviceSegments.map(([label, count, color]) => (
+                  <div
+                    key={label}
+                    style={{
+                      width: `${(count / deviceTotal) * 100}%`,
+                      backgroundColor: color,
+                    }}
+                    title={`${label}: ${count}`}
+                  />
+                ))}
+              </div>
+
+              <ul className="mt-5 space-y-3">
                 {(
                   [
-                    ["Mobile", data.deviceBreakdown.mobile],
-                    ["Desktop", data.deviceBreakdown.desktop],
-                    ["Tablet", data.deviceBreakdown.tablet],
-                    ["Other", data.deviceBreakdown.other],
+                    ["Mobile", data.deviceBreakdown.mobile, DEVICE_COLORS.mobile],
+                    ["Desktop", data.deviceBreakdown.desktop, DEVICE_COLORS.desktop],
+                    ["Tablet", data.deviceBreakdown.tablet, DEVICE_COLORS.tablet],
+                    ["Other", data.deviceBreakdown.other, DEVICE_COLORS.other],
                   ] as const
-                ).map(([label, count]) => (
+                ).map(([label, count, color]) => (
                   <li key={label}>
                     <div className="mb-1 flex justify-between text-xs text-[#475467]">
-                      <span>{label}</span>
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: color }}
+                        />
+                        {label}
+                      </span>
                       <span>
                         {count.toLocaleString()} ({Math.round((count / deviceTotal) * 100)}%)
                       </span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-[#F2F4F7]">
                       <div
-                        className="h-full rounded-full bg-[#137752]"
-                        style={{ width: `${(count / deviceTotal) * 100}%` }}
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${(count / deviceTotal) * 100}%`,
+                          backgroundColor: color,
+                        }}
                       />
                     </div>
                   </li>
                 ))}
               </ul>
             </div>
-
-            <div className={cn(rep.card, "p-4")}>
-              <h2 className="text-sm font-semibold text-[#101828]">Period snapshot</h2>
-              <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <dt className={rep.label}>Scans today</dt>
-                  <dd className="mt-1 text-lg font-bold text-[#101828]">{data.scansToday}</dd>
-                </div>
-                <div>
-                  <dt className={rep.label}>Last 7 days</dt>
-                  <dd className="mt-1 text-lg font-bold text-[#101828]">{data.scans7d}</dd>
-                </div>
-                <div>
-                  <dt className={rep.label}>In period</dt>
-                  <dd className="mt-1 text-lg font-bold text-[#101828]">{data.scans30d}</dd>
-                </div>
-                <div>
-                  <dt className={rep.label}>Prev. period</dt>
-                  <dd className="mt-1 text-lg font-bold text-[#101828]">
-                    {data.previousPeriodScans}
-                  </dd>
-                </div>
-              </dl>
-            </div>
           </div>
 
-          <div className={cn(rep.card, "p-4")}>
-            <h2 className="text-sm font-semibold text-[#101828]">Daily scans</h2>
-            <p className="mt-0.5 text-xs text-[#667085]">
-              Bars show total counted scans per day in the selected window.
-            </p>
-            {data.daily.length === 0 ? (
-              <p className="mt-6 text-center text-sm text-[#667085]">No daily stats yet.</p>
-            ) : (
-              <div className="mt-4 flex h-40 items-end gap-1 overflow-x-auto pb-1">
-                {data.daily.map((d) => (
-                  <div
-                    key={d.date}
-                    className="flex min-w-[18px] flex-1 flex-col items-center justify-end gap-1"
-                    title={`${d.date}: ${d.totalScans} scans, ~${d.estimatedUniqueScans} unique`}
-                  >
-                    <span className="text-[9px] font-medium text-[#667085]">
-                      {d.totalScans || ""}
-                    </span>
-                    <div
-                      className="w-full max-w-[28px] rounded-t bg-[#137752]/85"
-                      style={{
-                        height: `${Math.max(4, (d.totalScans / maxDaily) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                ))}
+          {/* Recent activity */}
+          <div className={cn(qrUi.cardPad)}>
+            <h2 className="text-base font-bold text-[#0B1B32]">Recent activity</h2>
+            <p className="mt-0.5 text-xs text-[#667085]">Period snapshot for this campaign</p>
+            <dl className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
+                <dt className={qrUi.label}>Scans today</dt>
+                <dd className="mt-2 text-2xl font-bold text-[#0B1B32]">{data.scansToday}</dd>
               </div>
-            )}
-            {data.daily.length > 0 ? (
-              <div className="mt-2 flex justify-between text-[10px] text-[#98A2B3]">
-                <span>{data.daily[0]?.date}</span>
-                <span>{data.daily[data.daily.length - 1]?.date}</span>
+              <div className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
+                <dt className={qrUi.label}>Last 7 days</dt>
+                <dd className="mt-2 text-2xl font-bold text-[#0B1B32]">{data.scans7d}</dd>
               </div>
-            ) : null}
+              <div className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
+                <dt className={qrUi.label}>In period</dt>
+                <dd className="mt-2 text-2xl font-bold text-[#0B1B32]">{data.scans30d}</dd>
+              </div>
+              <div className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
+                <dt className={qrUi.label}>Prev. period</dt>
+                <dd className="mt-2 text-2xl font-bold text-[#0B1B32]">
+                  {data.previousPeriodScans}
+                </dd>
+              </div>
+            </dl>
           </div>
         </>
       ) : null}

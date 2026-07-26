@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Loader2, QrCode } from "lucide-react";
-import { RepMetricCard, rep } from "@/components/reputation/rep-ui";
+import { ArrowRight, Loader2, QrCode, TrendingUp } from "lucide-react";
+import { QrKpiCard, qrUi } from "@/components/reputation/qr-campaigns/qr-ui";
 import type { ReviewQrCampaign } from "@/lib/reputation/qr-campaigns/types";
 import { cn } from "@/lib/utils";
 
@@ -50,44 +50,58 @@ export function QrPerformanceCard({ businessId }: { businessId: string }) {
   }, [campaigns]);
 
   return (
-    <div className={cn(rep.card, "p-4")}>
+    <div
+      className={cn(
+        qrUi.card,
+        "overflow-hidden border-l-4 border-l-[#16A34A] p-5"
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className={rep.label}>QR campaigns</p>
-          <h3 className="mt-1 text-base font-semibold text-[#101828]">Scan performance</h3>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#027A48]">
+            QR Campaigns
+          </p>
+          <h3 className="mt-1 text-lg font-bold text-[#0B1B32]">Scan performance</h3>
+          <p className="mt-0.5 text-xs text-[#667085]">
+            Track poster scans and review momentum
+          </p>
         </div>
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#ECFDF3] text-[#137752]">
-          <QrCode className="h-4 w-4" />
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#ECFDF3] text-[#16A34A]">
+          <QrCode className="h-5 w-5" />
         </span>
       </div>
 
       {loading ? (
-        <div className="mt-4 flex items-center gap-2 text-sm text-[#667085]">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+        <div className="mt-5 flex items-center gap-2 text-sm text-[#667085]">
+          <Loader2 className="h-4 w-4 animate-spin text-[#16A34A]" /> Loading…
         </div>
       ) : error ? (
-        <p className="mt-4 text-sm text-[#667085]">QR stats unavailable right now.</p>
+        <p className="mt-5 text-sm text-[#667085]">QR stats unavailable right now.</p>
       ) : summary.count === 0 ? (
-        <p className="mt-3 text-sm text-[#667085]">
-          No tracked QR campaigns yet. Create one to measure poster scans.
-        </p>
+        <div className="mt-5 rounded-xl border border-dashed border-[#A6F4C5] bg-[#ECFDF3]/40 p-4">
+          <p className="text-sm text-[#486581]">
+            No tracked QR campaigns yet. Create one to measure poster scans.
+          </p>
+        </div>
       ) : (
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          <RepMetricCard label="Total scans" value={summary.totalScans.toLocaleString()} />
-          <RepMetricCard label="Est. unique" value={summary.unique.toLocaleString()} />
-          <RepMetricCard
-            label="Active / scanned this month"
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <QrKpiCard label="Total scans" value={summary.totalScans.toLocaleString()} />
+          <QrKpiCard label="Est. unique" value={summary.unique.toLocaleString()} />
+          <QrKpiCard
+            label="Active / scanned"
             value={`${summary.active} / ${summary.scannedThisMonth}`}
+            hint="Active campaigns / scanned this month"
           />
         </div>
       )}
 
       <Link
         href={`/businesses/${businessId}/reputation/qr-campaigns`}
-        className={cn(rep.link, "mt-4")}
+        className={cn(qrUi.btnPrimary, "mt-5 w-full sm:w-auto")}
       >
-        View QR campaigns
-        <ArrowRight className="h-3.5 w-3.5" />
+        <TrendingUp className="h-4 w-4" />
+        View QR Campaigns
+        <ArrowRight className="h-4 w-4" />
       </Link>
     </div>
   );

@@ -6,22 +6,26 @@ import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { toPng } from "html-to-image";
 import {
+  BarChart3,
   Check,
   Copy,
   Download,
   ExternalLink,
   Info,
   Loader2,
-  BarChart3,
   Pause,
   Play,
 } from "lucide-react";
 import { ModulePage } from "@/components/ui/design-system";
 import { ReviewPosterPreview } from "@/components/reputation/review-poster-preview";
-import { RepBadge, RepMetricCard, rep } from "@/components/reputation/rep-ui";
+import {
+  QR_MOCK_COLORS,
+  QrKpiCard,
+  QrStatusBadge,
+  qrUi,
+} from "@/components/reputation/qr-campaigns/qr-ui";
 import {
   DEFAULT_POSTER_CONFIG,
-  POSTER_BRAND_COLORS,
   type PosterConfig,
 } from "@/lib/reputation/poster-config";
 import {
@@ -68,6 +72,7 @@ export function QrCampaignEditor({
   campaignId?: string;
 }) {
   const router = useRouter();
+  const plansHref = `/businesses/${businessId}/reputation/qr-campaigns/plans`;
   const posterRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -92,7 +97,12 @@ export function QrCampaignEditor({
 
   const applyCampaign = useCallback((c: ReviewQrCampaign, url?: string) => {
     setCampaign(c);
-    setTrackedUrl(url || (typeof window !== "undefined" ? `${window.location.origin}/r/${c.shortCode}` : `/r/${c.shortCode}`));
+    setTrackedUrl(
+      url ||
+        (typeof window !== "undefined"
+          ? `${window.location.origin}/r/${c.shortCode}`
+          : `/r/${c.shortCode}`)
+    );
     setName(c.name);
     setPlacementType(c.placementType);
     setCustomPlacementLabel(c.customPlacementLabel ?? "");
@@ -153,7 +163,7 @@ export function QrCampaignEditor({
     void QRCode.toDataURL(trackedUrl, {
       width: 400,
       margin: 1,
-      color: { dark: "#111827", light: "#ffffff" },
+      color: { dark: "#0B1B32", light: "#ffffff" },
     }).then((url) => {
       if (!cancelled) setQrDataUrl(url);
     });
@@ -290,9 +300,9 @@ export function QrCampaignEditor({
 
   if (loading) {
     return (
-      <ModulePage className={rep.page}>
-        <div className="flex items-center gap-2 py-12 text-sm text-[#667085]">
-          <Loader2 className="h-5 w-5 animate-spin text-[#137752]" />
+      <ModulePage className="space-y-6">
+        <div className="flex items-center justify-center gap-2 py-16 text-sm text-[#667085]">
+          <Loader2 className="h-5 w-5 animate-spin text-[#16A34A]" />
           Loading QR campaign…
         </div>
       </ModulePage>
@@ -301,26 +311,26 @@ export function QrCampaignEditor({
 
   if (!campaign) {
     return (
-      <ModulePage className={rep.page}>
-        <div className={cn(rep.card, "border-dashed p-8 text-center")}>
-          <h2 className="text-lg font-semibold text-[#101828]">QR campaign unavailable</h2>
+      <ModulePage className="space-y-6">
+        <div className={cn(qrUi.cardPad, "border-dashed text-center")}>
+          <h2 className="text-lg font-bold text-[#0B1B32]">QR campaign unavailable</h2>
           <p className="mt-2 text-sm text-[#667085]">{error ?? "Could not load this campaign."}</p>
           {planLimit ? (
             <p className="mt-3 text-sm text-[#B54708]">
               Your plan limit was reached. Pause another campaign or{" "}
-              <Link href={`/businesses/${businessId}/settings`} className={rep.link}>
+              <Link href={plansHref} className="font-semibold text-[#16A34A] underline">
                 upgrade
               </Link>
               .
             </p>
           ) : null}
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
-            <button type="button" onClick={() => void load()} className={rep.btnSecondary}>
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            <button type="button" onClick={() => void load()} className={qrUi.btnSecondary}>
               Retry
             </button>
             <Link
               href={`/businesses/${businessId}/reputation/qr-campaigns/new`}
-              className={rep.btnPrimary}
+              className={qrUi.btnPrimary}
             >
               Create campaign
             </Link>
@@ -331,27 +341,24 @@ export function QrCampaignEditor({
   }
 
   return (
-    <ModulePage className={rep.page}>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <ModulePage className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <h1 className={cn(rep.title, "inline-flex items-center gap-2")}>
-            QR Campaign
-            <Info className="h-4 w-4 text-[#98A2B3]" aria-hidden />
-          </h1>
-          <p className={rep.subtitle}>
+          <h1 className={qrUi.title}>{name || "QR Campaign"}</h1>
+          <p className={qrUi.subtitle}>
             Track scans from printed posters, then send visitors to your Google review page.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/businesses/${businessId}/reputation/qr-campaigns`}
-            className={rep.btnSecondary}
+            className={qrUi.btnSecondary}
           >
             All campaigns
           </Link>
           <Link
             href={`/businesses/${businessId}/reputation/qr-campaigns/${campaign.id}/analytics`}
-            className={rep.btnSecondary}
+            className={qrUi.btnSecondary}
           >
             <BarChart3 className="h-4 w-4" />
             Analytics
@@ -359,26 +366,21 @@ export function QrCampaignEditor({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-start gap-2 rounded-xl border border-[#A6F4C5] bg-[#ECFDF3] px-4 py-3 text-sm text-[#027A48]">
-        <Info className="mt-0.5 h-4 w-4 shrink-0" />
-        <p>
-          Your tracked link records each visit, then redirects to Google Reviews. Print the QR that
-          encodes this tracked URL — never a direct Google URL — so scans stay measurable.
-        </p>
-      </div>
-
       {campaign.migratedFromLinkId ? (
-        <div className="rounded-xl border border-[#FEDF89] bg-[#FFFAEB] px-4 py-3 text-sm text-[#B54708]">
-          This campaign was migrated from an older review link. Previously printed QR codes that
-          pointed directly at Google cannot be retroactively tracked — reprint using this tracked
-          link going forward.
+        <div className="rounded-2xl border border-[#FEDF89] bg-[#FFFAEB] px-5 py-4 text-sm text-[#B54708]">
+          <p className="font-semibold">Migrated campaign</p>
+          <p className="mt-1">
+            This campaign was migrated from an older review link. Previously printed QR codes that
+            pointed directly at Google cannot be retroactively tracked — reprint using this tracked
+            link going forward.
+          </p>
         </div>
       ) : null}
 
       {error ? (
         <div
           className={cn(
-            "rounded-xl border px-4 py-3 text-sm",
+            "rounded-2xl border px-5 py-4 text-sm",
             planLimit
               ? "border-[#FEDF89] bg-[#FFFAEB] text-[#B54708]"
               : "border-red-200 bg-red-50 text-red-800"
@@ -387,8 +389,8 @@ export function QrCampaignEditor({
           {error}
           {planLimit ? (
             <span className="mt-1 block">
-              <Link href={`/businesses/${businessId}/settings`} className="font-semibold underline">
-                Upgrade your plan
+              <Link href={plansHref} className="font-semibold underline">
+                View plans
               </Link>{" "}
               to create or activate more QR campaigns.
             </span>
@@ -396,31 +398,30 @@ export function QrCampaignEditor({
         </div>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <RepMetricCard label="Total scans" value={campaign.totalScans.toLocaleString()} />
-        <RepMetricCard
+      <div className="grid gap-4 sm:grid-cols-3">
+        <QrKpiCard label="Total scans" value={campaign.totalScans.toLocaleString()} />
+        <QrKpiCard
           label="Est. unique scans"
           value={campaign.estimatedUniqueScans.toLocaleString()}
           hint="Approximate unique visitors (24h window)"
         />
-        <RepMetricCard label="Last scanned" value={formatDate(campaign.lastScannedAt)} />
+        <QrKpiCard label="Last scanned" value={formatDate(campaign.lastScannedAt)} />
       </div>
 
-      <div className={cn(rep.card, "overflow-hidden")}>
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="space-y-4 border-b border-[#E6EAF0] p-4 lg:border-b-0 lg:border-r">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className={cn(qrUi.card, "overflow-hidden")}>
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_420px]">
+          {/* Form */}
+          <div className="space-y-5 border-b border-[#E6EAF0] p-5 lg:border-b-0 lg:border-r lg:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <RepBadge tone={status === "active" ? "green" : status === "paused" ? "amber" : "gray"}>
-                  {status}
-                </RepBadge>
+                <QrStatusBadge status={status} />
                 <span className="text-xs text-[#667085]">/{campaign.shortCode}</span>
               </div>
               <button
                 type="button"
                 onClick={() => void toggleActive()}
                 disabled={saving}
-                className={rep.btnSecondary}
+                className={qrUi.btnSecondary}
               >
                 {status === "active" ? (
                   <>
@@ -434,109 +435,121 @@ export function QrCampaignEditor({
               </button>
             </div>
 
-            <div>
-              <label className={rep.label}>Tracked link</label>
-              <div className="mt-1.5 flex flex-wrap gap-2">
-                <input readOnly value={trackedUrl} className={cn(rep.input, "min-w-0 flex-1")} />
-                <button type="button" onClick={() => void copyTrackedLink()} className={rep.btnSecondary}>
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  {copied ? "Copied" : "Copy"}
-                </button>
-                <a
-                  href={trackedUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={rep.btnSecondary}
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Test
-                </a>
+            <div className="overflow-hidden rounded-2xl border border-[#A6F4C5] bg-[linear-gradient(135deg,#ECFDF3_0%,#ffffff_60%)] p-4">
+              <div className="flex gap-2">
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#027A48]" />
+                <p className="text-sm text-[#027A48]">
+                  Your tracked link records each visit, then redirects to Google Reviews. Print the
+                  QR that encodes this tracked URL — never a direct Google URL — so scans stay
+                  measurable.
+                </p>
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className={rep.label}>Campaign name</label>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className={cn(rep.input, "mt-1.5")}
-                  maxLength={80}
-                />
+            <div>
+              <label className={qrUi.label}>Tracked link</label>
+              <div className="mt-1.5 flex flex-wrap gap-2">
+                <input readOnly value={trackedUrl} className={cn(qrUi.input, "min-w-0 flex-1")} />
+                <button type="button" onClick={() => void copyTrackedLink()} className={qrUi.btnSecondary}>
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copied ? "Copied" : "Copy"}
+                </button>
               </div>
-              <div>
-                <label className={rep.label}>Placement</label>
-                <select
-                  value={placementType}
-                  onChange={(e) => setPlacementType(e.target.value as QrPlacementType)}
-                  className={cn(rep.select, "mt-1.5 w-full")}
-                >
-                  {QR_PLACEMENT_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {QR_PLACEMENT_LABELS[t]}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            </div>
+
+            <div>
+              <label className={qrUi.label}>Campaign name</label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={cn(qrUi.input, "mt-1.5")}
+                maxLength={80}
+              />
+            </div>
+
+            <div>
+              <label className={qrUi.label}>Placement</label>
+              <select
+                value={placementType}
+                onChange={(e) => setPlacementType(e.target.value as QrPlacementType)}
+                className={cn(qrUi.input, "mt-1.5")}
+              >
+                {QR_PLACEMENT_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {QR_PLACEMENT_LABELS[t]}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {placementType === "custom" ? (
               <div>
-                <label className={rep.label}>Custom placement label</label>
+                <label className={qrUi.label}>Custom placement label</label>
                 <input
                   value={customPlacementLabel}
                   onChange={(e) => setCustomPlacementLabel(e.target.value)}
-                  className={cn(rep.input, "mt-1.5")}
+                  className={cn(qrUi.input, "mt-1.5")}
                   placeholder="e.g. Waiting room wall"
                 />
               </div>
             ) : null}
 
             <div>
-              <label className={rep.label}>Google destination URL</label>
-              <input
-                value={destinationUrl}
-                onChange={(e) => setDestinationUrl(e.target.value)}
-                className={cn(rep.input, "mt-1.5")}
-                placeholder="https://search.google.com/local/writereview?placeid=…"
-              />
-              <p className="mt-1 text-xs text-[#667085]">
+              <label className={qrUi.label}>Destination URL</label>
+              <div className="mt-1.5 flex flex-wrap gap-2">
+                <input
+                  value={destinationUrl}
+                  onChange={(e) => setDestinationUrl(e.target.value)}
+                  className={cn(qrUi.input, "min-w-0 flex-1")}
+                  placeholder="https://search.google.com/local/writereview?placeid=…"
+                />
+                <a
+                  href={destinationUrl || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(qrUi.btnSecondary, !destinationUrl && "pointer-events-none opacity-50")}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Test link
+                </a>
+              </div>
+              <p className="mt-1.5 text-xs text-[#667085]">
                 Where visitors land after the tracked redirect — not encoded in the QR.
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className={rep.label}>Headline</label>
+                <label className={qrUi.label}>Headline</label>
                 <input
                   value={headline}
                   onChange={(e) => setHeadline(e.target.value)}
-                  className={cn(rep.input, "mt-1.5")}
+                  className={cn(qrUi.input, "mt-1.5")}
                   maxLength={50}
                 />
               </div>
               <div>
-                <label className={rep.label}>Supporting text</label>
+                <label className={qrUi.label}>Description</label>
                 <input
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className={cn(rep.input, "mt-1.5")}
+                  className={cn(qrUi.input, "mt-1.5")}
                   maxLength={60}
                 />
               </div>
             </div>
 
             <div>
-              <label className={rep.label}>Brand color</label>
+              <label className={qrUi.label}>Brand color</label>
               <div className="mt-2 flex flex-wrap gap-2">
-                {POSTER_BRAND_COLORS.map((color) => (
+                {QR_MOCK_COLORS.map((color) => (
                   <button
                     key={color}
                     type="button"
                     onClick={() => setBrandColor(color)}
                     className={cn(
-                      "relative flex h-9 w-9 items-center justify-center rounded-full border-2 transition",
-                      brandColor === color ? "scale-110 border-[#101828]" : "border-transparent"
+                      "relative flex h-10 w-10 items-center justify-center rounded-full border-2 transition",
+                      brandColor === color ? "scale-110 border-[#0B1B32]" : "border-transparent"
                     )}
                     style={{ backgroundColor: color }}
                     aria-label={`Brand color ${color}`}
@@ -549,12 +562,12 @@ export function QrCampaignEditor({
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#E6EAF0] pt-3">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#E6EAF0] pt-4">
               <label className="flex cursor-pointer items-center gap-3">
                 <span
                   className={cn(
-                    "relative inline-flex h-5 w-9 shrink-0 rounded-full transition",
-                    showFooter ? "bg-[#137752]" : "bg-[#D0D5DD]"
+                    "relative inline-flex h-6 w-11 shrink-0 rounded-full transition",
+                    showFooter ? "bg-[#16A34A]" : "bg-[#D0D5DD]"
                   )}
                 >
                   <input
@@ -565,19 +578,28 @@ export function QrCampaignEditor({
                   />
                   <span
                     className={cn(
-                      "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition",
-                      showFooter ? "left-4" : "left-0.5"
+                      "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition",
+                      showFooter ? "left-5" : "left-0.5"
                     )}
                   />
                 </span>
-                <span className="text-sm font-medium text-[#101828]">Show footer</span>
+                <span className="text-sm font-medium text-[#0B1B32]">Show footer</span>
               </label>
               <div className="flex gap-3">
                 {(["a4", "a5", "letter"] as const).map((f) => (
-                  <label key={f} className="flex items-center gap-1.5 text-xs capitalize text-[#667085]">
+                  <label
+                    key={f}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition",
+                      printFormat === f
+                        ? "border-[#16A34A] bg-[#ECFDF3] text-[#027A48]"
+                        : "border-[#E6EAF0] text-[#667085]"
+                    )}
+                  >
                     <input
                       type="radio"
                       name="format"
+                      className="sr-only"
                       checked={printFormat === f}
                       onChange={() => setPrintFormat(f)}
                     />
@@ -587,17 +609,17 @@ export function QrCampaignEditor({
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 border-t border-[#E6EAF0] pt-4">
+            <div className="flex flex-wrap gap-2 border-t border-[#E6EAF0] pt-5">
               <button
                 type="button"
                 onClick={() => void save()}
                 disabled={saving}
-                className={rep.btnPrimary}
+                className={qrUi.btnPrimary}
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                 Save
               </button>
-              <button type="button" onClick={() => void downloadPoster()} className={rep.btnSecondary}>
+              <button type="button" onClick={() => void downloadPoster()} className={qrUi.btnSecondary}>
                 <Download className="h-4 w-4" />
                 Download Poster
               </button>
@@ -605,16 +627,23 @@ export function QrCampaignEditor({
                 type="button"
                 onClick={downloadQrOnly}
                 disabled={!qrDataUrl}
-                className={rep.btnSecondary}
+                className={qrUi.btnSecondary}
               >
                 <Download className="h-4 w-4" />
-                Download QR Only
+                QR Only
               </button>
+              <Link
+                href={`/businesses/${businessId}/reputation/qr-campaigns/${campaign.id}/analytics`}
+                className={qrUi.btnSecondary}
+              >
+                <BarChart3 className="h-4 w-4" />
+                Analytics
+              </Link>
               <button
                 type="button"
                 onClick={() => void duplicate()}
                 disabled={saving}
-                className={rep.btnSecondary}
+                className={qrUi.btnSecondary}
               >
                 <Copy className="h-4 w-4" />
                 Duplicate
@@ -622,7 +651,11 @@ export function QrCampaignEditor({
             </div>
           </div>
 
-          <div className="bg-gradient-to-b from-[#F9FAFB] to-[#F2F4F7]/80 p-4 lg:sticky lg:top-4 lg:self-start">
+          {/* Preview */}
+          <div className="bg-gradient-to-b from-[#F4F7FB] to-white p-5 lg:sticky lg:top-4 lg:self-start lg:p-6">
+            <p className="mb-4 text-center text-[11px] font-semibold uppercase tracking-[0.1em] text-[#98A2B3]">
+              Poster preview
+            </p>
             <ReviewPosterPreview
               ref={posterRef}
               businessName={businessName}

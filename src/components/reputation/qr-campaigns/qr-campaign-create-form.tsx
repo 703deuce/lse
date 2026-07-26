@@ -12,10 +12,12 @@ import {
 } from "lucide-react";
 import { ModulePage } from "@/components/ui/design-system";
 import { ReviewPosterPreview } from "@/components/reputation/review-poster-preview";
-import { rep } from "@/components/reputation/rep-ui";
+import {
+  QR_MOCK_COLORS,
+  qrUi,
+} from "@/components/reputation/qr-campaigns/qr-ui";
 import {
   DEFAULT_POSTER_CONFIG,
-  POSTER_BRAND_COLORS,
   type PosterConfig,
 } from "@/lib/reputation/poster-config";
 import {
@@ -35,6 +37,7 @@ const STEPS = [
 
 export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
   const router = useRouter();
+  const plansHref = `/businesses/${businessId}/reputation/qr-campaigns/plans`;
   const previewRef = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -107,11 +110,10 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
   );
 
   useEffect(() => {
-    // Placeholder QR until save — encodes a temporary path so preview isn't empty.
     void QRCode.toDataURL("https://example.com/r/preview", {
       width: 400,
       margin: 1,
-      color: { dark: "#111827", light: "#ffffff" },
+      color: { dark: "#0B1B32", light: "#ffffff" },
     }).then(setQrDataUrl);
   }, []);
 
@@ -170,23 +172,24 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
   }
 
   return (
-    <ModulePage className={rep.page}>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <ModulePage className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <Link
             href={`/businesses/${businessId}/reputation/qr-campaigns`}
-            className={cn(rep.link, "mb-2")}
+            className="mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[#16A34A] hover:underline"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             All campaigns
           </Link>
-          <h1 className={rep.title}>Create QR Campaign</h1>
-          <p className={rep.subtitle}>
+          <h1 className={qrUi.title}>Create QR Campaign</h1>
+          <p className={qrUi.subtitle}>
             Set up a tracked Google review QR code in a few steps.
           </p>
         </div>
       </div>
 
+      {/* Step indicator */}
       <div className="flex flex-wrap gap-2">
         {STEPS.map((s) => (
           <button
@@ -194,15 +197,18 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
             type="button"
             onClick={() => s.id < step && setStep(s.id)}
             className={cn(
-              "rounded-lg border px-3 py-1.5 text-xs font-semibold transition",
+              "rounded-xl border px-4 py-2 text-xs font-semibold transition",
               step === s.id
-                ? "border-[#137752] bg-[#ECFDF3] text-[#027A48]"
+                ? "border-[#16A34A] bg-[#ECFDF3] text-[#027A48] shadow-sm"
                 : step > s.id
-                  ? "border-[#D0D5DD] text-[#344054]"
-                  : "border-[#E6EAF0] text-[#98A2B3]"
+                  ? "border-[#D0D5DD] bg-white text-[#344054] hover:bg-[#F9FAFB]"
+                  : "border-[#E6EAF0] bg-[#F9FAFB] text-[#98A2B3]"
             )}
           >
-            {s.id}. {s.label}
+            <span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-current/10 text-[10px]">
+              {step > s.id ? <Check className="h-3 w-3" /> : s.id}
+            </span>
+            {s.label}
           </button>
         ))}
       </div>
@@ -210,7 +216,7 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
       {error ? (
         <div
           className={cn(
-            "rounded-xl border px-4 py-3 text-sm",
+            "rounded-2xl border px-5 py-4 text-sm",
             planLimit
               ? "border-[#FEDF89] bg-[#FFFAEB] text-[#B54708]"
               : "border-red-200 bg-red-50 text-red-800"
@@ -219,8 +225,8 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
           {error}
           {planLimit ? (
             <span className="mt-1 block">
-              <Link href={`/businesses/${businessId}/settings`} className="font-semibold underline">
-                Upgrade
+              <Link href={plansHref} className="font-semibold underline">
+                View plans
               </Link>{" "}
               or pause an active campaign to free a slot.
             </span>
@@ -228,29 +234,31 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
         </div>
       ) : null}
 
-      <div className={cn(rep.card, "p-4 sm:p-5")}>
+      <div className={cn(qrUi.cardPad)}>
         {loadingBiz && step === 1 ? (
           <div className="flex items-center gap-2 text-sm text-[#667085]">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading business details…
+            <Loader2 className="h-4 w-4 animate-spin text-[#16A34A]" /> Loading business details…
           </div>
         ) : null}
 
         {step === 1 ? (
-          <div className="space-y-3">
-            <h2 className="text-base font-semibold text-[#101828]">Confirm Google destination</h2>
-            <p className="text-sm text-[#667085]">
-              After someone scans your tracked QR, they&apos;ll be sent to this Google review URL.
-            </p>
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-bold text-[#0B1B32]">1. Confirm Google destination</h2>
+              <p className="mt-1 text-sm text-[#667085]">
+                After someone scans your tracked QR, they&apos;ll be sent to this Google review URL.
+              </p>
+            </div>
             <input
               value={destinationUrl}
               onChange={(e) => setDestinationUrl(e.target.value)}
-              className={rep.input}
+              className={qrUi.input}
               placeholder="https://search.google.com/local/writereview?placeid=…"
             />
             {defaultDestination && destinationUrl !== defaultDestination ? (
               <button
                 type="button"
-                className={rep.link}
+                className="text-sm font-semibold text-[#16A34A] hover:underline"
                 onClick={() => setDestinationUrl(defaultDestination)}
               >
                 Use business default
@@ -260,23 +268,28 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
         ) : null}
 
         {step === 2 ? (
-          <div className="space-y-3">
-            <h2 className="text-base font-semibold text-[#101828]">Name & placement</h2>
+          <div className="space-y-4">
             <div>
-              <label className={rep.label}>Campaign name</label>
+              <h2 className="text-lg font-bold text-[#0B1B32]">2. Name & placement</h2>
+              <p className="mt-1 text-sm text-[#667085]">
+                Give your campaign a name and tell us where the QR will be displayed.
+              </p>
+            </div>
+            <div>
+              <label className={qrUi.label}>Campaign name</label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className={cn(rep.input, "mt-1.5")}
+                className={cn(qrUi.input, "mt-1.5")}
                 placeholder="Front desk poster"
               />
             </div>
             <div>
-              <label className={rep.label}>Where will this QR live?</label>
+              <label className={qrUi.label}>Where will this QR live?</label>
               <select
                 value={placementType}
                 onChange={(e) => setPlacementType(e.target.value as QrPlacementType)}
-                className={cn(rep.select, "mt-1.5 w-full")}
+                className={cn(qrUi.input, "mt-1.5")}
               >
                 {QR_PLACEMENT_TYPES.map((t) => (
                   <option key={t} value={t}>
@@ -287,11 +300,11 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
             </div>
             {placementType === "custom" ? (
               <div>
-                <label className={rep.label}>Custom label</label>
+                <label className={qrUi.label}>Custom label</label>
                 <input
                   value={customPlacementLabel}
                   onChange={(e) => setCustomPlacementLabel(e.target.value)}
-                  className={cn(rep.input, "mt-1.5")}
+                  className={cn(qrUi.input, "mt-1.5")}
                 />
               </div>
             ) : null}
@@ -299,52 +312,61 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
         ) : null}
 
         {step === 3 ? (
-          <div className="space-y-4">
-            <h2 className="text-base font-semibold text-[#101828]">Customize design</h2>
-            <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-lg font-bold text-[#0B1B32]">3. Customize design</h2>
+              <p className="mt-1 text-sm text-[#667085]">
+                Choose colors and copy for your print-ready poster.
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className={rep.label}>Headline</label>
+                <label className={qrUi.label}>Headline</label>
                 <input
                   value={headline}
                   onChange={(e) => setHeadline(e.target.value)}
-                  className={cn(rep.input, "mt-1.5")}
+                  className={cn(qrUi.input, "mt-1.5")}
                   maxLength={50}
                 />
               </div>
               <div>
-                <label className={rep.label}>Supporting text</label>
+                <label className={qrUi.label}>Supporting text</label>
                 <input
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className={cn(rep.input, "mt-1.5")}
+                  className={cn(qrUi.input, "mt-1.5")}
                   maxLength={60}
                 />
               </div>
             </div>
             <div>
-              <label className={rep.label}>Brand color</label>
+              <label className={qrUi.label}>Poster color</label>
               <div className="mt-2 flex flex-wrap gap-2">
-                {POSTER_BRAND_COLORS.map((color) => (
+                {QR_MOCK_COLORS.map((color) => (
                   <button
                     key={color}
                     type="button"
                     onClick={() => setBrandColor(color)}
                     className={cn(
-                      "h-9 w-9 rounded-full border-2 transition",
-                      brandColor === color ? "scale-110 border-[#101828]" : "border-transparent"
+                      "relative flex h-10 w-10 items-center justify-center rounded-full border-2 transition",
+                      brandColor === color ? "scale-110 border-[#0B1B32]" : "border-transparent"
                     )}
                     style={{ backgroundColor: color }}
                     aria-label={`Color ${color}`}
-                  />
+                  >
+                    {brandColor === color ? (
+                      <Check className="h-4 w-4 text-white drop-shadow" />
+                    ) : null}
+                  </button>
                 ))}
               </div>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <label className="flex cursor-pointer items-center gap-3">
                 <span
                   className={cn(
-                    "relative inline-flex h-5 w-9 rounded-full transition",
-                    showFooter ? "bg-[#137752]" : "bg-[#D0D5DD]"
+                    "relative inline-flex h-6 w-11 shrink-0 rounded-full transition",
+                    showFooter ? "bg-[#16A34A]" : "bg-[#D0D5DD]"
                   )}
                 >
                   <input
@@ -355,19 +377,28 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
                   />
                   <span
                     className={cn(
-                      "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition",
-                      showFooter ? "left-4" : "left-0.5"
+                      "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition",
+                      showFooter ? "left-5" : "left-0.5"
                     )}
                   />
                 </span>
-                <span className="text-sm font-medium text-[#101828]">Show footer</span>
+                <span className="text-sm font-medium text-[#0B1B32]">Show footer</span>
               </label>
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 {(["a4", "a5", "letter"] as const).map((f) => (
-                  <label key={f} className="flex items-center gap-1.5 text-xs capitalize text-[#667085]">
+                  <label
+                    key={f}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition",
+                      format === f
+                        ? "border-[#16A34A] bg-[#ECFDF3] text-[#027A48]"
+                        : "border-[#E6EAF0] text-[#667085]"
+                    )}
+                  >
                     <input
                       type="radio"
                       name="create-format"
+                      className="sr-only"
                       checked={format === f}
                       onChange={() => setFormat(f)}
                     />
@@ -380,21 +411,26 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
         ) : null}
 
         {step === 4 ? (
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="space-y-3">
-              <h2 className="text-base font-semibold text-[#101828]">Preview & save</h2>
-              <ul className="space-y-1.5 text-sm text-[#475467]">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-lg font-bold text-[#0B1B32]">4. Preview & save</h2>
+                <p className="mt-1 text-sm text-[#667085]">
+                  Review your campaign details before creating.
+                </p>
+              </div>
+              <ul className="space-y-2 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4 text-sm text-[#475467]">
                 <li>
-                  <span className="font-semibold text-[#101828]">Name:</span> {name}
+                  <span className="font-semibold text-[#0B1B32]">Name:</span> {name}
                 </li>
                 <li>
-                  <span className="font-semibold text-[#101828]">Placement:</span>{" "}
+                  <span className="font-semibold text-[#0B1B32]">Placement:</span>{" "}
                   {placementType === "custom"
                     ? customPlacementLabel || "Custom"
                     : QR_PLACEMENT_LABELS[placementType]}
                 </li>
                 <li className="break-all">
-                  <span className="font-semibold text-[#101828]">Destination:</span>{" "}
+                  <span className="font-semibold text-[#0B1B32]">Destination:</span>{" "}
                   {destinationUrl}
                 </li>
               </ul>
@@ -403,7 +439,7 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
                 — so every scan can be measured.
               </p>
             </div>
-            <div className="rounded-xl bg-[#F9FAFB] p-3" ref={previewRef}>
+            <div className="rounded-2xl bg-gradient-to-b from-[#F4F7FB] to-white p-4" ref={previewRef}>
               <ReviewPosterPreview
                 businessName={businessName}
                 poster={poster}
@@ -413,10 +449,10 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
           </div>
         ) : null}
 
-        <div className="mt-6 flex flex-wrap justify-between gap-2 border-t border-[#E6EAF0] pt-4">
+        <div className="mt-6 flex flex-wrap justify-between gap-2 border-t border-[#E6EAF0] pt-5">
           <button
             type="button"
-            className={rep.btnSecondary}
+            className={qrUi.btnSecondary}
             disabled={step === 1}
             onClick={() => setStep((s) => Math.max(1, s - 1))}
           >
@@ -426,7 +462,7 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
           {step < 4 ? (
             <button
               type="button"
-              className={rep.btnPrimary}
+              className={qrUi.btnPrimary}
               disabled={!canContinue()}
               onClick={() => setStep((s) => Math.min(4, s + 1))}
             >
@@ -436,7 +472,7 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
           ) : (
             <button
               type="button"
-              className={rep.btnPrimary}
+              className={qrUi.btnPrimary}
               disabled={saving || !canContinue()}
               onClick={() => void create()}
             >

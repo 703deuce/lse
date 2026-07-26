@@ -5,20 +5,22 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
+  Copy,
   Loader2,
   Pause,
+  Pencil,
   Play,
   Plus,
-  QrCode,
-  Sparkles,
+  Search,
 } from "lucide-react";
 import { ModulePage } from "@/components/ui/design-system";
 import {
-  RepBadge,
-  RepMetricCard,
-  RepSearch,
-  rep,
-} from "@/components/reputation/rep-ui";
+  QrEmptyState,
+  QrKpiCard,
+  QrStatusBadge,
+  QrUpgradeBanner,
+  qrUi,
+} from "@/components/reputation/qr-campaigns/qr-ui";
 import {
   QR_PLACEMENT_LABELS,
   QR_PLACEMENT_TYPES,
@@ -49,6 +51,7 @@ function placementLabel(c: ReviewQrCampaign): string {
 
 export function QrCampaignsList({ businessId }: { businessId: string }) {
   const router = useRouter();
+  const plansHref = `/businesses/${businessId}/reputation/qr-campaigns/plans`;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [campaigns, setCampaigns] = useState<ReviewQrCampaign[]>([]);
@@ -95,20 +98,8 @@ export function QrCampaignsList({ businessId }: { businessId: string }) {
   const summary = useMemo(() => {
     const totalScans = campaigns.reduce((n, c) => n + (c.totalScans || 0), 0);
     const totalUnique = campaigns.reduce((n, c) => n + (c.estimatedUniqueScans || 0), 0);
-    const byPlacement = new Map<string, number>();
-    for (const c of campaigns) {
-      const key = placementLabel(c);
-      byPlacement.set(key, (byPlacement.get(key) ?? 0) + (c.totalScans || 0));
-    }
-    let topPlacement = "—";
-    let topScans = -1;
-    for (const [label, scans] of byPlacement) {
-      if (scans > topScans) {
-        topScans = scans;
-        topPlacement = label;
-      }
-    }
-    return { totalScans, totalUnique, topPlacement };
+    const activeCampaigns = campaigns.filter((c) => c.status === "active").length;
+    return { totalScans, totalUnique, activeCampaigns };
   }, [campaigns]);
 
   async function duplicate(id: string) {
@@ -163,11 +154,11 @@ export function QrCampaignsList({ businessId }: { businessId: string }) {
   }
 
   return (
-    <ModulePage className={rep.page}>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <ModulePage className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <h1 className={rep.title}>QR Campaigns</h1>
-          <p className={rep.subtitle}>
+          <h1 className={qrUi.title}>QR Campaigns</h1>
+          <p className={qrUi.subtitle}>
             Trackable Google review QR codes for posters, counters, vehicles, and more.
           </p>
         </div>
@@ -175,65 +166,64 @@ export function QrCampaignsList({ businessId }: { businessId: string }) {
           {canCreateMore ? (
             <Link
               href={`/businesses/${businessId}/reputation/qr-campaigns/new`}
-              className={rep.btnPrimary}
+              className={qrUi.btnPrimary}
             >
               <Plus className="h-4 w-4" />
-              Create
+              Create New Campaign
             </Link>
           ) : (
-            <button type="button" className={cn(rep.btnPrimary, "opacity-60")} disabled>
+            <button type="button" className={cn(qrUi.btnPrimary, "cursor-not-allowed opacity-60")} disabled>
               <Plus className="h-4 w-4" />
-              Create
+              Create New Campaign
             </button>
           )}
         </div>
       </div>
 
       {!canCreateMore ? (
-        <div className="flex flex-wrap items-start gap-3 rounded-xl border border-[#FEDF89] bg-[#FFFAEB] px-4 py-3 text-sm text-[#B54708]">
-          <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
-          <div>
-            <p className="font-semibold">Campaign limit reached</p>
-            <p className="mt-0.5">
-              {limits
-                ? `You're using ${limits.activeCount} of ${limits.maxActive} active QR campaigns.`
-                : "Your plan's active QR campaign limit is full."}{" "}
-              Pause a campaign or{" "}
-              <Link href={`/businesses/${businessId}/settings`} className="font-semibold underline">
-                upgrade
-              </Link>{" "}
-              to track more placements.
-            </p>
-          </div>
-        </div>
+        <QrUpgradeBanner
+          title="Campaign limit reached"
+          body={
+            limits
+              ? `You're using ${limits.activeCount} of ${limits.maxActive} active QR campaigns. Pause a campaign or upgrade to track more placements.`
+              : "Your plan's active QR campaign limit is full. Pause a campaign or upgrade to track more placements."
+          }
+          href={plansHref}
+        />
       ) : null}
 
       {error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {error}
         </div>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <RepMetricCard label="Total campaigns" value={campaigns.length} icon={QrCode} />
-        <RepMetricCard label="Total scans" value={summary.totalScans.toLocaleString()} />
-        <RepMetricCard label="Est. unique" value={summary.totalUnique.toLocaleString()} />
-        <RepMetricCard label="Top placement" value={summary.topPlacement} />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <QrKpiCard label="Total Campaigns" value={campaigns.length} />
+        <QrKpiCard label="Total Scans" value={summary.totalScans.toLocaleString()} />
+        <QrKpiCard label="Est. Unique" value={summary.totalUnique.toLocaleString()} />
+        <QrKpiCard label="Active Campaigns" value={summary.activeCampaigns} />
       </div>
 
-      <div className="flex flex-wrap items-end gap-2">
-        <RepSearch
-          value={search}
-          onChange={setSearch}
-          placeholder="Search campaigns…"
-          className="min-w-[220px]"
-        />
-        <div>
-          <label className={rep.label}>Placement</label>
+      <div className={cn(qrUi.cardPad, "flex flex-wrap items-end gap-3")}>
+        <div className="min-w-[220px] flex-1">
+          <label className={qrUi.label}>Search</label>
+          <div className="relative mt-1.5">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search campaigns…"
+              className={cn(qrUi.input, "pl-10")}
+            />
+          </div>
+        </div>
+        <div className="min-w-[160px]">
+          <label className={qrUi.label}>Placement</label>
           <select
             value={placement}
             onChange={(e) => setPlacement(e.target.value)}
-            className={cn(rep.select, "mt-1 block")}
+            className={cn(qrUi.input, "mt-1.5")}
           >
             <option value="all">All placements</option>
             {QR_PLACEMENT_TYPES.map((t) => (
@@ -243,12 +233,12 @@ export function QrCampaignsList({ businessId }: { businessId: string }) {
             ))}
           </select>
         </div>
-        <div>
-          <label className={rep.label}>Status</label>
+        <div className="min-w-[140px]">
+          <label className={qrUi.label}>Status</label>
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className={cn(rep.select, "mt-1 block")}
+            className={cn(qrUi.input, "mt-1.5")}
           >
             <option value="all">All statuses</option>
             <option value="active">Active</option>
@@ -260,125 +250,126 @@ export function QrCampaignsList({ businessId }: { businessId: string }) {
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-2 py-10 text-sm text-[#667085]">
-          <Loader2 className="h-5 w-5 animate-spin text-[#137752]" />
+        <div className="flex items-center justify-center gap-2 py-16 text-sm text-[#667085]">
+          <Loader2 className="h-5 w-5 animate-spin text-[#16A34A]" />
           Loading campaigns…
         </div>
       ) : campaigns.length === 0 ? (
-        <div className={cn(rep.card, "border-dashed p-10 text-center")}>
-          <QrCode className="mx-auto h-8 w-8 text-[#137752]" />
-          <h2 className="mt-3 text-lg font-semibold text-[#101828]">No QR campaigns yet</h2>
-          <p className="mx-auto mt-1 max-w-md text-sm text-[#667085]">
-            Create a tracked Google review QR code for your front desk, receipts, or job sites.
-          </p>
-          <Link
-            href={`/businesses/${businessId}/reputation/qr-campaigns/new`}
-            className={cn(rep.btnPrimary, "mt-4")}
-          >
-            <Plus className="h-4 w-4" />
-            Create your first campaign
-          </Link>
-        </div>
+        <QrEmptyState
+          title="No QR campaigns yet"
+          body="Create a tracked Google review QR code for your front desk, receipts, or job sites."
+          action={
+            <Link
+              href={`/businesses/${businessId}/reputation/qr-campaigns/new`}
+              className={qrUi.btnPrimary}
+            >
+              <Plus className="h-4 w-4" />
+              Create your first campaign
+            </Link>
+          }
+        />
       ) : (
-        <div className={cn(rep.card, "overflow-x-auto")}>
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="border-b border-[#E6EAF0] bg-[#F9FAFB] text-[11px] font-semibold uppercase tracking-wide text-[#98A2B3]">
-              <tr>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Placement</th>
-                <th className="px-4 py-3">Scans</th>
-                <th className="px-4 py-3">Unique</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Last scan</th>
-                <th className="px-4 py-3">Created</th>
-                <th className="px-4 py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((c) => (
-                <tr key={c.id} className="border-b border-[#E6EAF0] last:border-0">
-                  <td className="px-4 py-3 font-medium text-[#101828]">
-                    <Link
-                      href={`/businesses/${businessId}/reputation/qr-campaigns/${c.id}`}
-                      className="hover:text-[#137752] hover:underline"
-                    >
-                      {c.name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-[#475467]">{placementLabel(c)}</td>
-                  <td className="px-4 py-3 text-[#475467]">{c.totalScans.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-[#475467]">
-                    {c.estimatedUniqueScans.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3">
-                    <RepBadge
-                      tone={
-                        c.status === "active"
-                          ? "green"
-                          : c.status === "paused"
-                            ? "amber"
-                            : "gray"
-                      }
-                    >
-                      {c.status}
-                    </RepBadge>
-                  </td>
-                  <td className="px-4 py-3 text-[#475467]">{formatDate(c.lastScannedAt)}</td>
-                  <td className="px-4 py-3 text-[#475467]">{formatDate(c.createdAt)}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1.5">
-                      <Link
-                        href={`/businesses/${businessId}/reputation/qr-campaigns/${c.id}`}
-                        className={cn(rep.btnSecondary, "h-8 px-2.5 text-xs")}
-                      >
-                        Edit
-                      </Link>
-                      <Link
-                        href={`/businesses/${businessId}/reputation/qr-campaigns/${c.id}/analytics`}
-                        className={cn(rep.btnSecondary, "h-8 px-2.5 text-xs")}
-                      >
-                        <BarChart3 className="h-3.5 w-3.5" />
-                        Analytics
-                      </Link>
-                      <button
-                        type="button"
-                        disabled={busyId === c.id}
-                        onClick={() => void duplicate(c.id)}
-                        className={cn(rep.btnSecondary, "h-8 px-2.5 text-xs")}
-                      >
-                        Duplicate
-                      </button>
-                      <button
-                        type="button"
-                        disabled={busyId === c.id}
-                        onClick={() => void toggleStatus(c)}
-                        className={cn(rep.btnSecondary, "h-8 px-2.5 text-xs")}
-                      >
-                        {busyId === c.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : c.status === "active" ? (
-                          <>
-                            <Pause className="h-3.5 w-3.5" /> Pause
-                          </>
-                        ) : (
-                          <>
-                            <Play className="h-3.5 w-3.5" /> Activate
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 ? (
+        <div className={cn(qrUi.card, "overflow-hidden")}>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[800px] text-left text-sm">
+              <thead className="border-b border-[#E6EAF0] bg-[#F9FAFB] text-[11px] font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-[#667085]">
-                    No campaigns match your filters.
-                  </td>
+                  <th className="px-5 py-3.5">Name</th>
+                  <th className="px-5 py-3.5">Placement</th>
+                  <th className="px-5 py-3.5">Scans</th>
+                  <th className="px-5 py-3.5">Unique</th>
+                  <th className="px-5 py-3.5">Last scan</th>
+                  <th className="px-5 py-3.5">Created</th>
+                  <th className="px-5 py-3.5">Actions</th>
                 </tr>
-              ) : null}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map((c) => (
+                  <tr
+                    key={c.id}
+                    className="border-b border-[#E6EAF0] transition last:border-0 hover:bg-[#F9FAFB]/60"
+                  >
+                    <td className="px-5 py-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                          href={`/businesses/${businessId}/reputation/qr-campaigns/${c.id}`}
+                          className="font-semibold text-[#0B1B32] hover:text-[#16A34A] hover:underline"
+                        >
+                          {c.name}
+                        </Link>
+                        <QrStatusBadge status={c.status} />
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 text-[#475467]">{placementLabel(c)}</td>
+                    <td className="px-5 py-4 font-medium text-[#0B1B32]">
+                      {c.totalScans.toLocaleString()}
+                    </td>
+                    <td className="px-5 py-4 text-[#475467]">
+                      {c.estimatedUniqueScans.toLocaleString()}
+                    </td>
+                    <td className="px-5 py-4 text-[#475467]">{formatDate(c.lastScannedAt)}</td>
+                    <td className="px-5 py-4 text-[#475467]">{formatDate(c.createdAt)}</td>
+                    <td className="px-5 py-4">
+                      <div className="flex flex-wrap gap-1.5">
+                        <Link
+                          href={`/businesses/${businessId}/reputation/qr-campaigns/${c.id}`}
+                          className={cn(qrUi.btnGhost, "h-9 px-2.5 text-xs")}
+                          title="Edit"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Edit
+                        </Link>
+                        <Link
+                          href={`/businesses/${businessId}/reputation/qr-campaigns/${c.id}/analytics`}
+                          className={cn(qrUi.btnGhost, "h-9 px-2.5 text-xs")}
+                          title="Analytics"
+                        >
+                          <BarChart3 className="h-3.5 w-3.5" />
+                          Analytics
+                        </Link>
+                        <button
+                          type="button"
+                          disabled={busyId === c.id}
+                          onClick={() => void duplicate(c.id)}
+                          className={cn(qrUi.btnGhost, "h-9 px-2.5 text-xs")}
+                          title="Duplicate"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                          Duplicate
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busyId === c.id}
+                          onClick={() => void toggleStatus(c)}
+                          className={cn(qrUi.btnGhost, "h-9 px-2.5 text-xs")}
+                          title={c.status === "active" ? "Pause" : "Activate"}
+                        >
+                          {busyId === c.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : c.status === "active" ? (
+                            <>
+                              <Pause className="h-3.5 w-3.5" /> Pause
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-3.5 w-3.5" /> Activate
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-12 text-center text-[#667085]">
+                      No campaigns match your filters.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </ModulePage>
