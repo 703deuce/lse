@@ -63,7 +63,7 @@ const FAQS = [
 export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean }) {
   if (embed) {
     return (
-      <div className="min-h-[100%] bg-[#F8FAFC] px-2 py-3 sm:px-4 sm:py-4">
+      <div className="min-h-[100%] bg-white px-2 py-2 sm:px-4 sm:py-3">
         <PublicQrGenerator embedded seoLayout />
       </div>
     );
@@ -106,8 +106,8 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
       </header>
 
       <main>
-        <section className="border-b border-[#E2E8F0] bg-[radial-gradient(ellipse_at_top,_#ECFDF5_0%,_#ffffff_48%,_#F8FAFC_100%)]">
-          <div id="generator" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
+        <section className="border-b border-[#E2E8F0] bg-white">
+          <div id="generator" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
             <PublicQrGenerator seoLayout />
           </div>
         </section>

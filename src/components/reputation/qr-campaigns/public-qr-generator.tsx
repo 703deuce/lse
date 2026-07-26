@@ -8,13 +8,9 @@ import {
   Check,
   Copy,
   Download,
-  Gift,
   Loader2,
-  Lock,
-  MapPin,
   QrCode,
   Search,
-  Zap,
 } from "lucide-react";
 import { ReviewPosterPreview } from "@/components/reputation/review-poster-preview";
 import {
@@ -275,45 +271,43 @@ export function PublicQrGenerator({
   const signInHref = `/sign-in?next=${encodeURIComponent(claimNext)}`;
 
   const leftColumn = (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-col">
       {!hideIntro ? (
         <div className="space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#16A34A]">
-            Free tool · No credit card required
+          <p className="inline-flex rounded-full bg-[#ECFDF3] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#15803D]">
+            100% free · No credit card required
           </p>
-          <h1 className="text-[1.65rem] font-extrabold tracking-tight text-[#14532D] sm:text-[1.9rem] sm:leading-[1.12]">
-            Free Google Review QR Code Generator
+          <h1 className="text-[1.7rem] font-extrabold tracking-tight leading-[1.12] sm:text-[1.95rem]">
+            <span className="text-[#0B1B32]">Free Google Review </span>
+            <span className="text-[#16A34A]">QR Code Generator</span>
           </h1>
           <p className="max-w-[28rem] text-[13px] leading-5 text-[#475569]">
             Create a printable Google Review QR poster, customize your design, and download it
             instantly.
           </p>
-          <ul className="flex flex-wrap gap-x-3.5 gap-y-1 pt-0.5 text-[12px] font-semibold text-[#0B1B32]">
-            {[
-              { icon: Gift, label: "100% Free" },
-              { icon: Zap, label: "Instant Download" },
-              { icon: Lock, label: "No Sign Up Required" },
-            ].map((item) => (
-              <li key={item.label} className="inline-flex items-center gap-1.5">
-                <item.icon className="h-3.5 w-3.5 text-[#16A34A]" strokeWidth={2.25} />
-                {item.label}
+          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] font-semibold text-[#0B1B32]">
+            {["Free to use", "Instant download", "No sign up required"].map((label) => (
+              <li key={label} className="inline-flex items-center gap-1.5">
+                <Check className="h-3.5 w-3.5 text-[#16A34A]" strokeWidth={2.75} />
+                {label}
               </li>
             ))}
           </ul>
         </div>
       ) : null}
 
-      <div className={cn("space-y-3.5", !hideIntro && "mt-4")}>
+      {/* Steps stacked vertically — no gray card wrapper */}
+      <div className={cn("space-y-3", !hideIntro && "mt-4")}>
         <div>
           <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#0B1B32]">
             <span className="text-[#16A34A]">1.</span> Find your business
           </p>
           {!manualMode ? (
-            <div ref={searchWrapRef} className="mt-2 space-y-2">
+            <div ref={searchWrapRef} className="mt-1.5 space-y-1.5">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
                 <input
-                  className={cn(qrUi.input, "h-10 pl-10 pr-10 text-sm")}
+                  className={cn(qrUi.input, "h-9 pl-10 pr-10 text-sm")}
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
@@ -330,7 +324,7 @@ export function PublicQrGenerator({
                   <Check className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#16A34A]" />
                 ) : null}
                 {searchOpen && searchQuery.trim().length >= 2 ? (
-                  <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 max-h-52 overflow-auto rounded-xl border border-[#E2E8F0] bg-white py-1 shadow-[0_16px_40px_rgba(11,27,50,0.12)]">
+                  <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 max-h-48 overflow-auto rounded-xl border border-[#E2E8F0] bg-white py-1 shadow-[0_16px_40px_rgba(11,27,50,0.12)]">
                     {searching ? (
                       <p className="flex items-center gap-2 px-3 py-2.5 text-xs text-[#64748B]">
                         <Loader2 className="h-3.5 w-3.5 animate-spin text-[#16A34A]" />
@@ -370,16 +364,16 @@ export function PublicQrGenerator({
                   </div>
                 ) : null}
               </div>
-              <div className="grid grid-cols-[1fr_88px] gap-2">
+              <div className="grid grid-cols-[1fr_72px] gap-1.5">
                 <input
-                  className={cn(qrUi.input, "h-9 text-sm")}
+                  className={cn(qrUi.input, "h-8 text-sm")}
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  placeholder="City (helps accuracy)"
+                  placeholder="City"
                   autoComplete="address-level2"
                 />
                 <input
-                  className={cn(qrUi.input, "h-9 text-sm uppercase")}
+                  className={cn(qrUi.input, "h-8 text-sm uppercase")}
                   value={stateCode}
                   onChange={(e) => setStateCode(e.target.value.slice(0, 2))}
                   placeholder="ST"
@@ -399,9 +393,9 @@ export function PublicQrGenerator({
               </button>
             </div>
           ) : (
-            <div className="mt-2">
+            <div className="mt-1.5">
               <input
-                className={cn(qrUi.input, "h-10 text-sm")}
+                className={cn(qrUi.input, "h-9 text-sm")}
                 value={manualValue}
                 onChange={(e) => {
                   setManualValue(e.target.value);
@@ -411,7 +405,7 @@ export function PublicQrGenerator({
               />
               <button
                 type="button"
-                className="mt-1.5 text-xs font-semibold text-[#16A34A] hover:underline"
+                className="mt-1 text-xs font-semibold text-[#16A34A] hover:underline"
                 onClick={() => setManualMode(false)}
               >
                 or search Google Places
@@ -424,34 +418,27 @@ export function PublicQrGenerator({
           <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#0B1B32]">
             <span className="text-[#16A34A]">2.</span> Customize your design
           </p>
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            <label className="block sm:col-span-2">
-              <span className={qrUi.label}>Business name</span>
-              <input
-                className={cn(qrUi.input, "mt-1 h-9 text-sm")}
-                value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
-                placeholder="Premier Junk Removal"
-              />
-            </label>
-            <label className="block">
-              <span className={qrUi.label}>Headline</span>
-              <input
-                className={cn(qrUi.input, "mt-1 h-9 text-sm")}
-                value={headline}
-                onChange={(e) => setHeadline(e.target.value)}
-                maxLength={50}
-              />
-            </label>
-            <label className="block">
-              <span className={qrUi.label}>Scan message</span>
-              <input
-                className={cn(qrUi.input, "mt-1 h-9 text-sm")}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                maxLength={60}
-              />
-            </label>
+          <div className="mt-1.5 space-y-1.5">
+            <input
+              className={cn(qrUi.input, "h-9 text-sm")}
+              value={businessName}
+              onChange={(e) => setBusinessName(e.target.value)}
+              placeholder="Business name"
+            />
+            <input
+              className={cn(qrUi.input, "h-9 text-sm")}
+              value={headline}
+              onChange={(e) => setHeadline(e.target.value)}
+              maxLength={50}
+              placeholder="Headline"
+            />
+            <input
+              className={cn(qrUi.input, "h-9 text-sm")}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              maxLength={60}
+              placeholder="Scan message"
+            />
           </div>
         </div>
 
@@ -459,7 +446,7 @@ export function PublicQrGenerator({
           <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#0B1B32]">
             <span className="text-[#16A34A]">3.</span> Choose color
           </p>
-          <div className="mt-2 flex flex-wrap gap-2">
+          <div className="mt-1.5 flex flex-wrap gap-2">
             {QR_MOCK_COLORS.map((color) => (
               <button
                 key={color}
@@ -467,7 +454,7 @@ export function PublicQrGenerator({
                 aria-label={`Choose ${color}`}
                 onClick={() => setBrandColor(color)}
                 className={cn(
-                  "h-8 w-8 rounded-full transition",
+                  "h-7 w-7 rounded-full transition",
                   brandColor === color
                     ? "ring-2 ring-[#0B1B32] ring-offset-2"
                     : "ring-1 ring-black/10 hover:ring-black/20"
@@ -476,21 +463,21 @@ export function PublicQrGenerator({
               />
             ))}
           </div>
-          <label className="mt-3 flex cursor-pointer items-center gap-2.5 text-sm text-[#334155]">
+          <label className="mt-2.5 flex cursor-pointer items-center gap-2 text-[13px] text-[#334155]">
             <button
               type="button"
               role="switch"
               aria-checked={showBranding}
               onClick={() => setShowBranding((v) => !v)}
               className={cn(
-                "relative h-6 w-11 shrink-0 rounded-full transition",
+                "relative h-5 w-9 shrink-0 rounded-full transition",
                 showBranding ? "bg-[#16A34A]" : "bg-[#CBD5E1]"
               )}
             >
               <span
                 className={cn(
-                  "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition",
-                  showBranding ? "left-5" : "left-0.5"
+                  "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition",
+                  showBranding ? "left-4" : "left-0.5"
                 )}
               />
             </button>
@@ -499,39 +486,33 @@ export function PublicQrGenerator({
         </div>
       </div>
 
-      <div className="mt-4 space-y-2">
-        <div className="grid gap-2 sm:grid-cols-2">
-          <button
-            type="button"
-            disabled={generating || !destinationReady}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#16A34A] text-[13px] font-bold text-white shadow-[0_10px_24px_rgba(22,163,74,0.28)] transition hover:bg-[#15803D] disabled:opacity-50"
-            onClick={() => void downloadQrOnly()}
-          >
-            {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            {generating ? "Generating…" : "Download QR Code"}
-          </button>
-          <button
-            type="button"
-            disabled={generating || !destinationReady}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#D0D5DD] bg-white text-[13px] font-bold text-[#0B1B32] transition hover:bg-[#F8FAFC] disabled:opacity-50"
-            onClick={() => void generate()}
-          >
-            <QrCode className="h-4 w-4" />
-            Preview Poster
-          </button>
-        </div>
-        <p className="flex items-center justify-center gap-1.5 text-center text-[11px] leading-4 text-[#98A2B3]">
-          <Lock className="h-3 w-3" />
-          Your data is safe — we don’t store search data for this free tool.
-        </p>
+      <div className="mt-3 space-y-2">
+        <button
+          type="button"
+          disabled={generating || !destinationReady}
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#16A34A] text-[14px] font-bold text-white shadow-[0_10px_24px_rgba(22,163,74,0.28)] transition hover:bg-[#15803D] disabled:opacity-50"
+          onClick={() => void downloadQrOnly()}
+        >
+          {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {generating ? "Generating…" : "Download QR Code"}
+        </button>
+        <button
+          type="button"
+          disabled={generating || !destinationReady}
+          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#D0D5DD] bg-white text-[13px] font-bold text-[#0B1B32] transition hover:bg-[#F8FAFC] disabled:opacity-50"
+          onClick={() => void generate()}
+        >
+          <QrCode className="h-4 w-4" />
+          Preview Poster
+        </button>
       </div>
     </div>
   );
 
   const rightColumn = (
-    <div className="flex h-full flex-col">
-      {/* Same poster component/layout as the app Review Poster page — natural aspect, no squash */}
-      <div className="flex min-h-[430px] flex-1 items-center justify-center rounded-2xl bg-[#F3F6FA] px-3 py-4 sm:min-h-[460px]">
+    <div className="flex flex-col">
+      {/* Keep current app poster — no gray stage chrome */}
+      <div className="flex items-center justify-center py-1">
         <ReviewPosterPreview
           ref={posterRef}
           businessName={businessName || "Your Business"}
@@ -541,7 +522,7 @@ export function PublicQrGenerator({
         />
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[12px] font-semibold text-[#0B1B32]">
+      <div className="mt-2.5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[12px] font-semibold text-[#0B1B32]">
         <button
           type="button"
           disabled={generating}
@@ -549,7 +530,7 @@ export function PublicQrGenerator({
           onClick={() => void downloadPoster()}
         >
           <Download className="h-3.5 w-3.5" />
-          Download Poster PDF
+          Download Poster (PDF)
         </button>
         <button
           type="button"
@@ -558,7 +539,7 @@ export function PublicQrGenerator({
           onClick={() => void downloadQrOnly()}
         >
           <QrCode className="h-3.5 w-3.5" />
-          Download QR Code
+          Download QR (PNG)
         </button>
         <button
           type="button"
@@ -567,12 +548,9 @@ export function PublicQrGenerator({
           onClick={() => void copyLink()}
         >
           {copied ? <Check className="h-3.5 w-3.5 text-[#16A34A]" /> : <Copy className="h-3.5 w-3.5" />}
-          {copied ? "Copied" : "Copy Poster Link"}
+          {copied ? "Copied" : "Copy Review Link"}
         </button>
       </div>
-      <p className="mt-2 text-center text-[11px] text-[#94A3B8]">
-        You can print and display this in your store.
-      </p>
 
       {result && embedded ? (
         <p className="mt-2 text-center text-xs leading-5 text-[#64748B]">
@@ -606,13 +584,10 @@ export function PublicQrGenerator({
           </div>
         ) : null}
 
-        <div className="overflow-hidden rounded-[1.25rem] border border-[#E6EAF0] bg-white shadow-[0_16px_40px_rgba(11,27,50,0.07)]">
-          <div className="grid items-start lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
-            <div className="border-b border-[#EEF2F6] p-4 sm:p-5 lg:border-b-0 lg:border-r lg:p-6">
-              {leftColumn}
-            </div>
-            <div className="bg-[#FBFCFD] p-4 sm:p-5">{rightColumn}</div>
-          </div>
+        {/* Open hero — no gray card around the form; poster stays as-is */}
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-8">
+          <div>{leftColumn}</div>
+          <div>{rightColumn}</div>
         </div>
       </div>
     );
@@ -639,18 +614,10 @@ export function PublicQrGenerator({
             {error}
           </div>
         ) : null}
-        <div className="overflow-hidden rounded-[1.25rem] border border-[#E6EAF0] bg-white shadow-[0_16px_40px_rgba(11,27,50,0.07)]">
-          <div className="grid items-start lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
-            <div className="border-b border-[#EEF2F6] p-4 sm:p-5 lg:border-b-0 lg:border-r lg:p-6">
-              {leftColumn}
-            </div>
-            <div className="bg-[#FBFCFD] p-4 sm:p-5">{rightColumn}</div>
-          </div>
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-8">
+          <div>{leftColumn}</div>
+          <div>{rightColumn}</div>
         </div>
-        <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-[#64748B]">
-          <MapPin className="h-3.5 w-3.5 text-[#16A34A]" />
-          Search Google Places or paste a Place ID to generate a real review QR.
-        </p>
       </div>
     </div>
   );

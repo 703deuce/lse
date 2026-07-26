@@ -76,9 +76,9 @@
 .qr-tool-frame {
   display: block;
   width: 100%;
-  min-height: 820px;
+  min-height: 760px;
   border: 0;
-  background: transparent;
+  background: #fff;
 }
 
 .qr-seo-copy {
