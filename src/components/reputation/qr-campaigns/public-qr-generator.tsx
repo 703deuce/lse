@@ -292,8 +292,8 @@ export function PublicQrGenerator({
         ))}
       </div>
 
-      {/* Center the large poster block in the tall column — wide poster, soft padding */}
-      <div className="flex min-h-0 flex-1 flex-col justify-center py-2">
+      {/* Top-aligned: large poster first, then downloads — no dead vertical centering */}
+      <div className="mt-5 flex min-h-0 flex-1 flex-col">
         <div className="rounded-2xl bg-[#F3F6FA] px-4 py-5 sm:px-6 sm:py-6">
           {tab === "how" ? (
             <div className="mx-auto w-full max-w-md rounded-2xl border border-[#E6EAF0] bg-white p-7 shadow-sm">
