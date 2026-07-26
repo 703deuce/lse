@@ -74,9 +74,35 @@ export async function POST(request: Request) {
           phoneNumber: String(body.phoneNumber ?? ""),
         });
         break;
+      case "release_number":
+        registration = await messagingOnboarding.releaseNumber(ctx);
+        break;
       case "activate":
         registration = await messagingOnboarding.activateMessaging(ctx);
         break;
+      case "pause":
+        registration = await messagingOnboarding.pauseMessaging(ctx);
+        break;
+      case "resume":
+        registration = await messagingOnboarding.resumeMessaging(ctx);
+        break;
+      case "send_test": {
+        const result = await messagingOnboarding.sendTestSms({
+          ...ctx,
+          toPhone: String(body.toPhone ?? body.phoneNumber ?? ""),
+          body: typeof body.body === "string" ? body.body : undefined,
+        });
+        if (!result.ok) {
+          return NextResponse.json({ error: result.error }, { status: 400 });
+        }
+        registration = (await messagingOnboarding.getCustomerAccount(ctx)).registration;
+        return NextResponse.json({
+          registration,
+          messageSid: result.messageSid,
+          progress: buildProgressSteps(registration, businessId),
+          nextHref: nextSetupHref(registration, businessId),
+        });
+      }
       default:
         return NextResponse.json({ error: "Unknown action" }, { status: 400 });
     }

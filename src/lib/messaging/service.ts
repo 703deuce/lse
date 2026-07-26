@@ -1,9 +1,18 @@
+import { enqueueMessagingRegistrationAdvance } from "./enqueue-advance";
 import {
   createAndSubmitSecondaryCustomerProfile,
   createCustomerSubaccount,
-  refreshLiveRegistrationStatus,
 } from "./twilio-adapter";
 import { isLiveTwilioMessaging } from "./twilio-config";
+import {
+  canPurchaseNumber,
+  isLiveMessagingReady,
+  purchaseAndAttachNumber,
+  refreshAllTwilioStatuses,
+  releasePhoneNumber,
+  searchAvailableNumbers,
+  sendSmsViaMessagingService,
+} from "./twilio-onboarding";
 import {
   mockPurchaseNumber,
   mockReconcileStatus,
@@ -29,6 +38,21 @@ function useLiveAdapter(reg: MessagingRegistration): boolean {
   return isLiveTwilioMessaging() || reg.adapterMode === "twilio";
 }
 
+async function enqueueAdvance(reg: MessagingRegistration): Promise<void> {
+  try {
+    await enqueueMessagingRegistrationAdvance({
+      organizationId: reg.organizationId,
+      businessId: reg.businessId,
+      businessName: reg.businessName,
+    });
+  } catch (err) {
+    console.warn(
+      "[messaging] failed to enqueue registration advance",
+      err instanceof Error ? err.message : err
+    );
+  }
+}
+
 export const messagingOnboarding = {
   async getCustomerAccount(params: {
     organizationId: string;
@@ -40,7 +64,6 @@ export const messagingOnboarding = {
     return { registration, events };
   },
 
-  /** Start Registration: ensure draft exists; in live mode create subaccount (idempotent). */
   async startRegistration(params: {
     organizationId: string;
     businessId: string;
@@ -107,7 +130,14 @@ export const messagingOnboarding = {
       !params.business.ein.trim() ||
       !params.business.authRepFullName.trim() ||
       !params.business.authRepEmail.trim() ||
-      !params.business.businessIdentity;
+      !params.business.businessIdentity ||
+      !params.business.addressLine1.trim() ||
+      !params.business.city.trim() ||
+      !params.business.region.trim() ||
+      !params.business.postalCode.trim() ||
+      !params.business.websiteUrl.trim() ||
+      !params.business.businessType.trim() ||
+      !params.business.businessIndustry.trim();
     const next: MessagingRegistration = {
       ...current,
       business: params.business,
@@ -144,6 +174,7 @@ export const messagingOnboarding = {
     const current = await getRegistration(params);
     const incomplete =
       !params.useCase.campaignDescription.trim() ||
+      params.useCase.campaignDescription.trim().length < 40 ||
       !params.useCase.optInMethod.trim() ||
       !params.useCase.privacyPolicyUrl.trim() ||
       !params.useCase.termsUrl.trim() ||
@@ -196,10 +227,10 @@ export const messagingOnboarding = {
       const result = mockSubmitRegistration(current);
       const saved = await saveRegistration(result.registration);
       await appendEvents(saved, result.events);
+      await enqueueAdvance(saved);
       return saved;
     }
 
-    // Ensure subaccount exists, then create/submit Secondary Customer Profile.
     let working = current;
     const sub = await createCustomerSubaccount(working);
     working = await saveRegistration(sub.registration);
@@ -211,7 +242,8 @@ export const messagingOnboarding = {
 
     if (
       saved.businessDetailsStatus === "action_required" &&
-      saved.twilio.profileFailureReasons.length
+      saved.twilio.profileFailureReasons.length &&
+      !saved.twilio.profileSubmittedAt
     ) {
       throw new Error(
         saved.lastError ||
@@ -219,32 +251,26 @@ export const messagingOnboarding = {
           "Secondary Customer Profile submission failed."
       );
     }
+
+    // State machine continues: Trust Product → Brand → MS → Campaign → Ready
+    await enqueueAdvance(saved);
     return saved;
   },
 
-  async registerBrand(params: {
-    organizationId: string;
-    businessId: string;
-    businessName: string;
-  }): Promise<MessagingRegistration> {
-    return this.refreshStatus(params);
-  },
-
-  async submitCampaign(params: {
-    organizationId: string;
-    businessId: string;
-    businessName: string;
-  }): Promise<MessagingRegistration> {
-    return this.refreshStatus(params);
-  },
-
   async searchNumbers(params: {
+    organizationId: string;
+    businessId: string;
+    businessName: string;
     areaCode?: string;
     city?: string;
     postalCode?: string;
     contains?: string;
   }): Promise<AvailablePhoneNumber[]> {
-    return mockSearchNumbers(params);
+    const current = await getRegistration(params);
+    if (!useLiveAdapter(current) || !current.twilio.subaccountSid) {
+      return mockSearchNumbers(params);
+    }
+    return searchAvailableNumbers(current, params);
   },
 
   async purchaseNumber(params: {
@@ -254,10 +280,61 @@ export const messagingOnboarding = {
     phoneNumber: string;
   }): Promise<MessagingRegistration> {
     const current = await getRegistration(params);
-    const matches = mockSearchNumbers({});
-    const selected = matches.find((row) => row.phoneNumber === params.phoneNumber);
-    if (!selected) throw new Error("Selected number is no longer available.");
-    const result = mockPurchaseNumber(current, selected);
+    if (!useLiveAdapter(current)) {
+      const matches = mockSearchNumbers({});
+      const selected = matches.find((row) => row.phoneNumber === params.phoneNumber);
+      if (!selected) throw new Error("Selected number is no longer available.");
+      const result = mockPurchaseNumber(current, selected);
+      const saved = await saveRegistration(result.registration);
+      await appendEvents(saved, result.events);
+      return saved;
+    }
+
+    if (!canPurchaseNumber(current)) {
+      throw new Error(
+        "Purchase this number after Brand approval or Campaign submission — numbers are billed monthly and are not a free hold."
+      );
+    }
+    // Ensure messaging service exists (brand must be approved).
+    if (!current.twilio.messagingServiceSid) {
+      await enqueueAdvance(current);
+      throw new Error(
+        "Messaging Service is still being created. Check for updates, then purchase again."
+      );
+    }
+
+    const result = await purchaseAndAttachNumber(current, params.phoneNumber);
+    const saved = await saveRegistration(result.registration);
+    await appendEvents(saved, result.events);
+    if (isLiveMessagingReady(saved) || saved.campaignReviewStatus === "approved") {
+      await enqueueAdvance(saved);
+    }
+    return saved;
+  },
+
+  async releaseNumber(params: {
+    organizationId: string;
+    businessId: string;
+    businessName: string;
+  }): Promise<MessagingRegistration> {
+    const current = await getRegistration(params);
+    if (!useLiveAdapter(current)) {
+      const saved = await saveRegistration({
+        ...current,
+        phoneNumberE164: null,
+        phoneNumberFriendly: null,
+        phoneNumberReserved: false,
+        numberStatus: "not_started",
+        messagingEnabled: false,
+        messagingStatus: "not_started",
+        twilio: { ...current.twilio, phoneNumberSid: null },
+      });
+      await appendEvents(saved, [
+        { eventType: "number_released", message: "Mock phone number released." },
+      ]);
+      return saved;
+    }
+    const result = await releasePhoneNumber(current);
     const saved = await saveRegistration(result.registration);
     await appendEvents(saved, result.events);
     return saved;
@@ -269,8 +346,13 @@ export const messagingOnboarding = {
     businessName: string;
   }): Promise<MessagingRegistration> {
     const current = await getRegistration(params);
-    if (current.campaignReviewStatus !== "approved" || !current.phoneNumberE164) {
-      throw new Error("Campaign must be approved and a number assigned before activation.");
+    const ready = useLiveAdapter(current)
+      ? isLiveMessagingReady(current)
+      : current.campaignReviewStatus === "approved" && Boolean(current.phoneNumberE164);
+    if (!ready) {
+      throw new Error(
+        "Campaign must be verified and a number attached before activation."
+      );
     }
     const next: MessagingRegistration = {
       ...current,
@@ -288,6 +370,69 @@ export const messagingOnboarding = {
     return saved;
   },
 
+  async pauseMessaging(params: {
+    organizationId: string;
+    businessId: string;
+    businessName: string;
+  }): Promise<MessagingRegistration> {
+    const current = await getRegistration(params);
+    const saved = await saveRegistration({
+      ...current,
+      messagingPaused: true,
+      messagingEnabled: false,
+    });
+    await appendEvents(saved, [
+      { eventType: "messaging_paused", message: "Outbound SMS paused." },
+    ]);
+    return saved;
+  },
+
+  async resumeMessaging(params: {
+    organizationId: string;
+    businessId: string;
+    businessName: string;
+  }): Promise<MessagingRegistration> {
+    const current = await getRegistration(params);
+    const ready = useLiveAdapter(current)
+      ? isLiveMessagingReady({ ...current, messagingPaused: false })
+      : current.campaignReviewStatus === "approved" && Boolean(current.phoneNumberE164);
+    if (!ready) {
+      throw new Error("Cannot resume until registration is fully approved and a number is assigned.");
+    }
+    const saved = await saveRegistration({
+      ...current,
+      messagingPaused: false,
+      messagingEnabled: true,
+      messagingStatus: "ready",
+      overallStatus: "ready",
+    });
+    await appendEvents(saved, [
+      { eventType: "messaging_resumed", message: "Outbound SMS resumed." },
+    ]);
+    return saved;
+  },
+
+  async sendTestSms(params: {
+    organizationId: string;
+    businessId: string;
+    businessName: string;
+    toPhone: string;
+    body?: string;
+  }): Promise<{ ok: true; messageSid: string } | { ok: false; error: string }> {
+    const current = await getRegistration(params);
+    if (!useLiveAdapter(current)) {
+      return { ok: false, error: "Test SMS requires live Twilio mode." };
+    }
+    const body =
+      params.body?.trim() ||
+      `${current.businessName}: test review-request SMS. Reply STOP to opt out.`;
+    return sendSmsViaMessagingService({
+      registration: current,
+      toPhone: params.toPhone,
+      body,
+    });
+  },
+
   async refreshStatus(params: {
     organizationId: string;
     businessId: string;
@@ -295,11 +440,12 @@ export const messagingOnboarding = {
   }): Promise<MessagingRegistration> {
     const current = await getRegistration(params);
     if (useLiveAdapter(current)) {
-      if (!current.twilio.customerProfileSid) return current;
+      if (!current.twilio.customerProfileSid && !current.submittedAt) return current;
       try {
-        const result = await refreshLiveRegistrationStatus(current);
+        const result = await refreshAllTwilioStatuses(current);
         const saved = await saveRegistration(result.registration);
         await appendEvents(saved, result.events);
+        await enqueueAdvance(saved);
         return saved;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -321,6 +467,7 @@ export const messagingOnboarding = {
     const result = mockReconcileStatus(current);
     const saved = await saveRegistration(result.registration);
     await appendEvents(saved, result.events);
+    await enqueueAdvance(saved);
     return saved;
   },
 

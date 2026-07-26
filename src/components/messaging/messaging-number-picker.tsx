@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Phone, Search } from "lucide-react";
 import { rep } from "@/components/reputation/rep-ui";
 import { MOCK_PHONE_NUMBERS, mockSearchNumbers } from "@/lib/messaging/mock-adapter";
+import { canPurchaseMessagingNumber } from "@/lib/messaging/status";
 import type { AvailablePhoneNumber, MessagingProgressStep, MessagingRegistration } from "@/lib/messaging/types";
 import {
   Field,
@@ -76,19 +77,26 @@ export function MessagingNumberPicker({
 
   const selectedRow = numbers.find((row) => row.phoneNumber === selected) ?? null;
   const campaignApproved = registration.campaignReviewStatus === "approved";
+  const canPurchase = canPurchaseMessagingNumber(registration);
+  const monthly = selectedRow?.monthlyCost ?? 1.15;
 
   return (
     <MessagingPageShell
       title="Choose phone number"
-      subtitle="Search available numbers. You can reserve before campaign approval; outbound texting stays disabled until ready."
+      subtitle="Search anytime. Purchasing attaches a dedicated number to your Messaging Service and starts monthly billing."
       steps={progress}
       currentId="choose_number"
       registration={registration}
     >
-      {!campaignApproved ? (
-        <MessagingAlertBanner tone="info" title="You can reserve now">
-          Your number can be reserved now, but outbound texting will remain disabled until registration
-          is approved.
+      {!canPurchase ? (
+        <MessagingAlertBanner tone="info" title="Purchase unlocks after Brand approval">
+          You can search numbers now. Purchase becomes available once your Brand is approved or your
+          Campaign has been submitted — Twilio numbers are billed monthly, not held for free.
+        </MessagingAlertBanner>
+      ) : !campaignApproved ? (
+        <MessagingAlertBanner tone="info" title="Outbound SMS still waits on campaign approval">
+          You can purchase a number now, but outbound texting stays disabled until the A2P campaign is
+          verified.
         </MessagingAlertBanner>
       ) : null}
 
@@ -221,11 +229,11 @@ export function MessagingNumberPicker({
               </p>
             </div>
           ) : (
-            <p className="text-sm text-[#667085]">Select a number to reserve or purchase.</p>
+            <p className="text-sm text-[#667085]">Select a number to purchase.</p>
           )}
           <button
             type="button"
-            disabled={!selected || saving}
+            disabled={!selected || saving || !canPurchase}
             className={rep.btnPrimary + " mt-4 w-full disabled:opacity-50"}
             onClick={() =>
               void onPurchase(selected!).then(() =>
@@ -234,10 +242,10 @@ export function MessagingNumberPicker({
             }
           >
             {saving
-              ? "Saving..."
-              : campaignApproved
-                ? "Purchase and assign number"
-                : "Reserve this number"}
+              ? "Purchasing..."
+              : canPurchase
+                ? `Purchase this number — $${monthly.toFixed(2)}/month`
+                : "Purchase unlocks after Brand approval"}
           </button>
         </SectionCard>
       </div>

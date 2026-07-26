@@ -119,6 +119,24 @@ export function profileStatusLabel(raw: string | null | undefined): string {
   return raw ?? "Unknown";
 }
 
+export function brandStatusLabel(raw: string | null | undefined): string {
+  const value = (raw ?? "").toUpperCase();
+  if (!value || value === "DRAFT") return "Not submitted";
+  if (value === "PENDING" || value === "IN_REVIEW") return "In review";
+  if (value === "APPROVED") return "Approved";
+  if (value === "FAILED" || value === "REJECTED") return "Action required";
+  return raw ?? "Unknown";
+}
+
+export function campaignStatusLabel(raw: string | null | undefined): string {
+  const value = (raw ?? "").toUpperCase();
+  if (!value) return "Not submitted";
+  if (value === "PENDING" || value === "IN_PROGRESS") return "In review";
+  if (value === "VERIFIED") return "Approved";
+  if (value === "FAILED") return "Action required";
+  return raw ?? "Unknown";
+}
+
 export function buildProgressSteps(
   registration: MessagingRegistration,
   businessId: string
@@ -261,8 +279,20 @@ export function buildRegistrationTimeline(
 export function isMessagingReady(registration: MessagingRegistration): boolean {
   return (
     registration.messagingEnabled &&
+    !registration.messagingPaused &&
     registration.overallStatus === "ready" &&
     Boolean(registration.phoneNumberE164)
+  );
+}
+
+/** Whether the customer may purchase (not freely hold) a Twilio number. */
+export function canPurchaseMessagingNumber(registration: MessagingRegistration): boolean {
+  const brand = (registration.twilio.brandStatus ?? "").toUpperCase();
+  return (
+    brand === "APPROVED" ||
+    Boolean(registration.twilio.campaignSid) ||
+    registration.campaignReviewStatus === "approved" ||
+    registration.campaignReviewStatus === "in_review"
   );
 }
 

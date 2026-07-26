@@ -214,16 +214,47 @@ export async function sendCampaignMessageById(
     if (channel === "sms" && recipient?.phone) {
       let body = String(claimed.message_body ?? "");
       body = appendSmsOptOut(body);
-      const result = await sendTwilioSms({
-        toPhone: recipient.phone,
-        body,
+
+      // Prefer per-customer ISV Messaging Service when A2P registration is ready.
+      const { getRegistration } = await import("@/lib/messaging/store");
+      const { isLiveMessagingReady, sendSmsViaMessagingService } = await import(
+        "@/lib/messaging/twilio-onboarding"
+      );
+      const { isLiveTwilioMessaging } = await import("@/lib/messaging/twilio-config");
+      const messagingReg = await getRegistration({
         organizationId,
         businessId,
-        idempotencyKey: `twilio:msg:${claimed.id}`,
+        businessName: business?.name ?? "Business",
       });
-      ok = result.ok;
-      if (result.ok) providerId = result.messageSid;
-      else failReason = result.error;
+
+      if (isLiveTwilioMessaging() || messagingReg.adapterMode === "twilio") {
+        if (messagingReg.messagingPaused) {
+          failReason = "Messaging is paused for this business";
+        } else if (!isLiveMessagingReady(messagingReg)) {
+          failReason =
+            "A2P registration is not ready — SMS blocked until campaign is VERIFIED and a number is attached";
+        } else {
+          const result = await sendSmsViaMessagingService({
+            registration: messagingReg,
+            toPhone: recipient.phone,
+            body,
+          });
+          ok = result.ok;
+          if (result.ok) providerId = result.messageSid;
+          else failReason = result.error;
+        }
+      } else {
+        const result = await sendTwilioSms({
+          toPhone: recipient.phone,
+          body,
+          organizationId,
+          businessId,
+          idempotencyKey: `twilio:msg:${claimed.id}`,
+        });
+        ok = result.ok;
+        if (result.ok) providerId = result.messageSid;
+        else failReason = result.error;
+      }
     } else if (channel === "email" && recipient?.email) {
       const result = await sendBrevoEmail({
         toEmail: recipient.email,

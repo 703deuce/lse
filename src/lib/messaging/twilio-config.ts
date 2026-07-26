@@ -55,6 +55,25 @@ export function getTwilioComplianceStatusCallbackUrl(): string | undefined {
   return `${base.replace(/\/$/, "")}/api/twilio/compliance-status`;
 }
 
+/** Inbound SMS + delivery status for Messaging Services created per customer. */
+export function getTwilioMessagingWebhookUrls(): {
+  inboundRequestUrl: string;
+  statusCallback: string;
+  messageStatusCallback: string;
+} {
+  const base =
+    cleanSecret(process.env.TWILIO_STATUS_CALLBACK_BASE_URL) ||
+    cleanSecret(process.env.APP_URL) ||
+    cleanSecret(process.env.NEXT_PUBLIC_APP_URL) ||
+    "https://app.localseoexpress.com";
+  const root = base.replace(/\/$/, "");
+  return {
+    inboundRequestUrl: `${root}/api/twilio/inbound`,
+    statusCallback: `${root}/api/twilio/message-status`,
+    messageStatusCallback: `${root}/api/twilio/message-status`,
+  };
+}
+
 export function getTwilioParentCredentials(): TwilioParentCredentials | null {
   const accountSid = cleanSecret(process.env.TWILIO_ACCOUNT_SID);
   if (!accountSid?.startsWith("AC")) return null;

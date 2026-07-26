@@ -4,7 +4,9 @@ import Link from "next/link";
 import { History, RefreshCw, ShieldCheck } from "lucide-react";
 import { rep } from "@/components/reputation/rep-ui";
 import {
+  brandStatusLabel,
   buildRegistrationTimeline,
+  campaignStatusLabel,
   profileStatusLabel,
 } from "@/lib/messaging/status";
 import type { MessagingProgressStep, MessagingRegistration, MessagingRegistrationEvent } from "@/lib/messaging/types";
@@ -57,12 +59,28 @@ export function MessagingStatusScreen({
     {
       label: "Brand Registration",
       status: registration.brandVerificationStatus,
-      detail: registration.twilio.brandFailureReason || `${registration.brandType} · email ${registration.brandEmailVerificationStatus}`,
+      detail:
+        registration.twilio.brandFailureReason ||
+        [
+          brandStatusLabel(registration.twilio.brandStatus),
+          registration.twilio.brandSid,
+          registration.brandType,
+        ]
+          .filter(Boolean)
+          .join(" · "),
     },
     {
       label: "Campaign Registration",
       status: registration.campaignReviewStatus,
-      detail: registration.twilio.campaignFailureReason || "Customer Care / Review Requests",
+      detail:
+        registration.twilio.campaignFailureReason ||
+        [
+          campaignStatusLabel(registration.twilio.campaignStatus),
+          registration.twilio.campaignSid,
+          "Customer Care / Review Requests",
+        ]
+          .filter(Boolean)
+          .join(" · "),
     },
     {
       label: "Phone Number",

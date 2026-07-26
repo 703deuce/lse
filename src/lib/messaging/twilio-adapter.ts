@@ -28,7 +28,7 @@ export type TwilioAdapterResult = {
   }>;
 };
 
-function twilioErrorMessage(err: unknown): string {
+export function twilioErrorMessage(err: unknown): string {
   if (!err || typeof err !== "object") return String(err);
   const e = err as {
     message?: string;
@@ -44,7 +44,7 @@ function twilioErrorMessage(err: unknown): string {
   return parts.join(" · ") || "Twilio request failed";
 }
 
-function evaluationFailureReasons(results: unknown): string[] {
+export function evaluationFailureReasons(results: unknown): string[] {
   if (!Array.isArray(results)) return [];
   const reasons: string[] = [];
   for (const item of results) {
@@ -67,7 +67,7 @@ function evaluationFailureReasons(results: unknown): string[] {
   return reasons;
 }
 
-async function resolveSubClient(reg: MessagingRegistration) {
+export async function resolveSubClient(reg: MessagingRegistration) {
   const sid = reg.twilio.subaccountSid;
   if (!sid) throw new Error("Twilio subaccount has not been created yet.");
   const encrypted = await getSubaccountAuthTokenEncrypted(reg.businessId);

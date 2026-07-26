@@ -62,6 +62,7 @@ export function jobTypeToQueue(jobType: string): QueueName {
     case "integration_webhook_process":
       return "review-import";
     case "campaign_send_batch":
+    case "messaging_registration_advance":
       return "review-campaign";
     case "send_campaign_email":
       return "email-send";
@@ -286,6 +287,31 @@ export async function executeJobType(
         const limit = Number(payload.limit ?? 100);
         await enqueueDueCampaignMessages(Number.isFinite(limit) ? limit : 100);
         return { ok: true };
+      }
+      case "messaging_registration_advance": {
+        const businessId = String(payload.businessId ?? "");
+        const organizationId = String(payload.organizationId ?? "");
+        const businessName = String(payload.businessName ?? "Business");
+        if (!businessId || !organizationId) {
+          return permanent("messaging_registration_advance payload incomplete");
+        }
+        const { advanceMessagingRegistration } = await import(
+          "@/lib/messaging/registration-processor"
+        );
+        const { isDeferredError } = await import("@/lib/queue/errors");
+        try {
+          await advanceMessagingRegistration({
+            organizationId,
+            businessId,
+            businessName,
+          });
+          return { ok: true };
+        } catch (err) {
+          if (isDeferredError(err)) throw err;
+          const message = err instanceof Error ? err.message : String(err);
+          if (PERMANENT_PATTERN.test(message)) return permanent(message);
+          return { ok: false, error: message };
+        }
       }
       case "send_campaign_email":
       case "send_campaign_sms": {

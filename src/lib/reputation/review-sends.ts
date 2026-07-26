@@ -448,12 +448,41 @@ export async function sendReviewRequestSms(input: SendReviewSmsInput) {
     trackingToken,
   });
 
-  const result = await sendTwilioSms({
-    toPhone: normalized,
-    body,
-    organizationId: input.organizationId,
-    businessId: input.businessId,
-  });
+  let result: { ok: true; messageSid: string } | { ok: false; error: string };
+  {
+    const { getRegistration } = await import("@/lib/messaging/store");
+    const { isLiveMessagingReady, sendSmsViaMessagingService } = await import(
+      "@/lib/messaging/twilio-onboarding"
+    );
+    const { isLiveTwilioMessaging } = await import("@/lib/messaging/twilio-config");
+    const messagingReg = await getRegistration({
+      organizationId: input.organizationId,
+      businessId: input.businessId,
+      businessName: business.name,
+    });
+    if (isLiveTwilioMessaging() || messagingReg.adapterMode === "twilio") {
+      if (!isLiveMessagingReady(messagingReg)) {
+        result = {
+          ok: false,
+          error:
+            "A2P registration is not ready — complete Text Messaging setup before sending SMS.",
+        };
+      } else {
+        result = await sendSmsViaMessagingService({
+          registration: messagingReg,
+          toPhone: normalized,
+          body,
+        });
+      }
+    } else {
+      result = await sendTwilioSms({
+        toPhone: normalized,
+        body,
+        organizationId: input.organizationId,
+        businessId: input.businessId,
+      });
+    }
+  }
 
   const now = new Date().toISOString();
 
