@@ -26,7 +26,7 @@ Ops-only items (not code gaps): backup restore drills, production mixed-load soa
 | Reviews feed | `/reviews` | Sync read; refresh via momentum | messaging | ScrapingDog | momentum key | Module poller | `business_reviews` | Overview cards | Via `logProviderRun` | Admin job | reviews | Momentum reclaim | none on read |
 | Review Momentum | `POST /api/reviews/momentum/run` | `review_momentum_run` | messaging | ScrapingDog + DeepSeek | `review-momentum:{biz}:{30s}` | Module poller | momentum tables + reviews | `review_momentum` | Via provider log → ledger | Admin | reviews report | Job reclaim | Plan feature checked |
 | Review Requests (Quick Send) | send-email / send-sms | Sync | n/a | Brevo / Twilio | provider webhook dedupe | none | `review_request_sends` | KPI stats | Yes when org passed | Resend | no | n/a | `requireCampaignSendAccess` |
-| Review Campaigns | campaigns APIs + enroll | Drain → `email-send` / `sms-send` | `worker:messaging` | Brevo / Twilio | `campaign-msg-send:{msgId}` | Campaign poll | campaign tables | `reviews_campaign` | Plan + provider ledger | Pause/cancel + org kill switch | review_campaign | Drain + claim | `requireCampaignSendAccess` |
+| Review Campaigns | campaigns APIs + enroll | Drain → `email-send` / `sms-send` | `worker:all` | Brevo / Twilio | `campaign-msg-send:{msgId}` | Campaign poll | campaign tables | `reviews_campaign` | Plan + provider ledger | Pause/cancel + org kill switch | review_campaign | Drain + claim | `requireCampaignSendAccess` |
 | Contacts / imports | contacts + import | ≤200 sync; else `review-import` | messaging | none | `review-import:{uploadId}` | Upload/job poll | contacts + uploads | none | no | Admin cancel | error CSV | Job reclaim | `review_campaigns` |
 | Incoming webhooks | ingest + manage APIs | Queue `integration_webhook_process` | messaging | Customer CRM | event unique + `webhook_event:{id}` | 202 accept | webhook tables | none | Plan webhook limits | Revoke | no | Job retry | `review_campaigns` |
 | AI Visibility | `POST /api/ai-visibility/run` | `ai_visibility_run` | intelligence | ScrapingDog / LLMs | `ai-visibility:{biz}:{30s}` | Module poller | AI visibility tables | `ai_visibility` | Plan + provider | Admin | no | Job reclaim | `hasFeature(ai_visibility)` |
@@ -72,8 +72,7 @@ Explicit non-goals / ops follow-ups (not open engineering gaps):
 
 | Process | Command | Owns |
 | --- | --- | --- |
-| Messaging | `npm run worker:messaging` | Campaign email/SMS (+ related messaging queues) |
-| Core | `npm run worker:all` | Maps + intelligence + reports (**excludes** messaging send queues) |
+| Core | `npm run worker:all` | Maps + messaging + intelligence + reports (all queues) |
 
 Do **not** run messaging queues in both processes.
 

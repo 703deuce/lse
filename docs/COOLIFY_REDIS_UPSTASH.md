@@ -29,7 +29,7 @@ Open **each** of these (if they exist) → Environment Variables:
 | --- | --- |
 | Main web app (`app.localseoexpress.com`) | Cron `POST /api/jobs/process`, enqueue, rate limits |
 | Maps / combined worker (`worker:all` or `worker:maps`) | BullMQ consumers |
-| Messaging worker (`worker:messaging`) | Campaign email/sms queues |
+| Combined worker (`worker:all`) | All queues including campaign email/sms |
 | Any other worker / background processor | Same `REDIS_URL` |
 
 Search for and fix/remove:

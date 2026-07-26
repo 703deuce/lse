@@ -32,18 +32,18 @@ Physical queue names in code map to worker start commands:
 | --- | --- | --- |
 | maps.manual / maps.scheduled | `maps-scan` | `worker:maps` |
 | maps.retry | `maps-cell-retry` | `worker:maps` |
-| reviews.campaign.drain | `review-campaign` | `worker:messaging` |
-| reviews.campaign.email | `email-send` | `worker:messaging` |
-| reviews.campaign.sms | `sms-send` | `worker:messaging` |
-| contacts.import | `review-import` | `worker:messaging` |
-| reviews.monitor | `review-monitor` | `worker:messaging` |
-| backlinks.analysis | `backlink-gap` | `worker:intelligence` |
-| local-trust.discovery | `local-trust` | `worker:intelligence` |
-| ai-visibility | `ai-visibility` | `worker:intelligence` |
-| growth-audit | `maintenance` (growth job types) | `worker:intelligence` |
-| reports.* | `report-generation` | `worker:reports` |
-| notifications.* | `notifications` | `worker:messaging` |
-| maintenance | `maintenance` | `worker:intelligence` |
+| reviews.campaign.drain | `review-campaign` | `worker:all` |
+| reviews.campaign.email | `email-send` | `worker:all` |
+| reviews.campaign.sms | `sms-send` | `worker:all` |
+| contacts.import | `review-import` | `worker:all` |
+| reviews.monitor | `review-monitor` | `worker:all` |
+| backlinks.analysis | `backlink-gap` | `worker:all` (or `worker:intelligence`) |
+| local-trust.discovery | `local-trust` | `worker:all` (or `worker:intelligence`) |
+| ai-visibility | `ai-visibility` | `worker:all` (or `worker:intelligence`) |
+| growth-audit | `maintenance` (growth job types) | `worker:all` (or `worker:intelligence`) |
+| reports.* | `report-generation` | `worker:all` (or `worker:reports`) |
+| notifications.* | `notifications` | `worker:all` |
+| maintenance | `maintenance` | `worker:all` (or `worker:intelligence`) |
 
 Fine-grained priority is carried on the job (`priority` + `job_type`), not by spawning dozens of Redis queues on day one.
 
@@ -80,10 +80,8 @@ Fine-grained priority is carried on the job (`priority` + `job_type`), not by sp
 Same repo, different start commands (see `package.json`):
 
 - Web: `npm run start`  
-- Maps: `npm run worker:maps`  
-- Messaging: `npm run worker:messaging`  
-- Intelligence: `npm run worker:intelligence`  
-- Reports: `npm run worker:reports`  
+- Worker (recommended): `npm run worker:all`  
+- Optional splits: `worker:maps` / `worker:messaging` / `worker:intelligence` / `worker:reports` (do not combine with `worker:all`)  
 
 Scheduler remains Coolify cron → `/api/jobs/process` (discover + recover + enqueue drains — not heavy work).
 

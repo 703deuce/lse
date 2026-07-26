@@ -1,25 +1,15 @@
 /**
  * BullMQ worker entrypoint.
  *
- * Recommended Coolify layout (messaging split now; Maps split later):
+ * Recommended Coolify layout (single worker):
  *
- *   npm run worker:messaging   ← REQUIRED for campaign email/sms (Brevo/Twilio)
- *   npm run worker:all         ← Maps + intelligence + reports (excludes messaging)
+ *   npm run worker:all         ← Maps + messaging + intelligence + reports
  *
- *   Review Momentum / Reputation / Growth Audit → `maintenance` (on worker:all)
- *   Local Trust → `local-trust` (on worker:all)
- *   Review alerts only → `review-monitor` (messaging worker)
- *
- * Later, replace worker:all with:
+ * Optional specialized profiles still exist if you ever want to split again:
  *   npm run worker:maps
+ *   npm run worker:messaging   ← do NOT run alongside worker:all
  *   npm run worker:intelligence
  *   npm run worker:reports
- *
- * Why messaging is NOT on worker:all:
- *   Campaign sends were moved to dedicated email-send / sms-send queues so a
- *   Messaging Worker can own them without doubling concurrency against a
- *   combined worker. Quick Send (one-off UI) stays synchronous in the web app
- *   and does not use these queues.
  *
  * Requires QUEUE_DRIVER=bullmq and REDIS_URL.
  *
@@ -30,7 +20,6 @@
 import { DelayedError, Worker, UnrecoverableError } from "bullmq";
 import {
   JOB_QUEUES,
-  MESSAGING_QUEUE_NAMES,
   type JobQueueName,
   type QueueName,
 } from "../../src/lib/queue/types";
@@ -51,18 +40,11 @@ import { recoverPendingEnqueues } from "../../src/lib/queue/service";
 
 type WorkerProfile = "maps" | "messaging" | "intelligence" | "reports" | "all";
 
-const MESSAGING_SET = new Set<string>(MESSAGING_QUEUE_NAMES);
-
-/** Everything except messaging — safe to run alongside worker:messaging. */
-function nonMessagingQueues(): QueueName[] {
-  return listRegisteredQueueNames().filter((q) => !MESSAGING_SET.has(q));
-}
-
 const PROFILE_QUEUES: Record<WorkerProfile, JobQueueName[]> = {
   maps: [JOB_QUEUES.MAPS_SCAN, JOB_QUEUES.MAPS_CELL_RETRY],
   /**
-   * Campaign orchestrator + Brevo/Twilio senders + imports/alerts.
-   * Required for review campaign delivery. Do not also consume these on worker:all.
+   * Optional messaging-only profile. Prefer worker:all — do not run this
+   * alongside worker:all or the same jobs will be consumed twice.
    */
   messaging: [
     JOB_QUEUES.REVIEW_CAMPAIGN,
@@ -79,7 +61,8 @@ const PROFILE_QUEUES: Record<WorkerProfile, JobQueueName[]> = {
     JOB_QUEUES.MAINTENANCE,
   ],
   reports: [JOB_QUEUES.REPORT_GENERATION],
-  all: nonMessagingQueues(),
+  /** Default: every registered queue, including messaging. */
+  all: listRegisteredQueueNames() as QueueName[],
 };
 
 async function main() {
@@ -113,11 +96,18 @@ async function main() {
   }
 
   console.log(`[worker] profile=${profile}`);
-  if (profile === "messaging") {
+  if (profile === "all") {
     console.log(
-      "[worker] messaging profile — owns campaign email/sms. Keep worker:all for Maps/intelligence (it no longer consumes messaging queues)."
+      "[worker] profile=all consumes every queue (Maps + messaging + intelligence + reports). Do not also run worker:messaging."
     );
-    // Safe fingerprint only — never log the full Brevo key.
+  } else if (profile === "messaging") {
+    console.log(
+      "[worker] messaging-only profile — optional. Prefer worker:all unless you intentionally split workers."
+    );
+  }
+
+  // Safe fingerprint only — never log the full Brevo key.
+  if (profile === "messaging" || profile === "all") {
     const { secretFingerprint, cleanSecret } = await import("../../src/lib/env/secrets");
     const brevoFp = secretFingerprint(process.env.BREVO_API_KEY);
     const fromEmail = cleanSecret(process.env.REVIEW_REQUEST_FROM_EMAIL);
@@ -128,17 +118,13 @@ async function main() {
     );
     if (!brevoFp.present) {
       console.warn(
-        "[worker] BREVO_API_KEY is missing on this messaging worker — campaign email will fail. Set it on the messaging Coolify service (not only web / worker:all)."
+        "[worker] BREVO_API_KEY is missing — campaign email will fail. Set it on the Coolify worker service."
       );
     } else if (brevoFp.hadWhitespace) {
       console.warn(
         "[worker] BREVO_API_KEY had surrounding whitespace/quotes — cleaned at send time, but fix the Coolify value."
       );
     }
-  } else if (profile === "all") {
-    console.log(
-      "[worker] profile=all excludes messaging queues. Run npm run worker:messaging separately for campaign email/sms."
-    );
   }
 
   const recovered = await recoverPendingEnqueues(100);

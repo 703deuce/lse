@@ -42,7 +42,11 @@ export const JOB_QUEUES = {
   MAINTENANCE: "maintenance",
 } as const satisfies Record<string, QueueName>;
 
-/** Queues owned by `npm run worker:messaging`. */
+/**
+ * Messaging queue group (campaign drain, email/sms, imports, alerts).
+ * Consumed by `npm run worker:all` (default). The optional
+ * `npm run worker:messaging` profile still targets only this list.
+ */
 export const MESSAGING_QUEUE_NAMES = [
   JOB_QUEUES.REVIEW_CAMPAIGN,
   JOB_QUEUES.EMAIL_SEND,

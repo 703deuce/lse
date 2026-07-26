@@ -2,17 +2,17 @@
 
 Campaign SMS/email sends do **not** run inside long HTTP browser requests.
 
-With `QUEUE_DRIVER=bullmq` (recommended once Redis + messaging worker are live):
+With `QUEUE_DRIVER=bullmq` (recommended once Redis + worker are live):
 
 ```
 Cron → POST /api/jobs/process
      → enqueue campaign_send_batch (orchestrator)
-     → messaging worker finds due messages
+     → worker:all finds due messages
      → enqueue send_campaign_email / send_campaign_sms
-     → messaging worker → Brevo / Twilio
+     → worker:all → Brevo / Twilio
 ```
 
-The cron stays lightweight. Twilio/Brevo run only on `npm run worker:messaging`.
+The cron stays lightweight. Twilio/Brevo run on `npm run worker:all`.
 
 `GET|POST /api/jobs/process` still:
 1. Reclaims stale scan / job-queue work
@@ -20,19 +20,18 @@ The cron stays lightweight. Twilio/Brevo run only on `npm run worker:messaging`.
 
 On Coolify (Hetzner), schedule an **external cron** (or Coolify Scheduled Task) that hits your public app URL. Do not rely on `node-cron` inside the Next.js process — deploys and restarts would miss ticks.
 
-## Messaging worker (BullMQ) — run this now
+## Combined worker (BullMQ) — run this
 
-Campaign email/sms **only** run on the messaging worker. `worker:all` no longer consumes those queues.
+Campaign email/sms and A2P registration advance run on the combined worker. Do **not** also run `worker:messaging`.
 
 | Service | Start command | Role |
 | --- | --- | --- |
-| Messaging Worker | `npm run worker:messaging` | Campaign drain + Brevo/Twilio (`email-send` / `sms-send`) |
-| Combined Worker | `npm run worker:all` | Maps + intelligence + reports (safe alongside messaging) |
+| Combined Worker | `npm run worker:all` | Maps + messaging + intelligence + reports |
 
 | Field | Value |
 | --- | --- |
-| Name | Messaging Worker |
-| Start command | `npm run worker:messaging` |
+| Name | Worker |
+| Start command | `npm run worker:all` |
 | Domain / port | none |
 | Restart | always |
 
@@ -40,11 +39,9 @@ Required env (same as web): `QUEUE_DRIVER=bullmq`, `REDIS_URL` (Upstash
 `dynamic-pipefish-176544.upstash.io` — see [COOLIFY_REDIS_UPSTASH.md](./COOLIFY_REDIS_UPSTASH.md)),
 Supabase keys, `TWILIO_*`, `BREVO_*`.
 
-Queues consumed: `review-campaign`, `email-send`, `sms-send`, `review-import`, `review-monitor`, `notifications`.
+Queues consumed: every registered queue, including `review-campaign`, `email-send`, `sms-send`, `review-import`, `review-monitor`, `notifications`.
 
 Quick Send (one-off SMS/email in the UI) does **not** use these queues — it sends inside the web request. Campaign bulk/drip sends do.
-
-Later: replace `worker:all` with `worker:maps` + `worker:intelligence` + `worker:reports` when you want Maps isolation.
 
 ## 1. Set secrets
 

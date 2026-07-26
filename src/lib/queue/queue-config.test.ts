@@ -92,14 +92,17 @@ describe("queue config", () => {
     assert.ok(brightDataFairChunkSize() <= 100);
   });
 
-  it("keeps messaging queues on a dedicated registry list", async () => {
+  it("keeps messaging queues in the global registry for worker:all", async () => {
     const { MESSAGING_QUEUE_NAMES, ALL_QUEUE_NAMES } = await import("@/lib/queue/types");
     assert.ok(MESSAGING_QUEUE_NAMES.includes("email-send"));
     assert.ok(MESSAGING_QUEUE_NAMES.includes("sms-send"));
     assert.ok(MESSAGING_QUEUE_NAMES.includes("review-campaign"));
-    // worker:all is non-messaging — maps still in the global registry
+    // worker:all consumes every registered queue, including messaging
     assert.ok(ALL_QUEUE_NAMES.includes("maps-scan"));
     assert.ok(ALL_QUEUE_NAMES.includes("email-send"));
+    for (const name of MESSAGING_QUEUE_NAMES) {
+      assert.ok(ALL_QUEUE_NAMES.includes(name), name);
+    }
   });
 
   it("defaults Bright Data fair chunk / start rate for paced 10/min waves", async () => {

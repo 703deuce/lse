@@ -27,16 +27,16 @@ Canonical names live in `JOB_QUEUES` / `ALL_QUEUE_NAMES` (`src/lib/queue/types.t
 | --- | --- | --- |
 | `maps-scan` | Parent grid scans | `worker:maps` |
 | `maps-cell-retry` | Failed-cell retry bursts | `worker:maps` |
-| `review-campaign` | Campaign drain — enqueue due email/sms jobs | `worker:messaging` |
-| `email-send` | Brevo campaign email delivery | `worker:messaging` |
-| `sms-send` | Twilio campaign SMS delivery | `worker:messaging` |
-| `review-import` | Contact CSV / webhook imports | `worker:messaging` |
-| `review-monitor` | New-review monitoring | `worker:messaging` |
+| `review-campaign` | Campaign drain — enqueue due email/sms jobs | `worker:all` |
+| `email-send` | Brevo campaign email delivery | `worker:all` |
+| `sms-send` | Twilio campaign SMS delivery | `worker:all` |
+| `review-import` | Contact CSV / webhook imports | `worker:all` |
+| `review-monitor` | New-review monitoring | `worker:all` |
 | `backlink-gap` | Backlink Gap audits | `worker:intelligence` |
 | `local-trust` | Local Trust audits | `worker:intelligence` |
 | `ai-visibility` | AI Visibility runs | `worker:intelligence` |
 | `report-generation` | Report / PDF exports | `worker:reports` |
-| `notifications` | Transactional notifications | `worker:messaging` |
+| `notifications` | Transactional notifications | `worker:all` |
 | `maintenance` | Retention, reconciliation | `worker:intelligence` |
 
 ### Campaign send path (BullMQ)
@@ -83,15 +83,15 @@ With web on `database` and workers crash-looping before this fix, there are norm
 
 | Mode | Coolify services | When |
 | --- | --- | --- |
-| **Messaging split (recommended now)** | Web + `worker:messaging` + `worker:all` | Campaign email/sms on the messaging worker; Maps/intelligence/reports stay on `worker:all`. |
-| **Full split (later)** | Web + `worker:maps` + `worker:messaging` + `worker:intelligence` + `worker:reports` | Independent scaling. **Stop** `worker:all`. |
+| **Single worker (recommended now)** | Web + `worker:all` | Maps, messaging, intelligence, and reports on one worker. |
+| **Full split (optional later)** | Web + `worker:maps` + `worker:messaging` + `worker:intelligence` + `worker:reports` | Independent scaling. **Stop** `worker:all`. Do not run specialized profiles alongside `worker:all`. |
 
-`worker:all` **excludes** messaging queues (`review-campaign`, `email-send`, `sms-send`, `review-import`, `review-monitor`, `notifications`). You **must** run `npm run worker:messaging` for campaign delivery. Quick Send stays synchronous in the web app and does not use these queues.
+`worker:all` consumes **every** queue, including messaging (`review-campaign`, `email-send`, `sms-send`, `review-import`, `review-monitor`, `notifications`). Do **not** also run `npm run worker:messaging` or the same jobs will be consumed twice. Quick Send stays synchronous in the web app and does not use these queues.
 
 | Service | Start command |
 | --- | --- |
 | Web | `npm run start` |
-| Messaging worker | `npm run worker:messaging` ← **required for campaigns** |
+| All worker | `npm run worker:all` ← **includes campaigns + A2P registration advance** |
 | Combined non-messaging | `npm run worker:all` (Maps + intelligence + reports) |
 | Maps worker | `npm run worker:maps` (later, instead of all) |
 | Intelligence worker | `npm run worker:intelligence` |
