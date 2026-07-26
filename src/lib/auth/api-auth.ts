@@ -11,17 +11,20 @@ export async function requireBusinessAccess(businessId: string): Promise<{
   userId: string;
   organizationId: string;
 }> {
-  if (
+  // Prefer real session auth whenever available (agent / password login).
+  const auth = await requireAuth();
+  const usingDevFallback =
     isDevBypassEnabled() &&
+    auth.email === "dev@localhost" &&
     (process.env.DEV_BYPASS_BUSINESS_ACCESS === "true" ||
       isDevPreviewBusiness(businessId) ||
-      isDevMockAuthEnabled())
-  ) {
-    const auth = getDevAuthContext();
-    return { userId: auth.userId, organizationId: auth.organizationId };
+      isDevMockAuthEnabled());
+
+  if (usingDevFallback) {
+    const dev = getDevAuthContext();
+    return { userId: dev.userId, organizationId: dev.organizationId };
   }
 
-  const auth = await requireAuth();
   const supabase = createServiceClient();
   const { data: business } = await supabase
     .from("businesses")

@@ -12,6 +12,7 @@ const PUBLIC_PREFIXES = [
   "/sign-up",
   "/forgot-password",
   "/auth/callback",
+  "/auth/agent",
   "/auth/update-password",
   "/r/",
   "/go/",
@@ -123,6 +124,7 @@ export async function middleware(request: NextRequest) {
 
   if (
     pathname === "/auth/callback" ||
+    pathname === "/auth/agent" ||
     pathname === "/sign-in" ||
     pathname === "/sign-up" ||
     pathname === "/forgot-password"
@@ -153,7 +155,9 @@ export async function middleware(request: NextRequest) {
   const devBypass = isDevBypassEnabled();
 
   if (devBypass) {
-    if (pathname === "/" || pathname === "/sign-in" || pathname === "/sign-up") {
+    // Keep /sign-in and /sign-up reachable so real password / agent login can
+    // establish a live Supabase session (preferred over Dev User chrome).
+    if (pathname === "/") {
       const target = new URL(getDevDefaultAppPath(), request.url);
       const redirect = NextResponse.redirect(target);
       redirect.headers.set(REQUEST_ID_HEADER, requestId);

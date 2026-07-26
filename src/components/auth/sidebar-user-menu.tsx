@@ -7,33 +7,44 @@ import { LogoutButton } from "@/components/auth/logout-button";
 export function SidebarUserMenu() {
   const [name, setName] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
+  const [hasRealSession, setHasRealSession] = useState(false);
 
   useEffect(() => {
-    const devBypass =
+    const bypassFlag =
       process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true" ||
       process.env.NODE_ENV === "development";
-
-    if (devBypass) {
-      setName("Dev User");
-      setEmail("dev@localhost");
-      return;
-    }
 
     try {
       const supabase = createClient();
       void supabase.auth.getUser().then(({ data: { user } }) => {
-        if (!user) return;
-        const display =
-          (user.user_metadata?.full_name as string | undefined) ??
-          (user.user_metadata?.name as string | undefined) ??
-          user.email?.split("@")[0] ??
-          "User";
-        setName(display);
-        setEmail(user.email ?? null);
+        if (user) {
+          const display =
+            (user.user_metadata?.full_name as string | undefined) ??
+            (user.user_metadata?.name as string | undefined) ??
+            user.email?.split("@")[0] ??
+            "User";
+          setName(display);
+          setEmail(user.email ?? null);
+          setHasRealSession(true);
+          return;
+        }
+        if (bypassFlag) {
+          setName("Dev User");
+          setEmail("dev@localhost");
+          setHasRealSession(false);
+          return;
+        }
+        setName("Signed in");
+        setEmail(null);
       });
     } catch {
-      setName("Signed in");
-      setEmail(null);
+      if (bypassFlag) {
+        setName("Dev User");
+        setEmail("dev@localhost");
+      } else {
+        setName("Signed in");
+        setEmail(null);
+      }
     }
   }, []);
 
@@ -55,7 +66,10 @@ export function SidebarUserMenu() {
           <p className="truncate text-[10px] text-slate-400">{email ?? "Signed in"}</p>
         </div>
       </div>
-      <LogoutButton className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/5 hover:text-white" />
+      <LogoutButton
+        forceRealLogout={hasRealSession}
+        className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/5 hover:text-white"
+      />
     </div>
   );
 }

@@ -10,27 +10,31 @@ export function DesktopTopBar() {
   const [plan, setPlan] = useState("Trial Plan");
 
   useEffect(() => {
-    const devBypass =
+    const bypassFlag =
       process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true" ||
       process.env.NODE_ENV === "development";
-    if (devBypass) {
-      setName("Dev User");
-      setPlan("Trial Plan");
-      return;
-    }
     try {
       const supabase = createClient();
       void supabase.auth.getUser().then(({ data: { user } }) => {
-        if (!user) return;
-        setName(
-          (user.user_metadata?.full_name as string | undefined) ??
-            (user.user_metadata?.name as string | undefined) ??
-            user.email?.split("@")[0] ??
-            "User"
-        );
+        if (user) {
+          setName(
+            (user.user_metadata?.full_name as string | undefined) ??
+              (user.user_metadata?.name as string | undefined) ??
+              user.email?.split("@")[0] ??
+              "User"
+          );
+          return;
+        }
+        if (bypassFlag) {
+          setName("Dev User");
+          setPlan("Trial Plan");
+        }
       });
     } catch {
-      /* ignore */
+      if (bypassFlag) {
+        setName("Dev User");
+        setPlan("Trial Plan");
+      }
     }
   }, []);
 

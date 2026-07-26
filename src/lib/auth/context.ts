@@ -33,9 +33,36 @@ function isDevBypass(): boolean {
   return isDevBypassEnabled();
 }
 
+async function getRealSupabaseAuthContext(): Promise<AuthContext | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  let organizationId = await getOrganizationIdForUser(user.id);
+  if (!organizationId) {
+    organizationId = await ensureUserOrganization(user);
+  }
+
+  return {
+    userId: user.id,
+    organizationId,
+    email: user.email ?? null,
+    isAuthenticated: true,
+  };
+}
+
 export async function getAuthContext(): Promise<AuthContext> {
+  // Prefer a real Supabase session whenever one exists — even if the temporary
+  // login bypass is still enabled. That way agent/password login shows the
+  // live account chrome instead of "Dev User".
+  const real = await getRealSupabaseAuthContext();
+  if (real) return real;
+
   // TEMPORARY: login bypass — returns a signed-in context without Supabase session.
-  // Real auth path below is unchanged. Flip off via AUTH_LOGIN_REQUIRED=true (see lib/auth/dev.ts).
+  // Flip off via AUTH_LOGIN_REQUIRED=true (see lib/auth/dev.ts).
   if (isDevBypass()) {
     if (isDevMockAuthEnabled()) {
       return getDevAuthContext();
@@ -63,31 +90,11 @@ export async function getAuthContext(): Promise<AuthContext> {
     };
   }
 
-  // --- Real Supabase auth (kept for later) ---
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return {
-      userId: "",
-      organizationId: "",
-      email: null,
-      isAuthenticated: false,
-    };
-  }
-
-  let organizationId = await getOrganizationIdForUser(user.id);
-  if (!organizationId) {
-    organizationId = await ensureUserOrganization(user);
-  }
-
   return {
-    userId: user.id,
-    organizationId,
-    email: user.email ?? null,
-    isAuthenticated: true,
+    userId: "",
+    organizationId: "",
+    email: null,
+    isAuthenticated: false,
   };
 }
 
