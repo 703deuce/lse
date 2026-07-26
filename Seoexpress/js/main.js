@@ -164,11 +164,78 @@
       faqViewAll.textContent = expanded ? 'Show fewer FAQs' : 'View all FAQs';
     });
   }
-  /* Contact form – prevent default until backend is connected */
+  /* Contact form → public app API (Brevo email to info@) */
   var contactForm = document.getElementById('contact-form');
   if (contactForm) {
+    var contactEndpoint = 'https://app.localseoexpress.com/api/public/contact';
+    var statusEl = document.getElementById('contact-form-status');
+    var submitBtn = contactForm.querySelector('button[type="submit"]');
+
+    function setContactStatus(message, tone) {
+      if (!statusEl) return;
+      statusEl.hidden = !message;
+      statusEl.textContent = message || '';
+      statusEl.classList.remove('is-error', 'is-success');
+      if (tone) statusEl.classList.add(tone === 'error' ? 'is-error' : 'is-success');
+    }
+
     contactForm.addEventListener('submit', function (e) {
       e.preventDefault();
+      setContactStatus('', null);
+
+      if (!contactForm.reportValidity()) return;
+
+      var fd = new FormData(contactForm);
+      var payload = {};
+      fd.forEach(function (value, key) {
+        payload[key] = typeof value === 'string' ? value.trim() : value;
+      });
+
+      var originalLabel = submitBtn ? submitBtn.innerHTML : '';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.setAttribute('aria-busy', 'true');
+        submitBtn.textContent = 'Sending…';
+      }
+
+      fetch(contactEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload),
+      })
+        .then(function (res) {
+          return res.json().catch(function () { return {}; }).then(function (data) {
+            return { ok: res.ok, status: res.status, data: data };
+          });
+        })
+        .then(function (result) {
+          if (!result.ok) {
+            throw new Error(
+              (result.data && result.data.error) ||
+                'We could not send your request. Please email info@localseoexpress.com.'
+            );
+          }
+          contactForm.reset();
+          setContactStatus(
+            'Thanks — your request was sent. We normally reply within one business day.',
+            'success'
+          );
+        })
+        .catch(function (err) {
+          setContactStatus(
+            err && err.message
+              ? err.message
+              : 'We could not send your request. Please email info@localseoexpress.com.',
+            'error'
+          );
+        })
+        .finally(function () {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.removeAttribute('aria-busy');
+            submitBtn.innerHTML = originalLabel;
+          }
+        });
     });
   }
 })();

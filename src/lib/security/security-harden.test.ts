@@ -88,6 +88,8 @@ describe("ASVS code hardenings", () => {
         true
       );
       assert.equal(isCsrfExemptPath("/api/jobs/process"), true);
+      assert.equal(isCsrfExemptPath("/api/public/qr/create"), true);
+      assert.equal(isCsrfExemptPath("/api/public/contact"), true);
       assert.equal(isCsrfExemptPath("/api/scans/create"), false);
       assert.equal(
         isSameOriginMutation({

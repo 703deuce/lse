@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  Copy,
   Crosshair,
   Eye,
   FileSearch,
@@ -11,7 +10,6 @@ import {
   Target,
 } from "lucide-react";
 import { requireBusinessPageData } from "@/lib/auth/require-business-page";
-import { createServiceClient } from "@/lib/db/client";
 import { DashboardRecentScans } from "@/components/overview/dashboard-recent-scans";
 import { loadDashboardRecentScans } from "@/lib/overview/load-dashboard-scans";
 import { loadDashboardFeatured } from "@/lib/overview/load-dashboard-featured";
@@ -92,7 +90,7 @@ export default async function BusinessOverviewPage({
           {business.name}
         </Link>
         <span className="mx-1.5">/</span>
-        <span className="text-[#667085]">Map Scans</span>
+        <span className="text-[#667085]">Dashboard</span>
       </nav>
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -195,8 +193,8 @@ export default async function BusinessOverviewPage({
               }
               className={cn(mock.btnSecondary, "mt-3 h-9 w-full text-xs")}
             >
-              <Copy className="h-3.5 w-3.5" />
-              Copy Link
+              <Eye className="h-3.5 w-3.5" />
+              {latestScan ? "Open Snapshot" : "Run a Scan First"}
             </Link>
           </div>
 

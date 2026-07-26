@@ -1,14 +1,12 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePageAuth } from "@/lib/auth/context";
 import { createServiceClient } from "@/lib/db/client";
-import { PageHeader } from "@/components/ui/page-header";
-import { listClass } from "@/components/ui/design-system";
 import {
   isLocationToolSlug,
   LOCATION_TOOL_MODULES,
 } from "@/lib/dashboard/tool-modules";
 import { ModuleEmptyState } from "@/components/journey/module-empty-state";
+import { ToolLocationPicker } from "@/components/journey/tool-location-picker";
 import {
   MapsCampaignsLocationHub,
   type HubLocation,
@@ -168,9 +166,9 @@ export default async function ToolLocationPickerPage({
   if (!isLocationToolSlug(slug)) notFound();
 
   const mod = LOCATION_TOOL_MODULES[slug];
-  const auth = await requirePageAuth();
 
   if (slug === "maps-campaigns") {
+    const auth = await requirePageAuth();
     const hub = await loadMapsCampaignsHub(auth.organizationId);
     if (hub.empty) {
       return (
@@ -193,54 +191,12 @@ export default async function ToolLocationPickerPage({
     );
   }
 
-  const supabase = createServiceClient();
-  const { data: businesses } = await supabase
-    .from("businesses")
-    .select("id, name, account_type, is_tracked, archived_at")
-    .eq("organization_id", auth.organizationId)
-    .order("name");
-
-  const active = (businesses ?? []).filter((b) => !b.archived_at);
-
   return (
-    <>
-      <PageHeader title={mod.title} subtitle={mod.description} />
-      {!active.length ? (
-        <ModuleEmptyState
-          title="Add a location first"
-          description="Choose a prospect or client so this tool has a business to work on."
-          actionLabel="Add client"
-          actionHref="/businesses/new?as=client"
-        />
-      ) : (
-        <ul className={listClass}>
-          {active.map((b) => {
-            const isProspect =
-              b.account_type === "prospect" || b.is_tracked === false;
-            return (
-              <li
-                key={b.id}
-                className="flex items-center justify-between gap-3 px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-zinc-900">
-                    {b.name}
-                  </p>
-                  <p className="text-xs capitalize text-zinc-500">
-                    {isProspect ? "Prospect" : "Client"}
-                  </p>
-                </div>
-                <Link
-                  href={`/businesses/${b.id}/${mod.path}`}
-                  className="shrink-0 text-xs font-medium text-[#137752] hover:underline"
-                >
-                  Open {mod.title}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </>
+    <ToolLocationPicker
+      title={mod.title}
+      description={mod.description}
+      businessPath={mod.path}
+      openLabel={mod.title}
+    />
   );
 }

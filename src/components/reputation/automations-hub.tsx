@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
@@ -69,7 +70,13 @@ function statusTone(status: TriggerRow["status"]): "green" | "amber" | "gray" {
   return "gray";
 }
 
-function IntegrationCard({ item }: { item: IntegrationRow }) {
+function IntegrationCard({
+  item,
+  onConfigure,
+}: {
+  item: IntegrationRow;
+  onConfigure: () => void;
+}) {
   const n = item.name.toLowerCase();
   return (
     <div className={cn(rep.card, "p-4")}>
@@ -86,7 +93,7 @@ function IntegrationCard({ item }: { item: IntegrationRow }) {
             <RepBadge tone={item.status === "Connected" ? "green" : "gray"}>{item.status}</RepBadge>
           </div>
           <p className="mt-1 text-sm leading-relaxed text-[#667085]">{item.detail}</p>
-          <button type="button" className={cn(rep.btnSecondary, "mt-4")}>
+          <button type="button" onClick={onConfigure} className={cn(rep.btnSecondary, "mt-4")}>
             Configure
           </button>
         </div>
@@ -292,10 +299,13 @@ export function AutomationsHub({
               <PlugZap className="h-4 w-4" />
               Integrations
             </button>
-            <button type="button" className={rep.btnSecondary}>
+            <Link
+              href={`/businesses/${businessId}/reputation/settings`}
+              className={rep.btnSecondary}
+            >
               <Settings className="h-4 w-4" />
               Settings
-            </button>
+            </Link>
           </>
         }
       />
@@ -454,7 +464,11 @@ export function AutomationsHub({
       {activeTab === "integrations" ? (
         <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
           {integrations.map((item) => (
-            <IntegrationCard key={item.id} item={item} />
+            <IntegrationCard
+              key={item.id}
+              item={item}
+              onConfigure={() => setActiveTab("integrations")}
+            />
           ))}
         </div>
       ) : null}

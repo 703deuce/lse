@@ -195,7 +195,12 @@
 
         <aside class="contact-form-card" aria-labelledby="form-heading">
           <h2 id="form-heading">Request Your Free Local SEO Audit</h2>
-          <form class="contact-form" id="contact-form" action="#" method="post" novalidate>
+          <form class="contact-form" id="contact-form" action="https://app.localseoexpress.com/api/public/contact" method="post" novalidate>
+            <!-- Honeypot: leave empty -->
+            <div class="contact-hp" aria-hidden="true">
+              <label for="company-website">Company website</label>
+              <input type="text" id="company-website" name="company_website" tabindex="-1" autocomplete="off">
+            </div>
             <div class="contact-form-row">
               <div class="contact-form-field">
                 <label for="first-name">First name</label>
@@ -269,6 +274,7 @@
               Get My Free SEO Audit
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
+            <p id="contact-form-status" class="contact-form-status" role="status" aria-live="polite" hidden></p>
             <p class="contact-form-privacy">Your information will only be used to review your request and contact you about Local SEO Express services. We do not sell inquiry information.</p>
           </form>
         </aside>

@@ -16,7 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { MessagingSetupCallout } from "@/components/messaging/messaging-setup-callout";
-import { RepBadge, RepMetricCard, RepPageHeader, RepSearch, RepTabs, RepViewLink, rep } from "@/components/reputation/rep-ui";
+import { RepBadge, RepMetricCard, RepPageHeader, RepSearch, RepTabs, rep } from "@/components/reputation/rep-ui";
 import { renderTemplate } from "@/lib/reputation/template-vars";
 import type { ReputationTemplatePreviewKpis, ReputationTemplateRow } from "@/lib/reputation/reputation-page-preview-data";
 import { cn } from "@/lib/utils";
@@ -364,7 +364,11 @@ export function TemplatesHub({
         (activeTab === "mine" && template.source !== "industry" && template.status !== "archived") ||
         (activeTab === "archived" && template.status === "archived");
       const channelMatch = channelFilter === "all" || template.channel === channelFilter;
-      const typeMatch = typeFilter === "all" || template.type.toLowerCase().includes(typeFilter);
+      const typeMatch =
+        typeFilter === "all" ||
+        (typeFilter === "industry"
+          ? template.source === "industry"
+          : template.type.toLowerCase().includes(typeFilter));
       const searchMatch =
         !needle ||
         [template.name, template.snippet, template.type, template.body].some((value) =>
@@ -407,11 +411,29 @@ export function TemplatesHub({
               <Plus className="h-4 w-4" />
               New Template
             </button>
-            <button type="button" className={rep.btnSecondary}>
+            <button
+              type="button"
+              className={rep.btnSecondary}
+              onClick={() => {
+                setActiveTab("all");
+                setTypeFilter("all");
+                setQuery("");
+                selectDraft("sms");
+              }}
+              title="Create a new template from scratch"
+            >
               <Import className="h-4 w-4" />
               Import Template
             </button>
-            <button type="button" className={rep.btnSecondary}>
+            <button
+              type="button"
+              className={rep.btnSecondary}
+              onClick={() => {
+                setActiveTab("all");
+                setTypeFilter("industry");
+                setQuery("");
+              }}
+            >
               <Sparkles className="h-4 w-4 text-[#137752]" />
               Industry Templates
             </button>
@@ -423,19 +445,36 @@ export function TemplatesHub({
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <RepMetricCard label="SMS Templates" value={stats.sms} icon={MessageSquare} trend="^2 this month" trendPositive>
-          <RepViewLink href="#">View SMS →</RepViewLink>
+          <button type="button" className={rep.link} onClick={() => setActiveTab("sms")}>
+            View SMS →
+          </button>
         </RepMetricCard>
         <RepMetricCard label="Email Templates" value={stats.email} icon={Mail} trend="^1 this month" trendPositive>
-          <RepViewLink href="#">View Email →</RepViewLink>
+          <button type="button" className={rep.link} onClick={() => setActiveTab("email")}>
+            View Email →
+          </button>
         </RepMetricCard>
         <RepMetricCard label="Sequences" value={stats.sequences} icon={Sparkles}>
-          <RepViewLink href="#">View Sequences →</RepViewLink>
+          <button type="button" className={rep.link} onClick={() => setActiveTab("sequences")}>
+            View Sequences →
+          </button>
         </RepMetricCard>
         <RepMetricCard label="Industry Templates" value={stats.industry} icon={FileText} hint="Ready-made starters">
-          <RepViewLink href="#">View Industry →</RepViewLink>
+          <button
+            type="button"
+            className={rep.link}
+            onClick={() => {
+              setActiveTab("all");
+              setTypeFilter("industry");
+            }}
+          >
+            View Industry →
+          </button>
         </RepMetricCard>
         <RepMetricCard label="My Templates" value={stats.mine} icon={Edit3} hint="Business-owned">
-          <RepViewLink href="#">View Mine →</RepViewLink>
+          <button type="button" className={rep.link} onClick={() => setActiveTab("mine")}>
+            View Mine →
+          </button>
         </RepMetricCard>
       </div>
 

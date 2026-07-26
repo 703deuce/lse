@@ -415,15 +415,19 @@ function RecipientsTable({
 }
 
 function OneTimeSend({
+  businessId,
   data,
   stats,
   loading,
   onRefresh,
+  onOpenBulk,
 }: {
+  businessId: string;
   data: KitData | null;
   stats: Stats | null;
   loading: boolean;
   onRefresh: () => Promise<void>;
+  onOpenBulk: () => void;
 }) {
   const [form, setForm] = useState({
     audienceMode: "select" as "select" | "import",
@@ -593,7 +597,7 @@ function OneTimeSend({
                   </div>
                 </>
               ) : (
-                <button type="button" className={rep.btnSecondary}>
+                <button type="button" className={rep.btnSecondary} onClick={onOpenBulk}>
                   <Upload className="h-4 w-4" />
                   Upload CSV
                 </button>
@@ -658,9 +662,12 @@ function OneTimeSend({
                     </option>
                   ))}
                 </select>
-                <button type="button" className={rep.btnSecondary}>
+                <Link
+                  href={`/businesses/${businessId}/reputation/templates`}
+                  className={rep.btnSecondary}
+                >
                   Manage Templates
-                </button>
+                </Link>
               </div>
               <div>
                 <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">
@@ -907,21 +914,32 @@ export function ReviewRequestsDashboard({
         showFilters={false}
         actions={
           <>
-            <button type="button" className={rep.btnSecondary}>
+            <button
+              type="button"
+              className={rep.btnSecondary}
+              onClick={() => handleTabChange("send")}
+              title="Use the one-time send wizard below"
+            >
               How it works
             </button>
-            <button type="button" className={rep.btnSecondary}>
+            <Link
+              href={`/businesses/${businessId}/reputation/templates`}
+              className={rep.btnSecondary}
+            >
               <FileText className="h-4 w-4" />
               Templates
               <ChevronDown className="h-3.5 w-3.5" />
-            </button>
+            </Link>
           </>
         }
         primaryAction={
-          <button type="button" className={rep.btnPrimary}>
+          <Link
+            href={`/businesses/${businessId}/reputation/campaigns`}
+            className={rep.btnPrimary}
+          >
             <History className="h-4 w-4" />
             History
-          </button>
+          </Link>
         }
       />
 
@@ -935,10 +953,12 @@ export function ReviewRequestsDashboard({
 
       {tab === "send" ? (
         <OneTimeSend
+          businessId={businessId}
           data={data}
           stats={stats}
           loading={loading}
           onRefresh={load}
+          onOpenBulk={() => handleTabChange("bulk")}
         />
       ) : null}
 

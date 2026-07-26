@@ -20,6 +20,7 @@ const PUBLIC_PREFIXES = [
   "/tools/google-review-qr-code",
   "/google-review-qr-code-generator",
   "/api/public/qr",
+  "/api/public/contact",
 ];
 
 function isPublicPath(pathname: string): boolean {
@@ -36,6 +37,7 @@ function isProtectedPath(pathname: string): boolean {
     pathname === "/google-review-qr-code-generator" ||
     pathname.startsWith("/google-review-qr-code-generator/") ||
     pathname.startsWith("/api/public/qr") ||
+    pathname.startsWith("/api/public/contact") ||
     pathname.startsWith("/go/")
   ) {
     return false;

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   AlertCircle,
@@ -162,18 +163,27 @@ export function ReputationAlertsDashboard({
         showFilters={false}
         actions={
           <>
-            <button type="button" className={rep.btnPrimary}>
+            <Link
+              href={`/businesses/${businessId}/reputation/settings`}
+              className={rep.btnPrimary}
+            >
               <Plus className="h-4 w-4" />
               New Alert
-            </button>
-            <button type="button" className={rep.btnSecondary}>
+            </Link>
+            <Link
+              href={`/businesses/${businessId}/reputation/settings`}
+              className={rep.btnSecondary}
+            >
               <Settings className="h-4 w-4" />
               Alert Settings
-            </button>
-            <button type="button" className={rep.btnSecondary}>
+            </Link>
+            <Link
+              href={`/businesses/${businessId}/reputation/settings`}
+              className={rep.btnSecondary}
+            >
               <Bell className="h-4 w-4" />
               Notification Preferences
-            </button>
+            </Link>
           </>
         }
       />
