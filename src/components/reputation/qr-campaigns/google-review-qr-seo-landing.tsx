@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import {
   BarChart3,
   Check,
@@ -22,10 +23,46 @@ import { PublicQrGenerator } from "./public-qr-generator";
 const MARKETING = "https://localseoexpress.com";
 
 const iconBubble =
-  "mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[radial-gradient(circle_at_50%_40%,rgba(22,163,74,0.18)_0%,#ECFDF3_70%)] text-[#16A34A] shadow-[0_0_0_8px_rgba(22,163,74,0.05)]";
+  "mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#16A34A] text-white shadow-[0_10px_22px_rgba(22,163,74,0.28)]";
 
 const iconBubbleSm =
-  "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[radial-gradient(circle_at_50%_40%,rgba(22,163,74,0.18)_0%,#ECFDF3_70%)] text-[#16A34A] shadow-[0_0_0_6px_rgba(22,163,74,0.05)]";
+  "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#16A34A] text-white shadow-[0_8px_18px_rgba(22,163,74,0.22)]";
+
+function useEmbedFrameSizing(embed: boolean) {
+  useEffect(() => {
+    if (!embed) return;
+
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlBg = html.style.background;
+    const prevBodyBg = body.style.background;
+    html.style.background = "#ffffff";
+    body.style.background = "#ffffff";
+
+    const publishHeight = () => {
+      const height = Math.ceil(
+        Math.max(body.scrollHeight, html.scrollHeight, body.offsetHeight)
+      );
+      window.parent?.postMessage({ type: "lse-qr-embed-height", height }, "*");
+    };
+
+    publishHeight();
+    const ro = new ResizeObserver(() => publishHeight());
+    ro.observe(body);
+    window.addEventListener("load", publishHeight);
+    const t1 = window.setTimeout(publishHeight, 250);
+    const t2 = window.setTimeout(publishHeight, 1000);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("load", publishHeight);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      html.style.background = prevHtmlBg;
+      body.style.background = prevBodyBg;
+    };
+  }, [embed]);
+}
 
 const FAQS = [
   {
@@ -55,9 +92,11 @@ const FAQS = [
 ] as const;
 
 export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean }) {
+  useEmbedFrameSizing(embed);
+
   if (embed) {
     return (
-      <div className="min-h-[100%] bg-white px-2 py-2 sm:px-4 sm:py-3">
+      <div className="bg-white px-2 py-2 sm:px-3 sm:py-2">
         <PublicQrGenerator embedded seoLayout />
       </div>
     );
@@ -110,7 +149,7 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
           id="benefits"
           className="scroll-mt-24 border-b border-[#E2E8F0] bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,#ECFDF5_0%,transparent_55%),linear-gradient(180deg,#F7FDF9_0%,#FFFFFF_100%)]"
         >
-          <div className="mx-auto grid max-w-6xl gap-5 px-4 py-14 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:gap-6">
+          <div className="mx-auto grid max-w-6xl gap-5 px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:gap-6 lg:py-12">
             {[
               { icon: Star, title: "Get More Google Reviews", body: "Make it easier for happy customers to leave a review before they forget." },
               { icon: Download, title: "Ready to Print", body: "Download a professional poster, table sign, or QR image in seconds." },
@@ -122,7 +161,7 @@ export function GoogleReviewQrSeoLanding({ embed = false }: { embed?: boolean })
                 className="rounded-2xl border border-[#E2E8F0] bg-white px-5 py-7 text-center shadow-[0_12px_32px_rgba(11,27,50,0.05)]"
               >
                 <span className={iconBubble}>
-                  <item.icon className="h-6 w-6" strokeWidth={1.85} />
+                  <item.icon className="h-5 w-5" strokeWidth={2.1} />
                 </span>
                 <h3 className="mt-4 text-base font-extrabold tracking-tight text-[#0B1220]">{item.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-[#64748B]">{item.body}</p>

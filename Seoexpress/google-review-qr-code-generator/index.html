@@ -147,7 +147,7 @@
     </div>
   </section>
 
-  <section class="qr-section qr-section--mist" id="benefits">
+  <section class="qr-section qr-section--mist qr-section--benefits" id="benefits">
     <div class="container">
       <div class="qr-benefits">
         <article class="qr-benefit">
@@ -442,6 +442,27 @@
     if (local) {
       frame.src = "http://127.0.0.1:3000/google-review-qr-code-generator?embed=1";
     }
+
+    // Shrink-wrap iframe to embedded tool height (removes gray dead space under hero)
+    function setFrameHeight(raw) {
+      var h = Math.round(Number(raw) || 0);
+      if (!h) return;
+      h = Math.max(420, Math.min(1400, h + 8));
+      frame.style.height = h + "px";
+      frame.style.minHeight = h + "px";
+    }
+
+    window.addEventListener("message", function (event) {
+      var data = event && event.data;
+      if (!data || data.type !== "lse-qr-embed-height") return;
+      var okOrigin =
+        !event.origin ||
+        event.origin.indexOf("localseoexpress.com") !== -1 ||
+        event.origin.indexOf("localhost") !== -1 ||
+        event.origin.indexOf("127.0.0.1") !== -1;
+      if (!okOrigin) return;
+      setFrameHeight(data.height);
+    });
   })();
 </script>
 </body>
