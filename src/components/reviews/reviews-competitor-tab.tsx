@@ -41,27 +41,47 @@ export function ReviewsCompetitorTab({ data, businessId }: Props) {
     if (fromThemes.length > 0) {
       return fromThemes.map((t) => ({ label: t.label, count: t.reviewCount }));
     }
-    return [
-      { label: "Appointment Scheduling", count: 11 },
-      { label: "Residential Junk", count: 7 },
-      { label: "Professionalism", count: 7 },
-      { label: "Safe Driver", count: 5 },
-      { label: "Quick Response", count: 5 },
-      { label: "Customer Service", count: 2 },
-    ];
+    return [];
   }, [data.competitorWinningKeywords, data.sentiment]);
 
-  const insights = [
-    "Review density must be improved",
-    "Set up auto-replies",
-    "Professional reviews only",
-  ];
+  const insights = useMemo(() => {
+    const items: string[] = [];
+    const yourReviews = data.kpis.totalReviews;
+    const topCompetitor = competitors.reduce(
+      (best, c) => Math.max(best, c.totalReviews ?? c.newReviews90d ?? 0),
+      0
+    );
+    if (topCompetitor > 0 && yourReviews < topCompetitor) {
+      items.push(`Top competitor has about ${topCompetitor - yourReviews} more reviews than you.`);
+    }
+    if (competitors.length === 0) {
+      items.push("Add competitors to compare review volume and themes.");
+    } else if (competitors.every((c) => (c.newReviews90d ?? 0) === 0)) {
+      items.push("Competitor velocity is flat in the loaded window — keep collecting your own reviews.");
+    }
+    if (data.kpis.unanswered90d > 0) {
+      items.push(`${data.kpis.unanswered90d} of your reviews still need a response.`);
+    }
+    return items.slice(0, 3);
+  }, [competitors, data.kpis.totalReviews, data.kpis.unanswered90d]);
 
-  const opportunities = [
-    "Improve review volume for March up 2",
-    "Reduce negative review from 5 to 0 in the first 30 days",
-    "Faster response to negative review",
-  ];
+  const opportunities = useMemo(() => {
+    const items: string[] = [];
+    if (data.kpis.newReviews90d < 5) {
+      items.push("Increase review volume over the next 90 days with after-service requests.");
+    }
+    const recentNegatives = (data.yourReviews ?? []).filter((r) => (r.rating ?? 5) <= 2).length;
+    if (recentNegatives > 0 || data.kpis.urgentCount > 0) {
+      items.push("Respond quickly to recent negative reviews to protect local conversion.");
+    }
+    if (themePills.length > 0) {
+      items.push(`Lean into themes competitors win on: ${themePills.slice(0, 2).map((t) => t.label).join(", ")}.`);
+    }
+    if (!items.length) {
+      items.push("Keep a steady review cadence and reply to every text review.");
+    }
+    return items.slice(0, 3);
+  }, [data.kpis.newReviews90d, data.kpis.urgentCount, data.yourReviews, themePills]);
 
   return (
     <div className="space-y-5">
@@ -138,26 +158,34 @@ export function ReviewsCompetitorTab({ data, businessId }: Props) {
           <div className={`${mock.card} p-4`}>
             <h3 className="text-[14px] font-bold text-[#0F172A]">Top Insights</h3>
             <ul className="mt-3 space-y-2.5">
-              {insights.map((item) => (
-                <li key={item} className="flex items-start gap-2.5 text-[13px] text-[#0F172A]">
-                  <Circle className="mt-0.5 h-4 w-4 shrink-0 text-[#94A3B8]" />
-                  <span>{item}</span>
-                </li>
-              ))}
+              {insights.length ? (
+                insights.map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-[13px] text-[#0F172A]">
+                    <Circle className="mt-0.5 h-4 w-4 shrink-0 text-[#94A3B8]" />
+                    <span>{item}</span>
+                  </li>
+                ))
+              ) : (
+                <li className="text-[13px] text-[#64748B]">No competitor insights yet. Sync reviews to compare.</li>
+              )}
             </ul>
           </div>
 
           <div className={`${mock.card} p-4`}>
             <h3 className="text-[14px] font-bold text-[#0F172A]">Common Product Themes</h3>
             <div className="mt-3 flex flex-wrap gap-2">
-              {themePills.map((t) => (
-                <span
-                  key={t.label}
-                  className="rounded-full bg-[#F1F5F9] px-2.5 py-1 text-[11px] font-medium text-[#475569]"
-                >
-                  {t.label} ({t.count})
-                </span>
-              ))}
+              {themePills.length ? (
+                themePills.map((t) => (
+                  <span
+                    key={t.label}
+                    className="rounded-full bg-[#F1F5F9] px-2.5 py-1 text-[11px] font-medium text-[#475569]"
+                  >
+                    {t.label} ({t.count})
+                  </span>
+                ))
+              ) : (
+                <p className="text-[13px] text-[#64748B]">Themes appear after competitor review text is analyzed.</p>
+              )}
             </div>
           </div>
 

@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { ReviewInsightsDashboard } from "@/components/reviews/review-insights-dashboard";
+import { requireBusinessPage } from "@/lib/auth/require-business-page";
 import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { loadReviewInsightsData } from "@/lib/reviews/review-insights-data";
 import { reviewInsightsPreviewData } from "@/lib/reviews/review-insights-preview-data";
@@ -18,6 +19,7 @@ export default async function ReputationInsightsPage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
+  await requireBusinessPage(businessId);
 
   return (
     <Suspense

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { CompetitorIntelligenceDashboard } from "@/components/reviews/competitor-intelligence-dashboard";
 import { ReputationEmptySyncState } from "@/components/reputation/reputation-sync-button";
+import { requireBusinessPage } from "@/lib/auth/require-business-page";
 import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { loadCompetitorIntelligenceData } from "@/lib/reviews/competitor-intelligence-data";
 import { competitorIntelligencePreviewData } from "@/lib/reviews/competitor-intelligence-preview-data";
@@ -45,6 +46,7 @@ export default async function ReputationCompetitorsPage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
+  await requireBusinessPage(businessId);
 
   return (
     <Suspense

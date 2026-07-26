@@ -156,7 +156,7 @@ export function OnboardingWizard() {
                   icon: Compass,
                   title: "Explore the platform",
                   body: "Review Hello Bar1 — learn platform fundamentals.",
-                  cta: "Take a tour",
+                  cta: "Open Workspace",
                 },
               ] as const
             ).map((card) => {
@@ -168,7 +168,7 @@ export function OnboardingWizard() {
                   onClick={() => {
                     setPath(card.id);
                     if (card.id === "explore") {
-                      setStep("done");
+                      window.location.href = "/workspace";
                     } else {
                       setStep("profile");
                     }
@@ -209,7 +209,7 @@ export function OnboardingWizard() {
                 className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#027A48] hover:underline"
               >
                 <FileText className="h-3.5 w-3.5" />
-                View guide
+                Go to Workspace
                 <ExternalLink className="h-3 w-3" />
               </Link>
               <a
@@ -365,11 +365,32 @@ export function OnboardingWizard() {
             <button
               type="button"
               className={cn(btnPrimary, "h-9 px-3 text-[13px]")}
-              onClick={() => setStep("first_action")}
+              onClick={() => {
+                const list = keywords
+                  .split(/\n|,/)
+                  .map((k) => k.trim())
+                  .filter(Boolean);
+                try {
+                  if (list.length) {
+                    window.sessionStorage.setItem(
+                      "lse_onboarding_keywords",
+                      JSON.stringify(list)
+                    );
+                  } else {
+                    window.sessionStorage.removeItem("lse_onboarding_keywords");
+                  }
+                } catch {
+                  /* ignore storage failures */
+                }
+                setStep("first_action");
+              }}
             >
               Continue <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>
+          <p className="text-[11px] text-zinc-500">
+            Keywords are saved for this browser session and can be added on New Maps scan / campaign setup.
+          </p>
         </div>
       ) : null}
 

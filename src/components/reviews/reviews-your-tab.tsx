@@ -131,7 +131,7 @@ export function ReviewsYourTab({
                 el?.focus();
               }}
             >
-              Filter
+              Search
             </button>
             <button
               type="button"

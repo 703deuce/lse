@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { ReputationAlertsDashboard } from "@/components/reputation/reputation-alerts-dashboard";
+import { requireBusinessPage } from "@/lib/auth/require-business-page";
 import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { loadReputationAlertsData } from "@/lib/reputation/alerts-data";
 import { reputationAlertsPreviewData } from "@/lib/reputation/reputation-page-preview-data";
@@ -18,6 +19,7 @@ export default async function ReputationAlertsPage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
+  await requireBusinessPage(businessId);
 
   return (
     <Suspense

@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { ReputationAuditDashboard } from "@/components/reputation/reputation-audit-dashboard";
 import { ReputationStrategyReport } from "@/components/reputation/reputation-modules-audit-dashboard";
+import { requireBusinessPage } from "@/lib/auth/require-business-page";
 import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { loadReputationModulesAudit } from "@/lib/reputation/reputation-modules-audit";
 import { reputationAuditPreviewData } from "@/lib/reputation/reputation-page-preview-data";
@@ -11,6 +12,7 @@ export default async function ReputationAuditPage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
+  await requireBusinessPage(businessId);
   const isPreview = isDevPreviewBusiness(businessId);
   const data = isPreview ? reputationAuditPreviewData : await loadReputationModulesAudit(businessId);
 

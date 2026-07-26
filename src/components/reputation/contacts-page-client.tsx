@@ -8,7 +8,6 @@ import {
   Download,
   History,
   Megaphone,
-  MoreHorizontal,
   Plus,
   Send,
   Settings,
@@ -328,6 +327,30 @@ export function ContactsPageClient({
   const receivedPct = totalCount > 0 ? Math.round((contactStats.received / totalCount) * 100) : 0;
   const optedOutPct = totalCount > 0 ? Math.round((contactStats.optedOut / totalCount) * 100) : 0;
 
+  function exportContactsCsv() {
+    const rows = [
+      ["Name", "Phone", "Email", "Status", "Source", "Tags", "Last contacted"],
+      ...visibleItems.map((contact) => [
+        contactName(contact),
+        contact.phone_e164 ?? "",
+        contact.email_normalized ?? "",
+        contactStatus(contact),
+        contact.source ?? "",
+        (contact.tags ?? []).join("; "),
+        contact.last_contacted_at ?? "",
+      ]),
+    ];
+    const escape = (value: string) => `"${value.replaceAll('"', '""')}"`;
+    const csv = rows.map((row) => row.map((cell) => escape(String(cell))).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `contacts-${businessId.slice(0, 8)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className={rep.page}>
       <RepPageHeader
@@ -346,7 +369,12 @@ export function ContactsPageClient({
               <Upload className="h-4 w-4" />
               Import
             </button>
-            <button type="button" className={rep.btnSecondary}>
+            <button
+              type="button"
+              onClick={exportContactsCsv}
+              disabled={visibleItems.length === 0}
+              className={cn(rep.btnSecondary, "disabled:opacity-50")}
+            >
               <Download className="h-4 w-4" />
               Export
             </button>
@@ -518,9 +546,6 @@ export function ContactsPageClient({
                           }}
                         >
                           {suppressed ? "Clear" : "Suppress"}
-                        </button>
-                        <button type="button" className="rounded-lg p-1.5 text-[#98A2B3] hover:bg-[#F2F4F7]">
-                          <MoreHorizontal className="h-4 w-4" />
                         </button>
                       </div>
                     </td>

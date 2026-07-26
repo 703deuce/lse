@@ -179,15 +179,13 @@ export function ReputationStrategyReport({
 
   const overallScore = useMemo(() => {
     if (data.businessId.includes("preview")) return 82;
-    const ratingScore = ((you?.rating ?? 4.2) / 5) * 35;
+    if (you?.rating == null) return null;
+    const ratingScore = (you.rating / 5) * 35;
     const responseScore = (data.insights.responsePerformance.responseRate / 100) * 25;
     const velocityScore = Math.min(25, (data.analytics.rolling30d / 35) * 25);
     const alertScore = Math.max(0, 15 - data.alerts.activeAlerts.length * 3);
     return Math.round(ratingScore + responseScore + velocityScore + alertScore);
   }, [data.alerts.activeAlerts.length, data.analytics.rolling30d, data.businessId, data.insights.responsePerformance.responseRate, you?.rating]);
-
-  const prevScore = data.businessId.includes("preview") ? 70 : Math.max(0, overallScore - 8);
-  const scoreDelta = overallScore - prevScore;
 
   const totalReviewsDelta = data.analytics.priorPeriod.rolling90dDelta;
   const totalReviewsDeltaPct = you && you.totalReviews > 0
@@ -252,7 +250,7 @@ export function ReputationStrategyReport({
               <div className="space-y-1">
                 <p className={rep.label}>Google Rating</p>
                 <p className="text-2xl font-bold text-[#101828]">{fmt(you?.rating, 1)}</p>
-                <StarRating rating={you?.rating ?? 4.6} />
+                {you?.rating != null ? <StarRating rating={you.rating} /> : null}
                 <p className="text-xs text-[#667085]">{fmt(you?.totalReviews)} reviews</p>
               </div>
               <div className="space-y-1">
@@ -477,14 +475,16 @@ export function ReputationStrategyReport({
 
         <div className={cn(rep.card, "flex flex-col items-center justify-center p-6 text-center")}>
           <p className={rep.label}>Overall Reputation Score</p>
-          <p className="mt-3 text-6xl font-bold text-[#137752]">{overallScore}</p>
-          <RepBadge tone="green" >Excellent</RepBadge>
-          <p className="mt-2 text-sm font-semibold text-[#027A48]">
-            ↑{scoreDelta} points
-          </p>
-          <p className="mt-1 text-xs text-[#667085]">vs prior audit</p>
+          <p className="mt-3 text-6xl font-bold text-[#137752]">{overallScore ?? "—"}</p>
+          {overallScore != null ? (
+            <RepBadge tone={overallScore >= 75 ? "green" : overallScore >= 55 ? "amber" : "red"}>
+              {overallScore >= 75 ? "Strong" : overallScore >= 55 ? "Fair" : "Needs work"}
+            </RepBadge>
+          ) : (
+            <p className="mt-2 text-sm text-[#667085]">Sync reputation data to score this location.</p>
+          )}
           <p className="mt-4 text-xs leading-5 text-[#667085]">
-            Improve by clearing high-severity alerts and sustaining review velocity above local competitors.
+            Composite of rating, response rate, review velocity, and open alerts — not a prior-period comparison.
           </p>
         </div>
       </div>

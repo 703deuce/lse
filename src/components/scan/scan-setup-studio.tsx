@@ -4,7 +4,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Bookmark,
   ChevronDown,
   ChevronRight,
   Download,
@@ -149,6 +148,23 @@ export function ScanSetupStudio({
   useEffect(() => {
     setExcludedLabels(new Set());
   }, [gridSize, radiusMeters, centerLat, centerLng]);
+
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem("lse_onboarding_keywords");
+      if (!raw) return;
+      const list = JSON.parse(raw) as unknown;
+      if (!Array.isArray(list) || !list.length) return;
+      const first = String(list[0] ?? "").trim();
+      if (first && !newKeyword) setNewKeyword(first);
+      setShowAddKeyword(true);
+      setOpenSections((prev) => ({ ...prev, keywords: true }));
+    } catch {
+      /* ignore */
+    }
+    // Prefill once from onboarding session storage.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const nextAddress = (defaultAddress ?? "").trim();
@@ -429,10 +445,6 @@ export function ScanSetupStudio({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className={mock.btnSecondary} onClick={resetSetup}>
-            <Bookmark className="h-4 w-4" />
-            Save template
-          </button>
           <button
             type="button"
             className={mock.btnSecondary}
@@ -449,7 +461,34 @@ export function ScanSetupStudio({
             <History className="h-4 w-4" />
             History
           </Link>
-          <button type="button" className={mock.btnSecondary}>
+          <button
+            type="button"
+            className={mock.btnSecondary}
+            onClick={() => {
+              const payload = {
+                businessId,
+                locationLabel,
+                centerLat,
+                centerLng,
+                gridSize,
+                radiusMeters,
+                locationZoom,
+                device,
+                dfsExecutionMode,
+                excludedLabels: Array.from(excludedLabels),
+                selectedKeywordId,
+              };
+              const blob = new Blob([JSON.stringify(payload, null, 2)], {
+                type: "application/json",
+              });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `scan-setup-${businessId.slice(0, 8)}.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
             <Download className="h-4 w-4" />
             Export
           </button>

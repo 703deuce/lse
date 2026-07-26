@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { ReviewVelocityDashboard } from "@/components/reviews/review-velocity-dashboard";
 import { ReputationEmptySyncState } from "@/components/reputation/reputation-sync-button";
+import { requireBusinessPage } from "@/lib/auth/require-business-page";
 import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { loadReviewAnalyticsData } from "@/lib/reviews/review-analytics-data";
 import { reviewAnalyticsPreviewData } from "@/lib/reviews/review-analytics-preview-data";
@@ -48,6 +49,7 @@ export default async function ReputationAnalyticsPage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
+  await requireBusinessPage(businessId);
 
   return (
     <Suspense

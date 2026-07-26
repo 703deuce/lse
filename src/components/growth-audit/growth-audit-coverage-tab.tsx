@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Briefcase, MapPin, ExternalLink, AlertCircle, Star } from "lucide-react";
-import { Sparkline } from "@/components/overview/overview-charts";
 import {
   GaCard,
   GaLink,
@@ -45,7 +44,13 @@ function opportunityTag(level: string) {
   );
 }
 
-export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSections }) {
+export function GrowthAuditCoverageTab({
+  sections,
+  onGoToActionPlan,
+}: {
+  sections: GrowthAuditSections;
+  onGoToActionPlan?: () => void;
+}) {
   const [showAllServices, setShowAllServices] = useState(false);
   const [showAllAreas, setShowAllAreas] = useState(false);
   const { serviceCoverage, localCoverage } = sections;
@@ -70,10 +75,7 @@ export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSect
             {serviceCoverage.score}
             <span className="text-[11px] font-medium text-zinc-400">/100</span>
           </p>
-          <p className="mt-0.5 text-[11px] font-semibold text-amber-600">Needs Improvement</p>
-          <div className="mt-2">
-            <Sparkline data={[serviceCoverage.score - 6, serviceCoverage.score - 3, serviceCoverage.score]} color="#059669" />
-          </div>
+          <p className="mt-0.5 text-[11px] font-semibold text-amber-600">Current score</p>
         </GaCard>
         <GaCard className="!p-3.5">
           <p className="text-[11px] font-medium text-zinc-500">Local Coverage Score</p>
@@ -81,10 +83,7 @@ export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSect
             {localCoverage.score}
             <span className="text-[11px] font-medium text-zinc-400">/100</span>
           </p>
-          <p className="mt-0.5 text-[11px] font-semibold text-amber-600">Needs Improvement</p>
-          <div className="mt-2">
-            <Sparkline data={[localCoverage.score - 4, localCoverage.score - 2, localCoverage.score]} color="#059669" />
-          </div>
+          <p className="mt-0.5 text-[11px] font-semibold text-amber-600">Current score</p>
         </GaCard>
       </div>
 
@@ -95,7 +94,7 @@ export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSect
               <Briefcase className="h-4 w-4 text-emerald-600" />
               <p className="text-[13px] font-semibold text-zinc-900">Service Coverage</p>
             </div>
-            <GaLink>View Service Opportunities</GaLink>
+            {onGoToActionPlan ? <GaLink onClick={onGoToActionPlan}>View Service Opportunities</GaLink> : null}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-[12px]">
@@ -200,7 +199,7 @@ export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSect
             )}
           </ul>
           <div className="mt-3">
-            <GaLink>View Service Recommendations</GaLink>
+            {onGoToActionPlan ? <GaLink onClick={onGoToActionPlan}>View Service Recommendations</GaLink> : null}
           </div>
         </GaCard>
       </div>
@@ -212,7 +211,7 @@ export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSect
               <MapPin className="h-4 w-4 text-emerald-600" />
               <p className="text-[13px] font-semibold text-zinc-900">Local Coverage</p>
             </div>
-            <GaLink>View Local Opportunities</GaLink>
+            {onGoToActionPlan ? <GaLink onClick={onGoToActionPlan}>View Local Opportunities</GaLink> : null}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-[12px]">
@@ -300,7 +299,7 @@ export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSect
               )}
             </ul>
             <div className="mt-3">
-              <GaLink>View Local Recommendations</GaLink>
+              {onGoToActionPlan ? <GaLink onClick={onGoToActionPlan}>View Local Recommendations</GaLink> : null}
             </div>
           </GaCard>
         </div>

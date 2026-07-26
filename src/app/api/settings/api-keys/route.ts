@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/context";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { requireOrganizationPermission } from "@/lib/auth/permissions";
-import { requireRecentAuth } from "@/lib/auth/reauth";
 import {
   createOrganizationApiKey,
   listOrganizationApiKeys,
@@ -41,7 +40,6 @@ export async function POST(request: Request) {
     if (!body.businessId) {
       return NextResponse.json({ error: "businessId required" }, { status: 400 });
     }
-    await requireRecentAuth();
     const access = await requireBusinessAccess(body.businessId);
     const auth = await requireOrganizationPermission("api_key.manage", access.organizationId);
     const created = await createOrganizationApiKey({
@@ -79,7 +77,6 @@ export async function DELETE(request: Request) {
     if (!businessId || !keyId) {
       return NextResponse.json({ error: "businessId and keyId required" }, { status: 400 });
     }
-    await requireRecentAuth();
     const access = await requireBusinessAccess(businessId);
     const auth = await requireOrganizationPermission("api_key.manage", access.organizationId);
     const ok = await revokeOrganizationApiKey({

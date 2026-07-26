@@ -10,7 +10,7 @@ export type ReviewFeedDetails = {
   edited?: boolean;
   sentiment: {
     label: "Positive" | "Neutral" | "Negative";
-    confidence: number; // 0–1 decimal
+    confidence: number | null; // 0–1 decimal when model-provided
   };
 };
 

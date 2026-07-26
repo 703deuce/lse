@@ -62,12 +62,13 @@ export default async function BusinessOverviewPage({
       : featured.review.rating != null
         ? Math.round(featured.review.rating * 20)
         : null;
-  const lseScore = latestGrowthAudit
-    ? Math.round(Number((latestGrowthAudit as { overall_score?: number | null }).overall_score ?? 0)) ||
-      72
-    : recentScans.total
-      ? 68
-      : 42;
+  const rawAuditScore = latestGrowthAudit
+    ? (latestGrowthAudit as { overall_score?: number | null }).overall_score
+    : null;
+  const lseScore =
+    rawAuditScore == null || Number.isNaN(Number(rawAuditScore))
+      ? null
+      : Math.round(Number(rawAuditScore));
 
   const tabs = [
     { id: "overview", label: "Overview", href: `/businesses/${businessId}/overview` },
@@ -142,19 +143,27 @@ export default async function BusinessOverviewPage({
         />
         <MockMetricCard
           label="LSE Score"
-          value={lseScore}
+          value={lseScore ?? "—"}
           icon={Gauge}
           iconClassName="bg-[#F4F3FF] text-[#5925DC]"
-          hint="Professional"
+          hint={lseScore != null ? "From latest growth audit" : "Run a growth audit"}
         />
         <MockMetricCard
           label="LSE Grade"
-          value={`${Math.min(99, lseScore + 12)}%`}
+          value={
+            lseScore == null
+              ? "—"
+              : lseScore >= 80
+                ? "A"
+                : lseScore >= 65
+                  ? "B"
+                  : lseScore >= 50
+                    ? "C"
+                    : "D"
+          }
           icon={ShieldCheck}
           iconClassName="bg-[#ECFDF3] text-[#027A48]"
-          hint="Very Good"
-          trend="Active"
-          trendPositive
+          hint={lseScore != null ? "Based on audit score" : "Needs audit"}
         />
       </div>
 

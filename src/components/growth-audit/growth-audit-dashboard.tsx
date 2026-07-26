@@ -43,8 +43,8 @@ function ExtendedModulesBanner({
   const running = status === "extended_running" || status === "running";
   const modules = [
     { key: "citations", label: "Citations", href: `/businesses/${businessId}/citations`, data: extended.citations },
-    { key: "reputation", label: "Reputation", href: `/businesses/${businessId}/reputation`, data: extended.reputation },
-    { key: "keywords", label: "Keywords", href: `/businesses/${businessId}/keywords`, data: extended.keywords },
+    { key: "reputation", label: "Reputation", href: `/businesses/${businessId}/reputation/overview`, data: extended.reputation },
+    { key: "keywords", label: "Keywords", href: `/businesses/${businessId}/scans`, data: extended.keywords },
     { key: "backlinkGap", label: "Backlink Gap", href: `/businesses/${businessId}/backlink-gap`, data: extended.backlinkGap },
   ];
 
@@ -269,7 +269,12 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
           {tab === "website" && (
             <GrowthAuditWebsiteTab website={sections.website} onGoToActionPlan={() => goToTab("growth-plan")} />
           )}
-          {tab === "coverage" && <GrowthAuditCoverageTab sections={sections} />}
+          {tab === "coverage" && (
+            <GrowthAuditCoverageTab
+              sections={sections}
+              onGoToActionPlan={() => goToTab("growth-plan")}
+            />
+          )}
           {tab === "competitor-gap" && (
             <GrowthAuditCompetitorTab
               sections={sections}
