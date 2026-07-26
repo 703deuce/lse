@@ -190,13 +190,10 @@ export function ReviewOverviewDashboard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Review Overview</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-[13px] font-medium text-zinc-700 shadow-sm"
-          >
+          <span className="inline-flex h-9 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-[13px] font-medium text-zinc-700 shadow-sm">
             <Calendar className="h-3.5 w-3.5 text-zinc-400" />
             {data.dateRangeLabel}
-          </button>
+          </span>
           <Link
             href={`/businesses/${businessId}/reports`}
             className="inline-flex h-9 items-center rounded-lg border border-zinc-200 bg-white px-3.5 text-[13px] font-semibold text-zinc-700 shadow-sm hover:bg-zinc-50"

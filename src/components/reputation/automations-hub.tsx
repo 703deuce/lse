@@ -224,7 +224,8 @@ export function AutomationsHub({
           campaign: endpoint.campaignId ? `Campaign ${endpoint.campaignId.slice(0, 8)}` : "Mapped campaign",
           status: endpoint.isTest ? "Test" : endpoint.isActive ? "Active" : "Paused",
           lastFired: endpoint.lastReceivedAt,
-          enrolled: 0,
+          // Per-trigger enrollment isn't returned by the webhooks API yet.
+          enrolled: -1,
         }))
       );
       const successful = typeof apiMetrics.successful === "number" ? apiMetrics.successful : undefined;
@@ -430,7 +431,9 @@ export function AutomationsHub({
                           <RepBadge tone={statusTone(trigger.status)}>{trigger.status}</RepBadge>
                         </td>
                         <td className="px-4 py-3 text-[#667085]">{fmtDateTime(trigger.lastFired)}</td>
-                        <td className="px-4 py-3 text-right tabular-nums text-[#344054]">{trigger.enrolled.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right tabular-nums text-[#344054]">
+                          {trigger.enrolled < 0 ? "—" : trigger.enrolled.toLocaleString()}
+                        </td>
                         <td className="px-4 py-3" />
                       </tr>
                     ))}
