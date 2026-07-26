@@ -37,7 +37,6 @@ export default async function BusinessOverviewPage({
   const auth = await requireBusinessPageData(businessId);
   const business = auth.business;
 
-  const supabase = createServiceClient();
   const [recentScans, featured, latestGrowthAudit] = await Promise.all([
     loadDashboardRecentScans(businessId, { preview: 8 }),
     loadDashboardFeatured(businessId),
