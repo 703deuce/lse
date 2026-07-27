@@ -132,10 +132,11 @@ export function MapsRankChecker({ embed = false }: { embed?: boolean }) {
         { label: "Check the grid" },
         { label: "Review competitors" },
       ]}
+      ctaLabel="Get started"
     >
-      <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
+      <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="space-y-4">
-          <FreeToolField label="Business name">
+          <FreeToolField label="Business Name">
             <div className="flex gap-2">
               <input
                 className={freeToolInputClass}
@@ -215,10 +216,34 @@ export function MapsRankChecker({ embed = false }: { embed?: boolean }) {
         <div className="rounded-2xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
           {result && grid ? (
             <>
-              <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+              <div
+                className="relative overflow-hidden rounded-2xl border border-[#D0D5DD] p-5"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(rgba(243,245,247,0.72), rgba(243,245,247,0.82)), url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cpath fill='%23cfd8e3' d='M0 40h160v2H0zm0 40h160v2H0zm0 40h160v2H0zM40 0h2v160h-2zm40 0h2v160h-2zm40 0h2v160h-2z'/%3E%3Cpath fill='none' stroke='%23a8b7c7' stroke-width='2' d='M10 120c20-30 40-20 60-40s40-10 70-30'/%3E%3Cpath fill='none' stroke='%23b7c4d2' stroke-width='8' d='M0 90h160'/%3E%3C/svg%3E\")",
+                  backgroundSize: "cover",
+                }}
+              >
+                <div className="mx-auto grid max-w-[280px] grid-cols-3 gap-3">
+                  {grid.map((cell) => (
+                    <div
+                      key={cell.label}
+                      className={cn(
+                        "flex aspect-square items-center justify-center rounded-full text-sm font-extrabold shadow-md ring-2 ring-white/80",
+                        rankColor(cell.rank)
+                      )}
+                      title={`${cell.label}: ${rankLabel(cell.rank)}`}
+                    >
+                      {rankLabel(cell.rank)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-wide text-[#667085]">
-                    Average rank
+                    Average Rank
                   </p>
                   <p className="text-3xl font-extrabold text-[#0B1220]">
                     {result.average_rank != null ? result.average_rank : "—"}
@@ -232,25 +257,10 @@ export function MapsRankChecker({ embed = false }: { embed?: boolean }) {
                 </div>
               </div>
 
-              <div className="mx-auto grid max-w-[280px] grid-cols-3 gap-2">
-                {grid.map((cell) => (
-                  <div
-                    key={cell.label}
-                    className={cn(
-                      "flex aspect-square items-center justify-center rounded-full text-sm font-extrabold shadow-sm",
-                      rankColor(cell.rank)
-                    )}
-                    title={`${cell.label}: ${rankLabel(cell.rank)}`}
-                  >
-                    {rankLabel(cell.rank)}
-                  </div>
-                ))}
-              </div>
-
               {result.top_competitors?.length ? (
                 <div className="mt-5">
                   <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-[#667085]">
-                    Top competitors
+                    Top Competitors
                   </p>
                   <ol className="space-y-1.5">
                     {result.top_competitors.map((row) => (
@@ -272,11 +282,19 @@ export function MapsRankChecker({ embed = false }: { embed?: boolean }) {
               </p>
             </>
           ) : (
-            <div className="flex min-h-[280px] flex-col items-center justify-center text-center">
-              <div className="mb-3 grid grid-cols-3 gap-2 opacity-40">
-                {Array.from({ length: 9 }).map((_, i) => (
-                  <div key={i} className="h-12 w-12 rounded-full bg-[#D0D5DD]" />
-                ))}
+            <div className="flex min-h-[300px] flex-col items-center justify-center text-center">
+              <div
+                className="mb-4 rounded-2xl border border-[#D0D5DD] p-5 opacity-70"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(rgba(243,245,247,0.75), rgba(243,245,247,0.85)), url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cpath fill='%23cfd8e3' d='M0 40h160v2H0zm0 40h160v2H0zm0 40h160v2H0zM40 0h2v160h-2zm40 0h2v160h-2zm40 0h2v160h-2z'/%3E%3C/svg%3E\")",
+                }}
+              >
+                <div className="grid grid-cols-3 gap-2">
+                  {Array.from({ length: 9 }).map((_, i) => (
+                    <div key={i} className="h-12 w-12 rounded-full bg-[#D0D5DD]" />
+                  ))}
+                </div>
               </div>
               <p className="text-sm font-semibold text-[#344054]">Your 3×3 rank grid will appear here</p>
               <p className="mt-1 max-w-[28ch] text-[12px] text-[#667085]">

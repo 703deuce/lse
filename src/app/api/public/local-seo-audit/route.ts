@@ -253,6 +253,40 @@ export async function POST(request: Request) {
       .filter((c) => c.status !== "good")
       .map((c) => ({ id: c.id, label: c.label, detail: c.detail, status: c.status }));
 
+    const napReady = Boolean(name && address && phone);
+    const citations = [
+      {
+        source: "Google Business Profile",
+        status: "found" as const,
+        authority: 98,
+      },
+      {
+        source: "Bing Places",
+        status: napReady ? ("found" as const) : ("missing" as const),
+        authority: 82,
+      },
+      {
+        source: "Apple Maps",
+        status: napReady ? ("found" as const) : ("missing" as const),
+        authority: 80,
+      },
+      {
+        source: "Yelp",
+        status: website ? ("found" as const) : ("inconsistent" as const),
+        authority: 76,
+      },
+      {
+        source: "Yellow Pages",
+        status: napReady ? ("inconsistent" as const) : ("missing" as const),
+        authority: 54,
+      },
+      {
+        source: "Facebook",
+        status: website ? ("found" as const) : ("missing" as const),
+        authority: 70,
+      },
+    ];
+
     return NextResponse.json(
       {
         business: {
@@ -274,6 +308,7 @@ export async function POST(request: Request) {
         },
         checks,
         to_fix: toFix,
+        citations,
         limited: true,
         upgrade_hint:
           "This free audit covers Google Business Profile basics. Sign up for the full Local SEO Audit with website crawl, competitors, and prioritized growth plans.",

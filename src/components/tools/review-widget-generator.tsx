@@ -20,10 +20,42 @@ type PlaceCandidate = {
 
 type LayoutId = "badge" | "bar" | "cards";
 
+type SelectableReview = {
+  id: string;
+  author: string;
+  rating: number;
+  text: string;
+  selected: boolean;
+};
+
 const LAYOUTS: { id: LayoutId; label: string; blurb: string }[] = [
   { id: "badge", label: "Badge", blurb: "Compact stars + rating" },
   { id: "bar", label: "Bar", blurb: "Full-width review strip" },
   { id: "cards", label: "Cards", blurb: "Up to 3 review quotes" },
+];
+
+const DEFAULT_REVIEWS: SelectableReview[] = [
+  {
+    id: "r1",
+    author: "Sarah M.",
+    rating: 5,
+    text: "They asked for a review after the job—super easy. Great service.",
+    selected: true,
+  },
+  {
+    id: "r2",
+    author: "James T.",
+    rating: 5,
+    text: "Showed up on time and fixed everything. Highly recommend.",
+    selected: true,
+  },
+  {
+    id: "r3",
+    author: "Priya K.",
+    rating: 4,
+    text: "Friendly team and clear communication from start to finish.",
+    selected: false,
+  },
 ];
 
 function escapeHtml(value: string): string {
@@ -103,7 +135,8 @@ function buildEmbed(params: {
     quotes.length > 0
       ? quotes
           .map(
-            (q) => `<div class="lse-rw-card"><div class="lse-rw-stars" aria-hidden="true">${starText}</div><p>“${escapeHtml(q)}”</p></div>`
+            (q) =>
+              `<div class="lse-rw-card"><div class="lse-rw-stars" aria-hidden="true">${starText}</div><p>“${escapeHtml(q)}”</p></div>`
           )
           .join("\n")
       : `<div class="lse-rw-card"><div class="lse-rw-stars" aria-hidden="true">${starText}</div><p>Customers rate ${name} ${rating.toFixed(1)} stars on Google (${count.toLocaleString()} reviews).</p></div>`;
@@ -118,19 +151,35 @@ ${cards}
 </div>`;
 }
 
+function Sparkline() {
+  return (
+    <svg viewBox="0 0 120 36" className="h-9 w-[120px]" aria-hidden="true">
+      <path
+        d="M2 28 C18 26, 24 18, 36 16 S56 22, 68 14 S92 8, 118 6"
+        fill="none"
+        stroke="#137752"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M2 28 C18 26, 24 18, 36 16 S56 22, 68 14 S92 8, 118 6 L118 36 L2 36 Z"
+        fill="rgba(19,119,82,0.12)"
+      />
+    </svg>
+  );
+}
+
 export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [candidates, setCandidates] = useState<PlaceCandidate[]>([]);
   const [selected, setSelected] = useState<PlaceCandidate | null>(null);
-  const [businessName, setBusinessName] = useState("");
+  const [businessName, setBusinessName] = useState("Your Business");
   const [placeId, setPlaceId] = useState("");
   const [rating, setRating] = useState(4.8);
   const [reviewCount, setReviewCount] = useState(35);
-  const [layout, setLayout] = useState<LayoutId>("badge");
-  const [quote1, setQuote1] = useState("");
-  const [quote2, setQuote2] = useState("");
-  const [quote3, setQuote3] = useState("");
+  const [layout, setLayout] = useState<LayoutId>("cards");
+  const [reviews, setReviews] = useState<SelectableReview[]>(DEFAULT_REVIEWS);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -142,6 +191,8 @@ export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
     if (typeof selected.review_count === "number") setReviewCount(selected.review_count);
   }, [selected]);
 
+  const selectedQuotes = reviews.filter((r) => r.selected).map((r) => r.text);
+
   const embedCode = useMemo(
     () =>
       buildEmbed({
@@ -150,9 +201,9 @@ export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
         placeId,
         rating,
         reviewCount,
-        quotes: [quote1, quote2, quote3],
+        quotes: selectedQuotes,
       }),
-    [layout, businessName, placeId, rating, reviewCount, quote1, quote2, quote3]
+    [layout, businessName, placeId, rating, reviewCount, selectedQuotes]
   );
 
   async function searchPlaces() {
@@ -187,19 +238,24 @@ export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
     window.setTimeout(() => setCopied(false), 1600);
   }
 
+  function toggleReview(id: string) {
+    setReviews((prev) => prev.map((r) => (r.id === id ? { ...r, selected: !r.selected } : r)));
+  }
+
   return (
     <FreeToolShell
       embed={embed}
       title="Google Review Widget Generator"
-      subtitle="Select a style, customize your reviews, and copy embed code for your website."
+      subtitle="Select a style, choose reviews, customize, and embed on your website."
       steps={[
-        { label: "Select a style" },
-        { label: "Choose your reviews" },
-        { label: "Customize widget" },
-        { label: "Embed on website" },
+        { label: "Select a Style" },
+        { label: "Choose Your Reviews" },
+        { label: "Customize Widget" },
+        { label: "Embed to Website" },
       ]}
+      ctaLabel="Sign up for a free trial"
     >
-      <div className="mb-5 flex flex-wrap items-end gap-4 rounded-2xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
+      <div className="mb-5 grid gap-3 rounded-2xl border border-[#E6EAF0] bg-[#F9FAFB] p-4 sm:grid-cols-4">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-wide text-[#667085]">Average rating</p>
           <div className="mt-1 flex items-center gap-2">
@@ -208,16 +264,37 @@ export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
           </div>
         </div>
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-wide text-[#667085]">Total reviews</p>
+          <p className="text-[11px] font-bold uppercase tracking-wide text-[#667085]">Total Reviews</p>
           <p className="mt-1 text-2xl font-extrabold text-[#0B1220]">{reviewCount}</p>
         </div>
-        <div className="ml-auto flex items-center gap-2 text-sm font-semibold text-[#137752]">
-          <Star className="h-4 w-4" />
-          Live preview updates as you edit
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-wide text-[#667085]">New Reviews</p>
+          <p className="mt-1 text-2xl font-extrabold text-[#137752]">2</p>
+        </div>
+        <div className="flex flex-col justify-end">
+          <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-[#667085]">Rating trend</p>
+          <Sparkline />
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
+      <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+        <div className="flex justify-center">
+          <div className="relative w-[220px]">
+            <div className="rounded-[36px] bg-[#111827] p-2.5 shadow-xl">
+              <div className="overflow-hidden rounded-[28px] bg-white p-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <Star className="h-4 w-4 text-[#137752]" />
+                  <span className="text-[12px] font-bold text-[#0B1220]">Review widget</span>
+                </div>
+                <div
+                  className="min-h-[220px] rounded-xl bg-[#F9FAFB] p-2"
+                  dangerouslySetInnerHTML={{ __html: embedCode }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="space-y-4">
           <FreeToolField label="Find your Google Business Profile">
             <div className="flex gap-2">
@@ -243,7 +320,7 @@ export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
           </FreeToolField>
 
           {candidates.length > 0 ? (
-            <ul className="max-h-40 overflow-auto rounded-xl border border-[#E6EAF0]">
+            <ul className="max-h-36 overflow-auto rounded-xl border border-[#E6EAF0]">
               {candidates.map((c) => (
                 <li key={c.place_id}>
                   <button
@@ -262,23 +339,8 @@ export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
             </ul>
           ) : null}
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <FreeToolField label="Business name">
-              <input className={freeToolInputClass} value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
-            </FreeToolField>
-            <FreeToolField label="Place ID">
-              <input className={freeToolInputClass} value={placeId} onChange={(e) => setPlaceId(e.target.value)} placeholder="ChIJ…" />
-            </FreeToolField>
-            <FreeToolField label="Rating">
-              <input type="number" min={1} max={5} step={0.1} className={freeToolInputClass} value={rating} onChange={(e) => setRating(Number(e.target.value))} />
-            </FreeToolField>
-            <FreeToolField label="Review count">
-              <input type="number" min={0} className={freeToolInputClass} value={reviewCount} onChange={(e) => setReviewCount(Number(e.target.value))} />
-            </FreeToolField>
-          </div>
-
           <div>
-            <p className="mb-1.5 text-[12px] font-bold text-[#344054]">1. Select a style</p>
+            <p className="mb-1.5 text-[12px] font-bold text-[#344054]">1. Select a Style</p>
             <div className="grid gap-2 sm:grid-cols-3">
               {LAYOUTS.map((item) => (
                 <button
@@ -297,41 +359,58 @@ export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
             </div>
           </div>
 
-          {layout === "cards" ? (
-            <div className="space-y-2">
-              <p className="text-[12px] font-bold text-[#344054]">2. Choose your reviews (optional quotes)</p>
-              {[quote1, quote2, quote3].map((q, i) => (
-                <textarea
-                  key={i}
-                  className={cn(freeToolInputClass, "min-h-[64px] h-auto py-2")}
-                  value={q}
-                  onChange={(e) => {
-                    const setters = [setQuote1, setQuote2, setQuote3];
-                    setters[i]?.(e.target.value);
-                  }}
-                  placeholder={`Review quote ${i + 1}`}
-                />
+          <div>
+            <p className="mb-1.5 text-[12px] font-bold text-[#344054]">2. Select Reviews</p>
+            <ul className="space-y-2">
+              {reviews.map((review) => (
+                <li key={review.id}>
+                  <button
+                    type="button"
+                    onClick={() => toggleReview(review.id)}
+                    className={cn(
+                      "w-full rounded-xl border px-3 py-2.5 text-left",
+                      review.selected ? "border-[#137752] bg-[#ECFDF5]" : "border-[#E6EAF0] bg-white"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-bold text-[#0B1220]">{review.author}</span>
+                      <span className="text-[12px] text-[#FDB022]">{"★".repeat(review.rating)}</span>
+                    </div>
+                    <p className="mt-1 text-[12px] leading-relaxed text-[#667085]">{review.text}</p>
+                  </button>
+                </li>
               ))}
-            </div>
-          ) : null}
+            </ul>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FreeToolField label="Business name">
+              <input
+                className={freeToolInputClass}
+                value={businessName}
+                onChange={(e) => setBusinessName(e.target.value)}
+              />
+            </FreeToolField>
+            <FreeToolField label="Place ID">
+              <input
+                className={freeToolInputClass}
+                value={placeId}
+                onChange={(e) => setPlaceId(e.target.value)}
+                placeholder="ChIJ…"
+              />
+            </FreeToolField>
+          </div>
 
           {error ? <p className="text-sm text-[#B42318]">{error}</p> : null}
 
-          <button type="button" onClick={() => void copyEmbed()} className={cn(freeToolPrimaryBtnClass, "w-full sm:w-auto")}>
+          <button type="button" onClick={() => void copyEmbed()} className={cn(freeToolPrimaryBtnClass, "w-full")}>
             <Copy className="h-4 w-4" />
             {copied ? "Copied embed code" : "Generate Widget"}
           </button>
-        </div>
 
-        <div>
-          <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-[#137752]">Widget preview</p>
-          <div
-            className="rounded-2xl border border-[#E6EAF0] bg-[#F9FAFB] p-4"
-            dangerouslySetInnerHTML={{ __html: embedCode }}
-          />
           <textarea
             readOnly
-            className={cn(freeToolInputClass, "mt-3 min-h-[160px] h-auto py-2 font-mono text-[11px] text-[#344054]")}
+            className={cn(freeToolInputClass, "min-h-[120px] h-auto py-2 font-mono text-[11px] text-[#344054]")}
             value={embedCode}
           />
         </div>

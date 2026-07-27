@@ -218,12 +218,12 @@
   letter-spacing: -0.035em;
   line-height: 1.05;
   color: var(--smb-text);
-  max-width: 13ch;
+  max-width: 16ch;
   animation: smb-rise 0.65s ease both;
 }
 
 .smb-hero .smb-lead {
-  max-width: 36ch;
+  max-width: 42ch;
   animation: smb-rise 0.75s ease 0.06s both;
 }
 

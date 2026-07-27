@@ -2,7 +2,21 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { Source_Serif_4 } from "next/font/google";
 import { cn } from "@/lib/utils";
+
+const display = Source_Serif_4({
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+});
+
+const APP_NAV = [
+  { label: "Dashboard", href: "/sign-up" },
+  { label: "Rank Tracker", href: "/sign-up" },
+  { label: "Reviews", href: "/sign-up" },
+  { label: "Tools", href: "/sign-up" },
+  { label: "GMB Audit", href: "/tools/local-seo-audit" },
+] as const;
 
 export function FreeToolShell({
   embed,
@@ -11,61 +25,79 @@ export function FreeToolShell({
   steps,
   children,
   ctaHref = "/sign-up",
-  ctaLabel = "Get started free",
+  ctaLabel = "Get started",
+  footerNote = "Unlock full tracking, history, and campaigns in one place.",
 }: {
   embed?: boolean;
   title: string;
-  subtitle: string;
-  steps: { label: string; icon?: ReactNode }[];
+  subtitle?: string;
+  steps: { label: string }[];
   children: ReactNode;
   ctaHref?: string;
   ctaLabel?: string;
+  footerNote?: string;
 }) {
   return (
-    <div className={cn(embed ? "min-h-screen bg-[#F3F5F7] p-3 sm:p-5" : "min-h-screen bg-[#F3F5F7]")}>
-      <div className={cn(!embed && "mx-auto max-w-5xl px-4 py-8 sm:py-10")}>
-        {!embed ? (
-          <div className="mb-6">
-            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#137752]">Free tool</p>
-            <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-tight text-[#0B1220] sm:text-4xl">
-              {title}
-            </h1>
-            <p className="mt-2 max-w-2xl text-[15px] text-[#667085]">{subtitle}</p>
+    <div className={cn("min-h-screen bg-white", embed && "bg-[#F3F5F7] p-3 sm:p-4")}>
+      {!embed ? (
+        <header className="bg-[#137752] text-white">
+          <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
+            <Link href="/" className="shrink-0 text-[15px] font-extrabold tracking-tight">
+              Local SEO <span className="text-[#A6F4C5]">Express</span>
+            </Link>
+            <nav className="hidden flex-1 items-center justify-center gap-5 text-[13px] font-semibold md:flex">
+              {APP_NAV.map((item) => (
+                <Link key={item.label} href={item.href} className="opacity-90 hover:opacity-100">
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+            <Link
+              href="/sign-in"
+              className="ml-auto rounded-full border border-white/40 px-3.5 py-1.5 text-[12px] font-bold hover:bg-white/10"
+            >
+              Log out
+            </Link>
           </div>
-        ) : (
-          <div className="mb-4">
-            <h1 className="font-[family-name:var(--font-display)] text-2xl font-extrabold tracking-tight text-[#0B1220]">
-              {title}
-            </h1>
-            <p className="mt-1 text-sm text-[#667085]">{subtitle}</p>
-          </div>
-        )}
+        </header>
+      ) : null}
 
-        {steps.length > 0 ? (
-          <ol className="mb-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {steps.map((step, i) => (
-              <li
-                key={step.label}
-                className="flex items-center gap-3 rounded-xl border border-[#E6EAF0] bg-white px-3 py-3 shadow-sm"
-              >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] text-[12px] font-extrabold text-[#137752]">
-                  {i + 1}
-                </span>
-                <span className="text-[13px] font-semibold text-[#0B1220]">{step.label}</span>
-              </li>
-            ))}
-          </ol>
-        ) : null}
+      <div className={cn("mx-auto max-w-5xl", embed ? "" : "px-4 py-8 sm:py-10")}>
+        <div className={cn(embed && "rounded-2xl border border-[#E6EAF0] bg-white p-4 shadow-sm sm:p-6")}>
+          <h1
+            className={cn(
+              display.className,
+              "text-[1.75rem] font-extrabold leading-tight tracking-tight text-[#0B1220] sm:text-[2.15rem]"
+            )}
+          >
+            {title}
+          </h1>
+          {subtitle ? <p className="mt-1.5 max-w-2xl text-[15px] text-[#667085]">{subtitle}</p> : null}
 
-        <div className="rounded-2xl border border-[#E6EAF0] bg-white p-4 shadow-sm sm:p-6">{children}</div>
+          {steps.length > 0 ? (
+            <ol className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {steps.map((step, i) => (
+                <li
+                  key={step.label}
+                  className="flex items-center gap-3 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-3"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#137752] text-[13px] font-extrabold text-white">
+                    {i + 1}
+                  </span>
+                  <span className="text-[13px] font-semibold leading-snug text-[#0B1220]">{step.label}</span>
+                </li>
+              ))}
+            </ol>
+          ) : null}
 
-        <div className="mt-5 overflow-hidden rounded-2xl bg-gradient-to-br from-[#137752] to-[#0B4F36] px-5 py-5 text-white sm:px-6">
+          <div className="mt-5">{children}</div>
+        </div>
+
+        <div className="mt-5 overflow-hidden rounded-2xl bg-[#137752] px-5 py-5 text-white sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-extrabold uppercase tracking-wide">Unlock the full platform</p>
-              <p className="mt-1 text-sm text-white/85">
-                Save history, run full scans, and manage reviews in one place.
-              </p>
+              <p className="text-sm font-extrabold">Ready to grow faster?</p>
+              <p className="mt-1 text-sm text-white/85">{footerNote}</p>
             </div>
             <Link
               href={ctaHref}
