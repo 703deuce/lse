@@ -96,6 +96,20 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        source: "/tools/review-response-generator",
+        headers: [
+          { key: "Content-Security-Policy", value: embedCsp },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
+      },
+      {
+        source: "/tools/review-response-generator/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: embedCsp },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
+      },
+      {
         source: "/api/public/contact",
         headers: [
           { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
@@ -103,6 +117,18 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/api/public/contact/:path*",
+        headers: [
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
+      },
+      {
+        source: "/api/public/review-reply",
+        headers: [
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
+      },
+      {
+        source: "/api/public/review-reply/:path*",
         headers: [
           { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
         ],

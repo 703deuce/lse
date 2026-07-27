@@ -44,15 +44,15 @@ export function MobileMoreSheet() {
           },
         ]
       : []),
-    { title: nav.growthTools.title, items: nav.growthTools.items },
     {
-      title: "Reputation",
+      title: nav.reputation.title,
       items: [nav.reputation.overview, ...nav.reputation.groups.flatMap((g) => g.items)],
     },
+    { title: nav.growthTools.title, items: nav.growthTools.items },
     { title: nav.textMessaging.title, items: nav.textMessaging.items },
     { title: nav.deliverables.title, items: nav.deliverables.items },
     { title: nav.account.title, items: nav.account.items },
-  ];
+  ].filter((section) => section.items.length > 0);
 
   return (
     <div className="fixed inset-0 z-50 lg:hidden">

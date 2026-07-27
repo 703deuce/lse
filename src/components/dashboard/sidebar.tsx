@@ -7,7 +7,6 @@ import {
   Building2,
   ChevronDown,
   MapPin,
-  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SidebarUserMenu } from "@/components/auth/sidebar-user-menu";
@@ -149,10 +148,12 @@ function ReputationNavSection({
           onNavigate={onNavigate}
         />
         {groups.map((group) => (
-          <div key={group.title} className="pt-1.5">
-            <p className="mb-0.5 px-3 text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500/80">
-              {group.title}
-            </p>
+          <div key={group.title || "items"} className={group.title ? "pt-1.5" : "pt-0.5"}>
+            {group.title ? (
+              <p className="mb-0.5 px-3 text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500/80">
+                {group.title}
+              </p>
+            ) : null}
             <div className="space-y-0.5">
               {group.items.map((item) => (
                 <SidebarNavItemRow
@@ -188,11 +189,14 @@ function NavSection({
   staticLinks?: boolean;
   onNavigate?: () => void;
 }) {
+  if (!items.length) return null;
   return (
     <div className="mb-2">
-      <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-        {title}
-      </p>
+      {title ? (
+        <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+          {title}
+        </p>
+      ) : null}
       <div className="space-y-0.5">
         {items.map((item) => (
           <div key={`${item.label}-${item.href}`}>
@@ -260,12 +264,12 @@ export function DashboardSidebarPanel({
               </div>
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold text-white">Local SEO Express</p>
-                <p className="text-[11px] text-slate-400">Independent consultants · 1–20 clients</p>
+                <p className="text-[11px] text-slate-400">Reviews &amp; local rankings</p>
               </div>
             </div>
           ) : (
             <Link
-              href="/workspace"
+              href={businessId ? `/businesses/${businessId}/overview` : "/onboarding"}
               className="flex min-w-0 items-center gap-2.5"
               onClick={() => onNavigate?.()}
             >
@@ -274,7 +278,7 @@ export function DashboardSidebarPanel({
               </div>
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold text-white">Local SEO Express</p>
-                <p className="text-[11px] text-slate-400">Independent consultants · 1–20 clients</p>
+                <p className="text-[11px] text-slate-400">Reviews &amp; local rankings</p>
               </div>
             </Link>
           )}
@@ -283,7 +287,7 @@ export function DashboardSidebarPanel({
           <div className="mx-1 mt-2.5 flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-slate-300">
             <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
             <span className="min-w-0 flex-1 truncate">
-              {businessName ?? "Select client or prospect…"}
+              {businessName ?? "Select your business…"}
             </span>
             <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
           </div>
@@ -362,15 +366,6 @@ export function DashboardSidebarPanel({
 
       {showFooter && !staticLinks && (
         <div className="space-y-2 border-t border-sidebar-border p-2.5">
-          {businessId ? (
-            <SidebarNavItemRow
-              href={`/businesses/${businessId}/settings`}
-              label="Location settings"
-              icon={Settings}
-              active={pathname.startsWith(`/businesses/${businessId}/settings`)}
-              onNavigate={onNavigate}
-            />
-          ) : null}
           <SidebarUserMenu />
         </div>
       )}

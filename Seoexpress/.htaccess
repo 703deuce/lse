@@ -8,6 +8,9 @@ Options -Indexes
   RewriteEngine On
   RewriteBase /
 
+  # Renamed free QR tool URL
+  RewriteRule ^google-review-qr-code-generator/?$ /tools/google-review-link-qr-code/ [R=301,L]
+
   # Canonical host: always https://localseoexpress.com
   # Force HTTPS and non-www in one permanent redirect
   RewriteCond %{HTTPS} !=on [OR]

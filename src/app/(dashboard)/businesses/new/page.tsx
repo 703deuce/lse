@@ -47,6 +47,8 @@ function NewBusinessPageInner() {
     return raw === "prospect" ? "prospect" : "client";
   }, [searchParams]);
   const isProspect = accountAs === "prospect";
+  const fromOnboarding = searchParams.get("from") === "onboarding";
+  const smbSetup = searchParams.get("smb") === "1" || fromOnboarding;
   const [step, setStep] = useState<"search" | "select" | "setup">("search");
   const [loading, setLoading] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
@@ -60,12 +62,12 @@ function NewBusinessPageInner() {
     label: string;
   } | null>(null);
   const [form, setForm] = useState({
-    name: "",
-    city: "",
+    name: searchParams.get("name") ?? "",
+    city: searchParams.get("city") ?? "",
     keyword: "",
     keyword2: "",
     keyword3: "",
-    website: "",
+    website: searchParams.get("website") ?? "",
     service_area_mode: "storefront" as "storefront" | "service_area",
   });
 
@@ -186,6 +188,8 @@ function NewBusinessPageInner() {
       }
       if (isProspect) {
         router.push(`/prospects/${data.business.id}/audit`);
+      } else if (fromOnboarding || smbSetup) {
+        router.push(`/businesses/${data.business.id}/reputation/requests?tab=send`);
       } else {
         router.push(`/businesses/${data.business.id}/overview`);
       }
@@ -206,19 +210,25 @@ function NewBusinessPageInner() {
   return (
     <div className="mx-auto w-full max-w-2xl">
         <Link
-          href={isProspect ? "/prospects" : "/clients"}
+          href={smbSetup ? "/onboarding" : isProspect ? "/prospects" : "/clients"}
           className="mb-6 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
         >
           <ArrowLeft className="h-4 w-4" /> Back
         </Link>
 
         <h1 className="text-2xl font-bold">
-          {isProspect ? "Add a prospect" : "Add a client"}
+          {smbSetup
+            ? "Add your business"
+            : isProspect
+              ? "Add a prospect"
+              : "Add a client"}
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
-          {isProspect
-            ? "Find their Google listing to run a prospect audit. Scans and reports stay with this record if you convert them to a client later."
-            : "Find their Google listing. Each client location gets its own keywords, Maps scans, and branded reports."}
+          {smbSetup
+            ? "Find your Google Business Profile so we can attach the right review link and start tracking rankings."
+            : isProspect
+              ? "Find their Google listing to run a prospect audit. Scans and reports stay with this record if you convert them to a client later."
+              : "Find their Google listing. Each client location gets its own keywords, Maps scans, and branded reports."}
         </p>
 
         {error && (

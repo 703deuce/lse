@@ -28,9 +28,12 @@ const PUBLIC_PREFIXES = [
   "/reports/share/",
   "/api/webhooks/",
   "/tools/google-review-qr-code",
+  "/tools/google-review-link-qr-code",
+  "/tools/review-response-generator",
   "/google-review-qr-code-generator",
   "/api/public/qr",
   "/api/public/contact",
+  "/api/public/review-reply",
 ];
 
 function isPublicPath(pathname: string): boolean {
@@ -44,10 +47,15 @@ function isProtectedPath(pathname: string): boolean {
   if (
     pathname === "/tools/google-review-qr-code" ||
     pathname.startsWith("/tools/google-review-qr-code/") ||
+    pathname === "/tools/google-review-link-qr-code" ||
+    pathname.startsWith("/tools/google-review-link-qr-code/") ||
+    pathname === "/tools/review-response-generator" ||
+    pathname.startsWith("/tools/review-response-generator/") ||
     pathname === "/google-review-qr-code-generator" ||
     pathname.startsWith("/google-review-qr-code-generator/") ||
     pathname.startsWith("/api/public/qr") ||
     pathname.startsWith("/api/public/contact") ||
+    pathname.startsWith("/api/public/review-reply") ||
     pathname.startsWith("/go/")
   ) {
     return false;

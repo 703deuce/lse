@@ -6,6 +6,7 @@ import {
   Briefcase,
   Building2,
   ClipboardList,
+  CreditCard,
   FileSearch,
   FileText,
   FolderKanban,
@@ -19,6 +20,7 @@ import {
   Palette,
   Phone,
   QrCode,
+  Send,
   Settings,
   Settings2,
   ShieldCheck,
@@ -30,6 +32,7 @@ import {
   Webhook,
 } from "lucide-react";
 import { toolHref, type LocationToolSlug } from "@/lib/dashboard/tool-modules";
+import { isSmbLaunchNavEnabled } from "@/lib/product/smb-launch";
 
 export type SidebarNavChild = {
   href: string;
@@ -71,29 +74,16 @@ function loc(slug: LocationToolSlug, businessId?: string | null): string {
   return toolHref(slug, businessId);
 }
 
-/**
- * One sidebar for the whole app.
- *
- * Naming rules:
- * - Workspace = org home (clients, prospects, work queue)
- * - Dashboard = always under Work (picker if no location; overview if selected)
- * - Never under Account; never appears/disappears when switching locations
- */
-export function buildUnifiedSidebarNav(businessId?: string | null): {
+function buildAgencySidebarNav(businessId?: string | null): {
   getStarted: SidebarNavItem;
   work: SidebarNavSection;
-  /** @deprecated Kept for callers that still destructure; menu structure is stable. */
   thisLocation: SidebarNavSection | null;
   growthTools: SidebarNavSection;
   reputation: SidebarReputationNav;
-  /** Product module — same sidebar weight as Reputation / Growth Tools. */
   textMessaging: SidebarNavSection;
   deliverables: SidebarNavSection;
   account: SidebarNavSection;
 } {
-  // Dashboard always stays under Work in the same slot — never disappears / pops
-  // into another section when a client is selected. No location → picker; with
-  // location → that client's overview.
   const workItems: SidebarNavItem[] = [
     { href: "/workspace", label: "Workspace", icon: Briefcase },
     {
@@ -111,9 +101,6 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
       label: "Dashboard",
       icon: LayoutDashboard,
     },
-  ];
-
-  workItems.push(
     {
       href: loc("maps-scans", businessId),
       label: "Maps Scans",
@@ -129,10 +116,8 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
       href: "/scans",
       label: "Recent Scans",
       icon: History,
-    }
-  );
-
-  const thisLocation: SidebarNavSection | null = null;
+    },
+  ];
 
   return {
     getStarted: {
@@ -144,7 +129,7 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
       title: "Work",
       items: workItems,
     },
-    thisLocation,
+    thisLocation: null,
     growthTools: {
       title: "Growth Tools",
       items: [
@@ -163,9 +148,6 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
           icon: Phone,
         },
         {
-          // With a location: deep-link. Without: dedicated picker routes
-          // (/tools/go/messaging/status|number) — never append /status onto the
-          // catch-all picker URL incorrectly.
           href: businessId
             ? `${loc("messaging", businessId)}/status`
             : "/tools/go/messaging/status",
@@ -259,6 +241,140 @@ export function buildUnifiedSidebarNav(businessId?: string | null): {
   };
 }
 
+/**
+ * One-business SMB launch nav — agency features stay in code but off this menu.
+ */
+function buildSmbSidebarNav(businessId?: string | null): ReturnType<typeof buildAgencySidebarNav> {
+  const overviewHref = loc("dashboard", businessId);
+  const sendHref = loc("review-requests", businessId);
+  const historyHref = businessId
+    ? `${loc("review-requests", businessId)}?tab=bulk`
+    : "/tools/go/review-requests?tab=bulk";
+  const messagingHref = businessId
+    ? `${loc("messaging", businessId)}`
+    : "/tools/go/messaging";
+  const businessSettingsHref = businessId
+    ? `/businesses/${businessId}/settings`
+    : "/settings";
+
+  const sendItem: SidebarNavItem = {
+    href: sendHref,
+    label: "Send Request",
+    icon: Send,
+  };
+
+  const reviewItems: SidebarNavItem[] = [
+    { href: loc("contacts", businessId), label: "Customers", icon: Users },
+    { href: loc("review-campaigns", businessId), label: "Campaigns", icon: FolderKanban },
+    { href: loc("review-qr", businessId), label: "QR Code & Review Link", icon: QrCode },
+    { href: historyHref, label: "Request History", icon: History },
+  ];
+
+  return {
+    getStarted: {
+      href: "/onboarding",
+      label: "Get started",
+      icon: MapPin,
+    },
+    work: {
+      title: "Overview",
+      items: [
+        {
+          href: overviewHref,
+          label: "Overview",
+          icon: LayoutDashboard,
+        },
+      ],
+    },
+    thisLocation: null,
+    reputation: {
+      title: "Reviews",
+      overview: sendItem,
+      groups: [
+        {
+          title: "",
+          items: reviewItems,
+        },
+      ],
+      items: [sendItem, ...reviewItems],
+      subLinks: [],
+    },
+    growthTools: {
+      title: "Rank Tracking",
+      items: [
+        {
+          href: loc("maps-scans", businessId),
+          label: "New Scan",
+          icon: Grid3X3,
+          isRankGrid: true,
+        },
+        {
+          href: "/scans",
+          label: "Scan History",
+          icon: History,
+        },
+        {
+          href: loc("maps-campaigns", businessId),
+          label: "Keywords",
+          icon: FolderKanban,
+        },
+      ],
+    },
+    textMessaging: {
+      title: "",
+      items: [],
+    },
+    deliverables: {
+      title: "Local SEO Audit",
+      items: [
+        {
+          href: loc("growth-audit", businessId),
+          label: "Local SEO Audit",
+          icon: FileSearch,
+        },
+      ],
+    },
+    account: {
+      title: "Settings",
+      items: [
+        {
+          href: businessSettingsHref,
+          label: "Business Profile",
+          icon: Building2,
+        },
+        {
+          href: messagingHref,
+          label: "Messaging",
+          icon: Phone,
+        },
+        {
+          href: loc("review-settings", businessId),
+          label: "Review Sites",
+          icon: Settings2,
+        },
+        {
+          href: "/settings/subscription",
+          label: "Billing",
+          icon: CreditCard,
+        },
+      ],
+    },
+  };
+}
+
+/**
+ * One sidebar for the whole app.
+ * SMB launch is default; set NEXT_PUBLIC_NAV_MODE=agency for the full consultant nav.
+ */
+export function buildUnifiedSidebarNav(businessId?: string | null): ReturnType<
+  typeof buildAgencySidebarNav
+> {
+  if (isSmbLaunchNavEnabled()) {
+    return buildSmbSidebarNav(businessId);
+  }
+  return buildAgencySidebarNav(businessId);
+}
+
 /** @deprecated Use buildUnifiedSidebarNav */
 export function buildBusinessSidebarNav(businessId: string): {
   work: SidebarNavSection;
@@ -289,7 +405,6 @@ export function isSidebarHrefActive(
 ): boolean {
   if (flags?.isRankGrid) {
     if (businessId && pathname.includes(`/businesses/${businessId}/grid/`)) return true;
-    // Do not treat org /scans (Recent Scans) as Maps Scans.
     if (pathname === "/scans" || pathname.startsWith("/scans?")) return false;
     return pathname === href || pathname.startsWith(`${href}/`);
   }
@@ -306,7 +421,6 @@ export function isSidebarHrefActive(
     );
   }
 
-  // Prospects hierarchy: All prospects vs Prospect audits (nested under Prospects)
   if (href === "/prospects/audits") {
     return (
       pathname === "/prospects/audits" ||
@@ -318,14 +432,12 @@ export function isSidebarHrefActive(
     return pathname === "/prospects" || pathname.startsWith("/prospects?");
   }
   if (href === "/prospects") {
-    // "All prospects" child — list + prospect overview, not audit routes
     if (pathname === "/prospects" || pathname.startsWith("/prospects?")) return true;
     if (/^\/prospects\/audits(?:\/|$|\?)/.test(pathname)) return false;
     if (/^\/prospects\/[^/]+\/audit(?:\/|$|\?)/.test(pathname)) return false;
     return /^\/prospects\/[^/]+\/?$/.test(pathname);
   }
 
-  // Workspace home (org) — never treat client overview as Workspace
   if (href === "/workspace" || href === "/dashboard") {
     return (
       pathname === "/workspace" ||
@@ -334,8 +446,6 @@ export function isSidebarHrefActive(
     );
   }
 
-  // Dashboard — picker or location overview only (not CRM /clients|/prospects detail)
-  // Exact location dashboard: .../overview — not .../reputation/overview
   if (
     href === "/tools/go/dashboard" ||
     (businessId && href === `/businesses/${businessId}/overview`)
@@ -347,23 +457,17 @@ export function isSidebarHrefActive(
     return false;
   }
 
-  // Review Overview intelligence page (exact; not other /reputation/*)
   if (businessId && href === `/businesses/${businessId}/reputation/overview`) {
     return pathname === href || pathname.startsWith(`${href}?`);
   }
 
-  // Text Messaging product overview (exact; not /messaging/status|/number|…)
-  if (
-    businessId &&
-    href === `/businesses/${businessId}/reputation/messaging`
-  ) {
+  if (businessId && href === `/businesses/${businessId}/reputation/messaging`) {
     return pathname === href || pathname.startsWith(`${href}?`);
   }
   if (href === "/tools/go/messaging") {
     return pathname === href || pathname.startsWith(`${href}?`);
   }
 
-  // Reputation audit — exact match so it doesn't steal /reputation/overview etc.
   if (businessId && href === `/businesses/${businessId}/reputation/audit`) {
     return pathname === href || pathname.startsWith(`${href}?`) || pathname.startsWith(`${href}/`);
   }
@@ -392,7 +496,13 @@ export function isSidebarHrefActive(
 
   if (href.includes("?tab=")) {
     const pathOnly = href.split("?")[0] ?? href;
-    return pathname === pathOnly || pathname.startsWith(`${pathOnly}/`);
+    const wantTab = new URL(href, "https://local.invalid").searchParams.get("tab");
+    if (pathname === pathOnly || pathname.startsWith(`${pathOnly}?`) || pathname.startsWith(`${pathOnly}/`)) {
+      if (!wantTab) return true;
+      // Soft match: history tab highlights when on requests with that tab
+      return pathname.includes(`tab=${wantTab}`) || pathname === pathOnly;
+    }
+    return false;
   }
 
   return pathname === href || pathname.startsWith(`${href}/`);

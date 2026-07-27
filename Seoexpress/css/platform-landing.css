@@ -1,0 +1,351 @@
+/* Platform landing pages — SMB launch */
+
+.plat-hero {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(72px, 12vw, 120px) 0 clamp(56px, 8vw, 88px);
+  background:
+    radial-gradient(1200px 500px at 10% -10%, rgba(19, 119, 82, 0.18), transparent 55%),
+    radial-gradient(900px 420px at 90% 0%, rgba(15, 32, 51, 0.08), transparent 50%),
+    linear-gradient(180deg, #f7faf8 0%, #eef3f0 48%, #f3f5f7 100%);
+}
+
+.plat-hero::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(19, 119, 82, 0.25), transparent);
+}
+
+.plat-brand {
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 5.5vw, 3.6rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--navy-900);
+  margin: 0 0 1rem;
+}
+
+.plat-brand strong {
+  color: var(--green-600);
+  font-weight: 800;
+}
+
+.plat-h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 3.8vw, 2.55rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  color: var(--navy-900);
+  max-width: 18ch;
+  margin: 0 0 1rem;
+}
+
+.plat-lead {
+  font-size: 1.125rem;
+  line-height: 1.65;
+  color: var(--gray-600);
+  max-width: 46ch;
+  margin: 0 0 1.75rem;
+}
+
+.plat-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.plat-hero-visual {
+  margin-top: clamp(2rem, 5vw, 3rem);
+  border-radius: 0;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(11, 18, 32, 0.14);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  animation: plat-rise 0.9s ease both;
+}
+
+.plat-hero-visual img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+@keyframes plat-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.plat-section {
+  padding: clamp(56px, 8vw, 96px) 0;
+}
+
+.plat-section--alt {
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f7faf8 100%);
+}
+
+.plat-section--ink {
+  background:
+    radial-gradient(800px 360px at 20% 0%, rgba(19, 119, 82, 0.22), transparent 60%),
+    linear-gradient(160deg, #0b1220 0%, #152033 100%);
+  color: #e2e8f0;
+}
+
+.plat-section--ink h2,
+.plat-section--ink .plat-kicker {
+  color: #fff;
+}
+
+.plat-section--ink p {
+  color: #cbd5e1;
+}
+
+.plat-kicker {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--green-600);
+  margin: 0 0 0.75rem;
+}
+
+.plat-section h2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--navy-900);
+  margin: 0 0 0.75rem;
+  max-width: 22ch;
+}
+
+.plat-section > .container > .plat-sub,
+.plat-sub {
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: var(--gray-600);
+  max-width: 52ch;
+  margin: 0 0 2rem;
+}
+
+.plat-grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .plat-grid--3 { grid-template-columns: repeat(3, 1fr); }
+  .plat-grid--2 { grid-template-columns: repeat(2, 1fr); }
+  .plat-grid--4 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 1024px) {
+  .plat-grid--4 { grid-template-columns: repeat(4, 1fr); }
+}
+
+.plat-feature {
+  padding: 0.25rem 0;
+  animation: plat-rise 0.7s ease both;
+}
+
+.plat-feature h3 {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--navy-900);
+  margin: 0 0 0.4rem;
+}
+
+.plat-feature p {
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--gray-600);
+  margin: 0;
+}
+
+.plat-list {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0 0 1.75rem;
+  padding: 0;
+}
+
+.plat-list li {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  font-size: 1rem;
+  color: var(--gray-700);
+}
+
+.plat-list li::before {
+  content: "";
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-top: 0.45rem;
+  border-radius: 999px;
+  background: var(--green-600);
+  flex-shrink: 0;
+}
+
+.plat-steps {
+  counter-reset: platstep;
+  display: grid;
+  gap: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .plat-steps { grid-template-columns: repeat(3, 1fr); }
+}
+
+.plat-step {
+  counter-increment: platstep;
+  position: relative;
+  padding-top: 0.25rem;
+}
+
+.plat-step::before {
+  content: counter(platstep);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin-bottom: 0.75rem;
+  border-radius: 999px;
+  background: var(--green-600);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.plat-step h3 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--navy-900);
+  margin: 0 0 0.4rem;
+}
+
+.plat-step p {
+  margin: 0;
+  color: var(--gray-600);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.plat-tools a {
+  display: block;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--gray-200);
+  color: inherit;
+}
+
+.plat-tools a:hover h3 {
+  color: var(--green-600);
+}
+
+.plat-tools h3 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--navy-900);
+  margin: 0 0 0.35rem;
+  transition: color 0.2s ease;
+}
+
+.plat-tools p {
+  margin: 0;
+  color: var(--gray-600);
+  font-size: 0.95rem;
+}
+
+.plat-final {
+  text-align: center;
+}
+
+.plat-final h2 {
+  max-width: none;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.plat-final .plat-sub {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.plat-final .plat-cta-row {
+  justify-content: center;
+}
+
+.btn-secondary-plat {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 48px;
+  padding: 0 1.25rem;
+  border-radius: 10px;
+  border: 1px solid var(--gray-300);
+  background: #fff;
+  color: var(--navy-900);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.btn-secondary-plat:hover {
+  border-color: var(--green-600);
+  color: var(--green-600);
+  background: #fff;
+}
+
+.site-header .nav-link.is-active,
+.site-header .nav-link[aria-current="page"] {
+  color: var(--green-600);
+}
+
+.plat-product-banner {
+  padding: 2rem 0;
+  background:
+    radial-gradient(800px 280px at 0% 0%, rgba(19, 119, 82, 0.12), transparent 55%),
+    linear-gradient(180deg, #f7faf8 0%, #eef3f0 100%);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.plat-product-banner-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem 2rem;
+}
+
+.plat-product-banner h2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2.8vw, 1.85rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--navy-900);
+  margin: 0.25rem 0 0.5rem;
+  max-width: 28ch;
+}
+
+.plat-product-banner p {
+  margin: 0;
+  color: var(--gray-600);
+  max-width: 52ch;
+  line-height: 1.55;
+}
+
+.plat-product-banner .plat-cta-row {
+  margin: 0;
+}

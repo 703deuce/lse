@@ -1,21 +1,31 @@
 import { createServiceClient } from "@/lib/db/client";
+import { isSmbLaunchNavEnabled } from "@/lib/product/smb-launch";
 
 /**
  * Where to land after sign-in / visiting `/`.
  * - First login (no locations yet) → Get started
- * - Otherwise → Workspace (never a random client page)
+ * - SMB launch → first business overview
+ * - Agency mode → Workspace
  */
 export async function resolvePostLoginPath(organizationId: string): Promise<string> {
   if (!organizationId) return "/onboarding";
 
   const supabase = createServiceClient();
-  const { count } = await supabase
+  const { data: businesses, count } = await supabase
     .from("businesses")
-    .select("id", { count: "exact", head: true })
+    .select("id", { count: "exact" })
     .eq("organization_id", organizationId)
-    .is("archived_at", null);
+    .is("archived_at", null)
+    .order("created_at", { ascending: true })
+    .limit(1);
 
   if (!count || count < 1) return "/onboarding";
+
+  if (isSmbLaunchNavEnabled()) {
+    const firstId = businesses?.[0]?.id;
+    if (firstId) return `/businesses/${firstId}/overview`;
+  }
+
   return "/workspace";
 }
 

@@ -25,6 +25,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="../css/platform-landing.css">
   <link rel="stylesheet" href="../css/services-page.css">
   <link rel="stylesheet" href="../css/packages-page.css">
 
@@ -142,37 +143,16 @@
   <div class="container header-inner">
     <a href="#main-content" class="skip-link">Skip to main content</a>
     <a href="../" class="logo" aria-label="Local SEO Express home">
+      <svg class="logo-pin" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2C11.03 2 7 6.03 7 11c0 5.25 9 19 9 19s9-13.75 9-19c0-4.97-4.03-9-9-9z" fill="#137752"/><circle cx="16" cy="11" r="3.5" fill="#fff"/></svg>
       Local SEO <strong>Express</strong>
     </a>
 
     <nav class="main-nav" id="main-nav" aria-label="Main navigation">
       <ul class="nav-list">
-        <li class="nav-item has-dropdown">
-          <div class="nav-dropdown-wrap">
-            <a href="../local-seo-services/" class="nav-link" data-nav="local-seo-services">Services</a>
-            <button type="button" class="dropdown-toggle" aria-expanded="false" aria-haspopup="true" aria-label="Show services menu">
-              <svg class="chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
-            </button>
-          </div>
-          <ul class="dropdown-menu" role="menu">
-            <li role="none"><a href="../local-seo-services/" role="menuitem" data-nav="local-seo-services">Local SEO Services</a></li>
-            <li role="none"><a href="../google-maps-seo-services/" role="menuitem" data-nav="google-maps-seo-services">Google Maps SEO Services</a></li>
-            <li role="none"><a href="../citation-building-services/" role="menuitem" data-nav="citation-building-services">Citation Building Services</a></li>
-          </ul>
-        </li>
-        <li class="nav-item has-dropdown">
-          <div class="nav-dropdown-wrap">
-            <span class="nav-link nav-link--label">Industries</span>
-            <button type="button" class="dropdown-toggle" aria-expanded="false" aria-haspopup="true" aria-label="Show industries menu">
-              <svg class="chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
-            </button>
-          </div>
-          <ul class="dropdown-menu" role="menu">
-            <li role="none"><a href="../local-seo-for-plumbers/" role="menuitem" data-nav="local-seo-for-plumbers">Local SEO for Plumbers</a></li>
-            <li role="none"><a href="../local-seo-for-dentists/" role="menuitem" data-nav="local-seo-for-dentists">Local SEO for Dentists</a></li>
-            <li role="none"><a href="../local-seo-services-for-small-business/" role="menuitem" data-nav="local-seo-services-for-small-business">Small Business Local SEO</a></li>
-          </ul>
-        </li>
+        <li class="nav-item"><a href="../" class="nav-link" data-nav="home">Home</a></li>
+        <li class="nav-item"><a href="../reputation-management/" class="nav-link" data-nav="reputation-management">Reputation Management</a></li>
+        <li class="nav-item"><a href="../local-rank-tracking/" class="nav-link" data-nav="local-rank-tracking">Local Rank Tracking</a></li>
+        <li class="nav-item"><a href="../local-seo-audit/" class="nav-link" data-nav="local-seo-audit">Local SEO Audit</a></li>
         <li class="nav-item has-dropdown">
           <div class="nav-dropdown-wrap">
             <a href="../free-tools/" class="nav-link" data-nav="free-tools">Free Tools</a>
@@ -181,17 +161,25 @@
             </button>
           </div>
           <ul class="dropdown-menu" role="menu">
-            <li role="none"><a href="../free-tools/" role="menuitem" data-nav="free-tools">All Free Tools</a></li>
-            <li role="none"><a href="../google-review-qr-code-generator/" role="menuitem" data-nav="google-review-qr-code-generator">Google Review QR Code Generator</a></li>
+            <li role="none"><a href="../free-tools/" role="menuitem">All Free Tools</a></li>
+            <li role="none"><a href="../tools/google-review-link-qr-code/" role="menuitem">Google Review Link &amp; QR Code</a></li>
+            <li role="none"><a href="../tools/review-response-generator/" role="menuitem">AI Review Reply Generator</a></li>
           </ul>
         </li>
-        <li class="nav-item"><a href="../local-seo-packages/" class="nav-link" data-nav="local-seo-packages">Packages</a></li>
-        <li class="nav-item"><a href="../about/" class="nav-link" data-nav="about">About</a></li>
-        <li class="nav-item"><a href="../contact/" class="nav-link" data-nav="contact">Contact</a></li>
+        <li class="nav-item"><a href="../local-seo-packages/" class="nav-link" data-nav="local-seo-packages" aria-current="page">Pricing</a></li>
+        <li class="nav-item nav-item--mobile-only">
+          <a href="https://app.localseoexpress.com/sign-in" class="nav-link">Login</a>
+        </li>
+        <li class="nav-item nav-item--mobile-only">
+          <a href="https://app.localseoexpress.com/sign-up" class="nav-link nav-link--cta">Start Free</a>
+        </li>
       </ul>
     </nav>
 
-    <a href="../contact/" class="btn btn-primary btn-header">Get a Free SEO Audit</a>
+    <div class="header-actions">
+      <a href="https://app.localseoexpress.com/sign-in" class="header-signin">Login</a>
+      <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary btn-header">Start Free</a>
+    </div>
 
     <button class="mobile-toggle" id="mobile-toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="main-nav">
       <span></span><span></span><span></span>
@@ -204,9 +192,23 @@
     <nav class="breadcrumb container" aria-label="Breadcrumb">
       <ol>
         <li><a href="../">Home</a></li>
-        <li aria-current="page">Local SEO Packages</li>
+        <li aria-current="page">Pricing</li>
       </ol>
     </nav>
+
+    <section class="plat-product-banner" aria-labelledby="product-pricing-heading">
+      <div class="container plat-product-banner-inner">
+        <div>
+          <p class="plat-kicker">Local SEO Express software</p>
+          <h2 id="product-pricing-heading">Get more Google reviews and track your local rankings</h2>
+          <p>Start free with review requests, QR codes, Maps rank tracking, and a clear local SEO audit—built for one local business.</p>
+        </div>
+        <div class="plat-cta-row">
+          <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary">Start Free</a>
+          <a href="../reputation-management/" class="btn-secondary-plat">Explore reputation</a>
+        </div>
+      </div>
+    </section>
 
     <!-- Hero -->
     <section class="page-hero" aria-labelledby="page-heading">
@@ -1143,11 +1145,14 @@
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="#fff" stroke-width="2"/><rect x="9" y="3" width="6" height="4" rx="1" stroke="#fff" stroke-width="2"/></svg>
           </div>
           <div>
-            <h2 id="final-cta-heading">Ready To Get More Calls, Leads &amp; Customers?</h2>
-            <p>Get your FREE local SEO audit and we'll recommend the perfect package for your business.</p>
+            <h2 id="final-cta-heading">Start building a stronger local presence today</h2>
+            <p>Use Local SEO Express to get more reviews and track rankings—or talk with us about done-for-you local SEO help.</p>
           </div>
         </div>
-        <a href="../contact/" class="btn btn-white btn-lg">Get My Free Audit</a>
+        <div class="plat-cta-row" style="margin:0">
+          <a href="https://app.localseoexpress.com/sign-up" class="btn btn-white btn-lg">Start Free</a>
+          <a href="../contact/" class="btn btn-outline btn-lg" style="border-color:#fff;color:#fff">Contact us</a>
+        </div>
       </div>
     </section>
 

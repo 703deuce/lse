@@ -11,8 +11,9 @@ import { OrgJourneyHome } from "@/components/journey/org-journey-home";
 export default async function WorkspacePage() {
   const auth = await requirePageAuth();
   const home = await resolvePostLoginPath(auth.organizationId);
-  if (home === "/onboarding") {
-    redirect("/onboarding");
+  // Soft-home resolution may send SMB users to their business overview.
+  if (home !== "/workspace") {
+    redirect(home);
   }
 
   const supabase = createServiceClient();
