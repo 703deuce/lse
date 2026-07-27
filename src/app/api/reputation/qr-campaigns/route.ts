@@ -76,6 +76,7 @@ export async function POST(request: Request) {
       brandColor?: string;
       printFormat?: "a4" | "a5" | "letter" | "qr_only";
       showFooter?: boolean;
+      templateKey?: string;
       posterConfig?: Record<string, unknown>;
     };
     if (!body.businessId) {
@@ -117,6 +118,7 @@ export async function POST(request: Request) {
       brandColor: body.brandColor,
       printFormat: body.printFormat,
       showFooter: body.showFooter,
+      templateKey: body.templateKey,
       posterConfig: body.posterConfig as never,
       source: "app",
     });

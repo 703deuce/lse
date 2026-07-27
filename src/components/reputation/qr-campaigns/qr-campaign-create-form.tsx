@@ -15,6 +15,7 @@ import {
 import { ModulePage } from "@/components/ui/design-system";
 import { ReviewPosterPreview } from "@/components/reputation/review-poster-preview";
 import { PlacementPicker } from "@/components/reputation/qr-campaigns/placement-picker";
+import { PosterTemplatePicker } from "@/components/reputation/qr-campaigns/poster-template-picker";
 import {
   QR_MOCK_COLORS,
   qrUi,
@@ -23,6 +24,11 @@ import {
   DEFAULT_POSTER_CONFIG,
   type PosterConfig,
 } from "@/lib/reputation/poster-config";
+import {
+  CLASSIC_POSTER_TEMPLATE,
+  type PosterTemplateKey,
+} from "@/lib/reputation/poster-templates";
+import { organizationLooksLikeTrial } from "@/lib/auth/trial-status";
 import {
   QR_PLACEMENT_LABELS,
   type QrPlacementType,
@@ -60,15 +66,18 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
   const [brandColor, setBrandColor] = useState(DEFAULT_POSTER_CONFIG.brandColor);
   const [showFooter, setShowFooter] = useState(true);
   const [format, setFormat] = useState<PosterConfig["format"]>("a4");
+  const [templateKey, setTemplateKey] = useState<PosterTemplateKey>(CLASSIC_POSTER_TEMPLATE);
+  const [canUsePremiumTemplates, setCanUsePremiumTemplates] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const [accountRes, kitRes] = await Promise.all([
+        const [accountRes, kitRes, usageRes] = await Promise.all([
           fetch(`/api/businesses/${businessId}/account`),
           fetch(`/api/reputation/review-link/${businessId}`).catch(() => null),
+          fetch("/api/account/usage").catch(() => null),
         ]);
         if (cancelled) return;
         if (accountRes.ok) {
@@ -85,6 +94,26 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
               setBusinessCity(parts[0]);
             }
           }
+        }
+        if (usageRes?.ok) {
+          const usageJson = (await usageRes.json()) as {
+            organization?: { plan?: string; billing_status?: string | null };
+            plan?: { id?: string };
+          };
+          const org = usageJson.organization;
+          const trial = organizationLooksLikeTrial({
+            plan: org?.plan,
+            billing_status: org?.billing_status,
+          });
+          const planId = String(usageJson.plan?.id ?? org?.plan ?? "").toLowerCase();
+          const billing = String(org?.billing_status ?? "").toLowerCase();
+          setCanUsePremiumTemplates(
+            !trial &&
+              (planId === "pro" ||
+                planId === "agency" ||
+                planId === "internal" ||
+                billing === "active")
+          );
         }
         if (kitRes?.ok) {
           const kit = (await kitRes.json()) as {
@@ -152,6 +181,7 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
           brandColor,
           printFormat: format,
           showFooter,
+          templateKey,
           posterConfig: poster,
         }),
       });
@@ -414,6 +444,16 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
                 ))}
               </div>
             </div>
+            <PosterTemplatePicker
+              value={templateKey}
+              canUsePremium={canUsePremiumTemplates}
+              upgradeHref={plansHref}
+              onChange={(key, meta) => {
+                setTemplateKey(key);
+                setHeadline(meta.suggestedTitle);
+                setDescription(meta.suggestedDescription);
+              }}
+            />
             <div className="flex flex-wrap items-center justify-between gap-4">
               <label className="flex cursor-pointer items-center gap-3">
                 <span
@@ -500,6 +540,7 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
                 businessName={businessName}
                 poster={poster}
                 qrDataUrl={qrDataUrl}
+                templateKey={templateKey}
               />
             </div>
           </div>

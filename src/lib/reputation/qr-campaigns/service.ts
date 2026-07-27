@@ -114,6 +114,7 @@ export async function createQrCampaign(
       brand_color: input.brandColor ?? posterConfig.brandColor,
       print_format: input.printFormat ?? "letter",
       show_footer: input.showFooter ?? true,
+      template_key: input.templateKey ?? "classic_poster",
       poster_config: posterConfig,
       status: input.status ?? "active",
       source: input.source ?? "app",

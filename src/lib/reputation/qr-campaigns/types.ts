@@ -109,6 +109,7 @@ export type CreateQrCampaignInput = {
   brandColor?: string;
   printFormat?: QrPrintFormat;
   showFooter?: boolean;
+  templateKey?: string;
   posterConfig?: PosterConfig;
   status?: QrCampaignStatus;
   source?: "app" | "public" | "migrated";

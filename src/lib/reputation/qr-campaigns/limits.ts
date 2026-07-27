@@ -1,4 +1,5 @@
 import { hasEntitlement } from "@/lib/auth/entitlements";
+import { organizationLooksLikeTrial } from "@/lib/auth/trial-status";
 import { getOrganizationPlan, PlanLimitError } from "@/lib/plans";
 import { createServiceClient } from "@/lib/db/client";
 
@@ -57,4 +58,34 @@ export async function assertCanCreateQrCampaign(params: {
 
 export async function canUseAdvancedQrFormats(organizationId: string): Promise<boolean> {
   return hasEntitlement(organizationId, "review_campaigns");
+}
+
+/**
+ * Premium poster templates (non-classic layouts) for paid / non-trial accounts.
+ * Trial and free stay on the classic poster; paid unlocks the template gallery.
+ */
+export async function canUsePremiumPosterTemplates(organizationId: string): Promise<boolean> {
+  try {
+    const supabase = createServiceClient();
+    const { data } = await supabase
+      .from("organizations")
+      .select("plan, billing_status")
+      .eq("id", organizationId)
+      .maybeSingle();
+    if (
+      organizationLooksLikeTrial({
+        plan: data?.plan,
+        billing_status: data?.billing_status,
+      })
+    ) {
+      return false;
+    }
+    const plan = await getOrganizationPlan(organizationId);
+    if (plan.id === "pro" || plan.id === "agency" || plan.id === "internal") return true;
+    // Paid starter (active billing) still unlocks template switching
+    const billing = String(data?.billing_status ?? "").toLowerCase();
+    return billing === "active";
+  } catch {
+    return hasEntitlement(organizationId, "review_campaigns");
+  }
 }

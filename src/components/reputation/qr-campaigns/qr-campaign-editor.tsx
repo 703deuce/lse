@@ -25,10 +25,17 @@ import {
   qrUi,
 } from "@/components/reputation/qr-campaigns/qr-ui";
 import { PlacementPicker } from "@/components/reputation/qr-campaigns/placement-picker";
+import { PosterTemplatePicker } from "@/components/reputation/qr-campaigns/poster-template-picker";
 import {
   DEFAULT_POSTER_CONFIG,
   type PosterConfig,
 } from "@/lib/reputation/poster-config";
+import {
+  CLASSIC_POSTER_TEMPLATE,
+  normalizePosterTemplateKey,
+  type PosterTemplateKey,
+} from "@/lib/reputation/poster-templates";
+import { organizationLooksLikeTrial } from "@/lib/auth/trial-status";
 import {
   type QrCampaignAnalytics,
   type QrCampaignStatus,
@@ -93,6 +100,8 @@ export function QrCampaignEditor({
   const [brandColor, setBrandColor] = useState(DEFAULT_POSTER_CONFIG.brandColor);
   const [showFooter, setShowFooter] = useState(true);
   const [printFormat, setPrintFormat] = useState<QrPrintFormat>("a4");
+  const [templateKey, setTemplateKey] = useState<PosterTemplateKey>(CLASSIC_POSTER_TEMPLATE);
+  const [canUsePremiumTemplates, setCanUsePremiumTemplates] = useState(false);
   const [status, setStatus] = useState<QrCampaignStatus>("active");
   const [newReviews30d, setNewReviews30d] = useState<number | null>(null);
 
@@ -113,6 +122,7 @@ export function QrCampaignEditor({
     setBrandColor(c.brandColor || c.posterConfig?.brandColor || DEFAULT_POSTER_CONFIG.brandColor);
     setShowFooter(c.showFooter ?? c.posterConfig?.showFooter ?? true);
     setPrintFormat(c.printFormat === "qr_only" ? "a4" : c.printFormat);
+    setTemplateKey(normalizePosterTemplateKey(c.templateKey));
     setStatus(c.status);
   }, []);
 
@@ -125,6 +135,32 @@ export function QrCampaignEditor({
       if (accountRes.ok) {
         const accountJson = (await accountRes.json()) as { account?: { name?: string } };
         if (accountJson.account?.name) setBusinessName(accountJson.account.name);
+      }
+
+      try {
+        const usageRes = await fetch("/api/account/usage");
+        if (usageRes.ok) {
+          const usageJson = (await usageRes.json()) as {
+            organization?: { plan?: string; billing_status?: string | null };
+            plan?: { id?: string };
+          };
+          const org = usageJson.organization;
+          const trial = organizationLooksLikeTrial({
+            plan: org?.plan,
+            billing_status: org?.billing_status,
+          });
+          const planId = String(usageJson.plan?.id ?? org?.plan ?? "").toLowerCase();
+          const billing = String(org?.billing_status ?? "").toLowerCase();
+          setCanUsePremiumTemplates(
+            !trial &&
+              (planId === "pro" ||
+                planId === "agency" ||
+                planId === "internal" ||
+                billing === "active")
+          );
+        }
+      } catch {
+        setCanUsePremiumTemplates(false);
       }
 
       const url = campaignId
@@ -215,6 +251,7 @@ export function QrCampaignEditor({
             brandColor,
             printFormat,
             showFooter,
+            templateKey,
             status,
             posterConfig: poster,
           },
@@ -569,6 +606,18 @@ export function QrCampaignEditor({
               </div>
             </div>
 
+            <PosterTemplatePicker
+              value={templateKey}
+              canUsePremium={canUsePremiumTemplates}
+              upgradeHref={plansHref}
+              onChange={(key, meta) => {
+                setTemplateKey(key);
+                // Apply template copy when switching away from classic defaults or onto a new layout
+                setHeadline(meta.suggestedTitle);
+                setDescription(meta.suggestedDescription);
+              }}
+            />
+
             <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#E6EAF0] pt-4">
               <label className="flex cursor-pointer items-center gap-3">
                 <span
@@ -668,6 +717,7 @@ export function QrCampaignEditor({
               businessName={businessName}
               poster={poster}
               qrDataUrl={qrDataUrl}
+              templateKey={templateKey}
             />
             <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11px] text-[#667085]">
               <Info className="h-3.5 w-3.5 shrink-0" />
