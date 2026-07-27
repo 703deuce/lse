@@ -32,6 +32,7 @@ import {
 } from "@/lib/reputation/poster-config";
 import {
   CLASSIC_POSTER_TEMPLATE,
+  isPremiumPosterTemplate,
   normalizePosterTemplateKey,
   type PosterTemplateKey,
 } from "@/lib/reputation/poster-templates";
@@ -122,9 +123,17 @@ export function QrCampaignEditor({
     setBrandColor(c.brandColor || c.posterConfig?.brandColor || DEFAULT_POSTER_CONFIG.brandColor);
     setShowFooter(c.showFooter ?? c.posterConfig?.showFooter ?? true);
     setPrintFormat(c.printFormat === "qr_only" ? "a4" : c.printFormat);
-    setTemplateKey(normalizePosterTemplateKey(c.templateKey));
+    const loadedTemplate = normalizePosterTemplateKey(c.templateKey);
+    setTemplateKey(loadedTemplate);
     setStatus(c.status);
   }, []);
+
+  // Clamp premium templates if the account cannot use them (e.g. trial load).
+  useEffect(() => {
+    if (!canUsePremiumTemplates && isPremiumPosterTemplate(templateKey)) {
+      setTemplateKey(CLASSIC_POSTER_TEMPLATE);
+    }
+  }, [canUsePremiumTemplates, templateKey]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -142,22 +151,16 @@ export function QrCampaignEditor({
         if (usageRes.ok) {
           const usageJson = (await usageRes.json()) as {
             organization?: { plan?: string; billing_status?: string | null };
-            plan?: { id?: string };
           };
           const org = usageJson.organization;
-          const trial = organizationLooksLikeTrial({
-            plan: org?.plan,
-            billing_status: org?.billing_status,
-          });
-          const planId = String(usageJson.plan?.id ?? org?.plan ?? "").toLowerCase();
-          const billing = String(org?.billing_status ?? "").toLowerCase();
           setCanUsePremiumTemplates(
-            !trial &&
-              (planId === "pro" ||
-                planId === "agency" ||
-                planId === "internal" ||
-                billing === "active")
+            !organizationLooksLikeTrial({
+              plan: org?.plan,
+              billing_status: org?.billing_status,
+            })
           );
+        } else {
+          setCanUsePremiumTemplates(false);
         }
       } catch {
         setCanUsePremiumTemplates(false);
@@ -619,28 +622,32 @@ export function QrCampaignEditor({
             />
 
             <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#E6EAF0] pt-4">
-              <label className="flex cursor-pointer items-center gap-3">
-                <span
-                  className={cn(
-                    "relative inline-flex h-6 w-11 shrink-0 rounded-full transition",
-                    showFooter ? "bg-[#16A34A]" : "bg-[#D0D5DD]"
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    className="sr-only"
-                    checked={showFooter}
-                    onChange={(e) => setShowFooter(e.target.checked)}
-                  />
+              {templateKey === CLASSIC_POSTER_TEMPLATE ? (
+                <label className="flex cursor-pointer items-center gap-3">
                   <span
                     className={cn(
-                      "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition",
-                      showFooter ? "left-5" : "left-0.5"
+                      "relative inline-flex h-6 w-11 shrink-0 rounded-full transition",
+                      showFooter ? "bg-[#16A34A]" : "bg-[#D0D5DD]"
                     )}
-                  />
-                </span>
-                <span className="text-sm font-medium text-[#0B1B32]">Show footer</span>
-              </label>
+                  >
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={showFooter}
+                      onChange={(e) => setShowFooter(e.target.checked)}
+                    />
+                    <span
+                      className={cn(
+                        "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition",
+                        showFooter ? "left-5" : "left-0.5"
+                      )}
+                    />
+                  </span>
+                  <span className="text-sm font-medium text-[#0B1B32]">Show footer</span>
+                </label>
+              ) : (
+                <p className="text-sm text-[#667085]">Print size</p>
+              )}
               <div className="flex gap-3">
                 {(["a4", "a5", "letter"] as const).map((f) => (
                   <label

@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { requireBusinessPage } from "@/lib/auth/require-business-page";
+import { redirectIfTrialLockedFeature } from "@/lib/auth/redirect-if-trial-locked";
 import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { hasEntitlement } from "@/lib/auth/entitlements";
 import { ReviewCampaignsUpgrade } from "@/components/reputation/review-campaigns-upgrade";
@@ -19,6 +20,7 @@ export default async function ReputationCampaignsPage({
   const { businessId } = await params;
   const isPreview = isDevPreviewBusiness(businessId);
   const auth = await requireBusinessPage(businessId);
+  await redirectIfTrialLockedFeature(auth.organizationId, "campaigns");
   const allowed = isPreview || (await hasEntitlement(auth.organizationId, "review_campaigns"));
 
   if (!allowed) {

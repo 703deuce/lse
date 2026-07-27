@@ -6,6 +6,7 @@ import { buildGoogleReviewUrl } from "@/lib/reputation/review-requests";
 import { writeSecurityAuditEvent } from "@/lib/security/audit-log";
 import { categorizeUserAgent, detectBotOrPreview } from "./bot-filter";
 import { assertCanCreateQrCampaign } from "./limits";
+import { resolveWritablePosterTemplateKey } from "./resolve-template-key";
 import { rowToCampaign } from "./mapper";
 import {
   assertAllowedQrDestination,
@@ -86,6 +87,10 @@ export async function createQrCampaign(
 
   const supabase = createServiceClient();
   const shortCode = await allocateUniqueShortCode(supabase);
+  const templateKey = await resolveWritablePosterTemplateKey({
+    organizationId: input.organizationId,
+    requested: input.templateKey,
+  });
   const posterConfig = input.posterConfig ?? {
     ...DEFAULT_POSTER_CONFIG,
     title: input.headline ?? DEFAULT_POSTER_CONFIG.title,
@@ -114,7 +119,7 @@ export async function createQrCampaign(
       brand_color: input.brandColor ?? posterConfig.brandColor,
       print_format: input.printFormat ?? "letter",
       show_footer: input.showFooter ?? true,
-      template_key: input.templateKey ?? "classic_poster",
+      template_key: templateKey,
       poster_config: posterConfig,
       status: input.status ?? "active",
       source: input.source ?? "app",
@@ -376,7 +381,12 @@ export async function updateQrCampaign(params: {
   if (params.patch.showFooter != null) update.show_footer = params.patch.showFooter;
   if (params.patch.posterConfig != null) update.poster_config = params.patch.posterConfig;
   if (params.patch.status != null) update.status = params.patch.status;
-  if (params.patch.templateKey != null) update.template_key = params.patch.templateKey;
+  if (params.patch.templateKey != null) {
+    update.template_key = await resolveWritablePosterTemplateKey({
+      organizationId: params.organizationId,
+      requested: params.patch.templateKey,
+    });
+  }
 
   // Keep poster_config title/description/color in sync when top-level fields change.
   if (

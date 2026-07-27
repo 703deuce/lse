@@ -291,12 +291,7 @@ function FriendlyGreenLayout({ businessName, poster, qrDataUrl, brand }: LayoutP
   return (
     <Shell className="relative grid-rows-[auto_1fr_auto] overflow-hidden bg-white">
       <div className="px-5 pt-6 text-center">
-        <h2 className="text-lg font-extrabold leading-tight text-[#0B1220]">
-          {poster.title.replace(/feedback!?/i, "").trim() || poster.title}{" "}
-          <span className="italic" style={{ color: brand }}>
-            feedback!
-          </span>
-        </h2>
+        <h2 className="text-lg font-extrabold leading-tight text-[#0B1220]">{poster.title}</h2>
         <p className="mt-1 text-[11px] text-[#667085]">{poster.description}</p>
       </div>
       <div className="relative z-[1] flex flex-col items-center justify-center gap-3 px-6">

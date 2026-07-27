@@ -65,7 +65,6 @@ export function ReviewReplyGenerator({ embed = false }: { embed?: boolean }) {
     setLoading(true);
     setError(null);
     setEditing(false);
-    setReply("");
     try {
       const res = await fetch("/api/public/review-reply", {
         method: "POST",
@@ -227,7 +226,7 @@ export function ReviewReplyGenerator({ embed = false }: { embed?: boolean }) {
                   className="inline-flex h-11 items-center gap-2 rounded-full border border-[#D0D5DD] bg-white px-5 text-sm font-bold text-[#344054]"
                 >
                   <PencilLine className="h-4 w-4" />
-                  {editing ? "Done editing" : "Edit with AI"}
+                  {editing ? "Done editing" : "Edit reply"}
                 </button>
                 <button
                   type="button"

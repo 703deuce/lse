@@ -10,6 +10,7 @@ import {
   isSidebarHrefActive,
 } from "@/components/dashboard/dashboard-nav";
 import { organizationLooksLikeTrial } from "@/lib/auth/trial-status";
+import { isSmbLaunchNavEnabled } from "@/lib/product/smb-launch";
 import { cn } from "@/lib/utils";
 
 function businessIdFromPath(pathname: string): string | null {
@@ -29,7 +30,7 @@ export function MobileMoreSheet() {
   const pathname = usePathname();
   const { mobileNavOpen, setMobileNavOpen } = useDashboardUI();
   const businessId = businessIdFromPath(pathname);
-  const [trial, setTrial] = useState(false);
+  const [trial, setTrial] = useState(() => isSmbLaunchNavEnabled());
   const nav = buildUnifiedSidebarNav(businessId, { trial });
 
   useEffect(() => {
@@ -43,9 +44,13 @@ export function MobileMoreSheet() {
               billing_status: json.organization.billing_status,
             })
           );
+        } else if (isSmbLaunchNavEnabled()) {
+          setTrial(true);
         }
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (isSmbLaunchNavEnabled()) setTrial(true);
+      });
   }, []);
 
   if (!mobileNavOpen) return null;
@@ -63,11 +68,11 @@ export function MobileMoreSheet() {
           },
         ]
       : []),
+    { title: nav.growthTools.title, items: nav.growthTools.items },
     {
       title: nav.reputation.title,
       items: [nav.reputation.overview, ...nav.reputation.groups.flatMap((g) => g.items)],
     },
-    { title: nav.growthTools.title, items: nav.growthTools.items },
     { title: nav.freeTools.title, items: nav.freeTools.items },
     { title: nav.textMessaging.title, items: nav.textMessaging.items },
     { title: nav.deliverables.title, items: nav.deliverables.items },

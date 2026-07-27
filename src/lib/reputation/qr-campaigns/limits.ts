@@ -72,20 +72,12 @@ export async function canUsePremiumPosterTemplates(organizationId: string): Prom
       .select("plan, billing_status")
       .eq("id", organizationId)
       .maybeSingle();
-    if (
-      organizationLooksLikeTrial({
-        plan: data?.plan,
-        billing_status: data?.billing_status,
-      })
-    ) {
-      return false;
-    }
-    const plan = await getOrganizationPlan(organizationId);
-    if (plan.id === "pro" || plan.id === "agency" || plan.id === "internal") return true;
-    // Paid starter (active billing) still unlocks template switching
-    const billing = String(data?.billing_status ?? "").toLowerCase();
-    return billing === "active";
+    // Paid / non-trial only — never fall back to review_campaigns grandfather.
+    return !organizationLooksLikeTrial({
+      plan: data?.plan,
+      billing_status: data?.billing_status,
+    });
   } catch {
-    return hasEntitlement(organizationId, "review_campaigns");
+    return false;
   }
 }

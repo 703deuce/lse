@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { organizationLooksLikeTrial } from "@/lib/auth/trial-status";
+import { isSmbLaunchNavEnabled } from "@/lib/product/smb-launch";
 import { SidebarUserMenu } from "@/components/auth/sidebar-user-menu";
 import { BusinessSwitcher } from "@/components/dashboard/business-switcher";
 import {
@@ -450,7 +451,8 @@ function DashboardSidebarInner({
 }) {
   const pathname = usePathname();
   const [businessName, setBusinessName] = useState<string | null>(null);
-  const [trial, setTrial] = useState(false);
+  // SMB defaults locked until usage proves paid — avoids unlock race before fetch.
+  const [trial, setTrial] = useState(() => isSmbLaunchNavEnabled());
 
   useEffect(() => {
     if (!businessId) {
@@ -476,9 +478,14 @@ function DashboardSidebarInner({
               billing_status: json.organization.billing_status,
             })
           );
+        } else if (isSmbLaunchNavEnabled()) {
+          // Keep locked if usage cannot be loaded (e.g. missing billing.read).
+          setTrial(true);
         }
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (isSmbLaunchNavEnabled()) setTrial(true);
+      });
   }, []);
 
   return (

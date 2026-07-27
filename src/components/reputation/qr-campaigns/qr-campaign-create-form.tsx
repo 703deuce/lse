@@ -98,22 +98,16 @@ export function QrCampaignCreateForm({ businessId }: { businessId: string }) {
         if (usageRes?.ok) {
           const usageJson = (await usageRes.json()) as {
             organization?: { plan?: string; billing_status?: string | null };
-            plan?: { id?: string };
           };
           const org = usageJson.organization;
-          const trial = organizationLooksLikeTrial({
-            plan: org?.plan,
-            billing_status: org?.billing_status,
-          });
-          const planId = String(usageJson.plan?.id ?? org?.plan ?? "").toLowerCase();
-          const billing = String(org?.billing_status ?? "").toLowerCase();
           setCanUsePremiumTemplates(
-            !trial &&
-              (planId === "pro" ||
-                planId === "agency" ||
-                planId === "internal" ||
-                billing === "active")
+            !organizationLooksLikeTrial({
+              plan: org?.plan,
+              billing_status: org?.billing_status,
+            })
           );
+        } else {
+          setCanUsePremiumTemplates(false);
         }
         if (kitRes?.ok) {
           const kit = (await kitRes.json()) as {

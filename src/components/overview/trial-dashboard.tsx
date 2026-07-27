@@ -81,12 +81,11 @@ export function TrialDashboard({
   userName,
   rating,
   reviewCount,
-  creditsUsed = 0,
-  creditsLimit = 100,
+  creditsUsed: _creditsUsed = 0,
+  creditsLimit: _creditsLimit = 100,
   recentScans = [],
 }: TrialDashboardProps) {
   const first = (userName || "there").split(" ")[0];
-  const creditPct = Math.min(100, Math.round((creditsUsed / Math.max(1, creditsLimit)) * 100));
 
   return (
     <div className="space-y-6">
@@ -99,7 +98,7 @@ export function TrialDashboard({
             Welcome back, {first}
           </h1>
           <p className="mt-1 text-sm text-[#667085]">
-            {businessName} · Trial dashboard for free tools, Maps credits, and your health assessment.
+            {businessName} · Trial dashboard for free tools, Maps scans, and your health assessment.
           </p>
         </div>
         <Link
@@ -175,7 +174,7 @@ export function TrialDashboard({
               <div className="rounded-xl border border-dashed border-[#D0D5DD] bg-[#F9FAFB] px-4 py-8 text-center">
                 <p className="text-sm font-semibold text-[#344054]">No grid scans yet</p>
                 <p className="mt-1 text-[12px] text-[#667085]">
-                  Use trial credits to scan rankings across your service area.
+                  Run a grid scan to see rankings across your service area.
                 </p>
                 <Link
                   href={`/businesses/${businessId}/scans`}
@@ -217,17 +216,17 @@ export function TrialDashboard({
           <div className="rounded-2xl border border-[#E6EAF0] bg-white p-4 shadow-sm">
             <p className="text-[11px] font-bold uppercase tracking-wide text-[#667085]">Usage</p>
             <p className="mt-2 text-lg font-extrabold text-[#0B1220]">
-              {creditsUsed}/{creditsLimit} credits used
+              Maps scans available in your trial
             </p>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#E6EAF0]">
-              <div className="h-full rounded-full bg-[#137752]" style={{ width: `${creditPct}%` }} />
-            </div>
-            <p className="mt-2 text-[12px] text-[#667085]">Credits power Maps grid scans during your trial.</p>
+            <p className="mt-2 text-[12px] text-[#667085]">
+              Run grid scans for your service area during trial. Upgrade for higher limits and
+              scheduled keyword tracking.
+            </p>
             <Link
               href="/settings/subscription"
               className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-full bg-[#137752] text-sm font-bold text-white"
             >
-              Add top-up / upgrade
+              View plan / upgrade
             </Link>
           </div>
 
@@ -243,7 +242,7 @@ export function TrialDashboard({
                 <QrCode className="h-4 w-4 text-[#137752]" /> Review link &amp; QR
               </li>
               <li className="flex items-center gap-2">
-                <Grid3X3 className="h-4 w-4 text-[#137752]" /> Maps scans with trial credits
+                <Grid3X3 className="h-4 w-4 text-[#137752]" /> Maps grid scans
               </li>
               <li className="flex items-center gap-2">
                 <FileSearch className="h-4 w-4 text-[#137752]" /> Local SEO Health Assessment

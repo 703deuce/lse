@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Copy, Loader2, MapPin, Search } from "lucide-react";
+import { Loader2, MapPin, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   FreeToolField,
