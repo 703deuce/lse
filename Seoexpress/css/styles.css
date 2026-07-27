@@ -1309,7 +1309,8 @@ ul {
   color: var(--white);
 }
 
-.footer-col h3 {
+.footer-col h3,
+.footer-col h4 {
   font-size: 15px;
   font-weight: 700;
   color: var(--white);
