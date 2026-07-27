@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { Check, Lock, Palette, Image as ImageIcon, Type, Printer, LayoutTemplate } from "lucide-react";
 import { ReviewPosterPreview } from "@/components/reputation/review-poster-preview";
 import {
@@ -16,6 +17,9 @@ const FEATURE_CHIPS = [
   { icon: Printer, label: "High Quality" },
   { icon: LayoutTemplate, label: "Multiple Sizes" },
 ] as const;
+
+/** Design width used by ReviewPosterPreview A4 shell */
+const POSTER_DESIGN_WIDTH = 360;
 
 /** Simple checkerboard QR stand-in for template thumbnails */
 const DEMO_QR =
@@ -52,14 +56,30 @@ function TemplateThumb({
   title: string;
   description: string;
 }) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.42);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || typeof ResizeObserver === "undefined") return;
+    const update = () => {
+      const width = host.clientWidth;
+      if (width > 0) setScale(width / POSTER_DESIGN_WIDTH);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(host);
+    return () => ro.disconnect();
+  }, []);
+
   return (
-    <div className="pointer-events-none relative h-full w-full overflow-hidden bg-[#F3F5F7]">
+    <div ref={hostRef} className="pointer-events-none relative h-full w-full overflow-hidden bg-white">
       <div
-        className="absolute left-1/2 top-2"
+        className="absolute left-0 top-0"
         style={{
-          width: 240,
-          transform: "translateX(-50%) scale(0.46)",
-          transformOrigin: "top center",
+          width: POSTER_DESIGN_WIDTH,
+          transform: `scale(${scale})`,
+          transformOrigin: "top left",
         }}
       >
         <ReviewPosterPreview
@@ -70,7 +90,7 @@ function TemplateThumb({
             title,
             description,
             brandColor: accent,
-            showFooter: true,
+            showFooter: false,
             format: "a4",
             selectedPhrases: [],
           }}
@@ -109,7 +129,7 @@ export function PosterTemplatePicker({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {POSTER_TEMPLATES.map((template) => {
           const selected = value === template.key;
           const locked = template.premium && !canUsePremium;

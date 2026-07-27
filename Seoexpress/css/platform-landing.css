@@ -121,14 +121,19 @@
   margin: 0 0 0.75rem;
 }
 
+.plat-section > .container > .plat-kicker {
+  text-align: center;
+}
+
 .plat-section h2 {
   font-family: var(--font-display);
   font-size: clamp(1.6rem, 3vw, 2.1rem);
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--navy-900);
-  margin: 0 0 0.75rem;
-  max-width: 22ch;
+  margin: 0 auto 0.75rem;
+  max-width: 28ch;
+  text-align: center;
 }
 
 .plat-section > .container > .plat-sub,
@@ -136,8 +141,19 @@
   font-size: 1.05rem;
   line-height: 1.65;
   color: var(--gray-600);
+  max-width: 56ch;
+  margin: 0 auto 2rem;
+  text-align: center;
+}
+
+.plat-section > .container > .plat-list {
   max-width: 52ch;
-  margin: 0 0 2rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.plat-section > .container > .plat-cta-row {
+  justify-content: center;
 }
 
 .plat-grid {

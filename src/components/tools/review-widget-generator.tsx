@@ -348,7 +348,12 @@ export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
                 <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#667085]">
                   Widget preview
                 </p>
-                <div dangerouslySetInnerHTML={{ __html: embedCode }} />
+                <iframe
+                  title="Widget preview"
+                  sandbox=""
+                  srcDoc={embedCode}
+                  className="min-h-[120px] w-full border-0 bg-transparent"
+                />
               </div>
               {!publishBlocked ? (
                 <textarea
@@ -417,9 +422,11 @@ export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
                       <Star className="h-4 w-4 text-[#137752]" />
                       <span className="text-[12px] font-bold text-[#0B1220]">Review widget</span>
                     </div>
-                    <div
-                      className="min-h-[220px] rounded-xl bg-[#F9FAFB] p-2"
-                      dangerouslySetInnerHTML={{ __html: embedCode }}
+                    <iframe
+                      title="Review widget phone preview"
+                      sandbox=""
+                      srcDoc={embedCode}
+                      className="min-h-[220px] w-full rounded-xl border-0 bg-[#F9FAFB] p-2"
                     />
                   </div>
                 </div>
