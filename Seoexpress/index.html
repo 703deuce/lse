@@ -23,7 +23,7 @@
   <div class="container header-inner">
     <a href="#main-content" class="skip-link">Skip to main content</a>
     <a href="./" class="logo" aria-label="Local SEO Express home">
-      <svg class="logo-pin" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2C11.03 2 7 6.03 7 11c0 5.25 9 19 9 19s9-13.75 9-19c0-4.97-4.03-9-9-9z" fill="#16A34A"/><circle cx="16" cy="11" r="3.5" fill="#fff"/></svg>
+      <svg class="logo-pin" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2C11.03 2 7 6.03 7 11c0 5.25 9 19 9 19s9-13.75 9-19c0-4.97-4.03-9-9-9z" fill="#137752"/><circle cx="16" cy="11" r="3.5" fill="#fff"/></svg>
       Local SEO <strong>Express</strong>
     </a>
     <nav class="main-nav" id="main-nav" aria-label="Main navigation">
@@ -68,17 +68,36 @@
       <div>
         <p class="smb-brand-mark">Local SEO <strong>Express</strong></p>
         <h1>Get More Google Reviews and Improve Your Local Rankings</h1>
-        <p class="smb-lead">A simple platform for local business owners—send review requests, track Maps rankings, and find what to fix without hiring an agency.</p>
+        <p class="smb-lead">A simple tool for local business owners to grow reviews and rankings—without agency costs or complicated software.</p>
         <div class="smb-cta-row">
           <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary">Get Started for Free</a>
           <a href="#features" class="smb-btn-ghost">See How it Works</a>
         </div>
       </div>
-      <div class="smb-hero-visual" aria-hidden="false">
+      <div class="smb-hero-visual" aria-label="Product preview">
         <div class="smb-phone-glow"></div>
         <div class="smb-phone">
           <div class="smb-phone-screen">
-            <img src="images/shot-reviews.png" alt="Review requests and Google ratings in Local SEO Express" width="560" height="840">
+            <div class="smb-ui-reviews">
+              <div class="smb-ui-reviews__top">
+                <div class="smb-ui-avatar" aria-hidden="true">G</div>
+                <div>
+                  <strong>Google reviews</strong>
+                  <span>Your Business Profile</span>
+                </div>
+              </div>
+              <div class="smb-ui-stars" aria-hidden="true">★★★★★</div>
+              <div class="smb-ui-score"><b>4.9</b><span>128 reviews</span></div>
+              <div class="smb-ui-card">
+                <strong>★★★★★ · Sarah M.</strong>
+                <p>“They asked for a review after the job—super easy. Great service.”</p>
+              </div>
+              <div class="smb-ui-card">
+                <strong>★★★★★ · James T.</strong>
+                <p>“Showed up on time and fixed everything. Highly recommend.”</p>
+              </div>
+              <div class="smb-ui-cta">Send review request</div>
+            </div>
           </div>
         </div>
       </div>
@@ -119,27 +138,30 @@
     </div>
   </section>
 
-  <section class="smb-section smb-section--tint" id="tools">
+  <section class="smb-section smb-section--soft" id="tools">
     <div class="container">
       <div class="smb-center">
-        <p class="smb-kicker">Our tools</p>
+        <p class="smb-kicker">Our Tools</p>
         <h2 class="smb-h2">Try something useful before you sign up</h2>
         <p class="smb-lead">Free tools that help today—and connect into the full platform when you are ready.</p>
       </div>
       <div class="smb-tool-cards">
         <a class="smb-tool-card" href="tools/google-review-link-qr-code/">
+          <div class="smb-tool-card__icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M7 7h3v3H7V7zm7 0h3v3h-3V7zM7 14h3v3H7v-3zm7 0h1v1h-1v-1zm2 2h1v1h-1v-1zm-2 2h1v1h-1v-1zm2-4h1v1h-1v-1zm2 2h1v3h-3v-1h2v-2z" fill="currentColor"/><path d="M4 4h7v7H4V4zm2 2v3h3V6H6zm7-2h7v7h-7V4zm2 2v3h3V6h-3zM4 13h7v7H4v-7zm2 2v3h3v-3H6z" stroke="currentColor" stroke-width="1.2"/></svg>
+          </div>
           <h3>Review Request Link &amp; QR</h3>
           <p>Create a printable Google review QR poster and a direct review link in seconds.</p>
           <span>Open free tool →</span>
         </a>
         <a class="smb-tool-card" href="tools/review-response-generator/">
+          <div class="smb-tool-card__icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3l1.8 3.7L18 8.4l-3 2.9.7 4.2L12 13.8 8.3 15.5l.7-4.2-3-2.9 4.2-.7L12 3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+          </div>
           <h3>AI Review Reply Generator</h3>
           <p>Paste a customer review, pick a tone, and copy a professional reply.</p>
           <span>Open free tool →</span>
         </a>
-      </div>
-      <div class="smb-cta-row" style="justify-content:center;margin-top:1.75rem">
-        <a href="free-tools/" class="smb-btn-ghost">See all free tools</a>
       </div>
     </div>
   </section>
@@ -152,27 +174,33 @@
       </div>
       <div class="smb-feature-grid">
         <div class="smb-feature">
-          <h3>Automatic requests</h3>
+          <div class="smb-feature-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="currentColor" stroke-width="1.6"/></svg></div>
+          <h3>Automatic Requests</h3>
           <p>Schedule SMS and email review asks so you do not forget after every job.</p>
         </div>
         <div class="smb-feature">
-          <h3>Map rank tracking</h3>
+          <div class="smb-feature-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 20V10m5 10V4m5 16v-7m5 7V8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+          <h3>Map Rank Tracking</h3>
           <p>Scan rankings around your area and spot where visibility drops.</p>
         </div>
         <div class="smb-feature">
-          <h3>Customer management</h3>
+          <div class="smb-feature-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="1.6"/></svg></div>
+          <h3>Customer Management</h3>
           <p>Add one customer, upload a list, and track who was asked.</p>
         </div>
         <div class="smb-feature">
-          <h3>Audit tool</h3>
+          <div class="smb-feature-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+          <h3>Audit Tool</h3>
           <p>Get a prioritized list of Google Business Profile and local SEO fixes.</p>
         </div>
         <div class="smb-feature">
-          <h3>QR codes &amp; links</h3>
+          <div class="smb-feature-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 3h3v3h-3v-3z" stroke="currentColor" stroke-width="1.4"/></svg></div>
+          <h3>QR Codes &amp; Links</h3>
           <p>Put review QR codes on invoices, counters, and flyers.</p>
         </div>
         <div class="smb-feature">
-          <h3>Request tracking</h3>
+          <div class="smb-feature-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.6"/><path d="M7 14l4-4 3 3 5-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+          <h3>Request Tracking</h3>
           <p>See sent, delivered, clicked, follow-ups, and opt-outs.</p>
         </div>
       </div>
@@ -186,8 +214,8 @@
         <p>Start building a stronger local presence—more reviews, clearer rankings, and a list of what to fix.</p>
       </div>
       <div class="smb-cta-row">
-        <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary">Get Started Now</a>
-        <a href="local-seo-packages/" class="smb-btn-ghost smb-btn-ghost--light">See Pricing</a>
+        <a href="https://app.localseoexpress.com/sign-up" class="smb-btn-white">Get Started Now</a>
+        <a href="local-seo-packages/" class="smb-btn-outline-light">See Pricing</a>
       </div>
     </div>
   </section>
@@ -197,7 +225,7 @@
   <div class="container footer-grid">
     <div class="footer-col footer-about">
       <a href="" class="logo footer-logo" aria-label="Local SEO Express home">
-        <svg class="logo-pin" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2C11.03 2 7 6.03 7 11c0 5.25 9 19 9 19s9-13.75 9-19c0-4.97-4.03-9-9-9z" fill="#16A34A"/><circle cx="16" cy="11" r="3.5" fill="#fff"/></svg>
+        <svg class="logo-pin" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2C11.03 2 7 6.03 7 11c0 5.25 9 19 9 19s9-13.75 9-19c0-4.97-4.03-9-9-9z" fill="#137752"/><circle cx="16" cy="11" r="3.5" fill="#fff"/></svg>
         Local SEO <strong>Express</strong>
       </a>
       <p>Get more Google reviews and improve your local rankings — in one place.</p>
