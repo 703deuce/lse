@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Check, Lock, Palette, Image as ImageIcon, Type, Printer, LayoutTemplate } from "lucide-react";
+import { ReviewPosterPreview } from "@/components/reputation/review-poster-preview";
 import {
   POSTER_TEMPLATES,
   type PosterTemplateKey,
@@ -16,99 +17,65 @@ const FEATURE_CHIPS = [
   { icon: LayoutTemplate, label: "Multiple Sizes" },
 ] as const;
 
-function MiniThumb({
+/** Simple checkerboard QR stand-in for template thumbnails */
+const DEMO_QR =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 84 84">
+      <rect width="84" height="84" fill="#fff"/>
+      <g fill="#0B1B32">
+        <rect x="6" y="6" width="24" height="24"/>
+        <rect x="12" y="12" width="12" height="12" fill="#fff"/>
+        <rect x="54" y="6" width="24" height="24"/>
+        <rect x="60" y="12" width="12" height="12" fill="#fff"/>
+        <rect x="6" y="54" width="24" height="24"/>
+        <rect x="12" y="60" width="12" height="12" fill="#fff"/>
+        <rect x="36" y="36" width="8" height="8"/>
+        <rect x="48" y="36" width="8" height="8"/>
+        <rect x="36" y="48" width="8" height="8"/>
+        <rect x="54" y="48" width="12" height="8"/>
+        <rect x="48" y="60" width="8" height="12"/>
+        <rect x="66" y="54" width="8" height="8"/>
+        <rect x="66" y="66" width="8" height="8"/>
+      </g>
+    </svg>`
+  );
+
+function TemplateThumb({
   templateKey,
   accent,
+  title,
+  description,
 }: {
   templateKey: PosterTemplateKey;
   accent: string;
+  title: string;
+  description: string;
 }) {
-  // Tiny CSS thumbnails so the picker feels like the mockup grid without full poster renders.
-  if (templateKey === "classic_poster" || templateKey === "solid_green") {
-    return (
-      <div className="h-full w-full" style={{ background: `linear-gradient(165deg, ${accent}, #0B4F36)` }}>
-        <div className="mx-auto mt-5 h-8 w-8 rounded bg-white/95" />
-      </div>
-    );
-  }
-  if (templateKey === "modern_minimal") {
-    return (
-      <div className="flex h-full flex-col justify-between bg-white p-2">
-        <div className="mx-auto mt-2 h-1.5 w-10 rounded bg-[#0B1220]/80" />
-        <div className="mx-auto h-8 w-8 rounded border border-[#E6EAF0] bg-white" />
-        <div className="h-3 rounded-full" style={{ backgroundColor: accent }} />
-      </div>
-    );
-  }
-  if (templateKey === "elegant_black" || templateKey === "premium_gold") {
-    return (
-      <div className="relative h-full overflow-hidden bg-[#141414]">
-        {templateKey === "premium_gold" ? (
-          <div className="absolute -right-3 -top-3 h-10 w-14 rotate-12 bg-[#D4AF37]/90" />
-        ) : null}
-        <div className="mx-auto mt-6 h-8 w-8 rounded border border-[#C9A227]/60 bg-white" />
-        {templateKey === "premium_gold" ? (
-          <div className="absolute inset-x-0 bottom-0 h-3 bg-[#D4AF37]" />
-        ) : (
-          <div className="mx-auto mt-3 h-px w-8 bg-[#C9A227]" />
-        )}
-      </div>
-    );
-  }
-  if (templateKey === "friendly_green" || templateKey === "clear_blue") {
-    return (
-      <div className="relative h-full overflow-hidden bg-white">
-        <div className="mx-auto mt-5 h-8 w-8 rounded border border-[#E6EAF0]" />
-        <div
-          className="absolute inset-x-0 bottom-0 h-6"
-          style={{
-            background: `linear-gradient(180deg, transparent, ${accent})`,
+  return (
+    <div className="pointer-events-none relative h-full w-full overflow-hidden bg-[#F3F5F7]">
+      <div
+        className="absolute left-1/2 top-2"
+        style={{
+          width: 240,
+          transform: "translateX(-50%) scale(0.46)",
+          transformOrigin: "top center",
+        }}
+      >
+        <ReviewPosterPreview
+          businessName="Your Business"
+          templateKey={templateKey}
+          qrDataUrl={DEMO_QR}
+          poster={{
+            title,
+            description,
+            brandColor: accent,
+            showFooter: true,
+            format: "a4",
+            selectedPhrases: [],
           }}
         />
       </div>
-    );
-  }
-  if (templateKey === "cafe_coffee") {
-    return (
-      <div className="relative h-full bg-[#F3E8D8]">
-        <div className="mx-auto mt-5 h-8 w-8 rounded bg-[#FFF8F0] shadow-sm" />
-        <div className="absolute bottom-2 left-2 h-5 w-5 rounded-full bg-[#8B5E3C]/70" />
-      </div>
-    );
-  }
-  if (templateKey === "black_white") {
-    return (
-      <div
-        className="h-full w-full"
-        style={{ background: "linear-gradient(160deg, #fff 0 48%, #0B1220 48% 100%)" }}
-      >
-        <div className="mx-auto mt-8 h-8 w-8 rounded bg-white shadow" />
-      </div>
-    );
-  }
-  if (templateKey === "rustic_wood") {
-    return (
-      <div
-        className="flex h-full items-center justify-center"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(0deg, #3E2A1F 0 10px, #4A3426 10px 20px)",
-        }}
-      >
-        <div className="h-10 w-9 rounded bg-[#F5E6D3] p-1">
-          <div className="h-full w-full rounded bg-white" />
-        </div>
-      </div>
-    );
-  }
-  // bold_palette
-  return (
-    <div className="relative h-full overflow-hidden bg-white">
-      <span className="absolute -left-2 -top-2 h-8 w-8 rounded-[40%] bg-[#F43F5E]" />
-      <span className="absolute -right-2 top-4 h-7 w-7 rounded-full bg-[#FACC15]" />
-      <span className="absolute -bottom-2 -left-1 h-8 w-9 rounded-[40%] bg-[#22C55E]" />
-      <span className="absolute -bottom-2 -right-2 h-7 w-7 rounded-[40%]" style={{ backgroundColor: accent }} />
-      <div className="relative mx-auto mt-8 h-8 w-8 rounded border border-[#E6EAF0] bg-white" />
     </div>
   );
 }
@@ -163,18 +130,23 @@ export function PosterTemplatePicker({
                 selected
                   ? "border-[#137752] ring-2 ring-[#137752]/25"
                   : "border-[#E6EAF0] hover:border-[#137752]/50",
-                locked && "cursor-not-allowed opacity-75"
+                locked && "cursor-not-allowed opacity-80"
               )}
             >
-              <div className="relative aspect-[3/4] overflow-hidden bg-[#F9FAFB]">
-                <MiniThumb templateKey={template.key} accent={template.accent} />
+              <div className="relative aspect-[3/4] overflow-hidden bg-[#F3F5F7]">
+                <TemplateThumb
+                  templateKey={template.key}
+                  accent={template.accent}
+                  title={template.suggestedTitle}
+                  description={template.suggestedDescription}
+                />
                 {selected ? (
-                  <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#137752] text-white shadow">
+                  <span className="absolute right-1.5 top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-[#137752] text-white shadow">
                     <Check className="h-3 w-3" />
                   </span>
                 ) : null}
                 {locked ? (
-                  <span className="absolute inset-0 flex items-center justify-center bg-black/25">
+                  <span className="absolute inset-0 z-10 flex items-center justify-center bg-black/30">
                     <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[10px] font-bold text-[#0B1220]">
                       <Lock className="h-3 w-3" /> Pro
                     </span>

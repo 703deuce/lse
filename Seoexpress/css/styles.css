@@ -266,16 +266,33 @@ ul {
 }
 
 .logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 20px;
   font-weight: 600;
   color: var(--navy-900);
   flex-shrink: 0;
   letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.logo-pin {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: block;
 }
 
 .logo strong {
-  color: var(--blue-600);
+  color: var(--green-600);
   font-weight: 800;
+}
+
+.site-footer .logo-pin,
+.footer-logo .logo-pin {
+  width: 24px;
+  height: 24px;
 }
 
 .logo--light {
