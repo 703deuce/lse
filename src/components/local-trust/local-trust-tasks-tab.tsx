@@ -144,7 +144,7 @@ export function LocalTrustTasksTab({
         <div className="space-y-2">
           {filtered.map((t, i) => {
             const status = String(t.status ?? "open");
-            const pct = progressPct(status, i);
+            const pct = progressPct(status);
             return (
               <div key={String(t.id ?? i)} className={cn(dashboardCard, "p-3")}>
                 <div className="flex items-start gap-2">
