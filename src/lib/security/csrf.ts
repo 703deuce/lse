@@ -167,6 +167,8 @@ export function isCsrfExemptPath(pathname: string): boolean {
     pathname.startsWith("/auth/") ||
     // Public free SEO tool (called from marketing site + app landing)
     pathname.startsWith("/api/public/qr") ||
+    pathname.startsWith("/api/public/review-reply") ||
+    pathname.startsWith("/api/public/maps-rank-check") ||
     // Marketing contact form (cross-origin POST from localseoexpress.com)
     pathname.startsWith("/api/public/contact")
   );

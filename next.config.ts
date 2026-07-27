@@ -110,6 +110,34 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        source: "/tools/google-review-widget",
+        headers: [
+          { key: "Content-Security-Policy", value: embedCsp },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
+      },
+      {
+        source: "/tools/google-review-widget/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: embedCsp },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
+      },
+      {
+        source: "/tools/google-maps-rank-checker",
+        headers: [
+          { key: "Content-Security-Policy", value: embedCsp },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
+      },
+      {
+        source: "/tools/google-maps-rank-checker/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: embedCsp },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
+      },
+      {
         source: "/api/public/contact",
         headers: [
           { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
@@ -129,6 +157,18 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/api/public/review-reply/:path*",
+        headers: [
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
+      },
+      {
+        source: "/api/public/maps-rank-check",
+        headers: [
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
+      },
+      {
+        source: "/api/public/maps-rank-check/:path*",
         headers: [
           { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
         ],

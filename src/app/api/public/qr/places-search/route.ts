@@ -10,6 +10,8 @@ export type PublicPlaceCandidate = {
   address: string;
   rating?: number;
   review_count?: number;
+  lat?: number;
+  lng?: number;
 };
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -73,6 +75,8 @@ export async function POST(request: Request) {
       address?: string;
       rating?: number;
       review_count?: number;
+      lat?: number;
+      lng?: number;
     }) => {
       const placeId = (item.place_id ?? "").trim();
       if (!placeId || seen.has(placeId)) return;
@@ -83,6 +87,8 @@ export async function POST(request: Request) {
         address: item.address ?? "",
         rating: item.rating,
         review_count: item.review_count,
+        lat: Number.isFinite(item.lat) ? item.lat : undefined,
+        lng: Number.isFinite(item.lng) ? item.lng : undefined,
       });
     };
 
@@ -96,6 +102,8 @@ export async function POST(request: Request) {
           address: item.address,
           rating: item.rating,
           review_count: item.reviews,
+          lat: item.gps_coordinates?.latitude,
+          lng: item.gps_coordinates?.longitude,
         });
       }
     } catch {
@@ -121,6 +129,8 @@ export async function POST(request: Request) {
             address: item.address,
             rating: item.rating?.value,
             review_count: item.rating?.votes_count,
+            lat: item.latitude,
+            lng: item.longitude,
           });
         }
       } catch {
