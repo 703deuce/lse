@@ -1,6 +1,6 @@
 /**
  * QR poster template registry.
- * `classic_poster` is the free default. All others are Pro/paid templates.
+ * `classic_poster` is the free default. The 10 Pro gallery templates match the product mockup.
  */
 
 export const CLASSIC_POSTER_TEMPLATE = "classic_poster" as const;
@@ -34,6 +34,8 @@ export type PosterTemplateMeta = {
   accent: string;
   /** Whether this requires a paid (non-trial) plan */
   premium: boolean;
+  /** 1–10 gallery number for Pro templates (mockup order) */
+  galleryNumber?: number;
 };
 
 export const POSTER_TEMPLATES: PosterTemplateMeta[] = [
@@ -49,94 +51,109 @@ export const POSTER_TEMPLATES: PosterTemplateMeta[] = [
   {
     key: "modern_minimal",
     label: "Modern Minimal",
-    blurb: "Clean white · Scan Me",
+    blurb: "Marble · green bar",
     suggestedTitle: "Review Us on Google",
-    suggestedDescription: "Scan the code with your phone camera",
+    suggestedDescription: "Your feedback is important to us.",
     accent: "#137752",
     premium: true,
+    galleryNumber: 1,
   },
   {
     key: "solid_green",
-    label: "Solid Green",
-    blurb: "Bold brand field",
-    suggestedTitle: "Love our service?",
-    suggestedDescription: "Tell us how it was!",
+    label: "Bold Green",
+    blurb: "Solid green · curve",
+    suggestedTitle: "LOVE OUR SERVICE?",
+    suggestedDescription: "Review Us on Google",
     accent: "#137752",
     premium: true,
+    galleryNumber: 2,
   },
   {
     key: "elegant_black",
     label: "Elegant Black",
-    blurb: "Charcoal · gold accents",
-    suggestedTitle: "Thank You for Your Visit",
-    suggestedDescription: "Scan to leave a review",
+    blurb: "Black · gold frame",
+    suggestedTitle: "Thank You",
+    suggestedDescription: "for your visit",
     accent: "#C9A227",
     premium: true,
+    galleryNumber: 3,
   },
   {
     key: "friendly_green",
     label: "Friendly Green",
-    blurb: "Waves · soft script",
-    suggestedTitle: "Leave us your feedback!",
-    suggestedDescription: "Scan the code with your phone camera",
+    blurb: "White · green wave",
+    suggestedTitle: "How was your experience?",
+    suggestedDescription: "Scan to leave a Google review",
     accent: "#137752",
     premium: true,
+    galleryNumber: 4,
   },
   {
     key: "premium_gold",
     label: "Premium Gold",
     blurb: "Black · gold foil",
-    suggestedTitle: "Leave a Review and Receive a Free Item",
+    suggestedTitle: "SHARE YOUR EXPERIENCE WITH US",
     suggestedDescription: "Scan to leave a review",
     accent: "#D4AF37",
     premium: true,
+    galleryNumber: 5,
   },
   {
     key: "cafe_coffee",
-    label: "Cafe Warm",
-    blurb: "Cream · cozy",
-    suggestedTitle: "Enjoyed the Experience?",
-    suggestedDescription: "Scan to leave a review",
+    label: "Cafe Coffee Shop",
+    blurb: "Photo background",
+    suggestedTitle: "HOW WAS YOUR Experience?",
+    suggestedDescription: "We'd love your feedback",
     accent: "#8B5E3C",
     premium: true,
+    galleryNumber: 6,
   },
   {
     key: "clear_blue",
     label: "Clear Blue",
-    blurb: "Bright · friendly",
-    suggestedTitle: "We Appreciate You!",
-    suggestedDescription: "Scan the code with your phone camera",
+    blurb: "White · blue waves",
+    suggestedTitle: "WE APPRECIATE YOU!",
+    suggestedDescription: "Scan to leave a Google review",
     accent: "#1D4ED8",
     premium: true,
+    galleryNumber: 7,
   },
   {
     key: "black_white",
     label: "Black & White",
-    blurb: "Diagonal split",
-    suggestedTitle: "Help Us Get Better",
+    blurb: "Triangle corners",
+    suggestedTitle: "HELP US GET BETTER",
     suggestedDescription: "Scan to leave a review",
     accent: "#0B1220",
     premium: true,
+    galleryNumber: 8,
   },
   {
     key: "rustic_wood",
     label: "Rustic Wood",
-    blurb: "Warm plank texture",
-    suggestedTitle: "Thank You",
-    suggestedDescription: "Scan to leave a review",
+    blurb: "Wood plank photo",
+    suggestedTitle: "Thank You!",
+    suggestedDescription: "For choosing us",
     accent: "#5C4033",
     premium: true,
+    galleryNumber: 9,
   },
   {
     key: "bold_palette",
-    label: "Bold Palette",
+    label: "Geo Colorful",
     blurb: "Colorful shapes",
-    suggestedTitle: "Happy with Our Service?",
-    suggestedDescription: "Scan the code with your phone camera",
+    suggestedTitle: "LOVED OUR SERVICE?",
+    suggestedDescription: "Leave us a quick Google review",
     accent: "#E11D48",
     premium: true,
+    galleryNumber: 10,
   },
 ];
+
+/** Pro gallery only — mockup order 1–10 */
+export const GALLERY_POSTER_TEMPLATES = POSTER_TEMPLATES.filter(
+  (t): t is PosterTemplateMeta & { galleryNumber: number } => typeof t.galleryNumber === "number"
+).sort((a, b) => a.galleryNumber - b.galleryNumber);
 
 export function isPosterTemplateKey(value: string | null | undefined): value is PosterTemplateKey {
   return POSTER_TEMPLATES.some((t) => t.key === value);

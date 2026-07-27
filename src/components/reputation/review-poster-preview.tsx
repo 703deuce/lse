@@ -209,271 +209,279 @@ function ClassicLayout({ businessName, poster, qrDataUrl, brand, brandDark }: La
   );
 }
 
+const BG = {
+  marble: "/poster-templates/marble.jpg",
+  gold: "/poster-templates/gold-satin.jpg",
+  cafe: "/poster-templates/cafe-coffee.jpg",
+  wood: "/poster-templates/rustic-wood.jpg",
+} as const;
+
+/** 1 — Modern Minimal: light marble + solid green footer bar */
 function ModernMinimalLayout({ businessName, poster, qrDataUrl, brand }: LayoutProps) {
   return (
-    <Shell className="grid-rows-[auto_1fr_auto] border border-[#E6EAF0] bg-white">
-      <div className="px-5 pt-6 text-center">
-        <h2 className="text-xl font-extrabold tracking-tight text-[#0B1220]">{poster.title}</h2>
-        <p className="mt-1 text-[11px] text-[#667085]">{poster.description}</p>
+    <Shell className="relative grid-rows-[auto_1fr_auto] overflow-hidden bg-[#F4F2EF]">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={BG.marble} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-55" />
+      <div className="pointer-events-none absolute inset-0 bg-white/55" />
+      <div className="relative px-5 pt-7 text-center">
+        <h2 className="text-[22px] font-extrabold leading-tight tracking-tight text-[#0B1220]">{poster.title}</h2>
+        <p className="mt-1.5 text-[11px] text-[#667085]">{poster.description}</p>
       </div>
-      <div className="flex flex-col items-center justify-center gap-3 px-6">
-        <div className="w-[52%] max-w-[150px]">
-          <QrBlock qrDataUrl={qrDataUrl} frameClassName="shadow-none ring-1 ring-[#E6EAF0]" />
+      <div className="relative flex flex-col items-center justify-center gap-3 px-6">
+        <div className="w-[54%] max-w-[155px]">
+          <QrBlock qrDataUrl={qrDataUrl} frameClassName="rounded-lg shadow-md ring-1 ring-black/5" />
         </div>
         <GoldStars />
         <p className="text-[12px] font-bold text-[#0B1220]">{businessName}</p>
       </div>
-      <div className="px-5 pb-5">
-        <div
-          className="rounded-full py-2.5 text-center text-[12px] font-extrabold tracking-wide text-white"
-          style={{ backgroundColor: brand }}
-        >
-          SCAN ME
+      <div className="relative px-0 pb-0">
+        <div className="py-3.5 text-center text-[12px] font-extrabold tracking-[0.14em] text-white" style={{ backgroundColor: brand }}>
+          SCAN TO REVIEW
         </div>
       </div>
     </Shell>
   );
 }
 
+/** 2 — Bold Green: full green field + white convex curve at bottom */
 function SolidGreenLayout({ businessName, poster, qrDataUrl, brand, brandDark }: LayoutProps) {
   return (
     <Shell
-      className="relative grid-rows-[auto_1fr_auto] text-white"
+      className="relative overflow-hidden text-white"
       style={{ background: `linear-gradient(180deg, ${brand} 0%, ${brandDark} 100%)` }}
     >
-      <div className="px-5 pt-7 text-center">
-        <h2 className="text-lg font-extrabold uppercase leading-tight tracking-wide">{poster.title}</h2>
-        <p className="mt-1 text-[12px] font-medium text-white/90">{poster.description}</p>
-      </div>
-      <div className="flex flex-col items-center justify-center gap-3 px-6">
-        <div className="w-[52%] max-w-[150px]">
-          <QrBlock qrDataUrl={qrDataUrl} />
+      <div className="relative z-[1] flex h-full flex-col px-5 pt-8">
+        <h2 className="text-center text-[22px] font-black uppercase leading-tight tracking-wide">{poster.title}</h2>
+        <p className="mt-1.5 text-center text-[12px] font-medium text-white/90">{poster.description}</p>
+        <div className="mt-5 flex flex-1 flex-col items-center justify-center gap-3 pb-16">
+          <div className="w-[54%] max-w-[155px]">
+            <QrBlock qrDataUrl={qrDataUrl} />
+          </div>
+          <GoldStars />
+          <p className="text-[12px] font-bold">{businessName}</p>
         </div>
-        <GoldStars />
       </div>
-      <div className="relative px-5 pb-6 pt-2 text-center">
-        <svg className="absolute inset-x-0 -top-6 w-full" viewBox="0 0 400 40" preserveAspectRatio="none" aria-hidden>
-          <path fill="rgba(255,255,255,0.12)" d="M0 40 C80 0 320 0 400 40 L400 40 L0 40 Z" />
-        </svg>
-        <p className="relative text-[13px] font-bold">{businessName}</p>
-        <p className="relative mt-0.5 text-[10px] text-white/80">Scan to leave a review</p>
-      </div>
+      <svg className="pointer-events-none absolute inset-x-0 bottom-0 w-full" viewBox="0 0 400 90" preserveAspectRatio="none" aria-hidden>
+        <path fill="#fff" d="M0 90 L0 48 C70 12 140 70 200 42 C270 12 340 55 400 28 L400 90 Z" />
+      </svg>
     </Shell>
   );
 }
 
+/** 3 — Elegant Black: black + thin gold border + cursive thank-you */
 function ElegantBlackLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
   return (
-    <Shell className="grid-rows-[auto_1fr_auto] bg-[#141414] text-white">
-      <div className="relative px-5 pt-6 text-center">
-        <div className="mx-auto mb-3 h-px w-16 bg-[#C9A227]" />
-        <h2 className="font-serif text-xl font-semibold tracking-wide text-[#F5E6C8]">
-          {poster.title}
-        </h2>
-        <div className="mx-auto mt-3 h-px w-16 bg-[#C9A227]" />
-      </div>
-      <div className="flex flex-col items-center justify-center gap-3 px-6">
-        <div className="w-[50%] max-w-[145px] rounded-lg border border-[#C9A227]/50 p-1">
-          <QrBlock qrDataUrl={qrDataUrl} frameClassName="rounded-md shadow-none" />
+    <Shell className="relative overflow-hidden bg-[#0E0E0E] p-[7px]">
+      <div className="flex h-full flex-col overflow-hidden rounded-[0.95rem] border border-[#C9A227] bg-[#141414] text-white">
+        <div className="px-5 pt-8 text-center">
+          <h2 className="font-serif text-[28px] font-normal italic leading-none tracking-wide text-[#E8D5A3]">
+            {poster.title}
+          </h2>
+          <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#C9A227]/90">{poster.description}</p>
         </div>
-        <GoldStars />
-        <p className="text-[11px] text-[#F5E6C8]/80">{poster.description}</p>
-      </div>
-      <div className="border-t border-[#C9A227]/30 px-5 py-4 text-center">
-        <p className="text-[12px] font-semibold tracking-wide text-[#F5E6C8]">{businessName}</p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6">
+          <div className="rounded-md border border-[#C9A227]/55 bg-[#C9A227]/10 p-1.5">
+            <div className="w-[132px]">
+              <QrBlock qrDataUrl={qrDataUrl} frameClassName="rounded-sm shadow-none" />
+            </div>
+          </div>
+          <GoldStars />
+        </div>
+        <div className="border-t border-[#C9A227]/35 px-5 py-4 text-center">
+          <p className="text-[12px] font-semibold tracking-wide text-[#E8D5A3]">{businessName}</p>
+        </div>
       </div>
     </Shell>
   );
 }
 
+/** 4 — Friendly Green: white + decorative green brush/wave at bottom */
 function FriendlyGreenLayout({ businessName, poster, qrDataUrl, brand }: LayoutProps) {
-  const soft = lightenHex(brand, 190);
-  return (
-    <Shell className="relative grid-rows-[auto_1fr_auto] overflow-hidden bg-white">
-      <div className="px-5 pt-6 text-center">
-        <h2 className="text-lg font-extrabold leading-tight text-[#0B1220]">{poster.title}</h2>
-        <p className="mt-1 text-[11px] text-[#667085]">{poster.description}</p>
-      </div>
-      <div className="relative z-[1] flex flex-col items-center justify-center gap-3 px-6">
-        <div className="w-[52%] max-w-[150px]">
-          <QrBlock qrDataUrl={qrDataUrl} />
-        </div>
-        <GoldStars />
-        <p className="text-[12px] font-bold text-[#0B1220]">{businessName}</p>
-      </div>
-      <div className="relative h-16">
-        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 400 80" preserveAspectRatio="none" aria-hidden>
-          <path fill={soft} d="M0 40 C60 10 140 70 200 40 C260 10 340 60 400 30 L400 80 L0 80 Z" />
-          <path fill={brand} d="M0 55 C80 30 160 80 240 50 C300 30 360 70 400 45 L400 80 L0 80 Z" />
-        </svg>
-      </div>
-    </Shell>
-  );
-}
-
-function PremiumGoldLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
-  return (
-    <Shell className="relative grid-rows-[auto_1fr_auto] overflow-hidden bg-[#0B0B0B] text-white">
-      <div
-        className="pointer-events-none absolute -right-8 -top-10 h-28 w-40 rotate-12"
-        style={{
-          background: "linear-gradient(135deg, rgba(212,175,55,0.95), rgba(212,175,55,0.15))",
-        }}
-      />
-      <div className="relative px-5 pt-7 text-center">
-        <h2 className="text-base font-extrabold uppercase leading-snug tracking-wide text-[#F7E7A8]">
-          {poster.title}
-        </h2>
-      </div>
-      <div className="relative flex flex-col items-center justify-center gap-3 px-6">
-        <div className="w-[50%] max-w-[145px]">
-          <QrBlock qrDataUrl={qrDataUrl} />
-        </div>
-        <GoldStars />
-        <p className="text-[11px] text-white/75">{poster.description}</p>
-      </div>
-      <div className="bg-[#D4AF37] px-5 py-3 text-center">
-        <p className="text-[12px] font-extrabold tracking-wide text-[#0B0B0B]">{businessName}</p>
-      </div>
-    </Shell>
-  );
-}
-
-function CafeCoffeeLayout({ businessName, poster, qrDataUrl, brand }: LayoutProps) {
-  return (
-    <Shell className="relative grid-rows-[auto_1fr_auto] overflow-hidden bg-[#F3E8D8]">
-      <div className="px-5 pt-6 text-center">
-        <h2 className="font-serif text-xl font-semibold italic leading-tight text-[#4A3426]">
-          {poster.title}
-        </h2>
-        <p className="mt-1 text-[11px] text-[#7A5A45]">{poster.description}</p>
-      </div>
-      <div className="relative z-[1] flex flex-col items-center justify-center gap-3 px-6">
-        <div className="w-[52%] max-w-[150px]">
-          <QrBlock qrDataUrl={qrDataUrl} frameClassName="bg-[#FFF8F0]" />
-        </div>
-        <GoldStars />
-        <p className="text-[12px] font-bold text-[#4A3426]">{businessName}</p>
-      </div>
-      <div className="relative h-20">
-        <div
-          className="absolute bottom-3 left-4 h-12 w-12 rounded-full opacity-80"
-          style={{ background: `radial-gradient(circle at 35% 35%, ${lightenHex(brand, 40)}, ${brand})` }}
-        />
-        <div className="absolute bottom-2 left-10 h-10 w-8 rounded-t-full bg-[#6B4226]/70" />
-        <div className="absolute bottom-0 right-0 h-10 w-full bg-gradient-to-t from-[#D9C3A5] to-transparent" />
-      </div>
-    </Shell>
-  );
-}
-
-function ClearBlueLayout({ businessName, poster, qrDataUrl, brand }: LayoutProps) {
-  const blue = brand.match(/#[0-9a-f]{6}/i) && !/^#(16A34A|137752|10b981)/i.test(brand) ? brand : "#1D4ED8";
-  return (
-    <Shell className="relative grid-rows-[auto_1fr_auto] overflow-hidden bg-white">
-      <div className="px-5 pt-6 text-center">
-        <h2 className="text-xl font-extrabold uppercase tracking-tight" style={{ color: blue }}>
-          {poster.title}
-        </h2>
-        <p className="mt-1 text-[11px] text-[#667085]">{poster.description}</p>
-      </div>
-      <div className="relative z-[1] flex flex-col items-center justify-center gap-3 px-6">
-        <div className="w-[52%] max-w-[150px]">
-          <QrBlock qrDataUrl={qrDataUrl} />
-        </div>
-        <GoldStars />
-        <p className="text-[12px] font-bold text-[#0B1220]">{businessName}</p>
-      </div>
-      <div className="relative h-16">
-        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 400 80" preserveAspectRatio="none" aria-hidden>
-          <path fill={lightenHex(blue, 160)} d="M0 35 C90 5 180 70 270 35 C330 15 370 45 400 28 L400 80 L0 80 Z" />
-          <path fill={blue} d="M0 55 C100 25 180 85 280 50 C340 30 380 70 400 48 L400 80 L0 80 Z" />
-        </svg>
-      </div>
-    </Shell>
-  );
-}
-
-function BlackWhiteLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
+  const soft = lightenHex(brand, 170);
   return (
     <Shell className="relative overflow-hidden bg-white">
-      <div
-        className="absolute inset-0"
-        style={{
-          background: "linear-gradient(160deg, #ffffff 0% 48%, #0B1220 48% 100%)",
-        }}
+      <div className="relative z-[1] flex h-full flex-col px-5 pt-8">
+        <h2 className="text-center text-[20px] font-extrabold leading-tight text-[#0B1220]">{poster.title}</h2>
+        <p className="mt-1.5 text-center text-[11px] text-[#667085]">{poster.description}</p>
+        <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-3 pb-14">
+          <div className="w-[54%] max-w-[155px]">
+            <QrBlock qrDataUrl={qrDataUrl} />
+          </div>
+          <GoldStars />
+          <p className="text-[12px] font-bold text-[#0B1220]">{businessName}</p>
+        </div>
+      </div>
+      <svg className="pointer-events-none absolute inset-x-0 bottom-0 h-24 w-full" viewBox="0 0 400 96" preserveAspectRatio="none" aria-hidden>
+        <path fill={soft} d="M0 58 C55 20 110 78 170 48 C230 18 290 70 400 36 L400 96 L0 96 Z" />
+        <path fill={brand} d="M0 72 C70 40 130 92 200 62 C270 34 340 88 400 58 L400 96 L0 96 Z" />
+      </svg>
+    </Shell>
+  );
+}
+
+/** 5 — Premium Gold: black + diagonal gold satin + gold footer bar */
+function PremiumGoldLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
+  return (
+    <Shell className="relative overflow-hidden bg-[#0A0A0A] text-white">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={BG.gold}
+        alt=""
+        className="pointer-events-none absolute -right-6 -top-8 h-44 w-52 rotate-12 object-cover opacity-90"
+        style={{ clipPath: "polygon(18% 0, 100% 0, 100% 100%, 0 78%)" }}
       />
-      <div className="relative z-[1] flex h-full flex-col px-5 py-6">
-        <h2 className="text-center text-lg font-extrabold uppercase leading-tight tracking-wide text-[#0B1220]">
-          {poster.title}
-        </h2>
-        <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-3">
+      <div className="pointer-events-none absolute -right-10 -top-6 h-40 w-48 rotate-12 bg-gradient-to-br from-[#F5E6A8]/80 via-[#D4AF37]/55 to-transparent" />
+      <div className="relative z-[1] flex h-full flex-col">
+        <div className="px-5 pt-9 text-center">
+          <h2 className="text-[15px] font-black uppercase leading-snug tracking-[0.06em] text-[#F7E7A8]">
+            {poster.title}
+          </h2>
+        </div>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6">
           <div className="w-[52%] max-w-[150px]">
             <QrBlock qrDataUrl={qrDataUrl} />
           </div>
           <GoldStars />
+          <p className="text-[11px] text-white/75">{poster.description}</p>
         </div>
-        <div className="text-center text-white">
-          <p className="text-[12px] font-bold">{businessName}</p>
-          <p className="mt-0.5 text-[10px] text-white/75">{poster.description}</p>
+        <div className="bg-[#D4AF37] px-5 py-3.5 text-center">
+          <p className="text-[12px] font-extrabold tracking-wide text-[#0B0B0B]">{businessName}</p>
         </div>
       </div>
     </Shell>
   );
 }
 
-function RusticWoodLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
+/** 6 — Cafe Coffee Shop: real coffee photo background */
+function CafeCoffeeLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
   return (
-    <Shell
-      className="relative grid-rows-[auto_1fr_auto] overflow-hidden"
-      style={{
-        backgroundImage:
-          "repeating-linear-gradient(0deg, #3E2A1F 0px, #3E2A1F 14px, #4A3426 14px, #4A3426 28px), linear-gradient(90deg, rgba(0,0,0,0.25), transparent 40%, rgba(0,0,0,0.2))",
-        backgroundBlendMode: "multiply",
-        backgroundColor: "#3E2A1F",
-      }}
-    >
-      <div className="px-5 pt-7 text-center">
-        <h2 className="font-serif text-2xl italic text-white drop-shadow">{poster.title}</h2>
-      </div>
-      <div className="flex flex-col items-center justify-center gap-3 px-6">
-        <div className="w-[54%] max-w-[155px] rounded-xl bg-[#F5E6D3] p-3 shadow-lg">
-          <QrBlock qrDataUrl={qrDataUrl} frameClassName="bg-white shadow-none" />
-          <GoldStars className="mt-2" />
-        </div>
-      </div>
-      <div className="px-5 pb-5 text-center text-white">
-        <p className="text-[12px] font-bold">{businessName}</p>
-        <p className="mt-0.5 text-[10px] text-white/80">{poster.description}</p>
-      </div>
-    </Shell>
-  );
-}
-
-function BoldPaletteLayout({ businessName, poster, qrDataUrl, brand }: LayoutProps) {
-  return (
-    <Shell className="relative grid-rows-[auto_1fr_auto] overflow-hidden bg-white">
-      <span className="absolute -left-6 -top-8 h-28 w-28 rounded-[40%] bg-[#F43F5E]/90" />
-      <span className="absolute -right-8 top-10 h-24 w-24 rounded-full bg-[#FACC15]/90" />
-      <span className="absolute -bottom-8 -left-4 h-28 w-32 rounded-[45%] bg-[#22C55E]/85" />
-      <span
-        className="absolute -bottom-6 -right-6 h-24 w-24 rounded-[40%]"
-        style={{ backgroundColor: brand }}
-      />
-      <div className="relative z-[1] px-5 pt-8 text-center">
-        <h2 className="text-lg font-extrabold uppercase leading-tight tracking-wide text-[#0B1220]">
+    <Shell className="relative overflow-hidden">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={BG.cafe} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/60" />
+      <div className="relative z-[1] flex h-full flex-col px-5 py-7 text-white">
+        <h2 className="text-center font-serif text-[24px] font-semibold italic leading-tight text-[#F5E6C8] drop-shadow">
           {poster.title}
         </h2>
-      </div>
-      <div className="relative z-[1] flex flex-col items-center justify-center gap-3 px-6">
-        <div className="w-[52%] max-w-[150px]">
-          <QrBlock qrDataUrl={qrDataUrl} />
+        <p className="mt-1 text-center text-[11px] font-medium text-white/90">{poster.description}</p>
+        <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-3">
+          <div className="w-[54%] max-w-[155px] rounded-xl bg-white/95 p-2 shadow-xl">
+            <QrBlock qrDataUrl={qrDataUrl} frameClassName="bg-white shadow-none" />
+          </div>
+          <GoldStars />
+          <p className="text-[12px] font-bold drop-shadow">{businessName}</p>
         </div>
-        <GoldStars />
       </div>
-      <div className="relative z-[1] px-5 pb-6 text-center">
-        <p className="text-[12px] font-bold text-[#0B1220]">{businessName}</p>
-        <p className="mt-0.5 text-[10px] text-[#667085]">{poster.description}</p>
+    </Shell>
+  );
+}
+
+/** 7 — Clear Blue: white + blue waves top & bottom */
+function ClearBlueLayout({ businessName, poster, qrDataUrl, brand }: LayoutProps) {
+  const blue = brand.match(/#[0-9a-f]{6}/i) && !/^#(16A34A|137752|10b981)/i.test(brand) ? brand : "#1D4ED8";
+  return (
+    <Shell className="relative overflow-hidden bg-white">
+      <svg className="pointer-events-none absolute inset-x-0 top-0 h-16 w-full" viewBox="0 0 400 64" preserveAspectRatio="none" aria-hidden>
+        <path fill={lightenHex(blue, 150)} d="M0 0 L400 0 L400 28 C320 55 250 10 180 36 C110 60 50 20 0 42 Z" />
+        <path fill={blue} d="M0 0 L400 0 L400 16 C330 40 250 4 180 28 C110 50 50 8 0 26 Z" />
+      </svg>
+      <div className="relative z-[1] flex h-full flex-col px-5 pb-4 pt-14">
+        <h2 className="text-center text-[22px] font-black uppercase tracking-tight" style={{ color: blue }}>
+          {poster.title}
+        </h2>
+        <p className="mt-1.5 text-center text-[11px] text-[#667085]">{poster.description}</p>
+        <div className="mt-3 flex flex-1 flex-col items-center justify-center gap-3 pb-10">
+          <div className="w-[54%] max-w-[155px]">
+            <QrBlock qrDataUrl={qrDataUrl} />
+          </div>
+          <GoldStars />
+          <p className="text-[12px] font-bold text-[#0B1220]">{businessName}</p>
+        </div>
+      </div>
+      <svg className="pointer-events-none absolute inset-x-0 bottom-0 h-16 w-full" viewBox="0 0 400 64" preserveAspectRatio="none" aria-hidden>
+        <path fill={lightenHex(blue, 150)} d="M0 64 L0 34 C70 8 140 52 210 28 C280 6 340 44 400 22 L400 64 Z" />
+        <path fill={blue} d="M0 64 L0 44 C80 18 150 58 220 36 C290 16 350 50 400 30 L400 64 Z" />
+      </svg>
+    </Shell>
+  );
+}
+
+/** 8 — Black & White: sharp black triangles in opposite corners */
+function BlackWhiteLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
+  return (
+    <Shell className="relative overflow-hidden bg-white">
+      <div
+        className="pointer-events-none absolute left-0 top-0 h-0 w-0 border-b-[110px] border-l-[130px] border-b-transparent border-l-[#0B1220]"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute bottom-0 right-0 h-0 w-0 border-r-[130px] border-t-[110px] border-r-[#0B1220] border-t-transparent"
+        aria-hidden
+      />
+      <div className="relative z-[1] flex h-full flex-col px-5 py-8">
+        <h2 className="text-center text-[20px] font-black uppercase leading-tight tracking-wide text-[#0B1220]">
+          {poster.title}
+        </h2>
+        <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-3">
+          <div className="w-[54%] max-w-[155px]">
+            <QrBlock qrDataUrl={qrDataUrl} frameClassName="rounded-none shadow-md" />
+          </div>
+          <GoldStars />
+        </div>
+        <div className="text-center">
+          <p className="text-[12px] font-bold text-[#0B1220]">{businessName}</p>
+          <p className="mt-0.5 text-[10px] text-[#667085]">{poster.description}</p>
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+/** 9 — Rustic Wood: vertical wood plank photo + parchment QR card */
+function RusticWoodLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
+  return (
+    <Shell className="relative overflow-hidden">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={BG.wood} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
+      <div className="pointer-events-none absolute inset-0 bg-black/35" />
+      <div className="relative z-[1] flex h-full flex-col px-5 py-7 text-white">
+        <h2 className="text-center font-serif text-[28px] italic leading-none drop-shadow-md">{poster.title}</h2>
+        <p className="mt-1 text-center text-[12px] font-medium text-white/90">{poster.description}</p>
+        <div className="mt-4 flex flex-1 flex-col items-center justify-center">
+          <div className="w-[58%] max-w-[165px] rounded-xl bg-[#F3E6D2] p-3 shadow-[0_12px_28px_rgba(0,0,0,0.35)] ring-1 ring-black/10">
+            <QrBlock qrDataUrl={qrDataUrl} frameClassName="bg-white shadow-none" />
+            <GoldStars className="mt-2" />
+          </div>
+        </div>
+        <p className="text-center text-[12px] font-bold drop-shadow">{businessName}</p>
+      </div>
+    </Shell>
+  );
+}
+
+/** 10 — Geo Colorful: organic colorful blobs in corners */
+function BoldPaletteLayout({ businessName, poster, qrDataUrl, brand }: LayoutProps) {
+  return (
+    <Shell className="relative overflow-hidden bg-white">
+      <span className="absolute -left-8 -top-10 h-36 w-36 rounded-[46%] bg-[#F43F5E]" />
+      <span className="absolute -right-10 top-8 h-28 w-28 rounded-full bg-[#FACC15]" />
+      <span className="absolute -bottom-10 -left-6 h-32 w-36 rounded-[48%] bg-[#22C55E]" />
+      <span className="absolute -bottom-8 -right-8 h-28 w-28 rounded-[42%] bg-[#3B82F6]" />
+      <span className="absolute right-10 top-24 h-14 w-14 rounded-[40%]" style={{ backgroundColor: brand }} />
+      <div className="relative z-[1] flex h-full flex-col px-5 py-8">
+        <h2 className="text-center text-[20px] font-black uppercase leading-tight tracking-wide text-[#0B1220]">
+          {poster.title}
+        </h2>
+        <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-3">
+          <div className="w-[54%] max-w-[155px]">
+            <QrBlock qrDataUrl={qrDataUrl} />
+          </div>
+          <GoldStars />
+        </div>
+        <div className="text-center">
+          <p className="text-[12px] font-bold text-[#0B1220]">{businessName}</p>
+          <p className="mt-0.5 text-[10px] text-[#667085]">{poster.description}</p>
+        </div>
       </div>
     </Shell>
   );
