@@ -4,14 +4,12 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
-  CheckCircle2,
   Code2,
   MoreHorizontal,
   PlugZap,
   Plus,
   Search,
   Settings,
-  Users,
   Webhook,
   Zap,
 } from "lucide-react";
@@ -160,7 +158,7 @@ function WorkflowHistoryTable({ triggers }: { triggers: TriggerRow[] }) {
     <div className={cn(rep.card, "overflow-hidden")}>
       <div className="border-b border-[#E6EAF0] px-4 py-3">
         <h2 className="text-sm font-semibold text-[#101828]">Workflow History</h2>
-        <p className="text-xs text-[#667085]">Recent automation run history and enrollment counts.</p>
+        <p className="text-xs text-[#667085]">Recent automation runs by trigger.</p>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-left text-sm">
@@ -170,7 +168,6 @@ function WorkflowHistoryTable({ triggers }: { triggers: TriggerRow[] }) {
               <th className="px-4 py-3 font-semibold">Campaign</th>
               <th className="px-4 py-3 font-semibold">Status</th>
               <th className="px-4 py-3 font-semibold">Last Run</th>
-              <th className="px-4 py-3 text-right font-semibold">Enrolled</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#EEF2F6]">
@@ -182,7 +179,6 @@ function WorkflowHistoryTable({ triggers }: { triggers: TriggerRow[] }) {
                   <RepBadge tone={statusTone(trigger.status)}>{trigger.status}</RepBadge>
                 </td>
                 <td className="px-4 py-3 text-[#667085]">{fmtDateTime(trigger.lastFired)}</td>
-                <td className="px-4 py-3 text-right tabular-nums text-[#344054]">{trigger.enrolled.toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
@@ -206,6 +202,8 @@ export function AutomationsHub({
   const [error, setError] = useState<string | null>(null);
   const [triggerSearch, setTriggerSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [createToken, setCreateToken] = useState(0);
+  const [focusEndpointId, setFocusEndpointId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (previewData) return;
@@ -291,7 +289,15 @@ export function AutomationsHub({
         showFilters={false}
         actions={
           <>
-            <button type="button" onClick={() => setActiveTab("triggers")} className={rep.btnPrimary}>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("triggers");
+                setFocusEndpointId(null);
+                setCreateToken((n) => n + 1);
+              }}
+              className={rep.btnPrimary}
+            >
               <Plus className="h-4 w-4" />
               Create Trigger
             </button>
@@ -310,7 +316,7 @@ export function AutomationsHub({
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <RepMetricCard
           label="Active Automations"
           value={safeMetrics.active}
@@ -324,22 +330,6 @@ export function AutomationsHub({
           trend={trendLabel(safeMetrics.fired30dTrend) ?? undefined}
           trendPositive={safeMetrics.fired30dTrend != null && safeMetrics.fired30dTrend >= 0}
           hint="vs prior period"
-        />
-        <RepMetricCard
-          label="Contacts Enrolled"
-          value={metricValue(safeMetrics.enrolled)}
-          icon={Users}
-          trend={trendLabel(safeMetrics.enrolledTrend) ?? undefined}
-          trendPositive={safeMetrics.enrolledTrend != null && safeMetrics.enrolledTrend >= 0}
-          hint="From automations"
-        />
-        <RepMetricCard
-          label="Reviews Generated"
-          value={metricValue(safeMetrics.reviewsGenerated)}
-          icon={CheckCircle2}
-          trend={trendLabel(safeMetrics.reviewsGeneratedTrend) ?? undefined}
-          trendPositive={safeMetrics.reviewsGeneratedTrend != null && safeMetrics.reviewsGeneratedTrend >= 0}
-          hint="Attributed reviews"
         />
         <RepMetricCard
           label="Automation Success"
@@ -392,24 +382,17 @@ export function AutomationsHub({
                 <table className="min-w-full text-left text-sm">
                   <thead className="bg-[#F9FAFB] text-[11px] uppercase tracking-[0.06em] text-[#667085]">
                     <tr>
-                      <th className="w-10 px-4 py-3">
-                        <input type="checkbox" className="h-4 w-4 rounded border-[#D0D5DD]" aria-label="Select all triggers" />
-                      </th>
                       <th className="min-w-[200px] px-4 py-3 font-semibold">Trigger</th>
                       <th className="px-4 py-3 font-semibold">Source</th>
                       <th className="min-w-[200px] px-4 py-3 font-semibold">Campaign</th>
                       <th className="px-4 py-3 font-semibold">Status</th>
                       <th className="px-4 py-3 font-semibold">Last Fired</th>
-                      <th className="px-4 py-3 text-right font-semibold">Enrolled</th>
                       <th className="w-12 px-4 py-3" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#EEF2F6]">
                     {filteredTriggers.map((trigger) => (
                       <tr key={trigger.id} className="bg-white hover:bg-[#F9FAFB]">
-                        <td className="px-4 py-3">
-                          <input type="checkbox" className="h-4 w-4 rounded border-[#D0D5DD]" aria-label={`Select ${trigger.name}`} />
-                        </td>
                         <td className="px-4 py-3">
                           <p className="font-semibold text-[#101828]">{trigger.name}</p>
                         </td>
@@ -419,9 +402,16 @@ export function AutomationsHub({
                           <RepBadge tone={statusTone(trigger.status)}>{trigger.status}</RepBadge>
                         </td>
                         <td className="px-4 py-3 text-[#667085]">{fmtDateTime(trigger.lastFired)}</td>
-                        <td className="px-4 py-3 text-right tabular-nums text-[#344054]">{trigger.enrolled.toLocaleString()}</td>
                         <td className="px-4 py-3">
-                          <button type="button" className="rounded-lg p-1.5 text-[#98A2B3] hover:bg-[#F2F4F7]">
+                          <button
+                            type="button"
+                            className="rounded-lg p-1.5 text-[#98A2B3] hover:bg-[#F2F4F7]"
+                            aria-label={`Open ${trigger.name}`}
+                            onClick={() => {
+                              setFocusEndpointId(trigger.id);
+                              setCreateToken(0);
+                            }}
+                          >
                             <MoreHorizontal className="h-4 w-4" />
                           </button>
                         </td>
@@ -429,14 +419,14 @@ export function AutomationsHub({
                     ))}
                     {!loading && filteredTriggers.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-4 py-10 text-center text-sm text-[#667085]">
+                        <td colSpan={6} className="px-4 py-10 text-center text-sm text-[#667085]">
                           No triggers match the current filters.
                         </td>
                       </tr>
                     ) : null}
                     {loading ? (
                       <tr>
-                        <td colSpan={8} className="px-4 py-10 text-center text-sm text-[#667085]">
+                        <td colSpan={6} className="px-4 py-10 text-center text-sm text-[#667085]">
                           Loading automations...
                         </td>
                       </tr>
@@ -448,7 +438,12 @@ export function AutomationsHub({
             {error ? <p className="text-sm text-[#B42318]">{error}</p> : null}
             {!previewData ? (
               <div className={cn(rep.card, "p-4")}>
-                <WebhooksClient businessId={businessId} embedded />
+                <WebhooksClient
+                  businessId={businessId}
+                  embedded
+                  openCreateToken={createToken}
+                  focusEndpointId={focusEndpointId}
+                />
               </div>
             ) : null}
           </div>
@@ -461,14 +456,30 @@ export function AutomationsHub({
       ) : null}
 
       {activeTab === "integrations" ? (
-        <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
-          {integrations.map((item) => (
-            <IntegrationCard
-              key={item.id}
-              item={item}
-              onConfigure={() => setActiveTab("integrations")}
-            />
-          ))}
+        <div className="space-y-3">
+          <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
+            {integrations.map((item) => (
+              <IntegrationCard
+                key={item.id}
+                item={item}
+                onConfigure={() => {
+                  setActiveTab("triggers");
+                  setFocusEndpointId(null);
+                  setCreateToken((n) => n + 1);
+                }}
+              />
+            ))}
+          </div>
+          {!previewData ? (
+            <div className={cn(rep.card, "p-4")}>
+              <WebhooksClient
+                businessId={businessId}
+                embedded
+                openCreateToken={createToken}
+                focusEndpointId={focusEndpointId}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -513,7 +524,7 @@ export function AutomationsHub({
           <div className="grid gap-3 md:grid-cols-3">
             {[
               { label: "Total Runs (30d)", value: metricValue(safeMetrics.fired30d) },
-              { label: "Contacts Enrolled (30d)", value: metricValue(safeMetrics.enrolled) },
+              { label: "Active Triggers", value: String(safeMetrics.active) },
               { label: "Success Rate", value: safeMetrics.successPct == null ? "—" : `${safeMetrics.successPct}%` },
             ].map((stat) => (
               <div key={stat.label} className={cn(rep.card, "p-4 text-center")}>

@@ -67,9 +67,15 @@ const STEPS = ["Name", "Trigger", "Mapping", "Security", "Activate"] as const;
 export function WebhooksClient({
   businessId,
   embedded = false,
+  openCreateToken = 0,
+  focusEndpointId = null,
 }: {
   businessId: string;
   embedded?: boolean;
+  /** Increment to open the create-trigger wizard from a parent. */
+  openCreateToken?: number;
+  /** When set, open the endpoint detail panel. */
+  focusEndpointId?: string | null;
 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -246,6 +252,18 @@ export function WebhooksClient({
       if (requestId === detailRequestRef.current) setDetailLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!openCreateToken) return;
+    openWizard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open on token bumps only
+  }, [openCreateToken]);
+
+  useEffect(() => {
+    if (!focusEndpointId) return;
+    void openDetail(focusEndpointId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open on focus id changes
+  }, [focusEndpointId]);
 
   async function patchAction(id: string, action?: string, extra?: Record<string, unknown>) {
     setError(null);

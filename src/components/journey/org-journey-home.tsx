@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Building2,
-  Calendar,
   Eye,
   FileText,
   Grid3X3,
@@ -175,10 +174,6 @@ export function OrgJourneyHome({ orgName }: { orgName?: string | null }) {
               <Plus className="h-4 w-4" />
               Create New
             </Link>
-            <button type="button" className={mock.btnSecondary}>
-              <Calendar className="h-4 w-4" />
-              Filter Dates
-            </button>
           </>
         }
       />

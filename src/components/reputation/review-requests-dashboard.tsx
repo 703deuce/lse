@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { MessagingSetupCallout } from "@/components/messaging/messaging-setup-callout";
+import { useMessagingRegistration } from "@/components/messaging/use-messaging-registration";
 import { ReviewRequestsPanel } from "@/components/reputation/review-requests-panel";
 import type { ReviewRequestsSection } from "@/components/reputation/review-requests-sub-tabs";
 import type { CampaignRow } from "@/components/reputation/review-requests-campaigns";
@@ -34,6 +35,7 @@ import {
   rep,
 } from "@/components/reputation/rep-ui";
 import { ModulePage } from "@/components/ui/design-system";
+import { isMessagingReady } from "@/lib/messaging/status";
 import { renderTemplate } from "@/lib/reputation/template-vars";
 import type { PosterConfig } from "@/lib/reputation/poster-config";
 import { cn } from "@/lib/utils";
@@ -517,6 +519,13 @@ function OneTimeSend({
   const [loadedContacts, setLoadedContacts] = useState<ContactRow[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showRecipients, setShowRecipients] = useState(false);
+  const { registration: messagingReg } = useMessagingRegistration(businessId);
+  const sendFromNumber =
+    data?.sendFromNumber ||
+    messagingReg?.phoneNumberFriendly ||
+    messagingReg?.phoneNumberE164 ||
+    null;
+  const sendFromReady = data?.sendFromVerified || (messagingReg ? isMessagingReady(messagingReg) : false);
 
   const templates = data?.templates ?? [];
   const smsTemplates = templates.filter((t) => t.channel === "sms");
@@ -909,16 +918,29 @@ function OneTimeSend({
                 <label className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">
                   Send from
                 </label>
-                <div className="flex items-center gap-2">
-                  <select className={cn(rep.select, "flex-1")}>
-                    <option>{data?.sendFromNumber ?? "+1 (571) 555-0199"}</option>
-                    <option>Shared number pool</option>
-                  </select>
-                  {data?.sendFromVerified ? (
-                    <span className="flex items-center gap-1 text-xs font-semibold text-[#027A48]">
-                      <Check className="h-3.5 w-3.5" /> Verified
-                    </span>
-                  ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  {sendFromNumber ? (
+                    <>
+                      <div className={cn(rep.select, "flex-1")}>{sendFromNumber}</div>
+                      {sendFromReady ? (
+                        <span className="flex items-center gap-1 text-xs font-semibold text-[#027A48]">
+                          <Check className="h-3.5 w-3.5" /> Verified
+                        </span>
+                      ) : (
+                        <span className="text-xs font-semibold text-[#B54708]">Setup incomplete</span>
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex flex-1 flex-wrap items-center gap-2">
+                      <p className="text-sm text-[#667085]">No messaging number connected yet.</p>
+                      <Link
+                        href={`/businesses/${businessId}/reputation/messaging`}
+                        className={rep.link}
+                      >
+                        Set up messaging →
+                      </Link>
+                    </div>
+                  )}
                 </div>
                 <p className="mt-2 text-xs text-[#667085]">
                   SMS includes opt-out language (Reply STOP to unsubscribe) as required by TCPA.

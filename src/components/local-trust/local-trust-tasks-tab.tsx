@@ -23,9 +23,9 @@ function statusBadge(status: string) {
   );
 }
 
-function progressPct(status: string, index: number) {
+function progressPct(status: string) {
   if (status === "complete") return 100;
-  if (status === "in_progress") return 40 + (index % 3) * 15;
+  if (status === "in_progress") return 50;
   return 0;
 }
 

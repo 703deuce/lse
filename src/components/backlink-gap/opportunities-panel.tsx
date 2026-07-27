@@ -2,12 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  Bookmark,
   ChevronDown,
   ChevronRight,
   Download,
   ExternalLink,
-  Filter,
   Loader2,
   Search,
   Sparkles,
@@ -18,6 +16,7 @@ import {
   type EnrichedOpportunity,
   type RawOpportunity,
 } from "@/lib/backlink-gap/enrich";
+import { downloadCsv } from "@/lib/client/download";
 import { cn } from "@/lib/utils";
 import {
   gapControl,
@@ -357,6 +356,7 @@ export function OpportunitiesPanel({
   const [aiPicks, setAiPicks] = useState<EnrichedOpportunity[]>([]);
   const [search, setSearch] = useState("");
   const [spamFilter, setSpamFilter] = useState<"all" | "spam" | "ignored" | "review">("all");
+  const [confidenceFilter, setConfidenceFilter] = useState<"all" | "high" | "medium">("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
@@ -367,6 +367,7 @@ export function OpportunitiesPanel({
     setPriorityFilter("all");
     setCompetitorFilter("all");
     setSpamFilter("all");
+    setConfidenceFilter("all");
     setSearch("");
     setPage(1);
     setGroupPages({});
@@ -381,7 +382,42 @@ export function OpportunitiesPanel({
     if (spamFilter === "spam") return o.status === "spam" || o.priority === "ignore";
     if (spamFilter === "ignored") return o.status === "ignored";
     return o.status !== "spam" && o.status !== "ignored" && o.priority !== "ignore";
+  }).filter((o) => {
+    if (confidenceFilter === "all") return true;
+    const high = o.priority === "high" || o.priority === "ignore";
+    if (confidenceFilter === "high") return high;
+    return !high;
   });
+
+  function exportOpportunitiesCsv() {
+    const rows = status === "ignored" ? filteredIgnoredItems : filteredItems;
+    downloadCsv(`backlink-opportunities-${businessId}.csv`, [
+      [
+        "Domain",
+        "Power",
+        "Domain Rank",
+        "Dofollow",
+        "Relevance",
+        "Priority",
+        "Status",
+        "Competitors",
+        "Suggested Action",
+        "Source URL",
+      ],
+      ...rows.map((o) => [
+        o.referring_domain,
+        o.powerScore ?? o.authority_score ?? "",
+        o.domain_rank ?? "",
+        o.dofollow ? "yes" : "no",
+        o.topicalFit,
+        o.priority,
+        o.status,
+        o.competitor_count,
+        o.suggested_action ?? "",
+        o.source_url ?? "",
+      ]),
+    ]);
+  }
 
   const fetchPage = useCallback(
     async (opts: {
@@ -689,25 +725,15 @@ export function OpportunitiesPanel({
               <option value="ignored">Ignored</option>
               <option value="review">Review</option>
             </select>
-            <select className={filterSelect}>
-              <option>Confidence: All</option>
-              <option>High</option>
-              <option>Medium</option>
+            <select
+              value={confidenceFilter}
+              onChange={(e) => setConfidenceFilter(e.target.value as typeof confidenceFilter)}
+              className={filterSelect}
+            >
+              <option value="all">Confidence: All</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
             </select>
-            <button
-              type="button"
-              className={cn(gapControl, "inline-flex items-center gap-1.5 px-3 font-medium")}
-            >
-              <Filter className="h-3.5 w-3.5" />
-              More filters
-            </button>
-            <button
-              type="button"
-              className={cn(gapControl, "inline-flex items-center gap-1.5 px-3 font-medium")}
-            >
-              <Bookmark className="h-3.5 w-3.5" />
-              Save view
-            </button>
           </>
         )}
 
@@ -757,6 +783,7 @@ export function OpportunitiesPanel({
           </select>
           <button
             type="button"
+            onClick={exportOpportunitiesCsv}
             className={cn(gapControl, "inline-flex items-center gap-1.5 px-3 font-medium")}
           >
             <Download className="h-3.5 w-3.5" />
@@ -893,7 +920,7 @@ export function OpportunitiesPanel({
               onClick={() => void applyBulkStatus("spam")}
               className="rounded-lg border border-red-100 px-2 py-0.5 text-[11px] font-medium text-red-600 disabled:opacity-40"
             >
-              {bulkUpdating ? "Updating…" : "Delete"}
+              Delete (spam)
             </button>
           </div>
         </div>

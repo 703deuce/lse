@@ -5,6 +5,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 import { Download, Link2, Loader2, Search, Trophy } from "lucide-react";
 import { boolCell, gapControl, powerBarsVertical } from "@/components/backlink-gap/backlink-gap-ui";
 import { mock } from "@/components/mockup/ui";
+import { downloadCsv } from "@/lib/client/download";
 import { cn } from "@/lib/utils";
 
 const MATRIX_PAGE_SIZES = [10, 25, 50, 100] as const;
@@ -43,6 +44,9 @@ export function BacklinkGapMatrixTab({
   const [pageSize, setPageSize] = useState<number>(25);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [linkTypeFilter, setLinkTypeFilter] = useState<"all" | string>("all");
+  const [powerFilter, setPowerFilter] = useState<"all" | "high" | "medium" | "low">("all");
+  const [daFilter, setDaFilter] = useState<"all" | "high" | "medium" | "low">("all");
   const [distribution, setDistribution] = useState<Distribution | null>(null);
   const [topCompetitor, setTopCompetitor] = useState<{
     name: string;
@@ -78,11 +82,49 @@ export function BacklinkGapMatrixTab({
       .finally(() => setLoading(false));
   }, [businessId, page, pageSize]);
 
+  const sourceTypes = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of rows) {
+      const t = String(r.source_type ?? "").trim();
+      if (t) set.add(t);
+    }
+    return [...set].sort();
+  }, [rows]);
+
   const filteredRows = useMemo(() => {
-    if (!search.trim()) return rows;
-    const q = search.toLowerCase();
-    return rows.filter((r) => String(r.domain).toLowerCase().includes(q));
-  }, [rows, search]);
+    return rows.filter((r) => {
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        if (!String(r.domain).toLowerCase().includes(q)) return false;
+      }
+      if (linkTypeFilter !== "all" && String(r.source_type ?? "") !== linkTypeFilter) return false;
+      const power = Number(r.authority_score ?? 0);
+      if (powerFilter === "high" && power < 60) return false;
+      if (powerFilter === "medium" && (power < 30 || power >= 60)) return false;
+      if (powerFilter === "low" && power >= 30) return false;
+      const da = Number(r.domain_rank ?? 0);
+      if (daFilter === "high" && da < 60) return false;
+      if (daFilter === "medium" && (da < 30 || da >= 60)) return false;
+      if (daFilter === "low" && da >= 30) return false;
+      return true;
+    });
+  }, [rows, search, linkTypeFilter, powerFilter, daFilter]);
+
+  function exportMatrixCsv() {
+    const competitorNames = competitors.map((c) => c.name);
+    downloadCsv(`backlink-matrix-${businessId}.csv`, [
+      ["Domain", "Authority", "Domain Rank", "Source Type", "You", ...competitorNames, "Competitor Count"],
+      ...filteredRows.map((r) => [
+        String(r.domain ?? ""),
+        r.authority_score == null ? "" : Number(r.authority_score),
+        r.domain_rank == null ? "" : Number(r.domain_rank),
+        String(r.source_type ?? ""),
+        r.you ? "yes" : "no",
+        ...competitorNames.map((name) => (r[name] ? "yes" : "no")),
+        r.competitor_count == null ? "" : Number(r.competitor_count),
+      ]),
+    ]);
+  }
 
   const distTotal = distribution?.total ?? total;
   const distData = distribution
@@ -180,19 +222,39 @@ export function BacklinkGapMatrixTab({
             className={cn(gapControl, "w-full py-0 pl-8 pr-3")}
           />
         </div>
-        <select className={gapControl}>
-          <option>Link Type: All</option>
+        <select
+          className={gapControl}
+          value={linkTypeFilter}
+          onChange={(e) => setLinkTypeFilter(e.target.value)}
+        >
+          <option value="all">Link Type: All</option>
+          {sourceTypes.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
         </select>
-        <select className={gapControl}>
-          <option>Link Power: All</option>
+        <select
+          className={gapControl}
+          value={powerFilter}
+          onChange={(e) => setPowerFilter(e.target.value as typeof powerFilter)}
+        >
+          <option value="all">Link Power: All</option>
+          <option value="high">High (60+)</option>
+          <option value="medium">Medium (30–59)</option>
+          <option value="low">Low (&lt;30)</option>
         </select>
-        <select className={gapControl}>
-          <option>Domain Authority: All</option>
+        <select
+          className={gapControl}
+          value={daFilter}
+          onChange={(e) => setDaFilter(e.target.value as typeof daFilter)}
+        >
+          <option value="all">Domain Authority: All</option>
+          <option value="high">High (60+)</option>
+          <option value="medium">Medium (30–59)</option>
+          <option value="low">Low (&lt;30)</option>
         </select>
-        <button type="button" className="text-[12px] font-semibold text-[#667085] hover:text-[#344054]">
-          + More Filters
-        </button>
-        <button type="button" className={cn(mock.btnSecondary, "ml-auto h-9")}>
+        <button type="button" onClick={exportMatrixCsv} className={cn(mock.btnSecondary, "ml-auto h-9")}>
           <Download className="h-3.5 w-3.5" />
           Export
         </button>
