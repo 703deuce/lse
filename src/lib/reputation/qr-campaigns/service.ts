@@ -460,6 +460,7 @@ export async function duplicateQrCampaign(params: {
     brandColor: existing.brandColor,
     printFormat: existing.printFormat === "qr_only" ? "letter" : existing.printFormat,
     showFooter: existing.showFooter,
+    templateKey: existing.templateKey,
     posterConfig: existing.posterConfig,
     status: "active",
     source: "app",
