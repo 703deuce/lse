@@ -169,6 +169,7 @@ export function isCsrfExemptPath(pathname: string): boolean {
     pathname.startsWith("/api/public/qr") ||
     pathname.startsWith("/api/public/review-reply") ||
     pathname.startsWith("/api/public/maps-rank-check") ||
+    pathname.startsWith("/api/public/local-seo-audit") ||
     // Marketing contact form (cross-origin POST from localseoexpress.com)
     pathname.startsWith("/api/public/contact")
   );

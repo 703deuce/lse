@@ -138,6 +138,20 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        source: "/tools/local-seo-audit",
+        headers: [
+          { key: "Content-Security-Policy", value: embedCsp },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
+      },
+      {
+        source: "/tools/local-seo-audit/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: embedCsp },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
+      },
+      {
         source: "/api/public/contact",
         headers: [
           { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
@@ -169,6 +183,18 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/api/public/maps-rank-check/:path*",
+        headers: [
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
+      },
+      {
+        source: "/api/public/local-seo-audit",
+        headers: [
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
+      },
+      {
+        source: "/api/public/local-seo-audit/:path*",
         headers: [
           { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
         ],

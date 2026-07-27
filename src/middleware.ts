@@ -32,11 +32,13 @@ const PUBLIC_PREFIXES = [
   "/tools/review-response-generator",
   "/tools/google-review-widget",
   "/tools/google-maps-rank-checker",
+  "/tools/local-seo-audit",
   "/google-review-qr-code-generator",
   "/api/public/qr",
   "/api/public/contact",
   "/api/public/review-reply",
   "/api/public/maps-rank-check",
+  "/api/public/local-seo-audit",
 ];
 
 function isPublicPath(pathname: string): boolean {
@@ -58,12 +60,15 @@ function isProtectedPath(pathname: string): boolean {
     pathname.startsWith("/tools/google-review-widget/") ||
     pathname === "/tools/google-maps-rank-checker" ||
     pathname.startsWith("/tools/google-maps-rank-checker/") ||
+    pathname === "/tools/local-seo-audit" ||
+    pathname.startsWith("/tools/local-seo-audit/") ||
     pathname === "/google-review-qr-code-generator" ||
     pathname.startsWith("/google-review-qr-code-generator/") ||
     pathname.startsWith("/api/public/qr") ||
     pathname.startsWith("/api/public/contact") ||
     pathname.startsWith("/api/public/review-reply") ||
     pathname.startsWith("/api/public/maps-rank-check") ||
+    pathname.startsWith("/api/public/local-seo-audit") ||
     pathname.startsWith("/go/")
   ) {
     return false;

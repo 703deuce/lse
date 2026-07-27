@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { Copy, Loader2, Search, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  FreeToolField,
+  FreeToolShell,
+  freeToolInputClass,
+  freeToolPrimaryBtnClass,
+} from "@/components/tools/free-tool-shell";
 
 type PlaceCandidate = {
   place_id: string;
@@ -16,9 +21,9 @@ type PlaceCandidate = {
 type LayoutId = "badge" | "bar" | "cards";
 
 const LAYOUTS: { id: LayoutId; label: string; blurb: string }[] = [
-  { id: "badge", label: "Review badge", blurb: "Compact stars + rating for sidebars and footers." },
-  { id: "bar", label: "Review bar", blurb: "Full-width strip with rating and CTA." },
-  { id: "cards", label: "Review cards", blurb: "Show up to three customer quotes." },
+  { id: "badge", label: "Badge", blurb: "Compact stars + rating" },
+  { id: "bar", label: "Bar", blurb: "Full-width review strip" },
+  { id: "cards", label: "Cards", blurb: "Up to 3 review quotes" },
 ];
 
 function escapeHtml(value: string): string {
@@ -113,26 +118,6 @@ ${cards}
 </div>`;
 }
 
-function buildJsonLd(params: {
-  businessName: string;
-  rating: number;
-  reviewCount: number;
-}): string {
-  const payload = {
-    "@context": "https://schema.org",
-    "@type": "LocalBusiness",
-    name: params.businessName || "Business",
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: Number(params.rating.toFixed(1)),
-      reviewCount: Math.max(0, Math.floor(params.reviewCount || 0)),
-      bestRating: 5,
-      worstRating: 1,
-    },
-  };
-  return `<script type="application/ld+json">\n${JSON.stringify(payload, null, 2)}\n</script>`;
-}
-
 export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
@@ -141,12 +126,12 @@ export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
   const [businessName, setBusinessName] = useState("");
   const [placeId, setPlaceId] = useState("");
   const [rating, setRating] = useState(4.8);
-  const [reviewCount, setReviewCount] = useState(120);
+  const [reviewCount, setReviewCount] = useState(35);
   const [layout, setLayout] = useState<LayoutId>("badge");
   const [quote1, setQuote1] = useState("");
   const [quote2, setQuote2] = useState("");
   const [quote3, setQuote3] = useState("");
-  const [copied, setCopied] = useState<"embed" | "jsonld" | null>(null);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -170,11 +155,6 @@ export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
     [layout, businessName, placeId, rating, reviewCount, quote1, quote2, quote3]
   );
 
-  const jsonLd = useMemo(
-    () => buildJsonLd({ businessName, rating, reviewCount }),
-    [businessName, rating, reviewCount]
-  );
-
   async function searchPlaces() {
     setSearching(true);
     setError(null);
@@ -192,7 +172,7 @@ export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
       if (!res.ok) throw new Error(json.error || "Search failed");
       setCandidates(json.candidates ?? []);
       if (!(json.candidates ?? []).length) {
-        setError("No matching businesses found. Enter details manually below.");
+        setError("No matching businesses found. Enter details manually.");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Search failed");
@@ -201,55 +181,69 @@ export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
     }
   }
 
-  async function copy(kind: "embed" | "jsonld") {
-    await navigator.clipboard.writeText(kind === "embed" ? embedCode : jsonLd);
-    setCopied(kind);
-    window.setTimeout(() => setCopied(null), 1600);
+  async function copyEmbed() {
+    await navigator.clipboard.writeText(embedCode);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
   }
 
   return (
-    <div className={cn(embed ? "min-h-screen bg-[#F7FAF8] p-4" : "mx-auto max-w-3xl px-4 py-10")}>
-      {!embed ? (
-        <div className="mb-8">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#027A48]">
-            Free tool
-          </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#0B1220]">
-            Google Review Widget Generator
-          </h1>
-          <p className="mt-2 text-[15px] text-[#667085]">
-            Choose a layout and copy embeddable HTML for your website—or a simple review badge.
-          </p>
-        </div>
-      ) : null}
-
-      <div className="space-y-5 rounded-2xl border border-[#E6EAF0] bg-white p-5 shadow-sm">
+    <FreeToolShell
+      embed={embed}
+      title="Google Review Widget Generator"
+      subtitle="Select a style, customize your reviews, and copy embed code for your website."
+      steps={[
+        { label: "Select a style" },
+        { label: "Choose your reviews" },
+        { label: "Customize widget" },
+        { label: "Embed on website" },
+      ]}
+    >
+      <div className="mb-5 flex flex-wrap items-end gap-4 rounded-2xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-[#344054]">
-            Find your Google Business Profile
-          </label>
-          <div className="flex gap-2">
-            <input
-              className="h-11 flex-1 rounded-lg border border-[#D0D5DD] px-3 text-sm outline-none focus:border-[#137752]"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Business name + city"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void searchPlaces();
-              }}
-            />
-            <button
-              type="button"
-              disabled={searching || query.trim().length < 2}
-              onClick={() => void searchPlaces()}
-              className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#137752] px-4 text-sm font-semibold text-white disabled:opacity-50"
-            >
-              {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              Search
-            </button>
+          <p className="text-[11px] font-bold uppercase tracking-wide text-[#667085]">Average rating</p>
+          <div className="mt-1 flex items-center gap-2">
+            <span className="text-3xl font-extrabold text-[#0B1220]">{rating.toFixed(1)}</span>
+            <span className="text-[#FDB022]">★★★★★</span>
           </div>
+        </div>
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-wide text-[#667085]">Total reviews</p>
+          <p className="mt-1 text-2xl font-extrabold text-[#0B1220]">{reviewCount}</p>
+        </div>
+        <div className="ml-auto flex items-center gap-2 text-sm font-semibold text-[#137752]">
+          <Star className="h-4 w-4" />
+          Live preview updates as you edit
+        </div>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
+        <div className="space-y-4">
+          <FreeToolField label="Find your Google Business Profile">
+            <div className="flex gap-2">
+              <input
+                className={freeToolInputClass}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Business name + city"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void searchPlaces();
+                }}
+              />
+              <button
+                type="button"
+                disabled={searching || query.trim().length < 2}
+                onClick={() => void searchPlaces()}
+                className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#D0D5DD] px-3 text-sm font-bold text-[#344054] disabled:opacity-50"
+              >
+                {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                Find
+              </button>
+            </div>
+          </FreeToolField>
+
           {candidates.length > 0 ? (
-            <ul className="mt-2 max-h-48 overflow-auto rounded-lg border border-[#E6EAF0]">
+            <ul className="max-h-40 overflow-auto rounded-xl border border-[#E6EAF0]">
               {candidates.map((c) => (
                 <li key={c.place_id}>
                   <button
@@ -257,7 +251,7 @@ export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
                     onClick={() => setSelected(c)}
                     className={cn(
                       "w-full border-b border-[#F2F4F7] px-3 py-2 text-left text-sm last:border-0 hover:bg-[#F7FAF8]",
-                      selected?.place_id === c.place_id && "bg-[#ECFDF3]"
+                      selected?.place_id === c.place_id && "bg-[#ECFDF5]"
                     )}
                   >
                     <span className="font-semibold text-[#0B1220]">{c.name}</span>
@@ -267,153 +261,81 @@ export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
               ))}
             </ul>
           ) : null}
-        </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block sm:col-span-2">
-            <span className="mb-1 block text-[12px] font-semibold text-[#344054]">Business name</span>
-            <input
-              className="h-11 w-full rounded-lg border border-[#D0D5DD] px-3 text-sm outline-none focus:border-[#137752]"
-              value={businessName}
-              onChange={(e) => setBusinessName(e.target.value)}
-              placeholder="Acme Plumbing"
-            />
-          </label>
-          <label className="block sm:col-span-2">
-            <span className="mb-1 block text-[12px] font-semibold text-[#344054]">
-              Google Place ID (for review link)
-            </span>
-            <input
-              className="h-11 w-full rounded-lg border border-[#D0D5DD] px-3 text-sm outline-none focus:border-[#137752]"
-              value={placeId}
-              onChange={(e) => setPlaceId(e.target.value)}
-              placeholder="ChIJ…"
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-semibold text-[#344054]">Rating</span>
-            <input
-              type="number"
-              min={1}
-              max={5}
-              step={0.1}
-              className="h-11 w-full rounded-lg border border-[#D0D5DD] px-3 text-sm outline-none focus:border-[#137752]"
-              value={rating}
-              onChange={(e) => setRating(Number(e.target.value))}
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-semibold text-[#344054]">Review count</span>
-            <input
-              type="number"
-              min={0}
-              className="h-11 w-full rounded-lg border border-[#D0D5DD] px-3 text-sm outline-none focus:border-[#137752]"
-              value={reviewCount}
-              onChange={(e) => setReviewCount(Number(e.target.value))}
-            />
-          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FreeToolField label="Business name">
+              <input className={freeToolInputClass} value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
+            </FreeToolField>
+            <FreeToolField label="Place ID">
+              <input className={freeToolInputClass} value={placeId} onChange={(e) => setPlaceId(e.target.value)} placeholder="ChIJ…" />
+            </FreeToolField>
+            <FreeToolField label="Rating">
+              <input type="number" min={1} max={5} step={0.1} className={freeToolInputClass} value={rating} onChange={(e) => setRating(Number(e.target.value))} />
+            </FreeToolField>
+            <FreeToolField label="Review count">
+              <input type="number" min={0} className={freeToolInputClass} value={reviewCount} onChange={(e) => setReviewCount(Number(e.target.value))} />
+            </FreeToolField>
+          </div>
+
+          <div>
+            <p className="mb-1.5 text-[12px] font-bold text-[#344054]">1. Select a style</p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {LAYOUTS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setLayout(item.id)}
+                  className={cn(
+                    "rounded-xl border p-3 text-left",
+                    layout === item.id ? "border-[#137752] bg-[#ECFDF5]" : "border-[#D0D5DD] bg-white"
+                  )}
+                >
+                  <span className="block text-[13px] font-bold text-[#0B1220]">{item.label}</span>
+                  <span className="mt-1 block text-[11px] text-[#667085]">{item.blurb}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {layout === "cards" ? (
+            <div className="space-y-2">
+              <p className="text-[12px] font-bold text-[#344054]">2. Choose your reviews (optional quotes)</p>
+              {[quote1, quote2, quote3].map((q, i) => (
+                <textarea
+                  key={i}
+                  className={cn(freeToolInputClass, "min-h-[64px] h-auto py-2")}
+                  value={q}
+                  onChange={(e) => {
+                    const setters = [setQuote1, setQuote2, setQuote3];
+                    setters[i]?.(e.target.value);
+                  }}
+                  placeholder={`Review quote ${i + 1}`}
+                />
+              ))}
+            </div>
+          ) : null}
+
+          {error ? <p className="text-sm text-[#B42318]">{error}</p> : null}
+
+          <button type="button" onClick={() => void copyEmbed()} className={cn(freeToolPrimaryBtnClass, "w-full sm:w-auto")}>
+            <Copy className="h-4 w-4" />
+            {copied ? "Copied embed code" : "Generate Widget"}
+          </button>
         </div>
 
         <div>
-          <span className="mb-1.5 block text-[12px] font-semibold text-[#344054]">Layout</span>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {LAYOUTS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setLayout(item.id)}
-                className={cn(
-                  "rounded-xl border p-3 text-left",
-                  layout === item.id
-                    ? "border-[#137752] bg-[#ECFDF3]"
-                    : "border-[#D0D5DD] bg-white"
-                )}
-              >
-                <span className="block text-[13px] font-semibold text-[#0B1220]">{item.label}</span>
-                <span className="mt-1 block text-[11px] text-[#667085]">{item.blurb}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {layout === "cards" ? (
-          <div className="grid gap-2">
-            <span className="text-[12px] font-semibold text-[#344054]">
-              Optional review quotes (up to 3)
-            </span>
-            {[quote1, quote2, quote3].map((q, i) => (
-              <textarea
-                key={i}
-                className="min-h-[64px] w-full rounded-lg border border-[#D0D5DD] px-3 py-2 text-sm outline-none focus:border-[#137752]"
-                value={q}
-                onChange={(e) => {
-                  const setters = [setQuote1, setQuote2, setQuote3];
-                  setters[i]?.(e.target.value);
-                }}
-                placeholder={`Customer quote ${i + 1}`}
-              />
-            ))}
-          </div>
-        ) : null}
-
-        {error ? <p className="text-sm text-[#B42318]">{error}</p> : null}
-
-        <div>
-          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#027A48]">
-            Live preview
-          </p>
+          <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-[#137752]">Widget preview</p>
           <div
-            className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4"
+            className="rounded-2xl border border-[#E6EAF0] bg-[#F9FAFB] p-4"
             dangerouslySetInnerHTML={{ __html: embedCode }}
           />
-        </div>
-
-        <div>
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-[12px] font-semibold text-[#344054]">Embed code</p>
-            <button
-              type="button"
-              onClick={() => void copy("embed")}
-              className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#027A48]"
-            >
-              <Copy className="h-3.5 w-3.5" />
-              {copied === "embed" ? "Copied" : "Copy HTML"}
-            </button>
-          </div>
           <textarea
             readOnly
-            className="min-h-[140px] w-full rounded-lg border border-[#D0D5DD] bg-[#F9FAFB] px-3 py-2 font-mono text-[11px] text-[#344054]"
+            className={cn(freeToolInputClass, "mt-3 min-h-[160px] h-auto py-2 font-mono text-[11px] text-[#344054]")}
             value={embedCode}
           />
         </div>
-
-        <div>
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-[12px] font-semibold text-[#344054]">Review snippet (JSON-LD)</p>
-            <button
-              type="button"
-              onClick={() => void copy("jsonld")}
-              className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#027A48]"
-            >
-              <Copy className="h-3.5 w-3.5" />
-              {copied === "jsonld" ? "Copied" : "Copy"}
-            </button>
-          </div>
-          <textarea
-            readOnly
-            className="min-h-[120px] w-full rounded-lg border border-[#D0D5DD] bg-[#F9FAFB] px-3 py-2 font-mono text-[11px] text-[#344054]"
-            value={jsonLd}
-          />
-        </div>
-
-        <p className="flex items-start gap-2 rounded-lg bg-[#ECFDF3] px-3 py-2 text-[12px] text-[#144C34]">
-          <Star className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          Want live review sync and request campaigns?{" "}
-          <Link href="/sign-up" className="font-semibold underline">
-            Start free
-          </Link>
-        </p>
       </div>
-    </div>
+    </FreeToolShell>
   );
 }

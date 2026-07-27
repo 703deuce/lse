@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import { fetchMapsResults } from "@/lib/keyword-tracker/rank-check";
 import { matchTargetInResults } from "@/lib/providers/dataforseo/match-target";
-import { rankBucketFromRank, visibilityFromRank } from "@/lib/keyword-tracker/visibility";
 import { mapsSearch } from "@/lib/providers/scrapingdog";
 import { myBusinessInfo } from "@/lib/providers/dataforseo";
+import { generateGrid, computeAggregateMetrics } from "@/lib/maps/grid";
+import { milesToMeters } from "@/lib/maps/grid-metrics";
 import { publicToolCorsHeaders } from "@/lib/public/cors";
 import { assertRateLimit } from "@/lib/security/rate-limit";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -63,15 +64,12 @@ async function resolveCoords(params: {
         city: null,
         state: null,
         country: "United States",
+        placeId: params.placeId,
       }),
       8000
     );
     const match = dfs.find((r) => r.place_id === params.placeId) ?? dfs[0];
-    if (
-      match &&
-      typeof match.latitude === "number" &&
-      typeof match.longitude === "number"
-    ) {
+    if (match && typeof match.latitude === "number" && typeof match.longitude === "number") {
       return { lat: match.latitude, lng: match.longitude };
     }
   } catch {
@@ -79,6 +77,23 @@ async function resolveCoords(params: {
   }
 
   return null;
+}
+
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  async function run() {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await worker(items[i]!, i);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => run()));
+  return results;
 }
 
 export async function OPTIONS(request: Request) {
@@ -97,7 +112,7 @@ export async function POST(request: Request) {
       "unknown";
     const rate = await assertRateLimit({
       key: `public-maps-rank:${ip}`,
-      maxPerWindow: 5,
+      maxPerWindow: 3,
       windowMs: 60 * 60 * 1000,
     });
     if (!rate.ok) {
@@ -147,42 +162,70 @@ export async function POST(request: Request) {
       );
     }
 
-    const { items, provider } = await fetchMapsResults({
-      keyword,
-      lat: coords.lat,
-      lng: coords.lng,
+    const points = generateGrid({
+      centerLat: coords.lat,
+      centerLng: coords.lng,
+      gridSize: 3,
+      radiusMeters: milesToMeters(1),
     });
 
-    const match = matchTargetInResults(
-      items,
-      { name, place_id: placeId },
-      items.length
-    );
-    const rank = match.found ? match.rank : null;
+    const cellResults = await mapPool(points, 3, async (point) => {
+      try {
+        const { items } = await fetchMapsResults({
+          keyword,
+          lat: point.lat,
+          lng: point.lng,
+        });
+        const match = matchTargetInResults(items, { name, place_id: placeId }, items.length);
+        return {
+          label: point.label,
+          row: point.row,
+          col: point.col,
+          lat: point.lat,
+          lng: point.lng,
+          rank: match.found ? match.rank : null,
+          found: match.found,
+          top_results: items.slice(0, 5).map((item, index) => ({
+            rank: index + 1,
+            name: item.title ?? "Unknown",
+            is_you: Boolean(item.place_id && item.place_id === placeId),
+          })),
+        };
+      } catch {
+        return {
+          label: point.label,
+          row: point.row,
+          col: point.col,
+          lat: point.lat,
+          lng: point.lng,
+          rank: null,
+          found: false,
+          top_results: [] as { rank: number; name: string; is_you: boolean }[],
+        };
+      }
+    });
+
+    const metrics = computeAggregateMetrics(cellResults.map((c) => c.rank));
+    const center = cellResults.find((c) => c.row === 1 && c.col === 1) ?? cellResults[4];
+    const topCompetitors =
+      center?.top_results?.filter((r) => !r.is_you).slice(0, 5) ??
+      cellResults.flatMap((c) => c.top_results).filter((r) => !r.is_you).slice(0, 5);
 
     return NextResponse.json(
       {
         keyword,
         business: { name, place_id: placeId, address },
         center: coords,
-        rank,
-        found: match.found,
-        rank_bucket: rankBucketFromRank(rank),
-        visibility_score: visibilityFromRank(rank),
-        result_count: items.length,
-        match_reason: match.matchReason,
-        top_results: items.slice(0, 5).map((item, index) => ({
-          rank: index + 1,
-          name: item.title ?? "Unknown",
-          is_you: Boolean(
-            (item.place_id && item.place_id === placeId) ||
-              (match.item && item === match.item)
-          ),
-        })),
-        provider,
+        grid_size: 3,
+        cells: cellResults,
+        average_rank: metrics.averageRank,
+        visibility_score: metrics.visibilityScore,
+        top3_cells: metrics.top3Cells,
+        not_found_cells: metrics.notFoundCells,
+        top_competitors: topCompetitors,
         limited: true,
         upgrade_hint:
-          "Free checks use a single map point. Sign up to run full area grid scans and save history.",
+          "Free checks use a 3×3 grid. Sign up for larger area scans, history, and keyword tracking.",
       },
       { headers }
     );
