@@ -38,6 +38,7 @@ export type SidebarNavChild = {
   href: string;
   label: string;
   badge?: string;
+  locked?: boolean;
 };
 
 export type SidebarNavItem = {
@@ -46,7 +47,14 @@ export type SidebarNavItem = {
   icon: LucideIcon;
   isRankGrid?: boolean;
   badge?: string;
+  /** Paid feature shown during trial but not usable until upgrade */
+  locked?: boolean;
   children?: SidebarNavChild[];
+};
+
+export type SidebarNavOptions = {
+  /** When true (SMB trial), mark paid items locked but keep them visible */
+  trial?: boolean;
 };
 
 export type SidebarNavSection = {
@@ -79,6 +87,7 @@ function buildAgencySidebarNav(businessId?: string | null): {
   work: SidebarNavSection;
   thisLocation: SidebarNavSection | null;
   growthTools: SidebarNavSection;
+  freeTools: SidebarNavSection;
   reputation: SidebarReputationNav;
   textMessaging: SidebarNavSection;
   deliverables: SidebarNavSection;
@@ -138,6 +147,10 @@ function buildAgencySidebarNav(businessId?: string | null): {
         { href: loc("trust", businessId), label: "Local Trust", icon: Award },
         { href: loc("ai-visibility", businessId), label: "AI Visibility", icon: Bot },
       ],
+    },
+    freeTools: {
+      title: "",
+      items: [],
     },
     textMessaging: {
       title: "Text Messaging",
@@ -243,8 +256,16 @@ function buildAgencySidebarNav(businessId?: string | null): {
 
 /**
  * One-business SMB launch nav — agency features stay in code but off this menu.
+ * During trial, paid items stay visible with `locked: true`.
  */
-function buildSmbSidebarNav(businessId?: string | null): ReturnType<typeof buildAgencySidebarNav> {
+function buildSmbSidebarNav(
+  businessId?: string | null,
+  options?: SidebarNavOptions
+): ReturnType<typeof buildAgencySidebarNav> {
+  const trial = Boolean(options?.trial);
+  const upgradeHref = (feature: string) =>
+    `/settings/subscription?upgrade=${encodeURIComponent(feature)}`;
+
   const overviewHref = loc("dashboard", businessId);
   const sendHref = loc("review-requests", businessId);
   const historyHref = businessId
@@ -265,7 +286,13 @@ function buildSmbSidebarNav(businessId?: string | null): ReturnType<typeof build
 
   const reviewItems: SidebarNavItem[] = [
     { href: loc("contacts", businessId), label: "Customers", icon: Users },
-    { href: loc("review-campaigns", businessId), label: "Campaigns", icon: FolderKanban },
+    {
+      href: trial ? upgradeHref("campaigns") : loc("review-campaigns", businessId),
+      label: "Campaigns",
+      icon: FolderKanban,
+      locked: trial,
+      badge: trial ? "Locked" : undefined,
+    },
     { href: loc("review-qr", businessId), label: "QR Code & Review Link", icon: QrCode },
     { href: historyHref, label: "Request History", icon: History },
   ];
@@ -314,9 +341,31 @@ function buildSmbSidebarNav(businessId?: string | null): ReturnType<typeof build
           icon: History,
         },
         {
-          href: loc("maps-campaigns", businessId),
+          href: trial ? upgradeHref("keywords") : loc("maps-campaigns", businessId),
           label: "Keywords",
           icon: FolderKanban,
+          locked: trial,
+          badge: trial ? "Locked" : undefined,
+        },
+      ],
+    },
+    freeTools: {
+      title: "Free Tools",
+      items: [
+        {
+          href: "/tools/review-response-generator",
+          label: "Review Reply",
+          icon: MessageSquareText,
+        },
+        {
+          href: "/tools/google-review-widget",
+          label: "Review Widget",
+          icon: Star,
+        },
+        {
+          href: "/tools/google-maps-rank-checker",
+          label: "Scan Maps",
+          icon: Grid3X3,
         },
       ],
     },
@@ -333,9 +382,11 @@ function buildSmbSidebarNav(businessId?: string | null): ReturnType<typeof build
           icon: FileSearch,
         },
         {
-          href: loc("growth-audit", businessId),
+          href: trial ? upgradeHref("complete-audit") : loc("growth-audit", businessId),
           label: "Complete Audit",
           icon: ClipboardList,
+          locked: trial,
+          badge: trial ? "Locked" : undefined,
         },
       ],
     },
@@ -348,9 +399,11 @@ function buildSmbSidebarNav(businessId?: string | null): ReturnType<typeof build
           icon: Building2,
         },
         {
-          href: messagingHref,
+          href: trial ? upgradeHref("messaging") : messagingHref,
           label: "Messaging",
           icon: Phone,
+          locked: trial,
+          badge: trial ? "Locked" : undefined,
         },
         {
           href: loc("review-settings", businessId),
@@ -371,11 +424,12 @@ function buildSmbSidebarNav(businessId?: string | null): ReturnType<typeof build
  * One sidebar for the whole app.
  * SMB launch is default; set NEXT_PUBLIC_NAV_MODE=agency for the full consultant nav.
  */
-export function buildUnifiedSidebarNav(businessId?: string | null): ReturnType<
-  typeof buildAgencySidebarNav
-> {
+export function buildUnifiedSidebarNav(
+  businessId?: string | null,
+  options?: SidebarNavOptions
+): ReturnType<typeof buildAgencySidebarNav> {
   if (isSmbLaunchNavEnabled()) {
-    return buildSmbSidebarNav(businessId);
+    return buildSmbSidebarNav(businessId, options);
   }
   return buildAgencySidebarNav(businessId);
 }

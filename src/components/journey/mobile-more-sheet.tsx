@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Lock, X } from "lucide-react";
 import { useDashboardUI } from "@/components/dashboard/dashboard-context";
 import {
   buildUnifiedSidebarNav,
   isSidebarHrefActive,
 } from "@/components/dashboard/dashboard-nav";
+import { organizationLooksLikeTrial } from "@/lib/auth/trial-status";
 import { cn } from "@/lib/utils";
 
 function businessIdFromPath(pathname: string): string | null {
@@ -27,7 +29,24 @@ export function MobileMoreSheet() {
   const pathname = usePathname();
   const { mobileNavOpen, setMobileNavOpen } = useDashboardUI();
   const businessId = businessIdFromPath(pathname);
-  const nav = buildUnifiedSidebarNav(businessId);
+  const [trial, setTrial] = useState(false);
+  const nav = buildUnifiedSidebarNav(businessId, { trial });
+
+  useEffect(() => {
+    void fetch("/api/account/usage")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (json?.organization) {
+          setTrial(
+            organizationLooksLikeTrial({
+              plan: json.organization.plan,
+              billing_status: json.organization.billing_status,
+            })
+          );
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   if (!mobileNavOpen) return null;
 
@@ -49,6 +68,7 @@ export function MobileMoreSheet() {
       items: [nav.reputation.overview, ...nav.reputation.groups.flatMap((g) => g.items)],
     },
     { title: nav.growthTools.title, items: nav.growthTools.items },
+    { title: nav.freeTools.title, items: nav.freeTools.items },
     { title: nav.textMessaging.title, items: nav.textMessaging.items },
     { title: nav.deliverables.title, items: nav.deliverables.items },
     { title: nav.account.title, items: nav.account.items },
@@ -90,35 +110,43 @@ export function MobileMoreSheet() {
               <ul className="grid grid-cols-2 gap-2">
                 {section.items.map((item) => {
                   const Icon = item.icon;
-                  const active = isSidebarHrefActive(pathname, item.href, businessId, {
-                    isRankGrid: item.isRankGrid,
-                    exact: Boolean(item.children?.length),
-                  });
+                  const active =
+                    !item.locked &&
+                    isSidebarHrefActive(pathname, item.href, businessId, {
+                      isRankGrid: item.isRankGrid,
+                      exact: Boolean(item.children?.length),
+                    });
                   return (
                     <li key={`${item.label}-${item.href}`}>
                       <Link
                         href={item.href}
                         onClick={close}
+                        title={item.locked ? "Upgrade to unlock" : undefined}
                         className={cn(
                           "flex items-center gap-2.5 rounded-xl border border-zinc-200/70 bg-white px-3 py-3 text-[13px] font-medium shadow-sm",
-                          active
-                            ? "border-emerald-200 bg-emerald-50/80 text-emerald-800"
-                            : "text-zinc-700 hover:border-emerald-200 hover:bg-emerald-50/40"
+                          item.locked
+                            ? "text-zinc-500"
+                            : active
+                              ? "border-emerald-200 bg-emerald-50/80 text-emerald-800"
+                              : "text-zinc-700 hover:border-emerald-200 hover:bg-emerald-50/40"
                         )}
                       >
                         <span
                           className={cn(
                             "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset",
-                            active
-                              ? "bg-emerald-100 text-emerald-700 ring-emerald-200"
-                              : "bg-emerald-50 text-emerald-600 ring-emerald-100"
+                            item.locked
+                              ? "bg-zinc-100 text-zinc-500 ring-zinc-200"
+                              : active
+                                ? "bg-emerald-100 text-emerald-700 ring-emerald-200"
+                                : "bg-emerald-50 text-emerald-600 ring-emerald-100"
                           )}
                         >
                           <Icon className="h-3.5 w-3.5" />
                         </span>
-                        <span className="min-w-0 truncate">
-                          {item.badge ? `${item.label} · ${item.badge}` : item.label}
-                        </span>
+                        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                        {item.locked ? (
+                          <Lock className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden />
+                        ) : null}
                       </Link>
                     </li>
                   );

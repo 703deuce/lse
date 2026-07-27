@@ -10,10 +10,14 @@ import {
   Target,
 } from "lucide-react";
 import { requireBusinessPageData } from "@/lib/auth/require-business-page";
+import { isTrialOrganization } from "@/lib/auth/trial";
+import { isSmbLaunchNavEnabled } from "@/lib/product/smb-launch";
 import { DashboardRecentScans } from "@/components/overview/dashboard-recent-scans";
+import { TrialDashboard } from "@/components/overview/trial-dashboard";
 import { loadDashboardRecentScans } from "@/lib/overview/load-dashboard-scans";
 import { loadDashboardFeatured } from "@/lib/overview/load-dashboard-featured";
 import { getLatestGrowthAuditRun } from "@/lib/growth-audit/queries";
+import { getCurrentUsage, getOrganizationPlan } from "@/lib/plans";
 import { MockMetricCard, MockTabs, mock } from "@/components/mockup/ui";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +32,15 @@ function formatShortDate(iso: string | null | undefined): string {
   });
 }
 
+function bestRankFromCells(ranks: Array<number | null>): number | null {
+  let best: number | null = null;
+  for (const rank of ranks) {
+    if (rank == null || rank <= 0) continue;
+    if (best == null || rank < best) best = rank;
+  }
+  return best;
+}
+
 export default async function BusinessOverviewPage({
   params,
 }: {
@@ -37,11 +50,43 @@ export default async function BusinessOverviewPage({
   const auth = await requireBusinessPageData(businessId);
   const business = auth.business;
 
-  const [recentScans, featured, latestGrowthAudit] = await Promise.all([
+  const [recentScans, featured, latestGrowthAudit, trial] = await Promise.all([
     loadDashboardRecentScans(businessId, { preview: 8 }),
     loadDashboardFeatured(businessId),
     getLatestGrowthAuditRun(businessId).catch(() => null),
+    isTrialOrganization(auth.organizationId),
   ]);
+
+  if (trial && isSmbLaunchNavEnabled()) {
+    const [usage, plan] = await Promise.all([
+      getCurrentUsage(auth.organizationId),
+      getOrganizationPlan(auth.organizationId),
+    ]);
+    const userName =
+      auth.email?.split("@")[0]?.replace(/[._]/g, " ") ||
+      business.name.split(" ")[0] ||
+      "there";
+
+    return (
+      <TrialDashboard
+        businessId={businessId}
+        businessName={business.name}
+        userName={userName}
+        rating={featured.review.rating}
+        reviewCount={featured.review.totalReviews}
+        creditsUsed={usage.map_credits_used}
+        creditsLimit={plan.limits.map_credits_month}
+        recentScans={recentScans.rows.slice(0, 5).map((row) => ({
+          id: row.id,
+          keyword: row.keyword || "Untitled scan",
+          location: row.locationLabel,
+          dateLabel: formatShortDate(row.finishedAt || row.createdAt),
+          sov: row.solv != null ? Math.round(row.solv * 10) / 10 : null,
+          bestRank: bestRankFromCells(row.ranks) ?? (row.arp != null ? Math.round(row.arp) : null),
+        }))}
+      />
+    );
+  }
 
   const accountType = (business as { account_type?: string | null }).account_type;
   const place =

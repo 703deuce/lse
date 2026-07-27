@@ -6,9 +6,11 @@ import { Suspense, useEffect, useState, type ComponentType } from "react";
 import {
   Building2,
   ChevronDown,
+  Lock,
   MapPin,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { organizationLooksLikeTrial } from "@/lib/auth/trial-status";
 import { SidebarUserMenu } from "@/components/auth/sidebar-user-menu";
 import { BusinessSwitcher } from "@/components/dashboard/business-switcher";
 import {
@@ -23,6 +25,7 @@ function SidebarNavItemRow({
   label,
   icon: Icon,
   active,
+  locked,
   staticLinks,
   onNavigate,
 }: {
@@ -30,24 +33,33 @@ function SidebarNavItemRow({
   label: string;
   icon: ComponentType<{ className?: string }>;
   active: boolean;
+  locked?: boolean;
   staticLinks?: boolean;
   onNavigate?: () => void;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const showActive = mounted && active;
+  const showActive = mounted && active && !locked;
 
   const className = cn(
     "relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors",
-    showActive
-      ? "bg-[#137752] text-white"
-      : "text-slate-300 hover:bg-white/5 hover:text-white"
+    locked
+      ? "text-slate-500 hover:bg-white/5 hover:text-slate-300"
+      : showActive
+        ? "bg-[#137752] text-white"
+        : "text-slate-300 hover:bg-white/5 hover:text-white"
   );
 
   const content = (
     <>
-      <Icon className={cn("h-4 w-4 shrink-0", showActive ? "text-white" : "text-slate-400")} />
-      {label}
+      <Icon
+        className={cn(
+          "h-4 w-4 shrink-0",
+          locked ? "text-slate-500" : showActive ? "text-white" : "text-slate-400"
+        )}
+      />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {locked ? <Lock className="h-3.5 w-3.5 shrink-0 text-amber-400/90" aria-hidden /> : null}
     </>
   );
 
@@ -60,6 +72,7 @@ function SidebarNavItemRow({
       href={href}
       suppressHydrationWarning
       className={className}
+      title={locked ? "Upgrade to unlock" : undefined}
       onClick={() => onNavigate?.()}
     >
       {content}
@@ -144,6 +157,7 @@ function ReputationNavSection({
           label={overview.label}
           icon={overview.icon}
           active={isSidebarHrefActive(pathname, overview.href, businessId)}
+          locked={overview.locked}
           staticLinks={staticLinks}
           onNavigate={onNavigate}
         />
@@ -159,9 +173,10 @@ function ReputationNavSection({
                 <SidebarNavItemRow
                   key={`${item.label}-${item.href}`}
                   href={item.href}
-                  label={item.badge ? `${item.label} · ${item.badge}` : item.label}
+                  label={item.label}
                   icon={item.icon}
                   active={isSidebarHrefActive(pathname, item.href, businessId)}
+                  locked={item.locked}
                   staticLinks={staticLinks}
                   onNavigate={onNavigate}
                 />
@@ -202,12 +217,13 @@ function NavSection({
           <div key={`${item.label}-${item.href}`}>
             <SidebarNavItemRow
               href={item.href}
-              label={item.badge ? `${item.label} · ${item.badge}` : item.label}
+              label={item.label}
               icon={item.icon}
               active={isSidebarHrefActive(pathname, item.href, businessId, {
                 isRankGrid: item.isRankGrid,
                 exact: Boolean(item.children?.length),
               })}
+              locked={item.locked}
               staticLinks={staticLinks}
               onNavigate={onNavigate}
             />
@@ -235,6 +251,7 @@ export function DashboardSidebarPanel({
   businessName,
   staticLinks = false,
   showFooter = true,
+  trial = false,
   className,
   onNavigate,
 }: {
@@ -243,10 +260,12 @@ export function DashboardSidebarPanel({
   businessName?: string | null;
   staticLinks?: boolean;
   showFooter?: boolean;
+  /** When true, paid SMB features stay visible but locked */
+  trial?: boolean;
   className?: string;
   onNavigate?: () => void;
 }) {
-  const nav = buildUnifiedSidebarNav(businessId);
+  const nav = buildUnifiedSidebarNav(businessId, { trial });
 
   return (
     <aside
@@ -307,6 +326,7 @@ export function DashboardSidebarPanel({
             label={nav.getStarted.label}
             icon={nav.getStarted.icon}
             active={isSidebarHrefActive(pathname, nav.getStarted.href, businessId)}
+            locked={nav.getStarted.locked}
             staticLinks={staticLinks}
             onNavigate={onNavigate}
           />
@@ -333,6 +353,14 @@ export function DashboardSidebarPanel({
           title={nav.reputation.title}
           overview={nav.reputation.overview}
           groups={nav.reputation.groups}
+          businessId={businessId}
+          pathname={pathname}
+          staticLinks={staticLinks}
+          onNavigate={onNavigate}
+        />
+        <NavSection
+          title={nav.freeTools.title}
+          items={nav.freeTools.items}
           businessId={businessId}
           pathname={pathname}
           staticLinks={staticLinks}
@@ -422,6 +450,7 @@ function DashboardSidebarInner({
 }) {
   const pathname = usePathname();
   const [businessName, setBusinessName] = useState<string | null>(null);
+  const [trial, setTrial] = useState(false);
 
   useEffect(() => {
     if (!businessId) {
@@ -436,11 +465,28 @@ function DashboardSidebarInner({
       .catch(() => undefined);
   }, [businessId]);
 
+  useEffect(() => {
+    void fetch("/api/account/usage")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (json?.organization) {
+          setTrial(
+            organizationLooksLikeTrial({
+              plan: json.organization.plan,
+              billing_status: json.organization.billing_status,
+            })
+          );
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
   return (
     <DashboardSidebarPanel
       businessId={businessId}
       pathname={pathname}
       businessName={businessName}
+      trial={trial}
       className={className}
       onNavigate={onNavigate}
     />
