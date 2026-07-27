@@ -23,6 +23,11 @@ export const LOCATION_TOOL_MODULES = {
     path: "growth-audit",
     description: "Find gaps across profile, website, coverage, and competitors.",
   },
+  "local-seo-health": {
+    title: "Local SEO Health Assessment",
+    path: "local-seo-health",
+    description: "Trial local SEO health assessment (prospect-level findings).",
+  },
   "backlink-gap": {
     title: "Backlink Gap",
     path: "backlink-gap",

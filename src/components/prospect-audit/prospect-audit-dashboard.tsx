@@ -40,12 +40,20 @@ const INCLUDED_ITEMS = [
   "Local market opportunity",
 ] as const;
 
-const RUNNING_STEPS = [
+const RUNNING_STEPS_PROSPECT = [
   "Checking Google Maps rankings",
   "Identifying local competitors",
   "Auditing business profile signals",
   "Checking AI visibility",
   "Preparing prospect report",
+] as const;
+
+const RUNNING_STEPS_OWNER = [
+  "Checking Google Maps rankings",
+  "Identifying local competitors",
+  "Auditing business profile signals",
+  "Checking AI visibility",
+  "Preparing your health assessment",
 ] as const;
 
 type ViewState = "setup" | "running" | "completed";
@@ -278,23 +286,29 @@ function resolveViewState(report: ProspectAuditReport): ViewState {
 }
 
 function runningStepIndex(report: ProspectAuditReport): number {
-  if (report.status === "ready" || report.status === "shared") return RUNNING_STEPS.length;
+  const total = RUNNING_STEPS_PROSPECT.length;
+  if (report.status === "ready" || report.status === "shared") return total;
   let step = 0;
   if (report.keywordGrids.some((g) => g.status === "running" || g.scanId)) step = Math.max(step, 1);
   if (report.keywordGrids.some((g) => g.cells.length > 0)) step = Math.max(step, 2);
   if (report.competitors.length > 0) step = Math.max(step, 3);
   if (report.checklist.some((c) => c.id === "gbp" && c.done)) step = Math.max(step, 4);
   if (report.metrics.seoScore != null) step = Math.max(step, 5);
-  return Math.min(Math.max(step, 1), RUNNING_STEPS.length);
+  return Math.min(Math.max(step, 1), total);
 }
 
 export function ProspectAuditDashboard({
   businessId,
   initialReport,
+  audience = "prospect",
 }: {
   businessId: string;
   initialReport?: ProspectAuditReport | null;
+  /** Owner = SMB trial health assessment (1 keyword, end-user copy). */
+  audience?: "prospect" | "owner";
 }) {
+  const isOwner = audience === "owner";
+  const maxKeywords = isOwner ? 1 : 3;
   const [report, setReport] = useState<ProspectAuditReport | null>(
     initialReport ?? null
   );
@@ -442,9 +456,16 @@ export function ProspectAuditDashboard({
   }
 
   async function runAudit() {
-    const keywords = [kw1, kw2, kw3].map((k) => k.trim()).filter(Boolean).slice(0, 3);
+    const keywords = [kw1, kw2, kw3]
+      .map((k) => k.trim())
+      .filter(Boolean)
+      .slice(0, maxKeywords);
     if (!keywords.length) {
-      setError("Add at least one keyword to run the prospect audit.");
+      setError(
+        isOwner
+          ? "Add a keyword to run your Local SEO Health Assessment."
+          : "Add at least one keyword to run the prospect audit."
+      );
       return;
     }
     if (!report || !hasUsableScanCenter(report.business)) {
@@ -464,7 +485,7 @@ export function ProspectAuditDashboard({
       const createRes = await fetch("/api/prospect-audits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessId, keywords }),
+        body: JSON.stringify({ businessId, keywords, audience }),
       });
       const created = await createRes.json();
       if (!createRes.ok) throw new Error(created.error ?? "Failed to start");
@@ -568,7 +589,7 @@ export function ProspectAuditDashboard({
     return (
       <div className="flex items-center gap-2 text-sm text-[#667085]">
         <Loader2 className="h-4 w-4 animate-spin" />
-        Loading prospect audit…
+        {isOwner ? "Loading your Local SEO Health Assessment…" : "Loading prospect audit…"}
       </div>
     );
   }
@@ -576,7 +597,7 @@ export function ProspectAuditDashboard({
   if (!report) {
     return (
       <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-        {error ?? "Unable to load prospect audit"}
+        {error ?? (isOwner ? "Unable to load health assessment" : "Unable to load prospect audit")}
       </div>
     );
   }
@@ -592,9 +613,13 @@ export function ProspectAuditDashboard({
     return (
       <div className="mx-auto max-w-2xl space-y-5">
         <div>
-          <h1 className={mock.title}>Prospect Audit</h1>
+          <h1 className={mock.title}>
+            {isOwner ? "Local SEO Health Assessment" : "Prospect Audit"}
+          </h1>
           <p className={mock.subtitle}>
-            Review the business, keywords, and scan settings — then run the audit.
+            {isOwner
+              ? "Confirm your business, keyword, and scan center — then run your trial assessment."
+              : "Review the business, keywords, and scan settings — then run the audit."}
           </p>
         </div>
 
@@ -710,14 +735,16 @@ export function ProspectAuditDashboard({
           </section>
 
           <section>
-            <p className={mock.label}>Keywords to audit</p>
+            <p className={mock.label}>{isOwner ? "Keyword to check" : "Keywords to audit"}</p>
             <p className="mt-1 text-[12px] text-[#667085]">
-              Prefills from the prospect. Edit before running — keyword 1 is required.
+              {isOwner
+                ? "Your free trial includes one keyword Maps scan with this assessment."
+                : "Prefills from the prospect. Edit before running — keyword 1 is required."}
             </p>
             <div className="mt-3 space-y-2">
               <label className="block">
                 <span className="mb-1 block text-[12px] font-medium text-[#475467]">
-                  1. Primary keyword
+                  {isOwner ? "Primary keyword" : "1. Primary keyword"}
                 </span>
                 <input
                   className="w-full rounded-lg border border-[#E6EAF0] px-3 py-2 text-sm outline-none focus:border-[#137752]"
@@ -727,28 +754,32 @@ export function ProspectAuditDashboard({
                   required
                 />
               </label>
-              <label className="block">
-                <span className="mb-1 block text-[12px] font-medium text-[#475467]">
-                  2. Optional
-                </span>
-                <input
-                  className="w-full rounded-lg border border-[#E6EAF0] px-3 py-2 text-sm outline-none focus:border-[#137752]"
-                  value={kw2}
-                  onChange={(e) => setKw2(e.target.value)}
-                  placeholder="Keyword 2 (optional)"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-[12px] font-medium text-[#475467]">
-                  3. Optional
-                </span>
-                <input
-                  className="w-full rounded-lg border border-[#E6EAF0] px-3 py-2 text-sm outline-none focus:border-[#137752]"
-                  value={kw3}
-                  onChange={(e) => setKw3(e.target.value)}
-                  placeholder="Keyword 3 (optional)"
-                />
-              </label>
+              {!isOwner ? (
+                <>
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] font-medium text-[#475467]">
+                      2. Optional
+                    </span>
+                    <input
+                      className="w-full rounded-lg border border-[#E6EAF0] px-3 py-2 text-sm outline-none focus:border-[#137752]"
+                      value={kw2}
+                      onChange={(e) => setKw2(e.target.value)}
+                      placeholder="Keyword 2 (optional)"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] font-medium text-[#475467]">
+                      3. Optional
+                    </span>
+                    <input
+                      className="w-full rounded-lg border border-[#E6EAF0] px-3 py-2 text-sm outline-none focus:border-[#137752]"
+                      value={kw3}
+                      onChange={(e) => setKw3(e.target.value)}
+                      placeholder="Keyword 3 (optional)"
+                    />
+                  </label>
+                </>
+              ) : null}
             </div>
           </section>
 
@@ -790,7 +821,7 @@ export function ProspectAuditDashboard({
             onClick={() => void runAudit()}
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Run Prospect Audit
+            {isOwner ? "Run Health Assessment" : "Run Prospect Audit"}
           </button>
           {!scanReady ? (
             <p className="text-center text-[12px] text-[#B54708]">
@@ -836,10 +867,13 @@ export function ProspectAuditDashboard({
 
   if (viewState === "running") {
     const doneThrough = runningStepIndex(report);
+    const runningSteps = isOwner ? RUNNING_STEPS_OWNER : RUNNING_STEPS_PROSPECT;
     return (
       <div className="mx-auto max-w-xl space-y-5">
         <div>
-          <h1 className={mock.title}>Running Prospect Audit</h1>
+          <h1 className={mock.title}>
+            {isOwner ? "Running Health Assessment" : "Running Prospect Audit"}
+          </h1>
           <p className={mock.subtitle}>
             Building the report for &lsquo;{shortName}&rsquo;. You can leave this page — it keeps
             running.
@@ -855,10 +889,10 @@ export function ProspectAuditDashboard({
         <div className={cn(mock.cardPad, "space-y-4")}>
           <div className="flex items-center gap-2 text-sm font-medium text-[#137752]">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Audit in progress…
+            Assessment in progress…
           </div>
           <ol className="space-y-3">
-            {RUNNING_STEPS.map((label, i) => {
+            {runningSteps.map((label, i) => {
               const stepNum = i + 1;
               const done = stepNum < doneThrough;
               const current = stepNum === doneThrough;
@@ -898,12 +932,17 @@ export function ProspectAuditDashboard({
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <Link href={`/prospects/${businessId}`} className={mock.btnSecondary}>
+          <Link
+            href={isOwner ? `/businesses/${businessId}/overview` : `/prospects/${businessId}`}
+            className={mock.btnSecondary}
+          >
             Leave page
           </Link>
-          <Link href="/prospects/audits" className={mock.link}>
-            All prospect audits
-          </Link>
+          {!isOwner ? (
+            <Link href="/prospects/audits" className={mock.link}>
+              All prospect audits
+            </Link>
+          ) : null}
         </div>
       </div>
     );
@@ -915,12 +954,15 @@ export function ProspectAuditDashboard({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className={mock.title}>Prospect Audit</h1>
+            <h1 className={mock.title}>
+              {isOwner ? "Local SEO Health Assessment" : "Prospect Audit"}
+            </h1>
             <Info className="h-4 w-4 text-[#98A2B3]" />
           </div>
           <p className={mock.subtitle}>
-            A comprehensive SEO audit for &lsquo;{shortName}&rsquo; highlighting key areas for
-            improvement.
+            {isOwner
+              ? `Your trial assessment for ‘${shortName}’ highlights where local visibility problems exist. Upgrade for the complete audit and prioritized fix plan.`
+              : `A comprehensive SEO audit for ‘${shortName}’ highlighting key areas for improvement.`}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -931,22 +973,25 @@ export function ProspectAuditDashboard({
           >
             Configure &amp; Re-run
           </button>
-          <button type="button" className={mock.btnSecondary} onClick={() => void exportPdf()} disabled={busy}>
-            <FileDown className="h-4 w-4" />
-            Export
-          </button>
-          <button type="button" className={mock.btnSecondary} onClick={() => void shareLink()} disabled={busy}>
-            <Link2 className="h-4 w-4" />
-            Share Link
-          </button>
+          {!isOwner ? (
+            <button type="button" className={mock.btnSecondary} onClick={() => void shareLink()} disabled={busy}>
+              <Link2 className="h-4 w-4" />
+              Share Link
+            </button>
+          ) : null}
           <button type="button" className={mock.btnSecondary} onClick={() => void runAudit()} disabled={busy}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Re-run Audit
+            Re-run
           </button>
           <button type="button" className={mock.btnPrimary} onClick={() => void exportPdf()} disabled={busy}>
             <Download className="h-4 w-4" />
             Download PDF
           </button>
+          {isOwner ? (
+            <Link href={`/businesses/${businessId}/growth-audit`} className={mock.btnSecondary}>
+              Unlock Complete Audit
+            </Link>
+          ) : null}
         </div>
       </div>
 
@@ -1103,17 +1148,21 @@ export function ProspectAuditDashboard({
               Keywords: {report.scanInfo.keywords.join(", ") || "—"}
             </p>
             <Link href={`/businesses/${businessId}/growth-audit`} className={mock.link}>
-              Open full Growth Audit
+              {isOwner ? "Unlock Complete Local SEO Audit" : "Open full Growth Audit"}
             </Link>
           </div>
 
           <div className={cn(mock.cardPad, "space-y-3")}>
-            <h2 className="text-[14px] font-bold text-[#101828]">Share Report</h2>
+            <h2 className="text-[14px] font-bold text-[#101828]">
+              {isOwner ? "Download Your Report" : "Share Report"}
+            </h2>
             <div className="flex gap-2">
-              <button type="button" className={mock.btnSecondary} onClick={() => void shareLink()}>
-                <Share2 className="h-4 w-4" />
-                Share
-              </button>
+              {!isOwner ? (
+                <button type="button" className={mock.btnSecondary} onClick={() => void shareLink()}>
+                  <Share2 className="h-4 w-4" />
+                  Share
+                </button>
+              ) : null}
               <button type="button" className={mock.btnSecondary} onClick={() => void exportPdf()}>
                 <Download className="h-4 w-4" />
                 PDF

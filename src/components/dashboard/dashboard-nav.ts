@@ -328,9 +328,14 @@ function buildSmbSidebarNav(businessId?: string | null): ReturnType<typeof build
       title: "Local SEO Audit",
       items: [
         {
-          href: loc("growth-audit", businessId),
-          label: "Local SEO Audit",
+          href: loc("local-seo-health", businessId),
+          label: "Health Assessment",
           icon: FileSearch,
+        },
+        {
+          href: loc("growth-audit", businessId),
+          label: "Complete Audit",
+          icon: ClipboardList,
         },
       ],
     },

@@ -182,6 +182,7 @@ export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
   const [reviews, setReviews] = useState<SelectableReview[]>(DEFAULT_REVIEWS);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [publishBlocked, setPublishBlocked] = useState(false);
 
   useEffect(() => {
     if (!selected) return;
@@ -233,6 +234,20 @@ export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
   }
 
   async function copyEmbed() {
+    try {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setPublishBlocked(true);
+        return;
+      }
+    } catch {
+      setPublishBlocked(true);
+      return;
+    }
     await navigator.clipboard.writeText(embedCode);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1600);
@@ -403,15 +418,35 @@ export function ReviewWidgetGenerator({ embed = false }: { embed?: boolean }) {
 
           {error ? <p className="text-sm text-[#B42318]">{error}</p> : null}
 
+          {publishBlocked ? (
+            <div className="rounded-xl border border-[#FEC84B]/70 bg-[#FFFAEB] p-4">
+              <p className="text-sm font-bold text-[#B54708]">Account required to publish</p>
+              <p className="mt-1 text-[12px] text-[#667085]">
+                Preview is free. Publishing a live widget and getting embed code needs a free account
+                so the widget can stay connected and refresh.
+              </p>
+              <a
+                href="/sign-up?next=/tools/google-review-widget"
+                className="mt-3 inline-flex h-10 items-center rounded-full bg-[#137752] px-4 text-sm font-bold text-white"
+              >
+                Create free account to publish
+              </a>
+            </div>
+          ) : null}
+
           <button type="button" onClick={() => void copyEmbed()} className={cn(freeToolPrimaryBtnClass, "w-full")}>
             <Copy className="h-4 w-4" />
-            {copied ? "Copied embed code" : "Generate Widget"}
+            {copied ? "Copied embed code" : "Publish Widget / Get Embed Code"}
           </button>
 
           <textarea
             readOnly
-            className={cn(freeToolInputClass, "min-h-[120px] h-auto py-2 font-mono text-[11px] text-[#344054]")}
-            value={embedCode}
+            className={cn(
+              freeToolInputClass,
+              "min-h-[120px] h-auto py-2 font-mono text-[11px] text-[#344054]",
+              publishBlocked && "opacity-40"
+            )}
+            value={publishBlocked ? "Sign in to unlock live embed code…" : embedCode}
           />
         </div>
       </div>

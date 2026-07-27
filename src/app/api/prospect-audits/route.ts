@@ -13,6 +13,7 @@ import {
 const runSchema = z.object({
   businessId: z.string().uuid(),
   keywords: z.array(z.string().min(1).max(120)).min(1).max(MAX_KEYWORDS),
+  audience: z.enum(["prospect", "owner"]).optional(),
 });
 
 export async function GET(request: Request) {
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.message }, { status: 400 });
     }
-    const { businessId, keywords } = parsed.data;
+    const { businessId, keywords, audience } = parsed.data;
     const auth = await requireBusinessAccess(businessId);
     await requireOrganizationPermission("business.update", auth.organizationId);
 
@@ -57,10 +58,13 @@ export async function POST(request: Request) {
       );
     }
 
+    const maxKeywords = audience === "owner" ? 1 : MAX_KEYWORDS;
+    const limitedKeywords = keywords.slice(0, maxKeywords);
+
     const started = await startProspectAudit({
       organizationId: auth.organizationId,
       businessId,
-      keywords: keywords.slice(0, MAX_KEYWORDS),
+      keywords: limitedKeywords,
     });
 
     const report = await buildProspectAuditReport(businessId, {
@@ -69,7 +73,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       auditId: started.auditId,
-      keywords: keywords.slice(0, MAX_KEYWORDS),
+      keywords: limitedKeywords,
       scanBatchIds: started.scanBatchIds,
       growthJobId: started.growthJobId,
       aiVisibilityJobId: started.aiVisibilityJobId,

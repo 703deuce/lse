@@ -75,6 +75,12 @@ export function PublicQrGenerator({
   const [result, setResult] = useState<CreatedResult | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [emailGateOpen, setEmailGateOpen] = useState(false);
+  const [deliveryEmail, setDeliveryEmail] = useState("");
+  const [emailUnlocked, setEmailUnlocked] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailNote, setEmailNote] = useState<string | null>(null);
+  const [pendingDownload, setPendingDownload] = useState<"poster" | "qr" | "copy" | null>(null);
 
   const poster: PosterConfig = useMemo(
     () => ({
@@ -229,7 +235,56 @@ export function PublicQrGenerator({
     }
   }
 
-  async function downloadPoster() {
+  async function ensureEmailGate(action: "poster" | "qr" | "copy"): Promise<boolean> {
+    if (emailUnlocked) return true;
+    setPendingDownload(action);
+    setEmailGateOpen(true);
+    return false;
+  }
+
+  async function submitEmailAndDeliver() {
+    const ready = result ?? (await generate());
+    if (!ready) return;
+    setEmailSending(true);
+    setEmailNote(null);
+    try {
+      const res = await fetch("/api/public/qr/email-delivery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: deliveryEmail,
+          businessName: ready.businessName,
+          reviewLink: ready.trackedUrl,
+          shortCode: ready.shortCode,
+        }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        warning?: string;
+        emailed?: boolean;
+      };
+      if (!res.ok) throw new Error(json.error || "Could not send email");
+      setEmailUnlocked(true);
+      setEmailGateOpen(false);
+      setEmailNote(
+        json.emailed === false
+          ? json.warning || "Download unlocked. Email could not be sent."
+          : `Sent to ${deliveryEmail.trim()}. Download unlocked.`
+      );
+      const action = pendingDownload;
+      setPendingDownload(null);
+      if (action === "poster") await downloadPoster(true);
+      else if (action === "qr") await downloadQrOnly(true);
+      else if (action === "copy") await copyLink(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not send email");
+    } finally {
+      setEmailSending(false);
+    }
+  }
+
+  async function downloadPoster(skipGate = false) {
+    if (!skipGate && !(await ensureEmailGate("poster"))) return;
     const ready = result ?? (await generate());
     if (!ready || !posterRef.current) return;
     await new Promise((r) => setTimeout(r, 80));
@@ -240,7 +295,8 @@ export function PublicQrGenerator({
     a.click();
   }
 
-  async function downloadQrOnly() {
+  async function downloadQrOnly(skipGate = false) {
+    if (!skipGate && !(await ensureEmailGate("qr"))) return;
     let ready = result;
     if (!ready) ready = await generate();
     if (!ready) return;
@@ -258,7 +314,8 @@ export function PublicQrGenerator({
     a.click();
   }
 
-  async function copyLink() {
+  async function copyLink(skipGate = false) {
+    if (!skipGate && !(await ensureEmailGate("copy"))) return;
     const ready = result ?? (await generate());
     if (!ready?.trackedUrl) return;
     await navigator.clipboard.writeText(ready.trackedUrl);
@@ -289,7 +346,7 @@ export function PublicQrGenerator({
             instantly.
           </p>
           <ul className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] font-semibold text-[#0B1B32]">
-            {["Free to use", "Instant download", "No sign up required"].map((label) => (
+            {["Free to use", "Email to download", "No account required"].map((label) => (
               <li key={label} className="inline-flex items-center gap-1.5">
                 <Check className="h-3.5 w-3.5 text-[#16A34A]" strokeWidth={2.75} />
                 {label}
@@ -578,26 +635,70 @@ export function PublicQrGenerator({
 
   if (seoLayout || embedded) {
     return (
-      <div>
-        {error ? (
-          <div
-            className={cn(
-              "mb-3 rounded-xl border px-3 py-2.5 text-sm",
-              rateLimited
-                ? "border-[#FEDF89] bg-[#FFFAEB] text-[#B54708]"
-                : "border-red-200 bg-red-50 text-red-800"
-            )}
-          >
-            {error}
+      <>
+        <div>
+          {error ? (
+            <div
+              className={cn(
+                "mb-3 rounded-xl border px-3 py-2.5 text-sm",
+                rateLimited
+                  ? "border-[#FEDF89] bg-[#FFFAEB] text-[#B54708]"
+                  : "border-red-200 bg-red-50 text-red-800"
+              )}
+            >
+              {error}
+            </div>
+          ) : null}
+
+          {/* ~2/3 controls + 1/3 poster — matches mock above-the-fold layout */}
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-6">
+            <div>{leftColumn}</div>
+            <div>{rightColumn}</div>
+          </div>
+          {emailNote ? (
+            <p className="mt-3 text-sm font-semibold text-[#15803D]">{emailNote}</p>
+          ) : null}
+        </div>
+        {emailGateOpen ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+              <h2 className="text-lg font-extrabold text-[#0B1B32]">Email your QR package</h2>
+              <p className="mt-1 text-sm text-[#475569]">
+                Enter your email to receive the review link and unlock poster / QR downloads. No
+                account required.
+              </p>
+              <input
+                type="email"
+                className="mt-4 h-11 w-full rounded-xl border border-[#D0D5DD] px-3 text-sm outline-none focus:border-[#16A34A]"
+                placeholder="you@business.com"
+                value={deliveryEmail}
+                onChange={(e) => setDeliveryEmail(e.target.value)}
+              />
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={emailSending || !deliveryEmail.includes("@")}
+                  onClick={() => void submitEmailAndDeliver()}
+                  className={cn(qrUi.btnPrimary, "disabled:opacity-50")}
+                >
+                  {emailSending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Email &amp; unlock download
+                </button>
+                <button
+                  type="button"
+                  className={qrUi.btnSecondary}
+                  onClick={() => {
+                    setEmailGateOpen(false);
+                    setPendingDownload(null);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         ) : null}
-
-        {/* ~2/3 controls + 1/3 poster — matches mock above-the-fold layout */}
-        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-6">
-          <div>{leftColumn}</div>
-          <div>{rightColumn}</div>
-        </div>
-      </div>
+      </>
     );
   }
 
@@ -626,7 +727,49 @@ export function PublicQrGenerator({
           <div>{leftColumn}</div>
           <div>{rightColumn}</div>
         </div>
+        {emailNote ? (
+          <p className="mt-3 text-sm font-semibold text-[#15803D]">{emailNote}</p>
+        ) : null}
       </div>
+      {emailGateOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+            <h2 className="text-lg font-extrabold text-[#0B1B32]">Email your QR package</h2>
+            <p className="mt-1 text-sm text-[#475569]">
+              Enter your email to receive the review link and unlock poster / QR downloads. No account
+              required.
+            </p>
+            <input
+              type="email"
+              className="mt-4 h-11 w-full rounded-xl border border-[#D0D5DD] px-3 text-sm outline-none focus:border-[#16A34A]"
+              placeholder="you@business.com"
+              value={deliveryEmail}
+              onChange={(e) => setDeliveryEmail(e.target.value)}
+            />
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={emailSending || !deliveryEmail.includes("@")}
+                onClick={() => void submitEmailAndDeliver()}
+                className={cn(qrUi.btnPrimary, "disabled:opacity-50")}
+              >
+                {emailSending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Email &amp; unlock download
+              </button>
+              <button
+                type="button"
+                className={qrUi.btnSecondary}
+                onClick={() => {
+                  setEmailGateOpen(false);
+                  setPendingDownload(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

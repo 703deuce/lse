@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { generateReviewResponseDraft } from "@/lib/providers/deepseek/reputation";
+import { assertRateLimit } from "@/lib/security/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -33,6 +34,25 @@ export async function OPTIONS(request: Request) {
 export async function POST(request: Request) {
   const headers = corsHeaders(request.headers.get("origin"));
   try {
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip") ??
+      "unknown";
+    const rate = await assertRateLimit({
+      key: `public-review-reply:${ip}`,
+      maxPerWindow: 3,
+      windowMs: 24 * 60 * 60 * 1000,
+    });
+    if (!rate.ok) {
+      return NextResponse.json(
+        {
+          error:
+            "Free daily limit reached (3 replies). Sign up for higher limits, saved brand voice, and history.",
+        },
+        { status: 429, headers }
+      );
+    }
+
     const body = (await request.json()) as {
       reviewText?: string;
       businessName?: string;
