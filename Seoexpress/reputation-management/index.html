@@ -16,15 +16,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/styles.css">
-  <link rel="stylesheet" href="../css/platform-landing.css">
-  
+  <link rel="stylesheet" href="../css/smb-marketing.css">
 </head>
-<body>
+<body class="page-smb">
 <header class="site-header" id="site-header">
   <div class="container header-inner">
     <a href="#main-content" class="skip-link">Skip to main content</a>
     <a href="../" class="logo" aria-label="Local SEO Express home">
-      <svg class="logo-pin" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2C11.03 2 7 6.03 7 11c0 5.25 9 19 9 19s9-13.75 9-19c0-4.97-4.03-9-9-9z" fill="#137752"/><circle cx="16" cy="11" r="3.5" fill="#fff"/></svg>
+      <svg class="logo-pin" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2C11.03 2 7 6.03 7 11c0 5.25 9 19 9 19s9-13.75 9-19c0-4.97-4.03-9-9-9z" fill="#16A34A"/><circle cx="16" cy="11" r="3.5" fill="#fff"/></svg>
       Local SEO <strong>Express</strong>
     </a>
     <nav class="main-nav" id="main-nav" aria-label="Main navigation">
@@ -42,7 +41,7 @@
           </div>
           <ul class="dropdown-menu" role="menu">
             <li role="none"><a href="../free-tools/" role="menuitem">All Free Tools</a></li>
-                        <li role="none"><a href="../tools/google-review-link-qr-code/" role="menuitem">Google Review Link &amp; QR Code</a></li>
+            <li role="none"><a href="../tools/google-review-link-qr-code/" role="menuitem">Google Review Link &amp; QR Code</a></li>
             <li role="none"><a href="../tools/review-response-generator/" role="menuitem">AI Review Reply Generator</a></li>
             <li role="none"><a href="../tools/google-review-widget/" role="menuitem">Google Review Widget</a></li>
             <li role="none"><a href="../tools/google-maps-rank-checker/" role="menuitem">Maps Rank Checker</a></li>
@@ -50,95 +49,129 @@
         </li>
         <li class="nav-item"><a href="../local-seo-packages/" class="nav-link" data-nav="local-seo-packages">Pricing</a></li>
         <li class="nav-item nav-item--mobile-only"><a href="https://app.localseoexpress.com/sign-in" class="nav-link">Login</a></li>
-        <li class="nav-item nav-item--mobile-only"><a href="https://app.localseoexpress.com/sign-up" class="nav-link nav-link--cta">Start Free</a></li>
+        <li class="nav-item nav-item--mobile-only"><a href="https://app.localseoexpress.com/sign-up" class="nav-link nav-link--cta">Sign Up</a></li>
       </ul>
     </nav>
     <div class="header-actions">
       <a href="https://app.localseoexpress.com/sign-in" class="header-signin">Login</a>
-      <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary btn-header">Start Free</a>
+      <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary btn-header">Sign Up</a>
     </div>
     <button class="mobile-toggle" id="mobile-toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="main-nav">
       <span></span><span></span><span></span>
     </button>
   </div>
 </header>
+
 <main id="main-content">
-
-  <section class="plat-hero">
-    <div class="container">
-      <p class="plat-kicker">Reputation Management</p>
-      <p class="plat-brand">Local SEO <strong>Express</strong></p>
-      <h1 class="plat-h1">Get More Google Reviews Without Constantly Remembering to Ask</h1>
-      <p class="plat-lead">Send personalized review requests by SMS or email, follow up automatically, and give customers an easy way to leave a review.</p>
-      <div class="plat-cta-row">
-        <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary">Start Getting More Reviews</a>
-        <a href="../local-seo-packages/" class="btn-secondary-plat">See pricing</a>
+  <section class="smb-hero">
+    <div class="container smb-hero-grid">
+      <div>
+        <p class="smb-kicker">Reputation Management</p>
+        <p class="smb-brand-mark">Local SEO <strong>Express</strong></p>
+        <h1>Get More Google Reviews Without Constantly Reminding Customers</h1>
+        <p class="smb-lead">Send personalized review requests by SMS or email, follow up automatically, and give customers an easy way to leave a review.</p>
+        <div class="smb-cta-row">
+          <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary">Get Started for Free</a>
+          <a href="../tools/google-review-link-qr-code/" class="smb-btn-ghost">Try Free QR Tool</a>
+        </div>
       </div>
-      <div class="plat-hero-visual">
-        <img src="../images/shot-review-qr.png" alt="QR code and review request tools" width="1200" height="680">
-      </div>
-    </div>
-  </section>
-  <section class="plat-section">
-    <div class="container">
-      <p class="plat-kicker">Send requests your way</p>
-      <h2>One customer, a list, or an upload</h2>
-      <ul class="plat-list">
-        <li>Enter one customer and send now</li>
-        <li>Upload a CSV of customers</li>
-        <li>Import a customer list</li>
-        <li>Use a webhook for advanced automation when you need it</li>
-      </ul>
-      <p class="plat-sub">You do not need Zapier or a CRM to get started. Those connections are optional for later.</p>
-    </div>
-  </section>
-  <section class="plat-section plat-section--alt">
-    <div class="container">
-      <p class="plat-kicker">Automatic follow-ups</p>
-      <h2>Add the customer once</h2>
-      <p class="plat-sub">Local SEO Express handles the scheduled request and follow-up messages so you are not chasing every job by hand.</p>
-      <div class="plat-grid plat-grid--2">
-        <div class="plat-feature"><h3>SMS and email</h3><p>Text messages for quick opens. Email when you want a longer note. Use one or both.</p></div>
-        <div class="plat-feature"><h3>QR codes and review links</h3><p>Display a QR code in-store, on invoices, or flyers—or send the direct Google review link.</p></div>
-      </div>
-    </div>
-  </section>
-  <section class="plat-section">
-    <div class="container">
-      <p class="plat-kicker">Campaign tracking</p>
-      <h2>Know what happened after you asked</h2>
-      <ul class="plat-list">
-        <li>Request sent</li>
-        <li>Delivered</li>
-        <li>Clicked</li>
-        <li>Follow-up scheduled</li>
-        <li>Opted out</li>
-      </ul>
-    </div>
-  </section>
-  <section class="plat-section plat-section--alt">
-    <div class="container">
-      <p class="plat-kicker">Compliance</p>
-      <h2>Built for responsible messaging</h2>
-      <ul class="plat-list">
-        <li>Opt-out handling</li>
-        <li>Suppression lists</li>
-        <li>Consent controls</li>
-        <li>Messaging history</li>
-      </ul>
-      <div class="plat-cta-row">
-        <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary">Start Free</a>
-        <a href="../local-seo-packages/" class="btn-secondary-plat">View pricing</a>
+      <div class="smb-hero-visual">
+        <div class="smb-phone-glow"></div>
+        <div class="smb-phone">
+          <div class="smb-phone-screen">
+            <img src="../images/shot-review-qr.png" alt="QR code and review request on a phone" width="560" height="840">
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
+  <section class="smb-section">
+    <div class="container smb-center">
+      <p class="smb-kicker">How it works</p>
+      <h2 class="smb-h2">Ask once. Follow up automatically.</h2>
+      <p class="smb-lead">Everything you need to collect Google reviews without remembering every customer by hand.</p>
+      <div class="smb-feature-grid" style="text-align:left">
+        <div class="smb-feature">
+          <h3>Automated requests</h3>
+          <p>Send review requests by SMS or email after a job—then let scheduled follow-ups run for you.</p>
+        </div>
+        <div class="smb-feature">
+          <h3>QR code generation</h3>
+          <p>Create a printable Google review QR for your counter, invoices, flyers, and vehicles.</p>
+        </div>
+        <div class="smb-feature">
+          <h3>Custom review links</h3>
+          <p>Share a direct Google review link in texts, emails, or your website.</p>
+        </div>
+        <div class="smb-feature">
+          <h3>Request tracking</h3>
+          <p>See sent, delivered, clicked, follow-up scheduled, and opted out—so you know what happened.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="smb-section smb-section--tint" id="qr">
+    <div class="container smb-split smb-split--flip">
+      <div class="smb-qr-panel">
+        <img src="../images/shot-review-qr.png" alt="Google review QR code poster preview" width="1200" height="680">
+      </div>
+      <div class="smb-split-copy">
+        <p class="smb-kicker">Free QR Code Generator</p>
+        <h2 class="smb-h2">Make it easy to leave a review in person</h2>
+        <p class="smb-lead">Display a QR code in-store, print it on invoices, or send the direct review link. Customers scan and go straight to Google.</p>
+        <ul class="smb-checklist">
+          <li>Instant access—no app required for most phones</li>
+          <li>Works for counters, invoices, flyers, and vehicles</li>
+          <li>Download a printable poster you can brand</li>
+          <li>Track scans after you create a free account</li>
+        </ul>
+        <div class="smb-cta-row">
+          <a href="../tools/google-review-link-qr-code/" class="btn btn-primary">Open Free QR Generator</a>
+          <a href="https://app.localseoexpress.com/sign-up" class="smb-btn-ghost">Start Free Account</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="smb-section">
+    <div class="container">
+      <div class="smb-center">
+        <p class="smb-kicker">Send requests your way</p>
+        <h2 class="smb-h2">One customer, a list, or an upload</h2>
+        <p class="smb-lead">You do not need Zapier or a CRM to get started. Optional automations come later.</p>
+      </div>
+      <div class="smb-feature-grid">
+        <div class="smb-feature"><h3>Enter one customer</h3><p>Add a name and phone or email, then send a review request now.</p></div>
+        <div class="smb-feature"><h3>Upload a CSV</h3><p>Bring in a customer list when you already have contacts to ask.</p></div>
+        <div class="smb-feature"><h3>Import a list</h3><p>Use your existing customers without rebuilding a campaign structure first.</p></div>
+        <div class="smb-feature"><h3>Webhook when needed</h3><p>Connect advanced automation later—without making it the centerpiece.</p></div>
+        <div class="smb-feature"><h3>SMS and email</h3><p>Text for quick opens. Email for a longer note. Use one or both.</p></div>
+        <div class="smb-feature"><h3>Compliance built in</h3><p>Opt-out handling, suppression lists, consent controls, and messaging history.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="smb-banner" aria-labelledby="rep-banner-heading">
+    <div class="container smb-banner-inner">
+      <div>
+        <h2 id="rep-banner-heading">Get started with Local SEO Express today</h2>
+        <p>Send your first review request in minutes—then track rankings and fix local SEO issues in the same account.</p>
+      </div>
+      <div class="smb-cta-row">
+        <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary">Get Started Now</a>
+        <a href="../local-seo-packages/" class="smb-btn-ghost smb-btn-ghost--light">See Pricing</a>
+      </div>
+    </div>
+  </section>
 </main>
+
 <footer class="site-footer">
   <div class="container footer-grid">
     <div class="footer-col footer-about">
       <a href="../" class="logo footer-logo" aria-label="Local SEO Express home">
-        <svg class="logo-pin" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2C11.03 2 7 6.03 7 11c0 5.25 9 19 9 19s9-13.75 9-19c0-4.97-4.03-9-9-9z" fill="#137752"/><circle cx="16" cy="11" r="3.5" fill="#fff"/></svg>
+        <svg class="logo-pin" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2C11.03 2 7 6.03 7 11c0 5.25 9 19 9 19s9-13.75 9-19c0-4.97-4.03-9-9-9z" fill="#16A34A"/><circle cx="16" cy="11" r="3.5" fill="#fff"/></svg>
         Local SEO <strong>Express</strong>
       </a>
       <p>Get more Google reviews and improve your local rankings — in one place.</p>
@@ -165,7 +198,7 @@
     <div class="footer-col">
       <h4>Get started</h4>
       <ul>
-        <li><a href="https://app.localseoexpress.com/sign-up">Start Free</a></li>
+        <li><a href="https://app.localseoexpress.com/sign-up">Sign Up</a></li>
         <li><a href="https://app.localseoexpress.com/sign-in">Login</a></li>
       </ul>
     </div>

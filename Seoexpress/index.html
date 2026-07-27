@@ -16,15 +16,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
-  <link rel="stylesheet" href="css/platform-landing.css">
-  
+  <link rel="stylesheet" href="css/smb-marketing.css">
 </head>
-<body>
+<body class="page-smb">
 <header class="site-header" id="site-header">
   <div class="container header-inner">
     <a href="#main-content" class="skip-link">Skip to main content</a>
     <a href="./" class="logo" aria-label="Local SEO Express home">
-      <svg class="logo-pin" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2C11.03 2 7 6.03 7 11c0 5.25 9 19 9 19s9-13.75 9-19c0-4.97-4.03-9-9-9z" fill="#137752"/><circle cx="16" cy="11" r="3.5" fill="#fff"/></svg>
+      <svg class="logo-pin" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2C11.03 2 7 6.03 7 11c0 5.25 9 19 9 19s9-13.75 9-19c0-4.97-4.03-9-9-9z" fill="#16A34A"/><circle cx="16" cy="11" r="3.5" fill="#fff"/></svg>
       Local SEO <strong>Express</strong>
     </a>
     <nav class="main-nav" id="main-nav" aria-label="Main navigation">
@@ -42,7 +41,7 @@
           </div>
           <ul class="dropdown-menu" role="menu">
             <li role="none"><a href="free-tools/" role="menuitem">All Free Tools</a></li>
-                        <li role="none"><a href="tools/google-review-link-qr-code/" role="menuitem">Google Review Link &amp; QR Code</a></li>
+            <li role="none"><a href="tools/google-review-link-qr-code/" role="menuitem">Google Review Link &amp; QR Code</a></li>
             <li role="none"><a href="tools/review-response-generator/" role="menuitem">AI Review Reply Generator</a></li>
             <li role="none"><a href="tools/google-review-widget/" role="menuitem">Google Review Widget</a></li>
             <li role="none"><a href="tools/google-maps-rank-checker/" role="menuitem">Maps Rank Checker</a></li>
@@ -50,131 +49,155 @@
         </li>
         <li class="nav-item"><a href="local-seo-packages/" class="nav-link" data-nav="local-seo-packages">Pricing</a></li>
         <li class="nav-item nav-item--mobile-only"><a href="https://app.localseoexpress.com/sign-in" class="nav-link">Login</a></li>
-        <li class="nav-item nav-item--mobile-only"><a href="https://app.localseoexpress.com/sign-up" class="nav-link nav-link--cta">Start Free</a></li>
+        <li class="nav-item nav-item--mobile-only"><a href="https://app.localseoexpress.com/sign-up" class="nav-link nav-link--cta">Sign Up</a></li>
       </ul>
     </nav>
     <div class="header-actions">
       <a href="https://app.localseoexpress.com/sign-in" class="header-signin">Login</a>
-      <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary btn-header">Start Free</a>
+      <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary btn-header">Sign Up</a>
     </div>
     <button class="mobile-toggle" id="mobile-toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="main-nav">
       <span></span><span></span><span></span>
     </button>
   </div>
 </header>
+
 <main id="main-content">
+  <section class="smb-hero">
+    <div class="container smb-hero-grid">
+      <div>
+        <p class="smb-brand-mark">Local SEO <strong>Express</strong></p>
+        <h1>Get More Google Reviews and Improve Your Local Rankings</h1>
+        <p class="smb-lead">A simple platform for local business owners—send review requests, track Maps rankings, and find what to fix without hiring an agency.</p>
+        <div class="smb-cta-row">
+          <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary">Get Started for Free</a>
+          <a href="#features" class="smb-btn-ghost">See How it Works</a>
+        </div>
+      </div>
+      <div class="smb-hero-visual" aria-hidden="false">
+        <div class="smb-phone-glow"></div>
+        <div class="smb-phone">
+          <div class="smb-phone-screen">
+            <img src="images/shot-reviews.png" alt="Review requests and Google ratings in Local SEO Express" width="560" height="840">
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-  <section class="plat-hero">
+  <section class="smb-section" id="features">
+    <div class="container smb-center">
+      <p class="smb-kicker">Everything you need</p>
+      <h2 class="smb-h2">Reviews, rankings, and a clear fix list</h2>
+      <p class="smb-lead">Three connected tools built for one local business—not agency software.</p>
+      <div class="smb-pillars">
+        <article class="smb-pillar">
+          <div class="smb-pillar-icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.9 7.2 18l.9-5.4L4.2 8.7l5.4-.8L12 3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+          </div>
+          <h3>Review Management</h3>
+          <p>Get more reviews automatically with SMS, email, QR codes, and follow-ups.</p>
+          <a href="reputation-management/">Explore reputation →</a>
+        </article>
+        <article class="smb-pillar">
+          <div class="smb-pillar-icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 20V10m5 10V4m5 16v-7m5 7V8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M3 20h18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </div>
+          <h3>Rank Tracking</h3>
+          <p>See where you rank on Google Maps across your service area—not just one search.</p>
+          <a href="local-rank-tracking/">Explore rank tracking →</a>
+        </article>
+        <article class="smb-pillar">
+          <div class="smb-pillar-icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </div>
+          <h3>Local SEO Audit</h3>
+          <p>Identify what needs to be fixed with a clear, prioritized list—not a dense report.</p>
+          <a href="local-seo-audit/">Run an audit →</a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="smb-section smb-section--tint" id="tools">
     <div class="container">
-      <p class="plat-brand">Local SEO <strong>Express</strong></p>
-      <h1 class="plat-h1">Get More Google Reviews and Improve Your Local Rankings</h1>
-      <p class="plat-lead">Send review requests by text or email, create QR codes, track your Google Maps rankings, and find problems hurting your local visibility.</p>
-      <div class="plat-cta-row">
-        <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary">Start Getting More Reviews</a>
-        <a href="local-rank-tracking/" class="btn-secondary-plat">Check Your Local Rankings</a>
+      <div class="smb-center">
+        <p class="smb-kicker">Our tools</p>
+        <h2 class="smb-h2">Try something useful before you sign up</h2>
+        <p class="smb-lead">Free tools that help today—and connect into the full platform when you are ready.</p>
       </div>
-      <div class="plat-hero-visual">
-        <img src="images/shot-reviews.png" alt="Review request and ranking tools in Local SEO Express" width="1200" height="680">
+      <div class="smb-tool-cards">
+        <a class="smb-tool-card" href="tools/google-review-link-qr-code/">
+          <h3>Review Request Link &amp; QR</h3>
+          <p>Create a printable Google review QR poster and a direct review link in seconds.</p>
+          <span>Open free tool →</span>
+        </a>
+        <a class="smb-tool-card" href="tools/review-response-generator/">
+          <h3>AI Review Reply Generator</h3>
+          <p>Paste a customer review, pick a tone, and copy a professional reply.</p>
+          <span>Open free tool →</span>
+        </a>
+      </div>
+      <div class="smb-cta-row" style="justify-content:center;margin-top:1.75rem">
+        <a href="free-tools/" class="smb-btn-ghost">See all free tools</a>
       </div>
     </div>
   </section>
 
-  <section class="plat-section">
+  <section class="smb-section">
     <div class="container">
-      <p class="plat-kicker">The problem</p>
-      <h2>Great service should lead to more reviews—but most businesses forget to ask</h2>
-      <p class="plat-sub">Local SEO Express makes it easy to ask customers after a job and follow up automatically—so you do not have to remember every time.</p>
-    </div>
-  </section>
-
-  <section class="plat-section plat-section--alt" id="reputation">
-    <div class="container">
-      <p class="plat-kicker">Reputation management</p>
-      <h2>Ask for Google reviews the way your customers prefer</h2>
-      <p class="plat-sub">SMS and email requests, automatic follow-ups, QR codes, direct review links, customer uploads, and request tracking.</p>
-      <div class="plat-grid plat-grid--3">
-        <div class="plat-feature"><h3>SMS &amp; email requests</h3><p>Send personalized review requests by text or email after a job is done.</p></div>
-        <div class="plat-feature"><h3>Automatic follow-ups</h3><p>Add the customer once. Scheduled requests and follow-ups run for you.</p></div>
-        <div class="plat-feature"><h3>QR codes &amp; links</h3><p>Print a QR poster, put it on invoices, or share a direct Google review link.</p></div>
+      <div class="smb-center">
+        <p class="smb-kicker">Built for busy owners</p>
+        <h2 class="smb-h2">What you can do in one place</h2>
       </div>
-      <div class="plat-cta-row" style="margin-top:1.5rem">
-        <a href="reputation-management/" class="btn btn-primary">Explore Reputation Management</a>
-      </div>
-    </div>
-  </section>
-
-  <section class="plat-section" id="rankings">
-    <div class="container">
-      <p class="plat-kicker">Local rank tracking</p>
-      <h2>See where you rank across your service area</h2>
-      <p class="plat-sub">Run Google Maps grid scans, track keyword movement, find weak areas, and compare scans over time.</p>
-      <div class="plat-grid plat-grid--3">
-        <div class="plat-feature"><h3>Maps grid scans</h3><p>Check rankings from multiple points around your area—not just one search.</p></div>
-        <div class="plat-feature"><h3>Keyword movement</h3><p>Track how your visibility changes week to week for the terms that matter.</p></div>
-        <div class="plat-feature"><h3>Compare over time</h3><p>Save scans and spot where visibility drops so you know where to improve.</p></div>
-      </div>
-      <div class="plat-cta-row" style="margin-top:1.5rem">
-        <a href="local-rank-tracking/" class="btn btn-primary">Explore Local Rank Tracking</a>
+      <div class="smb-feature-grid">
+        <div class="smb-feature">
+          <h3>Automatic requests</h3>
+          <p>Schedule SMS and email review asks so you do not forget after every job.</p>
+        </div>
+        <div class="smb-feature">
+          <h3>Map rank tracking</h3>
+          <p>Scan rankings around your area and spot where visibility drops.</p>
+        </div>
+        <div class="smb-feature">
+          <h3>Customer management</h3>
+          <p>Add one customer, upload a list, and track who was asked.</p>
+        </div>
+        <div class="smb-feature">
+          <h3>Audit tool</h3>
+          <p>Get a prioritized list of Google Business Profile and local SEO fixes.</p>
+        </div>
+        <div class="smb-feature">
+          <h3>QR codes &amp; links</h3>
+          <p>Put review QR codes on invoices, counters, and flyers.</p>
+        </div>
+        <div class="smb-feature">
+          <h3>Request tracking</h3>
+          <p>See sent, delivered, clicked, follow-ups, and opt-outs.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="plat-section plat-section--alt" id="audit">
-    <div class="container">
-      <p class="plat-kicker">Local SEO audit</p>
-      <h2>Get a clear list of what to fix next</h2>
-      <p class="plat-sub">Google Business Profile checks, website and local SEO problems, review signals, and prioritized recommendations—without a complicated agency report.</p>
-      <div class="plat-cta-row">
-        <a href="local-seo-audit/" class="btn btn-primary">Run a Local SEO Audit</a>
+  <section class="smb-banner" aria-labelledby="home-banner-heading">
+    <div class="container smb-banner-inner">
+      <div>
+        <h2 id="home-banner-heading">Get started with Local SEO Express today</h2>
+        <p>Start building a stronger local presence—more reviews, clearer rankings, and a list of what to fix.</p>
+      </div>
+      <div class="smb-cta-row">
+        <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary">Get Started Now</a>
+        <a href="local-seo-packages/" class="smb-btn-ghost smb-btn-ghost--light">See Pricing</a>
       </div>
     </div>
   </section>
-
-  <section class="plat-section">
-    <div class="container">
-      <p class="plat-kicker">How it works</p>
-      <h2>Three simple steps</h2>
-      <div class="plat-steps">
-        <div class="plat-step"><h3>Add your business</h3><p>Connect your Google listing and review link in a few minutes.</p></div>
-        <div class="plat-step"><h3>Choose the tools you need</h3><p>Start with review requests, rankings, an audit—or all three.</p></div>
-        <div class="plat-step"><h3>Get reviews &amp; track rankings</h3><p>Send your first request and run your first scan the same day.</p></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="plat-section plat-section--alt">
-    <div class="container">
-      <p class="plat-kicker">Free tools</p>
-      <h2>Try something useful before you sign up</h2>
-      <div class="plat-tools">
-        <a href="tools/google-review-link-qr-code/"><h3>Google Review Link &amp; QR Code Generator</h3><p>Create a printable Google review QR poster and download it free.</p></a>
-        <a href="tools/review-response-generator/"><h3>AI Review Reply Generator</h3><p>Paste a customer review and get a professional reply in seconds.</p></a>
-        <a href="tools/google-review-widget/"><h3>Google Review Widget</h3><p>Generate an embeddable review badge or cards for your site.</p></a>
-        <a href="tools/google-maps-rank-checker/"><h3>Maps Rank Checker</h3><p>Check one keyword free, then unlock full area ranking scans.</p></a>
-      </div>
-      <div class="plat-cta-row" style="margin-top:1.5rem">
-        <a href="free-tools/" class="btn-secondary-plat">See all free tools</a>
-      </div>
-    </div>
-  </section>
-
-  <section class="plat-section plat-section--ink">
-    <div class="container plat-final">
-      <h2>Start building a stronger local presence today</h2>
-      <p class="plat-sub">Get more reviews, see where you rank, and identify what to fix—without learning agency software.</p>
-      <div class="plat-cta-row">
-        <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary">Start Free</a>
-        <a href="local-seo-packages/" class="btn-secondary-plat">View pricing</a>
-      </div>
-    </div>
-  </section>
-
 </main>
+
 <footer class="site-footer">
   <div class="container footer-grid">
     <div class="footer-col footer-about">
       <a href="" class="logo footer-logo" aria-label="Local SEO Express home">
-        <svg class="logo-pin" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2C11.03 2 7 6.03 7 11c0 5.25 9 19 9 19s9-13.75 9-19c0-4.97-4.03-9-9-9z" fill="#137752"/><circle cx="16" cy="11" r="3.5" fill="#fff"/></svg>
+        <svg class="logo-pin" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2C11.03 2 7 6.03 7 11c0 5.25 9 19 9 19s9-13.75 9-19c0-4.97-4.03-9-9-9z" fill="#16A34A"/><circle cx="16" cy="11" r="3.5" fill="#fff"/></svg>
         Local SEO <strong>Express</strong>
       </a>
       <p>Get more Google reviews and improve your local rankings — in one place.</p>
@@ -201,7 +224,7 @@
     <div class="footer-col">
       <h4>Get started</h4>
       <ul>
-        <li><a href="https://app.localseoexpress.com/sign-up">Start Free</a></li>
+        <li><a href="https://app.localseoexpress.com/sign-up">Sign Up</a></li>
         <li><a href="https://app.localseoexpress.com/sign-in">Login</a></li>
       </ul>
     </div>
