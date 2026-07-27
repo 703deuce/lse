@@ -152,7 +152,7 @@ export function GrowthAuditGbpTab({
                 {showAllChecks ? "Show fewer checks" : `Show ${gbp.checks.length - 3} more checks`}
               </button>
             ) : (
-              <GaLink>View full GBP profile details</GaLink>
+              <GaLink onClick={() => setShowAllChecks(true)}>View full GBP profile details</GaLink>
             )}
           </div>
         </GaCard>

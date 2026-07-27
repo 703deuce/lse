@@ -286,6 +286,32 @@ export function ContactsPageClient({
 
   const totalCount = previewTotalCount ?? items.length;
 
+  function exportContactsCsv() {
+    const rows = visibleItems.length > 0 ? visibleItems : items;
+    const escape = (value: string) => `"${String(value).replaceAll('"', '""')}"`;
+    const csv = [
+      ["Name", "Email", "Phone", "Tags", "Source", "Opted Out SMS", "Unsubscribed Email"],
+      ...rows.map((contact) => [
+        contactName(contact),
+        contact.email_normalized ?? "",
+        contact.phone_e164 ?? "",
+        (contact.tags ?? []).join("|"),
+        contact.source ?? "",
+        contact.sms_opt_out ? "yes" : "no",
+        contact.email_unsubscribed ? "yes" : "no",
+      ]),
+    ]
+      .map((row) => row.map((cell) => escape(cell)).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `contacts-${businessId}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (!allowed) {
     return <ReviewCampaignsUpgrade businessId={businessId} />;
   }
@@ -346,7 +372,7 @@ export function ContactsPageClient({
               <Upload className="h-4 w-4" />
               Import
             </button>
-            <button type="button" className={rep.btnSecondary}>
+            <button type="button" onClick={exportContactsCsv} className={rep.btnSecondary}>
               <Download className="h-4 w-4" />
               Export
             </button>

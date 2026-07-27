@@ -10,6 +10,7 @@ import {
   Download,
   FileText,
   History,
+  Loader2,
   Mail,
   MessageSquare,
   MousePointerClick,
@@ -55,9 +56,40 @@ type ContactRow = {
   id: string;
   name: string;
   phone: string;
+  email?: string;
   lastService: string;
   tags: string[];
 };
+
+type ApiContact = {
+  id: string;
+  customer_name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  phone_e164?: string | null;
+  email_normalized?: string | null;
+  tags?: string[] | null;
+  last_service_at?: string | null;
+  sms_opt_out?: boolean;
+  email_unsubscribed?: boolean;
+};
+
+function mapApiContact(c: ApiContact): ContactRow {
+  const name =
+    c.customer_name?.trim() ||
+    [c.first_name, c.last_name].filter(Boolean).join(" ").trim() ||
+    "Customer";
+  return {
+    id: c.id,
+    name,
+    phone: c.phone_e164 ?? "",
+    email: c.email_normalized ?? "",
+    lastService: c.last_service_at
+      ? new Date(c.last_service_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : "—",
+    tags: c.tags ?? [],
+  };
+}
 
 type KitData = {
   businessName: string;
@@ -335,8 +367,8 @@ function RecipientsTable({
             className={rep.btnSecondary}
             onClick={() =>
               downloadCsv("recipients.csv", [
-                ["Name", "Phone", "Last Service", "Tags"],
-                ...contacts.map((c) => [c.name, c.phone, c.lastService, c.tags.join("|")]),
+                ["Name", "Phone", "Email", "Last Service", "Tags"],
+                ...contacts.map((c) => [c.name, c.phone, c.email ?? "", c.lastService, c.tags.join("|")]),
               ])
             }
           >
@@ -350,6 +382,7 @@ function RecipientsTable({
               <tr className="border-b border-[#E6EAF0] bg-[#F9FAFB] text-[11px] uppercase tracking-[0.06em] text-[#98A2B3]">
                 <th className="px-4 py-2 font-semibold">Name</th>
                 <th className="px-4 py-2 font-semibold">Phone</th>
+                <th className="px-4 py-2 font-semibold">Email</th>
                 <th className="px-4 py-2 font-semibold">Last Service</th>
                 <th className="px-4 py-2 font-semibold">Tags</th>
               </tr>
@@ -358,7 +391,8 @@ function RecipientsTable({
               {visible.map((contact) => (
                 <tr key={contact.id} className="border-b border-[#F2F4F7] last:border-0">
                   <td className="px-4 py-3 font-semibold text-[#101828]">{contact.name}</td>
-                  <td className="px-4 py-3 text-[#667085]">{contact.phone}</td>
+                  <td className="px-4 py-3 text-[#667085]">{contact.phone || "—"}</td>
+                  <td className="px-4 py-3 text-[#667085]">{contact.email || "—"}</td>
                   <td className="px-4 py-3 text-[#344054]">{contact.lastService}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
@@ -470,6 +504,7 @@ function OneTimeSend({
 }) {
   const [form, setForm] = useState({
     audienceMode: "select" as "select" | "import",
+    audienceScope: "eligible" as "eligible" | "all" | "recent",
     tagFilter: "",
     channel: "sms" as "sms" | "email",
     templateId: "",
@@ -478,8 +513,10 @@ function OneTimeSend({
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  void sending;
-  void onRefresh;
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [loadedContacts, setLoadedContacts] = useState<ContactRow[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showRecipients, setShowRecipients] = useState(false);
 
   const templates = data?.templates ?? [];
   const smsTemplates = templates.filter((t) => t.channel === "sms");
@@ -500,9 +537,70 @@ function OneTimeSend({
       })
     : "Hi James! Thanks for choosing Premier Junk Removal. We'd love your Google review: https://g.page/r/review 🙏";
 
-  const contacts = data?.selectedContacts ?? [];
-  const eligibleCount = data?.eligibleCount ?? 0;
-  const selectedCount = contacts.length;
+  useEffect(() => {
+    const previewContacts = data?.selectedContacts;
+    if (previewContacts && previewContacts.length > 0) {
+      setLoadedContacts(previewContacts);
+      setSelectedIds(new Set(previewContacts.map((c) => c.id)));
+      return;
+    }
+
+    let cancelled = false;
+    async function loadContacts() {
+      setContactsLoading(true);
+      try {
+        const params = new URLSearchParams({ businessId, limit: "100" });
+        const res = await fetch(`/api/reputation/contacts?${params}`);
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error ?? "Failed to load contacts");
+        if (cancelled) return;
+        const items = ((json.items ?? []) as ApiContact[])
+          .filter((c) => !c.sms_opt_out || !c.email_unsubscribed)
+          .map(mapApiContact)
+          .filter((c) => c.phone || c.email);
+        setLoadedContacts(items);
+        setSelectedIds(new Set(items.slice(0, Math.min(25, items.length)).map((c) => c.id)));
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load contacts");
+        }
+      } finally {
+        if (!cancelled) setContactsLoading(false);
+      }
+    }
+
+    void loadContacts();
+    return () => {
+      cancelled = true;
+    };
+  }, [businessId, data?.selectedContacts]);
+
+  const eligibleContacts = loadedContacts.filter((c) =>
+    form.channel === "sms" ? Boolean(c.phone) : Boolean(c.email)
+  );
+
+  const scopedContacts =
+    form.audienceScope === "all"
+      ? loadedContacts
+      : form.audienceScope === "recent"
+        ? eligibleContacts.slice(0, 30)
+        : eligibleContacts;
+
+  const filteredContacts = form.tagFilter.trim()
+    ? scopedContacts.filter((c) => {
+        const needle = form.tagFilter.trim().toLowerCase();
+        return (
+          c.name.toLowerCase().includes(needle) ||
+          c.tags.some((tag) => tag.toLowerCase().includes(needle)) ||
+          (c.email ?? "").toLowerCase().includes(needle) ||
+          c.phone.toLowerCase().includes(needle)
+        );
+      })
+    : scopedContacts;
+
+  const selectedContacts = filteredContacts.filter((c) => selectedIds.has(c.id));
+  const eligibleCount = data?.eligibleCount ?? eligibleContacts.length;
+  const selectedCount = selectedContacts.length;
 
   const kpiSent = stats?.total_sent ?? null;
   const kpiDelivery = stats?.delivery_rate ?? null;
@@ -510,15 +608,110 @@ function OneTimeSend({
   const kpiConversion = stats?.conversion_rate ?? null;
   const kpiClicks = stats?.review_link_clicks ?? null;
 
+  function toggleContact(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectFiltered(selectAll: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const c of filteredContacts) {
+        if (selectAll) next.add(c.id);
+        else next.delete(c.id);
+      }
+      return next;
+    });
+  }
+
   async function handleSend() {
     setError(null);
     setMessage(null);
+
+    if (form.schedule === "later") {
+      setError("Scheduled sends use Campaigns. Switch to the Campaigns tab to schedule, or choose Send now.");
+      return;
+    }
+    if (!reviewUrl) {
+      setError("Review link missing. Generate a review link first.");
+      return;
+    }
+    if (!selectedTemplate?.id) {
+      setError("Select a template first.");
+      return;
+    }
+    if (selectedContacts.length === 0) {
+      setError("Select at least one contact with a valid phone or email for this channel.");
+      return;
+    }
+
     setSending(true);
+    let sent = 0;
+    let failed = 0;
+    const failures: string[] = [];
+
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      setMessage(`Review request sent to ${selectedCount} contacts.`);
-    } catch {
-      setError("Send failed. Please try again.");
+      for (const contact of selectedContacts) {
+        try {
+          if (form.channel === "email") {
+            if (!contact.email) {
+              failed += 1;
+              failures.push(`${contact.name}: missing email`);
+              continue;
+            }
+            const res = await fetch("/api/reputation/review-requests/send-email", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                businessId,
+                customerName: contact.name,
+                customerEmail: contact.email,
+                templateId: selectedTemplate.id,
+              }),
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(json.error ?? "Email failed");
+            sent += 1;
+          } else {
+            if (!contact.phone) {
+              failed += 1;
+              failures.push(`${contact.name}: missing phone`);
+              continue;
+            }
+            const res = await fetch("/api/reputation/review-requests/send-sms", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                businessId,
+                customerName: contact.name,
+                customerPhone: contact.phone,
+                templateId: selectedTemplate.id,
+              }),
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(json.error ?? "SMS failed");
+            sent += 1;
+          }
+        } catch (err) {
+          failed += 1;
+          failures.push(`${contact.name}: ${err instanceof Error ? err.message : "send failed"}`);
+        }
+      }
+
+      await onRefresh();
+
+      if (sent > 0 && failed === 0) {
+        setMessage(`Review request sent to ${sent} contact${sent === 1 ? "" : "s"}.`);
+      } else if (sent > 0) {
+        setMessage(`Sent to ${sent} contact${sent === 1 ? "" : "s"}. ${failed} failed.`);
+        setError(failures.slice(0, 3).join(" · "));
+      } else {
+        setError(failures[0] ?? "Send failed. Please try again.");
+      }
     } finally {
       setSending(false);
     }
@@ -606,10 +799,19 @@ function OneTimeSend({
                 <>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
-                      <select className={cn(rep.select, "w-full pr-8")}>
-                        <option>Eligible for request ({eligibleCount || 156})</option>
-                        <option>All contacts</option>
-                        <option>Recent completions — last 30 days</option>
+                      <select
+                        className={cn(rep.select, "w-full pr-8")}
+                        value={form.audienceScope}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            audienceScope: e.target.value as "eligible" | "all" | "recent",
+                          }))
+                        }
+                      >
+                        <option value="eligible">Eligible for request ({eligibleCount})</option>
+                        <option value="all">All contacts ({loadedContacts.length})</option>
+                        <option value="recent">Recent completions — first 30 eligible</option>
                       </select>
                     </div>
                   </div>
@@ -627,13 +829,53 @@ function OneTimeSend({
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4 text-[#137752]" />
                       <span className="text-sm font-semibold text-[#027A48]">
-                        {selectedCount} Contacts selected
+                        {contactsLoading ? "Loading contacts…" : `${selectedCount} Contacts selected`}
                       </span>
                     </div>
-                    <button type="button" className={rep.link}>
-                      View recipients
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button type="button" className={rep.link} onClick={() => selectFiltered(true)}>
+                        Select all
+                      </button>
+                      <button
+                        type="button"
+                        className={rep.link}
+                        onClick={() => setShowRecipients((v) => !v)}
+                      >
+                        {showRecipients ? "Hide recipients" : "View recipients"}
+                      </button>
+                    </div>
                   </div>
+                  {showRecipients ? (
+                    <div className="max-h-56 overflow-y-auto rounded-lg border border-[#E6EAF0]">
+                      {filteredContacts.length === 0 ? (
+                        <p className="px-3 py-4 text-sm text-[#667085]">
+                          {contactsLoading ? "Loading…" : "No matching contacts for this channel."}
+                        </p>
+                      ) : (
+                        <ul className="divide-y divide-[#F2F4F7]">
+                          {filteredContacts.map((contact) => (
+                            <li key={contact.id} className="flex items-center gap-3 px-3 py-2 text-sm">
+                              <input
+                                type="checkbox"
+                                className="accent-[#137752]"
+                                checked={selectedIds.has(contact.id)}
+                                onChange={() => toggleContact(contact.id)}
+                                aria-label={`Select ${contact.name}`}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate font-medium text-[#101828]">{contact.name}</p>
+                                <p className="truncate text-xs text-[#667085]">
+                                  {form.channel === "sms"
+                                    ? contact.phone || "No phone"
+                                    : contact.email || "No email"}
+                                </p>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ) : null}
                 </>
               ) : (
                 <button type="button" className={rep.btnSecondary} onClick={onOpenBulk}>
@@ -754,14 +996,27 @@ function OneTimeSend({
                 </label>
               </div>
               {form.schedule === "later" ? (
-                <input type="datetime-local" className={rep.input} />
+                <div className="rounded-lg border border-[#FEDF89] bg-[#FFFAEB] px-3 py-2.5 text-sm text-[#B54708]">
+                  Scheduled sends are managed in{" "}
+                  <Link
+                    href={`/businesses/${businessId}/reputation/campaigns`}
+                    className="font-semibold underline"
+                  >
+                    Campaigns
+                  </Link>
+                  . Choose Send now to send immediately, or open Campaigns to schedule.
+                </div>
               ) : null}
               <button
                 type="button"
                 onClick={() => void handleSend()}
-                className={cn(rep.btnPrimary, "w-full justify-center py-3 text-base")}
+                disabled={sending || contactsLoading || form.schedule === "later"}
+                className={cn(
+                  rep.btnPrimary,
+                  "w-full justify-center py-3 text-base disabled:cursor-not-allowed disabled:opacity-60"
+                )}
               >
-                <Send className="h-5 w-5" />
+                {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                 {form.schedule === "now"
                   ? `Send Now to ${selectedCount} Contacts`
                   : `Schedule for ${selectedCount} Contacts`}
@@ -824,9 +1079,9 @@ function OneTimeSend({
           </section>
 
           <RecipientsTable
-            contacts={data?.selectedContacts}
+            contacts={selectedContacts}
             sends={stats?.recent_sends ?? []}
-            eligibleCount={data?.eligibleCount}
+            eligibleCount={eligibleCount}
           />
         </aside>
       </div>

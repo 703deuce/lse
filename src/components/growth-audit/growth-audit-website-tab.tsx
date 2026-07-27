@@ -89,7 +89,7 @@ export function GrowthAuditWebsiteTab({
           value={`${criticalCount} items`}
           subtitle="Fix these to improve local rankings."
           valueClassName="text-red-600"
-          footer={<GaLink>View details</GaLink>}
+          footer={<GaLink onClick={onGoToActionPlan}>View details</GaLink>}
         />
         <StatHighlightCard
           title="Trust Signals"
