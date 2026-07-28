@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import QRCode from "qrcode";
 import { toPng } from "html-to-image";
 import { Copy, Download, ExternalLink, Loader2, Link2, Send, Sparkles, Check, Shield, Mail, MessageSquare, X, ArrowLeftRight, Search, Info, Smile } from "lucide-react";
@@ -588,6 +589,7 @@ export function ReviewRequestsPanel({
 
       {section === "messages" && (
         <MessagesSection
+          businessId={businessId}
           data={data}
           reviewUrl={reviewUrl}
           templateChannel={templateChannel}
@@ -715,6 +717,7 @@ export function ReviewRequestsPanel({
 }
 
 function MessagesSection({
+  businessId,
   data,
   reviewUrl,
   templateChannel,
@@ -724,6 +727,7 @@ function MessagesSection({
   onGenerate,
   generating,
 }: {
+  businessId: string;
   data: KitData;
   reviewUrl: string | null;
   templateChannel: TemplateChannel;
@@ -978,9 +982,12 @@ function MessagesSection({
                 <li>Include business name in every message.</li>
                 <li>Provide an easy opt-out: &quot;Reply STOP to opt-out.&quot;</li>
               </ul>
-              <button type="button" className="mt-2 text-[11px] font-medium text-emerald-700 hover:underline">
+              <Link
+                href={`/businesses/${businessId}/reputation/messaging`}
+                className="mt-2 inline-flex text-[11px] font-medium text-emerald-700 hover:underline"
+              >
                 Learn more about SMS compliance ↗
-              </button>
+              </Link>
             </div>
           </div>
         </div>

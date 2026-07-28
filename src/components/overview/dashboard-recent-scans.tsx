@@ -94,7 +94,7 @@ export function DashboardRecentScans({
             Refresh
           </button>
           <Link href={`/businesses/${businessId}/scans`} className="text-sm font-semibold text-[#137752] hover:underline">
-            Export
+            View all
           </Link>
         </div>
       </div>

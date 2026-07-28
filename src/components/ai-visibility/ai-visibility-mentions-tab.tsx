@@ -5,6 +5,7 @@ import { Download, Search, Shield, ShieldAlert, Star } from "lucide-react";
 import { ENGINE_LABELS, type AggregateMetrics, type AiEngine, type HistoricalMentionRow, type MentionLeaderboardRow } from "@/lib/ai-visibility/types";
 import { AiKpiCard, AiPanel, EngineIconRow, Sparkles, TrendingUp } from "@/components/ai-visibility/ai-visibility-ui";
 import type { MentionsViewMode } from "@/components/ai-visibility/ai-visibility-ui";
+import { downloadCsv } from "@/lib/client/download";
 import { cn } from "@/lib/utils";
 
 function statusFromShare(pct: number): { label: string; className: string; Icon: typeof Shield } {
@@ -58,6 +59,7 @@ export function AiVisibilityMentionsTab({
 }) {
   const [localSearch, setLocalSearch] = useState(search);
   const [engineFilter, setEngineFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "strong" | "moderate" | "weak">("all");
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
@@ -92,6 +94,10 @@ export function AiVisibilityMentionsTab({
     const q = (localSearch || search).trim().toLowerCase();
     if (q && !r.name.toLowerCase().includes(q)) return false;
     if (engineFilter !== "all" && !r.engines.includes(engineFilter as AiEngine)) return false;
+    if (statusFilter !== "all") {
+      const label = statusFromShare(r.sharePct).label.toLowerCase();
+      if (label !== statusFilter) return false;
+    }
     if (mentionsMode === "by-engine" && engineFilter === "all") return true;
     return true;
   });
@@ -101,6 +107,22 @@ export function AiVisibilityMentionsTab({
   const topCompetitors = rows.filter((r) => !r.isTarget).slice(0, 5);
   const consistencyScore = targetRow ? Math.min(100, targetRow.sharePct + 10) : null;
   const velocityPct = targetRow ? Math.min(targetRow.sharePct, 99) : null;
+
+  function exportMentionsCsv() {
+    downloadCsv(`ai-visibility-mentions.csv`, [
+      ["Company", "Run Share", "Share %", "Status", "Avg Position", "Engines", "Last Seen", "Is Target"],
+      ...filtered.map((r) => [
+        r.name,
+        r.runShare,
+        r.sharePct,
+        statusFromShare(r.sharePct).label,
+        r.avgPosition ?? "",
+        r.engines.map((e) => ENGINE_LABELS[e]).join("|"),
+        r.lastSeen ?? "",
+        r.isTarget ? "yes" : "no",
+      ]),
+    ]);
+  }
 
   return (
     <div className="space-y-3">
@@ -203,7 +225,14 @@ export function AiVisibilityMentionsTab({
             </option>
           ))}
         </select>
-        <select className="rounded-md border border-border bg-white px-2.5 py-1.5 text-xs font-medium text-text shadow-sm" defaultValue="all">
+        <select
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value as typeof statusFilter);
+            setPage(1);
+          }}
+          className="rounded-md border border-border bg-white px-2.5 py-1.5 text-xs font-medium text-text shadow-sm"
+        >
           <option value="all">All Status</option>
           <option value="strong">Strong</option>
           <option value="moderate">Moderate</option>
@@ -211,6 +240,7 @@ export function AiVisibilityMentionsTab({
         </select>
         <button
           type="button"
+          onClick={exportMentionsCsv}
           className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-border bg-white px-2.5 py-1.5 text-xs font-medium text-text shadow-sm hover:bg-surface-subtle"
         >
           <Download className="h-3.5 w-3.5" />

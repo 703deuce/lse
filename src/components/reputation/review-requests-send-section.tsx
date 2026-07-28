@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   AlertTriangle,
   ArrowLeftRight,
@@ -376,7 +377,13 @@ export function ReviewRequestsSendSection({
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
               <p>
                 SMS is in trial mode — messages will use the <strong>{stats.trial_sms_template}</strong>{" "}
-                template. <button type="button" className="font-medium underline">Learn more</button>
+                template.{" "}
+                <Link
+                  href={`/businesses/${businessId}/reputation/messaging`}
+                  className="font-medium underline"
+                >
+                  Learn more
+                </Link>
               </p>
             </div>
           )}

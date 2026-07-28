@@ -140,7 +140,7 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
     }
   }
 
-  async function updateOpportunityStatus(opportunityId: string, status: "ignored" | "completed" | "open") {
+  async function updateOpportunityStatus(opportunityId: string, status: "ignored" | "completed" | "open" | "spam") {
     setUpdating(true);
     try {
       const res = await fetch("/api/backlink-gap/opportunity/update", {
@@ -262,6 +262,10 @@ export function BacklinkGapDashboard({ businessId }: { businessId: string }) {
           context={context}
           status="ignored"
           onSelect={setSelected}
+          onChanged={async () => {
+            await load();
+            await loadStats();
+          }}
         />
       )}
 

@@ -2,12 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  Bookmark,
   ChevronDown,
   ChevronRight,
   Download,
   ExternalLink,
-  Filter,
   Loader2,
   Search,
   Sparkles,
@@ -18,6 +16,7 @@ import {
   type EnrichedOpportunity,
   type RawOpportunity,
 } from "@/lib/backlink-gap/enrich";
+import { downloadCsv } from "@/lib/client/download";
 import { cn } from "@/lib/utils";
 import {
   gapControl,
@@ -100,15 +99,23 @@ function confidenceBadge(priority: string) {
 function IgnoredTable({
   rows,
   totalCompetitors,
+  selectedIds,
+  onToggle,
+  onToggleAll,
   onSelect,
 }: {
   rows: EnrichedOpportunity[];
   totalCompetitors: number;
+  selectedIds: Set<string>;
+  onToggle: (id: string) => void;
+  onToggleAll: (selectAll: boolean) => void;
   onSelect: (o: EnrichedOpportunity) => void;
 }) {
   if (!rows.length) {
     return <p className="px-4 py-6 text-center text-sm text-[#667085]">No ignored or spam domains match these filters.</p>;
   }
+
+  const allSelected = rows.every((o) => selectedIds.has(o.id));
 
   return (
     <div className="overflow-x-auto">
@@ -116,7 +123,13 @@ function IgnoredTable({
         <thead className="bg-[#F9FAFB] text-left bg-[#F9FAFB] text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">
           <tr>
             <th className="px-4 py-3">
-              <input type="checkbox" className="rounded border-[#E6EAF0]" aria-label="Select all" />
+              <input
+                type="checkbox"
+                className="rounded border-[#E6EAF0]"
+                aria-label="Select all"
+                checked={allSelected}
+                onChange={(e) => onToggleAll(e.target.checked)}
+              />
             </th>
             <th className="px-4 py-3">Domain</th>
             <th className="px-4 py-3">Power</th>
@@ -137,7 +150,13 @@ function IgnoredTable({
               onClick={() => onSelect(o)}
             >
               <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                <input type="checkbox" className="rounded border-[#E6EAF0]" aria-label={`Select ${o.referring_domain}`} />
+                <input
+                  type="checkbox"
+                  className="rounded border-[#E6EAF0]"
+                  aria-label={`Select ${o.referring_domain}`}
+                  checked={selectedIds.has(o.id)}
+                  onChange={() => onToggle(o.id)}
+                />
               </td>
               <td className="px-4 py-3">
                 <a
@@ -309,12 +328,14 @@ export function OpportunitiesPanel({
   context,
   status,
   onSelect,
+  onChanged,
 }: {
   businessId: string;
   competitors: Array<{ name: string; domain?: string | null }>;
   context?: BusinessContext;
   status: "open" | "ignored";
   onSelect: (o: EnrichedOpportunity) => void;
+  onChanged?: () => void | Promise<void>;
 }) {
   const [pageSize, setPageSize] = useState<number>(25);
   const [linkFilter, setLinkFilter] = useState<"all" | "dofollow" | "nofollow">("all");
@@ -335,6 +356,10 @@ export function OpportunitiesPanel({
   const [aiPicks, setAiPicks] = useState<EnrichedOpportunity[]>([]);
   const [search, setSearch] = useState("");
   const [spamFilter, setSpamFilter] = useState<"all" | "spam" | "ignored" | "review">("all");
+  const [confidenceFilter, setConfidenceFilter] = useState<"all" | "high" | "medium">("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
 
   function resetFilters() {
     setLinkFilter("all");
@@ -342,6 +367,7 @@ export function OpportunitiesPanel({
     setPriorityFilter("all");
     setCompetitorFilter("all");
     setSpamFilter("all");
+    setConfidenceFilter("all");
     setSearch("");
     setPage(1);
     setGroupPages({});
@@ -356,7 +382,42 @@ export function OpportunitiesPanel({
     if (spamFilter === "spam") return o.status === "spam" || o.priority === "ignore";
     if (spamFilter === "ignored") return o.status === "ignored";
     return o.status !== "spam" && o.status !== "ignored" && o.priority !== "ignore";
+  }).filter((o) => {
+    if (confidenceFilter === "all") return true;
+    const high = o.priority === "high" || o.priority === "ignore";
+    if (confidenceFilter === "high") return high;
+    return !high;
   });
+
+  function exportOpportunitiesCsv() {
+    const rows = status === "ignored" ? filteredIgnoredItems : filteredItems;
+    downloadCsv(`backlink-opportunities-${businessId}.csv`, [
+      [
+        "Domain",
+        "Power",
+        "Domain Rank",
+        "Dofollow",
+        "Relevance",
+        "Priority",
+        "Status",
+        "Competitors",
+        "Suggested Action",
+        "Source URL",
+      ],
+      ...rows.map((o) => [
+        o.referring_domain,
+        o.powerScore ?? o.authority_score ?? "",
+        o.domain_rank ?? "",
+        o.dofollow ? "yes" : "no",
+        o.topicalFit,
+        o.priority,
+        o.status,
+        o.competitor_count,
+        o.suggested_action ?? "",
+        o.source_url ?? "",
+      ]),
+    ]);
+  }
 
   const fetchPage = useCallback(
     async (opts: {
@@ -382,6 +443,64 @@ export function OpportunitiesPanel({
     },
     [businessId, status, linkFilter, topicalFilter, priorityFilter, context]
   );
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllIgnored(selectAll: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const row of filteredIgnoredItems) {
+        if (selectAll) next.add(row.id);
+        else next.delete(row.id);
+      }
+      return next;
+    });
+  }
+
+  async function applyBulkStatus(nextStatus: "open" | "ignored" | "spam") {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) {
+      setBulkError("Select at least one domain first.");
+      return;
+    }
+    setBulkUpdating(true);
+    setBulkError(null);
+    try {
+      await Promise.all(
+        ids.map(async (opportunityId) => {
+          const res = await fetch("/api/backlink-gap/opportunity/update", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ opportunityId, businessId, status: nextStatus }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(json.error ?? "Update failed");
+        })
+      );
+      setSelectedIds(new Set());
+      setLoading(true);
+      const { items: rows, total: t } = await fetchPage({
+        competitor: competitorFilter === "all" ? null : competitorFilter,
+        pageNum: page,
+        pageSz: pageSize,
+      });
+      setItems(rows);
+      setTotal(t);
+      await onChanged?.();
+    } catch (err) {
+      setBulkError(err instanceof Error ? err.message : "Bulk update failed");
+    } finally {
+      setBulkUpdating(false);
+      setLoading(false);
+    }
+  }
 
   const loadCounts = useCallback(async () => {
     const res = await fetch(`/api/backlink-gap/${businessId}/counts?status=${status}`);
@@ -606,25 +725,15 @@ export function OpportunitiesPanel({
               <option value="ignored">Ignored</option>
               <option value="review">Review</option>
             </select>
-            <select className={filterSelect}>
-              <option>Confidence: All</option>
-              <option>High</option>
-              <option>Medium</option>
+            <select
+              value={confidenceFilter}
+              onChange={(e) => setConfidenceFilter(e.target.value as typeof confidenceFilter)}
+              className={filterSelect}
+            >
+              <option value="all">Confidence: All</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
             </select>
-            <button
-              type="button"
-              className={cn(gapControl, "inline-flex items-center gap-1.5 px-3 font-medium")}
-            >
-              <Filter className="h-3.5 w-3.5" />
-              More filters
-            </button>
-            <button
-              type="button"
-              className={cn(gapControl, "inline-flex items-center gap-1.5 px-3 font-medium")}
-            >
-              <Bookmark className="h-3.5 w-3.5" />
-              Save view
-            </button>
           </>
         )}
 
@@ -674,6 +783,7 @@ export function OpportunitiesPanel({
           </select>
           <button
             type="button"
+            onClick={exportOpportunitiesCsv}
             className={cn(gapControl, "inline-flex items-center gap-1.5 px-3 font-medium")}
           >
             <Download className="h-3.5 w-3.5" />
@@ -754,25 +864,65 @@ export function OpportunitiesPanel({
       )}
 
       {status === "ignored" && (
-        <div className={cn(mock.card, "flex flex-wrap items-center gap-2 px-4 py-2.5")}>
-          <input type="checkbox" className="rounded border-[#D0D5DD]" aria-label="Select all rows" />
-          <span className={"text-[12px] text-[#667085]"}>0 selected</span>
-          <select className="rounded-lg border border-[#A6F4C5] px-2 py-0.5 text-[11px] font-medium text-[#137752]">
-            <option>Bulk actions</option>
-          </select>
-          {["Mark as Ignore", "Mark as Spam", "Restore to Active", "Move to Review"].map((label) => (
+        <div className="space-y-2">
+          {bulkError ? (
+            <p className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+              {bulkError}
+            </p>
+          ) : null}
+          <div className={cn(mock.card, "flex flex-wrap items-center gap-2 px-4 py-2.5")}>
+            <input
+              type="checkbox"
+              className="rounded border-[#D0D5DD]"
+              aria-label="Select all rows"
+              checked={
+                filteredIgnoredItems.length > 0 &&
+                filteredIgnoredItems.every((o) => selectedIds.has(o.id))
+              }
+              onChange={(e) => toggleAllIgnored(e.target.checked)}
+            />
+            <span className={"text-[12px] text-[#667085]"}>{selectedIds.size} selected</span>
             <button
-              key={label}
               type="button"
-              disabled
-              className="rounded-lg border border-[#E6EAF0] px-2 py-0.5 text-[11px] font-medium text-[#475467]"
+              disabled={bulkUpdating || selectedIds.size === 0}
+              onClick={() => void applyBulkStatus("ignored")}
+              className="rounded-lg border border-[#E6EAF0] px-2 py-0.5 text-[11px] font-medium text-[#475467] disabled:opacity-40"
             >
-              {label}
+              Mark as Ignore
             </button>
-          ))}
-          <button type="button" disabled className="rounded-lg border border-red-100 px-2 py-0.5 text-[11px] font-medium text-red-400">
-            Delete
-          </button>
+            <button
+              type="button"
+              disabled={bulkUpdating || selectedIds.size === 0}
+              onClick={() => void applyBulkStatus("spam")}
+              className="rounded-lg border border-[#E6EAF0] px-2 py-0.5 text-[11px] font-medium text-[#475467] disabled:opacity-40"
+            >
+              Mark as Spam
+            </button>
+            <button
+              type="button"
+              disabled={bulkUpdating || selectedIds.size === 0}
+              onClick={() => void applyBulkStatus("open")}
+              className="rounded-lg border border-[#E6EAF0] px-2 py-0.5 text-[11px] font-medium text-[#475467] disabled:opacity-40"
+            >
+              Restore to Active
+            </button>
+            <button
+              type="button"
+              disabled={bulkUpdating || selectedIds.size === 0}
+              onClick={() => void applyBulkStatus("open")}
+              className="rounded-lg border border-[#E6EAF0] px-2 py-0.5 text-[11px] font-medium text-[#475467] disabled:opacity-40"
+            >
+              Move to Review
+            </button>
+            <button
+              type="button"
+              disabled={bulkUpdating || selectedIds.size === 0}
+              onClick={() => void applyBulkStatus("spam")}
+              className="rounded-lg border border-red-100 px-2 py-0.5 text-[11px] font-medium text-red-600 disabled:opacity-40"
+            >
+              Delete (spam)
+            </button>
+          </div>
         </div>
       )}
 
@@ -788,6 +938,9 @@ export function OpportunitiesPanel({
               <IgnoredTable
                 rows={filteredIgnoredItems}
                 totalCompetitors={competitors.length}
+                selectedIds={selectedIds}
+                onToggle={toggleSelected}
+                onToggleAll={toggleAllIgnored}
                 onSelect={onSelect}
               />
               <Pagination

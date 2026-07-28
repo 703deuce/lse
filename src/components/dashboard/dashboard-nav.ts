@@ -341,7 +341,7 @@ function buildSmbSidebarNav(
           icon: History,
         },
         {
-          href: trial ? upgradeHref("keywords") : loc("maps-campaigns", businessId),
+          href: trial ? upgradeHref("keywords") : loc("keywords", businessId),
           label: "Keywords",
           icon: FolderKanban,
           locked: trial,

@@ -45,7 +45,13 @@ function opportunityTag(level: string) {
   );
 }
 
-export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSections }) {
+export function GrowthAuditCoverageTab({
+  sections,
+  onGoToActionPlan,
+}: {
+  sections: GrowthAuditSections;
+  onGoToActionPlan?: () => void;
+}) {
   const [showAllServices, setShowAllServices] = useState(false);
   const [showAllAreas, setShowAllAreas] = useState(false);
   const { serviceCoverage, localCoverage } = sections;
@@ -95,7 +101,7 @@ export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSect
               <Briefcase className="h-4 w-4 text-emerald-600" />
               <p className="text-[13px] font-semibold text-zinc-900">Service Coverage</p>
             </div>
-            <GaLink>View Service Opportunities</GaLink>
+            <GaLink onClick={onGoToActionPlan}>View Service Opportunities</GaLink>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-[12px]">
@@ -200,7 +206,7 @@ export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSect
             )}
           </ul>
           <div className="mt-3">
-            <GaLink>View Service Recommendations</GaLink>
+            <GaLink onClick={onGoToActionPlan}>View Service Recommendations</GaLink>
           </div>
         </GaCard>
       </div>
@@ -212,7 +218,7 @@ export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSect
               <MapPin className="h-4 w-4 text-emerald-600" />
               <p className="text-[13px] font-semibold text-zinc-900">Local Coverage</p>
             </div>
-            <GaLink>View Local Opportunities</GaLink>
+            <GaLink onClick={onGoToActionPlan}>View Local Opportunities</GaLink>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-[12px]">
@@ -300,7 +306,7 @@ export function GrowthAuditCoverageTab({ sections }: { sections: GrowthAuditSect
               )}
             </ul>
             <div className="mt-3">
-              <GaLink>View Local Recommendations</GaLink>
+              <GaLink onClick={onGoToActionPlan}>View Local Recommendations</GaLink>
             </div>
           </GaCard>
         </div>

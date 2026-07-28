@@ -46,10 +46,26 @@ import {
   mapsZoomLabel,
 } from "@/lib/maps/maps-zoom";
 import { updateBusinessSettings } from "@/lib/actions/mutations";
+import { downloadJson } from "@/lib/client/download";
 import { cn } from "@/lib/utils";
 import type { KeywordOption, ScanListItem } from "@/components/scan/scans-hub-types";
 import { customerSafeScanError } from "@/lib/scans/customer-safe-error";
 import { mock } from "@/components/mockup/ui";
+
+const SCAN_TEMPLATE_KEY = (businessId: string) => `lse:scan-setup-template:${businessId}`;
+
+type SavedScanTemplate = {
+  gridSize: number;
+  radiusMeters: number;
+  locationZoom: number;
+  device: "desktop" | "mobile";
+  dfsExecutionMode: DfsExecutionMode;
+  centerLat: number;
+  centerLng: number;
+  locationLabel: string;
+  selectedKeywordIds: string[];
+  excludedLabels: string[];
+};
 
 const fieldLabel = mock.label;
 const fieldControl =
@@ -145,6 +161,7 @@ export function ScanSetupStudio({
   const [showAddKeyword, setShowAddKeyword] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [templateMsg, setTemplateMsg] = useState<string | null>(null);
 
   useEffect(() => {
     setExcludedLabels(new Set());
@@ -199,6 +216,83 @@ export function ScanSetupStudio({
     setDfsExecutionMode(DEFAULT_DFS_EXECUTION_MODE);
     setExcludedLabels(new Set());
     resetToAccountLocation();
+    setTemplateMsg(null);
+  }
+
+  function currentSetupPayload(): SavedScanTemplate {
+    return {
+      gridSize,
+      radiusMeters,
+      locationZoom,
+      device,
+      dfsExecutionMode,
+      centerLat,
+      centerLng,
+      locationLabel,
+      selectedKeywordIds,
+      excludedLabels: [...excludedLabels],
+    };
+  }
+
+  function saveTemplate() {
+    try {
+      const payload = currentSetupPayload();
+      window.localStorage.setItem(SCAN_TEMPLATE_KEY(businessId), JSON.stringify(payload));
+      setTemplateMsg("Template saved on this device.");
+      setError(null);
+    } catch {
+      setError("Could not save template on this device.");
+    }
+  }
+
+  function loadSavedTemplate() {
+    try {
+      const raw = window.localStorage.getItem(SCAN_TEMPLATE_KEY(businessId));
+      if (!raw) {
+        setTemplateMsg("No saved template on this device yet.");
+        return;
+      }
+      const parsed = JSON.parse(raw) as SavedScanTemplate;
+      if (parsed.gridSize) setGridSize(parsed.gridSize);
+      if (parsed.radiusMeters) setRadiusMeters(parsed.radiusMeters);
+      if (parsed.locationZoom) setLocationZoom(parsed.locationZoom);
+      if (parsed.device === "desktop" || parsed.device === "mobile") setDevice(parsed.device);
+      if (parsed.dfsExecutionMode) setDfsExecutionMode(parsed.dfsExecutionMode);
+      if (typeof parsed.centerLat === "number") setCenterLat(parsed.centerLat);
+      if (typeof parsed.centerLng === "number") setCenterLng(parsed.centerLng);
+      if (parsed.locationLabel) {
+        setLocationLabel(parsed.locationLabel);
+        setLocationQuery(parsed.locationLabel);
+        setUsingAccountLocation(false);
+      }
+      if (Array.isArray(parsed.selectedKeywordIds) && parsed.selectedKeywordIds.length) {
+        const valid = parsed.selectedKeywordIds.filter((id) => keywords.some((k) => k.id === id));
+        if (valid.length) {
+          setSelectedKeywordIds(valid);
+          setSelectedKeywordId(valid[0]!);
+        }
+      }
+      if (Array.isArray(parsed.excludedLabels)) {
+        setExcludedLabels(new Set(parsed.excludedLabels));
+      }
+      setTemplateMsg("Loaded saved template.");
+      setError(null);
+    } catch {
+      setError("Could not load saved template.");
+    }
+  }
+
+  function exportSetup() {
+    downloadJson(`scan-setup-${businessId}.json`, {
+      businessId,
+      businessName: businessName ?? null,
+      exportedAt: new Date().toISOString(),
+      ...currentSetupPayload(),
+      keywords: selectedKeywordIds.map((id) => {
+        const kw = keywords.find((k) => k.id === id);
+        return { id, keyword: kw?.keyword ?? null };
+      }),
+    });
   }
 
   async function applyLocationFromAddress() {
@@ -429,9 +523,12 @@ export function ScanSetupStudio({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className={mock.btnSecondary} onClick={resetSetup}>
+          <button type="button" className={mock.btnSecondary} onClick={saveTemplate}>
             <Bookmark className="h-4 w-4" />
             Save template
+          </button>
+          <button type="button" className={mock.btnSecondary} onClick={loadSavedTemplate}>
+            Load template
           </button>
           <button
             type="button"
@@ -449,12 +546,15 @@ export function ScanSetupStudio({
             <History className="h-4 w-4" />
             History
           </Link>
-          <button type="button" className={mock.btnSecondary}>
+          <button type="button" className={mock.btnSecondary} onClick={exportSetup}>
             <Download className="h-4 w-4" />
             Export
           </button>
         </div>
       </div>
+      {templateMsg ? (
+        <p className="text-sm font-medium text-[#027A48]">{templateMsg}</p>
+      ) : null}
 
       <div className={cn(mock.card, "overflow-hidden lg:grid lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)]")}>
         <aside className="border-b border-[#E6EAF0] lg:border-b-0 lg:border-r">

@@ -259,18 +259,6 @@ export function MapsCampaignsList({
                 <option value="draft">Draft</option>
               </select>
             </label>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E6EAF0] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#98A2B3]">
-              Budget
-              <select disabled className="bg-transparent outline-none" aria-label="Budget">
-                <option>Any</option>
-              </select>
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E6EAF0] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#98A2B3]">
-              Staff
-              <select disabled className="bg-transparent outline-none" aria-label="Staff">
-                <option>Any</option>
-              </select>
-            </span>
             <label className="inline-flex items-center gap-1.5 rounded-full border border-[#E6EAF0] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#475467]">
               Sort by
               <select
