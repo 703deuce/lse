@@ -7,7 +7,6 @@ import {
   Copy,
   Check,
   Mail,
-  Menu,
   Phone,
   Star,
 } from "lucide-react";
@@ -293,15 +292,6 @@ export function PaymentPublicPage({
 
   const isSectionLayout = theme.layoutMode === "dark_sections";
 
-  const menuColor =
-    theme.headerDecor === "wave"
-      ? "rgba(255, 255, 255, 0.92)"
-      : theme.headerDecor === "floral"
-        ? "rgba(122, 58, 107, 0.5)"
-        : theme.isDark
-          ? "rgba(255, 255, 255, 0.75)"
-          : "rgba(100, 116, 139, 0.65)";
-
   const logoOverlap =
     theme.headerDecor === "wave"
       ? "-mt-[34px]"
@@ -348,14 +338,6 @@ export function PaymentPublicPage({
         ) : (
           <PaymentPageHeaderDecor theme={theme} />
         )}
-        <button
-          type="button"
-          className="absolute right-3 top-2.5 z-[1] rounded-md p-1 opacity-80 transition hover:opacity-100"
-          style={{ color: menuColor }}
-          aria-label="Menu"
-        >
-          <Menu className="h-5 w-5" strokeWidth={2.25} />
-        </button>
       </div>
 
       <div className={cn(isSectionLayout ? "px-5" : "px-5 sm:px-6", "relative z-[0]")}>
