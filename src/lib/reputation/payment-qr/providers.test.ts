@@ -67,6 +67,12 @@ describe("payment providers", () => {
       });
       assert.ok(result.destinationUrl?.includes("/125.00"));
     });
+
+    it("accepts paypal.me/handle without protocol", () => {
+      const r = validatePaymentMethodInput("paypal", "paypal.me/localshop");
+      assert.equal(r.ok, true);
+      if (r.ok) assert.equal(r.normalized, "https://paypal.me/localshop");
+    });
   });
 
   describe("Zelle", () => {

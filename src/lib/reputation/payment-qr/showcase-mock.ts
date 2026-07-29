@@ -135,10 +135,14 @@ export const MOCK_CONFIG: PaymentPageConfiguration = {
 export const TEMPLATE_SHOWCASE: Array<{
   theme: PageThemeKey;
   businessName: string;
+  galleryNumber: number;
+  blurb: string;
   configPatch: Partial<PaymentPageConfiguration>;
 }> = [
   {
     theme: "floral_pink",
+    galleryNumber: 1,
+    blurb: "Soft florals & pink accents",
     businessName: "Bloom & Co.",
     configPatch: {
       title: "Wedding Studio",
@@ -147,6 +151,8 @@ export const TEMPLATE_SHOWCASE: Array<{
   },
   {
     theme: "modern_blue",
+    galleryNumber: 2,
+    blurb: "Clean waves & modern blue",
     businessName: "PureFlow Plumbing",
     configPatch: {
       title: "Pay securely",
@@ -155,6 +161,8 @@ export const TEMPLATE_SHOWCASE: Array<{
   },
   {
     theme: "bold_professional",
+    galleryNumber: 3,
+    blurb: "Bold dark sections",
     businessName: "Summit Legal",
     configPatch: {
       title: "Professional services",
@@ -163,6 +171,8 @@ export const TEMPLATE_SHOWCASE: Array<{
   },
   {
     theme: "minimal_elegant",
+    galleryNumber: 4,
+    blurb: "Minimal serif elegance",
     businessName: "Luxe Salon",
     configPatch: {
       title: "Pay securely",
@@ -171,6 +181,8 @@ export const TEMPLATE_SHOWCASE: Array<{
   },
   {
     theme: "dark_luxury",
+    galleryNumber: 5,
+    blurb: "Dark luxury gold accents",
     businessName: "Majestic Catering",
     configPatch: {
       title: "Reserve & pay",
@@ -178,6 +190,31 @@ export const TEMPLATE_SHOWCASE: Array<{
     },
   },
 ];
+
+/** Slim config for template-picker thumbnails (matches poster thumb pattern). */
+export function buildThumbPreviewConfig(
+  theme: PageThemeKey,
+  patch: Partial<PaymentPageConfiguration> = {}
+): PaymentPageConfiguration {
+  const venmo = MOCK_CONFIG.methods.find((m) => m.provider === "venmo");
+  const paypal = MOCK_CONFIG.methods.find((m) => m.provider === "paypal");
+  return {
+    ...MOCK_CONFIG,
+    ...patch,
+    pageTheme: theme,
+    methods: [venmo, paypal].filter(Boolean) as PaymentPageConfiguration["methods"],
+    suggestedAmounts: MOCK_CONFIG.suggestedAmounts.slice(0, 4),
+    googleReviewUrl: MOCK_CONFIG.googleReviewUrl,
+    facebookReviewUrl: null,
+    websiteUrl: null,
+    facebookPageUrl: null,
+    instagramUrl: null,
+    pinterestUrl: null,
+    bookingUrl: null,
+    phone: null,
+    email: null,
+  };
+}
 
 export const MOCK_REQUEST_SESSION = {
   id: "session-preview",

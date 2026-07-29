@@ -9,7 +9,6 @@ import {
   ArrowRight,
   Check,
   Loader2,
-  Smartphone,
 } from "lucide-react";
 import { ModulePage } from "@/components/ui/design-system";
 import { PaymentPublicPage } from "@/components/reputation/payment-qr/payment-public-page";
@@ -25,7 +24,7 @@ import {
 } from "@/lib/reputation/payment-qr/types";
 import type { ReviewQrCampaign } from "@/lib/reputation/qr-campaigns/types";
 import { getPaymentProvider } from "@/lib/reputation/payment-qr/providers";
-import { PAGE_THEME_KEYS, PAGE_THEME_LABELS } from "@/lib/reputation/payment-qr/page-themes";
+import { PaymentThemePicker } from "@/components/reputation/payment-qr/payment-theme-picker";
 import { cn } from "@/lib/utils";
 
 const WIZARD_STEPS = [
@@ -216,6 +215,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
     };
   }, [
     amountMode,
+    pageTheme,
     title,
     description,
     paymentNote,
@@ -280,12 +280,18 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
       const enabledMethods = PAYMENT_PROVIDERS
         .filter((p) => methods[p].enabled && methods[p].value.trim())
         .map((p, i) => {
-          const value = methods[p].value.trim();
-          const isUrl = value.startsWith("http");
+          const raw = methods[p].value.trim();
+          const def = getPaymentProvider(p);
+          const normalized = def.normalizeInput(raw);
+          const validated = def.validateInput(normalized);
+          if (!validated.ok) {
+            throw new Error(`${def.buttonLabel}: ${validated.error}`);
+          }
+          const isUrl = validated.normalized.startsWith("http");
           return {
             provider: p,
-            publicHandle: isUrl ? null : value,
-            publicUrl: isUrl ? value : null,
+            publicHandle: isUrl ? null : validated.normalized,
+            publicUrl: isUrl ? validated.normalized : null,
             enabled: true,
             sortOrder: i,
           };
@@ -439,22 +445,20 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
             </div>
             <div>
               <label className={qrUi.label}>Page template</label>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                {PAGE_THEME_KEYS.map((key) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setPageTheme(key)}
-                    className={cn(
-                      "rounded-xl border-2 px-4 py-3 text-left text-sm font-semibold transition",
-                      pageTheme === key
-                        ? "border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]"
-                        : "border-[#E2E8F0] hover:border-[#CBD5E1]"
-                    )}
-                  >
-                    {PAGE_THEME_LABELS[key]}
-                  </button>
-                ))}
+              <p className="mt-1 text-xs text-[#64748B]">
+                Pick a mobile theme — each preview shows payments, reviews, and social links.
+              </p>
+              <div className="mt-3">
+                <PaymentThemePicker
+                  value={pageTheme}
+                  onChange={(theme, meta) => {
+                    setPageTheme(theme);
+                    if (!description.trim()) {
+                      setDescription(meta.suggestedDescription);
+                    }
+                  }}
+                  businessName={businessName}
+                />
               </div>
             </div>
             <div>
@@ -651,18 +655,19 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
               )}
             </div>
             <div>
-              <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#64748B]">
-                <Smartphone className="h-4 w-4" /> Mobile preview
-              </p>
-              <div className="overflow-hidden rounded-[2rem] border-4 border-[#0B1B32]">
-                <div className="h-[560px] overflow-y-auto">
-                  <PaymentPublicPage
-                    slug={previewSlug}
-                    campaign={previewCampaign}
-                    config={previewConfig}
-                    businessName={businessName}
-                    isPreview
-                  />
+              <p className="mb-3 text-sm font-semibold text-[#64748B]">Mobile preview</p>
+              <div className="rounded-2xl bg-gradient-to-b from-[#F4F7FB] to-white p-4">
+                <div className="mx-auto max-w-[360px] overflow-hidden rounded-[1.5rem] shadow-[0_12px_40px_rgba(15,23,42,0.1)] ring-1 ring-[#E6EAF0]">
+                  <div className="max-h-[640px] overflow-y-auto">
+                    <PaymentPublicPage
+                      slug={previewSlug}
+                      campaign={previewCampaign}
+                      config={previewConfig}
+                      businessName={businessName}
+                      isPreview
+                      themeOverride={pageTheme}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

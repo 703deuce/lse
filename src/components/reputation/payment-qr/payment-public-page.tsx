@@ -133,6 +133,7 @@ export function PaymentPublicPage({
   isPreview = false,
   requestSession = null,
   themeOverride,
+  compact = false,
 }: {
   slug: string;
   campaign: ReviewQrCampaign;
@@ -141,6 +142,8 @@ export function PaymentPublicPage({
   isPreview?: boolean;
   requestSession?: PaymentRequestSession | null;
   themeOverride?: PageThemeKey;
+  /** Scaled-down layout for template picker thumbnails */
+  compact?: boolean;
 }) {
   const [selectedAmountCents, setSelectedAmountCents] = useState<number | null>(() => {
     if (!isPreview) return null;
@@ -169,8 +172,9 @@ export function PaymentPublicPage({
     () =>
       config.methods
         .filter((m) => m.enabled && (m.publicHandle?.trim() || m.publicUrl?.trim()))
-        .sort((a, b) => a.sortOrder - b.sortOrder),
-    [config.methods]
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .slice(compact ? 2 : undefined),
+    [config.methods, compact]
   );
 
   const enabledAmounts = useMemo(
@@ -742,7 +746,7 @@ export function PaymentPublicPage({
           Leave a Google Review
         </button>
       )}
-      {config.facebookReviewUrl && (
+      {!compact && config.facebookReviewUrl && (
         <button
           type="button"
           onClick={() => void handleReviewClick("facebook", config.facebookReviewUrl!)}
@@ -761,7 +765,8 @@ export function PaymentPublicPage({
     </div>
   );
 
-  const socialBlock = (socialLinks.length > 0 || config.phone || config.email) && (
+  const socialBlock = !compact &&
+    (socialLinks.length > 0 || config.phone || config.email) && (
     <div>
       <SectionLabel theme={theme} className="text-center">Follow us</SectionLabel>
       <div className="mt-4 flex flex-wrap justify-center gap-3">
@@ -829,7 +834,7 @@ export function PaymentPublicPage({
     </div>
   );
 
-  const footerBlock = (
+  const footerBlock = !compact && (
     <>
       <p
         className="mt-6 text-center text-[10px] leading-relaxed"
@@ -849,10 +854,10 @@ export function PaymentPublicPage({
   if (isSectionLayout) {
     return (
       <main
-        className="min-h-screen"
+        className={compact ? "min-h-0" : "min-h-screen"}
         style={{ background: theme.pageBg, fontFamily: theme.fontFamily }}
       >
-        <div className="mx-auto max-w-md px-3 py-4 sm:px-4 sm:py-5">
+        <div className={cn("mx-auto px-3 py-4 sm:px-4", compact ? "max-w-[360px] py-3" : "max-w-md sm:py-5")}>
           {headerBlock}
 
           <div className="mt-4 space-y-3">
@@ -863,7 +868,7 @@ export function PaymentPublicPage({
             {methodsBlock && (
               <SectionCard theme={theme}>
                 {methodsBlock}
-                {requiresAmount && !effectiveAmountCents && !isPreview && (
+                {requiresAmount && !effectiveAmountCents && !isPreview && !compact && (
                   <p className="mt-3 text-center text-xs text-[#F59E0B]">
                     Select or enter an amount before choosing a payment method.
                   </p>
@@ -874,7 +879,7 @@ export function PaymentPublicPage({
 
             {reviewsBlock && <SectionCard theme={theme}>{reviewsBlock}</SectionCard>}
 
-            {(socialBlock || footerBlock) && (
+            {(socialBlock || footerBlock) && !compact && (
               <SectionCard theme={theme} className="pb-6">
                 {socialBlock}
                 {footerBlock}
@@ -888,10 +893,15 @@ export function PaymentPublicPage({
 
   return (
     <main
-      className="min-h-screen"
+      className={compact ? "min-h-0" : "min-h-screen"}
       style={{ background: theme.pageBg, fontFamily: theme.fontFamily }}
     >
-      <div className="relative mx-auto max-w-md px-3 py-4 sm:px-4 sm:py-6">
+      <div
+        className={cn(
+          "relative mx-auto px-3 py-4 sm:px-4",
+          compact ? "max-w-[360px] py-3" : "max-w-md sm:py-6"
+        )}
+      >
         <PaymentPageBackgroundDecor theme={theme} />
         <div
           className="relative overflow-visible"
@@ -909,7 +919,7 @@ export function PaymentPublicPage({
             {methodsBlock && (
               <div className="mt-7">
                 {methodsBlock}
-                {requiresAmount && !effectiveAmountCents && !isPreview && (
+                {requiresAmount && !effectiveAmountCents && !isPreview && !compact && (
                   <p className="mt-3 text-center text-xs text-[#B45309]">
                     Select or enter an amount before choosing a payment method.
                   </p>
@@ -926,7 +936,7 @@ export function PaymentPublicPage({
             {footerBlock}
           </div>
 
-          <PaymentPageFooterWave theme={theme} />
+            {!compact ? <PaymentPageFooterWave theme={theme} /> : <PaymentPageFooterWave theme={theme} />}
         </div>
       </div>
     </main>
