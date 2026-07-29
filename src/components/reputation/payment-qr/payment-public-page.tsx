@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { getPaymentProvider } from "@/lib/reputation/payment-qr/providers";
 import { getPageTheme } from "@/lib/reputation/payment-qr/page-themes";
+import { PaymentPageBackgroundDecor } from "@/components/reputation/payment-qr/payment-page-background-decor";
 import {
   PaymentPageFooterWave,
   PaymentPageHeaderDecor,
@@ -414,7 +415,17 @@ export function PaymentPublicPage({
                   borderRadius: theme.pillRadius,
                   background: selected ? theme.pillSelectedBg : theme.pillBg,
                   borderColor: selected ? theme.pillSelectedBorder : theme.pillBorder,
-                  color: selected ? theme.pillSelectedText : theme.textSecondary,
+                  color: selected
+                    ? theme.pillSelectedText
+                    : theme.key === "floral_pink"
+                      ? "#FFFFFF"
+                      : theme.textSecondary,
+                  boxShadow:
+                    theme.pillShadow && theme.key === "floral_pink" && !selected
+                      ? theme.pillShadow
+                      : selected && theme.key === "floral_pink"
+                        ? "0 6px 18px rgba(190, 24, 93, 0.35)"
+                        : undefined,
                 }}
               >
                 {formatAmountLabel(a.amountCents, a.label)}
@@ -433,7 +444,15 @@ export function PaymentPublicPage({
                 borderRadius: theme.pillRadius,
                 background: showCustomInput ? theme.pillSelectedBg : theme.pillBg,
                 borderColor: showCustomInput ? theme.pillSelectedBorder : theme.pillBorder,
-                color: showCustomInput ? theme.pillSelectedText : theme.textSecondary,
+                color: showCustomInput
+                  ? theme.pillSelectedText
+                  : theme.key === "floral_pink"
+                    ? "#FFFFFF"
+                    : theme.textSecondary,
+                boxShadow:
+                  theme.pillShadow && theme.key === "floral_pink" && !showCustomInput
+                    ? theme.pillShadow
+                    : undefined,
               }}
             >
               Other
@@ -652,14 +671,22 @@ export function PaymentPublicPage({
   );
 
   const reviewsBlock = showReviews && (
-    <div
-      className="border p-5"
-      style={{
-        borderRadius: theme.buttonRadius,
-        background: theme.reviewBoxBg,
-        borderColor: theme.reviewBoxBorder,
-      }}
-    >
+    <div>
+      <SectionLabel theme={theme} className="text-center">
+        {theme.reviewSectionLabel}
+      </SectionLabel>
+      <div
+        className="mt-3 border p-5"
+        style={{
+          borderRadius: theme.buttonRadius,
+          background: theme.reviewBoxBg,
+          borderColor: theme.reviewBoxBorder,
+          boxShadow:
+            theme.key === "floral_pink"
+              ? "0 8px 28px rgba(214, 51, 132, 0.1)"
+              : undefined,
+        }}
+      >
       <div className="flex items-center justify-center gap-0.5">
         {[1, 2, 3, 4, 5].map((i) => (
           <Star
@@ -713,6 +740,7 @@ export function PaymentPublicPage({
           Leave a Facebook Review
         </button>
       )}
+      </div>
     </div>
   );
 
@@ -846,9 +874,10 @@ export function PaymentPublicPage({
       className="min-h-screen"
       style={{ background: theme.pageBg, fontFamily: theme.fontFamily }}
     >
-      <div className="mx-auto max-w-md px-3 py-4 sm:px-4 sm:py-6">
+      <div className="relative mx-auto max-w-md px-3 py-4 sm:px-4 sm:py-6">
+        <PaymentPageBackgroundDecor theme={theme} />
         <div
-          className="overflow-hidden"
+          className="relative overflow-visible"
           style={{
             background: theme.cardBg,
             borderRadius: theme.cardRadius,

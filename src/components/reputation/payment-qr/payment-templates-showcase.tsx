@@ -30,12 +30,14 @@ export function PaymentTemplatesShowcase() {
               headline: item.businessName,
             };
             return (
-              <div key={item.theme} id={`template-${item.theme}`}>
+              <div key={item.theme} id={`template-${item.theme}`} className="overflow-visible">
                 <p className="mb-3 text-center text-sm font-bold text-[#0B1B32]">
                   {PAGE_THEMES[item.theme].label}
                 </p>
-                <div className="overflow-hidden rounded-[2rem] border-4 border-[#0B1B32] shadow-xl">
-                  <div className="h-[780px] overflow-y-auto">
+                <div
+                  className="overflow-visible rounded-[2rem] shadow-[0_20px_50px_rgba(15,23,42,0.12)] ring-1 ring-[#CBD5E1]"
+                >
+                  <div className="h-[780px] overflow-y-auto overflow-x-visible">
                     <PaymentPublicPage
                       slug={`preview-${item.theme}`}
                       campaign={campaign}

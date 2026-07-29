@@ -22,7 +22,7 @@ const adminShots = [
   { name: "payment-qr-02-type-selector", url: `${baseUrl}/dev/payment-qr-preview#type-selector` },
   { name: "payment-qr-03-wizard-basic", url: `${baseUrl}/dev/payment-qr-preview#wizard-basic` },
   { name: "payment-qr-04-wizard-methods", url: `${baseUrl}/dev/payment-qr-preview#wizard-methods` },
-  { name: "payment-qr-05-public-page", url: `${baseUrl}/dev/payment-qr-preview#public-page` },
+  { name: "payment-qr-05-wizard-preview", url: `${baseUrl}/dev/payment-qr-preview#wizard-preview` },
   { name: "payment-qr-06-campaign-editor", url: `${baseUrl}/dev/payment-qr-preview#campaign-editor` },
   { name: "payment-qr-07-analytics", url: `${baseUrl}/dev/payment-qr-preview#analytics` },
   { name: "payment-qr-templates-all", url: `${baseUrl}/dev/payment-qr-templates`, fullPage: true },

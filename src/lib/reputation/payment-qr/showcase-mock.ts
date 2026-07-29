@@ -69,7 +69,7 @@ export const MOCK_CONFIG: PaymentPageConfiguration = {
   youtubeUrl: null,
   bookingUrl: null,
   phone: "(703) 555-0142",
-  email: null,
+  email: "hello@thelocalshop.com",
   methods: [
     {
       id: "0",
@@ -124,8 +124,9 @@ export const MOCK_CONFIG: PaymentPageConfiguration = {
   ],
   suggestedAmounts: [
     { id: "15", amountCents: 1500, label: "15%", enabled: true, sortOrder: 0 },
-    { id: "20", amountCents: 2000, label: "20%", enabled: true, sortOrder: 1 },
-    { id: "25", amountCents: 2500, label: "25%", enabled: true, sortOrder: 2 },
+    { id: "18", amountCents: 1800, label: "18%", enabled: true, sortOrder: 1 },
+    { id: "20", amountCents: 2000, label: "20%", enabled: true, sortOrder: 2 },
+    { id: "25", amountCents: 2500, label: "25%", enabled: true, sortOrder: 3 },
   ],
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
@@ -162,18 +163,18 @@ export const TEMPLATE_SHOWCASE: Array<{
   },
   {
     theme: "minimal_elegant",
-    businessName: "Oak & Stone",
+    businessName: "Luxe Salon",
     configPatch: {
       title: "Pay securely",
-      description: "Handcrafted home goods",
+      description: "Elevated hair & beauty care",
     },
   },
   {
     theme: "dark_luxury",
-    businessName: "Velvet Lounge",
+    businessName: "Majestic Catering",
     configPatch: {
       title: "Reserve & pay",
-      description: "Premium nightlife experience",
+      description: "Premium event catering",
     },
   },
 ];

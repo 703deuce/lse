@@ -64,6 +64,8 @@ export type PageThemeTokens = {
   payLabel: string;
   reviewPrompt: string;
   reviewSubtext: string;
+  reviewSectionLabel: string;
+  pillShadow?: string;
 };
 
 export const PAGE_THEMES: Record<PageThemeKey, PageThemeTokens> = {
@@ -81,10 +83,10 @@ export const PAGE_THEMES: Record<PageThemeKey, PageThemeTokens> = {
     textSecondary: "#7C3A6B",
     textMuted: "#9D6B8C",
     sectionLabel: "#B07A9A",
-    pillBg: "#FFFFFF",
-    pillBorder: "#F5B8D0",
-    pillSelectedBg: "#D63384",
-    pillSelectedBorder: "#D63384",
+    pillBg: "#EC4899",
+    pillBorder: "#EC4899",
+    pillSelectedBg: "#BE185D",
+    pillSelectedBorder: "#BE185D",
     pillSelectedText: "#FFFFFF",
     pillRadius: "9999px",
     buttonRadius: "12px",
@@ -113,6 +115,8 @@ export const PAGE_THEMES: Record<PageThemeKey, PageThemeTokens> = {
     payLabel: "Pay with",
     reviewPrompt: "Happy with our service?",
     reviewSubtext: "Tap below to leave a review.",
+    reviewSectionLabel: "Leave us a review",
+    pillShadow: "0 4px 14px rgba(214, 51, 132, 0.22)",
   },
   modern_blue: {
     key: "modern_blue",
@@ -159,6 +163,7 @@ export const PAGE_THEMES: Record<PageThemeKey, PageThemeTokens> = {
     payLabel: "Pay with",
     reviewPrompt: "Enjoyed your experience?",
     reviewSubtext: "Your feedback helps our local business grow.",
+    reviewSectionLabel: "Leave us a review",
   },
   bold_professional: {
     key: "bold_professional",
@@ -205,6 +210,7 @@ export const PAGE_THEMES: Record<PageThemeKey, PageThemeTokens> = {
     payLabel: "Pay with",
     reviewPrompt: "Loved our service?",
     reviewSubtext: "Leave us a review below — your feedback helps us grow.",
+    reviewSectionLabel: "Leave us a review",
   },
   minimal_elegant: {
     key: "minimal_elegant",
@@ -252,6 +258,7 @@ export const PAGE_THEMES: Record<PageThemeKey, PageThemeTokens> = {
     payLabel: "Pay with",
     reviewPrompt: "Enjoyed your visit?",
     reviewSubtext: "We would love to hear from you.",
+    reviewSectionLabel: "Leave us a review",
   },
   dark_luxury: {
     key: "dark_luxury",
@@ -297,6 +304,7 @@ export const PAGE_THEMES: Record<PageThemeKey, PageThemeTokens> = {
     payLabel: "Pay with",
     reviewPrompt: "Enjoyed the experience?",
     reviewSubtext: "Share your thoughts with a quick review.",
+    reviewSectionLabel: "Leave us a review",
   },
 };
 
