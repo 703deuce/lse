@@ -96,10 +96,10 @@ export function ReviewReplyGenerator({ embed = false }: { embed?: boolean }) {
       title="AI Review Reply Generator"
       subtitle="Select a review, choose a tone, and generate a professional Google reply."
       steps={[
-        { label: "Connect GMB account" },
+        { label: "Paste a review (GMB connect coming soon)" },
         { label: "Select a Review" },
         { label: "AI Generates a Reply" },
-        { label: "Review and Post" },
+        { label: "Copy & post in Google" },
       ]}
       ctaHref="/sign-up"
       ctaLabel="Start Free Trial"

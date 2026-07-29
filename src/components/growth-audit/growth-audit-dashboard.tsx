@@ -269,7 +269,12 @@ export function GrowthAuditDashboard({ businessId }: { businessId: string }) {
           {tab === "website" && (
             <GrowthAuditWebsiteTab website={sections.website} onGoToActionPlan={() => goToTab("growth-plan")} />
           )}
-          {tab === "coverage" && <GrowthAuditCoverageTab sections={sections} />}
+          {tab === "coverage" && (
+            <GrowthAuditCoverageTab
+              sections={sections}
+              onGoToActionPlan={() => goToTab("growth-plan")}
+            />
+          )}
           {tab === "competitor-gap" && (
             <GrowthAuditCompetitorTab
               sections={sections}
