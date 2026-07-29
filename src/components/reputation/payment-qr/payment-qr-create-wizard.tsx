@@ -671,7 +671,8 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
             <div>
               <p className="mb-3 text-sm font-semibold text-[#64748B]">Hosted page preview</p>
               <p className="mb-3 text-xs text-[#64748B]">
-                What customers see after scanning — same theme as the poster, with payments where the QR sits.
+                What customers see after scanning — same brand theme as your poster, with tip
+                amounts, payment buttons, and Google review.
               </p>
               <BrandThemeHostedPage
                 slug={previewSlug}
