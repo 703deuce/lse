@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { BrandThemeHostedPage } from "@/components/reputation/payment-qr/brand-theme-hosted-page";
 import { MOCK_CAMPAIGN, MOCK_CONFIG } from "@/lib/reputation/payment-qr/showcase-mock";
+import { pageThemeFromPosterTemplate } from "@/lib/reputation/brand-themes";
 import { normalizePosterTemplateKey, type PosterTemplateKey } from "@/lib/reputation/poster-templates";
 
 /** Static brand-theme hosted page preview — matches post-scan customer view on master. */
@@ -21,11 +22,12 @@ export default async function BrandThemePayPreviewPage({
     description: "Service beyond the tap",
     name: "Junk Removal Woodbridge",
   };
+  const pageTheme = pageThemeFromPosterTemplate(templateKey);
   const config = {
     ...MOCK_CONFIG,
     title: "Junk Removal Woodbridge",
     description: "Service beyond the tap",
-    pageTheme: "modern_blue",
+    pageTheme,
     primaryColor: "#2563EB",
   };
 
