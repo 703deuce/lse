@@ -1,3 +1,4 @@
+import { pageThemeFromPosterTemplate } from "@/lib/reputation/brand-themes";
 import { appUrl } from "@/lib/app-url";
 import { createServiceClient } from "@/lib/db/client";
 import { DEFAULT_POSTER_CONFIG } from "@/lib/reputation/poster-config";
@@ -304,7 +305,7 @@ export async function createPaymentQrCampaign(
       qr_campaign_id: campaign.id,
       payment_mode: "reusable_page",
       amount_mode: amountMode,
-      page_theme: input.pageTheme ?? "modern_blue",
+      page_theme: input.pageTheme ?? pageThemeFromPosterTemplate(templateKey),
       purpose: input.purpose,
       custom_purpose_label: input.customPurposeLabel ?? null,
       title: input.title ?? purposeHeading,
