@@ -96,5 +96,19 @@ export function httpErrorFromException(
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
+  if (err instanceof Error && message && message.length < 240) {
+    const userFacing =
+      lower.includes("required") ||
+      lower.includes("invalid") ||
+      lower.includes("enable at least") ||
+      lower.includes("upgrade required") ||
+      lower.includes("plan limit") ||
+      lower.includes("slug") ||
+      /^[a-z_]+: /.test(message);
+    if (userFacing) {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+  }
+
   return NextResponse.json({ error: fallbackMessage }, { status: 500 });
 }

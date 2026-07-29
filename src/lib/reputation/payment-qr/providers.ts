@@ -292,6 +292,12 @@ export const PAYPAL_PROVIDER: PaymentProviderDefinition = {
     const trimmed = input.trim();
     if (!trimmed) return { ok: false, error: "PayPal.me URL is required." };
     if (!trimmed.startsWith("http")) {
+      const paypalPath = trimmed.match(
+        /^(?:paypal\.me\/|www\.paypal\.me\/)([a-zA-Z0-9._-]{1,50})$/i
+      );
+      if (paypalPath) {
+        return { ok: true, normalized: `https://paypal.me/${paypalPath[1]}` };
+      }
       const handle = stripHandle(trimmed);
       if (!/^[a-zA-Z0-9._-]{1,50}$/.test(handle)) {
         return { ok: false, error: "Invalid PayPal.me handle." };
