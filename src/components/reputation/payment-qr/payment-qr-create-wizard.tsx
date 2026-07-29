@@ -9,7 +9,6 @@ import {
   ArrowRight,
   Check,
   Loader2,
-  Smartphone,
 } from "lucide-react";
 import { ModulePage } from "@/components/ui/design-system";
 import { PaymentPublicPage } from "@/components/reputation/payment-qr/payment-public-page";
@@ -216,6 +215,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
     };
   }, [
     amountMode,
+    pageTheme,
     title,
     description,
     paymentNote,
@@ -451,7 +451,12 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
               <div className="mt-3">
                 <PaymentThemePicker
                   value={pageTheme}
-                  onChange={setPageTheme}
+                  onChange={(theme, meta) => {
+                    setPageTheme(theme);
+                    if (!description.trim()) {
+                      setDescription(meta.suggestedDescription);
+                    }
+                  }}
                   businessName={businessName}
                 />
               </div>
@@ -650,18 +655,19 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
               )}
             </div>
             <div>
-              <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#64748B]">
-                <Smartphone className="h-4 w-4" /> Mobile preview
-              </p>
-              <div className="overflow-hidden rounded-[2rem] border-4 border-[#0B1B32]">
-                <div className="h-[560px] overflow-y-auto">
-                  <PaymentPublicPage
-                    slug={previewSlug}
-                    campaign={previewCampaign}
-                    config={previewConfig}
-                    businessName={businessName}
-                    isPreview
-                  />
+              <p className="mb-3 text-sm font-semibold text-[#64748B]">Mobile preview</p>
+              <div className="rounded-2xl bg-gradient-to-b from-[#F4F7FB] to-white p-4">
+                <div className="mx-auto max-w-[360px] overflow-hidden rounded-[1.5rem] shadow-[0_12px_40px_rgba(15,23,42,0.1)] ring-1 ring-[#E6EAF0]">
+                  <div className="max-h-[640px] overflow-y-auto">
+                    <PaymentPublicPage
+                      slug={previewSlug}
+                      campaign={previewCampaign}
+                      config={previewConfig}
+                      businessName={businessName}
+                      isPreview
+                      themeOverride={pageTheme}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
