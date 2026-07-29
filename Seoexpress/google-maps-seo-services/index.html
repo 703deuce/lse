@@ -110,9 +110,30 @@
     <nav class="main-nav" id="main-nav" aria-label="Main navigation">
       <ul class="nav-list">
         <li class="nav-item"><a href="../" class="nav-link" data-nav="home">Home</a></li>
-        <li class="nav-item"><a href="../reputation-management/" class="nav-link" data-nav="reputation-management">Reputation Management</a></li>
-        <li class="nav-item"><a href="../local-rank-tracking/" class="nav-link" data-nav="local-rank-tracking">Local Rank Tracking</a></li>
-        <li class="nav-item"><a href="../local-seo-audit/" class="nav-link" data-nav="local-seo-audit">Local SEO Audit</a></li>
+        <li class="nav-item has-dropdown">
+          <div class="nav-dropdown-wrap">
+            <a href="../reputation-management/" class="nav-link" data-nav="products">Products</a>
+            <button type="button" class="dropdown-toggle" aria-expanded="false" aria-haspopup="true" aria-label="Show products menu">
+              <svg class="chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+            </button>
+          </div>
+          <ul class="dropdown-menu" role="menu">
+            <li role="none"><a href="../reputation-management/" role="menuitem">Reputation Management</a></li>
+            <li role="none"><a href="../local-rank-tracking/" role="menuitem">Local Rank Tracking</a></li>
+            <li role="none"><a href="../local-seo-audit/" role="menuitem">Local SEO Audit</a></li>
+          </ul>
+        </li>
+        <li class="nav-item has-dropdown">
+          <div class="nav-dropdown-wrap">
+            <a href="../get-more-google-reviews/" class="nav-link" data-nav="solutions">Solutions</a>
+            <button type="button" class="dropdown-toggle" aria-expanded="false" aria-haspopup="true" aria-label="Show solutions menu">
+              <svg class="chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+            </button>
+          </div>
+          <ul class="dropdown-menu" role="menu">
+            <li role="none"><a href="../get-more-google-reviews/" role="menuitem">Get More Google Reviews</a></li>
+          </ul>
+        </li>
         <li class="nav-item has-dropdown">
           <div class="nav-dropdown-wrap">
             <a href="../free-tools/" class="nav-link" data-nav="free-tools">Free Tools</a>
@@ -130,17 +151,17 @@
         </li>
         <li class="nav-item"><a href="../local-seo-packages/" class="nav-link" data-nav="local-seo-packages">Pricing</a></li>
         <li class="nav-item nav-item--mobile-only">
-          <a href="https://app.localseoexpress.com/sign-in" class="nav-link">Login</a>
+          <a href="https://app.localseoexpress.com/sign-in" class="nav-link">Sign In</a>
         </li>
         <li class="nav-item nav-item--mobile-only">
-          <a href="https://app.localseoexpress.com/sign-up" class="nav-link nav-link--cta">Sign Up</a>
+          <a href="https://app.localseoexpress.com/sign-up" class="nav-link nav-link--cta">Start Getting Reviews</a>
         </li>
       </ul>
     </nav>
 
     <div class="header-actions">
-      <a href="https://app.localseoexpress.com/sign-in" class="header-signin">Login</a>
-      <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary btn-header">Sign Up</a>
+      <a href="https://app.localseoexpress.com/sign-in" class="header-signin">Sign In</a>
+      <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary btn-header">Start Getting Reviews</a>
     </div>
 
     <button class="mobile-toggle" id="mobile-toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="main-nav">
@@ -706,33 +727,37 @@
   </main>
 
   <footer class="site-footer">
-  <div class="container footer-grid">
+  <div class="container footer-grid footer-grid--wide">
     <div class="footer-col footer-about">
       <a href="../" class="logo footer-logo" aria-label="Local SEO Express home">
         <svg class="logo-pin" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2C11.03 2 7 6.03 7 11c0 5.25 9 19 9 19s9-13.75 9-19c0-4.97-4.03-9-9-9z" fill="#137752"/><circle cx="16" cy="11" r="3.5" fill="#fff"/></svg>
         Local SEO <strong>Express</strong>
       </a>
-      <p>Get more Google reviews and improve your local rankings — in one place.</p>
-      <p class="footer-cta"><a href="https://app.localseoexpress.com/sign-up" class="footer-cta-link">Start Free</a></p>
+      <p>Get more reviews. Build local trust. Improve your local visibility.</p>
+      <p class="footer-cta"><a href="https://app.localseoexpress.com/sign-up" class="footer-cta-link">Start Getting Reviews</a></p>
     </div>
     <div class="footer-col">
       <h4>Product</h4>
       <ul>
-        <li><a href="../">Home</a></li>
-        <li><a href="../reputation-management/">Reputation Management</a></li>
+        <li><a href="../get-more-google-reviews/">Google Reviews</a></li>
+        <li><a href="../reputation-management/">SMS Requests</a></li>
+        <li><a href="../reputation-management/">Email Requests</a></li>
+        <li><a href="../tools/google-review-link-qr-code/">QR Posters</a></li>
+        <li><a href="../reputation-management/">Pay &amp; Review</a></li>
         <li><a href="../local-rank-tracking/">Local Rank Tracking</a></li>
         <li><a href="../local-seo-audit/">Local SEO Audit</a></li>
         <li><a href="../local-seo-packages/">Pricing</a></li>
       </ul>
     </div>
     <div class="footer-col">
-      <h4>Free Tools</h4>
+      <h4>Resources</h4>
       <ul>
-        <li><a href="../free-tools/">All Free Tools</a></li>
-        <li><a href="../tools/google-review-link-qr-code/">Google Review Link &amp; QR Code</a></li>
-        <li><a href="../tools/review-response-generator/">AI Review Reply Generator</a></li>
-        <li><a href="../tools/google-review-widget/">Google Review Widget</a></li>
-        <li><a href="../tools/google-maps-rank-checker/">Maps Rank Checker</a></li>
+        <li><a href="../get-more-google-reviews/">How to Get More Google Reviews</a></li>
+        <li><a href="../tools/google-review-link-qr-code/">How to Create a Google Review Link</a></li>
+        <li><a href="../tools/google-review-link-qr-code/">Google Review QR Codes</a></li>
+        <li><a href="../get-more-google-reviews/#faq">How to Ask Customers for Reviews</a></li>
+        <li><a href="../free-tools/">Local SEO Guides</a></li>
+        <li><a href="../contact/">Help Center</a></li>
       </ul>
     </div>
     <div class="footer-col">
@@ -740,14 +765,22 @@
       <ul>
         <li><a href="../about/">About</a></li>
         <li><a href="../contact/">Contact</a></li>
+        <li><a href="../local-seo-packages/">Pricing</a></li>
+        <li><a href="https://app.localseoexpress.com/sign-in">Sign In</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Legal</h4>
+      <ul>
         <li><a href="../privacy-policy/">Privacy Policy</a></li>
         <li><a href="../terms-of-service/">Terms of Service</a></li>
-        <li><a href="https://app.localseoexpress.com/sign-in">Login</a></li>
-        <li><a href="https://app.localseoexpress.com/sign-up">Sign Up</a></li>
+        <li><a href="../terms-of-service/">Messaging Terms</a></li>
+        <li><a href="../terms-of-service/">Acceptable Use Policy</a></li>
       </ul>
     </div>
   </div>
   <div class="container footer-bottom">
+    <p class="footer-disclaimer">Google and Google Maps are trademarks of Google LLC. Local SEO Express is not endorsed by or affiliated with Google.</p>
     <p>&copy; 2026 Local SEO Express. All rights reserved.</p>
   </div>
 </footer>

@@ -9,9 +9,30 @@
     <nav class="main-nav" id="main-nav" aria-label="Main navigation">
       <ul class="nav-list">
         <li class="nav-item"><a href="./" class="nav-link" data-nav="home">Home</a></li>
-        <li class="nav-item"><a href="reputation-management/" class="nav-link" data-nav="reputation-management">Reputation Management</a></li>
-        <li class="nav-item"><a href="local-rank-tracking/" class="nav-link" data-nav="local-rank-tracking">Local Rank Tracking</a></li>
-        <li class="nav-item"><a href="local-seo-audit/" class="nav-link" data-nav="local-seo-audit">Local SEO Audit</a></li>
+        <li class="nav-item has-dropdown">
+          <div class="nav-dropdown-wrap">
+            <a href="reputation-management/" class="nav-link" data-nav="products">Products</a>
+            <button type="button" class="dropdown-toggle" aria-expanded="false" aria-haspopup="true" aria-label="Show products menu">
+              <svg class="chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+            </button>
+          </div>
+          <ul class="dropdown-menu" role="menu">
+            <li role="none"><a href="reputation-management/" role="menuitem">Reputation Management</a></li>
+            <li role="none"><a href="local-rank-tracking/" role="menuitem">Local Rank Tracking</a></li>
+            <li role="none"><a href="local-seo-audit/" role="menuitem">Local SEO Audit</a></li>
+          </ul>
+        </li>
+        <li class="nav-item has-dropdown">
+          <div class="nav-dropdown-wrap">
+            <a href="get-more-google-reviews/" class="nav-link" data-nav="solutions">Solutions</a>
+            <button type="button" class="dropdown-toggle" aria-expanded="false" aria-haspopup="true" aria-label="Show solutions menu">
+              <svg class="chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+            </button>
+          </div>
+          <ul class="dropdown-menu" role="menu">
+            <li role="none"><a href="get-more-google-reviews/" role="menuitem">Get More Google Reviews</a></li>
+          </ul>
+        </li>
         <li class="nav-item has-dropdown">
           <div class="nav-dropdown-wrap">
             <a href="free-tools/" class="nav-link" data-nav="free-tools">Free Tools</a>
@@ -29,17 +50,17 @@
         </li>
         <li class="nav-item"><a href="local-seo-packages/" class="nav-link" data-nav="local-seo-packages">Pricing</a></li>
         <li class="nav-item nav-item--mobile-only">
-          <a href="https://app.localseoexpress.com/sign-in" class="nav-link">Login</a>
+          <a href="https://app.localseoexpress.com/sign-in" class="nav-link">Sign In</a>
         </li>
         <li class="nav-item nav-item--mobile-only">
-          <a href="https://app.localseoexpress.com/sign-up" class="nav-link nav-link--cta">Sign Up</a>
+          <a href="https://app.localseoexpress.com/sign-up" class="nav-link nav-link--cta">Start Getting Reviews</a>
         </li>
       </ul>
     </nav>
 
     <div class="header-actions">
-      <a href="https://app.localseoexpress.com/sign-in" class="header-signin">Login</a>
-      <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary btn-header">Sign Up</a>
+      <a href="https://app.localseoexpress.com/sign-in" class="header-signin">Sign In</a>
+      <a href="https://app.localseoexpress.com/sign-up" class="btn btn-primary btn-header">Start Getting Reviews</a>
     </div>
 
     <button class="mobile-toggle" id="mobile-toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="main-nav">
