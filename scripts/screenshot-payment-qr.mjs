@@ -53,6 +53,16 @@ for (const shot of templateShots) {
     waitUntil: "networkidle",
   });
   await page.waitForTimeout(800);
+  await page.evaluate((theme) => {
+    const root = document.querySelector(`#template-${theme}`);
+    if (!root) return;
+    const scroll = root.querySelector(".overflow-y-auto");
+    if (scroll) {
+      scroll.style.height = "auto";
+      scroll.style.overflow = "visible";
+    }
+  }, shot.theme);
+  await page.waitForTimeout(200);
   const el = page.locator(`#template-${shot.theme}`);
   const file = path.join(outDir, `${shot.name}.png`);
   await el.screenshot({ path: file });

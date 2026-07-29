@@ -68,7 +68,7 @@ export const MOCK_CONFIG: PaymentPageConfiguration = {
   tiktokUrl: null,
   youtubeUrl: null,
   bookingUrl: null,
-  phone: null,
+  phone: "(703) 555-0142",
   email: null,
   methods: [
     {
@@ -123,10 +123,9 @@ export const MOCK_CONFIG: PaymentPageConfiguration = {
     },
   ],
   suggestedAmounts: [
-    { id: "10", amountCents: 1000, label: "10%", enabled: true, sortOrder: 0 },
-    { id: "15", amountCents: 1500, label: "15%", enabled: true, sortOrder: 1 },
-    { id: "20", amountCents: 2000, label: "20%", enabled: true, sortOrder: 2 },
-    { id: "25", amountCents: 2500, label: "25%", enabled: true, sortOrder: 3 },
+    { id: "15", amountCents: 1500, label: "15%", enabled: true, sortOrder: 0 },
+    { id: "20", amountCents: 2000, label: "20%", enabled: true, sortOrder: 1 },
+    { id: "25", amountCents: 2500, label: "25%", enabled: true, sortOrder: 2 },
   ],
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),

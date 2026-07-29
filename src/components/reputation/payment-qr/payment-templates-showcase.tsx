@@ -35,7 +35,7 @@ export function PaymentTemplatesShowcase() {
                   {PAGE_THEMES[item.theme].label}
                 </p>
                 <div className="overflow-hidden rounded-[2rem] border-4 border-[#0B1B32] shadow-xl">
-                  <div className="h-[640px] overflow-y-auto">
+                  <div className="h-[780px] overflow-y-auto">
                     <PaymentPublicPage
                       slug={`preview-${item.theme}`}
                       campaign={campaign}
