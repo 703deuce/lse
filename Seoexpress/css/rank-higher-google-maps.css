@@ -1,0 +1,189 @@
+/* Rank Higher in Google Maps — extends GMR marketing layout */
+
+.page-rhm .gmr-hero h1 { max-width: 22ch; }
+
+.rhm-hero-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1.25rem;
+}
+
+.rhm-hero-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(19, 119, 82, 0.18);
+  background: rgba(255, 255, 255, 0.85);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--smb-muted);
+}
+
+.rhm-tool-grid {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+@media (min-width: 640px) { .rhm-tool-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .rhm-tool-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.rhm-tool-card {
+  border-radius: 18px;
+  border: 1px solid rgba(19, 119, 82, 0.1);
+  background: #fff;
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.07);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rhm-tool-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.1);
+}
+
+.rhm-tool-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 1rem 1rem 0.5rem;
+}
+
+.rhm-tool-card__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ecfdf5;
+  color: var(--smb-green);
+  flex-shrink: 0;
+}
+
+.rhm-tool-card h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--smb-text);
+}
+
+.rhm-tool-card__shot {
+  padding: 0 0.75rem;
+  border-bottom: 1px solid rgba(19, 119, 82, 0.08);
+}
+
+.rhm-tool-card__shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 120px;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 10px;
+  border: 1px solid rgba(19, 119, 82, 0.08);
+}
+
+.rhm-tool-card__body {
+  padding: 0.85rem 1rem 1rem;
+}
+
+.rhm-tool-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.75rem;
+}
+
+.rhm-tool-card li {
+  position: relative;
+  padding-left: 1.1rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--smb-muted);
+}
+
+.rhm-tool-card li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.45rem;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--smb-green);
+}
+
+.rhm-tool-card__link {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--smb-green);
+  text-decoration: none;
+}
+
+.rhm-tool-card__link:hover { text-decoration: underline; }
+
+.rhm-growth-panel {
+  border-radius: 20px;
+  border: 1px solid rgba(19, 119, 82, 0.12);
+  background: #fff;
+  padding: 1.25rem;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.1);
+}
+
+.rhm-growth-panel h3 {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.rhm-growth-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.rhm-growth-stat {
+  padding: 0.75rem;
+  border-radius: 12px;
+  background: #f8faf9;
+  border: 1px solid var(--smb-line);
+}
+
+.rhm-growth-stat strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--smb-green);
+}
+
+.rhm-growth-stat span {
+  font-size: 0.75rem;
+  color: var(--smb-muted);
+}
+
+.rhm-quote-card {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf7 100%);
+  border: 1px solid rgba(19, 119, 82, 0.15);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--smb-text);
+}
+
+.rhm-quote-card cite {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+  font-style: normal;
+  color: var(--smb-muted);
+}
