@@ -50,6 +50,45 @@ export const QR_EVENT_TYPES = [
 ] as const;
 export type QrEventType = (typeof QR_EVENT_TYPES)[number];
 
+export const PAYMENT_MODES = ["reusable_page", "request_only"] as const;
+export type PaymentMode = (typeof PAYMENT_MODES)[number];
+
+export const PAYMENT_MODE_LABELS: Record<PaymentMode, string> = {
+  reusable_page: "Reusable payment page",
+  request_only: "Payment request template",
+};
+
+export type PaymentProviderCapabilities = {
+  supportsPrefilledAmount: boolean;
+  supportsPrefilledNote: boolean;
+  supportsAppDeepLink: boolean;
+  supportsWebFallback: boolean;
+  supportsVerifiedCompletion: boolean;
+};
+
+export type PaymentRequestSession = {
+  id: string;
+  qrCampaignId: string;
+  organizationId: string | null;
+  businessId: string | null;
+  shortCode: string;
+  amountCents: number;
+  currency: string;
+  note: string | null;
+  status: "active" | "expired" | "cancelled";
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PaymentPageLoadContext = {
+  campaign: import("@/lib/reputation/qr-campaigns/types").ReviewQrCampaign;
+  config: PaymentPageConfiguration;
+  paymentMode: PaymentMode;
+  /** Locked amount for transaction-specific requests */
+  requestSession: PaymentRequestSession | null;
+};
+
 export type PaymentPageMethod = {
   id: string;
   provider: PaymentProvider;
@@ -72,6 +111,7 @@ export type PaymentSuggestedAmount = {
 export type PaymentPageConfiguration = {
   id: string;
   qrCampaignId: string;
+  paymentMode: PaymentMode;
   purpose: PaymentPurpose;
   customPurposeLabel: string | null;
   title: string | null;
@@ -179,4 +219,16 @@ export type CreatePaymentQrInput = {
   showFooter?: boolean;
   posterConfig?: Record<string, unknown>;
   status?: "active" | "paused" | "draft";
+  paymentMode?: PaymentMode;
+};
+
+export type CreatePaymentRequestInput = {
+  organizationId: string;
+  businessId: string;
+  qrCampaignId: string;
+  ownerUserId?: string | null;
+  amountCents: number;
+  currency?: string;
+  note?: string | null;
+  expiresInDays?: number;
 };

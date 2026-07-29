@@ -18,6 +18,9 @@ import {
   PAYMENT_PURPOSE_LABELS,
   PAYMENT_PURPOSES,
   PAYMENT_PROVIDERS,
+  PAYMENT_MODE_LABELS,
+  PAYMENT_MODES,
+  type PaymentMode,
   type PaymentPurpose,
   type PaymentProvider,
 } from "@/lib/reputation/payment-qr/types";
@@ -66,6 +69,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
   });
 
   const [purpose, setPurpose] = useState<PaymentPurpose>("pay");
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>("reusable_page");
   const [customPurposeLabel, setCustomPurposeLabel] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -166,6 +170,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
     return {
       id: "preview",
       qrCampaignId: "preview",
+      paymentMode,
       purpose,
       customPurposeLabel: purpose === "custom" ? customPurposeLabel : null,
       title: title || PAYMENT_PURPOSE_LABELS[purpose],
@@ -201,6 +206,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
     };
   }, [
     purpose,
+    paymentMode,
     customPurposeLabel,
     title,
     description,
@@ -262,12 +268,17 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
     try {
       const enabledMethods = PAYMENT_PROVIDERS
         .filter((p) => methods[p].enabled && methods[p].value.trim())
-        .map((p, i) => ({
-          provider: p,
-          publicHandle: methods[p].value.trim(),
-          enabled: true,
-          sortOrder: i,
-        }));
+        .map((p, i) => {
+          const value = methods[p].value.trim();
+          const isUrl = value.startsWith("http");
+          return {
+            provider: p,
+            publicHandle: isUrl ? null : value,
+            publicUrl: isUrl ? value : null,
+            enabled: true,
+            sortOrder: i,
+          };
+        });
 
       if (enabledMethods.length === 0) {
         throw new Error("Enable at least one payment method.");
@@ -292,6 +303,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
             ? amounts.map((cents, i) => ({ amountCents: cents, sortOrder: i }))
             : [],
           allowCustomAmount: entitlements.suggestedAmounts,
+          paymentMode,
           headline: title || PAYMENT_PURPOSE_LABELS[purpose],
           templateKey: "scan_to_pay",
         }),
@@ -406,6 +418,36 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
               />
             )}
             <div>
+              <h3 className="text-sm font-bold text-[#0B1B32]">Page type</h3>
+              <p className="mt-1 text-sm text-[#667085]">
+                Choose whether customers enter the amount or you send a specific payment request.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                {PAYMENT_MODES.map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setPaymentMode(mode)}
+                    className={cn(
+                      "rounded-2xl border-2 p-4 text-left transition",
+                      paymentMode === mode
+                        ? "border-[#2563EB] bg-[#EFF6FF]"
+                        : "border-[#E2E8F0] hover:border-[#CBD5E1]"
+                    )}
+                  >
+                    <p className="text-sm font-bold text-[#0B1B32]">
+                      {PAYMENT_MODE_LABELS[mode]}
+                    </p>
+                    <p className="mt-1 text-xs text-[#64748B]">
+                      {mode === "reusable_page"
+                        ? "One permanent link or QR. Customers enter or pick an amount, then choose a provider."
+                        : "Template for one-off requests. You set amount and note, then share a unique link or QR per job."}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
               <label className={qrUi.label}>Campaign name</label>
               <input
                 value={name}
@@ -449,7 +491,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
                       <div>
                         <p className="font-bold text-[#0B1B32]">{def.displayName}</p>
                         <p className="text-xs text-[#64748B]">
-                          {provider === "cash_app" && "Cashtag ($username)"}
+                          {provider === "cash_app" && "Payment link or Cashtag ($username)"}
                           {provider === "venmo" && "Username"}
                           {provider === "paypal" && "PayPal.me link"}
                           {provider === "zelle" && "Email or phone"}
@@ -483,7 +525,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
                       className={cn(qrUi.input, "mt-3")}
                       placeholder={
                         provider === "cash_app"
-                          ? "$cashtag"
+                          ? "https://cash.app/... or $cashtag"
                           : provider === "paypal"
                             ? "paypal.me/you"
                             : provider === "zelle"

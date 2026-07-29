@@ -1,10 +1,29 @@
 import type {
+  PaymentMode,
   PaymentPageConfiguration,
   PaymentPageMethod,
+  PaymentRequestSession,
   PaymentSuggestedAmount,
   PaymentPurpose,
   PaymentProvider,
 } from "./types";
+
+export function rowToPaymentRequestSession(row: Record<string, unknown>): PaymentRequestSession {
+  return {
+    id: String(row.id),
+    qrCampaignId: String(row.qr_campaign_id),
+    organizationId: row.organization_id ? String(row.organization_id) : null,
+    businessId: row.business_id ? String(row.business_id) : null,
+    shortCode: String(row.short_code),
+    amountCents: Number(row.amount_cents ?? 0),
+    currency: String(row.currency ?? "USD"),
+    note: row.note ? String(row.note) : null,
+    status: String(row.status ?? "active") as PaymentRequestSession["status"],
+    expiresAt: row.expires_at ? String(row.expires_at) : null,
+    createdAt: String(row.created_at ?? new Date().toISOString()),
+    updatedAt: String(row.updated_at ?? new Date().toISOString()),
+  };
+}
 
 export function rowToPaymentMethod(row: Record<string, unknown>): PaymentPageMethod {
   return {
@@ -37,6 +56,7 @@ export function rowToPaymentConfig(
   return {
     id: String(row.id),
     qrCampaignId: String(row.qr_campaign_id),
+    paymentMode: (String(row.payment_mode ?? "reusable_page") as PaymentMode),
     purpose: String(row.purpose ?? "pay") as PaymentPurpose,
     customPurposeLabel: row.custom_purpose_label ? String(row.custom_purpose_label) : null,
     title: row.title ? String(row.title) : null,

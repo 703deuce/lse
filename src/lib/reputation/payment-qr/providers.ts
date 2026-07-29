@@ -1,4 +1,4 @@
-import type { PaymentProvider } from "./types";
+import type { PaymentProvider, PaymentProviderCapabilities } from "./types";
 
 const BLOCKED_PROTOCOLS = /^(javascript|data|vbscript):/i;
 
@@ -20,16 +20,29 @@ const APPROVED_CASHAPP_HOSTS = new Set([
   "www.cash.app",
 ]);
 
+export type BuildDestinationInput = {
+  publicHandle?: string | null;
+  publicUrl?: string | null;
+  amountCents?: number;
+  note?: string | null;
+};
+
+export type BuildDestinationResult = {
+  destinationUrl: string | null;
+  fallbackInstructions: string;
+  opensInNewTab: boolean;
+  /** Zelle and similar: show manual copy UI instead of opening a link */
+  manualFlow: boolean;
+};
+
 export type PaymentProviderDefinition = {
   providerKey: PaymentProvider;
   displayName: string;
   brandColor: string;
-  supportsAmount: boolean;
-  supportsVerifiedPayment: boolean;
+  capabilities: PaymentProviderCapabilities;
   validateInput: (input: string) => { ok: true; normalized: string } | { ok: false; error: string };
   normalizeInput: (input: string) => string;
-  buildDestination: (input: string, amountCents?: number) => string | null;
-  getFallbackInstructions: (input: string) => string;
+  buildDestination: (input: BuildDestinationInput) => BuildDestinationResult;
 };
 
 function stripHandle(input: string): string {
@@ -52,12 +65,23 @@ function formatDollars(cents: number): string {
   return (cents / 100).toFixed(2);
 }
 
+function primaryInput(input: BuildDestinationInput): string {
+  const url = (input.publicUrl ?? "").trim();
+  if (url) return url;
+  return (input.publicHandle ?? "").trim();
+}
+
 export const CASH_APP_PROVIDER: PaymentProviderDefinition = {
   providerKey: "cash_app",
   displayName: "Cash App",
   brandColor: "#00D632",
-  supportsAmount: true,
-  supportsVerifiedPayment: false,
+  capabilities: {
+    supportsPrefilledAmount: true,
+    supportsPrefilledNote: true,
+    supportsAppDeepLink: true,
+    supportsWebFallback: true,
+    supportsVerifiedCompletion: false,
+  },
   normalizeInput: (input) => {
     const trimmed = input.trim();
     if (trimmed.startsWith("http")) return trimmed;
@@ -66,7 +90,7 @@ export const CASH_APP_PROVIDER: PaymentProviderDefinition = {
   },
   validateInput: (input) => {
     const trimmed = input.trim();
-    if (!trimmed) return { ok: false, error: "Cash App Cashtag or URL is required." };
+    if (!trimmed) return { ok: false, error: "Cash App payment link or Cashtag is required." };
     if (trimmed.startsWith("http")) {
       if (!isSafeHttpUrl(trimmed, APPROVED_CASHAPP_HOSTS)) {
         return { ok: false, error: "Cash App URL must be from cash.app." };
@@ -79,27 +103,46 @@ export const CASH_APP_PROVIDER: PaymentProviderDefinition = {
     }
     return { ok: true, normalized: `$${handle}` };
   },
-  buildDestination: (input, amountCents) => {
-    const trimmed = input.trim();
-    if (trimmed.startsWith("http") && isSafeHttpUrl(trimmed, APPROVED_CASHAPP_HOSTS)) {
+  buildDestination: (input) => {
+    const raw = primaryInput(input);
+    const validated = CASH_APP_PROVIDER.validateInput(raw);
+    if (!validated.ok) {
+      return {
+        destinationUrl: null,
+        fallbackInstructions: "Open Cash App to complete payment.",
+        opensInNewTab: true,
+        manualFlow: false,
+      };
+    }
+    const normalized = validated.normalized;
+    const amountCents = input.amountCents;
+    const note = input.note?.trim();
+
+    if (normalized.startsWith("http") && isSafeHttpUrl(normalized, APPROVED_CASHAPP_HOSTS)) {
+      const url = new URL(normalized);
       if (amountCents && amountCents > 0) {
-        const url = new URL(trimmed);
         url.searchParams.set("amount", formatDollars(amountCents));
-        return url.toString();
       }
-      return trimmed;
+      if (note) url.searchParams.set("note", note.slice(0, 200));
+      return {
+        destinationUrl: url.toString(),
+        fallbackInstructions: "Open Cash App to complete payment.",
+        opensInNewTab: true,
+        manualFlow: false,
+      };
     }
-    const handle = stripHandle(trimmed);
-    if (!handle) return null;
-    const base = `https://cash.app/${handle}`;
+
+    const handle = stripHandle(normalized);
+    let dest = `https://cash.app/${handle}`;
     if (amountCents && amountCents > 0) {
-      return `${base}/${formatDollars(amountCents)}`;
+      dest = `${dest}/${formatDollars(amountCents)}`;
     }
-    return base;
-  },
-  getFallbackInstructions: (input) => {
-    const handle = stripHandle(input);
-    return handle ? `Open Cash App and send to $${handle}` : "Open Cash App to complete payment.";
+    return {
+      destinationUrl: dest,
+      fallbackInstructions: `Open Cash App and send to $${handle}`,
+      opensInNewTab: true,
+      manualFlow: false,
+    };
   },
 };
 
@@ -107,8 +150,13 @@ export const VENMO_PROVIDER: PaymentProviderDefinition = {
   providerKey: "venmo",
   displayName: "Venmo",
   brandColor: "#008CFF",
-  supportsAmount: true,
-  supportsVerifiedPayment: false,
+  capabilities: {
+    supportsPrefilledAmount: true,
+    supportsPrefilledNote: true,
+    supportsAppDeepLink: true,
+    supportsWebFallback: true,
+    supportsVerifiedCompletion: false,
+  },
   normalizeInput: (input) => {
     const trimmed = input.trim();
     if (trimmed.startsWith("http")) return trimmed;
@@ -129,27 +177,46 @@ export const VENMO_PROVIDER: PaymentProviderDefinition = {
     }
     return { ok: true, normalized: username };
   },
-  buildDestination: (input, amountCents) => {
-    const trimmed = input.trim();
-    if (trimmed.startsWith("http") && isSafeHttpUrl(trimmed, APPROVED_VENMO_HOSTS)) {
+  buildDestination: (input) => {
+    const raw = primaryInput(input);
+    const validated = VENMO_PROVIDER.validateInput(raw);
+    if (!validated.ok) {
+      return {
+        destinationUrl: null,
+        fallbackInstructions: "Open Venmo to complete payment.",
+        opensInNewTab: true,
+        manualFlow: false,
+      };
+    }
+    const normalized = validated.normalized;
+    const amountCents = input.amountCents;
+    const note = input.note?.trim();
+
+    if (normalized.startsWith("http") && isSafeHttpUrl(normalized, APPROVED_VENMO_HOSTS)) {
+      const url = new URL(normalized);
       if (amountCents && amountCents > 0) {
-        const url = new URL(trimmed);
+        url.searchParams.set("txn", "pay");
         url.searchParams.set("amount", formatDollars(amountCents));
-        return url.toString();
       }
-      return trimmed;
+      if (note) url.searchParams.set("note", note.slice(0, 200));
+      return {
+        destinationUrl: url.toString(),
+        fallbackInstructions: "Open Venmo to complete payment.",
+        opensInNewTab: true,
+        manualFlow: false,
+      };
     }
-    const username = stripHandle(trimmed);
-    if (!username) return null;
-    const base = `https://venmo.com/${encodeURIComponent(username)}`;
-    if (amountCents && amountCents > 0) {
-      return `${base}?txn=pay&amount=${formatDollars(amountCents)}`;
-    }
-    return `${base}?txn=pay`;
-  },
-  getFallbackInstructions: (input) => {
-    const username = stripHandle(input);
-    return username ? `Open Venmo and pay @${username}` : "Open Venmo to complete payment.";
+
+    const username = stripHandle(normalized);
+    const params = new URLSearchParams({ txn: "pay" });
+    if (amountCents && amountCents > 0) params.set("amount", formatDollars(amountCents));
+    if (note) params.set("note", note.slice(0, 200));
+    return {
+      destinationUrl: `https://venmo.com/${encodeURIComponent(username)}?${params.toString()}`,
+      fallbackInstructions: `Open Venmo and pay @${username}`,
+      opensInNewTab: true,
+      manualFlow: false,
+    };
   },
 };
 
@@ -157,8 +224,13 @@ export const PAYPAL_PROVIDER: PaymentProviderDefinition = {
   providerKey: "paypal",
   displayName: "PayPal",
   brandColor: "#003087",
-  supportsAmount: true,
-  supportsVerifiedPayment: false,
+  capabilities: {
+    supportsPrefilledAmount: true,
+    supportsPrefilledNote: true,
+    supportsAppDeepLink: true,
+    supportsWebFallback: true,
+    supportsVerifiedCompletion: false,
+  },
   normalizeInput: (input) => input.trim(),
   validateInput: (input) => {
     const trimmed = input.trim();
@@ -175,28 +247,30 @@ export const PAYPAL_PROVIDER: PaymentProviderDefinition = {
     }
     return { ok: true, normalized: trimmed };
   },
-  buildDestination: (input, amountCents) => {
-    const trimmed = input.trim();
-    let url: string;
-    if (trimmed.startsWith("http") && isSafeHttpUrl(trimmed, APPROVED_PAYPAL_HOSTS)) {
-      url = trimmed;
-    } else {
-      const handle = stripHandle(trimmed);
-      if (!handle) return null;
-      url = `https://paypal.me/${handle}`;
+  buildDestination: (input) => {
+    const raw = primaryInput(input);
+    const validated = PAYPAL_PROVIDER.validateInput(raw);
+    if (!validated.ok) {
+      return {
+        destinationUrl: null,
+        fallbackInstructions: "Open PayPal to complete payment.",
+        opensInNewTab: true,
+        manualFlow: false,
+      };
     }
+    let url = validated.normalized;
+    const amountCents = input.amountCents;
     if (amountCents && amountCents > 0) {
       const parsed = new URL(url);
       parsed.pathname = `${parsed.pathname.replace(/\/$/, "")}/${formatDollars(amountCents)}`;
-      return parsed.toString();
+      url = parsed.toString();
     }
-    return url;
-  },
-  getFallbackInstructions: (input) => {
-    const trimmed = input.trim();
-    if (trimmed.startsWith("http")) return "Open PayPal to complete payment.";
-    const handle = stripHandle(trimmed);
-    return handle ? `Open PayPal and pay paypal.me/${handle}` : "Open PayPal to complete payment.";
+    return {
+      destinationUrl: url,
+      fallbackInstructions: "Open PayPal to complete payment.",
+      opensInNewTab: true,
+      manualFlow: false,
+    };
   },
 };
 
@@ -204,8 +278,13 @@ export const ZELLE_PROVIDER: PaymentProviderDefinition = {
   providerKey: "zelle",
   displayName: "Zelle",
   brandColor: "#6D1ED4",
-  supportsAmount: false,
-  supportsVerifiedPayment: false,
+  capabilities: {
+    supportsPrefilledAmount: false,
+    supportsPrefilledNote: false,
+    supportsAppDeepLink: false,
+    supportsWebFallback: false,
+    supportsVerifiedCompletion: false,
+  },
   normalizeInput: (input) => input.trim(),
   validateInput: (input) => {
     const trimmed = input.trim();
@@ -220,9 +299,16 @@ export const ZELLE_PROVIDER: PaymentProviderDefinition = {
     }
     return { ok: true, normalized: trimmed };
   },
-  buildDestination: () => null,
-  getFallbackInstructions: (input) => {
-    return `Send via Zelle to: ${input.trim()}`;
+  buildDestination: (input) => {
+    const raw = primaryInput(input);
+    const validated = ZELLE_PROVIDER.validateInput(raw);
+    const recipient = validated.ok ? validated.normalized : raw;
+    return {
+      destinationUrl: null,
+      fallbackInstructions: `Send via Zelle to: ${recipient}`,
+      opensInNewTab: false,
+      manualFlow: true,
+    };
   },
 };
 
@@ -237,6 +323,12 @@ export function getPaymentProvider(provider: PaymentProvider): PaymentProviderDe
   return PAYMENT_PROVIDER_MAP[provider];
 }
 
+export function getPaymentProviderCapabilities(
+  provider: PaymentProvider
+): PaymentProviderCapabilities {
+  return getPaymentProvider(provider).capabilities;
+}
+
 export function validatePaymentMethodInput(
   provider: PaymentProvider,
   input: string
@@ -246,15 +338,23 @@ export function validatePaymentMethodInput(
 
 export function buildPaymentDestination(
   provider: PaymentProvider,
-  input: string,
-  amountCents?: number
-): string | null {
-  const def = getPaymentProvider(provider);
-  const validated = def.validateInput(input);
-  if (!validated.ok) return null;
-  return def.buildDestination(validated.normalized, amountCents);
+  input: BuildDestinationInput
+): BuildDestinationResult {
+  return getPaymentProvider(provider).buildDestination(input);
 }
 
 export function isBlockedUrl(url: string): boolean {
   return BLOCKED_PROTOCOLS.test(url.trim());
+}
+
+/** @deprecated Use buildPaymentDestination with BuildDestinationInput */
+export function buildPaymentDestinationLegacy(
+  provider: PaymentProvider,
+  handle: string,
+  amountCents?: number
+): string | null {
+  return buildPaymentDestination(provider, {
+    publicHandle: handle,
+    amountCents,
+  }).destinationUrl;
 }

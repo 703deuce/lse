@@ -60,6 +60,7 @@ export const MOCK_CAMPAIGN: ReviewQrCampaign = {
 export const MOCK_CONFIG: PaymentPageConfiguration = {
   id: "preview",
   qrCampaignId: "preview",
+  paymentMode: "reusable_page",
   purpose: "pay",
   customPurposeLabel: null,
   title: "Pay The Local Shop",
@@ -127,6 +128,21 @@ export const MOCK_CONFIG: PaymentPageConfiguration = {
     { id: "10", amountCents: 1000, label: null, enabled: true, sortOrder: 1 },
     { id: "20", amountCents: 2000, label: null, enabled: true, sortOrder: 2 },
   ],
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
+
+export const MOCK_REQUEST_SESSION = {
+  id: "session-preview",
+  qrCampaignId: "preview",
+  organizationId: null,
+  businessId: "preview",
+  shortCode: "req125abc",
+  amountCents: 12500,
+  currency: "USD",
+  note: "Garage cleanout",
+  status: "active" as const,
+  expiresAt: null,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };
@@ -377,6 +393,23 @@ export function PaymentQrShowcase() {
             businessName="The Local Shop"
             isPreview
             previewStep="pay"
+          />
+        </ShowcaseSection>
+
+        <ShowcaseSection
+          id="public-request"
+          title="6b. Specific payment request"
+          description="Business-set amount and note — QR encodes Local SEO Express, not Cash App directly."
+        >
+          <PaymentPublicPage
+            slug="req125abc"
+            campaign={MOCK_CAMPAIGN}
+            config={{ ...MOCK_CONFIG, allowCustomAmount: false }}
+            businessName="The Local Shop"
+            isPreview
+            previewStep="pay"
+            requestSession={MOCK_REQUEST_SESSION}
+            paymentMode="reusable_page"
           />
         </ShowcaseSection>
 

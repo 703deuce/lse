@@ -11,11 +11,13 @@ import type { ReviewQrCampaign } from "@/lib/reputation/qr-campaigns/types";
 import { categorizeUserAgent, detectBotOrPreview } from "@/lib/reputation/qr-campaigns/bot-filter";
 import { hashIpForQrScan } from "@/lib/reputation/qr-campaigns/security";
 import { getPaymentQrEntitlements } from "./entitlements";
-import { rowToPaymentConfig, rowToPaymentMethod, rowToSuggestedAmount } from "./mapper";
-import { validatePaymentMethodInput } from "./providers";
+import { rowToPaymentConfig, rowToPaymentMethod, rowToSuggestedAmount, rowToPaymentRequestSession } from "./mapper";
+import { validatePaymentMethodInput, buildPaymentDestination } from "./providers";
 import type {
   CreatePaymentQrInput,
+  CreatePaymentRequestInput,
   PaymentPageConfiguration,
+  PaymentPageLoadContext,
   PaymentQrAnalytics,
   PaymentProvider,
   QrEventType,
@@ -69,12 +71,39 @@ export async function countPaymentQrCampaigns(
   return count ?? 0;
 }
 
-export async function getPaymentPageBySlug(slug: string): Promise<{
-  campaign: ReviewQrCampaign;
-  config: PaymentPageConfiguration;
-} | null> {
+export async function getPaymentPageBySlug(slug: string): Promise<PaymentPageLoadContext | null> {
   const supabase = createServiceClient();
 
+  // 1) Transaction-specific payment request session
+  const sessionRes = await supabase
+    .from("payment_request_sessions")
+    .select("*")
+    .eq("short_code", slug)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (sessionRes.error && !isMissingTable(sessionRes.error.message)) {
+    throw new Error(sessionRes.error.message);
+  }
+
+  if (sessionRes.data) {
+    const session = rowToPaymentRequestSession(sessionRes.data as Record<string, unknown>);
+    if (session.expiresAt && new Date(session.expiresAt) < new Date()) {
+      return null;
+    }
+    const campaign = await getCampaignById(session.qrCampaignId);
+    if (!campaign || campaign.status !== "active") return null;
+    const config = await getPaymentConfigByCampaignId(campaign.id);
+    if (!config) return null;
+    return {
+      campaign,
+      config,
+      paymentMode: config.paymentMode,
+      requestSession: session,
+    };
+  }
+
+  // 2) Reusable permanent page (public slug or campaign short code)
   let campaignRow: Record<string, unknown> | null = null;
 
   const bySlug = await supabase
@@ -108,7 +137,33 @@ export async function getPaymentPageBySlug(slug: string): Promise<{
 
   const config = await getPaymentConfigByCampaignId(campaign.id);
   if (!config) return null;
-  return { campaign, config };
+
+  return {
+    campaign,
+    config,
+    paymentMode: config.paymentMode,
+    requestSession: null,
+  };
+}
+
+async function getCampaignById(campaignId: string): Promise<ReviewQrCampaign | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("review_qr_campaigns")
+    .select("*")
+    .eq("id", campaignId)
+    .maybeSingle();
+  return data ? rowToCampaign(data as Record<string, unknown>) : null;
+}
+
+/** @deprecated Use getPaymentPageBySlug returning PaymentPageLoadContext */
+export async function getPaymentPageBySlugLegacy(slug: string): Promise<{
+  campaign: ReviewQrCampaign;
+  config: PaymentPageConfiguration;
+} | null> {
+  const ctx = await getPaymentPageBySlug(slug);
+  if (!ctx) return null;
+  return { campaign: ctx.campaign, config: ctx.config };
 }
 
 export async function getPaymentConfigByCampaignId(
@@ -187,6 +242,13 @@ export async function createPaymentQrCampaign(
     if (existing) throw new Error("This page slug is already in use.");
   }
 
+  const paymentMode = input.paymentMode ?? "reusable_page";
+  if (paymentMode === "request_only") {
+    // Template campaigns generate per-request links; no permanent public slug required.
+  } else if (!publicSlug && !entitlements.customSlug) {
+    // Reusable pages use short code as slug when custom slug not on plan.
+  }
+
   await assertCanCreateQrCampaign({
     organizationId: input.organizationId,
     businessId: input.businessId,
@@ -194,7 +256,10 @@ export async function createPaymentQrCampaign(
   });
 
   const shortCode = await allocateUniqueShortCodeLocal();
-  const slugForUrl = publicSlug ?? shortCode;
+  const slugForUrl =
+    paymentMode === "request_only"
+      ? shortCode
+      : publicSlug ?? shortCode;
   const destinationUrl = buildPaymentPageUrl(slugForUrl);
 
   const purposeHeading =
@@ -218,7 +283,7 @@ export async function createPaymentQrCampaign(
       placement_type: input.placementType ?? "standard_poster",
       destination_url: destinationUrl,
       short_code: shortCode,
-      public_slug: publicSlug,
+      public_slug: paymentMode === "request_only" ? null : publicSlug,
       campaign_type: "payment_review",
       headline: input.headline ?? purposeHeading,
       description: input.description ?? input.title ?? purposeHeading,
@@ -245,6 +310,7 @@ export async function createPaymentQrCampaign(
     .from("payment_page_configurations")
     .insert({
       qr_campaign_id: campaign.id,
+      payment_mode: paymentMode,
       purpose: input.purpose,
       custom_purpose_label: input.customPurposeLabel ?? null,
       title: input.title ?? purposeHeading,
@@ -254,7 +320,8 @@ export async function createPaymentQrCampaign(
       banner_url: input.bannerUrl ?? null,
       primary_color: input.primaryColor ?? "#2563EB",
       secondary_color: input.secondaryColor ?? null,
-      allow_custom_amount: input.allowCustomAmount ?? true,
+      allow_custom_amount:
+        paymentMode === "request_only" ? false : (input.allowCustomAmount ?? true),
       show_review_prompt: input.showReviewPrompt ?? false,
       show_platform_branding: input.showPlatformBranding ?? !entitlements.removePlatformBranding,
       google_review_url: input.googleReviewUrl ?? null,
@@ -324,6 +391,7 @@ export async function recordQrEvent(params: {
   provider?: PaymentProvider | null;
   amountSelectedCents?: number | null;
   sessionId?: string | null;
+  paymentRequestSessionId?: string | null;
   userAgent?: string | null;
   referrer?: string | null;
   ip?: string | null;
@@ -352,6 +420,7 @@ export async function recordQrEvent(params: {
     campaign_id: params.campaignId,
     organization_id: params.organizationId ?? null,
     business_id: params.businessId ?? null,
+    payment_request_session_id: params.paymentRequestSessionId ?? null,
     event_type: params.eventType,
     provider: params.provider ?? null,
     amount_selected_cents: params.amountSelectedCents ?? null,
@@ -490,5 +559,115 @@ export async function getPaymentQrAnalytics(
       createdAt: String(row.created_at),
       deviceCategory: row.device_category ? String(row.device_category) : null,
     })),
+  };
+}
+
+async function allocateUniqueSessionShortCode(): Promise<string> {
+  const supabase = createServiceClient();
+  for (let i = 0; i < 8; i++) {
+    const code = generateShortCode(10);
+    const { data } = await supabase
+      .from("payment_request_sessions")
+      .select("id")
+      .eq("short_code", code)
+      .maybeSingle();
+    if (!data) return code;
+  }
+  return generateShortCode(14);
+}
+
+export async function createPaymentRequestSession(
+  input: CreatePaymentRequestInput
+): Promise<{
+  session: import("./types").PaymentRequestSession;
+  publicPageUrl: string;
+  trackedQrUrl: string | null;
+}> {
+  const campaign = await getCampaignById(input.qrCampaignId);
+  if (!campaign || campaign.campaignType !== "payment_review") {
+    throw new Error("Payment campaign not found.");
+  }
+  if (campaign.businessId !== input.businessId) {
+    throw new Error("Campaign does not belong to this business.");
+  }
+
+  const config = await getPaymentConfigByCampaignId(campaign.id);
+  if (!config) throw new Error("Payment configuration not found.");
+
+  if (input.amountCents <= 0) throw new Error("Amount must be greater than zero.");
+
+  const supabase = createServiceClient();
+  const shortCode = await allocateUniqueSessionShortCode();
+  const expiresInDays = input.expiresInDays ?? 30;
+  const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from("payment_request_sessions")
+    .insert({
+      qr_campaign_id: campaign.id,
+      organization_id: input.organizationId,
+      business_id: input.businessId,
+      short_code: shortCode,
+      amount_cents: input.amountCents,
+      currency: input.currency ?? "USD",
+      note: input.note?.trim() || null,
+      status: "active",
+      expires_at: expiresAt,
+      created_by_user_id: input.ownerUserId ?? null,
+    })
+    .select("*")
+    .single();
+
+  if (error) {
+    if (isMissingTable(error.message)) {
+      throw new Error("Payment requests are not available until the database migration is applied.");
+    }
+    throw new Error(error.message);
+  }
+
+  const session = rowToPaymentRequestSession(data as Record<string, unknown>);
+  const publicPageUrl = buildPaymentPageUrl(shortCode);
+  const trackedQrUrl =
+    campaign.shortCode ? `${appUrl(`/r/${campaign.shortCode}`)}?pay=${encodeURIComponent(shortCode)}` : null;
+
+  return { session, publicPageUrl, trackedQrUrl };
+}
+
+export async function resolveProviderDestination(params: {
+  slug: string;
+  provider: PaymentProvider;
+  amountCents?: number;
+  note?: string | null;
+}): Promise<{
+  destinationUrl: string | null;
+  fallbackInstructions: string;
+  opensInNewTab: boolean;
+  manualFlow: boolean;
+  amountCents: number | null;
+  note: string | null;
+}> {
+  const page = await getPaymentPageBySlug(params.slug);
+  if (!page) throw new Error("Payment page not found.");
+
+  const method = page.config.methods.find((m) => m.enabled && m.provider === params.provider);
+  if (!method) throw new Error("Payment method not available.");
+
+  const amountCents =
+    page.requestSession?.amountCents ??
+    params.amountCents ??
+    null;
+  const note = page.requestSession?.note ?? params.note ?? null;
+
+  const result = buildPaymentDestination(params.provider, {
+    publicHandle: method.publicHandle,
+    publicUrl: method.publicUrl,
+    amountCents: amountCents ?? undefined,
+    note,
+  });
+
+  return {
+    ...result,
+    amountCents,
+    note,
   };
 }

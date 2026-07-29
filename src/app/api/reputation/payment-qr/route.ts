@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { createPaymentQrCampaign } from "@/lib/reputation/payment-qr/service";
+import { getPaymentConfigByCampaignId } from "@/lib/reputation/payment-qr/service";
 import { getPaymentQrEntitlements } from "@/lib/reputation/payment-qr/entitlements";
+import { getQrCampaignForBusiness } from "@/lib/reputation/qr-campaigns";
 import { buildQrTrackedUrl } from "@/lib/reputation/qr-campaigns";
 import { buildPaymentPageUrl } from "@/lib/reputation/payment-qr/service";
 import { httpErrorFromException } from "@/lib/security/http-errors";
@@ -54,7 +56,32 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "businessId required" }, { status: 400 });
     }
     const auth = await requireBusinessAccess(businessId);
+    const campaignId = url.searchParams.get("campaignId");
     const entitlements = await getPaymentQrEntitlements(auth.organizationId);
+
+    if (campaignId) {
+      const campaign = await getQrCampaignForBusiness({
+        campaignId,
+        businessId,
+        organizationId: auth.organizationId,
+      });
+      if (!campaign || campaign.campaignType !== "payment_review") {
+        return NextResponse.json({ error: "Payment campaign not found" }, { status: 404 });
+      }
+      const config = await getPaymentConfigByCampaignId(campaignId);
+      if (!config) {
+        return NextResponse.json({ error: "Payment configuration not found" }, { status: 404 });
+      }
+      const slug = campaign.publicSlug ?? campaign.shortCode;
+      return NextResponse.json({
+        campaign,
+        config,
+        entitlements,
+        publicPageUrl: buildPaymentPageUrl(slug),
+        permanentPageUrl: slug ? `https://app.localseoexpress.com/p/${slug}` : null,
+      });
+    }
+
     return NextResponse.json({ entitlements });
   } catch (err) {
     return httpErrorFromException(err, "Failed to load payment QR entitlements");

@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   buildPaymentDestination,
   CASH_APP_PROVIDER,
+  getPaymentProviderCapabilities,
   isBlockedUrl,
   PAYPAL_PROVIDER,
   validatePaymentMethodInput,
@@ -23,9 +24,23 @@ describe("payment providers", () => {
       assert.equal(r.ok, false);
     });
 
-    it("builds destination with amount", () => {
-      const url = buildPaymentDestination("cash_app", "$localshop", 1000);
-      assert.equal(url, "https://cash.app/localshop/10.00");
+    it("builds destination with cashtag and amount", () => {
+      const result = buildPaymentDestination("cash_app", {
+        publicHandle: "$localshop",
+        amountCents: 1000,
+      });
+      assert.equal(result.destinationUrl, "https://cash.app/localshop/10.00");
+      assert.equal(result.manualFlow, false);
+    });
+
+    it("builds destination from payment link URL with amount", () => {
+      const result = buildPaymentDestination("cash_app", {
+        publicUrl: "https://cash.app/$localshop",
+        amountCents: 2500,
+        note: "Garage cleanout",
+      });
+      assert.ok(result.destinationUrl?.includes("amount=25.00"));
+      assert.ok(result.destinationUrl?.includes("note=Garage"));
     });
 
     it("rejects malicious URLs", () => {
@@ -41,10 +56,13 @@ describe("payment providers", () => {
       assert.equal(r.ok, true);
     });
 
-    it("builds pay URL", () => {
-      const url = buildPaymentDestination("venmo", "localshop", 500);
-      assert.ok(url?.includes("venmo.com/localshop"));
-      assert.ok(url?.includes("amount=5.00"));
+    it("builds pay URL with amount", () => {
+      const result = buildPaymentDestination("venmo", {
+        publicHandle: "localshop",
+        amountCents: 500,
+      });
+      assert.ok(result.destinationUrl?.includes("venmo.com/localshop"));
+      assert.ok(result.destinationUrl?.includes("amount=5.00"));
     });
   });
 
@@ -59,6 +77,14 @@ describe("payment providers", () => {
       const r = validatePaymentMethodInput("paypal", "https://evil.com/phish");
       assert.equal(r.ok, false);
     });
+
+    it("appends amount to paypal.me URL", () => {
+      const result = buildPaymentDestination("paypal", {
+        publicHandle: "localshop",
+        amountCents: 12500,
+      });
+      assert.ok(result.destinationUrl?.includes("/125.00"));
+    });
   });
 
   describe("Zelle", () => {
@@ -67,8 +93,13 @@ describe("payment providers", () => {
       assert.equal(r.ok, true);
     });
 
-    it("does not build deep link", () => {
-      assert.equal(buildPaymentDestination("zelle", "pay@localshop.com"), null);
+    it("uses manual flow without deep link", () => {
+      const result = buildPaymentDestination("zelle", {
+        publicHandle: "pay@localshop.com",
+        amountCents: 1000,
+      });
+      assert.equal(result.destinationUrl, null);
+      assert.equal(result.manualFlow, true);
     });
 
     it("rejects URLs", () => {
@@ -77,12 +108,31 @@ describe("payment providers", () => {
     });
   });
 
-  describe("provider definitions", () => {
+  describe("provider capabilities", () => {
     it("marks wallet providers as not verified", () => {
-      assert.equal(CASH_APP_PROVIDER.supportsVerifiedPayment, false);
-      assert.equal(VENMO_PROVIDER.supportsVerifiedPayment, false);
-      assert.equal(PAYPAL_PROVIDER.supportsVerifiedPayment, false);
-      assert.equal(ZELLE_PROVIDER.supportsVerifiedPayment, false);
+      assert.equal(
+        getPaymentProviderCapabilities("cash_app").supportsVerifiedCompletion,
+        false
+      );
+      assert.equal(
+        getPaymentProviderCapabilities("venmo").supportsVerifiedCompletion,
+        false
+      );
+      assert.equal(
+        getPaymentProviderCapabilities("paypal").supportsVerifiedCompletion,
+        false
+      );
+      assert.equal(
+        getPaymentProviderCapabilities("zelle").supportsVerifiedCompletion,
+        false
+      );
+    });
+
+    it("marks Zelle as not supporting prefilled amount", () => {
+      assert.equal(ZELLE_PROVIDER.capabilities.supportsPrefilledAmount, false);
+      assert.equal(CASH_APP_PROVIDER.capabilities.supportsPrefilledAmount, true);
+      assert.equal(VENMO_PROVIDER.capabilities.supportsPrefilledAmount, true);
+      assert.equal(PAYPAL_PROVIDER.capabilities.supportsPrefilledAmount, true);
     });
   });
 });
