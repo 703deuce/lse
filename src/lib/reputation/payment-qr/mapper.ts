@@ -1,4 +1,5 @@
 import type {
+  AmountMode,
   PaymentMode,
   PaymentPageConfiguration,
   PaymentPageMethod,
@@ -53,15 +54,18 @@ export function rowToPaymentConfig(
   methods: PaymentPageMethod[] = [],
   suggestedAmounts: PaymentSuggestedAmount[] = []
 ): PaymentPageConfiguration {
+  const amountMode = String(row.amount_mode ?? "none") as AmountMode;
   return {
     id: String(row.id),
     qrCampaignId: String(row.qr_campaign_id),
     paymentMode: (String(row.payment_mode ?? "reusable_page") as PaymentMode),
+    amountMode,
     purpose: String(row.purpose ?? "pay") as PaymentPurpose,
     customPurposeLabel: row.custom_purpose_label ? String(row.custom_purpose_label) : null,
     title: row.title ? String(row.title) : null,
     description: row.description ? String(row.description) : null,
     thankYouMessage: row.thank_you_message ? String(row.thank_you_message) : null,
+    paymentNote: row.payment_note ? String(row.payment_note) : null,
     logoUrl: row.logo_url ? String(row.logo_url) : null,
     bannerUrl: row.banner_url ? String(row.banner_url) : null,
     primaryColor: String(row.primary_color ?? "#2563EB"),
@@ -72,9 +76,12 @@ export function rowToPaymentConfig(
     googleReviewUrl: row.google_review_url ? String(row.google_review_url) : null,
     facebookReviewUrl: row.facebook_review_url ? String(row.facebook_review_url) : null,
     websiteUrl: row.website_url ? String(row.website_url) : null,
+    facebookPageUrl: row.facebook_page_url ? String(row.facebook_page_url) : null,
     instagramUrl: row.instagram_url ? String(row.instagram_url) : null,
+    pinterestUrl: row.pinterest_url ? String(row.pinterest_url) : null,
     tiktokUrl: row.tiktok_url ? String(row.tiktok_url) : null,
     youtubeUrl: row.youtube_url ? String(row.youtube_url) : null,
+    bookingUrl: row.booking_url ? String(row.booking_url) : null,
     phone: row.phone ? String(row.phone) : null,
     email: row.email ? String(row.email) : null,
     methods,

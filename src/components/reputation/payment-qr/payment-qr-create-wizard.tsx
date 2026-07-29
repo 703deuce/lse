@@ -15,40 +15,33 @@ import { ModulePage } from "@/components/ui/design-system";
 import { PaymentPublicPage } from "@/components/reputation/payment-qr/payment-public-page";
 import { qrUi } from "@/components/reputation/qr-campaigns/qr-ui";
 import {
-  PAYMENT_PURPOSE_LABELS,
-  PAYMENT_PURPOSES,
+  AMOUNT_MODE_LABELS,
+  AMOUNT_MODES,
   PAYMENT_PROVIDERS,
-  PAYMENT_MODE_LABELS,
-  PAYMENT_MODES,
-  type PaymentMode,
-  type PaymentPurpose,
+  type AmountMode,
+  type PaymentPageConfiguration,
   type PaymentProvider,
 } from "@/lib/reputation/payment-qr/types";
-import type { PaymentPageConfiguration } from "@/lib/reputation/payment-qr/types";
 import type { ReviewQrCampaign } from "@/lib/reputation/qr-campaigns/types";
 import { getPaymentProvider } from "@/lib/reputation/payment-qr/providers";
 import { cn } from "@/lib/utils";
 
 const WIZARD_STEPS = [
-  { id: 1, label: "Basic details" },
-  { id: 2, label: "Payment methods" },
-  { id: 3, label: "Customizing" },
-  { id: 4, label: "Preview & publish" },
+  { id: 1, label: "Business details" },
+  { id: 2, label: "Payment options" },
+  { id: 3, label: "Amount settings" },
+  { id: 4, label: "Reviews & links" },
+  { id: 5, label: "Preview & publish" },
 ] as const;
 
-const PURPOSE_ICONS: Record<PaymentPurpose, string> = {
-  tip: "💵",
-  pay: "💳",
-  donate: "❤️",
-  pay_invoice: "📄",
-  leave_deposit: "🏦",
-  support_us: "🙌",
-  custom: "✏️",
-};
+type MethodState = { enabled: boolean; value: string };
 
-type MethodState = {
-  enabled: boolean;
-  value: string;
+const PROVIDER_HINTS: Record<PaymentProvider, string> = {
+  stripe: "Stripe Payment Link (https://buy.stripe.com/...)",
+  cash_app: "Payment link or $cashtag",
+  venmo: "Username",
+  paypal: "paypal.me/you",
+  zelle: "Email or phone",
 };
 
 export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
@@ -65,28 +58,36 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
     reviewLinks: false,
     customSlug: false,
     suggestedAmounts: false,
-    customBranding: false,
+    socialLinks: false,
   });
 
-  const [purpose, setPurpose] = useState<PaymentPurpose>("pay");
-  const [paymentMode, setPaymentMode] = useState<PaymentMode>("reusable_page");
-  const [customPurposeLabel, setCustomPurposeLabel] = useState("");
+  const [name, setName] = useState("Pay & Review Page");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [name, setName] = useState("Payment QR");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [bannerUrl, setBannerUrl] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#2563EB");
   const [publicSlug, setPublicSlug] = useState("");
-  const [showReviewPrompt, setShowReviewPrompt] = useState(false);
-  const [amounts, setAmounts] = useState([500, 1000, 2000]);
+  const [amountMode, setAmountMode] = useState<AmountMode>("none");
+  const [paymentNote, setPaymentNote] = useState("");
+  const [amounts, setAmounts] = useState([2500, 5000, 10000, 15000]);
+  const [facebookReviewUrl, setFacebookReviewUrl] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [facebookPageUrl, setFacebookPageUrl] = useState("");
+  const [instagramUrl, setInstagramUrl] = useState("");
+  const [pinterestUrl, setPinterestUrl] = useState("");
+  const [bookingUrl, setBookingUrl] = useState("");
+
   const [methods, setMethods] = useState<Record<PaymentProvider, MethodState>>({
+    stripe: { enabled: false, value: "" },
     venmo: { enabled: false, value: "" },
-    cash_app: { enabled: true, value: "" },
+    cash_app: { enabled: false, value: "" },
     paypal: { enabled: false, value: "" },
     zelle: { enabled: false, value: "" },
   });
+
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-  const [previewCampaign, setPreviewCampaign] = useState<ReviewQrCampaign | null>(null);
-  const [previewConfig, setPreviewConfig] = useState<PaymentPageConfiguration | null>(null);
+  const previewSlug = publicSlug.trim() || "preview";
 
   useEffect(() => {
     let cancelled = false;
@@ -102,7 +103,8 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
           const json = (await accountRes.json()) as { account?: { name?: string } };
           if (json.account?.name) {
             setBusinessName(json.account.name);
-            setName(`${json.account.name} payment page`);
+            setName(`${json.account.name} — Pay & Review`);
+            setTitle(`Pay ${json.account.name}`);
           }
         }
         if (kitRes?.ok) {
@@ -123,7 +125,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
               reviewLinks?: boolean;
               customSlug?: boolean;
               suggestedAmounts?: boolean;
-              customBranding?: boolean;
+              socialLinks?: boolean;
             };
           };
           const e = json.entitlements ?? {};
@@ -131,7 +133,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
             reviewLinks: Boolean(e.reviewLinks),
             customSlug: Boolean(e.customSlug),
             suggestedAmounts: Boolean(e.suggestedAmounts),
-            customBranding: Boolean(e.customBranding),
+            socialLinks: Boolean(e.socialLinks),
           });
         }
       } finally {
@@ -143,24 +145,22 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
     };
   }, [businessId]);
 
-  const previewSlug = publicSlug.trim() || "preview";
-
   useEffect(() => {
-    void QRCode.toDataURL(`https://app.localseoexpress.com/pay/${previewSlug}`, {
+    void QRCode.toDataURL(`https://app.localseoexpress.com/p/${previewSlug}`, {
       width: 200,
       margin: 1,
       color: { dark: "#0B1B32", light: "#ffffff" },
     }).then(setQrDataUrl);
   }, [previewSlug]);
 
-  const previewConfigMemo = useMemo((): PaymentPageConfiguration | null => {
+  const previewConfig = useMemo((): PaymentPageConfiguration => {
     const enabledMethods = PAYMENT_PROVIDERS
       .filter((p) => methods[p].enabled && methods[p].value.trim())
       .map((p, i) => ({
         id: p,
         provider: p,
-        publicHandle: methods[p].value,
-        publicUrl: null,
+        publicHandle: methods[p].value.startsWith("http") ? null : methods[p].value,
+        publicUrl: methods[p].value.startsWith("http") ? methods[p].value : null,
         instructions: null,
         uploadedQrImageUrl: null,
         enabled: true,
@@ -170,58 +170,70 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
     return {
       id: "preview",
       qrCampaignId: "preview",
-      paymentMode,
-      purpose,
-      customPurposeLabel: purpose === "custom" ? customPurposeLabel : null,
-      title: title || PAYMENT_PURPOSE_LABELS[purpose],
+      paymentMode: "reusable_page",
+      amountMode,
+      purpose: "pay",
+      customPurposeLabel: null,
+      title: title || "Pay securely",
       description,
       thankYouMessage: "Thank you for your support!",
-      logoUrl: null,
-      bannerUrl: null,
+      paymentNote: paymentNote.trim() || null,
+      logoUrl: logoUrl.trim() || null,
+      bannerUrl: bannerUrl.trim() || null,
       primaryColor,
       secondaryColor: null,
-      allowCustomAmount: entitlements.suggestedAmounts,
-      showReviewPrompt: showReviewPrompt && entitlements.reviewLinks,
+      allowCustomAmount: amountMode === "suggested",
+      showReviewPrompt: true,
       showPlatformBranding: true,
-      googleReviewUrl: showReviewPrompt ? googleReviewUrl : null,
-      facebookReviewUrl: null,
-      websiteUrl: null,
-      instagramUrl: null,
+      googleReviewUrl: googleReviewUrl || null,
+      facebookReviewUrl: facebookReviewUrl || null,
+      websiteUrl: websiteUrl || null,
+      facebookPageUrl: facebookPageUrl || null,
+      instagramUrl: instagramUrl || null,
+      pinterestUrl: pinterestUrl || null,
       tiktokUrl: null,
       youtubeUrl: null,
+      bookingUrl: bookingUrl || null,
       phone: null,
       email: null,
       methods: enabledMethods,
-      suggestedAmounts: entitlements.suggestedAmounts
-        ? amounts.map((cents, i) => ({
-            id: String(cents),
-            amountCents: cents,
-            label: null,
-            enabled: true,
-            sortOrder: i,
-          }))
-        : [],
+      suggestedAmounts:
+        amountMode === "suggested" && entitlements.suggestedAmounts
+          ? amounts.map((cents, i) => ({
+              id: String(cents),
+              amountCents: cents,
+              label: null,
+              enabled: true,
+              sortOrder: i,
+            }))
+          : [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
   }, [
-    purpose,
-    paymentMode,
-    customPurposeLabel,
+    amountMode,
     title,
     description,
+    paymentNote,
+    logoUrl,
+    bannerUrl,
     primaryColor,
     methods,
     amounts,
-    showReviewPrompt,
     googleReviewUrl,
-    entitlements,
+    facebookReviewUrl,
+    websiteUrl,
+    facebookPageUrl,
+    instagramUrl,
+    pinterestUrl,
+    bookingUrl,
+    entitlements.suggestedAmounts,
   ]);
 
-  const previewCampaignMemo = useMemo((): ReviewQrCampaign => ({
+  const previewCampaign = useMemo((): ReviewQrCampaign => ({
     id: "preview",
     organizationId: null,
-    businessId: businessId,
+    businessId,
     ownerUserId: null,
     campaignType: "payment_review",
     publicSlug: previewSlug,
@@ -238,7 +250,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
     printFormat: "letter",
     showFooter: true,
     posterConfig: {
-      title: title || PAYMENT_PURPOSE_LABELS[purpose],
+      title: title || "Pay securely",
       description,
       brandColor: primaryColor,
       showFooter: true,
@@ -255,12 +267,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
     lastScannedAt: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-  }), [businessId, name, title, description, primaryColor, purpose, previewSlug]);
-
-  useEffect(() => {
-    setPreviewConfig(previewConfigMemo);
-    setPreviewCampaign(previewCampaignMemo);
-  }, [previewConfigMemo, previewCampaignMemo]);
+  }), [businessId, name, title, description, primaryColor, previewSlug]);
 
   async function publish() {
     setSaving(true);
@@ -281,7 +288,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
         });
 
       if (enabledMethods.length === 0) {
-        throw new Error("Enable at least one payment method.");
+        throw new Error("Enable at least one payment method with a valid destination.");
       }
 
       const res = await fetch("/api/reputation/payment-qr", {
@@ -289,44 +296,46 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           businessId,
-          name: name.trim() || "Payment QR",
-          purpose,
-          customPurposeLabel: purpose === "custom" ? customPurposeLabel : null,
+          name: name.trim() || "Pay & Review Page",
+          purpose: "pay",
           title: title.trim() || undefined,
           description: description.trim() || undefined,
+          paymentNote: paymentNote.trim() || null,
+          logoUrl: logoUrl.trim() || null,
+          bannerUrl: bannerUrl.trim() || null,
           primaryColor,
           publicSlug: entitlements.customSlug && publicSlug.trim() ? publicSlug.trim() : null,
-          showReviewPrompt: showReviewPrompt && entitlements.reviewLinks,
-          googleReviewUrl: showReviewPrompt ? googleReviewUrl : null,
+          amountMode,
+          googleReviewUrl: googleReviewUrl || null,
+          facebookReviewUrl: facebookReviewUrl || null,
+          websiteUrl: websiteUrl || null,
+          facebookPageUrl: facebookPageUrl || null,
+          instagramUrl: instagramUrl || null,
+          pinterestUrl: pinterestUrl || null,
+          bookingUrl: bookingUrl || null,
           methods: enabledMethods,
-          suggestedAmounts: entitlements.suggestedAmounts
-            ? amounts.map((cents, i) => ({ amountCents: cents, sortOrder: i }))
-            : [],
-          allowCustomAmount: entitlements.suggestedAmounts,
-          paymentMode,
-          headline: title || PAYMENT_PURPOSE_LABELS[purpose],
+          suggestedAmounts:
+            amountMode === "suggested" && entitlements.suggestedAmounts
+              ? amounts.map((cents, i) => ({ amountCents: cents, sortOrder: i }))
+              : [],
+          allowCustomAmount: amountMode === "suggested",
+          showReviewPrompt: true,
+          headline: title || "Pay securely",
           templateKey: "scan_to_pay",
         }),
       });
-      const json = (await res.json()) as {
-        campaign?: ReviewQrCampaign;
-        error?: string;
-      };
-      if (!res.ok) throw new Error(json.error ?? "Could not create payment page");
-      if (json.campaign?.id) {
-        router.push(`${base}/${json.campaign.id}`);
-      } else {
-        router.push(base);
-      }
+      const json = (await res.json()) as { campaign?: ReviewQrCampaign; error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Could not create page");
+      if (json.campaign?.id) router.push(`${base}/${json.campaign.id}`);
+      else router.push(base);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not create payment page");
+      setError(e instanceof Error ? e.message : "Could not create page");
     } finally {
       setSaving(false);
     }
   }
 
   function canContinue(): boolean {
-    if (step === 1) return purpose !== "custom" || customPurposeLabel.trim().length > 0;
     if (step === 2) {
       return PAYMENT_PROVIDERS.some((p) => methods[p].enabled && methods[p].value.trim());
     }
@@ -339,9 +348,10 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
         <Link href={base} className="text-sm font-medium text-[#64748B] hover:text-[#0B1B32]">
           ← All campaigns
         </Link>
-        <h1 className={cn(qrUi.title, "mt-3")}>Payment, Tip &amp; Review QR</h1>
+        <h1 className={cn(qrUi.title, "mt-3")}>Create Pay &amp; Review Page</h1>
         <p className={qrUi.subtitle}>
-          Create a hosted payment page and one QR code for Venmo, Cash App, PayPal, and Zelle.
+          One hosted page for payment links, reviews, and social connections — delivered by QR or
+          shareable link.
         </p>
       </div>
 
@@ -382,121 +392,90 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
         ) : null}
 
         {step === 1 && (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-bold text-[#0B1B32]">What&apos;s the page for?</h2>
-              <p className="mt-1 text-sm text-[#667085]">
-                Choose how customers will use this page. You can edit the heading later.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {PAYMENT_PURPOSES.map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPurpose(p)}
-                  className={cn(
-                    "rounded-2xl border-2 p-4 text-left transition",
-                    purpose === p
-                      ? "border-[#2563EB] bg-[#EFF6FF]"
-                      : "border-[#E2E8F0] hover:border-[#CBD5E1]"
-                  )}
-                >
-                  <span className="text-2xl">{PURPOSE_ICONS[p]}</span>
-                  <p className="mt-2 text-sm font-bold text-[#0B1B32]">
-                    {PAYMENT_PURPOSE_LABELS[p]}
-                  </p>
-                </button>
-              ))}
-            </div>
-            {purpose === "custom" && (
-              <input
-                value={customPurposeLabel}
-                onChange={(e) => setCustomPurposeLabel(e.target.value)}
-                className={qrUi.input}
-                placeholder="Custom heading"
-              />
-            )}
-            <div>
-              <h3 className="text-sm font-bold text-[#0B1B32]">Page type</h3>
-              <p className="mt-1 text-sm text-[#667085]">
-                Choose whether customers enter the amount or you send a specific payment request.
-              </p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                {PAYMENT_MODES.map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setPaymentMode(mode)}
-                    className={cn(
-                      "rounded-2xl border-2 p-4 text-left transition",
-                      paymentMode === mode
-                        ? "border-[#2563EB] bg-[#EFF6FF]"
-                        : "border-[#E2E8F0] hover:border-[#CBD5E1]"
-                    )}
-                  >
-                    <p className="text-sm font-bold text-[#0B1B32]">
-                      {PAYMENT_MODE_LABELS[mode]}
-                    </p>
-                    <p className="mt-1 text-xs text-[#64748B]">
-                      {mode === "reusable_page"
-                        ? "One permanent link or QR. Customers enter or pick an amount, then choose a provider."
-                        : "Template for one-off requests. You set amount and note, then share a unique link or QR per job."}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
+          <div className="space-y-5">
+            <h2 className="text-lg font-bold text-[#0B1B32]">Business details</h2>
             <div>
               <label className={qrUi.label}>Campaign name</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} className={cn(qrUi.input, "mt-1.5")} />
+            </div>
+            <div>
+              <label className={qrUi.label}>Page heading</label>
               <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
                 className={cn(qrUi.input, "mt-1.5")}
+                placeholder="Pay securely"
+              />
+            </div>
+            <div>
+              <label className={qrUi.label}>Description</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className={cn(qrUi.input, "mt-1.5 min-h-[80px]")}
+                placeholder="Fast, friendly service in your city"
               />
             </div>
             <div>
               <label className={qrUi.label}>Business</label>
-              <p className="mt-1.5 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-sm font-semibold text-[#0B1B32]">
+              <p className="mt-1.5 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-sm font-semibold">
                 {businessName}
               </p>
             </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className={qrUi.label}>Logo URL (optional)</label>
+                <input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} className={cn(qrUi.input, "mt-1.5")} />
+              </div>
+              <div>
+                <label className={qrUi.label}>Cover image URL (optional)</label>
+                <input value={bannerUrl} onChange={(e) => setBannerUrl(e.target.value)} className={cn(qrUi.input, "mt-1.5")} />
+              </div>
+            </div>
+            <div>
+              <label className={qrUi.label}>Brand color</label>
+              <div className="mt-1.5 flex items-center gap-3">
+                <input
+                  type="color"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  className="h-10 w-14 cursor-pointer rounded-lg border"
+                />
+                <input value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className={qrUi.input} />
+              </div>
+            </div>
+            {entitlements.customSlug && (
+              <div>
+                <label className={qrUi.label}>Custom page slug</label>
+                <input
+                  value={publicSlug}
+                  onChange={(e) => setPublicSlug(e.target.value.toLowerCase())}
+                  className={cn(qrUi.input, "mt-1.5")}
+                  placeholder="joes-plumbing"
+                />
+                <p className="mt-1 text-xs text-[#64748B]">
+                  app.localseoexpress.com/p/{publicSlug || "your-slug"}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
         {step === 2 && (
           <div className="space-y-5">
-            <div>
-              <h2 className="text-lg font-bold text-[#0B1B32]">Payment methods</h2>
-              <p className="mt-1 text-sm text-[#667085]">
-                Add your public payment handles. Money goes directly to your accounts.
-              </p>
-            </div>
+            <h2 className="text-lg font-bold text-[#0B1B32]">Payment options</h2>
+            <p className="text-sm text-[#64748B]">
+              Only enabled methods with valid destinations appear on your public page.
+            </p>
             {PAYMENT_PROVIDERS.map((provider) => {
               const def = getPaymentProvider(provider);
               const state = methods[provider];
               return (
-                <div
-                  key={provider}
-                  className="rounded-2xl border border-[#E2E8F0] p-4"
-                >
+                <div key={provider} className="rounded-2xl border border-[#E2E8F0] p-4">
                   <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white"
-                        style={{ background: def.brandColor }}
-                      >
-                        {def.displayName.charAt(0)}
-                      </span>
-                      <div>
-                        <p className="font-bold text-[#0B1B32]">{def.displayName}</p>
-                        <p className="text-xs text-[#64748B]">
-                          {provider === "cash_app" && "Payment link or Cashtag ($username)"}
-                          {provider === "venmo" && "Username"}
-                          {provider === "paypal" && "PayPal.me link"}
-                          {provider === "zelle" && "Email or phone"}
-                        </p>
-                      </div>
+                    <div>
+                      <p className="font-bold text-[#0B1B32]">{def.buttonLabel}</p>
+                      <p className="text-xs text-[#64748B]">{PROVIDER_HINTS[provider]}</p>
                     </div>
                     <label className="relative inline-flex cursor-pointer items-center">
                       <input
@@ -523,25 +502,39 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
                         }))
                       }
                       className={cn(qrUi.input, "mt-3")}
-                      placeholder={
-                        provider === "cash_app"
-                          ? "https://cash.app/... or $cashtag"
-                          : provider === "paypal"
-                            ? "paypal.me/you"
-                            : provider === "zelle"
-                              ? "email@example.com"
-                              : "username"
-                      }
+                      placeholder={PROVIDER_HINTS[provider]}
                     />
                   )}
                 </div>
               );
             })}
+          </div>
+        )}
 
-            {entitlements.suggestedAmounts && (
+        {step === 3 && (
+          <div className="space-y-5">
+            <h2 className="text-lg font-bold text-[#0B1B32]">Amount settings</h2>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {AMOUNT_MODES.map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setAmountMode(mode)}
+                  className={cn(
+                    "rounded-2xl border-2 p-4 text-left text-sm",
+                    amountMode === mode
+                      ? "border-[#2563EB] bg-[#EFF6FF]"
+                      : "border-[#E2E8F0]"
+                  )}
+                >
+                  <p className="font-bold text-[#0B1B32]">{AMOUNT_MODE_LABELS[mode]}</p>
+                </button>
+              ))}
+            </div>
+            {amountMode === "suggested" && entitlements.suggestedAmounts && (
               <div>
                 <label className={qrUi.label}>Suggested amounts ($)</label>
-                <div className="mt-2 grid grid-cols-3 gap-2">
+                <div className="mt-2 grid grid-cols-4 gap-2">
                   {amounts.map((cents, i) => (
                     <input
                       key={i}
@@ -557,139 +550,96 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
                 </div>
               </div>
             )}
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="grid gap-8 lg:grid-cols-2">
-            <div className="space-y-5">
-              <h2 className="text-lg font-bold text-[#0B1B32]">Customize appearance</h2>
-              <div>
-                <label className={qrUi.label}>Page title</label>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className={cn(qrUi.input, "mt-1.5")}
-                  placeholder={PAYMENT_PURPOSE_LABELS[purpose]}
-                />
-              </div>
-              <div>
-                <label className={qrUi.label}>Description</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className={cn(qrUi.input, "mt-1.5 min-h-[80px]")}
-                  rows={3}
-                />
-              </div>
-              <div>
-                <label className={qrUi.label}>Theme color</label>
-                <div className="mt-1.5 flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={primaryColor}
-                    onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="h-10 w-14 cursor-pointer rounded-lg border border-[#E2E8F0]"
-                  />
-                  <input
-                    value={primaryColor}
-                    onChange={(e) => setPrimaryColor(e.target.value)}
-                    className={qrUi.input}
-                  />
-                </div>
-              </div>
-              {entitlements.customSlug && (
-                <div>
-                  <label className={qrUi.label}>Custom page slug</label>
-                  <input
-                    value={publicSlug}
-                    onChange={(e) => setPublicSlug(e.target.value.toLowerCase())}
-                    className={cn(qrUi.input, "mt-1.5")}
-                    placeholder="thelocalshop"
-                  />
-                  <p className="mt-1 text-xs text-[#64748B]">
-                    app.localseoexpress.com/pay/{publicSlug || "your-slug"}
-                  </p>
-                </div>
-              )}
-              {entitlements.reviewLinks && (
-                <div className="rounded-2xl border border-[#E2E8F0] p-4">
-                  <label className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={showReviewPrompt}
-                      onChange={(e) => setShowReviewPrompt(e.target.checked)}
-                      className="h-4 w-4 rounded border-[#CBD5E1]"
-                    />
-                    <span className="text-sm font-semibold text-[#0B1B32]">
-                      Show Google review request after payment
-                    </span>
-                  </label>
-                  <p className="mt-2 text-xs text-[#64748B]">
-                    Neutral wording: &quot;Share your experience on Google.&quot;
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-col items-center">
-              <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#64748B]">
-                <Smartphone className="h-4 w-4" /> Mobile preview
-              </p>
-              <div className="w-[320px] overflow-hidden rounded-[2rem] border-4 border-[#0B1B32] shadow-2xl">
-                {previewCampaign && previewConfig && (
-                  <div className="h-[520px] overflow-y-auto">
-                    <PaymentPublicPage
-                      slug={previewSlug}
-                      campaign={previewCampaign}
-                      config={previewConfig}
-                      businessName={businessName}
-                      isPreview
-                    />
-                  </div>
-                )}
-              </div>
+            <div>
+              <label className={qrUi.label}>Optional payment note</label>
+              <input
+                value={paymentNote}
+                onChange={(e) => setPaymentNote(e.target.value)}
+                className={cn(qrUi.input, "mt-1.5")}
+                placeholder="Shown when amount prefilling is supported"
+              />
             </div>
           </div>
         )}
 
         {step === 4 && (
+          <div className="space-y-5">
+            <h2 className="text-lg font-bold text-[#0B1B32]">Reviews &amp; links</h2>
+            <div>
+              <label className={qrUi.label}>Google review URL</label>
+              <input
+                value={googleReviewUrl}
+                onChange={(e) => setGoogleReviewUrl(e.target.value)}
+                className={cn(qrUi.input, "mt-1.5")}
+                disabled={!entitlements.reviewLinks}
+              />
+            </div>
+            <div>
+              <label className={qrUi.label}>Facebook review URL</label>
+              <input
+                value={facebookReviewUrl}
+                onChange={(e) => setFacebookReviewUrl(e.target.value)}
+                className={cn(qrUi.input, "mt-1.5")}
+                disabled={!entitlements.reviewLinks}
+              />
+            </div>
+            {entitlements.socialLinks && (
+              <>
+                <div>
+                  <label className={qrUi.label}>Website</label>
+                  <input value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} className={cn(qrUi.input, "mt-1.5")} />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className={qrUi.label}>Facebook page</label>
+                    <input value={facebookPageUrl} onChange={(e) => setFacebookPageUrl(e.target.value)} className={cn(qrUi.input, "mt-1.5")} />
+                  </div>
+                  <div>
+                    <label className={qrUi.label}>Instagram</label>
+                    <input value={instagramUrl} onChange={(e) => setInstagramUrl(e.target.value)} className={cn(qrUi.input, "mt-1.5")} />
+                  </div>
+                  <div>
+                    <label className={qrUi.label}>Pinterest</label>
+                    <input value={pinterestUrl} onChange={(e) => setPinterestUrl(e.target.value)} className={cn(qrUi.input, "mt-1.5")} />
+                  </div>
+                  <div>
+                    <label className={qrUi.label}>Booking link</label>
+                    <input value={bookingUrl} onChange={(e) => setBookingUrl(e.target.value)} className={cn(qrUi.input, "mt-1.5")} />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {step === 5 && (
           <div className="grid gap-8 lg:grid-cols-2">
-            <div className="space-y-5">
-              <h2 className="text-lg font-bold text-[#0B1B32]">QR &amp; poster</h2>
+            <div className="space-y-4">
+              <h2 className="text-lg font-bold text-[#0B1B32]">Publish</h2>
               {qrDataUrl && (
-                <div className="flex flex-col items-center rounded-2xl border border-[#E2E8F0] bg-white p-6">
-                  <img src={qrDataUrl} alt="QR code preview" className="h-40 w-40" />
+                <div className="flex flex-col items-center rounded-2xl border p-6">
+                  <img src={qrDataUrl} alt="QR" className="h-40 w-40" />
                   <p className="mt-3 text-xs text-[#64748B]">
-                    app.localseoexpress.com/pay/{previewSlug}
+                    app.localseoexpress.com/p/{previewSlug}
                   </p>
                 </div>
               )}
-              <div className="rounded-2xl border border-[#E2E8F0] bg-[#1e3a5f] p-6 text-center text-white">
-                <p className="text-lg font-extrabold">Scan to pay</p>
-                <p className="mt-1 text-sm text-white/80">{businessName}</p>
-                {qrDataUrl && (
-                  <img
-                    src={qrDataUrl}
-                    alt=""
-                    className="mx-auto mt-4 h-32 w-32 rounded-lg bg-white p-2"
-                  />
-                )}
-                <p className="mt-3 text-xs text-white/70">Scan to pay with Venmo, Cash App, PayPal, or Zelle</p>
-              </div>
             </div>
             <div>
-              <p className="mb-3 text-sm font-semibold text-[#64748B]">Live page preview</p>
-              {previewCampaign && previewConfig && (
-                <div className="overflow-hidden rounded-2xl border border-[#E2E8F0] shadow-lg">
+              <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#64748B]">
+                <Smartphone className="h-4 w-4" /> Mobile preview
+              </p>
+              <div className="overflow-hidden rounded-[2rem] border-4 border-[#0B1B32]">
+                <div className="h-[560px] overflow-y-auto">
                   <PaymentPublicPage
                     slug={previewSlug}
                     campaign={previewCampaign}
                     config={previewConfig}
                     businessName={businessName}
+                    isPreview
                   />
                 </div>
-              )}
+              </div>
             </div>
           </div>
         )}
@@ -704,7 +654,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
         >
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
-        {step < 4 ? (
+        {step < 5 ? (
           <button
             type="button"
             disabled={!canContinue()}
@@ -721,7 +671,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
             className={cn(qrUi.btnPrimary, "bg-[#2563EB] hover:bg-[#1D4ED8]")}
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Publish payment page
+            Publish Pay &amp; Review Page
           </button>
         )}
       </div>

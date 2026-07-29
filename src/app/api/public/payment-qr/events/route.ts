@@ -27,6 +27,7 @@ export async function POST(request: Request) {
       amountSelectedCents?: number;
       sessionId?: string;
       paymentRequestSessionId?: string;
+      metadata?: Record<string, unknown>;
       isPreview?: boolean;
     };
 
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
       amountSelectedCents: body.amountSelectedCents,
       sessionId: body.sessionId,
       paymentRequestSessionId: body.paymentRequestSessionId,
+      metadata: body.metadata,
       userAgent,
       referrer,
       ip,

@@ -45,7 +45,7 @@ async function allocateUniqueShortCodeLocal(): Promise<string> {
 }
 
 export function buildPaymentPageUrl(slug: string): string {
-  return appUrl(`/pay/${encodeURIComponent(slug)}`);
+  return appUrl(`/p/${encodeURIComponent(slug)}`);
 }
 
 export function validatePublicSlug(slug: string): string {
@@ -98,7 +98,6 @@ export async function getPaymentPageBySlug(slug: string): Promise<PaymentPageLoa
     return {
       campaign,
       config,
-      paymentMode: config.paymentMode,
       requestSession: session,
     };
   }
@@ -141,7 +140,6 @@ export async function getPaymentPageBySlug(slug: string): Promise<PaymentPageLoa
   return {
     campaign,
     config,
-    paymentMode: config.paymentMode,
     requestSession: null,
   };
 }
@@ -242,12 +240,9 @@ export async function createPaymentQrCampaign(
     if (existing) throw new Error("This page slug is already in use.");
   }
 
-  const paymentMode = input.paymentMode ?? "reusable_page";
-  if (paymentMode === "request_only") {
-    // Template campaigns generate per-request links; no permanent public slug required.
-  } else if (!publicSlug && !entitlements.customSlug) {
-    // Reusable pages use short code as slug when custom slug not on plan.
-  }
+  const amountMode = input.amountMode ?? "none";
+  const allowCustom =
+    amountMode === "custom" || amountMode === "suggested" ? (input.allowCustomAmount ?? true) : false;
 
   await assertCanCreateQrCampaign({
     organizationId: input.organizationId,
@@ -256,10 +251,7 @@ export async function createPaymentQrCampaign(
   });
 
   const shortCode = await allocateUniqueShortCodeLocal();
-  const slugForUrl =
-    paymentMode === "request_only"
-      ? shortCode
-      : publicSlug ?? shortCode;
+  const slugForUrl = publicSlug ?? shortCode;
   const destinationUrl = buildPaymentPageUrl(slugForUrl);
 
   const purposeHeading =
@@ -283,7 +275,7 @@ export async function createPaymentQrCampaign(
       placement_type: input.placementType ?? "standard_poster",
       destination_url: destinationUrl,
       short_code: shortCode,
-      public_slug: paymentMode === "request_only" ? null : publicSlug,
+      public_slug: publicSlug,
       campaign_type: "payment_review",
       headline: input.headline ?? purposeHeading,
       description: input.description ?? input.title ?? purposeHeading,
@@ -310,26 +302,30 @@ export async function createPaymentQrCampaign(
     .from("payment_page_configurations")
     .insert({
       qr_campaign_id: campaign.id,
-      payment_mode: paymentMode,
+      payment_mode: "reusable_page",
+      amount_mode: amountMode,
       purpose: input.purpose,
       custom_purpose_label: input.customPurposeLabel ?? null,
       title: input.title ?? purposeHeading,
       description: input.description ?? null,
       thank_you_message: input.thankYouMessage ?? "Thank you for your support!",
+      payment_note: input.paymentNote ?? null,
       logo_url: input.logoUrl ?? null,
       banner_url: input.bannerUrl ?? null,
       primary_color: input.primaryColor ?? "#2563EB",
       secondary_color: input.secondaryColor ?? null,
-      allow_custom_amount:
-        paymentMode === "request_only" ? false : (input.allowCustomAmount ?? true),
-      show_review_prompt: input.showReviewPrompt ?? false,
+      allow_custom_amount: allowCustom,
+      show_review_prompt: input.showReviewPrompt ?? true,
       show_platform_branding: input.showPlatformBranding ?? !entitlements.removePlatformBranding,
       google_review_url: input.googleReviewUrl ?? null,
       facebook_review_url: input.facebookReviewUrl ?? null,
       website_url: input.websiteUrl ?? null,
+      facebook_page_url: input.facebookPageUrl ?? null,
       instagram_url: input.instagramUrl ?? null,
+      pinterest_url: input.pinterestUrl ?? null,
       tiktok_url: input.tiktokUrl ?? null,
       youtube_url: input.youtubeUrl ?? null,
+      booking_url: input.bookingUrl ?? null,
       phone: input.phone ?? null,
       email: input.email ?? null,
     })
@@ -467,15 +463,32 @@ export async function getPaymentQrAnalytics(
   const providerClicks: Record<string, number> = {};
   const amountSelections: Record<number, number> = {};
   let pageViews = 0;
-  let paymentOptionClicks = 0;
-  let externalPaymentReturns = 0;
-  let reviewPromptViews = 0;
+  let paymentLinkClicks = 0;
   let googleReviewClicks = 0;
   let facebookReviewClicks = 0;
+  let socialLinkClicks = 0;
+  let websiteClicks = 0;
+  let bookingLinkClicks = 0;
   let qrDownloads = 0;
   let posterDownloads = 0;
-  let verifiedStripePayments = 0;
-  let verifiedStripeAmountCents = 0;
+
+  const PAYMENT_CLICK_EVENTS = new Set([
+    "payment_method_clicked",
+    "payment_option_clicked",
+    "stripe_link_clicked",
+    "cash_app_clicked",
+    "venmo_clicked",
+    "paypal_clicked",
+    "zelle_details_viewed",
+  ]);
+
+  const PROVIDER_FROM_EVENT: Record<string, string> = {
+    stripe_link_clicked: "stripe",
+    cash_app_clicked: "cash_app",
+    venmo_clicked: "venmo",
+    paypal_clicked: "paypal",
+    zelle_details_viewed: "zelle",
+  };
 
   for (const row of rows) {
     const eventType = String(row.event_type);
@@ -485,20 +498,17 @@ export async function getPaymentQrAnalytics(
       case "page_view":
         pageViews++;
         break;
-      case "payment_option_clicked":
-        paymentOptionClicks++;
-        const prov = row.provider ? String(row.provider) : "unknown";
-        providerClicks[prov] = (providerClicks[prov] ?? 0) + 1;
+      case "amount_selected":
         if (row.amount_selected_cents) {
           const cents = Number(row.amount_selected_cents);
           amountSelections[cents] = (amountSelections[cents] ?? 0) + 1;
         }
         break;
-      case "external_payment_returned":
-        externalPaymentReturns++;
-        break;
-      case "review_prompt_viewed":
-        reviewPromptViews++;
+      case "custom_amount_entered":
+        if (row.amount_selected_cents) {
+          const cents = Number(row.amount_selected_cents);
+          amountSelections[cents] = (amountSelections[cents] ?? 0) + 1;
+        }
         break;
       case "google_review_clicked":
         googleReviewClicks++;
@@ -506,15 +516,34 @@ export async function getPaymentQrAnalytics(
       case "facebook_review_clicked":
         facebookReviewClicks++;
         break;
+      case "social_link_clicked":
+        socialLinkClicks++;
+        break;
+      case "website_clicked":
+        websiteClicks++;
+        socialLinkClicks++;
+        break;
+      case "booking_link_clicked":
+        bookingLinkClicks++;
+        socialLinkClicks++;
+        break;
       case "qr_downloaded":
         qrDownloads++;
         break;
       case "poster_downloaded":
         posterDownloads++;
         break;
-      case "stripe_payment_completed":
-        verifiedStripePayments++;
-        verifiedStripeAmountCents += Number(row.amount_selected_cents ?? 0);
+      default:
+        if (PAYMENT_CLICK_EVENTS.has(eventType)) {
+          paymentLinkClicks++;
+          const prov =
+            row.provider ? String(row.provider) : PROVIDER_FROM_EVENT[eventType] ?? "unknown";
+          providerClicks[prov] = (providerClicks[prov] ?? 0) + 1;
+          if (row.amount_selected_cents) {
+            const cents = Number(row.amount_selected_cents);
+            amountSelections[cents] = (amountSelections[cents] ?? 0) + 1;
+          }
+        }
         break;
     }
   }
@@ -533,22 +562,19 @@ export async function getPaymentQrAnalytics(
     pageViews,
     uniqueVisitors: sessions.size,
     qrScans,
-    paymentOptionClicks,
+    paymentLinkClicks,
     providerClicks,
     amountSelections,
-    externalPaymentReturns,
-    reviewPromptViews,
     googleReviewClicks,
     facebookReviewClicks,
+    socialLinkClicks,
+    websiteClicks,
+    bookingLinkClicks,
     qrDownloads,
     posterDownloads,
-    verifiedStripePayments,
-    verifiedStripeAmountCents,
     conversionRates: {
       scanToPageView: safeRate(pageViews, qrScans),
-      pageViewToPaymentClick: safeRate(paymentOptionClicks, pageViews),
-      paymentClickToReturn: safeRate(externalPaymentReturns, paymentOptionClicks),
-      returnToReviewClick: safeRate(googleReviewClicks + facebookReviewClicks, externalPaymentReturns),
+      pageViewToPaymentClick: safeRate(paymentLinkClicks, pageViews),
       pageViewToReviewClick: safeRate(googleReviewClicks + facebookReviewClicks, pageViews),
     },
     recentActivity: rows.slice(0, 50).map((row) => ({
@@ -656,7 +682,8 @@ export async function resolveProviderDestination(params: {
     page.requestSession?.amountCents ??
     params.amountCents ??
     null;
-  const note = page.requestSession?.note ?? params.note ?? null;
+  const note =
+    page.requestSession?.note ?? params.note ?? page.config.paymentNote ?? null;
 
   const result = buildPaymentDestination(params.provider, {
     publicHandle: method.publicHandle,

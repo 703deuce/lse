@@ -496,7 +496,7 @@ export async function resolveAndRecordQrScan(params: {
 
   if (campaign.campaignType === "payment_review") {
     const slug = campaign.publicSlug ?? campaign.shortCode;
-    const destinationUrl = appUrl(`/pay/${encodeURIComponent(slug)}`);
+    const destinationUrl = appUrl(`/p/${encodeURIComponent(slug)}`);
     await recordQrScanEvent({
       campaign,
       ip: params.ip,

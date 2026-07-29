@@ -2,6 +2,15 @@ import type { PaymentProvider, PaymentProviderCapabilities } from "./types";
 
 const BLOCKED_PROTOCOLS = /^(javascript|data|vbscript):/i;
 
+const APPROVED_STRIPE_HOSTS = new Set([
+  "buy.stripe.com",
+  "checkout.stripe.com",
+  "pay.stripe.com",
+  "invoice.stripe.com",
+  "donate.stripe.com",
+  "billing.stripe.com",
+]);
+
 const APPROVED_PAYPAL_HOSTS = new Set([
   "paypal.me",
   "www.paypal.me",
@@ -31,13 +40,14 @@ export type BuildDestinationResult = {
   destinationUrl: string | null;
   fallbackInstructions: string;
   opensInNewTab: boolean;
-  /** Zelle and similar: show manual copy UI instead of opening a link */
+  /** Zelle: show manual copy UI instead of opening a link */
   manualFlow: boolean;
 };
 
 export type PaymentProviderDefinition = {
   providerKey: PaymentProvider;
   displayName: string;
+  buttonLabel: string;
   brandColor: string;
   capabilities: PaymentProviderCapabilities;
   validateInput: (input: string) => { ok: true; normalized: string } | { ok: false; error: string };
@@ -71,15 +81,61 @@ function primaryInput(input: BuildDestinationInput): string {
   return (input.publicHandle ?? "").trim();
 }
 
+export const STRIPE_PROVIDER: PaymentProviderDefinition = {
+  providerKey: "stripe",
+  displayName: "Stripe",
+  buttonLabel: "Pay with Card or Apple Pay",
+  brandColor: "#635BFF",
+  capabilities: {
+    supportsExternalLink: true,
+    supportsPrefilledAmount: false,
+    supportsPrefilledNote: false,
+    supportsVerifiedCompletion: false,
+  },
+  normalizeInput: (input) => input.trim(),
+  validateInput: (input) => {
+    const trimmed = input.trim();
+    if (!trimmed) return { ok: false, error: "Stripe Payment Link URL is required." };
+    if (!trimmed.startsWith("http")) {
+      return { ok: false, error: "Paste the full Stripe Payment Link URL (https://...)." };
+    }
+    if (!isSafeHttpUrl(trimmed, APPROVED_STRIPE_HOSTS)) {
+      return {
+        ok: false,
+        error: "URL must be a Stripe-hosted payment link (buy.stripe.com, checkout.stripe.com, etc.).",
+      };
+    }
+    return { ok: true, normalized: trimmed };
+  },
+  buildDestination: (input) => {
+    const raw = primaryInput(input);
+    const validated = STRIPE_PROVIDER.validateInput(raw);
+    if (!validated.ok) {
+      return {
+        destinationUrl: null,
+        fallbackInstructions: "Open your Stripe payment page.",
+        opensInNewTab: true,
+        manualFlow: false,
+      };
+    }
+    return {
+      destinationUrl: validated.normalized,
+      fallbackInstructions: "Complete payment on Stripe.",
+      opensInNewTab: true,
+      manualFlow: false,
+    };
+  },
+};
+
 export const CASH_APP_PROVIDER: PaymentProviderDefinition = {
   providerKey: "cash_app",
   displayName: "Cash App",
+  buttonLabel: "Pay with Cash App",
   brandColor: "#00D632",
   capabilities: {
+    supportsExternalLink: true,
     supportsPrefilledAmount: true,
     supportsPrefilledNote: true,
-    supportsAppDeepLink: true,
-    supportsWebFallback: true,
     supportsVerifiedCompletion: false,
   },
   normalizeInput: (input) => {
@@ -149,12 +205,12 @@ export const CASH_APP_PROVIDER: PaymentProviderDefinition = {
 export const VENMO_PROVIDER: PaymentProviderDefinition = {
   providerKey: "venmo",
   displayName: "Venmo",
+  buttonLabel: "Pay with Venmo",
   brandColor: "#008CFF",
   capabilities: {
+    supportsExternalLink: true,
     supportsPrefilledAmount: true,
     supportsPrefilledNote: true,
-    supportsAppDeepLink: true,
-    supportsWebFallback: true,
     supportsVerifiedCompletion: false,
   },
   normalizeInput: (input) => {
@@ -223,12 +279,12 @@ export const VENMO_PROVIDER: PaymentProviderDefinition = {
 export const PAYPAL_PROVIDER: PaymentProviderDefinition = {
   providerKey: "paypal",
   displayName: "PayPal",
+  buttonLabel: "Pay with PayPal",
   brandColor: "#003087",
   capabilities: {
+    supportsExternalLink: true,
     supportsPrefilledAmount: true,
-    supportsPrefilledNote: true,
-    supportsAppDeepLink: true,
-    supportsWebFallback: true,
+    supportsPrefilledNote: false,
     supportsVerifiedCompletion: false,
   },
   normalizeInput: (input) => input.trim(),
@@ -277,12 +333,12 @@ export const PAYPAL_PROVIDER: PaymentProviderDefinition = {
 export const ZELLE_PROVIDER: PaymentProviderDefinition = {
   providerKey: "zelle",
   displayName: "Zelle",
+  buttonLabel: "Pay with Zelle",
   brandColor: "#6D1ED4",
   capabilities: {
+    supportsExternalLink: false,
     supportsPrefilledAmount: false,
     supportsPrefilledNote: false,
-    supportsAppDeepLink: false,
-    supportsWebFallback: false,
     supportsVerifiedCompletion: false,
   },
   normalizeInput: (input) => input.trim(),
@@ -313,6 +369,7 @@ export const ZELLE_PROVIDER: PaymentProviderDefinition = {
 };
 
 export const PAYMENT_PROVIDER_MAP: Record<PaymentProvider, PaymentProviderDefinition> = {
+  stripe: STRIPE_PROVIDER,
   cash_app: CASH_APP_PROVIDER,
   venmo: VENMO_PROVIDER,
   paypal: PAYPAL_PROVIDER,
@@ -347,14 +404,4 @@ export function isBlockedUrl(url: string): boolean {
   return BLOCKED_PROTOCOLS.test(url.trim());
 }
 
-/** @deprecated Use buildPaymentDestination with BuildDestinationInput */
-export function buildPaymentDestinationLegacy(
-  provider: PaymentProvider,
-  handle: string,
-  amountCents?: number
-): string | null {
-  return buildPaymentDestination(provider, {
-    publicHandle: handle,
-    amountCents,
-  }).destinationUrl;
-}
+export const APPROVED_STRIPE_PAYMENT_LINK_HOSTS = APPROVED_STRIPE_HOSTS;

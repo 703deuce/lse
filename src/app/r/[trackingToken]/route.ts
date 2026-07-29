@@ -53,7 +53,7 @@ export async function GET(
     const campaign = await getQrCampaignByShortCode(trackingToken);
     if (campaign?.campaignType === "payment_review") {
       const slug = campaign.publicSlug ?? campaign.shortCode;
-      return NextResponse.redirect(appUrl(`/pay/${encodeURIComponent(slug)}`), 302);
+      return NextResponse.redirect(appUrl(`/p/${encodeURIComponent(slug)}`), 302);
     }
     // QR review campaigns open the mobile review funnel first, then Google.
     // Use the public app origin — request.url can be the internal listen address

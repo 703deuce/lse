@@ -55,12 +55,10 @@ export function QrCampaignTypeSelector({ businessId }: { businessId: string }) {
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#DBEAFE] text-[#2563EB]">
             <Wallet className="h-6 w-6" />
           </div>
-          <h2 className="mt-4 text-lg font-extrabold text-[#0B1B32]">
-            Payment, Tip &amp; Review QR
-          </h2>
+          <h2 className="mt-4 text-lg font-extrabold text-[#0B1B32]">Pay &amp; Review QR</h2>
           <p className="mt-2 text-sm text-[#64748B]">
-            One QR for Venmo, Cash App, PayPal, Zelle, and optional review collection. Money goes
-            directly to your accounts — we track clicks, not payments.
+            One hosted page for payment links, Google and Facebook reviews, and social connections.
+            Money goes directly to your accounts — we track clicks, not payments.
           </p>
           <span className="mt-4 inline-flex text-sm font-semibold text-[#2563EB] group-hover:underline">
             Select →

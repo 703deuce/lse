@@ -61,11 +61,13 @@ export const MOCK_CONFIG: PaymentPageConfiguration = {
   id: "preview",
   qrCampaignId: "preview",
   paymentMode: "reusable_page",
+  amountMode: "suggested",
   purpose: "pay",
   customPurposeLabel: null,
   title: "Pay The Local Shop",
-  description: "Choose your payment method below",
+  description: "Fast, friendly service in Woodbridge, Virginia",
   thankYouMessage: "Thank you for your support!",
+  paymentNote: null,
   logoUrl: null,
   bannerUrl: null,
   primaryColor: "#2563EB",
@@ -74,14 +76,27 @@ export const MOCK_CONFIG: PaymentPageConfiguration = {
   showReviewPrompt: true,
   showPlatformBranding: true,
   googleReviewUrl: "https://search.google.com/local/writereview?placeid=ChIJpreview",
-  facebookReviewUrl: null,
-  websiteUrl: null,
-  instagramUrl: null,
+  facebookReviewUrl: "https://facebook.com/thelocalshop/reviews",
+  websiteUrl: "https://thelocalshop.com",
+  facebookPageUrl: "https://facebook.com/thelocalshop",
+  instagramUrl: "https://instagram.com/thelocalshop",
+  pinterestUrl: null,
   tiktokUrl: null,
   youtubeUrl: null,
+  bookingUrl: null,
   phone: null,
   email: null,
   methods: [
+    {
+      id: "0",
+      provider: "stripe",
+      publicHandle: null,
+      publicUrl: "https://buy.stripe.com/preview",
+      instructions: null,
+      uploadedQrImageUrl: null,
+      enabled: true,
+      sortOrder: 0,
+    },
     {
       id: "1",
       provider: "venmo",
@@ -375,16 +390,15 @@ export function PaymentQrShowcase() {
                 config={MOCK_CONFIG}
                 businessName="The Local Shop"
                 isPreview
-                previewStep="pay"
               />
             </div>
           </div>
         </ShowcaseSection>
 
         <ShowcaseSection
-          id="public-pay"
-          title="6. Public page — Pay"
-          description="Customer-facing payment choice page."
+          id="public-page"
+          title="6. Pay & Review Page (public)"
+          description="Single hosted page — payment methods, reviews, and social links together."
         >
           <PaymentPublicPage
             slug="thelocalshop"
@@ -392,60 +406,12 @@ export function PaymentQrShowcase() {
             config={MOCK_CONFIG}
             businessName="The Local Shop"
             isPreview
-            previewStep="pay"
-          />
-        </ShowcaseSection>
-
-        <ShowcaseSection
-          id="public-request"
-          title="6b. Specific payment request"
-          description="Business-set amount and note — QR encodes Local SEO Express, not Cash App directly."
-        >
-          <PaymentPublicPage
-            slug="req125abc"
-            campaign={MOCK_CAMPAIGN}
-            config={{ ...MOCK_CONFIG, allowCustomAmount: false }}
-            businessName="The Local Shop"
-            isPreview
-            previewStep="pay"
-            requestSession={MOCK_REQUEST_SESSION}
-            paymentMode="reusable_page"
-          />
-        </ShowcaseSection>
-
-        <ShowcaseSection
-          id="public-return"
-          title="7. Public page — Continue after payment"
-          description="Return flow after opening external payment app."
-        >
-          <PaymentPublicPage
-            slug="thelocalshop"
-            campaign={MOCK_CAMPAIGN}
-            config={MOCK_CONFIG}
-            businessName="The Local Shop"
-            isPreview
-            previewStep="return"
-          />
-        </ShowcaseSection>
-
-        <ShowcaseSection
-          id="public-review"
-          title="8. Public page — Review request"
-          description="Neutral Google review prompt after payment."
-        >
-          <PaymentPublicPage
-            slug="thelocalshop"
-            campaign={MOCK_CAMPAIGN}
-            config={MOCK_CONFIG}
-            businessName="The Local Shop"
-            isPreview
-            previewStep="review"
           />
         </ShowcaseSection>
 
         <ShowcaseSection
           id="campaign-editor"
-          title="9. Campaign editor"
+          title="7. Campaign editor"
           description="QR code, tracked link, and scan to pay poster."
         >
           <div className="p-6 space-y-6">
@@ -499,20 +465,22 @@ function PaymentQrAnalyticsMock() {
     pageViews: 204,
     uniqueVisitors: 156,
     qrScans: 148,
-    paymentOptionClicks: 89,
+    paymentLinkClicks: 89,
     googleReviewClicks: 19,
     facebookReviewClicks: 0,
-    providerClicks: { cash_app: 42, zelle: 31, venmo: 22, paypal: 11 },
+    providerClicks: { stripe: 15, cash_app: 42, zelle: 31, venmo: 22, paypal: 11 },
+    socialLinkClicks: 12,
+    websiteClicks: 8,
+    bookingLinkClicks: 2,
     conversionRates: {
       scanToPageView: 0.92,
       pageViewToPaymentClick: 0.44,
-      paymentClickToReturn: 0.62,
       pageViewToReviewClick: 0.09,
     },
     recentActivity: [
       {
         id: "1",
-        eventType: "payment_option_clicked",
+        eventType: "cash_app_clicked",
         provider: "cash_app",
         amountSelectedCents: 1000,
         createdAt: new Date().toISOString(),
@@ -543,7 +511,7 @@ function PaymentQrAnalyticsMock() {
       <div className="grid gap-4 sm:grid-cols-4">
         <QrKpiCard label="Page views" value={String(mockData.pageViews)} />
         <QrKpiCard label="QR scans" value={String(mockData.qrScans)} />
-        <QrKpiCard label="Payment-option clicks" value={String(mockData.paymentOptionClicks)} />
+        <QrKpiCard label="Payment-link clicks" value={String(mockData.paymentLinkClicks)} />
         <QrKpiCard label="Review-link clicks" value={String(mockData.googleReviewClicks)} />
       </div>
       <div className="grid gap-6 lg:grid-cols-2">

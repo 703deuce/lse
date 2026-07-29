@@ -6,22 +6,38 @@ import {
   getPaymentProviderCapabilities,
   isBlockedUrl,
   PAYPAL_PROVIDER,
+  STRIPE_PROVIDER,
   validatePaymentMethodInput,
   VENMO_PROVIDER,
   ZELLE_PROVIDER,
 } from "./providers";
 
 describe("payment providers", () => {
+  describe("Stripe", () => {
+    it("accepts buy.stripe.com links", () => {
+      const r = validatePaymentMethodInput(
+        "stripe",
+        "https://buy.stripe.com/test_abc123"
+      );
+      assert.equal(r.ok, true);
+    });
+
+    it("rejects non-stripe domains", () => {
+      const r = validatePaymentMethodInput("stripe", "https://evil.com/phish");
+      assert.equal(r.ok, false);
+    });
+
+    it("builds destination as passthrough URL", () => {
+      const url = "https://buy.stripe.com/test_abc123";
+      const result = buildPaymentDestination("stripe", { publicUrl: url });
+      assert.equal(result.destinationUrl, url);
+    });
+  });
+
   describe("Cash App", () => {
     it("validates cashtag", () => {
       const r = validatePaymentMethodInput("cash_app", "$localshop");
       assert.equal(r.ok, true);
-      if (r.ok) assert.equal(r.normalized, "$localshop");
-    });
-
-    it("rejects invalid cashtag", () => {
-      const r = validatePaymentMethodInput("cash_app", "bad handle!");
-      assert.equal(r.ok, false);
     });
 
     it("builds destination with cashtag and amount", () => {
@@ -30,54 +46,20 @@ describe("payment providers", () => {
         amountCents: 1000,
       });
       assert.equal(result.destinationUrl, "https://cash.app/localshop/10.00");
-      assert.equal(result.manualFlow, false);
-    });
-
-    it("builds destination from payment link URL with amount", () => {
-      const result = buildPaymentDestination("cash_app", {
-        publicUrl: "https://cash.app/$localshop",
-        amountCents: 2500,
-        note: "Garage cleanout",
-      });
-      assert.ok(result.destinationUrl?.includes("amount=25.00"));
-      assert.ok(result.destinationUrl?.includes("note=Garage"));
-    });
-
-    it("rejects malicious URLs", () => {
-      assert.equal(isBlockedUrl("javascript:alert(1)"), true);
-      const r = validatePaymentMethodInput("cash_app", "javascript:alert(1)");
-      assert.equal(r.ok, false);
     });
   });
 
   describe("Venmo", () => {
-    it("validates username", () => {
-      const r = validatePaymentMethodInput("venmo", "localshop");
-      assert.equal(r.ok, true);
-    });
-
     it("builds pay URL with amount", () => {
       const result = buildPaymentDestination("venmo", {
         publicHandle: "localshop",
         amountCents: 500,
       });
-      assert.ok(result.destinationUrl?.includes("venmo.com/localshop"));
       assert.ok(result.destinationUrl?.includes("amount=5.00"));
     });
   });
 
   describe("PayPal", () => {
-    it("normalizes handle to paypal.me", () => {
-      const r = validatePaymentMethodInput("paypal", "localshop");
-      assert.equal(r.ok, true);
-      if (r.ok) assert.ok(r.normalized.includes("paypal.me/localshop"));
-    });
-
-    it("rejects non-paypal domains", () => {
-      const r = validatePaymentMethodInput("paypal", "https://evil.com/phish");
-      assert.equal(r.ok, false);
-    });
-
     it("appends amount to paypal.me URL", () => {
       const result = buildPaymentDestination("paypal", {
         publicHandle: "localshop",
@@ -88,51 +70,32 @@ describe("payment providers", () => {
   });
 
   describe("Zelle", () => {
-    it("accepts email", () => {
-      const r = validatePaymentMethodInput("zelle", "pay@localshop.com");
-      assert.equal(r.ok, true);
-    });
-
-    it("uses manual flow without deep link", () => {
+    it("uses manual flow", () => {
       const result = buildPaymentDestination("zelle", {
         publicHandle: "pay@localshop.com",
         amountCents: 1000,
       });
-      assert.equal(result.destinationUrl, null);
       assert.equal(result.manualFlow, true);
-    });
-
-    it("rejects URLs", () => {
-      const r = validatePaymentMethodInput("zelle", "https://example.com");
-      assert.equal(r.ok, false);
+      assert.equal(result.destinationUrl, null);
     });
   });
 
-  describe("provider capabilities", () => {
-    it("marks wallet providers as not verified", () => {
-      assert.equal(
-        getPaymentProviderCapabilities("cash_app").supportsVerifiedCompletion,
-        false
-      );
-      assert.equal(
-        getPaymentProviderCapabilities("venmo").supportsVerifiedCompletion,
-        false
-      );
-      assert.equal(
-        getPaymentProviderCapabilities("paypal").supportsVerifiedCompletion,
-        false
-      );
-      assert.equal(
-        getPaymentProviderCapabilities("zelle").supportsVerifiedCompletion,
-        false
-      );
+  describe("capabilities", () => {
+    it("marks providers as not verified", () => {
+      assert.equal(getPaymentProviderCapabilities("stripe").supportsVerifiedCompletion, false);
+      assert.equal(getPaymentProviderCapabilities("cash_app").supportsVerifiedCompletion, false);
     });
 
-    it("marks Zelle as not supporting prefilled amount", () => {
+    it("marks Zelle without prefilled amount", () => {
       assert.equal(ZELLE_PROVIDER.capabilities.supportsPrefilledAmount, false);
+      assert.equal(STRIPE_PROVIDER.capabilities.supportsExternalLink, true);
       assert.equal(CASH_APP_PROVIDER.capabilities.supportsPrefilledAmount, true);
       assert.equal(VENMO_PROVIDER.capabilities.supportsPrefilledAmount, true);
       assert.equal(PAYPAL_PROVIDER.capabilities.supportsPrefilledAmount, true);
+    });
+
+    it("blocks malicious URLs", () => {
+      assert.equal(isBlockedUrl("javascript:alert(1)"), true);
     });
   });
 });

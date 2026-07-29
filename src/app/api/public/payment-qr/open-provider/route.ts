@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPaymentPageBySlug, recordQrEvent, resolveProviderDestination } from "@/lib/reputation/payment-qr/service";
-import { PAYMENT_PROVIDERS } from "@/lib/reputation/payment-qr/types";
+import { PROVIDER_CLICK_EVENTS, PAYMENT_PROVIDERS } from "@/lib/reputation/payment-qr/types";
 import type { PaymentProvider } from "@/lib/reputation/payment-qr/types";
 import { assertRateLimit } from "@/lib/security/rate-limit";
 import { httpErrorFromException } from "@/lib/security/http-errors";
@@ -51,11 +51,14 @@ export async function POST(request: Request) {
       note: body.note,
     });
 
+    const clickEvent =
+      PROVIDER_CLICK_EVENTS[body.provider as PaymentProvider] ?? "payment_method_clicked";
+
     await recordQrEvent({
       campaignId: page.campaign.id,
       organizationId: page.campaign.organizationId,
       businessId: page.campaign.businessId,
-      eventType: "payment_option_clicked",
+      eventType: clickEvent,
       provider: body.provider as PaymentProvider,
       amountSelectedCents: resolved.amountCents,
       sessionId: body.sessionId,

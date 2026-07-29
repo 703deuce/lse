@@ -1,4 +1,10 @@
-export const PAYMENT_PROVIDERS = ["venmo", "cash_app", "paypal", "zelle"] as const;
+export const PAYMENT_PROVIDERS = [
+  "stripe",
+  "venmo",
+  "cash_app",
+  "paypal",
+  "zelle",
+] as const;
 export type PaymentProvider = (typeof PAYMENT_PROVIDERS)[number];
 
 export const PAYMENT_PURPOSES = [
@@ -23,7 +29,7 @@ export const PAYMENT_PURPOSE_LABELS: Record<PaymentPurpose, string> = {
 };
 
 export const PAYMENT_PURPOSE_HEADINGS: Record<PaymentPurpose, string> = {
-  pay: "Pay",
+  pay: "Pay securely",
   tip: "Leave a tip",
   donate: "Donate",
   pay_invoice: "Pay your invoice",
@@ -32,40 +38,66 @@ export const PAYMENT_PURPOSE_HEADINGS: Record<PaymentPurpose, string> = {
   custom: "Pay or tip",
 };
 
+/** @deprecated Use amount_mode. Kept for DB backward compatibility. */
+export const PAYMENT_MODES = ["reusable_page", "request_only"] as const;
+export type PaymentMode = (typeof PAYMENT_MODES)[number];
+
+export const AMOUNT_MODES = ["none", "custom", "suggested"] as const;
+export type AmountMode = (typeof AMOUNT_MODES)[number];
+
+export const AMOUNT_MODE_LABELS: Record<AmountMode, string> = {
+  none: "No amount on page",
+  custom: "Customer enters amount",
+  suggested: "Suggested amounts",
+};
+
 export const QR_EVENT_TYPES = [
   "page_view",
   "qr_scan",
+  "amount_selected",
+  "custom_amount_entered",
+  "payment_method_clicked",
+  "stripe_link_clicked",
+  "cash_app_clicked",
+  "venmo_clicked",
+  "paypal_clicked",
+  "zelle_details_viewed",
+  "zelle_email_copied",
+  "zelle_amount_copied",
+  "google_review_clicked",
+  "facebook_review_clicked",
+  "social_link_clicked",
+  "website_clicked",
+  "booking_link_clicked",
+  "qr_downloaded",
+  "poster_downloaded",
+  // Legacy events (still accepted for old records)
   "payment_option_viewed",
   "payment_option_clicked",
   "external_payment_returned",
   "review_prompt_viewed",
-  "google_review_clicked",
-  "facebook_review_clicked",
-  "social_link_clicked",
-  "qr_downloaded",
-  "poster_downloaded",
   "stripe_checkout_started",
   "stripe_payment_completed",
   "stripe_payment_failed",
 ] as const;
 export type QrEventType = (typeof QR_EVENT_TYPES)[number];
 
-export const PAYMENT_MODES = ["reusable_page", "request_only"] as const;
-export type PaymentMode = (typeof PAYMENT_MODES)[number];
-
-export const PAYMENT_MODE_LABELS: Record<PaymentMode, string> = {
-  reusable_page: "Reusable payment page",
-  request_only: "Payment request template",
+export const PROVIDER_CLICK_EVENTS: Record<PaymentProvider, QrEventType> = {
+  stripe: "stripe_link_clicked",
+  cash_app: "cash_app_clicked",
+  venmo: "venmo_clicked",
+  paypal: "paypal_clicked",
+  zelle: "zelle_details_viewed",
 };
 
 export type PaymentProviderCapabilities = {
+  supportsExternalLink: boolean;
   supportsPrefilledAmount: boolean;
   supportsPrefilledNote: boolean;
-  supportsAppDeepLink: boolean;
-  supportsWebFallback: boolean;
   supportsVerifiedCompletion: boolean;
 };
 
+/** @deprecated Legacy session URLs still resolve; UI no longer creates these. */
 export type PaymentRequestSession = {
   id: string;
   qrCampaignId: string;
@@ -84,8 +116,7 @@ export type PaymentRequestSession = {
 export type PaymentPageLoadContext = {
   campaign: import("@/lib/reputation/qr-campaigns/types").ReviewQrCampaign;
   config: PaymentPageConfiguration;
-  paymentMode: PaymentMode;
-  /** Locked amount for transaction-specific requests */
+  /** @deprecated */
   requestSession: PaymentRequestSession | null;
 };
 
@@ -111,12 +142,15 @@ export type PaymentSuggestedAmount = {
 export type PaymentPageConfiguration = {
   id: string;
   qrCampaignId: string;
+  /** @deprecated */
   paymentMode: PaymentMode;
+  amountMode: AmountMode;
   purpose: PaymentPurpose;
   customPurposeLabel: string | null;
   title: string | null;
   description: string | null;
   thankYouMessage: string | null;
+  paymentNote: string | null;
   logoUrl: string | null;
   bannerUrl: string | null;
   primaryColor: string;
@@ -127,9 +161,12 @@ export type PaymentPageConfiguration = {
   googleReviewUrl: string | null;
   facebookReviewUrl: string | null;
   websiteUrl: string | null;
+  facebookPageUrl: string | null;
   instagramUrl: string | null;
+  pinterestUrl: string | null;
   tiktokUrl: string | null;
   youtubeUrl: string | null;
+  bookingUrl: string | null;
   phone: string | null;
   email: string | null;
   methods: PaymentPageMethod[];
@@ -142,22 +179,19 @@ export type PaymentQrAnalytics = {
   pageViews: number;
   uniqueVisitors: number;
   qrScans: number;
-  paymentOptionClicks: number;
+  paymentLinkClicks: number;
   providerClicks: Record<string, number>;
   amountSelections: Record<number, number>;
-  externalPaymentReturns: number;
-  reviewPromptViews: number;
   googleReviewClicks: number;
   facebookReviewClicks: number;
+  socialLinkClicks: number;
+  websiteClicks: number;
+  bookingLinkClicks: number;
   qrDownloads: number;
   posterDownloads: number;
-  verifiedStripePayments: number;
-  verifiedStripeAmountCents: number;
   conversionRates: {
     scanToPageView: number | null;
     pageViewToPaymentClick: number | null;
-    paymentClickToReturn: number | null;
-    returnToReviewClick: number | null;
     pageViewToReviewClick: number | null;
   };
   recentActivity: Array<{
@@ -182,19 +216,24 @@ export type CreatePaymentQrInput = {
   title?: string | null;
   description?: string | null;
   thankYouMessage?: string | null;
+  paymentNote?: string | null;
   logoUrl?: string | null;
   bannerUrl?: string | null;
   primaryColor?: string;
   secondaryColor?: string | null;
+  amountMode?: AmountMode;
   allowCustomAmount?: boolean;
   showReviewPrompt?: boolean;
   showPlatformBranding?: boolean;
   googleReviewUrl?: string | null;
   facebookReviewUrl?: string | null;
   websiteUrl?: string | null;
+  facebookPageUrl?: string | null;
   instagramUrl?: string | null;
+  pinterestUrl?: string | null;
   tiktokUrl?: string | null;
   youtubeUrl?: string | null;
+  bookingUrl?: string | null;
   phone?: string | null;
   email?: string | null;
   methods: Array<{
@@ -219,7 +258,6 @@ export type CreatePaymentQrInput = {
   showFooter?: boolean;
   posterConfig?: Record<string, unknown>;
   status?: "active" | "paused" | "draft";
-  paymentMode?: PaymentMode;
 };
 
 export type CreatePaymentRequestInput = {

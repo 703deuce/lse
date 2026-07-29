@@ -36,7 +36,6 @@ export default async function PaymentPublicPageRoute({
       config={page.config}
       businessName={businessName ?? page.campaign.name}
       requestSession={page.requestSession}
-      paymentMode={page.paymentMode}
     />
   );
 }

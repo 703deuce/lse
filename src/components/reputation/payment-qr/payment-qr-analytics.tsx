@@ -10,6 +10,7 @@ import type { PaymentQrEntitlements } from "@/lib/reputation/payment-qr/entitlem
 import { cn } from "@/lib/utils";
 
 const PROVIDER_LABELS: Record<string, string> = {
+  stripe: "Stripe",
   cash_app: "Cash App",
   venmo: "Venmo",
   paypal: "PayPal",
@@ -98,9 +99,9 @@ export function PaymentQrAnalyticsView({
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Back to campaign
         </Link>
-        <h1 className={cn(qrUi.title, "mt-3")}>Payment page analytics</h1>
+        <h1 className={cn(qrUi.title, "mt-3")}>Pay &amp; Review Page analytics</h1>
         <p className={qrUi.subtitle}>
-          Payment-option clicks and review-link activity. Wallet clicks are not verified payments.
+          Page visits, payment-link clicks, and review-link clicks. Clicks are not verified payments.
         </p>
       </div>
 
@@ -164,8 +165,8 @@ export function PaymentQrAnalyticsView({
             <QrKpiCard label="Page views" value={String(data.pageViews)} />
             <QrKpiCard label="QR scans" value={String(data.qrScans)} />
             <QrKpiCard
-              label="Payment-option clicks"
-              value={String(data.paymentOptionClicks)}
+              label="Payment-link clicks"
+              value={String(data.paymentLinkClicks)}
             />
             <QrKpiCard
               label="Review-link clicks"
@@ -207,14 +208,6 @@ export function PaymentQrAnalyticsView({
                   <span className="font-semibold">
                     {data.conversionRates.pageViewToPaymentClick != null
                       ? `${(data.conversionRates.pageViewToPaymentClick * 100).toFixed(0)}%`
-                      : "—"}
-                  </span>
-                </li>
-                <li className="flex justify-between">
-                  <span className="text-[#64748B]">Payment click → return</span>
-                  <span className="font-semibold">
-                    {data.conversionRates.paymentClickToReturn != null
-                      ? `${(data.conversionRates.paymentClickToReturn * 100).toFixed(0)}%`
                       : "—"}
                   </span>
                 </li>
