@@ -18,6 +18,7 @@ import {
   PaymentPageFooterWave,
   PaymentPageHeaderDecor,
 } from "@/components/reputation/payment-qr/payment-page-header-decor";
+import { PaymentThemeLogo } from "@/components/reputation/payment-qr/payment-theme-logos";
 import { PaymentProviderIcon } from "@/components/reputation/payment-qr/payment-provider-icons";
 import { SocialLinkIcon } from "@/components/reputation/payment-qr/payment-social-icons";
 import {
@@ -141,7 +142,13 @@ export function PaymentPublicPage({
   requestSession?: PaymentRequestSession | null;
   themeOverride?: PageThemeKey;
 }) {
-  const [selectedAmountCents, setSelectedAmountCents] = useState<number | null>(null);
+  const [selectedAmountCents, setSelectedAmountCents] = useState<number | null>(() => {
+    if (!isPreview) return null;
+    const first = config.suggestedAmounts
+      .filter((a) => a.enabled)
+      .sort((a, b) => a.sortOrder - b.sortOrder)[0];
+    return first?.amountCents ?? null;
+  });
   const [customAmount, setCustomAmount] = useState("");
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [zelleExpanded, setZelleExpanded] = useState(false);
@@ -283,43 +290,40 @@ export function PaymentPublicPage({
   const isSectionLayout = theme.layoutMode === "dark_sections";
   const menuColor = theme.isDark ? theme.textSecondary : "#64748B";
 
-  const logoBlock = (
-    <>
-      {config.logoUrl ? (
-        <div
-          className={cn(
-            "mx-auto flex items-center justify-center overflow-hidden rounded-full border-[3px] shadow-lg",
-            isSectionLayout ? "h-[72px] w-[72px] -mt-12 mb-3" : "h-20 w-20 -mt-12 mb-3"
-          )}
-          style={{
-            borderColor: isSectionLayout ? theme.pageBg : theme.cardBg,
-            background: theme.cardBg,
-          }}
-        >
-          <Image
-            src={config.logoUrl}
-            alt=""
-            width={80}
-            height={80}
-            className="h-full w-full object-cover"
-            unoptimized
-          />
-        </div>
-      ) : (
-        <div
-          className={cn(
-            "mx-auto flex items-center justify-center rounded-full border-[3px] text-xl font-bold text-white shadow-lg",
-            isSectionLayout ? "h-16 w-16 -mt-10 mb-3" : "h-[72px] w-[72px] -mt-10 mb-3"
-          )}
-          style={{
-            borderColor: isSectionLayout ? theme.pageBg : theme.cardBg,
-            background: `linear-gradient(135deg, ${theme.primary}, ${theme.accent})`,
-          }}
-        >
-          {businessName.charAt(0).toUpperCase()}
-        </div>
+  const logoOverlap =
+    theme.headerDecor === "wave"
+      ? "-mt-[34px]"
+      : theme.headerDecor === "shield" || theme.headerDecor === "dark"
+        ? "-mt-10"
+        : "-mt-8";
+  const logoRing = isSectionLayout ? theme.pageBg : theme.cardBg;
+
+  const logoBlock = config.logoUrl ? (
+    <div
+      className={cn(
+        "mx-auto mb-3 flex items-center justify-center overflow-hidden rounded-full border-[3px] shadow-lg",
+        logoOverlap,
+        "h-[68px] w-[68px]"
       )}
-    </>
+      style={{ borderColor: logoRing, background: theme.cardBg }}
+    >
+      <Image
+        src={config.logoUrl}
+        alt=""
+        width={68}
+        height={68}
+        className="h-full w-full object-cover"
+        unoptimized
+      />
+    </div>
+  ) : (
+    <div className={cn("mx-auto mb-3 flex justify-center", logoOverlap)}>
+      <PaymentThemeLogo
+        theme={theme.key}
+        businessName={businessName}
+        borderColor={logoRing}
+      />
+    </div>
   );
 
   const headerBlock = (
@@ -345,23 +349,27 @@ export function PaymentPublicPage({
         {logoBlock}
         <h1
           className={cn(
-            "text-[1.65rem] font-extrabold leading-tight tracking-tight",
+            "font-extrabold leading-tight tracking-tight",
             theme.serifHeading && "font-serif"
           )}
           style={{
             color: theme.textPrimary,
             fontFamily: theme.serifHeading ? theme.headingFontFamily : theme.fontFamily,
+            fontSize: theme.headingSize ?? "1.625rem",
           }}
         >
           {businessName}
         </h1>
         {config.description ? (
-          <p className="mt-1.5 text-sm leading-relaxed" style={{ color: theme.textMuted }}>
+          <p
+            className="mt-1 text-sm leading-relaxed"
+            style={{ color: theme.taglineColor ?? theme.textMuted }}
+          >
             {config.description}
           </p>
         ) : null}
         <p
-          className="mt-2 text-sm font-semibold"
+          className="mt-1.5 text-sm font-semibold"
           style={{ color: theme.textSecondary }}
         >
           {heading}
@@ -419,13 +427,14 @@ export function PaymentPublicPage({
                     ? theme.pillSelectedText
                     : theme.key === "floral_pink"
                       ? "#FFFFFF"
-                      : theme.textSecondary,
-                  boxShadow:
-                    theme.pillShadow && theme.key === "floral_pink" && !selected
-                      ? theme.pillShadow
-                      : selected && theme.key === "floral_pink"
-                        ? "0 6px 18px rgba(190, 24, 93, 0.35)"
-                        : undefined,
+                      : theme.textPrimary,
+                  boxShadow: selected
+                    ? theme.key === "floral_pink"
+                      ? "0 6px 18px rgba(190, 24, 93, 0.35)"
+                      : theme.key === "modern_blue"
+                        ? "0 4px 14px rgba(37, 99, 235, 0.3)"
+                        : theme.pillShadow
+                    : theme.pillShadow,
                 }}
               >
                 {formatAmountLabel(a.amountCents, a.label)}
@@ -554,7 +563,7 @@ export function PaymentPublicPage({
                   "flex w-full items-center gap-3 text-left transition",
                   theme.methodDivider
                     ? "py-4 first:pt-0"
-                    : "rounded-xl border px-4 py-3.5 hover:shadow-sm",
+                    : "rounded-xl border px-4 py-3.5 shadow-[0_2px_10px_rgba(15,23,42,0.05)] hover:shadow-[0_4px_14px_rgba(15,23,42,0.08)]",
                   blocked && "cursor-not-allowed opacity-50"
                 )}
                 style={
@@ -717,9 +726,8 @@ export function PaymentPublicPage({
             background: theme.googleReviewBg,
             color: theme.googleReviewText,
             boxShadow:
-              theme.key === "dark_luxury"
-                ? `0 4px 20px ${theme.primary}40`
-                : undefined,
+              theme.googleReviewShadow ??
+              (theme.key === "dark_luxury" ? `0 4px 20px ${theme.primary}40` : undefined),
           }}
         >
           Leave a Google Review
@@ -846,7 +854,7 @@ export function PaymentPublicPage({
             {methodsBlock && (
               <SectionCard theme={theme}>
                 {methodsBlock}
-                {requiresAmount && !effectiveAmountCents && (
+                {requiresAmount && !effectiveAmountCents && !isPreview && (
                   <p className="mt-3 text-center text-xs text-[#F59E0B]">
                     Select or enter an amount before choosing a payment method.
                   </p>
@@ -892,7 +900,7 @@ export function PaymentPublicPage({
             {methodsBlock && (
               <div className="mt-7">
                 {methodsBlock}
-                {requiresAmount && !effectiveAmountCents && (
+                {requiresAmount && !effectiveAmountCents && !isPreview && (
                   <p className="mt-3 text-center text-xs text-[#B45309]">
                     Select or enter an amount before choosing a payment method.
                   </p>

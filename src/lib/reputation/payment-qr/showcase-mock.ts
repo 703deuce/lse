@@ -49,7 +49,7 @@ export const MOCK_CONFIG: PaymentPageConfiguration = {
   purpose: "pay",
   customPurposeLabel: null,
   title: "Pay The Local Shop",
-  description: "Fast, friendly service in Woodbridge, Virginia",
+  description: "Service beyond the tap",
   thankYouMessage: "Thank you for your support!",
   paymentNote: null,
   logoUrl: null,
@@ -150,7 +150,7 @@ export const TEMPLATE_SHOWCASE: Array<{
     businessName: "PureFlow Plumbing",
     configPatch: {
       title: "Pay securely",
-      description: "Your local plumbing experts",
+      description: "Service beyond the tap",
     },
   },
   {

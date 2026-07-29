@@ -1,28 +1,31 @@
 import type { PageThemeTokens } from "@/lib/reputation/payment-qr/page-themes";
 
+const WAVE_BLUE = "#2563EB";
+const WAVE_BLUE_LIGHT = "#3B82F6";
+
 export function PaymentPageHeaderDecor({ theme }: { theme: PageThemeTokens }) {
   if (theme.headerDecor === "wave") {
     return (
-      <div className="relative h-[88px] w-full" style={{ background: theme.cardBg }}>
+      <div className="relative h-[96px] w-full overflow-visible" style={{ background: theme.cardBg }}>
         <svg
-          className="absolute left-0 top-0 h-[88px] w-full"
-          viewBox="0 0 400 88"
+          className="absolute left-0 top-0 h-[96px] w-full"
+          viewBox="0 0 390 96"
           preserveAspectRatio="none"
           aria-hidden
         >
-          <path d="M0,0 L400,0 L400,52 C310,78 270,28 200,48 C130,68 90,18 0,48 Z" fill={theme.headerBg} />
+          <path d="M0,0 H390 V52 C320,78 280,32 195,52 C110,72 70,26 0,52 Z" fill={WAVE_BLUE} />
           <path
-            d="M0,32 C70,58 150,18 200,38 C250,58 330,22 400,42 L400,88 L0,88 Z"
+            d="M0,36 C55,62 125,22 195,42 C275,62 335,28 390,48 V96 H0 Z"
             fill={theme.cardBg}
           />
         </svg>
         <svg
-          className="absolute left-0 top-0 h-[56px] w-full opacity-25"
-          viewBox="0 0 400 56"
+          className="absolute left-0 top-0 h-[48px] w-full opacity-30"
+          viewBox="0 0 390 48"
           preserveAspectRatio="none"
           aria-hidden
         >
-          <path d="M0,8 C120,0 280,48 400,20 L400,0 L0,0 Z" fill="#ffffff" />
+          <path d="M0,0 H390 V28 C300,8 90,40 0,16 Z" fill={WAVE_BLUE_LIGHT} />
         </svg>
       </div>
     );
@@ -30,26 +33,26 @@ export function PaymentPageHeaderDecor({ theme }: { theme: PageThemeTokens }) {
 
   if (theme.headerDecor === "floral") {
     return (
-      <div className="relative h-[72px] w-full" style={{ background: theme.cardBg }}>
+      <div className="relative h-[64px] w-full overflow-visible" style={{ background: theme.cardBg }}>
         <div
-          className="absolute -left-[56px] -top-[56px] h-[128px] w-[128px] rounded-full"
-          style={{ background: theme.accent, opacity: 0.5 }}
+          className="absolute -left-[52px] -top-[52px] h-[120px] w-[120px] rounded-full"
+          style={{ background: "#FBCFE8", opacity: 0.7 }}
         />
         <div
-          className="absolute -right-[56px] -top-[56px] h-[128px] w-[128px] rounded-full"
-          style={{ background: theme.accent, opacity: 0.5 }}
+          className="absolute -right-[52px] -top-[52px] h-[120px] w-[120px] rounded-full"
+          style={{ background: "#FBCFE8", opacity: 0.7 }}
         />
         <FloralBranchArt
-          className="absolute left-0 top-0 h-[72px] w-[72px]"
+          className="absolute left-0 top-0 h-[64px] w-[64px]"
           color={theme.accent}
           stroke={theme.primary}
-          opacity={0.4}
+          opacity={0.45}
         />
         <FloralBranchArt
-          className="absolute right-0 top-0 h-[72px] w-[72px] scale-x-[-1]"
+          className="absolute right-0 top-0 h-[64px] w-[64px] scale-x-[-1]"
           color={theme.accent}
           stroke={theme.primary}
-          opacity={0.4}
+          opacity={0.45}
         />
       </div>
     );
@@ -58,29 +61,31 @@ export function PaymentPageHeaderDecor({ theme }: { theme: PageThemeTokens }) {
   if (theme.headerDecor === "shield") {
     return (
       <div
-        className="relative flex h-[108px] w-full flex-col items-center justify-end overflow-visible pb-1"
+        className="relative h-[88px] w-full overflow-visible"
         style={{ background: theme.headerBg }}
       >
         <div
-          className="absolute left-0 top-0 h-1 w-full"
-          style={{ background: `linear-gradient(90deg, transparent, ${theme.primary}, transparent)` }}
+          className="absolute left-1/2 top-0 h-[72px] w-[140px] -translate-x-1/2 rounded-full opacity-40"
+          style={{
+            background: `radial-gradient(circle, ${theme.primary} 0%, transparent 70%)`,
+          }}
         />
         <svg
           className="absolute bottom-0 left-0 w-full"
-          viewBox="0 0 400 56"
+          viewBox="0 0 390 48"
           preserveAspectRatio="none"
           aria-hidden
         >
-          <path d="M0,0 L400,0 L400,26 L200,52 L0,26 Z" fill={theme.pageBg} />
+          <path d="M0,0 H390 V22 L195,46 L0,22 Z" fill={theme.pageBg} />
         </svg>
         <svg
           className="absolute bottom-0 left-0 w-full"
-          viewBox="0 0 400 56"
+          viewBox="0 0 390 48"
           preserveAspectRatio="none"
           aria-hidden
         >
           <path
-            d="M0,0 L400,0 L400,24 L200,50 L0,24 Z"
+            d="M0,0 H390 V20 L195,44 L0,20 Z"
             fill="none"
             stroke={theme.primary}
             strokeWidth="2.5"
@@ -92,16 +97,12 @@ export function PaymentPageHeaderDecor({ theme }: { theme: PageThemeTokens }) {
 
   if (theme.headerDecor === "dark") {
     return (
-      <div className="relative h-[80px] w-full overflow-visible" style={{ background: theme.headerBg }}>
+      <div className="relative h-[88px] w-full overflow-visible" style={{ background: theme.headerBg }}>
         <div
-          className="absolute left-1/2 top-0 h-[100px] w-[180px] -translate-x-1/2 rounded-full"
+          className="absolute left-1/2 top-0 h-[100px] w-[200px] -translate-x-1/2 rounded-full"
           style={{
-            background: `radial-gradient(circle, ${theme.primary}55 0%, transparent 70%)`,
+            background: `radial-gradient(ellipse 100% 100% at 50% 0%, ${theme.primary}55 0%, transparent 72%)`,
           }}
-        />
-        <div
-          className="absolute bottom-0 left-0 h-px w-full"
-          style={{ background: `linear-gradient(90deg, transparent, ${theme.primary}60, transparent)` }}
         />
       </div>
     );
@@ -109,7 +110,7 @@ export function PaymentPageHeaderDecor({ theme }: { theme: PageThemeTokens }) {
 
   return (
     <div
-      className="h-12 w-full"
+      className="h-10 w-full"
       style={{
         background: `linear-gradient(180deg, ${theme.headerBg} 0%, ${theme.cardBg} 100%)`,
       }}
@@ -142,16 +143,8 @@ export function FloralBranchArt({
         fill="none"
         opacity="0.65"
       />
-      <path
-        d="M18 72 C32 58 48 62 62 54 C74 48 86 56 90 68"
-        stroke={stroke}
-        strokeWidth="1.2"
-        fill="none"
-        opacity="0.5"
-      />
       <circle cx="24" cy="34" r="4.5" fill={stroke} opacity="0.35" />
       <circle cx="38" cy="22" r="3.5" fill={stroke} opacity="0.3" />
-      <circle cx="70" cy="40" r="3" fill={color} opacity="0.45" />
     </svg>
   );
 }
@@ -159,33 +152,33 @@ export function FloralBranchArt({
 export function PaymentPageFooterWave({ theme }: { theme: PageThemeTokens }) {
   if (theme.headerDecor !== "wave") return null;
   return (
-    <div className="relative h-[64px] w-full" style={{ background: theme.cardBg }}>
+    <div className="relative h-[72px] w-full" style={{ background: theme.cardBg }}>
       <svg
         className="absolute left-0 top-0 h-full w-full"
-        viewBox="0 0 400 64"
+        viewBox="0 0 390 72"
         preserveAspectRatio="none"
         aria-hidden
       >
         <path
-          d="M0,12 C90,44 170,4 200,24 C230,44 310,4 400,28 L400,64 L0,64 Z"
-          fill={theme.headerBg}
-          opacity="0.14"
+          d="M0,14 C90,46 170,6 195,26 C220,46 300,6 390,30 V72 H0 Z"
+          fill={WAVE_BLUE}
+          opacity="0.12"
         />
         <path
-          d="M0,28 C100,56 300,16 400,40 L400,64 L0,64 Z"
-          fill={theme.headerBg}
-          opacity="0.1"
+          d="M0,30 C100,58 300,18 390,42 V72 H0 Z"
+          fill={WAVE_BLUE}
+          opacity="0.08"
         />
       </svg>
       <svg
-        className="absolute bottom-0 left-0 h-[36px] w-full"
-        viewBox="0 0 400 36"
+        className="absolute bottom-0 left-0 h-[40px] w-full"
+        viewBox="0 0 390 40"
         preserveAspectRatio="none"
         aria-hidden
       >
         <path
-          d="M0,0 C110,30 290,0 400,18 L400,36 L0,36 Z"
-          fill={theme.headerBg}
+          d="M0,0 C110,32 290,0 390,20 V40 H0 Z"
+          fill={WAVE_BLUE}
           opacity="0.22"
         />
       </svg>
