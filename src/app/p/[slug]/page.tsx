@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getPaymentPageBySlug } from "@/lib/reputation/payment-qr/service";
 import { createServiceClient } from "@/lib/db/client";
-import { PaymentPublicPage } from "@/components/reputation/payment-qr/payment-public-page";
+import { BrandThemeHostedPage } from "@/components/reputation/payment-qr/brand-theme-hosted-page";
 
 async function loadBusinessName(businessId: string | null): Promise<string | null> {
   if (!businessId) return null;
@@ -31,7 +31,7 @@ export default async function PermanentPaymentPage({
   const businessName = await loadBusinessName(page.campaign.businessId);
 
   return (
-    <PaymentPublicPage
+    <BrandThemeHostedPage
       slug={slug}
       campaign={page.campaign}
       config={page.config}

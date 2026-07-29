@@ -94,6 +94,48 @@ function QrBlock({
   );
 }
 
+/** QR on print posters, or hosted payment UI in the same slot. */
+function PosterCenter({
+  qrDataUrl,
+  centerContent,
+  frameClassName,
+  wrapperClassName = "w-[54%] max-w-[155px]",
+  animateEntry = false,
+}: {
+  qrDataUrl: string | null;
+  centerContent?: ReactNode;
+  frameClassName?: string;
+  wrapperClassName?: string;
+  animateEntry?: boolean;
+}) {
+  if (centerContent) {
+    return (
+      <div
+        className={cn(
+          "w-full max-w-[min(100%,280px)]",
+          wrapperClassName,
+          animateEntry && "opacity-0 [animation:brandHostCenterIn_0.65s_ease-out_forwards]"
+        )}
+      >
+        {centerContent}
+      </div>
+    );
+  }
+  return (
+    <div className={wrapperClassName}>
+      <QrBlock qrDataUrl={qrDataUrl} frameClassName={frameClassName} />
+    </div>
+  );
+}
+
+function HostedReviewAction({ children }: { children: ReactNode }) {
+  return (
+    <div className="mt-2 w-full max-w-[min(100%,280px)] opacity-0 [animation:brandHostCenterIn_0.65s_ease-out_0.15s_forwards]">
+      {children}
+    </div>
+  );
+}
+
 function FooterPillar({
   icon: Icon,
   line1,
@@ -149,9 +191,22 @@ type LayoutProps = {
   qrDataUrl: string | null;
   brand: string;
   brandDark: string;
+  /** Replaces QR block — payment buttons on hosted pay pages */
+  centerContent?: ReactNode;
+  hostedReviewAction?: ReactNode;
+  animateHostedEntry?: boolean;
 };
 
-function ClassicLayout({ businessName, poster, qrDataUrl, brand, brandDark }: LayoutProps) {
+function ClassicLayout({
+  businessName,
+  poster,
+  qrDataUrl,
+  brand,
+  brandDark,
+  centerContent,
+  hostedReviewAction,
+  animateHostedEntry,
+}: LayoutProps) {
   return (
     <Shell className="grid-rows-[minmax(0,1fr)_auto_auto] bg-white">
       <div
@@ -177,9 +232,12 @@ function ClassicLayout({ businessName, poster, qrDataUrl, brand, brandDark }: La
           <p className="mt-0.5 text-[11px] font-medium text-white/90">{poster.description}</p>
         </div>
         <div className="relative flex min-h-0 flex-1 items-center justify-center px-6 py-2">
-          <div className="w-[50%] max-w-[150px]">
-            <QrBlock qrDataUrl={qrDataUrl} />
-          </div>
+          <PosterCenter
+            qrDataUrl={qrDataUrl}
+            centerContent={centerContent}
+            animateEntry={animateHostedEntry}
+            wrapperClassName={centerContent ? "w-full max-w-[280px]" : "w-[50%] max-w-[150px]"}
+          />
         </div>
         <svg className="relative block w-full shrink-0" viewBox="0 0 400 40" preserveAspectRatio="none" aria-hidden>
           <path fill="white" d="M0 22 C70 42 150 6 200 22 C250 38 330 10 400 26 L400 40 L0 40 Z" />
@@ -217,7 +275,15 @@ const BG = {
 } as const;
 
 /** 1 — Modern Minimal: light marble + solid green footer bar */
-function ModernMinimalLayout({ businessName, poster, qrDataUrl, brand }: LayoutProps) {
+function ModernMinimalLayout({
+  businessName,
+  poster,
+  qrDataUrl,
+  brand,
+  centerContent,
+  hostedReviewAction,
+  animateHostedEntry,
+}: LayoutProps) {
   return (
     <Shell className="relative grid-rows-[auto_1fr_auto] overflow-hidden bg-[#F4F2EF]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -228,15 +294,19 @@ function ModernMinimalLayout({ businessName, poster, qrDataUrl, brand }: LayoutP
         <p className="mt-1.5 text-[11px] text-[#667085]">{poster.description}</p>
       </div>
       <div className="relative flex flex-col items-center justify-center gap-3 px-6">
-        <div className="w-[54%] max-w-[155px]">
-          <QrBlock qrDataUrl={qrDataUrl} frameClassName="rounded-lg shadow-md ring-1 ring-black/5" />
-        </div>
+        <PosterCenter
+          qrDataUrl={qrDataUrl}
+          centerContent={centerContent}
+          frameClassName="rounded-lg shadow-md ring-1 ring-black/5"
+          animateEntry={animateHostedEntry}
+          wrapperClassName={centerContent ? "w-full max-w-[280px]" : "w-[54%] max-w-[155px]"}
+        />
         <GoldStars />
         <p className="text-[12px] font-bold text-[#0B1220]">{businessName}</p>
       </div>
       <div className="relative px-0 pb-0">
         <div className="py-3.5 text-center text-[12px] font-extrabold tracking-[0.14em] text-white" style={{ backgroundColor: brand }}>
-          SCAN TO REVIEW
+          {centerContent ? "PAY & REVIEW" : "SCAN TO REVIEW"}
         </div>
       </div>
     </Shell>
@@ -244,7 +314,16 @@ function ModernMinimalLayout({ businessName, poster, qrDataUrl, brand }: LayoutP
 }
 
 /** 2 — Bold Green: full green field + white convex curve at bottom */
-function SolidGreenLayout({ businessName, poster, qrDataUrl, brand, brandDark }: LayoutProps) {
+function SolidGreenLayout({
+  businessName,
+  poster,
+  qrDataUrl,
+  brand,
+  brandDark,
+  centerContent,
+  hostedReviewAction,
+  animateHostedEntry,
+}: LayoutProps) {
   return (
     <Shell
       className="relative overflow-hidden text-white"
@@ -254,9 +333,12 @@ function SolidGreenLayout({ businessName, poster, qrDataUrl, brand, brandDark }:
         <h2 className="text-center text-[22px] font-black uppercase leading-tight tracking-wide">{poster.title}</h2>
         <p className="mt-1.5 text-center text-[12px] font-medium text-white/90">{poster.description}</p>
         <div className="mt-5 flex flex-1 flex-col items-center justify-center gap-3 pb-16">
-          <div className="w-[54%] max-w-[155px]">
-            <QrBlock qrDataUrl={qrDataUrl} />
-          </div>
+          <PosterCenter
+            qrDataUrl={qrDataUrl}
+            centerContent={centerContent}
+            animateEntry={animateHostedEntry}
+            wrapperClassName={centerContent ? "w-full max-w-[280px]" : "w-[54%] max-w-[155px]"}
+          />
           <GoldStars />
           <p className="text-[12px] font-bold">{businessName}</p>
         </div>
@@ -269,7 +351,14 @@ function SolidGreenLayout({ businessName, poster, qrDataUrl, brand, brandDark }:
 }
 
 /** 3 — Elegant Black: black + thin gold border + cursive thank-you */
-function ElegantBlackLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
+function ElegantBlackLayout({
+  businessName,
+  poster,
+  qrDataUrl,
+  centerContent,
+  hostedReviewAction,
+  animateHostedEntry,
+}: LayoutProps) {
   return (
     <Shell className="relative overflow-hidden bg-[#0E0E0E] p-[7px]">
       <div className="flex h-full flex-col overflow-hidden rounded-[0.95rem] border border-[#C9A227] bg-[#141414] text-white">
@@ -282,7 +371,13 @@ function ElegantBlackLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6">
           <div className="rounded-md border border-[#C9A227]/55 bg-[#C9A227]/10 p-1.5">
             <div className="w-[132px]">
-              <QrBlock qrDataUrl={qrDataUrl} frameClassName="rounded-sm shadow-none" />
+              <PosterCenter
+                qrDataUrl={qrDataUrl}
+                centerContent={centerContent}
+                frameClassName="rounded-sm shadow-none"
+                wrapperClassName="w-[132px]"
+                animateEntry={animateHostedEntry}
+              />
             </div>
           </div>
           <GoldStars />
@@ -296,7 +391,15 @@ function ElegantBlackLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
 }
 
 /** 4 — Friendly Green: white + decorative green brush/wave at bottom */
-function FriendlyGreenLayout({ businessName, poster, qrDataUrl, brand }: LayoutProps) {
+function FriendlyGreenLayout({
+  businessName,
+  poster,
+  qrDataUrl,
+  brand,
+  centerContent,
+  hostedReviewAction,
+  animateHostedEntry,
+}: LayoutProps) {
   const soft = lightenHex(brand, 170);
   return (
     <Shell className="relative overflow-hidden bg-white">
@@ -304,9 +407,12 @@ function FriendlyGreenLayout({ businessName, poster, qrDataUrl, brand }: LayoutP
         <h2 className="text-center text-[20px] font-extrabold leading-tight text-[#0B1220]">{poster.title}</h2>
         <p className="mt-1.5 text-center text-[11px] text-[#667085]">{poster.description}</p>
         <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-3 pb-14">
-          <div className="w-[54%] max-w-[155px]">
-            <QrBlock qrDataUrl={qrDataUrl} />
-          </div>
+          <PosterCenter
+            qrDataUrl={qrDataUrl}
+            centerContent={centerContent}
+            animateEntry={animateHostedEntry}
+            wrapperClassName={centerContent ? "w-full max-w-[280px]" : "w-[54%] max-w-[155px]"}
+          />
           <GoldStars />
           <p className="text-[12px] font-bold text-[#0B1220]">{businessName}</p>
         </div>
@@ -320,7 +426,14 @@ function FriendlyGreenLayout({ businessName, poster, qrDataUrl, brand }: LayoutP
 }
 
 /** 5 — Premium Gold: black + diagonal gold satin + gold footer bar */
-function PremiumGoldLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
+function PremiumGoldLayout({
+  businessName,
+  poster,
+  qrDataUrl,
+  centerContent,
+  hostedReviewAction,
+  animateHostedEntry,
+}: LayoutProps) {
   return (
     <Shell className="relative overflow-hidden bg-[#0A0A0A] text-white">
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -339,7 +452,11 @@ function PremiumGoldLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
         </div>
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6">
           <div className="w-[52%] max-w-[150px]">
-            <QrBlock qrDataUrl={qrDataUrl} />
+          <PosterCenter
+            qrDataUrl={qrDataUrl}
+            centerContent={centerContent}
+            animateEntry={animateHostedEntry}
+          />
           </div>
           <GoldStars />
           <p className="text-[11px] text-white/75">{poster.description}</p>
@@ -353,7 +470,14 @@ function PremiumGoldLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
 }
 
 /** 6 — Cafe Coffee Shop: real coffee photo background */
-function CafeCoffeeLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
+function CafeCoffeeLayout({
+  businessName,
+  poster,
+  qrDataUrl,
+  centerContent,
+  hostedReviewAction,
+  animateHostedEntry,
+}: LayoutProps) {
   return (
     <Shell className="relative overflow-hidden">
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -365,9 +489,13 @@ function CafeCoffeeLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
         </h2>
         <p className="mt-1 text-center text-[11px] font-medium text-white/90">{poster.description}</p>
         <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-3">
-          <div className="w-[54%] max-w-[155px] rounded-xl bg-white/95 p-2 shadow-xl">
-            <QrBlock qrDataUrl={qrDataUrl} frameClassName="bg-white shadow-none" />
-          </div>
+        <PosterCenter
+          qrDataUrl={qrDataUrl}
+          centerContent={centerContent}
+          frameClassName="bg-white shadow-none"
+          animateEntry={animateHostedEntry}
+          wrapperClassName={centerContent ? "w-full max-w-[280px]" : "w-[54%] max-w-[155px] rounded-xl bg-white/95 p-2 shadow-xl"}
+        />
           <GoldStars />
           <p className="text-[12px] font-bold drop-shadow">{businessName}</p>
         </div>
@@ -377,7 +505,15 @@ function CafeCoffeeLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
 }
 
 /** 7 — Clear Blue: white + blue waves top & bottom */
-function ClearBlueLayout({ businessName, poster, qrDataUrl, brand }: LayoutProps) {
+function ClearBlueLayout({
+  businessName,
+  poster,
+  qrDataUrl,
+  brand,
+  centerContent,
+  hostedReviewAction,
+  animateHostedEntry,
+}: LayoutProps) {
   const blue = brand.match(/#[0-9a-f]{6}/i) && !/^#(16A34A|137752|10b981)/i.test(brand) ? brand : "#1D4ED8";
   return (
     <Shell className="relative overflow-hidden bg-white">
@@ -391,9 +527,12 @@ function ClearBlueLayout({ businessName, poster, qrDataUrl, brand }: LayoutProps
         </h2>
         <p className="mt-1.5 text-center text-[11px] text-[#667085]">{poster.description}</p>
         <div className="mt-3 flex flex-1 flex-col items-center justify-center gap-3 pb-10">
-          <div className="w-[54%] max-w-[155px]">
-            <QrBlock qrDataUrl={qrDataUrl} />
-          </div>
+          <PosterCenter
+            qrDataUrl={qrDataUrl}
+            centerContent={centerContent}
+            animateEntry={animateHostedEntry}
+            wrapperClassName={centerContent ? "w-full max-w-[280px]" : "w-[54%] max-w-[155px]"}
+          />
           <GoldStars />
           <p className="text-[12px] font-bold text-[#0B1220]">{businessName}</p>
         </div>
@@ -407,7 +546,14 @@ function ClearBlueLayout({ businessName, poster, qrDataUrl, brand }: LayoutProps
 }
 
 /** 8 — Black & White: sharp black triangles in opposite corners */
-function BlackWhiteLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
+function BlackWhiteLayout({
+  businessName,
+  poster,
+  qrDataUrl,
+  centerContent,
+  hostedReviewAction,
+  animateHostedEntry,
+}: LayoutProps) {
   return (
     <Shell className="relative overflow-hidden bg-white">
       <div
@@ -423,9 +569,13 @@ function BlackWhiteLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
           {poster.title}
         </h2>
         <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-3">
-          <div className="w-[54%] max-w-[155px]">
-            <QrBlock qrDataUrl={qrDataUrl} frameClassName="rounded-none shadow-md" />
-          </div>
+          <PosterCenter
+            qrDataUrl={qrDataUrl}
+            centerContent={centerContent}
+            frameClassName="rounded-none shadow-md"
+            animateEntry={animateHostedEntry}
+            wrapperClassName={centerContent ? "w-full max-w-[280px]" : "w-[54%] max-w-[155px]"}
+          />
           <GoldStars />
         </div>
         <div className="text-center">
@@ -438,7 +588,14 @@ function BlackWhiteLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
 }
 
 /** 9 — Rustic Wood: vertical wood plank photo + parchment QR card */
-function RusticWoodLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
+function RusticWoodLayout({
+  businessName,
+  poster,
+  qrDataUrl,
+  centerContent,
+  hostedReviewAction,
+  animateHostedEntry,
+}: LayoutProps) {
   return (
     <Shell className="relative overflow-hidden">
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -449,7 +606,12 @@ function RusticWoodLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
         <p className="mt-1 text-center text-[12px] font-medium text-white/90">{poster.description}</p>
         <div className="mt-4 flex flex-1 flex-col items-center justify-center">
           <div className="w-[58%] max-w-[165px] rounded-xl bg-[#F3E6D2] p-3 shadow-[0_12px_28px_rgba(0,0,0,0.35)] ring-1 ring-black/10">
-            <QrBlock qrDataUrl={qrDataUrl} frameClassName="bg-white shadow-none" />
+            <PosterCenter
+              qrDataUrl={qrDataUrl}
+              centerContent={centerContent}
+              frameClassName="bg-white shadow-none"
+              animateEntry={animateHostedEntry}
+            />
             <GoldStars className="mt-2" />
           </div>
         </div>
@@ -460,7 +622,15 @@ function RusticWoodLayout({ businessName, poster, qrDataUrl }: LayoutProps) {
 }
 
 /** 10 — Geo Colorful: organic colorful blobs in corners */
-function BoldPaletteLayout({ businessName, poster, qrDataUrl, brand }: LayoutProps) {
+function BoldPaletteLayout({
+  businessName,
+  poster,
+  qrDataUrl,
+  brand,
+  centerContent,
+  hostedReviewAction,
+  animateHostedEntry,
+}: LayoutProps) {
   return (
     <Shell className="relative overflow-hidden bg-white">
       <span className="absolute -left-8 -top-10 h-36 w-36 rounded-[46%] bg-[#F43F5E]" />
@@ -473,9 +643,12 @@ function BoldPaletteLayout({ businessName, poster, qrDataUrl, brand }: LayoutPro
           {poster.title}
         </h2>
         <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-3">
-          <div className="w-[54%] max-w-[155px]">
-            <QrBlock qrDataUrl={qrDataUrl} />
-          </div>
+          <PosterCenter
+            qrDataUrl={qrDataUrl}
+            centerContent={centerContent}
+            animateEntry={animateHostedEntry}
+            wrapperClassName={centerContent ? "w-full max-w-[280px]" : "w-[54%] max-w-[155px]"}
+          />
           <GoldStars />
         </div>
         <div className="text-center">
@@ -527,13 +700,24 @@ export const ReviewPosterPreview = forwardRef<
     businessName: string;
     poster: PosterConfig;
     qrDataUrl: string | null;
-    /** Larger max width for SEO landing preview only — same layout as app. */
     size?: "default" | "hero";
-    /** Poster template key (classic free default + Pro gallery). */
     templateKey?: string | null;
+    /** Hosted pay page — payment UI in the QR slot */
+    centerContent?: ReactNode;
+    hostedReviewAction?: ReactNode;
+    animateHostedEntry?: boolean;
   }
 >(function ReviewPosterPreview(
-  { businessName, poster, qrDataUrl, size = "default", templateKey },
+  {
+    businessName,
+    poster,
+    qrDataUrl,
+    size = "default",
+    templateKey,
+    centerContent,
+    hostedReviewAction,
+    animateHostedEntry,
+  },
   ref
 ) {
   const brand = poster.brandColor || "#137752";
@@ -555,6 +739,9 @@ export const ReviewPosterPreview = forwardRef<
           qrDataUrl,
           brand,
           brandDark,
+          centerContent,
+          hostedReviewAction,
+          animateHostedEntry,
         })}
       </div>
     </div>

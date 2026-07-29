@@ -11,20 +11,22 @@ import {
   Loader2,
 } from "lucide-react";
 import { ModulePage } from "@/components/ui/design-system";
-import { PaymentPublicPage } from "@/components/reputation/payment-qr/payment-public-page";
+import { BrandThemeHostedPage } from "@/components/reputation/payment-qr/brand-theme-hosted-page";
+import { PosterTemplatePicker } from "@/components/reputation/qr-campaigns/poster-template-picker";
 import { qrUi } from "@/components/reputation/qr-campaigns/qr-ui";
 import {
   AMOUNT_MODE_LABELS,
   AMOUNT_MODES,
   PAYMENT_PROVIDERS,
   type AmountMode,
-  type PageThemeKey,
   type PaymentPageConfiguration,
   type PaymentProvider,
 } from "@/lib/reputation/payment-qr/types";
 import type { ReviewQrCampaign } from "@/lib/reputation/qr-campaigns/types";
 import { getPaymentProvider } from "@/lib/reputation/payment-qr/providers";
-import { PaymentThemePicker } from "@/components/reputation/payment-qr/payment-theme-picker";
+import { CLASSIC_POSTER_TEMPLATE, getPosterTemplate, type PosterTemplateKey } from "@/lib/reputation/poster-templates";
+import { pageThemeFromPosterTemplate } from "@/lib/reputation/brand-themes";
+import { organizationLooksLikeTrial } from "@/lib/auth/trial-status";
 import { cn } from "@/lib/utils";
 
 const WIZARD_STEPS = [
@@ -67,8 +69,9 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
   const [description, setDescription] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [bannerUrl, setBannerUrl] = useState("");
-  const [primaryColor, setPrimaryColor] = useState("#2563EB");
-  const [pageTheme, setPageTheme] = useState<PageThemeKey>("modern_blue");
+  const [primaryColor, setPrimaryColor] = useState("#137752");
+  const [templateKey, setTemplateKey] = useState<PosterTemplateKey>(CLASSIC_POSTER_TEMPLATE);
+  const [canUsePremiumTemplates, setCanUsePremiumTemplates] = useState(false);
   const [publicSlug, setPublicSlug] = useState("");
   const [amountMode, setAmountMode] = useState<AmountMode>("none");
   const [paymentNote, setPaymentNote] = useState("");
@@ -95,10 +98,11 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
     let cancelled = false;
     void (async () => {
       try {
-        const [accountRes, kitRes, entRes] = await Promise.all([
+        const [accountRes, kitRes, entRes, usageRes] = await Promise.all([
           fetch(`/api/businesses/${businessId}/account`),
           fetch(`/api/reputation/review-link/${businessId}`).catch(() => null),
           fetch(`/api/reputation/payment-qr?businessId=${businessId}`),
+          fetch(`/api/account/usage?businessId=${businessId}`).catch(() => null),
         ]);
         if (cancelled) return;
         if (accountRes.ok) {
@@ -120,6 +124,18 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
               ? `https://search.google.com/local/writereview?placeid=${encodeURIComponent(kit.placeId)}`
               : "");
           if (dest) setGoogleReviewUrl(dest);
+        }
+        if (usageRes?.ok) {
+          const usageJson = (await usageRes.json()) as {
+            organization?: { plan?: string; billing_status?: string | null };
+          };
+          const org = usageJson.organization;
+          setCanUsePremiumTemplates(
+            !organizationLooksLikeTrial({
+              plan: org?.plan,
+              billing_status: org?.billing_status,
+            })
+          );
         }
         if (entRes.ok) {
           const json = (await entRes.json()) as {
@@ -174,7 +190,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
       qrCampaignId: "preview",
       paymentMode: "reusable_page",
       amountMode,
-      pageTheme,
+      pageTheme: pageThemeFromPosterTemplate(templateKey),
       purpose: "pay",
       customPurposeLabel: null,
       title: title || "Pay securely",
@@ -215,7 +231,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
     };
   }, [
     amountMode,
-    pageTheme,
+    templateKey,
     title,
     description,
     paymentNote,
@@ -250,7 +266,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
     description,
     brandColor: primaryColor,
     secondaryColor: null,
-    templateKey: "scan_to_pay",
+    templateKey: templateKey,
     printFormat: "letter",
     showFooter: true,
     posterConfig: {
@@ -271,7 +287,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
     lastScannedAt: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-  }), [businessId, name, title, description, primaryColor, previewSlug]);
+  }), [businessId, name, title, description, primaryColor, previewSlug, templateKey]);
 
   async function publish() {
     setSaving(true);
@@ -316,7 +332,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
           primaryColor,
           publicSlug: entitlements.customSlug && publicSlug.trim() ? publicSlug.trim() : null,
           amountMode,
-          pageTheme,
+          pageTheme: pageThemeFromPosterTemplate(templateKey),
           googleReviewUrl: googleReviewUrl || null,
           facebookReviewUrl: facebookReviewUrl || null,
           websiteUrl: websiteUrl || null,
@@ -332,7 +348,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
           allowCustomAmount: amountMode === "suggested",
           showReviewPrompt: true,
           headline: title || "Pay securely",
-          templateKey: "scan_to_pay",
+          templateKey: templateKey,
         }),
       });
       const json = (await res.json()) as { campaign?: ReviewQrCampaign; error?: string };
@@ -444,22 +460,20 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
               </div>
             </div>
             <div>
-              <label className={qrUi.label}>Page template</label>
-              <p className="mt-1 text-xs text-[#64748B]">
-                Pick a mobile theme — each preview shows payments, reviews, and social links.
+              <PosterTemplatePicker
+                value={templateKey}
+                canUsePremium={canUsePremiumTemplates}
+                upgradeHref={`/businesses/${businessId}/reputation/qr-campaigns/plans`}
+                onChange={(key, meta) => {
+                  setTemplateKey(key);
+                  setPrimaryColor(getPosterTemplate(key).accent);
+                  if (!title.trim()) setTitle(meta.suggestedTitle);
+                  if (!description.trim()) setDescription(meta.suggestedDescription);
+                }}
+              />
+              <p className="mt-2 text-xs text-[#64748B]">
+                Same theme on your printed poster and hosted page — scan opens payments in the same design.
               </p>
-              <div className="mt-3">
-                <PaymentThemePicker
-                  value={pageTheme}
-                  onChange={(theme, meta) => {
-                    setPageTheme(theme);
-                    if (!description.trim()) {
-                      setDescription(meta.suggestedDescription);
-                    }
-                  }}
-                  businessName={businessName}
-                />
-              </div>
             </div>
             <div>
               <label className={qrUi.label}>Brand color</label>
@@ -655,21 +669,17 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
               )}
             </div>
             <div>
-              <p className="mb-3 text-sm font-semibold text-[#64748B]">Mobile preview</p>
-              <div className="rounded-2xl bg-gradient-to-b from-[#F4F7FB] to-white p-4">
-                <div className="mx-auto max-w-[360px] overflow-hidden rounded-[1.5rem] shadow-[0_12px_40px_rgba(15,23,42,0.1)] ring-1 ring-[#E6EAF0]">
-                  <div className="max-h-[640px] overflow-y-auto">
-                    <PaymentPublicPage
-                      slug={previewSlug}
-                      campaign={previewCampaign}
-                      config={previewConfig}
-                      businessName={businessName}
-                      isPreview
-                      themeOverride={pageTheme}
-                    />
-                  </div>
-                </div>
-              </div>
+              <p className="mb-3 text-sm font-semibold text-[#64748B]">Hosted page preview</p>
+              <p className="mb-3 text-xs text-[#64748B]">
+                What customers see after scanning — same theme as the poster, with payments where the QR sits.
+              </p>
+              <BrandThemeHostedPage
+                slug={previewSlug}
+                campaign={previewCampaign}
+                config={previewConfig}
+                businessName={businessName}
+                isPreview
+              />
             </div>
           </div>
         )}
