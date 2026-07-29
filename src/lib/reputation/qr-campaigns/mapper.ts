@@ -6,6 +6,8 @@ import type {
   ReviewQrCampaign,
 } from "./types";
 
+// ReviewQrCampaign includes campaignType + publicSlug
+
 export function rowToCampaign(row: Record<string, unknown>): ReviewQrCampaign {
   const poster = parsePosterConfig(row.poster_config) ?? {
     ...DEFAULT_POSTER_CONFIG,
@@ -23,6 +25,8 @@ export function rowToCampaign(row: Record<string, unknown>): ReviewQrCampaign {
     organizationId: row.organization_id ? String(row.organization_id) : null,
     businessId: row.business_id ? String(row.business_id) : null,
     ownerUserId: row.owner_user_id ? String(row.owner_user_id) : null,
+    campaignType: (String(row.campaign_type ?? "google_review") as ReviewQrCampaign["campaignType"]),
+    publicSlug: row.public_slug ? String(row.public_slug) : null,
     name: String(row.name ?? "QR Campaign"),
     placementType: String(row.placement_type ?? "standard_poster") as QrPlacementType,
     customPlacementLabel: row.custom_placement_label

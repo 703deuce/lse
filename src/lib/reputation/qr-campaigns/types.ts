@@ -34,12 +34,15 @@ export const QR_PLACEMENT_LABELS: Record<QrPlacementType, string> = {
 
 export type QrCampaignStatus = "active" | "paused" | "draft" | "archived";
 export type QrPrintFormat = "a4" | "a5" | "letter" | "qr_only";
+export type QrCampaignType = "google_review" | "payment_review";
 
 export type ReviewQrCampaign = {
   id: string;
   organizationId: string | null;
   businessId: string | null;
   ownerUserId: string | null;
+  campaignType: QrCampaignType;
+  publicSlug: string | null;
   name: string;
   placementType: QrPlacementType;
   customPlacementLabel: string | null;

@@ -19,7 +19,17 @@ export const PREMIUM_POSTER_TEMPLATE_KEYS = [
 ] as const;
 
 export type PremiumPosterTemplateKey = (typeof PREMIUM_POSTER_TEMPLATE_KEYS)[number];
-export type PosterTemplateKey = typeof CLASSIC_POSTER_TEMPLATE | PremiumPosterTemplateKey;
+export const PAYMENT_POSTER_TEMPLATE_KEYS = [
+  "scan_to_pay",
+  "scan_to_tip",
+  "pay_and_review",
+] as const;
+
+export type PaymentPosterTemplateKey = (typeof PAYMENT_POSTER_TEMPLATE_KEYS)[number];
+export type PosterTemplateKey =
+  | typeof CLASSIC_POSTER_TEMPLATE
+  | PremiumPosterTemplateKey
+  | PaymentPosterTemplateKey;
 
 export type PosterTemplateMeta = {
   key: PosterTemplateKey;
@@ -147,6 +157,33 @@ export const POSTER_TEMPLATES: PosterTemplateMeta[] = [
     accent: "#E11D48",
     premium: true,
     galleryNumber: 10,
+  },
+  {
+    key: "scan_to_pay",
+    label: "Scan to pay",
+    blurb: "Payment QR poster",
+    suggestedTitle: "Scan to pay",
+    suggestedDescription: "Venmo, Cash App, PayPal, or Zelle",
+    accent: "#2563EB",
+    premium: false,
+  },
+  {
+    key: "scan_to_tip",
+    label: "Scan to tip",
+    blurb: "Tip QR poster",
+    suggestedTitle: "Leave a tip",
+    suggestedDescription: "Scan to tip our team",
+    accent: "#2563EB",
+    premium: false,
+  },
+  {
+    key: "pay_and_review",
+    label: "Pay and review",
+    blurb: "Pay + review poster",
+    suggestedTitle: "Pay and review",
+    suggestedDescription: "Scan to pay, then share your experience",
+    accent: "#16A34A",
+    premium: false,
   },
 ];
 

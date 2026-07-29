@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { appUrl } from "@/lib/app-url";
 import { recordTrackingClick } from "@/lib/reputation/campaigns";
-import { resolveAndRecordQrScan } from "@/lib/reputation/qr-campaigns";
+import { resolveAndRecordQrScan, getQrCampaignByShortCode } from "@/lib/reputation/qr-campaigns";
 import { sanitizeReviewRedirectUrl } from "@/lib/security/safe-redirect";
 import { assertRateLimit } from "@/lib/security/rate-limit";
 
@@ -50,7 +50,12 @@ export async function GET(
   });
 
   if (qr.destinationUrl) {
-    // QR campaigns open the mobile review funnel first (mockup flow), then Google.
+    const campaign = await getQrCampaignByShortCode(trackingToken);
+    if (campaign?.campaignType === "payment_review") {
+      const slug = campaign.publicSlug ?? campaign.shortCode;
+      return NextResponse.redirect(appUrl(`/pay/${encodeURIComponent(slug)}`), 302);
+    }
+    // QR review campaigns open the mobile review funnel first, then Google.
     // Use the public app origin — request.url can be the internal listen address
     // (e.g. https://0.0.0.0:3000), which Safari blocks as a restricted port.
     return NextResponse.redirect(

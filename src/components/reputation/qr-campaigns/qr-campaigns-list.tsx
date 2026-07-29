@@ -331,6 +331,11 @@ export function QrCampaignsList({ businessId }: { businessId: string }) {
                           {c.name}
                         </Link>
                         <QrStatusBadge status={c.status} />
+                        {c.campaignType === "payment_review" ? (
+                          <span className="rounded-full bg-[#DBEAFE] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#1D4ED8] ring-1 ring-[#BFDBFE]">
+                            Payment QR
+                          </span>
+                        ) : null}
                         {topPerformerId === c.id ? (
                           <span className="rounded-full bg-[#ECFDF3] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#027A48] ring-1 ring-[#A6F4C5]">
                             Top performer

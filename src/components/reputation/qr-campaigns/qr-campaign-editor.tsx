@@ -44,6 +44,7 @@ import {
   type QrPrintFormat,
   type ReviewQrCampaign,
 } from "@/lib/reputation/qr-campaigns/types";
+import { PaymentQrCampaignEditor } from "@/components/reputation/payment-qr/payment-qr-campaign-editor";
 import { cn } from "@/lib/utils";
 
 type LoadResponse = {
@@ -359,6 +360,10 @@ export function QrCampaignEditor({
         </div>
       </ModulePage>
     );
+  }
+
+  if (campaign?.campaignType === "payment_review" && campaignId) {
+    return <PaymentQrCampaignEditor businessId={businessId} campaignId={campaignId} />;
   }
 
   if (!campaign) {

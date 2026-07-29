@@ -494,6 +494,19 @@ export async function resolveAndRecordQrScan(params: {
     return { destinationUrl: null, inactive: true, notFound: false };
   }
 
+  if (campaign.campaignType === "payment_review") {
+    const slug = campaign.publicSlug ?? campaign.shortCode;
+    const destinationUrl = appUrl(`/pay/${encodeURIComponent(slug)}`);
+    await recordQrScanEvent({
+      campaign,
+      ip: params.ip,
+      userAgent: params.userAgent,
+      referrer: params.referrer,
+      visitorId: params.visitorId,
+    });
+    return { destinationUrl, inactive: false, notFound: false };
+  }
+
   let destinationUrl: string;
   try {
     destinationUrl = assertAllowedQrDestination(campaign.destinationUrl);

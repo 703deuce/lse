@@ -3,15 +3,15 @@ import { Loader2 } from "lucide-react";
 import { requireBusinessPage } from "@/lib/auth/require-business-page";
 import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { hasEntitlement } from "@/lib/auth/entitlements";
-import { QrCampaignAnalyticsRouter } from "@/components/reputation/qr-campaigns/qr-campaign-analytics-router";
+import { QrCampaignCreateForm } from "@/components/reputation/qr-campaigns/qr-campaign-create-form";
 import { ReviewRequestsUpgrade } from "@/components/reputation/review-requests-upgrade";
 
-export default async function QrCampaignAnalyticsPage({
+export default async function QrCampaignNewReviewPage({
   params,
 }: {
-  params: Promise<{ businessId: string; campaignId: string }>;
+  params: Promise<{ businessId: string }>;
 }) {
-  const { businessId, campaignId } = await params;
+  const { businessId } = await params;
   const isPreview = isDevPreviewBusiness(businessId);
   const auth = await requireBusinessPage(businessId);
   const allowed =
@@ -31,7 +31,7 @@ export default async function QrCampaignAnalyticsPage({
         </div>
       }
     >
-      <QrCampaignAnalyticsRouter businessId={businessId} campaignId={campaignId} />
+      <QrCampaignCreateForm businessId={businessId} />
     </Suspense>
   );
 }

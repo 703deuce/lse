@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 import { requireBusinessPage } from "@/lib/auth/require-business-page";
 import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { hasEntitlement } from "@/lib/auth/entitlements";
-import { QrCampaignCreateForm } from "@/components/reputation/qr-campaigns/qr-campaign-create-form";
+import { QrCampaignTypeSelector } from "@/components/reputation/payment-qr/qr-campaign-type-selector";
 import { ReviewRequestsUpgrade } from "@/components/reputation/review-requests-upgrade";
 
 export default async function QrCampaignNewPage({
@@ -31,7 +31,7 @@ export default async function QrCampaignNewPage({
         </div>
       }
     >
-      <QrCampaignCreateForm businessId={businessId} />
+      <QrCampaignTypeSelector businessId={businessId} />
     </Suspense>
   );
 }
