@@ -304,6 +304,7 @@ export async function createPaymentQrCampaign(
       qr_campaign_id: campaign.id,
       payment_mode: "reusable_page",
       amount_mode: amountMode,
+      page_theme: input.pageTheme ?? "modern_blue",
       purpose: input.purpose,
       custom_purpose_label: input.customPurposeLabel ?? null,
       title: input.title ?? purposeHeading,

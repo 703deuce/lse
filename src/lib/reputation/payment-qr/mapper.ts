@@ -7,7 +7,9 @@ import type {
   PaymentSuggestedAmount,
   PaymentPurpose,
   PaymentProvider,
+  PageThemeKey,
 } from "./types";
+import { PAGE_THEME_KEYS } from "./page-themes";
 
 export function rowToPaymentRequestSession(row: Record<string, unknown>): PaymentRequestSession {
   return {
@@ -60,6 +62,12 @@ export function rowToPaymentConfig(
     qrCampaignId: String(row.qr_campaign_id),
     paymentMode: (String(row.payment_mode ?? "reusable_page") as PaymentMode),
     amountMode,
+    pageTheme: (() => {
+      const raw = String(row.page_theme ?? "modern_blue");
+      return PAGE_THEME_KEYS.includes(raw as PageThemeKey)
+        ? (raw as PageThemeKey)
+        : "modern_blue";
+    })(),
     purpose: String(row.purpose ?? "pay") as PaymentPurpose,
     customPurposeLabel: row.custom_purpose_label ? String(row.custom_purpose_label) : null,
     title: row.title ? String(row.title) : null,

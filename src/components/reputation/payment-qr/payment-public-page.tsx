@@ -8,10 +8,16 @@ import {
   Check,
   CreditCard,
   Mail,
+  Menu,
   Phone,
   Star,
 } from "lucide-react";
 import { getPaymentProvider } from "@/lib/reputation/payment-qr/providers";
+import { getPageTheme } from "@/lib/reputation/payment-qr/page-themes";
+import {
+  PaymentPageFooterWave,
+  PaymentPageHeaderDecor,
+} from "@/components/reputation/payment-qr/payment-page-header-decor";
 import {
   PAYMENT_PURPOSE_HEADINGS,
   PROVIDER_CLICK_EVENTS,
@@ -19,6 +25,7 @@ import {
   type PaymentPageConfiguration,
   type PaymentProvider,
   type PaymentRequestSession,
+  type PageThemeKey,
 } from "@/lib/reputation/payment-qr/types";
 import type { ReviewQrCampaign } from "@/lib/reputation/qr-campaigns/types";
 import { cn } from "@/lib/utils";
@@ -65,18 +72,23 @@ function formatMoney(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+function formatAmountLabel(amountCents: number, label: string | null): string {
+  if (label?.trim()) return label.trim();
+  return `$${(amountCents / 100).toFixed(0)}`;
+}
+
 function ProviderIcon({ provider }: { provider: PaymentProvider }) {
   const def = getPaymentProvider(provider);
   if (provider === "stripe") {
     return (
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#635BFF] text-white">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#635BFF] text-white">
         <CreditCard className="h-5 w-5" />
       </span>
     );
   }
   return (
     <span
-      className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white"
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
       style={{ background: def.brandColor }}
     >
       {def.displayName.charAt(0)}
@@ -91,6 +103,7 @@ export function PaymentPublicPage({
   businessName,
   isPreview = false,
   requestSession = null,
+  themeOverride,
 }: {
   slug: string;
   campaign: ReviewQrCampaign;
@@ -98,12 +111,16 @@ export function PaymentPublicPage({
   businessName: string;
   isPreview?: boolean;
   requestSession?: PaymentRequestSession | null;
+  /** Dev preview: force a specific visual template */
+  themeOverride?: PageThemeKey;
 }) {
   const [selectedAmountCents, setSelectedAmountCents] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
+  const [showCustomInput, setShowCustomInput] = useState(false);
   const [zelleExpanded, setZelleExpanded] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
+  const theme = getPageTheme(themeOverride ?? config.pageTheme);
   const amountMode: AmountMode = requestSession ? "suggested" : config.amountMode;
   const lockedAmountCents = requestSession?.amountCents ?? null;
   const lockedNote = requestSession?.note ?? config.paymentNote ?? null;
@@ -117,11 +134,7 @@ export function PaymentPublicPage({
   const enabledMethods = useMemo(
     () =>
       config.methods
-        .filter(
-          (m) =>
-            m.enabled &&
-            (m.publicHandle?.trim() || m.publicUrl?.trim())
-        )
+        .filter((m) => m.enabled && (m.publicHandle?.trim() || m.publicUrl?.trim()))
         .sort((a, b) => a.sortOrder - b.sortOrder),
     [config.methods]
   );
@@ -195,13 +208,8 @@ export function PaymentPublicPage({
         }),
       });
 
-      const json = (await res.json()) as {
-        destinationUrl?: string | null;
-        manualFlow?: boolean;
-      };
-
+      const json = (await res.json()) as { destinationUrl?: string | null };
       if (!res.ok) return;
-
       if (json.destinationUrl) {
         window.open(json.destinationUrl, "_blank", "noopener,noreferrer");
       }
@@ -230,49 +238,63 @@ export function PaymentPublicPage({
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  const primary = config.primaryColor ?? campaign.brandColor ?? "#2563EB";
   const zelleMethod = enabledMethods.find((m) => m.provider === "zelle");
   const zelleRecipient = zelleMethod?.publicHandle ?? "";
-
   const showReviews =
     Boolean(config.googleReviewUrl) || Boolean(config.facebookReviewUrl);
 
   const socialLinks = [
-    config.facebookPageUrl && { type: "facebook", label: "Facebook", url: config.facebookPageUrl },
-    config.instagramUrl && { type: "instagram", label: "Instagram", url: config.instagramUrl },
-    config.pinterestUrl && { type: "pinterest", label: "Pinterest", url: config.pinterestUrl },
-    config.tiktokUrl && { type: "tiktok", label: "TikTok", url: config.tiktokUrl },
-    config.youtubeUrl && { type: "youtube", label: "YouTube", url: config.youtubeUrl },
-    config.websiteUrl && { type: "website", label: "Website", url: config.websiteUrl },
-    config.bookingUrl && { type: "booking", label: "Book", url: config.bookingUrl },
+    config.facebookPageUrl && { type: "facebook", label: "f", url: config.facebookPageUrl },
+    config.instagramUrl && { type: "instagram", label: "IG", url: config.instagramUrl },
+    config.pinterestUrl && { type: "pinterest", label: "P", url: config.pinterestUrl },
+    config.tiktokUrl && { type: "tiktok", label: "TT", url: config.tiktokUrl },
+    config.youtubeUrl && { type: "youtube", label: "YT", url: config.youtubeUrl },
+    config.websiteUrl && { type: "website", label: "W", url: config.websiteUrl },
+    config.bookingUrl && { type: "booking", label: "B", url: config.bookingUrl },
   ].filter(Boolean) as Array<{ type: string; label: string; url: string }>;
 
-  return (
-    <main className="min-h-screen bg-[#F4F7FB]">
-      <div className="mx-auto max-w-md px-4 py-6">
-        <div className="overflow-hidden rounded-3xl bg-white shadow-lg ring-1 ring-black/5">
-          {config.bannerUrl ? (
-            <div className="relative h-28 w-full">
-              <Image
-                src={config.bannerUrl}
-                alt=""
-                fill
-                className="object-cover"
-                unoptimized
-              />
-            </div>
-          ) : (
-            <div
-              className="h-20 w-full"
-              style={{
-                background: `linear-gradient(135deg, ${primary} 0%, ${primary}88 100%)`,
-              }}
-            />
-          )}
+  const reviewPrompt =
+    theme.key === "bold_professional"
+      ? "Loved our service? Leave us a review below!"
+      : "Enjoyed your experience?";
 
-          <div className="px-6 pb-8 pt-6 text-center">
+  const reviewSubtext =
+    theme.key === "bold_professional"
+      ? "Your feedback helps us grow."
+      : "Your feedback helps our local business grow.";
+
+  return (
+    <main className="min-h-screen" style={{ background: theme.pageBg }}>
+      <div className="mx-auto max-w-md px-3 py-4 sm:px-4 sm:py-6">
+        <div
+          className="overflow-hidden rounded-3xl shadow-lg ring-1 ring-black/5"
+          style={{ background: theme.cardBg }}
+        >
+          <div className="relative">
+            <button
+              type="button"
+              className="absolute right-3 top-3 z-10 rounded-lg p-2 opacity-60"
+              style={{ color: theme.isDark ? theme.textPrimary : "#64748B" }}
+              aria-label="Menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+
+            {config.bannerUrl ? (
+              <div className="relative h-28 w-full">
+                <Image src={config.bannerUrl} alt="" fill className="object-cover" unoptimized />
+              </div>
+            ) : (
+              <PaymentPageHeaderDecor theme={theme} />
+            )}
+          </div>
+
+          <div className="px-5 pb-8 pt-4 text-center sm:px-6">
             {config.logoUrl ? (
-              <div className="mx-auto -mt-12 mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-white shadow-md">
+              <div
+                className="mx-auto -mt-10 mb-3 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 shadow-md"
+                style={{ borderColor: theme.cardBg, background: theme.cardBg }}
+              >
                 <Image
                   src={config.logoUrl}
                   alt=""
@@ -284,79 +306,119 @@ export function PaymentPublicPage({
               </div>
             ) : (
               <div
-                className="mx-auto -mt-10 mb-4 flex h-16 w-16 items-center justify-center rounded-full border-4 border-white text-xl font-bold text-white shadow-md"
-                style={{ background: primary }}
+                className="mx-auto -mt-8 mb-3 flex h-16 w-16 items-center justify-center rounded-full border-4 text-xl font-bold text-white shadow-md"
+                style={{
+                  borderColor: theme.cardBg,
+                  background: theme.primary,
+                }}
               >
                 {businessName.charAt(0).toUpperCase()}
               </div>
             )}
 
-            <h1 className="text-2xl font-extrabold tracking-tight text-[#0B1B32]">
+            <h1
+              className={cn(
+                "text-2xl font-extrabold tracking-tight",
+                theme.serifHeading && "font-serif"
+              )}
+              style={{ color: theme.textPrimary }}
+            >
               {businessName}
             </h1>
             {config.description ? (
-              <p className="mt-2 text-sm leading-relaxed text-[#64748B]">{config.description}</p>
+              <p className="mt-1 text-sm" style={{ color: theme.textMuted }}>
+                {config.description}
+              </p>
             ) : null}
-            <p className="mt-3 text-sm font-semibold text-[#334155]">{heading}</p>
-            <p className="mt-1 text-xs text-[#94A3B8]">
-              Pay securely using your preferred method.
+            <p className="mt-2 text-sm font-semibold" style={{ color: theme.textSecondary }}>
+              {heading}
             </p>
 
             {lockedAmountCents ? (
-              <div className="mt-6 rounded-2xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#1D4ED8]">
+              <div
+                className="mt-5 rounded-2xl border px-4 py-4"
+                style={{
+                  borderColor: theme.pillBorder,
+                  background: theme.pillBg,
+                }}
+              >
+                <p
+                  className="text-xs font-semibold uppercase tracking-wide"
+                  style={{ color: theme.sectionLabel }}
+                >
                   Amount
                 </p>
-                <p className="mt-1 text-3xl font-extrabold text-[#0B1B32]">
+                <p className="mt-1 text-3xl font-extrabold" style={{ color: theme.textPrimary }}>
                   {formatMoney(lockedAmountCents)}
                 </p>
                 {lockedNote ? (
-                  <p className="mt-2 text-sm text-[#64748B]">{lockedNote}</p>
+                  <p className="mt-2 text-sm" style={{ color: theme.textMuted }}>{lockedNote}</p>
                 ) : null}
               </div>
             ) : null}
 
             {amountMode === "suggested" && !lockedAmountCents && enabledAmounts.length > 0 && (
-              <div className="mt-6">
-                <p className="text-left text-xs font-bold uppercase tracking-wide text-[#64748B]">
-                  Select an amount
+              <div className="mt-6 text-left">
+                <p
+                  className="text-xs font-bold uppercase tracking-wide"
+                  style={{ color: theme.sectionLabel }}
+                >
+                  Select amount
                 </p>
-                <div className="mt-3 grid grid-cols-4 gap-2">
-                  {enabledAmounts.map((a) => (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {enabledAmounts.map((a) => {
+                    const selected = selectedAmountCents === a.amountCents && !showCustomInput;
+                    return (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedAmountCents(a.amountCents);
+                          setCustomAmount("");
+                          setShowCustomInput(false);
+                          if (!isPreview) {
+                            void trackEvent(slug, "amount_selected", {
+                              amountSelectedCents: a.amountCents,
+                            });
+                          }
+                        }}
+                        className="rounded-full border-2 px-4 py-2.5 text-sm font-bold transition"
+                        style={{
+                          background: selected ? theme.pillSelectedBg : theme.pillBg,
+                          borderColor: selected ? theme.pillSelectedBorder : theme.pillBorder,
+                          color: selected ? theme.pillSelectedText : theme.textSecondary,
+                        }}
+                      >
+                        {formatAmountLabel(a.amountCents, a.label)}
+                      </button>
+                    );
+                  })}
+                  {config.allowCustomAmount && (
                     <button
-                      key={a.id}
                       type="button"
                       onClick={() => {
-                        setSelectedAmountCents(a.amountCents);
-                        setCustomAmount("");
-                        if (!isPreview) {
-                          void trackEvent(slug, "amount_selected", {
-                            amountSelectedCents: a.amountCents,
-                          });
-                        }
+                        setShowCustomInput(true);
+                        setSelectedAmountCents(null);
                       }}
-                      className={cn(
-                        "rounded-full border-2 py-2.5 text-sm font-bold transition",
-                        selectedAmountCents === a.amountCents
-                          ? "border-[#2563EB] bg-[#EFF6FF] text-[#2563EB]"
-                          : "border-[#E2E8F0] bg-white text-[#334155] hover:border-[#CBD5E1]"
-                      )}
+                      className="rounded-full border-2 px-4 py-2.5 text-sm font-bold transition"
+                      style={{
+                        background: showCustomInput ? theme.pillSelectedBg : theme.pillBg,
+                        borderColor: showCustomInput ? theme.pillSelectedBorder : theme.pillBorder,
+                        color: showCustomInput ? theme.pillSelectedText : theme.textSecondary,
+                      }}
                     >
-                      ${(a.amountCents / 100).toFixed(0)}
+                      Custom
                     </button>
-                  ))}
+                  )}
                 </div>
-                {config.allowCustomAmount && (
+                {(showCustomInput || config.allowCustomAmount) && showCustomInput && (
                   <input
                     type="number"
                     min="0.01"
                     step="0.01"
                     placeholder="Enter custom amount"
                     value={customAmount}
-                    onChange={(e) => {
-                      setCustomAmount(e.target.value);
-                      setSelectedAmountCents(null);
-                    }}
+                    onChange={(e) => setCustomAmount(e.target.value)}
                     onBlur={() => {
                       if (!isPreview && customAmount) {
                         const parsed = parseFloat(customAmount);
@@ -367,19 +429,30 @@ export function PaymentPublicPage({
                         }
                       }
                     }}
-                    className="mt-3 w-full rounded-xl border border-[#E2E8F0] px-4 py-3 text-center text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                    className="mt-3 w-full rounded-xl border px-4 py-3 text-center text-sm outline-none"
+                    style={{
+                      borderColor: theme.pillBorder,
+                      background: theme.pillBg,
+                      color: theme.textPrimary,
+                    }}
                   />
                 )}
               </div>
             )}
 
             {amountMode === "custom" && !lockedAmountCents && (
-              <div className="mt-6">
-                <p className="text-left text-xs font-bold uppercase tracking-wide text-[#64748B]">
+              <div className="mt-6 text-left">
+                <p
+                  className="text-xs font-bold uppercase tracking-wide"
+                  style={{ color: theme.sectionLabel }}
+                >
                   Enter payment amount
                 </p>
-                <div className="mt-2 flex items-center rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
-                  <span className="text-lg font-bold text-[#64748B]">$</span>
+                <div
+                  className="mt-2 flex items-center rounded-xl border px-4 py-3"
+                  style={{ borderColor: theme.pillBorder, background: theme.pillBg }}
+                >
+                  <span className="text-lg font-bold" style={{ color: theme.textMuted }}>$</span>
                   <input
                     type="number"
                     min="0.01"
@@ -397,16 +470,20 @@ export function PaymentPublicPage({
                         }
                       }
                     }}
-                    className="ml-2 w-full bg-transparent text-lg font-semibold text-[#0B1B32] outline-none"
+                    className="ml-2 w-full bg-transparent text-lg font-semibold outline-none"
+                    style={{ color: theme.textPrimary }}
                   />
                 </div>
               </div>
             )}
 
             {enabledMethods.length > 0 && (
-              <div className="mt-8">
-                <p className="text-left text-xs font-bold uppercase tracking-wide text-[#64748B]">
-                  Payment methods
+              <div className="mt-8 text-left">
+                <p
+                  className="text-xs font-bold uppercase tracking-wide"
+                  style={{ color: theme.sectionLabel }}
+                >
+                  Pay via
                 </p>
                 <div className="mt-3 space-y-2">
                   {enabledMethods
@@ -422,15 +499,22 @@ export function PaymentPublicPage({
                           disabled={blocked}
                           onClick={() => void handlePaymentClick(method.provider)}
                           className={cn(
-                            "flex w-full items-center gap-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-3.5 text-left transition hover:border-[#CBD5E1] hover:shadow-sm",
-                            blocked && "opacity-50 cursor-not-allowed"
+                            "flex w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition hover:shadow-sm",
+                            blocked && "cursor-not-allowed opacity-50"
                           )}
+                          style={{
+                            background: theme.methodCardBg,
+                            borderColor: theme.methodCardBorder,
+                          }}
                         >
                           <ProviderIcon provider={method.provider} />
-                          <span className="flex-1 text-sm font-semibold text-[#0B1B32]">
+                          <span
+                            className="flex-1 text-sm font-semibold"
+                            style={{ color: theme.textPrimary }}
+                          >
                             {def.buttonLabel}
                           </span>
-                          <ChevronRight className="h-5 w-5 text-[#94A3B8]" />
+                          <ChevronRight className="h-5 w-5" style={{ color: theme.textMuted }} />
                         </button>
                       );
                     })}
@@ -445,14 +529,22 @@ export function PaymentPublicPage({
             )}
 
             {zelleExpanded && zelleRecipient && (
-              <div className="mt-4 rounded-2xl border border-[#E9D5FF] bg-[#F5F3FF] p-4 text-sm">
-                <p className="font-bold text-[#0B1B32]">Pay with Zelle</p>
-                <p className="mt-1 text-xs text-[#64748B]">Send payment to:</p>
-                <p className="mt-2 font-semibold text-[#0B1B32]">{zelleRecipient}</p>
+              <div
+                className="mt-4 rounded-2xl border p-4 text-sm"
+                style={{
+                  borderColor: theme.methodCardBorder,
+                  background: theme.methodCardBg,
+                }}
+              >
+                <p className="font-bold" style={{ color: theme.textPrimary }}>Pay with Zelle</p>
+                <p className="mt-1 text-xs" style={{ color: theme.textMuted }}>Send payment to:</p>
+                <p className="mt-2 font-semibold" style={{ color: theme.textPrimary }}>
+                  {zelleRecipient}
+                </p>
                 {effectiveAmountCents ? (
-                  <p className="mt-3 text-xs text-[#64748B]">
+                  <p className="mt-3 text-xs" style={{ color: theme.textMuted }}>
                     Selected amount:{" "}
-                    <span className="font-semibold text-[#0B1B32]">
+                    <span className="font-semibold" style={{ color: theme.textPrimary }}>
                       {formatMoney(effectiveAmountCents)}
                     </span>
                   </p>
@@ -463,7 +555,12 @@ export function PaymentPublicPage({
                     onClick={() =>
                       void copyText("zelle-email", zelleRecipient, "zelle_email_copied")
                     }
-                    className="inline-flex items-center gap-1 rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-xs font-semibold"
+                    className="inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs font-semibold"
+                    style={{
+                      borderColor: theme.methodCardBorder,
+                      background: theme.cardBg,
+                      color: theme.textPrimary,
+                    }}
                   >
                     {copiedField === "zelle-email" ? (
                       <Check className="h-3.5 w-3.5" />
@@ -482,7 +579,12 @@ export function PaymentPublicPage({
                           "zelle_amount_copied"
                         )
                       }
-                      className="inline-flex items-center gap-1 rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-xs font-semibold"
+                      className="inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs font-semibold"
+                      style={{
+                        borderColor: theme.methodCardBorder,
+                        background: theme.cardBg,
+                        color: theme.textPrimary,
+                      }}
                     >
                       {copiedField === "zelle-amount" ? (
                         <Check className="h-3.5 w-3.5" />
@@ -496,7 +598,8 @@ export function PaymentPublicPage({
                 <button
                   type="button"
                   onClick={() => setZelleExpanded(false)}
-                  className="mt-3 text-xs font-semibold text-[#64748B] hover:text-[#334155]"
+                  className="mt-3 text-xs font-semibold"
+                  style={{ color: theme.textMuted }}
                 >
                   Back to payment methods
                 </button>
@@ -504,23 +607,33 @@ export function PaymentPublicPage({
             )}
 
             {showReviews && (
-              <div className="mt-8 rounded-2xl border border-[#E2E8F0] bg-[#FAFAFA] p-5">
+              <div
+                className="mt-8 rounded-2xl border p-5"
+                style={{
+                  background: theme.reviewBoxBg,
+                  borderColor: theme.reviewBoxBorder,
+                }}
+              >
                 <div className="flex items-center justify-center gap-1 text-[#F59E0B]">
                   {[1, 2, 3, 4, 5].map((i) => (
                     <Star key={i} className="h-4 w-4 fill-current" />
                   ))}
                 </div>
-                <p className="mt-2 text-center text-sm font-bold text-[#0B1B32]">
-                  Enjoyed your experience?
+                <p
+                  className="mt-2 text-center text-sm font-bold"
+                  style={{ color: theme.isDark ? theme.textPrimary : theme.textPrimary }}
+                >
+                  {reviewPrompt}
                 </p>
-                <p className="mt-1 text-center text-xs text-[#64748B]">
-                  Your feedback helps our local business grow.
+                <p className="mt-1 text-center text-xs" style={{ color: theme.textMuted }}>
+                  {reviewSubtext}
                 </p>
                 {config.googleReviewUrl && (
                   <button
                     type="button"
                     onClick={() => void handleReviewClick("google", config.googleReviewUrl!)}
-                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#4285F4] py-3.5 text-sm font-bold text-white shadow-sm transition hover:opacity-95"
+                    className="mt-4 flex w-full items-center justify-center rounded-xl py-3.5 text-sm font-bold text-white shadow-sm transition hover:opacity-95"
+                    style={{ background: theme.googleReviewBg }}
                   >
                     Leave a Google Review
                   </button>
@@ -531,7 +644,11 @@ export function PaymentPublicPage({
                     onClick={() =>
                       void handleReviewClick("facebook", config.facebookReviewUrl!)
                     }
-                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#1877F2] py-3.5 text-sm font-bold text-white shadow-sm transition hover:opacity-95"
+                    className="mt-2 flex w-full items-center justify-center rounded-xl py-3.5 text-sm font-bold text-white shadow-sm transition hover:opacity-95"
+                    style={{
+                      background: theme.facebookReviewBg,
+                      color: theme.key === "bold_professional" ? theme.primary : "#fff",
+                    }}
                   >
                     Leave a Facebook Review
                   </button>
@@ -541,10 +658,13 @@ export function PaymentPublicPage({
 
             {(socialLinks.length > 0 || config.phone || config.email) && (
               <div className="mt-8">
-                <p className="text-center text-xs font-bold uppercase tracking-wide text-[#64748B]">
-                  Connect with us
+                <p
+                  className="text-center text-xs font-bold uppercase tracking-wide"
+                  style={{ color: theme.sectionLabel }}
+                >
+                  Follow us
                 </p>
-                <div className="mt-3 flex flex-wrap justify-center gap-2">
+                <div className="mt-3 flex flex-wrap justify-center gap-3">
                   {socialLinks.map((link) => (
                     <button
                       key={link.type}
@@ -560,7 +680,13 @@ export function PaymentPublicPage({
                           link.type
                         )
                       }
-                      className="rounded-full border border-[#E2E8F0] bg-white px-4 py-2 text-xs font-semibold text-[#334155] hover:border-[#CBD5E1]"
+                      className="flex h-11 w-11 items-center justify-center rounded-full border text-xs font-bold transition hover:opacity-90"
+                      style={{
+                        background: theme.socialPillBg,
+                        borderColor: theme.socialPillBorder,
+                        color: theme.socialPillText,
+                      }}
+                      title={link.type}
                     >
                       {link.label}
                     </button>
@@ -568,36 +694,57 @@ export function PaymentPublicPage({
                   {config.phone && (
                     <a
                       href={`tel:${config.phone}`}
-                      onClick={() => !isPreview && void trackEvent(slug, "social_link_clicked", { metadata: { linkType: "phone" } })}
-                      className="inline-flex items-center gap-1 rounded-full border border-[#E2E8F0] bg-white px-4 py-2 text-xs font-semibold text-[#334155]"
+                      onClick={() =>
+                        !isPreview &&
+                        void trackEvent(slug, "social_link_clicked", { metadata: { linkType: "phone" } })
+                      }
+                      className="flex h-11 w-11 items-center justify-center rounded-full border"
+                      style={{
+                        background: theme.socialPillBg,
+                        borderColor: theme.socialPillBorder,
+                        color: theme.socialPillText,
+                      }}
                     >
-                      <Phone className="h-3.5 w-3.5" /> Call
+                      <Phone className="h-4 w-4" />
                     </a>
                   )}
                   {config.email && (
                     <a
                       href={`mailto:${config.email}`}
-                      onClick={() => !isPreview && void trackEvent(slug, "social_link_clicked", { metadata: { linkType: "email" } })}
-                      className="inline-flex items-center gap-1 rounded-full border border-[#E2E8F0] bg-white px-4 py-2 text-xs font-semibold text-[#334155]"
+                      onClick={() =>
+                        !isPreview &&
+                        void trackEvent(slug, "social_link_clicked", { metadata: { linkType: "email" } })
+                      }
+                      className="flex h-11 w-11 items-center justify-center rounded-full border"
+                      style={{
+                        background: theme.socialPillBg,
+                        borderColor: theme.socialPillBorder,
+                        color: theme.socialPillText,
+                      }}
                     >
-                      <Mail className="h-3.5 w-3.5" /> Email
+                      <Mail className="h-4 w-4" />
                     </a>
                   )}
                 </div>
               </div>
             )}
 
-            <p className="mt-8 text-center text-[10px] leading-relaxed text-[#94A3B8]">
+            <p
+              className="mt-8 text-center text-[10px] leading-relaxed"
+              style={{ color: theme.disclaimer }}
+            >
               Payments are completed directly through the selected provider. Local SEO Express
               does not process, hold, or verify funds sent through external payment apps.
             </p>
 
             {config.showPlatformBranding && (
-              <p className="mt-3 text-center text-[10px] text-[#CBD5E1]">
+              <p className="mt-3 text-center text-[10px]" style={{ color: theme.disclaimer }}>
                 Powered by Local SEO Express
               </p>
             )}
           </div>
+
+          <PaymentPageFooterWave theme={theme} />
         </div>
       </div>
     </main>

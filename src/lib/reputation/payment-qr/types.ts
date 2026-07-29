@@ -1,3 +1,7 @@
+import type { PageThemeKey } from "./page-themes";
+
+export type { PageThemeKey };
+
 export const PAYMENT_PROVIDERS = [
   "stripe",
   "venmo",
@@ -145,6 +149,7 @@ export type PaymentPageConfiguration = {
   /** @deprecated */
   paymentMode: PaymentMode;
   amountMode: AmountMode;
+  pageTheme: PageThemeKey;
   purpose: PaymentPurpose;
   customPurposeLabel: string | null;
   title: string | null;
@@ -222,6 +227,7 @@ export type CreatePaymentQrInput = {
   primaryColor?: string;
   secondaryColor?: string | null;
   amountMode?: AmountMode;
+  pageTheme?: PageThemeKey;
   allowCustomAmount?: boolean;
   showReviewPrompt?: boolean;
   showPlatformBranding?: boolean;

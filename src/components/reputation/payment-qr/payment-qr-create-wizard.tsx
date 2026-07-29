@@ -19,11 +19,13 @@ import {
   AMOUNT_MODES,
   PAYMENT_PROVIDERS,
   type AmountMode,
+  type PageThemeKey,
   type PaymentPageConfiguration,
   type PaymentProvider,
 } from "@/lib/reputation/payment-qr/types";
 import type { ReviewQrCampaign } from "@/lib/reputation/qr-campaigns/types";
 import { getPaymentProvider } from "@/lib/reputation/payment-qr/providers";
+import { PAGE_THEME_KEYS, PAGE_THEME_LABELS } from "@/lib/reputation/payment-qr/page-themes";
 import { cn } from "@/lib/utils";
 
 const WIZARD_STEPS = [
@@ -67,6 +69,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
   const [logoUrl, setLogoUrl] = useState("");
   const [bannerUrl, setBannerUrl] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#2563EB");
+  const [pageTheme, setPageTheme] = useState<PageThemeKey>("modern_blue");
   const [publicSlug, setPublicSlug] = useState("");
   const [amountMode, setAmountMode] = useState<AmountMode>("none");
   const [paymentNote, setPaymentNote] = useState("");
@@ -172,6 +175,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
       qrCampaignId: "preview",
       paymentMode: "reusable_page",
       amountMode,
+      pageTheme,
       purpose: "pay",
       customPurposeLabel: null,
       title: title || "Pay securely",
@@ -306,6 +310,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
           primaryColor,
           publicSlug: entitlements.customSlug && publicSlug.trim() ? publicSlug.trim() : null,
           amountMode,
+          pageTheme,
           googleReviewUrl: googleReviewUrl || null,
           facebookReviewUrl: facebookReviewUrl || null,
           websiteUrl: websiteUrl || null,
@@ -430,6 +435,26 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
               <div>
                 <label className={qrUi.label}>Cover image URL (optional)</label>
                 <input value={bannerUrl} onChange={(e) => setBannerUrl(e.target.value)} className={cn(qrUi.input, "mt-1.5")} />
+              </div>
+            </div>
+            <div>
+              <label className={qrUi.label}>Page template</label>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {PAGE_THEME_KEYS.map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setPageTheme(key)}
+                    className={cn(
+                      "rounded-xl border-2 px-4 py-3 text-left text-sm font-semibold transition",
+                      pageTheme === key
+                        ? "border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]"
+                        : "border-[#E2E8F0] hover:border-[#CBD5E1]"
+                    )}
+                  >
+                    {PAGE_THEME_LABELS[key]}
+                  </button>
+                ))}
               </div>
             </div>
             <div>
