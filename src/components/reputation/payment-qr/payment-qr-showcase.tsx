@@ -2,7 +2,6 @@
 
 import { BarChart3, Copy, ExternalLink, Plus, Wallet } from "lucide-react";
 import { PaymentPublicPage } from "@/components/reputation/payment-qr/payment-public-page";
-import { PaymentQrAnalyticsView } from "@/components/reputation/payment-qr/payment-qr-analytics";
 import { QrCampaignTypeSelector } from "@/components/reputation/payment-qr/qr-campaign-type-selector";
 import {
   QrKpiCard,
