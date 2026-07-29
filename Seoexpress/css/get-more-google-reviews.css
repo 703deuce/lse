@@ -115,6 +115,21 @@
   position: relative;
 }
 
+.gmr-hero-shot {
+  align-items: center;
+}
+
+.gmr-hero-shot img {
+  display: block;
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+  border-radius: 20px;
+  border: 1px solid rgba(19, 119, 82, 0.12);
+  box-shadow: 0 24px 56px rgba(15, 23, 42, 0.14);
+  background: #fff;
+}
+
 .gmr-mock-form {
   width: min(100%, 340px);
   border-radius: 18px;
@@ -423,15 +438,29 @@
 .gmr-feature-card-visual {
   margin-top: 0.85rem;
   border-radius: 10px;
-  border: 1px dashed rgba(19, 119, 82, 0.25);
-  background: linear-gradient(180deg, #f8faf9 0%, #f0fdf7 100%);
-  padding: 0.65rem;
-  font-size: 0.65rem;
-  line-height: 1.4;
-  color: var(--smb-muted);
-  text-align: left;
+  border: 1px solid rgba(19, 119, 82, 0.12);
+  background: #f8faf9;
+  padding: 0.45rem;
+  overflow: hidden;
+  text-align: center;
 }
-.gmr-feature-card-visual strong { color: var(--smb-text); font-size: 0.68rem; }
+
+.gmr-feature-card-visual img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 140px;
+  object-fit: contain;
+  object-position: center top;
+  margin: 0 auto;
+}
+
+.gmr-feature-card:nth-child(5) .gmr-feature-card-visual img {
+  max-height: 160px;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 6px;
+}
 
 /* ---- Media panels ---- */
 .gmr-panel {
