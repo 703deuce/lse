@@ -58,14 +58,17 @@ export function PaymentPublicPage({
   config,
   businessName,
   isPreview = false,
+  previewStep,
 }: {
   slug: string;
   campaign: ReviewQrCampaign;
   config: PaymentPageConfiguration;
   businessName: string;
   isPreview?: boolean;
+  /** Dev/showcase: force a specific step without interaction */
+  previewStep?: Step;
 }) {
-  const [step, setStep] = useState<Step>("pay");
+  const [step, setStep] = useState<Step>(previewStep ?? "pay");
   const [selectedAmountCents, setSelectedAmountCents] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
   const [copiedZelle, setCopiedZelle] = useState(false);
@@ -97,6 +100,10 @@ export function PaymentPublicPage({
     }
     return null;
   }, [selectedAmountCents, customAmount]);
+
+  useEffect(() => {
+    if (previewStep) setStep(previewStep);
+  }, [previewStep]);
 
   useEffect(() => {
     if (isPreview) return;

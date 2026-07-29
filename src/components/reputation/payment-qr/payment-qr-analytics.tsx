@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Info, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, Info, Loader2 } from "lucide-react";
 import { ModulePage } from "@/components/ui/design-system";
 import { QrKpiCard, qrUi } from "@/components/reputation/qr-campaigns/qr-ui";
 import type { PaymentQrAnalytics } from "@/lib/reputation/payment-qr/types";
+import type { PaymentQrEntitlements } from "@/lib/reputation/payment-qr/entitlements";
 import { cn } from "@/lib/utils";
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -26,6 +27,8 @@ export function PaymentQrAnalyticsView({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<PaymentQrAnalytics | null>(null);
+  const [entitlements, setEntitlements] = useState<PaymentQrEntitlements | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -35,9 +38,13 @@ export function PaymentQrAnalyticsView({
       const res = await fetch(
         `/api/reputation/qr-campaigns/${campaignId}/payment-analytics?${params}`
       );
-      const json = (await res.json()) as PaymentQrAnalytics & { error?: string };
+      const json = (await res.json()) as PaymentQrAnalytics & {
+        error?: string;
+        entitlements?: PaymentQrEntitlements;
+      };
       if (!res.ok) throw new Error(json.error ?? "Failed to load analytics");
       setData(json);
+      if (json.entitlements) setEntitlements(json.entitlements);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
       setData(null);
@@ -45,6 +52,36 @@ export function PaymentQrAnalyticsView({
       setLoading(false);
     }
   }, [businessId, campaignId, days]);
+
+  async function exportCsv() {
+    setExporting(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        businessId,
+        days: String(days),
+        format: "csv",
+      });
+      const res = await fetch(
+        `/api/reputation/qr-campaigns/${campaignId}/payment-analytics?${params}`
+      );
+      if (!res.ok) {
+        const json = (await res.json()) as { error?: string };
+        throw new Error(json.error ?? "Export failed");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `payment-qr-analytics-${days}d.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   useEffect(() => {
     void load();
@@ -67,22 +104,39 @@ export function PaymentQrAnalyticsView({
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {[7, 30, 90].map((d) => (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          {[7, 30, 90].map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => setDays(d)}
+              className={cn(
+                "rounded-xl border px-3 py-1.5 text-xs font-semibold",
+                days === d
+                  ? "border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]"
+                  : "border-[#E2E8F0] text-[#64748B]"
+              )}
+            >
+              {d} days
+            </button>
+          ))}
+        </div>
+        {entitlements?.csvExport ? (
           <button
-            key={d}
             type="button"
-            onClick={() => setDays(d)}
-            className={cn(
-              "rounded-xl border px-3 py-1.5 text-xs font-semibold",
-              days === d
-                ? "border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]"
-                : "border-[#E2E8F0] text-[#64748B]"
-            )}
+            disabled={exporting || !data}
+            onClick={() => void exportCsv()}
+            className={cn(qrUi.btnSecondary, "inline-flex items-center gap-2")}
           >
-            {d} days
+            {exporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            Export CSV
           </button>
-        ))}
+        ) : null}
       </div>
 
       <div className="flex items-start gap-3 rounded-2xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-3 text-sm text-[#1E40AF]">

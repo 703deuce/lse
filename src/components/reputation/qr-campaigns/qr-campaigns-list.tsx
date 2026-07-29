@@ -192,7 +192,7 @@ export function QrCampaignsList({ businessId }: { businessId: string }) {
         <div className="min-w-0">
           <h1 className={qrUi.title}>QR Campaigns</h1>
           <p className={qrUi.subtitle}>
-            Trackable Google review QR codes for posters, counters, vehicles, and more.
+            Tracked Google review QR codes and Payment, Tip &amp; Review QR pages.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

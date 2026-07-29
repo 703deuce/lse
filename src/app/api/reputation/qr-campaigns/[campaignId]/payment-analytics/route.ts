@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
+import { getPaymentQrEntitlements } from "@/lib/reputation/payment-qr/entitlements";
+import { buildPaymentQrAnalyticsCsv } from "@/lib/reputation/payment-qr/export-csv";
 import { getPaymentQrAnalytics } from "@/lib/reputation/payment-qr/service";
 import { getQrCampaignForBusiness } from "@/lib/reputation/qr-campaigns";
 import { httpErrorFromException } from "@/lib/security/http-errors";
@@ -25,8 +27,34 @@ export async function GET(
       return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
     }
     const days = Number(url.searchParams.get("days") ?? 30);
+    const format = url.searchParams.get("format");
+
+    if (format === "csv") {
+      const entitlements = await getPaymentQrEntitlements(auth.organizationId);
+      if (!entitlements.csvExport) {
+        return NextResponse.json(
+          { error: "Upgrade required to export payment QR analytics as CSV." },
+          { status: 402 }
+        );
+      }
+      const analytics = await getPaymentQrAnalytics(campaignId, days);
+      const csv = buildPaymentQrAnalyticsCsv(analytics, {
+        campaignName: campaign.name,
+        days,
+      });
+      const filename = `payment-qr-${campaign.shortCode}-${days}d.csv`;
+      return new NextResponse(csv, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="${filename}"`,
+        },
+      });
+    }
+
     const analytics = await getPaymentQrAnalytics(campaignId, days);
-    return NextResponse.json(analytics);
+    const entitlements = await getPaymentQrEntitlements(auth.organizationId);
+    return NextResponse.json({ ...analytics, entitlements });
   } catch (err) {
     return httpErrorFromException(err, "Failed to load payment analytics");
   }

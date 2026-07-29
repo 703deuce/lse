@@ -74,15 +74,36 @@ export async function getPaymentPageBySlug(slug: string): Promise<{
   config: PaymentPageConfiguration;
 } | null> {
   const supabase = createServiceClient();
-  const { data: campaignRow } = await supabase
+
+  let campaignRow: Record<string, unknown> | null = null;
+
+  const bySlug = await supabase
     .from("review_qr_campaigns")
     .select("*")
-    .or(`public_slug.eq.${slug},short_code.eq.${slug}`)
+    .eq("public_slug", slug)
     .eq("campaign_type", "payment_review")
     .maybeSingle();
 
+  if (bySlug.error && !isMissingTable(bySlug.error.message)) {
+    throw new Error(bySlug.error.message);
+  }
+  if (bySlug.data) campaignRow = bySlug.data as Record<string, unknown>;
+
+  if (!campaignRow) {
+    const byCode = await supabase
+      .from("review_qr_campaigns")
+      .select("*")
+      .eq("short_code", slug)
+      .eq("campaign_type", "payment_review")
+      .maybeSingle();
+    if (byCode.error && !isMissingTable(byCode.error.message)) {
+      throw new Error(byCode.error.message);
+    }
+    if (byCode.data) campaignRow = byCode.data as Record<string, unknown>;
+  }
+
   if (!campaignRow) return null;
-  const campaign = rowToCampaign(campaignRow as Record<string, unknown>);
+  const campaign = rowToCampaign(campaignRow);
   if (campaign.status !== "active") return null;
 
   const config = await getPaymentConfigByCampaignId(campaign.id);
@@ -344,7 +365,10 @@ export async function recordQrEvent(params: {
     metadata: params.metadata ?? {},
   });
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingTable(error.message)) return { recorded: false };
+    throw new Error(error.message);
+  }
   return { recorded: true };
 }
 
@@ -355,7 +379,7 @@ export async function getPaymentQrAnalytics(
   const supabase = createServiceClient();
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-  const { data: events } = await supabase
+  const { data: events, error: eventsError } = await supabase
     .from("review_qr_events")
     .select("*")
     .eq("campaign_id", campaignId)
@@ -364,6 +388,10 @@ export async function getPaymentQrAnalytics(
     .eq("is_preview", false)
     .order("created_at", { ascending: false })
     .limit(5000);
+
+  if (eventsError && !isMissingTable(eventsError.message)) {
+    throw new Error(eventsError.message);
+  }
 
   const rows = events ?? [];
   const sessions = new Set<string>();
