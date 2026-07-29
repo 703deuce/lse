@@ -260,11 +260,13 @@
   object-fit: cover;
 }
 
-.gmr-problem-photo {
-  background:
-    linear-gradient(135deg, rgba(19, 119, 82, 0.12) 0%, transparent 50%),
-    url("../images/grid-hero.png") center/cover no-repeat;
-  min-height: 380px;
+.gmr-photo-wrap img {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 320px;
+  object-fit: cover;
+  object-position: top center;
 }
 
 .gmr-star-badge {
