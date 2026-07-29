@@ -2,12 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Check, LayoutTemplate, Palette, Smartphone } from "lucide-react";
-import { PaymentPublicPage } from "@/components/reputation/payment-qr/payment-public-page";
-import {
-  buildThumbPreviewConfig,
-  MOCK_CAMPAIGN,
-  TEMPLATE_SHOWCASE,
-} from "@/lib/reputation/payment-qr/showcase-mock";
+import { PaymentPageThemeIllustration } from "@/components/reputation/payment-qr/payment-page-theme-illustration";
+import { TEMPLATE_SHOWCASE } from "@/lib/reputation/payment-qr/showcase-mock";
 import { PAGE_THEMES, type PageThemeKey } from "@/lib/reputation/payment-qr/page-themes";
 import { cn } from "@/lib/utils";
 
@@ -44,13 +40,6 @@ function PaymentPageThumb({
     return () => ro.disconnect();
   }, []);
 
-  const config = buildThumbPreviewConfig(theme, { description });
-  const campaign = {
-    ...MOCK_CAMPAIGN,
-    name: businessName,
-    headline: businessName,
-  };
-
   return (
     <div
       ref={hostRef}
@@ -64,14 +53,10 @@ function PaymentPageThumb({
           transformOrigin: "top left",
         }}
       >
-        <PaymentPublicPage
-          slug={`theme-thumb-${theme}`}
-          campaign={campaign}
-          config={config}
+        <PaymentPageThemeIllustration
+          themeKey={theme}
           businessName={businessName}
-          isPreview
-          compact
-          themeOverride={theme}
+          description={description}
         />
       </div>
     </div>
