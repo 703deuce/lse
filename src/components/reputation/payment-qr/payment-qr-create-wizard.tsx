@@ -17,6 +17,7 @@ import { qrUi } from "@/components/reputation/qr-campaigns/qr-ui";
 import {
   AMOUNT_MODE_LABELS,
   AMOUNT_MODES,
+  HOSTED_PAYMENT_SECTION_HEADING,
   PAYMENT_PROVIDERS,
   type AmountMode,
   type PaymentPageConfiguration,
@@ -193,7 +194,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
       pageTheme: pageThemeFromPosterTemplate(templateKey),
       purpose: "pay",
       customPurposeLabel: null,
-      title: title || "Pay securely",
+      title: title || HOSTED_PAYMENT_SECTION_HEADING,
       description,
       thankYouMessage: "Thank you for your support!",
       paymentNote: paymentNote.trim() || null,
@@ -270,7 +271,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
     printFormat: "letter",
     showFooter: true,
     posterConfig: {
-      title: title || "Pay securely",
+      title: title || HOSTED_PAYMENT_SECTION_HEADING,
       description,
       brandColor: primaryColor,
       showFooter: true,
@@ -347,7 +348,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
               : [],
           allowCustomAmount: amountMode === "suggested",
           showReviewPrompt: true,
-          headline: title || "Pay securely",
+          headline: title || HOSTED_PAYMENT_SECTION_HEADING,
           templateKey: templateKey,
         }),
       });
@@ -431,7 +432,7 @@ export function PaymentQrCreateWizard({ businessId }: { businessId: string }) {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className={cn(qrUi.input, "mt-1.5")}
-                placeholder="Pay securely"
+                placeholder="Optional custom heading"
               />
             </div>
             <div>

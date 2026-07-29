@@ -11,6 +11,13 @@ export const PAYMENT_PROVIDERS = [
 ] as const;
 export type PaymentProvider = (typeof PAYMENT_PROVIDERS)[number];
 
+/** Hosted /p/ page — payment methods section heading */
+export const HOSTED_PAYMENT_SECTION_HEADING = "Choose how you'd like to pay";
+
+/** Short legal line below primary content on hosted pages */
+export const HOSTED_PAYMENT_DISCLAIMER =
+  "Payments are completed through the selected provider. Local SEO Express does not process or verify external payments.";
+
 export const PAYMENT_PURPOSES = [
   "pay",
   "tip",
@@ -33,7 +40,7 @@ export const PAYMENT_PURPOSE_LABELS: Record<PaymentPurpose, string> = {
 };
 
 export const PAYMENT_PURPOSE_HEADINGS: Record<PaymentPurpose, string> = {
-  pay: "Pay securely",
+  pay: "Choose how you'd like to pay",
   tip: "Leave a tip",
   donate: "Donate",
   pay_invoice: "Pay your invoice",

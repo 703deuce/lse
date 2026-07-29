@@ -18,10 +18,11 @@ import {
   PaymentPageHeaderDecor,
 } from "@/components/reputation/payment-qr/payment-page-header-decor";
 import { PaymentThemeLogo } from "@/components/reputation/payment-qr/payment-theme-logos";
-import { PaymentProviderIcon } from "@/components/reputation/payment-qr/payment-provider-icons";
+import { PaymentProviderIcon, GoogleMarkIcon } from "@/components/reputation/payment-qr/payment-provider-icons";
 import { SocialLinkIcon } from "@/components/reputation/payment-qr/payment-social-icons";
 import {
-  PAYMENT_PURPOSE_HEADINGS,
+  HOSTED_PAYMENT_SECTION_HEADING,
+  HOSTED_PAYMENT_DISCLAIMER,
   PROVIDER_CLICK_EVENTS,
   type AmountMode,
   type PaymentPageConfiguration,
@@ -91,7 +92,7 @@ function SectionLabel({
   return (
     <p
       className={cn(
-        "text-[11px] font-semibold uppercase tracking-[0.12em]",
+        "text-[10px] font-semibold uppercase tracking-[0.12em]",
         className
       )}
       style={{ color: theme.sectionLabel }}
@@ -162,10 +163,9 @@ export function PaymentPublicPage({
   const lockedNote = requestSession?.note ?? config.paymentNote ?? null;
 
   const heading =
-    config.title ??
-    (config.purpose === "custom" && config.customPurposeLabel
+    config.purpose === "custom" && config.customPurposeLabel
       ? config.customPurposeLabel
-      : PAYMENT_PURPOSE_HEADINGS[config.purpose]);
+      : null;
 
   const enabledMethods = useMemo(
     () =>
@@ -363,12 +363,14 @@ export function PaymentPublicPage({
             {config.description}
           </p>
         ) : null}
-        <p
-          className="mt-1.5 text-sm font-semibold"
-          style={{ color: theme.textSecondary }}
-        >
-          {heading}
-        </p>
+        {heading ? (
+          <p
+            className="mt-1.5 text-sm font-semibold"
+            style={{ color: theme.textSecondary }}
+          >
+            {heading}
+          </p>
+        ) : null}
       </div>
     </div>
   );
@@ -396,7 +398,7 @@ export function PaymentPublicPage({
     ) : amountMode === "suggested" && enabledAmounts.length > 0 ? (
       <div>
         <SectionLabel theme={theme}>{theme.amountLabel}</SectionLabel>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap gap-1.5">
           {enabledAmounts.map((a) => {
             const selected = selectedAmountCents === a.amountCents && !showCustomInput;
             return (
@@ -413,7 +415,7 @@ export function PaymentPublicPage({
                     });
                   }
                 }}
-                className="border-2 px-5 py-2.5 text-sm font-bold transition hover:opacity-90"
+                className="border-2 px-4 py-2 text-sm font-bold transition hover:opacity-90"
                 style={{
                   borderRadius: theme.pillRadius,
                   background: selected ? theme.pillSelectedBg : theme.pillBg,
@@ -443,7 +445,7 @@ export function PaymentPublicPage({
                 setShowCustomInput(true);
                 setSelectedAmountCents(null);
               }}
-              className="border-2 px-5 py-2.5 text-sm font-bold transition hover:opacity-90"
+              className="border-2 px-4 py-2 text-sm font-bold transition hover:opacity-90"
               style={{
                 borderRadius: theme.pillRadius,
                 background: showCustomInput ? theme.pillSelectedBg : theme.pillBg,
@@ -529,17 +531,19 @@ export function PaymentPublicPage({
 
   const methodsBlock = enabledMethods.length > 0 && (
     <div>
-      <SectionLabel theme={theme}>{theme.payLabel}</SectionLabel>
+      <SectionLabel theme={theme}>{HOSTED_PAYMENT_SECTION_HEADING}</SectionLabel>
       <div
         className={cn(
-          "mt-3",
-          theme.methodDivider && "divide-y",
-          !theme.methodDivider && "space-y-2"
+          "mt-2",
+          !isSectionLayout && "rounded-xl border px-2.5 py-0.5",
         )}
         style={
-          theme.methodDivider
-            ? { borderTop: `1px solid ${theme.methodCardBorder}` }
-            : undefined
+          isSectionLayout
+            ? undefined
+            : {
+                borderColor: theme.methodCardBorder,
+                background: theme.methodCardBg,
+              }
         }
       >
         {enabledMethods
@@ -548,6 +552,9 @@ export function PaymentPublicPage({
             const def = getPaymentProvider(method.provider);
             const blocked =
               requiresAmount && (!effectiveAmountCents || effectiveAmountCents <= 0);
+            const isLast =
+              idx ===
+              enabledMethods.filter((m) => m.provider !== "zelle" || !zelleExpanded).length - 1;
             return (
               <button
                 key={method.id}
@@ -555,24 +562,13 @@ export function PaymentPublicPage({
                 disabled={blocked}
                 onClick={() => void handlePaymentClick(method.provider)}
                 className={cn(
-                  "flex w-full items-center gap-3 text-left transition",
-                  theme.methodDivider
-                    ? "py-4 first:pt-0"
-                    : "rounded-xl border px-4 py-3.5 shadow-[0_2px_10px_rgba(15,23,42,0.05)] hover:shadow-[0_4px_14px_rgba(15,23,42,0.08)]",
+                  "flex w-full items-center gap-2.5 py-2.5 text-left transition",
                   blocked && "cursor-not-allowed opacity-50"
                 )}
                 style={
-                  theme.methodDivider
-                    ? {
-                        borderBottom:
-                          idx < enabledMethods.length - 1
-                            ? `1px solid ${theme.methodCardBorder}`
-                            : undefined,
-                      }
-                    : {
-                        background: theme.methodCardBg,
-                        borderColor: theme.methodCardBorder,
-                      }
+                  !isLast
+                    ? { borderBottom: `1px solid ${theme.methodCardBorder}` }
+                    : undefined
                 }
               >
                 <PaymentProviderIcon
@@ -580,13 +576,13 @@ export function PaymentPublicPage({
                   variant={theme.methodIconVariant}
                 />
                 <span
-                  className="flex-1 text-[15px] font-semibold"
+                  className="flex-1 text-[14px] font-semibold leading-snug"
                   style={{ color: theme.textPrimary }}
                 >
                   {def.buttonLabel}
                 </span>
                 <ChevronRight
-                  className="h-5 w-5 shrink-0 opacity-50"
+                  className="h-4 w-4 shrink-0 opacity-45"
                   style={{ color: theme.textMuted }}
                 />
               </button>
@@ -680,7 +676,7 @@ export function PaymentPublicPage({
         {theme.reviewSectionLabel}
       </SectionLabel>
       <div
-        className="mt-3 border p-5"
+        className="mt-2 border p-4"
         style={{
           borderRadius: theme.buttonRadius,
           background: theme.reviewBoxBg,
@@ -695,18 +691,18 @@ export function PaymentPublicPage({
         {[1, 2, 3, 4, 5].map((i) => (
           <Star
             key={i}
-            className="h-4 w-4 fill-[#F59E0B] text-[#F59E0B]"
+            className="h-3.5 w-3.5 fill-[#F59E0B] text-[#F59E0B]"
           />
         ))}
       </div>
       <p
-        className="mt-2.5 text-center text-[15px] font-bold leading-snug"
+        className="mt-2 text-center text-[14px] font-bold leading-snug"
         style={{ color: theme.textPrimary }}
       >
         {theme.reviewPrompt}
       </p>
       <p
-        className="mt-1 text-center text-xs leading-relaxed"
+        className="mt-0.5 text-center text-[11px] leading-snug"
         style={{ color: theme.textMuted }}
       >
         {theme.reviewSubtext}
@@ -715,7 +711,7 @@ export function PaymentPublicPage({
         <button
           type="button"
           onClick={() => void handleReviewClick("google", config.googleReviewUrl!)}
-          className="mt-4 flex w-full items-center justify-center py-3.5 text-sm font-bold transition hover:opacity-95"
+          className="mt-3 flex w-full items-center justify-center gap-2 py-2.5 text-sm font-bold transition hover:opacity-95"
           style={{
             borderRadius: theme.buttonRadius,
             background: theme.googleReviewBg,
@@ -725,6 +721,7 @@ export function PaymentPublicPage({
               (theme.key === "dark_luxury" ? `0 4px 20px ${theme.primary}40` : undefined),
           }}
         >
+          <GoogleMarkIcon className="h-5 w-5 shrink-0" />
           Leave a Google Review
         </button>
       )}
@@ -732,7 +729,7 @@ export function PaymentPublicPage({
         <button
           type="button"
           onClick={() => void handleReviewClick("facebook", config.facebookReviewUrl!)}
-          className="mt-2.5 flex w-full items-center justify-center border-2 py-3.5 text-sm font-bold transition hover:opacity-95"
+          className="mt-2 flex w-full items-center justify-center border-2 py-2.5 text-sm font-bold transition hover:opacity-95"
           style={{
             borderRadius: theme.buttonRadius,
             background: theme.facebookReviewBg,
@@ -819,24 +816,28 @@ export function PaymentPublicPage({
   const footerBlock = !compact && (
     <>
       <p
-        className="mt-6 text-center text-[10px] leading-relaxed"
-        style={{ color: theme.disclaimer }}
+        className="mt-4 text-center text-[9px] leading-tight"
+        style={{ color: theme.disclaimer, opacity: 0.85 }}
       >
-        Payments are completed directly through the selected provider. Local SEO Express
-        does not process, hold, or verify funds sent through external payment apps.
+        {HOSTED_PAYMENT_DISCLAIMER}
       </p>
       {config.showPlatformBranding && (
-        <p className="mt-2 text-center text-[10px]" style={{ color: theme.disclaimer }}>
+        <p
+          className="mt-1 text-center text-[9px] leading-tight"
+          style={{ color: theme.disclaimer, opacity: 0.7 }}
+        >
           Powered by Local SEO Express
         </p>
       )}
     </>
   );
 
+  const pageBottomPad = "pb-[calc(32px+env(safe-area-inset-bottom,0px))]";
+
   if (isSectionLayout) {
     return (
       <main
-        className={compact ? "min-h-0" : "min-h-screen"}
+        className={cn(compact ? "min-h-0" : "min-h-screen", pageBottomPad)}
         style={{ background: theme.pageBg, fontFamily: theme.fontFamily }}
       >
         <div className={cn("mx-auto px-3 py-4 sm:px-4", compact ? "max-w-[360px] py-3" : "max-w-md sm:py-5")}>
@@ -875,7 +876,7 @@ export function PaymentPublicPage({
 
   return (
     <main
-      className={compact ? "min-h-0" : "min-h-screen"}
+      className={cn(compact ? "min-h-0" : "min-h-screen", pageBottomPad)}
       style={{ background: theme.pageBg, fontFamily: theme.fontFamily }}
     >
       <div
@@ -895,25 +896,25 @@ export function PaymentPublicPage({
         >
           {headerBlock}
 
-          <div className="px-5 pb-6 pt-2 sm:px-6">
-            {amountBlock && <div className="mt-4">{amountBlock}</div>}
+          <div className="px-5 pb-4 pt-2 sm:px-6">
+            {amountBlock && <div className="mt-3">{amountBlock}</div>}
 
             {methodsBlock && (
-              <div className="mt-7">
+              <div className="mt-4">
                 {methodsBlock}
                 {requiresAmount && !effectiveAmountCents && !isPreview && !compact && (
-                  <p className="mt-3 text-center text-xs text-[#B45309]">
+                  <p className="mt-2 text-center text-[11px] text-[#B45309]">
                     Select or enter an amount before choosing a payment method.
                   </p>
                 )}
               </div>
             )}
 
-            {zelleBlock && <div className="mt-4">{zelleBlock}</div>}
+            {zelleBlock && <div className="mt-3">{zelleBlock}</div>}
 
-            {reviewsBlock && <div className="mt-7">{reviewsBlock}</div>}
+            {reviewsBlock && <div className="mt-4">{reviewsBlock}</div>}
 
-            {socialBlock && <div className="mt-7">{socialBlock}</div>}
+            {socialBlock && <div className="mt-4">{socialBlock}</div>}
 
             {footerBlock}
           </div>
