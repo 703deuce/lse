@@ -236,7 +236,8 @@ export function LocalTrustDashboard({ businessId }: { businessId: string }) {
               onRefresh={() => void load()}
               onRun={() => void runScan({})}
               hideRun={markets.length > 0}
-              showRescan={selectedMarket !== "all"}
+              showRescan={markets.length > 0}
+              rescanDisabled={selectedMarket === "all"}
               onRescan={() =>
                 selectedMarket !== "all" &&
                 void runScan({

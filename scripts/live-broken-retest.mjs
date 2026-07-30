@@ -48,8 +48,13 @@ const RUN_CHECKS = [
   },
   {
     path: `/businesses/${BUSINESS_ID}/trust`,
-    buttons: [/Find Local Trust/i, /Rescan Market/i],
+    buttons: [
+      /Rescan Market/i,
+      /Find Local Trust Opportunities/i,
+      /Find Local Trust/i,
+    ],
     apiPath: "/api/trust/run",
+    prep: "trust",
   },
   {
     path: `/businesses/${BUSINESS_ID}/keywords`,
@@ -65,6 +70,7 @@ const RUN_CHECKS = [
     path: `/businesses/${BUSINESS_ID}/ai-visibility`,
     button: /Run Check|Run AI/i,
     apiPath: "/api/ai-visibility/run",
+    prep: "ai-visibility",
   },
 ];
 
@@ -137,12 +143,63 @@ async function checkPageLoad(page, check) {
 async function findVisibleRunButton(page, cfg) {
   const patterns = cfg.buttons ?? (cfg.button ? [cfg.button] : []);
   for (const pattern of patterns) {
-    const btn = page.getByRole("button", { name: pattern }).first();
-    if ((await btn.count()) && (await btn.isVisible().catch(() => false))) {
+    const locator = page.getByRole("button", { name: pattern, disabled: false });
+    const count = await locator.count();
+    if (!count) continue;
+    const btn = locator.first();
+    if (await btn.isVisible().catch(() => false)) {
       return btn;
     }
   }
   return null;
+}
+
+/** Trust hides "Find" when markets exist; Rescan needs a specific market selected. */
+async function prepareTrustPage(page) {
+  const rescan = page.getByRole("button", { name: /Rescan Market/i }).first();
+  if (!(await rescan.count())) return;
+
+  const disabled = await rescan.isDisabled().catch(() => true);
+  if (!disabled) return;
+
+  console.log("  [RUN JOB] Trust: select a market so Rescan Market is enabled");
+  const marketTrigger = page
+    .locator("div")
+    .filter({ hasText: /^Market$/ })
+    .locator("..")
+    .getByRole("button")
+    .first();
+  await marketTrigger.click({ timeout: 10_000 }).catch(() => {});
+  await page.waitForTimeout(400);
+
+  const marketPick = page
+    .locator("div.absolute")
+    .getByRole("button")
+    .filter({ hasText: /,/ })
+    .first();
+  if (await marketPick.count()) {
+    await marketPick.click({ timeout: 10_000 });
+    await page.waitForTimeout(800);
+  }
+}
+
+/** Wait until Run Check is enabled (not already running from a prior enqueue). */
+async function prepareAiVisibilityPage(page) {
+  const runBtn = page.getByRole("button", { name: /Run Check|Run AI/i }).first();
+  if (!(await runBtn.count())) return;
+
+  for (let i = 0; i < 24; i++) {
+    if (!(await runBtn.isDisabled().catch(() => true))) return;
+    if (i === 0) {
+      console.log("  [RUN JOB] AI Visibility: waiting for Run Check to become enabled…");
+    }
+    await page.waitForTimeout(5000);
+  }
+}
+
+async function runPagePrep(page, cfg) {
+  if (cfg.prep === "trust") await prepareTrustPage(page);
+  if (cfg.prep === "ai-visibility") await prepareAiVisibilityPage(page);
 }
 
 async function checkRunButton(page, cfg) {
@@ -163,6 +220,7 @@ async function checkRunButton(page, cfg) {
       timeout: PAGE_TIMEOUT,
     });
     await page.waitForTimeout(5000);
+    await runPagePrep(page, cfg);
 
     const waitStart = Date.now();
     let btn = await findVisibleRunButton(page, cfg);
@@ -170,10 +228,17 @@ async function checkRunButton(page, cfg) {
       // Module dashboards often load data after first paint.
       for (let i = 0; i < 12 && !btn; i++) {
         await page.waitForTimeout(5000);
+        await runPagePrep(page, cfg);
         btn = await findVisibleRunButton(page, cfg);
       }
     }
     if (!btn) {
+      const disabledRun = page.getByRole("button", { name: /Run Check|Rescan Market|Find Local Trust/i }).first();
+      if ((await disabledRun.count()) && (await disabledRun.isDisabled().catch(() => false))) {
+        entry.error = "Run button present but disabled (job running or missing setup)";
+        console.log(`  [RUN JOB] FAIL — button disabled`);
+        return entry;
+      }
       entry.error = "Button not found";
       console.log(`  [RUN JOB] FAIL — no Run button on page after waiting`);
       return entry;
@@ -191,7 +256,7 @@ async function checkRunButton(page, cfg) {
       { timeout: RUN_POST_TIMEOUT }
     );
 
-    await btn.click();
+    await btn.click({ timeout: 60_000 });
     const resp = await apiPromise.catch(() => null);
     entry.waitedMs = Date.now() - waitStart;
 
@@ -258,6 +323,24 @@ async function main() {
   });
   await page.waitForTimeout(1500);
 
+  console.log("\n=== Page loads (previously broken) ===");
+  const pageResults = [];
+  for (const check of PAGE_CHECKS) {
+    process.stdout.write(`${check.label} ... `);
+    const r = await checkPageLoad(page, check);
+    pageResults.push(r);
+    console.log(r.ok ? "OK" : "FAIL");
+  }
+
+  console.log("\n=== Module Run buttons (previously broken) ===");
+  const runResults = [];
+  for (const cfg of RUN_CHECKS) {
+    process.stdout.write(`${cfg.path} ... `);
+    const r = await checkRunButton(page, cfg);
+    runResults.push(r);
+    console.log(r.ok ? "OK" : `FAIL (${r.error ?? r.apiStatus ?? "?"})`);
+  }
+
   console.log("\n=== Direct API enqueue (no page UI — triggers Coolify web logs) ===");
   const directResults = [];
   const directBody = { businessId: BUSINESS_ID };
@@ -276,24 +359,6 @@ async function main() {
         body: ep.body ?? directBody,
       })
     );
-  }
-
-  console.log("\n=== Page loads (previously broken) ===");
-  const pageResults = [];
-  for (const check of PAGE_CHECKS) {
-    process.stdout.write(`${check.label} ... `);
-    const r = await checkPageLoad(page, check);
-    pageResults.push(r);
-    console.log(r.ok ? "OK" : "FAIL");
-  }
-
-  console.log("\n=== Module Run buttons (previously broken) ===");
-  const runResults = [];
-  for (const cfg of RUN_CHECKS) {
-    process.stdout.write(`${cfg.path} ... `);
-    const r = await checkRunButton(page, cfg);
-    runResults.push(r);
-    console.log(r.ok ? "OK" : `FAIL (${r.error ?? r.apiStatus ?? "?"})`);
   }
 
   const report = {

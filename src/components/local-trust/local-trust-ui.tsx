@@ -112,6 +112,7 @@ export function TrustActionBar({
   runLabel = "Find Local Trust Opportunities",
   showRescan,
   onRescan,
+  rescanDisabled,
   hideRun,
 }: {
   businessId?: string;
@@ -122,6 +123,8 @@ export function TrustActionBar({
   runLabel?: string;
   showRescan?: boolean;
   onRescan?: () => void;
+  /** When true, Rescan is visible but disabled (e.g. "All Service Areas" selected). */
+  rescanDisabled?: boolean;
   hideRun?: boolean;
 }) {
   return (
@@ -138,7 +141,12 @@ export function TrustActionBar({
       {showRescan && onRescan && (
         <button
           type="button"
-          disabled={isRunning}
+          disabled={isRunning || rescanDisabled}
+          title={
+            rescanDisabled
+              ? "Select a specific market from the dropdown to rescan"
+              : undefined
+          }
           onClick={onRescan}
           className={cn(btnPrimary, "h-9 px-3.5 text-[13px]")}
         >
