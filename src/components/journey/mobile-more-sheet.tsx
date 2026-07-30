@@ -61,7 +61,7 @@ export function MobileMoreSheet() {
         <div className="sticky top-0 flex items-center justify-between border-b border-white/10 bg-sidebar px-4 py-3">
           <div>
             <p className="text-sm font-semibold text-white">Menu</p>
-            <p className="text-[11px] text-slate-400">Choose a suite, then a section.</p>
+            <p className="text-[11px] text-slate-400">Choose a suite, then open a section.</p>
           </div>
           <button
             type="button"
@@ -78,6 +78,7 @@ export function MobileMoreSheet() {
             businessId={businessId}
             pathname={pathname}
             onNavigate={close}
+            forceMobileAccordion
           />
         </div>
       </div>
