@@ -114,6 +114,8 @@ export function httpErrorFromException(
   }
 
   if (
+    code === "PGRST204" ||
+    lower.includes("schema cache") ||
     (lower.includes("column") && lower.includes("does not exist")) ||
     lower.includes("violates check constraint") ||
     lower.includes("violates not-null constraint") ||
