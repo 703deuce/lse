@@ -2,249 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Suspense, useEffect, useState, type ComponentType } from "react";
-import {
-  Building2,
-  ChevronDown,
-  Lock,
-  MapPin,
-} from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
+import { Building2, ChevronDown, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { organizationLooksLikeTrial } from "@/lib/auth/trial-status";
-import { isSmbLaunchNavEnabled } from "@/lib/product/smb-launch";
+import { isAgencyOrganizationPlan } from "@/lib/product/organization";
 import { SidebarUserMenu } from "@/components/auth/sidebar-user-menu";
 import { BusinessSwitcher } from "@/components/dashboard/business-switcher";
-import {
-  buildUnifiedSidebarNav,
-  isSidebarHrefActive,
-  type SidebarNavGroup,
-  type SidebarNavItem,
-} from "@/components/dashboard/dashboard-nav";
-
-function SidebarNavItemRow({
-  href,
-  label,
-  icon: Icon,
-  active,
-  locked,
-  staticLinks,
-  onNavigate,
-}: {
-  href: string;
-  label: string;
-  icon: ComponentType<{ className?: string }>;
-  active: boolean;
-  locked?: boolean;
-  staticLinks?: boolean;
-  onNavigate?: () => void;
-}) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const showActive = mounted && active && !locked;
-
-  const className = cn(
-    "relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors",
-    locked
-      ? "text-slate-500 hover:bg-white/5 hover:text-slate-300"
-      : showActive
-        ? "bg-[#137752] text-white"
-        : "text-slate-300 hover:bg-white/5 hover:text-white"
-  );
-
-  const content = (
-    <>
-      <Icon
-        className={cn(
-          "h-4 w-4 shrink-0",
-          locked ? "text-slate-500" : showActive ? "text-white" : "text-slate-400"
-        )}
-      />
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      {locked ? <Lock className="h-3.5 w-3.5 shrink-0 text-amber-400/90" aria-hidden /> : null}
-    </>
-  );
-
-  if (staticLinks) {
-    return <div className={className}>{content}</div>;
-  }
-
-  return (
-    <Link
-      href={href}
-      suppressHydrationWarning
-      className={className}
-      title={locked ? "Upgrade to unlock" : undefined}
-      onClick={() => onNavigate?.()}
-    >
-      {content}
-    </Link>
-  );
-}
-
-function SidebarNavSubItemRow({
-  href,
-  label,
-  active,
-  dot,
-  staticLinks,
-  onNavigate,
-}: {
-  href: string;
-  label: string;
-  active: boolean;
-  dot?: boolean;
-  staticLinks?: boolean;
-  onNavigate?: () => void;
-}) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const showActive = mounted && active;
-
-  const className = cn(
-    "relative flex items-center gap-2 rounded-md py-1.5 pl-9 pr-3 text-[12px] font-medium transition-colors",
-    showActive ? "text-emerald-300" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
-  );
-
-  const content = (
-    <>
-      {dot && showActive && (
-        <span className="absolute left-4 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-emerald-400" />
-      )}
-      {label}
-    </>
-  );
-
-  if (staticLinks) {
-    return <div className={className}>{content}</div>;
-  }
-
-  return (
-    <Link
-      href={href}
-      suppressHydrationWarning
-      className={className}
-      onClick={() => onNavigate?.()}
-    >
-      {content}
-    </Link>
-  );
-}
-
-function ReputationNavSection({
-  title,
-  overview,
-  groups,
-  businessId,
-  pathname,
-  staticLinks,
-  onNavigate,
-}: {
-  title: string;
-  overview: SidebarNavItem;
-  groups: SidebarNavGroup[];
-  businessId?: string | null;
-  pathname: string;
-  staticLinks?: boolean;
-  onNavigate?: () => void;
-}) {
-  return (
-    <div className="mb-2">
-      <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-        {title}
-      </p>
-      <div className="space-y-0.5">
-        <SidebarNavItemRow
-          href={overview.href}
-          label={overview.label}
-          icon={overview.icon}
-          active={isSidebarHrefActive(pathname, overview.href, businessId)}
-          locked={overview.locked}
-          staticLinks={staticLinks}
-          onNavigate={onNavigate}
-        />
-        {groups.map((group) => (
-          <div key={group.title || "items"} className={group.title ? "pt-1.5" : "pt-0.5"}>
-            {group.title ? (
-              <p className="mb-0.5 px-3 text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500/80">
-                {group.title}
-              </p>
-            ) : null}
-            <div className="space-y-0.5">
-              {group.items.map((item) => (
-                <SidebarNavItemRow
-                  key={`${item.label}-${item.href}`}
-                  href={item.href}
-                  label={item.label}
-                  icon={item.icon}
-                  active={isSidebarHrefActive(pathname, item.href, businessId)}
-                  locked={item.locked}
-                  staticLinks={staticLinks}
-                  onNavigate={onNavigate}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function NavSection({
-  title,
-  items,
-  businessId,
-  pathname,
-  staticLinks,
-  onNavigate,
-}: {
-  title: string;
-  items: SidebarNavItem[];
-  businessId?: string | null;
-  pathname: string;
-  staticLinks?: boolean;
-  onNavigate?: () => void;
-}) {
-  if (!items.length) return null;
-  return (
-    <div className="mb-2">
-      {title ? (
-        <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-          {title}
-        </p>
-      ) : null}
-      <div className="space-y-0.5">
-        {items.map((item) => (
-          <div key={`${item.label}-${item.href}`}>
-            <SidebarNavItemRow
-              href={item.href}
-              label={item.label}
-              icon={item.icon}
-              active={isSidebarHrefActive(pathname, item.href, businessId, {
-                isRankGrid: item.isRankGrid,
-                exact: Boolean(item.children?.length),
-              })}
-              locked={item.locked}
-              staticLinks={staticLinks}
-              onNavigate={onNavigate}
-            />
-            {item.children?.map((child) => (
-              <SidebarNavSubItemRow
-                key={child.href}
-                href={child.href}
-                label={child.badge ? `${child.label} · ${child.badge}` : child.label}
-                active={isSidebarHrefActive(pathname, child.href, businessId)}
-                dot
-                staticLinks={staticLinks}
-                onNavigate={onNavigate}
-              />
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+import { SuiteNavigationList, useAppSuites } from "@/components/dashboard/suite-nav-panel";
 
 export function DashboardSidebarPanel({
   businessId,
@@ -253,6 +18,7 @@ export function DashboardSidebarPanel({
   staticLinks = false,
   showFooter = true,
   trial = false,
+  showAgencySuite = false,
   className,
   onNavigate,
 }: {
@@ -261,12 +27,12 @@ export function DashboardSidebarPanel({
   businessName?: string | null;
   staticLinks?: boolean;
   showFooter?: boolean;
-  /** When true, paid SMB features stay visible but locked */
   trial?: boolean;
+  showAgencySuite?: boolean;
   className?: string;
   onNavigate?: () => void;
 }) {
-  const nav = buildUnifiedSidebarNav(businessId, { trial });
+  const suites = useAppSuites(businessId, trial, showAgencySuite);
 
   return (
     <aside
@@ -320,75 +86,15 @@ export function DashboardSidebarPanel({
         )}
       </div>
 
-      <nav className="flex-1 space-y-0.5 overflow-y-auto overscroll-contain p-2.5" suppressHydrationWarning>
-        <div className="mb-2">
-          <SidebarNavItemRow
-            href={nav.getStarted.href}
-            label={nav.getStarted.label}
-            icon={nav.getStarted.icon}
-            active={isSidebarHrefActive(pathname, nav.getStarted.href, businessId)}
-            locked={nav.getStarted.locked}
-            staticLinks={staticLinks}
-            onNavigate={onNavigate}
-          />
-        </div>
-
-        <NavSection
-          title={nav.work.title}
-          items={nav.work.items}
+      <nav
+        className="flex-1 overflow-y-auto overscroll-contain p-2.5"
+        suppressHydrationWarning
+        aria-label="App navigation"
+      >
+        <SuiteNavigationList
+          suites={suites}
           businessId={businessId}
           pathname={pathname}
-          staticLinks={staticLinks}
-          onNavigate={onNavigate}
-        />
-
-        <NavSection
-          title={nav.growthTools.title}
-          items={nav.growthTools.items}
-          businessId={businessId}
-          pathname={pathname}
-          staticLinks={staticLinks}
-          onNavigate={onNavigate}
-        />
-        <ReputationNavSection
-          title={nav.reputation.title}
-          overview={nav.reputation.overview}
-          groups={nav.reputation.groups}
-          businessId={businessId}
-          pathname={pathname}
-          staticLinks={staticLinks}
-          onNavigate={onNavigate}
-        />
-        <NavSection
-          title={nav.freeTools.title}
-          items={nav.freeTools.items}
-          businessId={businessId}
-          pathname={pathname}
-          staticLinks={staticLinks}
-          onNavigate={onNavigate}
-        />
-        <NavSection
-          title={nav.textMessaging.title}
-          items={nav.textMessaging.items}
-          businessId={businessId}
-          pathname={pathname}
-          staticLinks={staticLinks}
-          onNavigate={onNavigate}
-        />
-        <NavSection
-          title={nav.deliverables.title}
-          items={nav.deliverables.items}
-          businessId={businessId}
-          pathname={pathname}
-          staticLinks={staticLinks}
-          onNavigate={onNavigate}
-        />
-        <NavSection
-          title={nav.account.title}
-          items={nav.account.items}
-          businessId={businessId}
-          pathname={pathname}
-          staticLinks={staticLinks}
           onNavigate={onNavigate}
         />
       </nav>
@@ -408,7 +114,6 @@ export function DashboardSidebar({
   onNavigate,
 }: {
   businessId?: string;
-  /** @deprecated Compare is opened from Rank Grid, not the sidebar */
   compareActive?: boolean;
   className?: string;
   onNavigate?: () => void;
@@ -451,8 +156,8 @@ function DashboardSidebarInner({
 }) {
   const pathname = usePathname();
   const [businessName, setBusinessName] = useState<string | null>(null);
-  // SMB defaults locked until usage proves paid — avoids unlock race before fetch.
-  const [trial, setTrial] = useState(() => isSmbLaunchNavEnabled());
+  const [trial, setTrial] = useState(true);
+  const [showAgencySuite, setShowAgencySuite] = useState(false);
 
   useEffect(() => {
     if (!businessId) {
@@ -478,14 +183,10 @@ function DashboardSidebarInner({
               billing_status: json.organization.billing_status,
             })
           );
-        } else if (isSmbLaunchNavEnabled()) {
-          // Keep locked if usage cannot be loaded (e.g. missing billing.read).
-          setTrial(true);
+          setShowAgencySuite(isAgencyOrganizationPlan(json.organization.plan));
         }
       })
-      .catch(() => {
-        if (isSmbLaunchNavEnabled()) setTrial(true);
-      });
+      .catch(() => undefined);
   }, []);
 
   return (
@@ -494,6 +195,7 @@ function DashboardSidebarInner({
       pathname={pathname}
       businessName={businessName}
       trial={trial}
+      showAgencySuite={showAgencySuite}
       className={className}
       onNavigate={onNavigate}
     />

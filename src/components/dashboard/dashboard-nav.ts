@@ -421,16 +421,13 @@ function buildSmbSidebarNav(
 }
 
 /**
- * One sidebar for the whole app.
- * SMB launch is default; set NEXT_PUBLIC_NAV_MODE=agency for the full consultant nav.
+ * Unified suite navigation replaces the legacy flat SMB/agency sidebars.
+ * @deprecated Legacy flat nav — use buildAppSuites from suite-navigation.ts
  */
 export function buildUnifiedSidebarNav(
   businessId?: string | null,
   options?: SidebarNavOptions
 ): ReturnType<typeof buildAgencySidebarNav> {
-  if (isSmbLaunchNavEnabled()) {
-    return buildSmbSidebarNav(businessId, options);
-  }
   return buildAgencySidebarNav(businessId);
 }
 
