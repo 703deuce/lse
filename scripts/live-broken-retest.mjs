@@ -133,6 +133,17 @@ async function checkPageLoad(page, check) {
   return result;
 }
 
+async function findVisibleRunButton(page, cfg) {
+  const patterns = cfg.buttons ?? (cfg.button ? [cfg.button] : []);
+  for (const pattern of patterns) {
+    const btn = page.getByRole("button", { name: pattern }).first();
+    if ((await btn.count()) && (await btn.isVisible().catch(() => false))) {
+      return btn;
+    }
+  }
+  return null;
+}
+
 async function checkRunButton(page, cfg) {
   const entry = {
     label: cfg.path,
@@ -141,6 +152,7 @@ async function checkRunButton(page, cfg) {
     apiUrl: null,
     apiBody: null,
     error: null,
+    waitedMs: null,
   };
 
   try {
@@ -148,12 +160,18 @@ async function checkRunButton(page, cfg) {
       waitUntil: "domcontentloaded",
       timeout: PAGE_TIMEOUT,
     });
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(5000);
 
-    const btn = page.getByRole("button", { name: cfg.button }).first();
-    try {
-      await btn.waitFor({ state: "visible", timeout: 30_000 });
-    } catch {
+    const waitStart = Date.now();
+    let btn = await findVisibleRunButton(page, cfg);
+    if (!btn) {
+      // Module dashboards often load data after first paint.
+      for (let i = 0; i < 12 && !btn; i++) {
+        await page.waitForTimeout(5000);
+        btn = await findVisibleRunButton(page, cfg);
+      }
+    }
+    if (!btn) {
       entry.error = "Button not found";
       return entry;
     }
@@ -167,9 +185,10 @@ async function checkRunButton(page, cfg) {
 
     await btn.click();
     const resp = await apiPromise.catch(() => null);
+    entry.waitedMs = Date.now() - waitStart;
 
     if (!resp) {
-      entry.error = `No matching POST within ${RUN_POST_TIMEOUT / 1000}s`;
+      entry.error = `No matching POST within ${RUN_POST_TIMEOUT / 1000}s (waited ${entry.waitedMs}ms after click)`;
       return entry;
     }
 
