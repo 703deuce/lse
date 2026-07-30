@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { LogoutButton } from "@/components/auth/logout-button";
 
+/** Account summary for sidebar footer (sign out lives in Settings suite nav). */
 export function SidebarUserMenu() {
   const [name, setName] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
@@ -55,7 +55,6 @@ export function SidebarUserMenu() {
           <p className="truncate text-[10px] text-slate-400">{email ?? "Signed in"}</p>
         </div>
       </div>
-      <LogoutButton className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/5 hover:text-white" />
     </div>
   );
 }

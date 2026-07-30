@@ -9,7 +9,13 @@ const devBypass =
   process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true" ||
   process.env.NODE_ENV === "development";
 
-export function LogoutButton({ className }: { className?: string }) {
+export function LogoutButton({
+  className,
+  label,
+}: {
+  className?: string;
+  label?: string;
+}) {
   const router = useRouter();
 
   async function logout() {
@@ -35,8 +41,8 @@ export function LogoutButton({ className }: { className?: string }) {
       onClick={logout}
       className={className ?? "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"}
     >
-      <LogOut className="h-3.5 w-3.5" />
-      {devBypass ? "Exit dev mode" : "Log out"}
+      <LogOut className="h-3.5 w-3.5 shrink-0" />
+      {label ?? (devBypass ? "Exit dev mode" : "Log out")}
     </button>
   );
 }
