@@ -7,23 +7,14 @@ import { X } from "lucide-react";
 import { useDashboardUI } from "@/components/dashboard/dashboard-context";
 import { SuiteNavigationList, useAppSuites } from "@/components/dashboard/suite-nav-panel";
 import { organizationLooksLikeTrial } from "@/lib/auth/trial-status";
+import { businessIdFromDashboardPath } from "@/lib/dashboard/path-business-id";
 import { isAgencyOrganizationPlan } from "@/lib/product/organization";
-
-function businessIdFromPath(pathname: string): string | null {
-  const m = pathname.match(/\/businesses\/([^/]+)/);
-  if (m?.[1] && m[1] !== "new") return m[1];
-  const c = pathname.match(/\/clients\/([^/]+)/);
-  if (c?.[1]) return c[1];
-  const p = pathname.match(/\/prospects\/([^/]+)/);
-  if (p?.[1]) return p[1];
-  return null;
-}
 
 /** Mobile More menu — suite drill-down navigation (same as desktop sidebar). */
 export function MobileMoreSheet() {
   const pathname = usePathname();
   const { mobileNavOpen, setMobileNavOpen } = useDashboardUI();
-  const businessId = businessIdFromPath(pathname);
+  const businessId = businessIdFromDashboardPath(pathname) ?? null;
   const [trial, setTrial] = useState(true);
   const [showAgencySuite, setShowAgencySuite] = useState(false);
   const suites = useAppSuites(businessId, trial, showAgencySuite);

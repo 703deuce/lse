@@ -8,18 +8,8 @@ import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
 import { MobileMoreSheet } from "@/components/journey/mobile-more-sheet";
 import { DashboardUIProvider, useDashboardUI } from "@/components/dashboard/dashboard-context";
 import { DesktopTopBar } from "@/components/mockup/desktop-topbar";
+import { businessIdFromDashboardPath } from "@/lib/dashboard/path-business-id";
 import { cn } from "@/lib/utils";
-
-function extractBusinessId(pathname: string): string | undefined {
-  const business = pathname.match(/^\/businesses\/([^/]+)/);
-  if (business?.[1] && business[1] !== "new") return business[1];
-  // Freelancer CRM detail routes use the same business UUID.
-  const client = pathname.match(/^\/clients\/([^/]+)/);
-  if (client?.[1]) return client[1];
-  const prospect = pathname.match(/^\/prospects\/([^/]+)/);
-  if (prospect?.[1]) return prospect[1];
-  return undefined;
-}
 
 /** Rank grid map view — full-bleed main, no page padding. */
 function isFullBleedRoute(pathname: string): boolean {
@@ -28,7 +18,7 @@ function isFullBleedRoute(pathname: string): boolean {
 
 function DashboardShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const businessId = extractBusinessId(pathname);
+  const businessId = businessIdFromDashboardPath(pathname);
   const { compareActive, mobileNavOpen, setMobileNavOpen } = useDashboardUI();
   const fullBleed = isFullBleedRoute(pathname);
 
