@@ -48,7 +48,7 @@ const RUN_CHECKS = [
   },
   {
     path: `/businesses/${BUSINESS_ID}/trust`,
-    button: /Find Local Trust Opportunities|Rescan Market/i,
+    buttons: [/Find Local Trust/i, /Rescan Market/i],
     apiPath: "/api/trust/run",
   },
   {
