@@ -52,6 +52,7 @@ export async function createLedgerJob(input: EnqueueJobInput): Promise<QueueJobR
       idempotency_key: input.idempotencyKey ?? null,
       max_attempts: input.maxAttempts ?? 3,
       scheduled_at: scheduledAt,
+      updated_at: new Date().toISOString(),
       // enqueue_state stays on legacy enum until migration 045; lifecycle_status carries the platform vocabulary.
       enqueue_state: "pending",
       lifecycle_status: "pending_enqueue",
