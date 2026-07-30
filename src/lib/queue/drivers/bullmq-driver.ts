@@ -15,6 +15,7 @@ import {
   assertValidBullmqQueueName,
   resolveBullmqQueueIdentity,
 } from "@/lib/queue/bullmq-names";
+import { logger } from "@/lib/observability/logger";
 
 const queues = new Map<string, import("bullmq").Queue>();
 
