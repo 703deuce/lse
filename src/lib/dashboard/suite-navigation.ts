@@ -14,6 +14,7 @@ import {
   History,
   LayoutDashboard,
   Link2,
+  Mail,
   MapPin,
   MessageSquareText,
   Palette,
@@ -32,7 +33,7 @@ import {
 import { toolHref, type LocationToolSlug } from "@/lib/dashboard/tool-modules";
 import { isSidebarHrefActive } from "@/components/dashboard/dashboard-nav";
 
-export type SuiteId = "local-seo" | "reviews" | "messaging" | "agency" | "settings";
+export type SuiteId = "local-seo" | "reviews" | "agency" | "settings";
 
 export type SuiteNavLink = {
   href: string;
@@ -86,7 +87,6 @@ export function buildAppSuites(
   const trial = Boolean(options?.trial);
   const showAgency = Boolean(options?.showAgencySuite);
 
-  const messagingHref = businessId ? loc("messaging", businessId) : "/tools/go/messaging";
   const businessSettingsHref = businessId ? `/businesses/${businessId}/settings` : "/settings";
   const requestHistoryHref = businessId
     ? `${loc("review-requests", businessId)}?tab=bulk`
@@ -97,11 +97,17 @@ export function buildAppSuites(
   const messagingNumberHref = businessId
     ? `${loc("messaging", businessId)}/number`
     : "/tools/go/messaging/number";
+  const campaignsHref = loc("review-campaigns", businessId);
 
   const lock = (feature: string, slug: LocationToolSlug, label: string, icon: LucideIcon) =>
     trial
       ? item(upgradeHref(feature), label, icon, { locked: true, badge: "Locked" })
       : item(loc(slug, businessId), label, icon);
+
+  const lockHref = (feature: string, href: string, label: string, icon: LucideIcon) =>
+    trial
+      ? item(upgradeHref(feature), label, icon, { locked: true, badge: "Locked" })
+      : item(href, label, icon);
 
   const suites: AppSuite[] = [
     {
@@ -110,14 +116,10 @@ export function buildAppSuites(
       icon: MapPin,
       sections: [
         {
-          id: "dashboard",
-          label: "Dashboard",
-          items: [item(loc("dashboard", businessId), "Dashboard", LayoutDashboard)],
-        },
-        {
           id: "maps",
           label: "Maps",
           items: [
+            item(loc("dashboard", businessId), "Dashboard", LayoutDashboard),
             item(loc("maps-scans", businessId), "Overview", Grid3X3, { isRankGrid: true }),
             item(loc("maps-scans", businessId), "New Scan", Grid3X3, { isRankGrid: true }),
             item("/scans", "Recent Scans", History),
@@ -128,8 +130,8 @@ export function buildAppSuites(
           ],
         },
         {
-          id: "growth",
-          label: "Growth",
+          id: "optimization",
+          label: "Optimization",
           items: [
             lock("complete-audit", "growth-audit", "Google Business Profile Audit", FileSearch),
             lock("complete-audit", "growth-audit", "Complete Audit", ClipboardList),
@@ -179,18 +181,34 @@ export function buildAppSuites(
           label: "Requests",
           items: [
             item(loc("review-requests", businessId), "Send Request", Send),
-            item(loc("review-requests", businessId), "Review Requests", MessageSquareText),
-            item(requestHistoryHref, "Request History", History),
             item(loc("contacts", businessId), "Contacts", Users),
             item(loc("contacts", businessId), "Customers", Users),
-            lock("campaigns", "review-campaigns", "Campaigns", FolderKanban),
+            item(requestHistoryHref, "Request History", History),
+          ],
+        },
+        {
+          id: "campaigns",
+          label: "Campaigns",
+          items: [
+            lockHref("campaigns", `${campaignsHref}?channel=sms`, "SMS Campaigns", MessageSquareText),
+            lockHref("campaigns", `${campaignsHref}?channel=email`, "Email Campaigns", Mail),
+            item(loc("review-templates", businessId), "Templates", FileText),
+            item(loc("integrations", businessId), "Automations", Webhook),
+            item(loc("review-alerts", businessId), "Alerts", Bell),
+          ],
+        },
+        {
+          id: "phone-numbers",
+          label: "Phone Numbers",
+          items: [
+            lockHref("messaging", messagingStatusHref, "Registration", Phone),
+            lockHref("messaging", messagingNumberHref, "Phone Numbers", Phone),
           ],
         },
         {
           id: "marketing",
           label: "Marketing",
           items: [
-            item(loc("review-templates", businessId), "Templates", FileText),
             item(loc("review-qr", businessId), "QR Campaigns", QrCode),
             item(loc("review-qr", businessId), "QR Code & Review Link", Link2),
             item("/tools/google-review-widget", "Review Widget", Star),
@@ -214,89 +232,46 @@ export function buildAppSuites(
       ],
     },
     {
-      id: "messaging",
-      label: "Messaging",
-      icon: MessageSquareText,
-      sections: [
-        {
-          id: "overview",
-          label: "Overview",
-          items: [
-            trial
-              ? item(upgradeHref("messaging"), "Overview", Phone, { locked: true, badge: "Locked" })
-              : item(messagingHref, "Overview", Phone),
-          ],
-        },
-        {
-          id: "setup",
-          label: "Setup",
-          items: [
-            trial
-              ? item(upgradeHref("messaging"), "Phone Numbers", MessageSquareText, {
-                  locked: true,
-                  badge: "Locked",
-                })
-              : item(messagingNumberHref, "Phone Numbers", MessageSquareText),
-            trial
-              ? item(upgradeHref("messaging"), "Registration", Phone, { locked: true, badge: "Locked" })
-              : item(messagingStatusHref, "Registration", Phone),
-          ],
-        },
-        {
-          id: "campaigns",
-          label: "Campaigns",
-          items: [
-            lock("campaigns", "review-campaigns", "Campaigns", FolderKanban),
-            item(loc("review-templates", businessId), "Templates", FileText),
-          ],
-        },
-        {
-          id: "automation",
-          label: "Automation",
-          items: [
-            item(loc("integrations", businessId), "Automations", Webhook),
-            item(loc("review-alerts", businessId), "Alerts", Bell),
-          ],
-        },
-        {
-          id: "contacts",
-          label: "Contacts",
-          items: [item(loc("contacts", businessId), "Contacts", Users)],
-        },
-        {
-          id: "messaging-settings",
-          label: "Messaging",
-          items: [
-            trial
-              ? item(upgradeHref("messaging"), "Messaging", Phone, { locked: true, badge: "Locked" })
-              : item(messagingHref, "Messaging", Phone),
-          ],
-        },
-      ],
-    },
-    {
       id: "settings",
       label: "Settings",
       icon: Settings,
       sections: [
         {
+          id: "get-started",
+          label: "Get Started",
+          items: [item("/onboarding", "Get Started", MapPin)],
+        },
+        {
           id: "account",
           label: "Account",
-          items: [
-            item("/onboarding", "Get started", MapPin),
-            item("/settings", "Account", Settings),
-            item(businessSettingsHref, "Business Profile", Building2),
-            item("/settings/subscription", "Billing", CreditCard),
-            item("/branding", "Branding", Palette),
-            item("/settings", "Settings", Settings),
-          ],
+          items: [item("/settings", "Account", Settings)],
+        },
+        {
+          id: "business-profile",
+          label: "Business Profile",
+          items: [item(businessSettingsHref, "Business Profile", Building2)],
+        },
+        {
+          id: "billing",
+          label: "Billing",
+          items: [item("/settings/subscription", "Billing", CreditCard)],
+        },
+        {
+          id: "branding",
+          label: "Branding",
+          items: [item("/branding", "Branding", Palette)],
+        },
+        {
+          id: "settings-hub",
+          label: "Settings",
+          items: [item("/settings", "Settings", Settings)],
         },
       ],
     },
   ];
 
   if (showAgency) {
-    suites.splice(3, 0, {
+    suites.splice(2, 0, {
       id: "agency",
       label: "Agency",
       icon: Building2,
@@ -324,13 +299,19 @@ export function buildAppSuites(
           ],
         },
         {
-          id: "agency-settings",
-          label: "Agency",
-          items: [
-            item("/branding", "Branding", Palette),
-            item("/settings/subscription", "Billing", CreditCard),
-            item(loc("reports", businessId), "Reports", FileText),
-          ],
+          id: "branding",
+          label: "Branding",
+          items: [item("/branding", "Branding", Palette)],
+        },
+        {
+          id: "billing",
+          label: "Billing",
+          items: [item("/settings/subscription", "Billing", CreditCard)],
+        },
+        {
+          id: "reports",
+          label: "Reports",
+          items: [item(loc("reports", businessId), "Reports", FileText)],
         },
       ],
     });
@@ -368,16 +349,50 @@ export function resolveSuiteNavContext(
       }
     }
   }
-  if (pathname.startsWith("/workspace") || pathname.startsWith("/prospects") || pathname.startsWith("/clients")) {
+
+  if (pathname.includes("/messaging") || pathname.includes("/automations") || pathname.includes("/alerts")) {
+    const reviews = suites.find((s) => s.id === "reviews");
+    if (reviews) {
+      if (pathname.includes("/messaging")) {
+        const phone = reviews.sections.find((s) => s.id === "phone-numbers");
+        if (phone) return { suiteId: "reviews", sectionId: phone.id };
+      }
+      const campaigns = reviews.sections.find((s) => s.id === "campaigns");
+      if (campaigns) return { suiteId: "reviews", sectionId: campaigns.id };
+    }
+  }
+
+  if (
+    pathname.startsWith("/workspace") ||
+    pathname.startsWith("/prospects") ||
+    pathname.startsWith("/clients") ||
+    pathname === "/businesses"
+  ) {
     const agency = suites.find((s) => s.id === "agency");
     if (agency) {
       if (pathname.startsWith("/prospects")) return { suiteId: "agency", sectionId: "prospects" };
       if (pathname.startsWith("/clients")) return { suiteId: "agency", sectionId: "clients" };
+      if (pathname === "/businesses" || pathname.startsWith("/businesses?")) {
+        return { suiteId: "agency", sectionId: "clients" };
+      }
       return { suiteId: "agency", sectionId: "workspace" };
     }
   }
-  if (pathname.startsWith("/settings") || pathname.startsWith("/onboarding") || pathname.startsWith("/branding")) {
-    return { suiteId: "settings", sectionId: "account" };
+
+  if (
+    pathname.startsWith("/settings") ||
+    pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/branding")
+  ) {
+    if (pathname.startsWith("/onboarding")) return { suiteId: "settings", sectionId: "get-started" };
+    if (pathname.startsWith("/branding")) return { suiteId: "settings", sectionId: "branding" };
+    if (pathname.includes("/subscription")) return { suiteId: "settings", sectionId: "billing" };
+    return { suiteId: "settings", sectionId: "settings-hub" };
   }
+
+  if (businessId && pathname === `/businesses/${businessId}/settings`) {
+    return { suiteId: "settings", sectionId: "business-profile" };
+  }
+
   return null;
 }

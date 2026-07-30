@@ -2,24 +2,17 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  Building2,
-  MapPin,
-  MessageSquareText,
-  Settings,
-  Star,
-} from "lucide-react";
+import { Building2, MapPin, Settings, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboardUI } from "@/components/dashboard/dashboard-context";
 import { isAgencyOrganizationPlan } from "@/lib/product/organization";
 import type { SuiteId } from "@/lib/dashboard/suite-navigation";
 
 const SUITE_TABS: {
-  id: SuiteId | "more";
+  id: SuiteId;
   label: string;
   icon: typeof MapPin;
   match: (p: string) => boolean;
-  href?: string;
 }[] = [
   {
     id: "local-seo",
@@ -34,7 +27,7 @@ const SUITE_TABS: {
       p.includes("/ai-visibility") ||
       p.includes("/local-seo-health") ||
       p.includes("/tasks") ||
-      p.includes("/overview") ||
+      (p.includes("/overview") && !p.includes("/reputation/")) ||
       p.includes("/campaigns") ||
       p.includes("/keywords"),
   },
@@ -42,13 +35,13 @@ const SUITE_TABS: {
     id: "reviews",
     label: "Reviews",
     icon: Star,
-    match: (p) => p.includes("/reputation/") && !p.includes("/messaging"),
-  },
-  {
-    id: "messaging",
-    label: "Messaging",
-    icon: MessageSquareText,
-    match: (p) => p.includes("/messaging") || p.includes("/automations") || p.includes("/alerts"),
+    match: (p) =>
+      p.includes("/reputation/") ||
+      p.includes("/messaging") ||
+      p.includes("/automations") ||
+      p.includes("/alerts") ||
+      p.includes("/tools/review-") ||
+      p.includes("/tools/google-review-widget"),
   },
   {
     id: "agency",
@@ -69,9 +62,7 @@ const SUITE_TABS: {
   },
 ];
 
-/**
- * Mobile bottom nav — five product suites + More (opens full sidebar sheet).
- */
+/** Mobile bottom nav — product suites + More (opens accordion menu sheet). */
 export function MobileBottomNav() {
   const pathname = usePathname();
   const { setMobileNavOpen } = useDashboardUI();
@@ -93,13 +84,14 @@ export function MobileBottomNav() {
   }
 
   const tabs = SUITE_TABS.filter((t) => t.id !== "agency" || showAgency);
+  const colCount = tabs.length + 1;
 
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
       aria-label="Product suites"
     >
-      <ul className="grid" style={{ gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))` }}>
+      <ul className="grid" style={{ gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))` }}>
         {tabs.map((tab) => {
           const active = tab.match(pathname);
           const Icon = tab.icon;
@@ -114,7 +106,7 @@ export function MobileBottomNav() {
                 )}
               >
                 <Icon className={cn("h-5 w-5", active ? "text-emerald-600" : "text-zinc-400")} />
-                <span className="truncate max-w-full">{tab.label}</span>
+                <span className="max-w-full truncate">{tab.label}</span>
               </button>
             </li>
           );
@@ -126,7 +118,7 @@ export function MobileBottomNav() {
             className="flex w-full flex-col items-center gap-0.5 px-1 py-2 text-[10px] font-medium text-zinc-500"
           >
             <Settings className="h-5 w-5 text-zinc-400" />
-            More
+            Menu
           </button>
         </li>
       </ul>
