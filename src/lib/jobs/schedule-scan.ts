@@ -4,6 +4,7 @@ import { processScanBatch } from "@/lib/jobs/process-scan";
 import { listStaleInFlightScanIds, scanLeaseTtlMs } from "@/lib/jobs/scan-lease";
 import { maybeReleaseUnusedMapCredits } from "@/lib/jobs/map-credits";
 import { enqueueMapsScanJob, resolveQueueDriver } from "@/lib/queue";
+import type { QueueDriverName } from "@/lib/queue/types";
 import { findJobByIdempotencyKey } from "@/lib/queue/ledger";
 import { logger } from "@/lib/observability/logger";
 
@@ -77,7 +78,7 @@ export async function dispatchScanProcessing(params: {
   scanBatchId: string;
   businessId: string;
   organizationId: string;
-}): Promise<{ jobId: string; driver: string }> {
+}): Promise<{ jobId: string; driver: QueueDriverName }> {
   logger.info("maps_scan_dispatch_start", {
     scanBatchId: params.scanBatchId,
     businessId: params.businessId,
