@@ -117,6 +117,13 @@ export async function bullmqEnqueue(input: EnqueueJobInput): Promise<EnqueueJobR
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "BullMQ enqueue failed";
+    logger.error("bullmq_enqueue_failed", {
+      jobType: input.jobType,
+      queueName: input.queueName,
+      jobId: row.id,
+      error: message,
+      redisMisconf: /MISCONF|stop-writes-on-bgsave-error/i.test(message),
+    });
     await markLedgerEnqueueFailed(row.id, message);
     return {
       jobId: row.id,

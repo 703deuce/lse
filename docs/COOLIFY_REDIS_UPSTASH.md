@@ -69,6 +69,57 @@ If `rawHost` is still the old id but `resolvedHost` is dynamic-pipefish, the
 code rewrite is active — still replace Coolify `REDIS_URL` so password/token
 matches the new database.
 
+## Redis MISCONF / stop-writes-on-bgsave-error
+
+If Run buttons or Coolify show:
+
+```text
+MISCONF Redis is configured to save RDB snapshots, but it's currently unable to persist to disk.
+Commands that may modify the data set are disabled (stop-writes-on-bgsave-error).
+```
+
+This is **not an application bug**. The Redis instance (usually Coolify’s bundled
+Redis) cannot write its RDB snapshot — often **disk full**, **wrong permissions**
+on the Redis data directory, or a **failed background save**.
+
+### Fix the Redis server (recommended)
+
+On the **Redis** Coolify resource → Terminal:
+
+```bash
+df -h
+redis-cli INFO persistence | grep -E 'rdb_last_bgsave_status|aof_last_write_status'
+redis-cli CONFIG GET dir
+```
+
+- Free disk space on the host/volume, or fix permissions on the `dir` path.
+- Check Redis container logs in Coolify for the exact `bgsave` error.
+- After the root cause is fixed, writes resume automatically.
+
+**Temporary only** (do not rely on this long-term):
+
+```bash
+redis-cli CONFIG SET stop-writes-on-bgsave-error no
+```
+
+### Use Upstash instead of Coolify Redis
+
+Managed Redis avoids local disk snapshot issues. Set `REDIS_URL` to Upstash
+`rediss://…@dynamic-pipefish-176544.upstash.io:6379` on **web + every worker**,
+then **Redeploy** (see sections above).
+
+### Immediate unblock without fixing Redis (database queue)
+
+Until Redis accepts writes again, set on the **web app** only:
+
+```bash
+QUEUE_DRIVER=database
+```
+
+Redeploy the web app. Enqueues write to Postgres `job_queue` only (no BullMQ
+Redis write). Cron `POST /api/jobs/process` and Next.js `after()` run jobs.
+Workers stay idle until you flip back to `QUEUE_DRIVER=bullmq` with healthy Redis.
+
 ## Repo check
 
 There is **no** hardcoded retired hostname in Dockerfiles or compose files.
