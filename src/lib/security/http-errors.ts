@@ -96,6 +96,26 @@ export function httpErrorFromException(
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
+  if (
+    (lower.includes("column") && lower.includes("does not exist")) ||
+    lower.includes("violates check constraint") ||
+    lower.includes("violates not-null constraint") ||
+    lower.includes("null value in column") ||
+    (lower.includes("does not exist") &&
+      (lower.includes("function") || lower.includes("relation"))) ||
+    lower.includes("invalid input syntax for type")
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Database schema is behind the application. Apply pending Supabase migrations and reload the PostgREST schema.",
+        code: "schema_drift",
+        detail: message.slice(0, 240),
+      },
+      { status: 503 }
+    );
+  }
+
   if (err instanceof Error && message && message.length < 240) {
     const userFacing =
       lower.includes("required") ||
