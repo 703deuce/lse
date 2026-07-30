@@ -1,4 +1,4 @@
-import { getQueueDriverName, getRedisUrl } from "@/lib/queue/config";
+import { getQueueDriverName, getRedisUrl, getRedisUrlEnvSource, getResolvedRedisHost } from "@/lib/queue/config";
 import { databaseEnqueue } from "@/lib/queue/drivers/database-driver";
 import {
   bullmqEnqueue,
@@ -51,6 +51,12 @@ export async function enqueueJob(input: EnqueueJobInput): Promise<EnqueueJobResu
     businessId: input.businessId,
     driver,
     idempotencyKey: input.idempotencyKey ?? null,
+    ...(driver === "bullmq"
+      ? {
+          redisHost: getResolvedRedisHost(),
+          redisUrlSource: getRedisUrlEnvSource(),
+        }
+      : {}),
   });
   try {
     await assertOrganizationCanEnqueue(input.organizationId, input.jobType);

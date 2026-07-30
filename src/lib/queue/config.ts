@@ -51,6 +51,11 @@ function pickRawRedisUrl(): { raw: string; source: string } | null {
   return null;
 }
 
+/** Which env var supplied the Redis URL (REDIS_URL, QUEUE_REDIS_URL, …). */
+export function getRedisUrlEnvSource(): string | null {
+  return pickRawRedisUrl()?.source ?? null;
+}
+
 /** Redact password for logs: rediss://default:****@host:6379 */
 export function sanitizeRedisUrlForLogs(url: string): string {
   try {
