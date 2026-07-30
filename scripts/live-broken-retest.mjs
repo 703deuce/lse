@@ -38,7 +38,7 @@ const PAGE_CHECKS = [
 const RUN_CHECKS = [
   {
     path: `/businesses/${BUSINESS_ID}/growth-audit`,
-    button: /Run.*Audit|Run Audit|Google Business Profile/i,
+    button: /^Run Full Growth Audit$/i,
     apiPath: "/api/growth-audit/run",
   },
   {
