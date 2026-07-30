@@ -11,7 +11,8 @@ const OUT_DIR = process.env.AUDIT_OUT ?? "/opt/cursor/artifacts/live-audit";
 const BUSINESS_ID =
   process.env.AUDIT_BUSINESS_ID ?? "e64dbadd-69bb-4715-a526-6d137c0ae409";
 const PAGE_TIMEOUT = 90_000;
-const RUN_JOB_TIMEOUT = 300_000;
+/** Max wait for the Run POST to return (not full job completion). Ends as soon as the API responds. */
+const RUN_POST_TIMEOUT = Number(process.env.RUN_POST_TIMEOUT_MS ?? 480_000); // 8 min default
 
 const PAGE_CHECKS = [
   {
@@ -39,37 +40,31 @@ const RUN_CHECKS = [
     path: `/businesses/${BUSINESS_ID}/growth-audit`,
     button: /Run.*Audit|Run Audit|Google Business Profile/i,
     apiPath: "/api/growth-audit/run",
-    wait: 120_000,
   },
   {
     path: `/businesses/${BUSINESS_ID}/backlink-gap`,
     button: /Run Backlink|Rescan|Run Gap/i,
     apiPath: "/api/backlink-gap/run",
-    wait: 180_000,
   },
   {
     path: `/businesses/${BUSINESS_ID}/trust`,
-    button: /Find Local Trust|Rescan Market|Search New Market/i,
+    button: /Find Local Trust Opportunities|Rescan Market/i,
     apiPath: "/api/trust/run",
-    wait: 180_000,
   },
   {
     path: `/businesses/${BUSINESS_ID}/keywords`,
     button: /^Run Keyword Check$/i,
-    apiPath: "/api/keywords/check",
-    wait: 120_000,
+    apiPath: "/api/keywords/",
   },
   {
     path: `/businesses/${BUSINESS_ID}/reputation/audit`,
-    button: /Run Reputation|Generate|Sync/i,
+    button: /Run Reputation|Generate|Sync|Refresh/i,
     apiPath: "/api/reputation/sync",
-    wait: 180_000,
   },
   {
     path: `/businesses/${BUSINESS_ID}/ai-visibility`,
     button: /Run Check|Run AI/i,
     apiPath: "/api/ai-visibility/run",
-    wait: 120_000,
   },
 ];
 
@@ -167,14 +162,14 @@ async function checkRunButton(page, cfg) {
       (r) =>
         r.url().includes(cfg.apiPath) &&
         r.request().method() === "POST",
-      { timeout: cfg.wait }
+      { timeout: RUN_POST_TIMEOUT }
     );
 
     await btn.click();
     const resp = await apiPromise.catch(() => null);
 
     if (!resp) {
-      entry.error = "No matching POST within timeout";
+      entry.error = `No matching POST within ${RUN_POST_TIMEOUT / 1000}s`;
       return entry;
     }
 
