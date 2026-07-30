@@ -5,21 +5,41 @@ import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 import { assertRateLimit } from "@/lib/security/rate-limit";
 import { httpErrorFromException } from "@/lib/security/http-errors";
 import { trackProductEvent } from "@/lib/analytics/product-events";
+import {
+  logModuleRunEnqueueFailed,
+  logModuleRunError,
+  logModuleRunQueued,
+  logModuleRunStart,
+  logModuleRunStep,
+} from "@/lib/observability/module-run-log";
+
+const ROUTE = "ai-visibility/run";
+const JOB_TYPE = "ai_visibility_run";
 
 export async function POST(request: Request) {
   let reserved = false;
   let organizationId: string | undefined;
+  let businessId: string | undefined;
   try {
     const body = await request.json();
-    const { businessId, maxPrompts, promptIds } = body as {
+    const parsed = body as {
       businessId?: string;
       maxPrompts?: number;
       promptIds?: string[];
     };
+    businessId = parsed.businessId;
+    const { maxPrompts, promptIds } = parsed;
 
     if (!businessId) {
       return NextResponse.json({ error: "businessId required" }, { status: 400 });
     }
+
+    logModuleRunStart({
+      route: ROUTE,
+      businessId,
+      jobType: JOB_TYPE,
+      action: "enqueue_job",
+    });
 
     const auth = await requireBusinessAccess(businessId);
     const rate = await assertRateLimit({
@@ -42,6 +62,10 @@ export async function POST(request: Request) {
     organizationId = auth.organizationId;
     await reserveUsageOrThrow(auth.organizationId, "ai_visibility_runs_used", 1);
     reserved = true;
+    logModuleRunStep(
+      { route: ROUTE, businessId, organizationId, jobType: JOB_TYPE },
+      "usage_reserved"
+    );
 
     const job = await dispatchFeatureJob({
       jobType: "ai_visibility_run",
@@ -60,6 +84,10 @@ export async function POST(request: Request) {
     });
 
     if (job.enqueueState === "enqueue_failed") {
+      logModuleRunEnqueueFailed(
+        { route: ROUTE, businessId, organizationId, jobType: JOB_TYPE },
+        job
+      );
       await releaseUsage(auth.organizationId, "ai_visibility_runs_used", 1).catch(() => {});
       reserved = false;
       return NextResponse.json(
@@ -76,6 +104,10 @@ export async function POST(request: Request) {
       organizationId: auth.organizationId,
       businessId,
     });
+    logModuleRunQueued(
+      { route: ROUTE, businessId, organizationId, jobType: JOB_TYPE },
+      job
+    );
     return NextResponse.json({
       queued: true,
       status: "queued",
@@ -87,9 +119,19 @@ export async function POST(request: Request) {
     if (reserved && organizationId) {
       await releaseUsage(organizationId, "ai_visibility_runs_used", 1).catch(() => {});
     }
+    logModuleRunError(
+      { route: ROUTE, businessId, organizationId, jobType: JOB_TYPE },
+      "handler",
+      err
+    );
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
-    return httpErrorFromException(err, "AI visibility check failed");
+    return httpErrorFromException(err, "AI visibility check failed", {
+      route: ROUTE,
+      businessId,
+      organizationId,
+      jobType: JOB_TYPE,
+    });
   }
 }

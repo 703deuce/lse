@@ -43,24 +43,65 @@ export function resolveQueueDriver(): QueueDriverName {
 }
 
 export async function enqueueJob(input: EnqueueJobInput): Promise<EnqueueJobResult> {
-  await assertOrganizationCanEnqueue(input.organizationId, input.jobType);
   const driver = resolveQueueDriver();
+  logger.info("job_enqueue_start", {
+    jobType: input.jobType,
+    queueName: input.queueName,
+    organizationId: input.organizationId,
+    businessId: input.businessId,
+    driver,
+    idempotencyKey: input.idempotencyKey ?? null,
+  });
+  try {
+    await assertOrganizationCanEnqueue(input.organizationId, input.jobType);
+  } catch (err) {
+    logger.error("job_enqueue_org_gate_failed", {
+      jobType: input.jobType,
+      organizationId: input.organizationId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
   if (driver === "bullmq") {
     if (!getRedisUrl()) {
       const row = await createLedgerJob(input);
       await markLedgerEnqueueFailed(row.id, "REDIS_URL missing with QUEUE_DRIVER=bullmq");
-      return {
+      const failed = {
         jobId: row.id,
         queueName: input.queueName,
-        driver: "bullmq",
-        enqueueState: "enqueue_failed",
+        driver: "bullmq" as const,
+        enqueueState: "enqueue_failed" as const,
         reused: false,
-        status: "pending",
+        status: "pending" as const,
       };
+      logger.error("job_enqueue_failed", {
+        jobType: input.jobType,
+        jobId: failed.jobId,
+        reason: "REDIS_URL missing with QUEUE_DRIVER=bullmq",
+      });
+      return failed;
     }
-    return bullmqEnqueue(input);
+    const result = await bullmqEnqueue(input);
+    logger.info("job_enqueue_result", {
+      jobType: input.jobType,
+      queueName: input.queueName,
+      jobId: result.jobId,
+      enqueueState: result.enqueueState,
+      driver: result.driver,
+      reused: result.reused,
+    });
+    return result;
   }
-  return databaseEnqueue(input);
+  const result = await databaseEnqueue(input);
+  logger.info("job_enqueue_result", {
+    jobType: input.jobType,
+    queueName: input.queueName,
+    jobId: result.jobId,
+    enqueueState: result.enqueueState,
+    driver: result.driver,
+    reused: result.reused,
+  });
+  return result;
 }
 
 export async function getJobStatus(jobId: string): Promise<QueueJobRecord | null> {

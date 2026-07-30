@@ -24,6 +24,14 @@ import {
 } from "@/lib/plans";
 import { assertCanEnqueueMapsScan } from "@/lib/queue";
 import { assertRateLimit } from "@/lib/security/rate-limit";
+import {
+  logModuleRunError,
+  logModuleRunQueued,
+  logModuleRunStart,
+  logModuleRunStep,
+} from "@/lib/observability/module-run-log";
+
+const ROUTE = "scans/create";
 
 const PARITY_SUMMARY = {
   search_engine: LOCAL_FALCON_PARITY.searchEngine,
@@ -44,6 +52,8 @@ function isUsableCenter(lat: number | null | undefined, lng: number | null | und
 }
 
 export async function POST(request: Request) {
+  let businessId: string | undefined;
+  let organizationId: string | undefined;
   try {
     const body = await request.json();
     const parsed = createScanSchema.safeParse(body);
@@ -52,7 +62,7 @@ export async function POST(request: Request) {
     }
 
     const {
-      businessId,
+      businessId: bid,
       gridSize,
       radiusMeters,
       device,
@@ -66,10 +76,19 @@ export async function POST(request: Request) {
       centerLng: bodyLng,
       centerLabel: bodyLabel,
     } = parsed.data;
+    businessId = bid;
     const mapsProviderMode = parseMapsProviderMode(rawMode ?? DEFAULT_MAPS_PROVIDER_MODE);
     const dfsExecutionMode = parseDfsExecutionMode(rawDfsMode ?? DEFAULT_DFS_EXECUTION_MODE);
     const locationZoom = parseMapsLocationZoom(rawZoom);
+    logModuleRunStart({
+      route: ROUTE,
+      businessId,
+      action: "create_maps_scan_and_enqueue",
+      gridSize,
+      radiusMeters,
+    });
     const auth = await requireBusinessAccess(businessId);
+    organizationId = auth.organizationId;
     const rate = await assertRateLimit({
       key: `scans-create:${auth.organizationId}`,
       maxPerWindow: 25,
@@ -215,14 +234,42 @@ export async function POST(request: Request) {
 
       if (error || !batch) {
         await releaseUsage(auth.organizationId, "map_credits_used", creditsNeeded).catch(() => {});
+        logModuleRunError(
+          { route: ROUTE, businessId, organizationId, action: "scan_batch_insert" },
+          "scan_batch_insert",
+          error ?? new Error("Failed to create scan batch")
+        );
         return NextResponse.json({ error: error?.message ?? "Failed to create scan" }, { status: 500 });
       }
+
+      logModuleRunStep(
+        { route: ROUTE, businessId, organizationId },
+        "scan_batch_created",
+        { scanBatchId: batch.id, gridSize, creditsNeeded }
+      );
 
       const dispatched = await dispatchScanProcessing({
         scanBatchId: batch.id,
         businessId,
         organizationId: auth.organizationId,
       });
+
+      logModuleRunQueued(
+        {
+          route: ROUTE,
+          businessId,
+          organizationId,
+          jobType: "process_scan",
+          action: "maps_scan_enqueue",
+        },
+        {
+          jobId: dispatched.jobId,
+          enqueueState: "enqueued",
+          driver: dispatched.driver,
+          reused: false,
+          queueName: "maps-scan",
+        }
+      );
 
       return NextResponse.json({
         scan: batch,
@@ -238,6 +285,11 @@ export async function POST(request: Request) {
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
-    return httpErrorFromException(err, "Scan create failed");
+    logModuleRunError({ route: ROUTE, businessId, organizationId }, "handler", err);
+    return httpErrorFromException(err, "Scan create failed", {
+      route: ROUTE,
+      businessId,
+      organizationId,
+    });
   }
 }

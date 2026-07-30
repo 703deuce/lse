@@ -3,17 +3,38 @@ import { httpErrorFromException } from "@/lib/security/http-errors";
 import { requireBusinessAccess } from "@/lib/auth/api-auth";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 import { assertRateLimit } from "@/lib/security/rate-limit";
+import {
+  logModuleRunEnqueueFailed,
+  logModuleRunError,
+  logModuleRunQueued,
+  logModuleRunStart,
+} from "@/lib/observability/module-run-log";
+
+const ROUTE = "keywords/check";
+const JOB_TYPE = "keyword_check";
 
 export async function POST(request: Request) {
+  let businessId: string | undefined;
+  let organizationId: string | undefined;
   try {
     const body = await request.json();
-    const { businessId, keywordIds } = body as { businessId?: string; keywordIds?: string[] };
+    const parsed = body as { businessId?: string; keywordIds?: string[] };
+    businessId = parsed.businessId;
+    const { keywordIds } = parsed;
 
     if (!businessId) {
       return NextResponse.json({ error: "businessId required" }, { status: 400 });
     }
 
+    logModuleRunStart({
+      route: ROUTE,
+      businessId,
+      jobType: JOB_TYPE,
+      action: "enqueue_job",
+    });
+
     const auth = await requireBusinessAccess(businessId);
+    organizationId = auth.organizationId;
     const rate = await assertRateLimit({
       key: `keywords-check:${auth.organizationId}`,
       maxPerWindow: 25,
@@ -43,12 +64,20 @@ export async function POST(request: Request) {
     });
 
     if (job.enqueueState === "enqueue_failed") {
+      logModuleRunEnqueueFailed(
+        { route: ROUTE, businessId, organizationId, jobType: JOB_TYPE },
+        job
+      );
       return NextResponse.json(
         { error: "Failed to queue keyword check", jobId: job.jobId },
         { status: 503 }
       );
     }
 
+    logModuleRunQueued(
+      { route: ROUTE, businessId, organizationId, jobType: JOB_TYPE },
+      job
+    );
     return NextResponse.json({
       queued: true,
       status: "queued",
@@ -56,6 +85,16 @@ export async function POST(request: Request) {
       queueDriver: job.driver,
     });
   } catch (err) {
-    return httpErrorFromException(err, "Keyword check failed");
+    logModuleRunError(
+      { route: ROUTE, businessId, organizationId, jobType: JOB_TYPE },
+      "handler",
+      err
+    );
+    return httpErrorFromException(err, "Keyword check failed", {
+      route: ROUTE,
+      businessId,
+      organizationId,
+      jobType: JOB_TYPE,
+    });
   }
 }

@@ -5,6 +5,15 @@ import { isDevPreviewBusiness } from "@/lib/auth/dev";
 import { hasFeature } from "@/lib/plans";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 import { assertRateLimit } from "@/lib/security/rate-limit";
+import {
+  logModuleRunEnqueueFailed,
+  logModuleRunError,
+  logModuleRunQueued,
+  logModuleRunStart,
+  logModuleRunStep,
+} from "@/lib/observability/module-run-log";
+
+const ROUTE = "reputation/sync";
 
 /**
  * One-click reputation refresh: queues Review Momentum (fills feed / analytics /
@@ -12,18 +21,28 @@ import { assertRateLimit } from "@/lib/security/rate-limit";
  * response audit) so every Intelligence page can load from the same sync.
  */
 export async function POST(request: Request) {
+  let businessId: string | undefined;
+  let organizationId: string | undefined;
   try {
     const body = await request.json();
-    const { businessId, competitorLimit, lookbackDays, forceRefresh } = body as {
+    const parsed = body as {
       businessId?: string;
       competitorLimit?: number;
       lookbackDays?: number;
       forceRefresh?: boolean;
     };
+    businessId = parsed.businessId;
+    const { competitorLimit, lookbackDays, forceRefresh } = parsed;
 
     if (!businessId) {
       return NextResponse.json({ error: "businessId required" }, { status: 400 });
     }
+
+    logModuleRunStart({
+      route: ROUTE,
+      businessId,
+      action: "enqueue_reputation_jobs",
+    });
 
     // Local preview business has no queue/DB — acknowledge the CTA without enqueue.
     if (isDevPreviewBusiness(businessId)) {
@@ -40,6 +59,8 @@ export async function POST(request: Request) {
     }
 
     const auth = await requireBusinessAccess(businessId);
+    organizationId = auth.organizationId;
+    logModuleRunStep({ route: ROUTE, businessId, organizationId }, "auth_ok");
     const rate = await assertRateLimit({
       key: `reputation-sync:${auth.organizationId}`,
       maxPerWindow: 10,
@@ -90,6 +111,17 @@ export async function POST(request: Request) {
             ? "Failed to queue review momentum run"
             : undefined,
       });
+      if (momentum.enqueueState === "enqueue_failed") {
+        logModuleRunEnqueueFailed(
+          { route: ROUTE, businessId, organizationId, jobType: "review_momentum_run" },
+          momentum
+        );
+      } else {
+        logModuleRunQueued(
+          { route: ROUTE, businessId, organizationId, jobType: "review_momentum_run" },
+          momentum
+        );
+      }
     } else {
       jobs.push({
         kind: "review_momentum_run",
@@ -124,6 +156,17 @@ export async function POST(request: Request) {
           ? "Failed to queue reputation audit"
           : undefined,
     });
+    if (audit.enqueueState === "enqueue_failed") {
+      logModuleRunEnqueueFailed(
+        { route: ROUTE, businessId, organizationId, jobType: "reputation_audit" },
+        audit
+      );
+    } else {
+      logModuleRunQueued(
+        { route: ROUTE, businessId, organizationId, jobType: "reputation_audit" },
+        audit
+      );
+    }
 
     const anyQueued = jobs.some((job) => job.queued);
     if (!anyQueued) {
@@ -144,6 +187,11 @@ export async function POST(request: Request) {
       jobs,
     });
   } catch (err) {
-    return httpErrorFromException(err, "Reputation sync failed");
+    logModuleRunError({ route: ROUTE, businessId, organizationId }, "handler", err);
+    return httpErrorFromException(err, "Reputation sync failed", {
+      route: ROUTE,
+      businessId,
+      organizationId,
+    });
   }
 }

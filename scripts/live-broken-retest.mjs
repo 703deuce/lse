@@ -73,6 +73,7 @@ function urlFor(p) {
 }
 
 async function checkPageLoad(page, check) {
+  console.log(`  [PAGE ONLY — not enqueueing a job] ${check.label}`);
   const result = {
     label: check.label,
     url: check.url,
@@ -156,6 +157,7 @@ async function checkRunButton(page, cfg) {
   };
 
   try {
+    console.log(`  [RUN JOB] Open page: ${cfg.path}`);
     await page.goto(urlFor(cfg.path), {
       waitUntil: "domcontentloaded",
       timeout: PAGE_TIMEOUT,
@@ -173,8 +175,14 @@ async function checkRunButton(page, cfg) {
     }
     if (!btn) {
       entry.error = "Button not found";
+      console.log(`  [RUN JOB] FAIL — no Run button on page after waiting`);
       return entry;
     }
+
+    const btnLabel = ((await btn.innerText().catch(() => "")) || "").trim();
+    console.log(
+      `  [RUN JOB] Clicking "${btnLabel}" — waiting up to ${RUN_POST_TIMEOUT / 1000}s for POST ${cfg.apiPath}`
+    );
 
     const apiPromise = page.waitForResponse(
       (r) =>
@@ -200,6 +208,9 @@ async function checkRunButton(page, cfg) {
       entry.apiBody = null;
     }
     entry.ok = resp.status() < 400;
+    console.log(
+      `  [RUN JOB] POST ${entry.apiUrl} → HTTP ${entry.apiStatus} (${entry.waitedMs}ms) body=${entry.apiBody?.slice(0, 120) ?? ""}`
+    );
     if (!entry.ok) {
       entry.error = entry.apiBody;
     }
@@ -208,6 +219,25 @@ async function checkRunButton(page, cfg) {
   }
 
   return entry;
+}
+
+/** Direct API POST (no UI) — same as clicking Run; check Coolify web logs for module_run_* lines. */
+async function checkDirectApi(page, { label, url, body }) {
+  console.log(`\n[DIRECT API] ${label}`);
+  console.log(`  POST ${url}`);
+  const r = await page.evaluate(async ({ url, body }) => {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return { status: res.status, body: (await res.text()).slice(0, 500) };
+  }, { url, body });
+  const ok = r.status < 400;
+  console.log(`  → HTTP ${r.status} ${ok ? "OK" : "FAIL"}`);
+  console.log(`  → ${r.body}`);
+  console.log(`  (Check Coolify WEB app logs for: module_run_start, job_enqueue_start, api_http_error)`);
+  return { label, ok, ...r };
 }
 
 async function main() {
@@ -228,7 +258,27 @@ async function main() {
   });
   await page.waitForTimeout(1500);
 
-  console.log("=== Page loads (previously broken) ===");
+  console.log("\n=== Direct API enqueue (no page UI — triggers Coolify web logs) ===");
+  const directResults = [];
+  const directBody = { businessId: BUSINESS_ID };
+  for (const ep of [
+    { label: "growth-audit/run", url: `${BASE}/api/growth-audit/run` },
+    { label: "backlink-gap/run", url: `${BASE}/api/backlink-gap/run`, body: { ...directBody, forceRefresh: true } },
+    { label: "trust/run", url: `${BASE}/api/trust/run` },
+    { label: "keywords/check", url: `${BASE}/api/keywords/check` },
+    { label: "reputation/sync", url: `${BASE}/api/reputation/sync` },
+    { label: "ai-visibility/run", url: `${BASE}/api/ai-visibility/run` },
+  ]) {
+    directResults.push(
+      await checkDirectApi(page, {
+        label: ep.label,
+        url: ep.url,
+        body: ep.body ?? directBody,
+      })
+    );
+  }
+
+  console.log("\n=== Page loads (previously broken) ===");
   const pageResults = [];
   for (const check of PAGE_CHECKS) {
     process.stdout.write(`${check.label} ... `);
@@ -251,11 +301,14 @@ async function main() {
     base: BASE,
     businessId: BUSINESS_ID,
     summary: {
+      directApiTested: directResults.length,
+      directApiPassed: directResults.filter((r) => r.ok).length,
       pagesTested: pageResults.length,
       pagesPassed: pageResults.filter((r) => r.ok).length,
       runsTested: runResults.length,
       runsPassed: runResults.filter((r) => r.ok).length,
     },
+    directResults,
     pageResults,
     runResults,
   };
@@ -295,12 +348,13 @@ async function main() {
   console.log("\nDone.");
   console.log(`JSON: ${jsonPath}`);
   console.log(
-    `Pages ${report.summary.pagesPassed}/${report.summary.pagesTested}, Runs ${report.summary.runsPassed}/${report.summary.runsTested}`
+    `Direct API ${report.summary.directApiPassed}/${report.summary.directApiTested}, Pages ${report.summary.pagesPassed}/${report.summary.pagesTested}, UI Runs ${report.summary.runsPassed}/${report.summary.runsTested}`
   );
 
   await browser.close();
 
   const allOk =
+    report.summary.directApiPassed === report.summary.directApiTested &&
     report.summary.pagesPassed === report.summary.pagesTested &&
     report.summary.runsPassed === report.summary.runsTested;
   process.exit(allOk ? 0 : 1);

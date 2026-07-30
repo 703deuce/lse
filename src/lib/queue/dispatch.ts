@@ -47,6 +47,18 @@ export async function dispatchFeatureJob(
   const result = await enqueueJob(enqueueInput);
   const driver = resolveQueueDriver();
 
+  logger.info("dispatch_feature_job_enqueued", {
+    jobType: input.jobType,
+    queueName,
+    jobId: result.jobId,
+    enqueueState: result.enqueueState,
+    driver: result.driver,
+    reused: result.reused,
+    kickImmediately: input.kickImmediately !== false,
+    organizationId: input.organizationId,
+    businessId: input.businessId,
+  });
+
   if (
     driver === "database" &&
     input.kickImmediately !== false &&

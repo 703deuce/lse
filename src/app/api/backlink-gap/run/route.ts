@@ -6,23 +6,44 @@ import { loadLatestBacklinkGapRun } from "@/lib/backlink-gap/engine";
 import { hasFeature, PlanLimitError, releaseUsage, reserveUsageOrThrow } from "@/lib/plans";
 import { dispatchFeatureJob } from "@/lib/queue/dispatch";
 import { assertRateLimit } from "@/lib/security/rate-limit";
+import {
+  logModuleRunEnqueueFailed,
+  logModuleRunError,
+  logModuleRunQueued,
+  logModuleRunStart,
+  logModuleRunStep,
+} from "@/lib/observability/module-run-log";
+
+const ROUTE = "backlink-gap/run";
+const JOB_TYPE = "backlink_gap_run";
 
 export async function POST(request: Request) {
   let reserved = false;
   let organizationId: string | undefined;
+  let businessId: string | undefined;
   try {
     const body = await request.json();
-    const { businessId, scanBatchId, competitorLimit, selectedCompetitorIds, forceRefresh } = body as {
+    const parsed = body as {
       businessId?: string;
       scanBatchId?: string;
       competitorLimit?: number;
       selectedCompetitorIds?: string[];
       forceRefresh?: boolean;
     };
+    businessId = parsed.businessId;
+    const { scanBatchId, competitorLimit, selectedCompetitorIds, forceRefresh } = parsed;
 
     if (!businessId) {
       return NextResponse.json({ error: "businessId required" }, { status: 400 });
     }
+
+    logModuleRunStart({
+      route: ROUTE,
+      businessId,
+      jobType: JOB_TYPE,
+      action: "enqueue_job",
+      forceRefresh: Boolean(forceRefresh),
+    });
 
     const auth = await requireBusinessAccess(businessId);
     organizationId = auth.organizationId;
@@ -61,6 +82,11 @@ export async function POST(request: Request) {
         .maybeSingle();
       if (recent) {
         const loaded = await loadLatestBacklinkGapRun(businessId);
+        logModuleRunStep(
+          { route: ROUTE, businessId, organizationId, jobType: JOB_TYPE },
+          "cache_hit_skip_enqueue",
+          { runId: recent.id }
+        );
         return NextResponse.json({
           runId: recent.id,
           status: (recent.status as "ready" | "partial") ?? "ready",
@@ -98,6 +124,10 @@ export async function POST(request: Request) {
     });
 
     if (job.enqueueState === "enqueue_failed") {
+      logModuleRunEnqueueFailed(
+        { route: ROUTE, businessId, organizationId, jobType: JOB_TYPE },
+        job
+      );
       await releaseUsage(auth.organizationId, "backlink_gap_runs_used", 1).catch(() => {});
       reserved = false;
       return NextResponse.json(
@@ -110,6 +140,10 @@ export async function POST(request: Request) {
       await releaseUsage(auth.organizationId, "backlink_gap_runs_used", 1).catch(() => {});
     }
     reserved = false;
+    logModuleRunQueued(
+      { route: ROUTE, businessId, organizationId, jobType: JOB_TYPE },
+      job
+    );
     return NextResponse.json({
       queued: true,
       status: "queued",
@@ -121,9 +155,19 @@ export async function POST(request: Request) {
     if (reserved && organizationId) {
       await releaseUsage(organizationId, "backlink_gap_runs_used", 1).catch(() => {});
     }
+    logModuleRunError(
+      { route: ROUTE, businessId, organizationId, jobType: JOB_TYPE },
+      "handler",
+      err
+    );
     if (err instanceof PlanLimitError) {
       return NextResponse.json({ error: err.message, limitKey: err.limitKey }, { status: 402 });
     }
-    return httpErrorFromException(err, "Backlink gap analysis failed");
+    return httpErrorFromException(err, "Backlink gap analysis failed", {
+      route: ROUTE,
+      businessId,
+      organizationId,
+      jobType: JOB_TYPE,
+    });
   }
 }

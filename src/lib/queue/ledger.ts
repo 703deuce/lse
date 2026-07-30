@@ -7,6 +7,7 @@ import type {
 } from "@/lib/queue/types";
 import { PRIORITY_SCORES } from "@/lib/queue/types";
 import { canReuseExistingJob } from "@/lib/queue/idempotency";
+import { logger } from "@/lib/observability/logger";
 
 function priorityScore(priority: EnqueueJobInput["priority"]): number {
   if (typeof priority === "number" && Number.isFinite(priority)) return priority;
@@ -101,6 +102,16 @@ export async function createLedgerJob(input: EnqueueJobInput): Promise<QueueJobR
         if (again && canReuseExistingJob(again)) return again;
       }
     }
+    logger.error("job_queue_insert_failed", {
+      jobType: input.jobType,
+      queueName: input.queueName,
+      organizationId: input.organizationId,
+      businessId: input.businessId,
+      pgMessage: error?.message,
+      pgCode: error?.code,
+      pgDetails: error?.details,
+      pgHint: error?.hint,
+    });
     throw new Error(error?.message ?? "Failed to create job ledger row");
   }
   return rowToRecord(data);

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { EntitlementError } from "@/lib/auth/entitlements";
 import { OrganizationEnqueueError } from "@/lib/auth/org-status";
 import { PlanLimitError } from "@/lib/plans";
+import { logger } from "@/lib/observability/logger";
 
 /** Structured 402/403 for plan limits and entitlements — never leak provider/DB internals. */
 export function httpEntitlementError(err: unknown): NextResponse | null {
@@ -23,8 +24,24 @@ export function httpEntitlementError(err: unknown): NextResponse | null {
 /** Map auth/access exceptions to safe HTTP responses (no stack/provider leakage). */
 export function httpErrorFromException(
   err: unknown,
-  fallbackMessage = "Request could not be completed"
+  fallbackMessage = "Request could not be completed",
+  logContext?: Record<string, unknown>
 ): NextResponse {
+  const message = err instanceof Error ? err.message : String(err);
+  const stack =
+    err instanceof Error ? err.stack?.split("\n").slice(0, 8).join("\n") : undefined;
+  const pgCode =
+    err && typeof err === "object" && "code" in err
+      ? String((err as { code?: string }).code ?? "")
+      : undefined;
+  logger.error("api_http_error", {
+    fallbackMessage,
+    error: message,
+    pgCode: pgCode || undefined,
+    stack,
+    ...logContext,
+  });
+
   const entitlement = httpEntitlementError(err);
   if (entitlement) return entitlement;
 
@@ -41,11 +58,11 @@ export function httpErrorFromException(
     );
   }
 
-  const message = err instanceof Error ? err.message : String(err);
   const code =
-    err && typeof err === "object" && "code" in err
+    pgCode ||
+    (err && typeof err === "object" && "code" in err
       ? String((err as { code?: string }).code ?? "")
-      : "";
+      : "");
   const lower = message.toLowerCase();
 
   if (code === "reauth_required" || lower.includes("reauthentication required")) {

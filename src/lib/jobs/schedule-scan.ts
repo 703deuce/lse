@@ -78,6 +78,11 @@ export async function dispatchScanProcessing(params: {
   businessId: string;
   organizationId: string;
 }): Promise<{ jobId: string; driver: string }> {
+  logger.info("maps_scan_dispatch_start", {
+    scanBatchId: params.scanBatchId,
+    businessId: params.businessId,
+    organizationId: params.organizationId,
+  });
   const result = await enqueueMapsScanJob({
     scanBatchId: params.scanBatchId,
     businessId: params.businessId,
@@ -96,6 +101,17 @@ export async function dispatchScanProcessing(params: {
       enqueueState: result.enqueueState,
     });
   }
+
+  logger.info("maps_scan_dispatch_complete", {
+    scanBatchId: params.scanBatchId,
+    jobId: result.jobId,
+    enqueueState: result.enqueueState,
+    driver,
+    note:
+      driver === "database"
+        ? "Web after() or cron will process scan batch"
+        : "BullMQ worker must consume maps-scan queue",
+  });
 
   return { jobId: result.jobId, driver };
 }
