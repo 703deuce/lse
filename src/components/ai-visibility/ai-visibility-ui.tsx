@@ -95,6 +95,13 @@ export function AiVisibilityHeaderRow({
           type="button"
           onClick={onRun}
           disabled={isRunning || !hasPrimary}
+          title={
+            !hasPrimary
+              ? "Add a primary prompt under Manage Prompts first"
+              : isRunning
+                ? "Check in progress"
+                : undefined
+          }
           className={mock.btnPrimary}
         >
           <Play className="h-3.5 w-3.5" />
