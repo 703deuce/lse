@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/db/client";
+import { randomUUID } from "crypto";
 import { reclaimStaleInFlightScans } from "@/lib/jobs/schedule-scan";
 import { maybeRunDataRetentionCleanup } from "@/lib/jobs/retention";
 import { logger } from "@/lib/observability/logger";
@@ -33,6 +34,7 @@ export async function enqueueScanJob(scanBatchId: string, businessId?: string): 
   if (!organizationId || !businessId) {
     const supabase = createServiceClient();
     await supabase.from("job_queue").insert({
+      id: randomUUID(),
       job_type: "process_scan",
       payload: { scanBatchId, businessId },
       status: "pending",

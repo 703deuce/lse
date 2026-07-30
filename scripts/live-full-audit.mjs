@@ -303,7 +303,7 @@ async function runModuleButtons(page, businessId) {
     },
     {
       path: `/businesses/${businessId}/keywords`,
-      button: /Run Keyword|Check Keywords/i,
+      button: /Run Keyword|Check Keywords|Add Keyword/i,
       wait: 120_000,
     },
     {

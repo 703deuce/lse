@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/db/client";
+import { randomUUID } from "crypto";
 import type {
   EnqueueJobInput,
   EnqueueState,
@@ -36,6 +37,7 @@ export async function createLedgerJob(input: EnqueueJobInput): Promise<QueueJobR
   const { data, error } = await supabase
     .from("job_queue")
     .insert({
+      id: randomUUID(),
       job_type: input.jobType,
       payload: input.payload,
       status: "pending",
@@ -71,6 +73,7 @@ export async function createLedgerJob(input: EnqueueJobInput): Promise<QueueJobR
         const retry = await supabase
           .from("job_queue")
           .insert({
+            id: randomUUID(),
             job_type: input.jobType,
             payload: input.payload,
             status: "pending",
